@@ -52,7 +52,7 @@ pub struct Dirent {
 /// larger file before reading; the read also checks the bytes actually returned.
 pub const MAX_FILE_SIZE_BYTES: u64 = 1 << 17;
 
-/// `maxOffset` in `fjs/effects/node/module.f.mjs`: `Number.MAX_SAFE_INTEGER`.
+/// `maxOffset` in `fjs/effects/node/module.f.js`: `Number.MAX_SAFE_INTEGER`.
 const MAX_OFFSET: u64 = (1 << 53) - 1;
 
 /// The Node error code of a failure, where `std` has a kind for it: what a
@@ -280,7 +280,7 @@ fn read_bounded(path: &str, reader: impl Read) -> Result<Vec<u8>, IoError> {
 /// A whole file as `readWhole` answers it: windows of one `Vec` each, so a
 /// file of any size is read. A path that names no regular file is refused
 /// before it is opened, with `notAFileCode` and `notAFileMessage` of
-/// `fjs/effects/node/module.f.mjs`: a FIFO with no writer would hold the open.
+/// `fjs/effects/node/module.f.js`: a FIFO with no writer would hold the open.
 pub fn read_whole(path: &str) -> Result<Vec<Vec<u8>>, IoError> {
     let metadata = fs::metadata(path).map_err(|e| failure(&e, "stat", path))?;
     if !metadata.is_file() {
@@ -375,7 +375,7 @@ pub fn write_bytes(path: &str, at: f64, data: &[u8]) -> Result<(), IoError> {
     sync(&file).map_err(|e| failure(&e, "close", path))
 }
 
-/// `windowRefusal` of `fjs/effects/node/module.f.mjs`: the numbers a positional
+/// `windowRefusal` of `fjs/effects/node/module.f.js`: the numbers a positional
 /// read refuses, before a byte is read, in the words both runners use.
 fn window_refusal(at: f64, size: f64) -> Option<String> {
     if at.fract() != 0.0 || !at.is_finite() {

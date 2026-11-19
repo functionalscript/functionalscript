@@ -60,7 +60,7 @@ output:
   `gen.*`, which `npm run gen` rebuilds, as NaNVM's other generated Rust is.
 - **The `.wasm` and its WAT are built during website deployment**, in
   ignored `nanvm/demos/wasm/`. `nanvm/demos/gen.build.sh`, generated with
-  the samples' Rust by [`fjs/nanvm/demos`](../fjs/nanvm/demos/module.f.mjs),
+  the samples' Rust by [`fjs/nanvm/demos`](../fjs/nanvm/demos/module.f.js),
   builds them with the pinned Rust during the Cloudflare build.
   Local website builds run this script in the shared shell first.
 - **The page fetches** the `.wasm` and the WAT by the paths the build script
@@ -79,19 +79,19 @@ built:
   JavaScript module was imported before the run, then times `run_sample`,
   which performs it on `nanvm-effects-node`'s host and keeps standard output
   for the page to read back with `output_byte`.
-- **The page** is [`fjs/nanvm/demos/page`](../fjs/nanvm/demos/page/module.f.mjs),
+- **The page** is [`fjs/nanvm/demos/page`](../fjs/nanvm/demos/page/module.f.js),
   a demo over two new browser operations,
   [`effects/browser`](../fjs/effects/browser/types.ts)'s `fetchText` and
   `instantiate`.
 - **The build script** builds `nanvm-demos` for `wasm32-unknown-unknown`,
-  and [`fjs/nanvm/demos/publish`](../fjs/nanvm/demos/publish/module.f.mjs)
+  and [`fjs/nanvm/demos/publish`](../fjs/nanvm/demos/publish/module.f.js)
   copies the module to `nanvm/demos/wasm/`, served after the website build,
   and writes each sample's WAT beside it with
   [`fjs/media/wasm`](../fjs/media/wasm/README.md)'s parser and WAT writer,
   which lay it out as the `wasmprinter` crate did. The WAT holds only the
   functions Rust compiled from the sample's module, picked by their names in
   the module's name section, demangled with
-  [`fjs/rust/demangle`](../fjs/rust/demangle/module.f.mjs). NaNVM and `std`
+  [`fjs/rust/demangle`](../fjs/rust/demangle/module.f.js). NaNVM and `std`
   are most of the module, the same for every sample, and left out. The WAT
   names every function as Rust does, since the name section is demangled
   before it is printed. A Rust publisher with `wasmparser`, `wasmprinter`

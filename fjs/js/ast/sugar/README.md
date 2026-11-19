@@ -6,7 +6,7 @@ loop statements, targeted loop/function exits and loops with an optional
 resolved `for` step. These constructs contain no generated functions, capture
 frames or immutable assignment versions. The parser retains source legality
 and diagnostics; representing a construct here does not admit new source syntax.
-[`fjs/compiler/sugar`](../../../compiler/sugar/demo.f.mjs) shows this pass's
+[`fjs/compiler/sugar`](../../../compiler/sugar/demo.f.js) shows this pass's
 input and output side by side, as graphs.
 
 [`pattern`](./pattern/module.f.js) plans checked patterns before the complete
@@ -60,14 +60,14 @@ merge their expression value and changed bindings through explicit FAST branch
 results. Loop conditions pass their updates to the body and to their final false
 exit, defaults pass reached updates to subsequent parameters, and switch labels
 retain only the work and updates of reached labels. The shared
-[`returns`](../returns/module.f.mjs) operand sequencer owns member lookup,
+[`returns`](../returns/module.f.js) operand sequencer owns member lookup,
 optional regions, spread expansion and object-key conversion. Normalization
 evaluates resolved source recipes through that sequencer's immutable binding
 skeleton rather than duplicating these rules. Recipe re-entry and operand
 regions share an explicit task worklist, including deep source operator chains
 and switch case and label lists.
 Expressions with no outer writes retain their established normalization path.
-[`effects`](./effects/module.f.mjs) indexes source writes once for this
+[`effects`](./effects/module.f.js) indexes source writes once for this
 dispatch. It indexes held function bodies and defaults independently without
 treating function construction as their execution.
 

@@ -2,7 +2,7 @@
  * An `objects/info/alternates` file, decoded: the object directories it names,
  * in the order it names them, as {@link alternatesIn} answers them. A pure
  * decoder over the file's text — reading the file, and searching the
- * directories it names, is [`fjs/git/store`](../store/module.f.mjs)'s.
+ * directories it names, is [`fjs/git/store`](../store/module.f.js)'s.
  *
  * Every line shape here was measured against Git 2.43.0, and every line
  * answers a path: a shape this reader does not follow Git on is a miss and not

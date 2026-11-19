@@ -84,5 +84,5 @@ guessed.
 
 ### Related
 
-- `fjs/effects/node/virtual/module.f.mjs` — `listen`, and `State.listening`.
+- `fjs/effects/node/virtual/module.f.js` — `listen`, and `State.listening`.
 - [`fjs/web`](../../../../web/README.md) — binds `127.0.0.1`, one server.

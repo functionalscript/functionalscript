@@ -114,7 +114,7 @@ work for that input again:
   `$ref`-style back-references, or a JS value someone else already deduplicated) — a
   purely textual/byte serialization needs its own explicit sharing encoding
   (back-references by index, similar to `$defs`/`$ref` in
-  `../../media/json/schema/module.f.mjs`) before there is anything to key a
+  `../../media/json/schema/module.f.js`) before there is anything to key a
   `WeakMap` on.
 - For `validate`, the memo only needs to record "already validated this reference, and
   it passed" — no output to reuse, since `validate` returns the input as-is. This is a
@@ -134,7 +134,7 @@ generic engine or as an edag-specific layer on top — isn't decided yet.
   — "The core invariant" and subject 1 (sharing is semantic), subject 4 (the contrasting
   case where identity is *not* observable), and "Validation" (the public-input threat
   model this DoS angle falls under).
-- [`../parse/module.f.mjs`](../parse/module.f.mjs) — today's identity-oblivious reader.
-- [`../validate/module.f.mjs`](../validate/module.f.mjs) — today's non-memoizing,
+- [`../parse/module.f.js`](../parse/module.f.js) — today's identity-oblivious reader.
+- [`../validate/module.f.js`](../validate/module.f.js) — today's non-memoizing,
   cycle-unsafe reader.
 - [`parse` and `validate`](../guide/readers/parse-and-validate/README.md) — the two schema-form readers.

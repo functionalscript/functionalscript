@@ -72,7 +72,7 @@ root reconstruction. Loop transfers still require a locally owned target.
 Rest/default/spread invocation transitions use the same contract as
 [tail-call analysis](../../../to_fast/README.md#tail-call-eligibility).
 
-The [owning-tail producer](../owning/module.f.mjs) also creates invocation roots
+The [owning-tail producer](../owning/module.f.js) also creates invocation roots
 before inner loops become helpers. It carries the actual root identity through
 completion lowering. `_directOwningInvocationRoot` resolves only that trusted
 root, including a terminal root without normal results. Completion packets can

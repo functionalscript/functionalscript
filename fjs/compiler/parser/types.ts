@@ -1,5 +1,5 @@
 /**
- * Type-level API for `fjs/compiler/parser/module.f.mjs`: the resolved source
+ * Type-level API for `fjs/compiler/parser/module.f.js`: the resolved source
  * record and the `ParseError` shape `parseFromTokens` reports. The syntax tree it folds is
  * `./syntax/types.ts`'s, and the input alphabet the grammar's, in
  * `./grammar/types.ts`.

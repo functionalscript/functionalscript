@@ -1,0 +1,301 @@
+/**
+ * The JavaScript token grammar: one token, as the module tokenizer reads them,
+ * spelled LL(1) for `../../ll1`. A file is not `repeatFrom0(token)` — in a
+ * whole-file grammar a token's follow set is the next token's first set, so
+ * every greedy token is a first/follow conflict — but one token at a time,
+ * the parser resumed where the last token ended (`../../ll1`, "A token
+ * layer resumes the parser"). Nothing follows a token here, and that is
+ * what makes the grammar LL(1).
+ *
+ * The classical grammar this one replaced, which a backtracking backend
+ * read, was deleted with `fjs/bnf`. Four things are spelled differently
+ * from it, each a conflict measured before the port and recorded in
+ * `fjs/compiler/README.md` ("Both grammars are LL(1)"):
+ *
+ * - the block comment's `*` is left-factored: after a `*`, a `/` is the
+ *   end, another `*` is looked at again, and anything else is content;
+ * - the `/` shared by a comment and the division operator is one rule,
+ *   {@link slash}, deciding on the symbol after it;
+ * - the operators are a prefix tree, {@link operator}, built by
+ *   `literals` from the list;
+ * - a number has no poison branch: `123abc` reads as the number `123`
+ *   followed by the identifier `abc`, and the layer above the tokens
+ *   refuses the two for standing side by side, as that record says.
+ *
+ * Quoted strings add braced Unicode escapes to JSON's; single quotes admit delimiter,
+ * vertical-tab and two-digit hexadecimal escapes ({@link string}). Decimal
+ * and hexadecimal digits reuse JSON's rules;
+ * JavaScript's digit runs add optional separators between digits. A
+ * line comment stops before its newline, which is the next token; the
+ * classical grammar swallowed it and split it back out below the
+ * grammar. Whitespace is one symbol per token, as it was there.
+ *
+ * Templates are chunks: {@link template} begins at a backtick, and
+ * {@link templateContinuation} at a substitution's closing brace. Each
+ * ends at a backtick or `${`. The tokenizer's substitution context selects
+ * the continuation rule; the grammar reads every character inside it.
+ *
+ * @module
+ *
+ * @import { Rule, Tuple } from '../../types.ts'
+ * @import { AfterStar, Content, JsToken, TemplateAfterDollar, TemplateContent, TriviaKind } from './types.ts'
+ */
+
+import { literals, option, range, remove, repeatFrom0, set, union, unicodeMax } from '../../module.f.js'
+import { digit, escape, hex, uint } from '../json/module.f.js'
+
+/** Every symbol of the alphabet: a code point. */
+const any = range(`\u0000${unicodeMax}`)
+
+/** One whitespace symbol; a run of them is a run of tokens. */
+export const ws = set(' \t')
+
+/**
+ * The four line terminators ECMAScript names, its `LineTerminator`: line
+ * feed, carriage return, and the Unicode line and paragraph separators.
+ * The grammar reads the first two as newlines and admits the separators
+ * in a string literal alone, as JSON does: outside one they are no token,
+ * since an invisible line break is no line break here. A comment ends
+ * where JavaScript's ends, at any of the four, so what a separator would
+ * begin is never read as comment text — the separator is the error.
+ */
+export const lineTerminators = /**@type {const}*/(['\n', '\r', '\u2028', '\u2029'])
+
+/** The two line terminators that are not a newline here, and no token either. */
+const separators = set('\u2028\u2029')
+
+/** One newline symbol. */
+export const newLine = set('\n\r')
+
+/**
+ * The rule above the grammar for the trivia it reads one symbol at a time:
+ * a maximal run of whitespace and newlines is one token, and the run is
+ * `nl` if it holds any newline — equal kinds coalesce, `nl` absorbs `ws`.
+ * Stated once, here, so that every reader of the grammar folds by the same
+ * rule rather than each restating it with only the proofs to catch a drift.
+ *
+ * @type {(a: TriviaKind, b: TriviaKind) => TriviaKind}
+ */
+export const mergeTrivia = (a, b) => a === 'nl' || b === 'nl' ? 'nl' : 'ws'
+
+/**
+ * Whether a token kind is trivia: whitespace, a newline or a comment — what
+ * stands between two tokens without being one of them. Stated here, beside
+ * {@link mergeTrivia}, so that a new comment kind changes every reader of
+ * the grammar at once rather than one copy at a time.
+ *
+ * @type {(kind: JsToken['kind']) => boolean}
+ */
+export const isTrivia = kind => kind === 'ws' || kind === 'nl' || kind === '//' || kind === '/*'
+
+const idStart = /**@type {const}*/({
+    smallLetter: range('az'),
+    bigLetter: range('AZ'),
+    lowLine: '_',
+    dollarSign: '$',
+})
+
+const idChar = /**@type {const}*/({ ...idStart, digit })
+
+/** JSON's escape: the backslash, then a simple escape's character or `u`. */
+const [backslash, { c: simple }] = escape
+
+/** Unicode code unit or code point; the decoder checks the code-point range. */
+export const unicodeEscape = /** @type {const} */ (['u', {
+    braced: ['{', hex, repeatFrom0(hex), '}'],
+    fixed: [hex, hex, hex, hex],
+}])
+
+/** Common quoted-string escapes, sharing Unicode syntax with templates. */
+export const stringEscape = /** @type {const} */ ([backslash, { c: simple, u: unicodeEscape }])
+
+/**
+ * An escape inside a single-quoted string: JSON's, plus the delimiter
+ * `\'`, the vertical tab `\v`, and exactly two hexadecimal digits
+ * after `\x`. Other JavaScript escapes remain separate proposals
+ * (`spec/todo/2460-js-string-literals.md`).
+ */
+const singleQuoteEscape = /**@type {const}*/([backslash, { c: union(simple, set("'v")), u: unicodeEscape, x: ['x', hex, hex] }])
+
+/**
+ * A string between single quotes: a `"` stands for itself and a `'` is
+ * escaped, with the escapes described by `singleQuoteEscape`.
+ */
+const singleQuoted = /**@type {const}*/(["'", repeatFrom0({
+    c: remove(range(` ${unicodeMax}`), set("'\\")),
+    escape: singleQuoteEscape,
+}), "'"])
+
+/**
+ * A double-quoted or single-quoted string, with fixed-width or braced Unicode
+ * escapes. Both denote
+ * the value their characters and escapes spell; which
+ * quote was used is a spelling, and the token does not keep it.
+ */
+const doubleQuoted = /** @type {const} */ (['"', repeatFrom0({
+    c: remove(range(` ${unicodeMax}`), set('"\\')),
+    escape: stringEscape,
+}), '"'])
+
+export const string = /**@type {const}*/({ double: doubleQuoted, single: singleQuoted })
+
+/**
+ * A template escape. Unlike ordinary strings, templates recognize JavaScript's
+ * additional escapes; tokens retain their exact source spelling alongside
+ * the cooked value. Decimal escapes other than `\0` are
+ * refused here, and `\0`'s following character is checked while decoding.
+ */
+export const templateEscape = /**@type {const}*/(['\\', {
+    unicode: unicodeEscape,
+    hex: ['x', hex, hex],
+    other: remove(any, set('ux123456789')),
+}])
+
+const templateCharacter = remove(any, set('`$\\'))
+
+/**
+ * A template chunk's content, including its closing backtick or `${`.
+ * A dollar is left-factored: its following `{` starts a substitution;
+ * every other following character is ordinary template content.
+ * Its after-dollar state is local: it names itself and this content rule,
+ * so lowering reaches a finite cycle without mutually captured bindings.
+ *
+ * @type {TemplateContent}
+ */
+export const templateContent = () => {
+    /** @type {TemplateAfterDollar} */
+    const afterDollar = () => ['const', {
+        substitution: '{',
+        end: '`',
+        dollar: ['$', afterDollar],
+        escape: [templateEscape, templateContent],
+        other: [remove(templateCharacter, set('{')), templateContent],
+    }]
+    return ['const', {
+        end: '`',
+        dollar: ['$', afterDollar],
+        escape: [templateEscape, templateContent],
+        other: [templateCharacter, templateContent],
+    }]
+}
+
+/**
+ * A standalone after-dollar rule. A lowering of {@link templateContent}
+ * creates its own local state; this export lets a caller parse that state
+ * directly without exposing a forward reference between the two bindings.
+ *
+ * @type {TemplateAfterDollar}
+ */
+export const templateAfterDollar = templateContent()[1].dollar[1]
+
+/** A no-substitution template or a template head, starting at its backtick. */
+export const template = /**@type {const}*/(['`', templateContent])
+
+/** A template middle or tail, read only at the matching substitution `}`. */
+export const templateContinuation = /**@type {const}*/(['}', templateContent])
+
+/** An identifier, or a keyword: the words are told apart above the grammar. */
+export const id = /**@type {const}*/([idStart, repeatFrom0(idChar)])
+
+/** @type (d: Rule) => Rule */
+const intTail = (d) => repeatFrom0([option('_'), d])
+
+// JavaScript digit runs admit one separator between digits. JSON's rules
+// remain separate: its numbers never admit separators.
+const decimalTail = intTail(digit)
+const decimalDigits = [digit, decimalTail]
+const optionFloatSuffix = /**@type {const}*/([
+    option(['.', decimalDigits]),
+    option([set('Ee'), option(set('+-')), decimalDigits]),
+])
+
+/** @type {(prefix: string, d: Rule) => Tuple} */
+const int = (prefix, d) => [set(prefix), d, intTail(d), option('n')]
+
+/**
+ * A number: an unsigned integer, then either the bigint suffix or
+ * an optional fraction and exponent; or, after a leading `0`, `x` or
+ * `X`, hexadecimal digits, `b` or `B`, binary digits, or `o` or `O`, octal
+ * digits, and an optional bigint suffix
+ * ([numbers](../../../../spec/values/numbers/README.md)). A hexadecimal literal
+ * has no fraction and no exponent, so an `e` after `0x` is a digit. The
+ * sign is an operator token.
+ */
+export const number = /**@type {const}*/({
+    zero: [uint[0], {
+        hex: int('xX', hex),
+        binary: int('bB', set('01')),
+        octal: int('oO', set('01234567')),
+        bigint: 'n',
+        real: optionFloatSuffix,
+    }],
+    onenine: [[uint.onenine[0], decimalTail], { bigint: 'n', real: optionFloatSuffix }],
+})
+
+const notNewLine = remove(any, set(lineTerminators.join('')))
+
+const notStar = remove(remove(any, set('*')), separators)
+
+const notStarSlash = remove(remove(any, set('*/')), separators)
+
+/**
+ * The content of a block comment after its `/*`, up to and including the
+ * `*​/` that ends it — or to the end of input, tagged `unterminated`.
+ * Its after-star state closes over this rule, with its own self reference
+ * for another `*`; neither state reads a later binding.
+ *
+ * @type {Content}
+ */
+export const content = () => {
+    /**
+     * `/` ends the comment; another `*` stays here, and anything else is
+     * content. The end of input leaves the comment unterminated.
+     * @type {AfterStar}
+     */
+    const afterStar = () => ['const', {
+        end: '/',
+        star: ['*', afterStar],
+        other: [notStarSlash, content],
+        unterminated: '',
+    }]
+    return ['const', {
+        star: ['*', afterStar],
+        other: [notStar, content],
+        unterminated: '',
+    }]
+}
+
+/**
+ * Every token that begins with `/`: a line comment, a block comment, the
+ * `/=` operator, and division — one rule, so that one symbol of lookahead
+ * decides among them.
+ */
+export const slash = /**@type {const}*/(['/', {
+    oneline: ['/', repeatFrom0(notNewLine)],
+    multiline: ['*', content],
+    assign: '=',
+    divide: '',
+}])
+
+/**
+ * The operators, as the classical grammar named them, less the two that
+ * begin with `/`, which {@link slash} holds.
+ */
+export const operators = /**@type {const}*/([
+    '...', '.', '=>', '===', '==', '=', '!==', '!=', '!',
+    '>>>=', '>>>', '>>=', '>>', '>=', '>', '<<=', '<<', '<=', '<',
+    '+=', '++', '+', '-=', '--', '-', '**=', '**', '*=', '*', '%=', '%',
+    '&&=', '&&', '&=', '&', '||=', '||', '|=', '|', '^=', '^', '~',
+    '??=', '??', '?.', '?',
+    '[', ']', '{', '}', '(', ')', ',', ':', ';',
+])
+
+/** The operators as a prefix tree: the longest the lookahead leads to. */
+export const operator = literals(operators)
+
+/**
+ * One token. Its node is the branch taken, tagged by kind — `slash`'s
+ * own tag says which of its four it was — and the token's text is the
+ * symbols under the node.
+ */
+export const token = /**@type {const}*/({ number, string, template, id, slash, operator, ws, newLine })

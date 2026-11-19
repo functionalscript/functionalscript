@@ -1,6 +1,6 @@
 # The website
 
-`module.f.mjs` is a `NodeProgram` that generates the site from the repository
+`module.f.js` is a `NodeProgram` that generates the site from the repository
 it sits in: one page per directory, each carrying that directory's contents and
 the proofs of its subtree, plus the one stylesheet they all link. It is run by
 `npm run website`, and its whole output is gitignored.
@@ -88,7 +88,7 @@ and excludes both from source discovery on repeated builds. `/fjs/cli/` and
 `cli/index.html`; a leftover reserved directory from a branch switch is never
 catalogued as source.
 
-`cli/module.f.mjs` imports the real `commands` export from `fjs/module.f.mjs`.
+`cli/module.f.js` imports the real `commands` export from `fjs/module.f.js`.
 It walks nested command tables and appends the dispatcher's shared `helpMeta`
 at each table level. Imports construct data and effect descriptions without
 calling handlers or interpreting effects. Names, alias order, descriptions and
@@ -100,7 +100,7 @@ continue to identify sections and bookmark links.
 Usage, examples, explanatory notes and documentation paths live beside each
 handler in the CLI's `DocumentedCommands` tables. The type requires these fields
 for every built-in command and nested subcommand. Implicit help reference text
-comes from `helpReference` in `fjs/cli/module.f.mjs`, using the canonical parent
+comes from `helpReference` in `fjs/cli/module.f.js`, using the canonical parent
 path. The website consumes these fields directly; it has no separate guide list
 or name-based documentation lookup. A command metadata change therefore appears
 in the next website build, including displayed snippets and copied text.
@@ -191,7 +191,7 @@ npm run website
 ```
 
 `rustdoc-bars` is a program of its own
-([`rustdoc-bars/`](./rustdoc-bars/module.f.mjs)) so the site is generated
+([`rustdoc-bars/`](./rustdoc-bars/module.f.js)) so the site is generated
 once: it reads the build the pages are built from — a preview's branch and
 commit, the funding channels — and walks nothing.
 
@@ -313,7 +313,7 @@ Rust, and the script installs one with `rustup`'s installer, at exactly `rust`
 from [`fjs/ci/config/module.f.js`](../ci/config/module.f.js) — the one
 constant the shared shell and the platform matrix also take. The script is
 generated from that constant by
-[`cloudflare/module.f.mjs`](./cloudflare/module.f.mjs), so the version is written in the script in full, a bump of the pin is a
+[`cloudflare/module.f.js`](./cloudflare/module.f.js), so the version is written in the script in full, a bump of the pin is a
 diff the drift check guards, and nothing in the dashboard names a version
 that could drift. The toolchain goes into the build container's home, and
 its `cargo` is on the script's `PATH`. `target/`, which `cargo doc` writes
@@ -390,7 +390,7 @@ alone. Its emphasis falls with the priority rather than changing hue: P1 is
 filled in the failure colour, the conventional one for blocking; P2 in the
 value colour; P3 outlined; P4 plain muted text; P5 the same, fainter. A hue per
 level would say nothing about order, and would compete with the status icons.
-[`issue`'s demo](./issue/demo.f.mjs) draws every status and every priority,
+[`issue`'s demo](./issue/demo.f.js) draws every status and every priority,
 the one page that shows the whole set.
 
 ## A page runs the proofs under it
@@ -709,7 +709,7 @@ first render, so a demo needing an operation before it can show anything has
 somewhere to ask without `init` becoming an effect.
 
 **A demo's output should be checkable from outside.** The first one,
-[`crypto/sha2`](../crypto/sha2/demo.f.mjs), lets readers select SHA-224, SHA-256,
+[`crypto/sha2`](../crypto/sha2/demo.f.js), lets readers select SHA-224, SHA-256,
 SHA-384, SHA-512, SHA-512/224, or SHA-512/256 and shows the digest in hex. The
 matching OpenSSL command includes the current input, so readers can check the
 result themselves. Encoding it with this repository's own cBase32 was the first
@@ -721,23 +721,23 @@ leading zeros, but those zeros still belong in the output. One in sixteen
 digests begins with a zero hex digit; someone typing `1234` into the original
 SHA-256 demo found that case.
 
-[`crypto/sha1`](../crypto/sha1/demo.f.mjs) follows the same pattern with a
+[`crypto/sha1`](../crypto/sha1/demo.f.js) follows the same pattern with a
 40-character SHA-1 digest and a warning that its collision resistance is broken.
 Both demos preserve multiline text with the shared textarea helpers and use
-[`website/demo/hash`](./demo/hash/module.f.mjs) for padded digests and
+[`website/demo/hash`](./demo/hash/module.f.js) for padded digests and
 OpenSSL output. [`website/demo/code`](./demo/code/module.f.js) owns the copyable
 code blocks and literal shell arguments. A POSIX shell argument cannot contain
 NUL (U+0000), so that input still gets a digest but a visible refusal replaces
 the command; this is a permanent shell limitation.
 
-[`crypto/hmac`](../crypto/hmac/demo.f.mjs) adds a UTF-8 key and message to this
+[`crypto/hmac`](../crypto/hmac/demo.f.js) adds a UTF-8 key and message to this
 pattern, with SHA-1 and all six SHA-2 variants. Its OpenSSL command quotes both
 inputs and uses the selected hash with `-hmac`. Its message uses the shared
 multiline field; the key remains single-line and fills the available width.
 NUL in either field replaces the OpenSSL command with an explanation, just as
 in the hash demos.
 
-[`crypto/pow`](../crypto/pow/demo.f.mjs) compares the SHA-256 hash of a multiline
+[`crypto/pow`](../crypto/pow/demo.f.js) compares the SHA-256 hash of a multiline
 UTF-8 input plus a decimal nonce with a compact nBits target. Its button advances
 one nonce at a time, or runs automatically until success or Stop. Starting
 Auto-run from a valid nonce searches for the next valid one. Its copyable
@@ -876,7 +876,7 @@ scheme it would have picked.
 
 Slack, Telegram, Discord, X, Facebook and LinkedIn build a card for a pasted
 link from Open Graph and Twitter `<meta>` tags, which `previewMeta` in
-[`page/`](./page/module.f.mjs) writes into every page's `<head>` through
+[`page/`](./page/module.f.js) writes into every page's `<head>` through
 `shell`. They are in the static HTML because a crawler runs no script.
 
 **A title and a description on every page.** A directory's description is
@@ -896,7 +896,7 @@ fragment to every page's `<head>` there, `rustdocHead`. It carries
 the card type and, where the build has an origin, the root page's card
 image. It ends with a marker, `<!--og:url-->`, which the generator replaces
 with the page's `og:url` as it copies the page (`withPageUrl` in
-[`cargo-doc/`](./cargo-doc/module.f.mjs)): the copy knows the page's path,
+[`cargo-doc/`](./cargo-doc/module.f.js)): the copy knows the page's path,
 and the marker is a string the site wrote, so finding it reads nothing of
 rustdoc's markup. A build without an origin leaves the comment, and a
 redirect page, which rustdoc writes without the fragment, has neither.
@@ -926,7 +926,7 @@ alt text is the site's name; a page's own card is described by its title.
 - **A screenshot, taken at build time.** Only a browser lays out the site's
   own CSS, so the card cannot drift from the page. The generator writes a
   card page, `_card.html`, beside each page that has a card, and lists them
-  in `_cards.json` ([`card/`](./card/module.f.mjs)). After it, the website
+  in `_cards.json` ([`card/`](./card/module.f.js)). After it, the website
   workflow runs [`cards.mjs`](./cards.mjs), which serves the built tree and
   has headless Chrome screenshot each as `_card.png`, four tabs at a time
   (`CARD_TABS` overrides it), so a card waiting on a slow image holds up
@@ -959,7 +959,7 @@ before a change keeps its old card for a while.
 
 The logo and the site's name, linking home; then **CLI**, **PRs**, **Releases**,
 **Playground** and **GitHub**.
-It is one element, `header` in [`page/module.f.mjs`](./page/module.f.mjs), and
+It is one element, `header` in [`page/module.f.js`](./page/module.f.js), and
 every page carries it — the root, a directory's page, the PR queue, and the
 changelog's.
 Before it, the root page had its own "GitHub Repository" and "Releases" links
@@ -1002,7 +1002,7 @@ and no other page had either.
 
 A directory's page opens with its breadcrumb, `root / fjs / rtti`: each
 ancestor a link, the page itself as text marked `aria-current="page"`. It is
-`breadcrumb` in [`page/module.f.mjs`](./page/module.f.mjs), a plain `nav`,
+`breadcrumb` in [`page/module.f.js`](./page/module.f.js), a plain `nav`,
 set as a small muted line. Under it is the page's one `h1`: the README's own
 `#` title, or, where the README gives none, the directory's name
 (`pageHeading`).
@@ -1041,7 +1041,7 @@ set as a small muted line. Under it is the page's one `h1`: the README's own
 
 One line under a rule at the bottom of every page — `Support FunctionalScript:`
 and a link per channel — built by `footer` in
-[`page/module.f.mjs`](./page/module.f.mjs) into the frame every page shares.
+[`page/module.f.js`](./page/module.f.js) into the frame every page shares.
 
 - **The footer, not the header.** The header says where a reader can go on
   this site; a funding page is somewhere else. Five placements were rendered
@@ -1050,7 +1050,7 @@ and a link per channel — built by `footer` in
   on every page, where a reader arriving from a search lands, without
   competing with the site's navigation.
 - **Read from** [`funding.json`](../../funding.json), by
-  [`funding/module.f.mjs`](./funding/module.f.mjs): one link per channel, its
+  [`funding/module.f.js`](./funding/module.f.js): one link per channel, its
   `description` the text and its `address` the target. `.github/FUNDING.yml`
   holds only usernames, and turning those into links would mean copying
   GitHub's unpublished per-platform URL patterns; it stays for GitHub's own
@@ -1178,7 +1178,7 @@ directory of fixtures in, a site out, no filesystem touched. What used to check
 this was running the command and reading a `git diff`.
 
 The cost is measured and recorded rather than assumed — see the `@module` block
-in [`module.f.mjs`](./module.f.mjs) and
+in [`module.f.js`](./module.f.js) and
 [`../text/todo/utf8-to-string-cost.md`](../text/todo/utf8-to-string-cost.md).
 
 ## Open questions

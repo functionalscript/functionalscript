@@ -5,7 +5,7 @@
 
 ### Problem
 
-[`virtual`](../module.f.mjs) stands in for the Node runner, and a
+[`virtual`](../module.f.js) stands in for the Node runner, and a
 program proven against it should meet there the failures it meets on the host.
 Most of its operations are measured against Node and say so. Eight failure
 cases were recorded by running the same scenario against the Node runner and
@@ -50,7 +50,7 @@ presence-before-length order every one of them needs: an absent first name is
 
 ### Tasks
 
-- [ ] Pin the eight answers above in [`../proof.f.mjs`](../proof.f.mjs) with
+- [ ] Pin the eight answers above in [`../proof.f.js`](../proof.f.js) with
       the code Node gives. Coordinate the read-through-file case with
       [reads-enotdir-through-a-file](./reads-enotdir-through-a-file.md).
 - [ ] Keep the differential as a proof: one table of scenarios, run against the
@@ -60,6 +60,6 @@ presence-before-length order every one of them needs: an absent first name is
 
 ### Related
 
-- [`virtual`](../module.f.mjs) — the operations and their measured tables.
+- [`virtual`](../module.f.js) — the operations and their measured tables.
 - [reads-enotdir-through-a-file](./reads-enotdir-through-a-file.md) — the
   existing read-path investigation.

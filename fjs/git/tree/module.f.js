@@ -1,0 +1,290 @@
+/**
+ * A tree: entries of `mode SP name NUL id`, one after another with no
+ * separator and no terminator. The id is the raw object id, every byte
+ * value allowed, and its fixed width is what delimits an entry: nothing
+ * follows it but the next entry or the end. That width is the
+ * repository's, 20 bytes under SHA-1 and 32 under SHA-256, so the reader
+ * and the writer take it as a parameter.
+ *
+ * Reading is one thing and vouching another. The reader takes any entry
+ * the grammar covers — a padded mode, a name holding `/`, entries out of
+ * order — so that an object `git fsck` would flag is still read, and the
+ * writer returns it byte for byte. {@link validate} is where those are
+ * refused, as `fsck` refuses them, over the entry list: the checks that
+ * hold on every platform, not the NTFS and HFS+ look-alikes of `.git`
+ * (`git~1`, `.git.`, a `.git` with ignorable code points in it) that
+ * `fsck` also refuses on behalf of a checkout there.
+ *
+ * @module
+ *
+ * @import { Sign } from '../../types/function/compare/types.ts'
+ * @import { Nullable } from '../../types/nullable/types.ts'
+ * @import { Result } from '../../types/result/types.ts'
+ * @import { Bytes, OidBytes } from '../types.ts'
+ * @import { TreeEntry } from './types.ts'
+ */
+
+import { assert, assertNotNullish } from '../../asserts/module.f.js'
+import { ascii, byte, byteArray, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.js'
+import { eof, range, repeatFrom0, repeatFrom1, set, times } from '../../ebnf/module.f.js'
+import {
+    digit0, digitsValue, fullStop as dot, isLatinCapitalLetter, latinCapitalLetterA, latinSmallLetterA, nul,
+    solidus as slash, space as sp,
+} from '../../text/ascii/module.f.js'
+import { u8ListMsb, u8ListToVecMsb, uint } from '../../types/bit_vec/module.f.js'
+import { flat } from '../../types/list/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
+import { error, ok } from '../../types/result/module.f.js'
+import { cmp } from '../bytes/module.f.js'
+import { isOidOf } from '../oid/module.f.js'
+
+const octalDigit = range('07')
+
+const modeDigits = repeatFrom1(octalDigit)
+
+const nameBytes = repeatFrom1(not(set('\u0000')))
+
+/**
+ * The number a list of digits spells, exactly, or `null` where it is not a
+ * mode the grammar reads: one or more octal digits.
+ */
+const octal = digitsValue(8n)
+
+/**
+ * The bits of a mode Git keeps: it folds the digits into an `unsigned
+ * int`, so a run spelling more than 32 bits wraps, and `40000100644` is
+ * the mode `100644` to Git — read, and vouched for by `fsck`.
+ */
+const modeBits = 0xFFFF_FFFFn
+
+/**
+ * The number a mode's digits spell to Git, its low 32 bits, or `null`
+ * where the digits are not one or more octal digits.
+ *
+ * @type {(digits: readonly number[]) => Nullable<number>}
+ */
+const tryMode = digits => {
+    const n = octal(digits)
+    return n === null ? null : Number(n & modeBits)
+}
+
+/**
+ * The mode of an entry as the number its digits spell: `100644` is the
+ * octal `0o100644`, the value Git keeps in memory. What Git keeps is the
+ * low 32 bits, so a longer run of digits reads as Git reads it, wrapped;
+ * {@link validate} then judges the mode Git has, as `fsck` does.
+ *
+ * @throws If the digits are not one or more octal digits: an entry a
+ * reader built has them, and one a caller built must.
+ *
+ * @type {(e: TreeEntry) => number}
+ */
+export const mode = e => {
+    const m = tryMode(byteArray(e.mode))
+    assert(m !== null, ['not a mode', e.mode])
+    return m
+}
+
+/** The mode an octal spelling of this module's own names. @type {(s: string) => number} */
+const octalMode = s => Number(assertNotNullish(octal(ascii(s)), s))
+
+/**
+ * The modes Git writes, by their canonical spelling: a file, an executable,
+ * a symbolic link, a submodule, and a subtree — five digits, not six.
+ */
+const modes = ['100644', '100755', '120000', '160000', '40000'].map(octalMode)
+
+const subtree = octalMode('40000')
+
+/**
+ * The bits of a mode that say what kind of entry it is, POSIX's `S_IFMT`,
+ * which is all Git asks of a mode before it descends.
+ */
+const modeKind = octalMode('170000')
+
+/**
+ * Whether an entry names a subtree: a walk descends through this entry and
+ * through no other, since an entry of another kind names a file, a link or
+ * another repository's commit, whatever object its id turns out to hold.
+ *
+ * The kind is the mode's `S_IFMT` bits and not the whole mode, which is
+ * `S_ISDIR` and so is the question Git puts. The permission digits under
+ * it say nothing about the kind, so `40755` and `41000` are subtrees as
+ * `40000` is and Git reads a path through each of them, where `140000`
+ * and `60000` are not and Git stops at both. The zero-padded `040000`
+ * spells the same number as `40000`, and a run of digits spelling more
+ * than 32 bits wraps before the kind is taken, as {@link mode} says.
+ *
+ * Only `40000` is a mode Git writes, and {@link validate} refuses the rest
+ * as `fsck` reports them. Reading is where the two part: a walk reads the
+ * tree it was given rather than the tree that should have been written.
+ *
+ * @type {(e: TreeEntry) => boolean}
+ */
+export const isSubtree = e => {
+    const m = tryMode(byteArray(e.mode))
+    return m !== null && (m & modeKind) === subtree
+}
+
+const dotGit = ascii('.git')
+
+/** The longest name `git fsck` accepts, in bytes. */
+const maxNameLength = 4_096
+
+/** A byte with an ASCII capital folded to its small letter. @type {(b: number) => number} */
+const lower = b => isLatinCapitalLetter(b) ? b - latinCapitalLetterA + latinSmallLetterA : b
+
+/**
+ * Whether a name is `.git` in any case: the entry a checkout must never
+ * write, refused by `git fsck` as `hasDotgit`.
+ *
+ * @type {(name: readonly number[]) => boolean}
+ */
+const isDotGit = name => name.length === dotGit.length && name.every((b, i) => lower(b) === dotGit[Number(i)])
+
+/**
+ * Reads a tree of a repository with ids `oidBytes` wide, or refuses it: an
+ * entry without SP or NUL, a mode that is not octal digits, an empty name,
+ * an id cut short, or bytes after the last entry. The empty tree reads as
+ * no entries.
+ *
+ * @throws If an item of the payload is not a byte.
+ *
+ * @type {(oidBytes: OidBytes) => (payload: Bytes) => Nullable<readonly TreeEntry[]>}
+ */
+export const tryRead = oidBytes => {
+    const parse = byteParser([repeatFrom0([modeDigits, ' ', nameBytes, '\u0000', times(oidBytes)(byte)]), eof])
+    return payload => {
+        const r = parse(symbols(payload))
+        if (r[0] === 'error') { return null }
+        const [[entries]] = r[1]
+        return entries.map(([m, , n, , id]) => ({
+            mode: symbolsOf(m),
+            name: symbolsOf(n),
+            oid: u8ListToVecMsb(symbolsOf(id)),
+        }))
+    }
+}
+
+/** The own name field is a byte list; null is its empty form. @type {(e: TreeEntry) => readonly number[]} */
+const nameArray = e => {
+    const name = entry(e, 'name')
+    assert(name !== undefined)
+    return byteArray(name)
+}
+
+/**
+ * The bytes an entry sorts by: its name, with `/` appended where the entry
+ * is a subtree, since Git orders a tree as if every subtree's name ended
+ * in one.
+ *
+ * @type {(e: TreeEntry) => readonly number[]}
+ */
+const sortKey = e => mode(e) === subtree ? [...nameArray(e), slash] : nameArray(e)
+
+/**
+ * The order of two entries in a tree Git writes: by name, a subtree as if
+ * its name ended in `/`, so a writer building a tree puts an entry where
+ * {@link validate} will find it in order.
+ *
+ * @throws As {@link mode} does, on an entry whose mode is not octal digits.
+ *
+ * @type {(a: TreeEntry, b: TreeEntry) => Sign}
+ */
+export const compare = (a, b) => cmp(sortKey(a), sortKey(b))
+
+/**
+ * What is wrong with one entry, or `null`: the checks `git fsck` makes on
+ * an entry alone. The id is not looked up, only an id of all zero bytes
+ * is refused, the one Git never writes and `fsck` refuses as `nullSha1`.
+ *
+ * @type {(e: TreeEntry) => Nullable<string>}
+ */
+const problem = e => {
+    const digits = byteArray(e.mode)
+    const name = nameArray(e)
+    const m = tryMode(digits)
+    return digits.length > 1 && digits[0] === digit0 ? 'zero-padded mode'
+        : m === null || !modes.includes(m) ? 'unknown mode'
+        : name.length === 0 ? 'empty name'
+        : name.includes(slash) ? 'slash in name'
+        : name.every(b => b === dot) && name.length <= 2 ? 'dot name'
+        : isDotGit(name) ? '.git name'
+        : name.length > maxNameLength ? 'long name'
+        : uint(e.oid) === 0n ? 'null id'
+        : null
+}
+
+/**
+ * The index of the last entry whose name another entry has, or `-1`: Git
+ * refuses the pair as `duplicateEntries` whatever their modes. A file and
+ * a subtree of one name need not be neighbours — `a`, `a.txt`, `a/` is the
+ * order Git requires, and the pair is still refused — so the names are
+ * sorted on their own, which puts two of one name side by side.
+ *
+ * @type {(entries: readonly TreeEntry[]) => number}
+ */
+const duplicateName = entries => {
+    const names = entries.map(nameArray)
+    const sorted = names.toSorted(cmp)
+    const twice = sorted.find((n, i) => i !== 0 && cmp(sorted[Number(i - 1)], n) === 0)
+    return twice === undefined ? -1 : names.findLastIndex(n => cmp(n, twice) === 0)
+}
+
+/**
+ * Vouches for a tree as `git fsck` does, or refuses it, naming the first
+ * entry it cannot vouch for and why: a zero-padded mode, a mode that is
+ * none of the five Git writes, an empty name, a name holding `/`, a name
+ * that is `.` or `..`, a name that is `.git` in any case, a name over
+ * 4096 bytes, an id of all zero bytes, a name twice whatever the modes and
+ * wherever the two stand, or entries out of the order Git requires — by
+ * name, a subtree as if its name ended in `/`.
+ *
+ * Separate from {@link tryRead} on purpose: a reader reads what it can,
+ * and only this says no.
+ *
+ * @type {(entries: readonly TreeEntry[]) => Result<readonly TreeEntry[], string>}
+ */
+export const validate = entries => {
+    const problems = entries.map(problem)
+    const i = problems.findIndex(p => p !== null)
+    if (i !== -1) { return error(`${problems[Number(i)]} at ${i}`) }
+    const d = duplicateName(entries)
+    if (d !== -1) { return error(`duplicate name at ${d}`) }
+    const unsorted = entries.findIndex((e, i) => i !== 0 && compare(entries[Number(i - 1)], e) >= 0)
+    return unsorted === -1 ? ok(entries) : error(`not sorted at ${unsorted}`)
+}
+
+/**
+ * @throws On an entry the format cannot spell: a mode that is not one or
+ * more octal digits, an empty name or one holding NUL, an id that is not
+ * `oidBytes` wide, or a number that is no byte in the mode or the name.
+ *
+ * @type {(oidBytes: OidBytes) => (e: TreeEntry) => Bytes}
+ */
+const entryBytes = oidBytes => {
+    const isOid = isOidOf(oidBytes)
+    return e => {
+        const digits = byteArray(e.mode)
+        const name = nameArray(e)
+        assert(octal(digits) !== null, ['not a mode', digits])
+        assert(name.length !== 0 && !name.includes(nul), ['not a name', name])
+        assert(isOid(e.oid), ['not an id', e.oid])
+        return flat([digits, [sp], name, [nul], u8ListMsb(e.oid)])
+    }
+}
+
+/**
+ * A tree's bytes: every entry as it was read. The inverse of
+ * {@link tryRead}, byte for byte, for entries in any order — a writer
+ * returns what it was given, and {@link validate} is where an order is
+ * required.
+ *
+ * @throws On an entry the format cannot spell; see {@link entryBytes}.
+ *
+ * @type {(oidBytes: OidBytes) => (entries: readonly TreeEntry[]) => Bytes}
+ */
+export const write = oidBytes => {
+    const bytes = entryBytes(oidBytes)
+    return entries => flat(entries.map(bytes))
+}

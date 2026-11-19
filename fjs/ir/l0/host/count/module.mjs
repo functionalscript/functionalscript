@@ -1,0 +1,290 @@
+/**
+ * A host for the `fjs:l0` imports that counts every value, so that a
+ * misplaced `dup` or `drop` shows: the [L0 view's imports](../module.f.js)
+ * over cells that it holds, each a value and a count.
+ *
+ * - **A handle names a cell.** The values that a host proof passes are the
+ *   first cells, each counted once and named by its index, as a table of
+ *   values names them. A handle that names no cell throws, and so does one
+ *   whose cell a `drop` freed.
+ * - **`dup` and `drop` count.** `dup` adds one to a cell's count and
+ *   answers its handle; `drop` takes one away, and frees the cell at zero.
+ * - **`from_unit`, `concat`, `substring`, `item`, `join` and `text` make a
+ *   cell** of the value that the view answers, counted once, and answer its
+ *   handle, which the caller owns: an item read from an array is a cell of
+ *   its own. `find` answers an `i32`, the property index or `-1`.
+ * - **What a constant holds is kept.** Any's `undefined`, `null`, `true`
+ *   and `false` are the cells `-1` to `-4`, each counted once for the
+ *   immutable global that holds it, and kept from the start. `keep` keeps
+ *   every cell alive at its count, so that a host proof that calls it after
+ *   `init` keeps what the start function made for the module's literals and
+ *   `init` for its constants. `live` then tells what a call changed: a cell
+ *   that is not kept and is alive, and a kept one at another count, `0`
+ *   where it was freed.
+ * - **A builder is a handle of its own**, an `i32` that names an array or
+ *   an object that is not sealed yet
+ *   ([L0 design §8](../../../../../doc/sasha-gil/wasm/l0-design.md#8-containers-a-builder-handle-then-seal)):
+ *   `begin_array(n)` begins one of `n` items and `begin_object(n)` one of
+ *   `n` properties, `push` or `push_property` takes over a cell as its next
+ *   item or property (and the key, a string), a count of it that a `drop`
+ *   would take away, and `seal` ends the builder and makes a cell of the
+ *   array or the object, which the caller owns
+ *   ([§9](../../../../../doc/sasha-gil/wasm/l0-design.md#9-objects-the-runtime-keeps-keys-unique-and-ordered):
+ *   a repeated key keeps its first position and its last value). A push
+ *   past `n` items, a seal of fewer, and a handle of no builder, or of one
+ *   that is sealed, throw. `builders` tells which are not sealed.
+ * - **`call` invokes an existing function value**
+ *   ([L0 design §12](../../../../../doc/sasha-gil/wasm/l0-design.md#12-functions-a-code-index-a-frame-a-length-and-a-text)):
+ *   it borrows a cell that holds a JavaScript function and a cell that
+ *   holds a sealed array of arguments, applies the function to those
+ *   arguments, and answers a new cell of the result. A throw from the
+ *   function keeps its value as `throw` does and traps. A value that is
+ *   not a function, or arguments that are not an array, trap as misuse.
+ *   `make_function` of an IR `code` waits for slice 11: a call of it
+ *   takes over its frame and text and traps.
+ * - **A throw keeps its value**
+ *   ([L0 design §13](../../../../../doc/sasha-gil/wasm/l0-design.md#13-errors-a-throw-traps)):
+ *   `throw` takes over a cell, as `push` does, keeps its value and
+ *   returns, so that the `unreachable` after its call traps. The host then
+ *   asks `has_thrown`, and `thrown` makes a cell of the value, which the
+ *   caller owns. `fail` keeps a value the same way without a cell, for a
+ *   FunctionalScript throw that a native import rethrows after recording
+ *   it. `recover` frees what the frames that the trap abandoned held: each
+ *   cell that is not kept, each kept one counted more than it was kept at,
+ *   back to that count, and each builder that is not sealed, and it forgets
+ *   a value that no one asked for. It answers the cells that it freed,
+ *   each with the counts it took away, so a proof tells a throw that left
+ *   nothing behind. It cannot give back a count that a module took away
+ *   from a cell that it borrowed, so `live` still shows one.
+ * - **The host makes the memory**, as a loader does
+ *   ([L0 design §5](../../../../../doc/sasha-gil/wasm/l0-design.md#5-memory-and-table-made-by-the-loader-imported-by-both-modules)):
+ *   the region of a module's data segments starts at `data_base`, past
+ *   bytes that the host keeps for itself, and holds as many bytes as the
+ *   module's `fjs.layout` asks for. `make_string(ptr, len)` makes a cell of
+ *   the string of the `len` UTF-16 units at `ptr`, the low byte of each
+ *   first, and throws where they reach past the memory.
+ *
+ * Counting is state, and a WebAssembly import has nowhere else to keep it,
+ * so this is a host boundary in plain JavaScript beside the
+ * FunctionalScript of the view
+ * ([fjs/AGENTS.md §3.1](../../../../AGENTS.md#31-immutability-and-purity)).
+ *
+ * @module
+ *
+ * @import { Counting } from '../types.ts'
+ */
+
+import { view } from '../module.f.js'
+
+/** Where the region of a module's data segments starts: past bytes that a runtime would keep for itself. */
+const dataBase = 0x100
+
+/**
+ * A counting host whose first cells are `values`, each counted once, and
+ * whose memory holds `data` bytes of a module's data segments at
+ * `data_base`.
+ *
+ * @type {(values: readonly unknown[], data?: number) => Counting}
+ */
+export const counting = (values, data = 0) => {
+    /** @type {Map<bigint, { readonly value: unknown, readonly count: number }>} */
+    const cells = new Map(values.map((value, k) => [BigInt(k), { value, count: 1 }]))
+    /** The count at which each kept cell was kept. @type {Map<bigint, number>} */
+    const kept = new Map()
+    let next = BigInt(values.length)
+    /** @type {(h: bigint) => { readonly value: unknown, readonly count: number }} */
+    const cell = h => {
+        const c = cells.get(h)
+        if (c === undefined) { throw 'fjs:l0 host: not a handle' }
+        return c
+    }
+    /** @type {(h: bigint) => unknown} */
+    const read = h => cell(h).value
+    /** @type {(value: unknown) => bigint} */
+    const make = value => {
+        const h = next
+        next = h + 1n
+        cells.set(h, { value, count: 1 })
+        return h
+    }
+    /** @type {(h: bigint) => bigint} */
+    const dup = h => {
+        const { value, count } = cell(h)
+        cells.set(h, { value, count: count + 1 })
+        return h
+    }
+    /** @type {(h: bigint) => void} */
+    const drop = h => {
+        const { value, count } = cell(h)
+        if (count === 1) {
+            cells.delete(h)
+        } else {
+            cells.set(h, { value, count: count - 1 })
+        }
+    }
+    /**
+     * The builders that are not sealed: an array or an object, how many
+     * items each takes, and those it has (for an object, each a key and a
+     * value).
+     *
+     * @type {Map<number, { readonly kind: 'array' | 'object', readonly length: number, readonly items: readonly unknown[] }>}
+     */
+    const builders = new Map()
+    let nextBuilder = 0
+    /** @type {(b: number) => { readonly kind: 'array' | 'object', readonly length: number, readonly items: readonly unknown[] }} */
+    const builder = b => {
+        const x = builders.get(b)
+        if (x === undefined) { throw 'fjs:l0 host: not a builder' }
+        return x
+    }
+    /** @type {(kind: 'array' | 'object', n: number) => number} */
+    const begin = (kind, n) => {
+        const b = nextBuilder
+        nextBuilder = b + 1
+        builders.set(b, { kind, length: n, items: [] })
+        return b
+    }
+    /** A constant of Any: a cell of `value`, named `h`, counted once for the global that holds it, and kept. @type {(h: bigint, value: unknown) => WebAssembly.Global} */
+    const constant = (h, value) => {
+        cells.set(h, { value, count: 1 })
+        kept.set(h, 1)
+        return new WebAssembly.Global({ value: 'i64', mutable: false }, h)
+    }
+    /** The value that a throw keeps, until `thrown` or `recover` takes it. @type {{ readonly value: unknown } | null} */
+    let held = null
+    const v = view(read)
+    const memory = new WebAssembly.Memory({ initial: Math.ceil((dataBase + data) / 0x1_0000) })
+    /** @type {(ptr: number, len: number) => string} */
+    const units = (ptr, len) => {
+        const bytes = new DataView(memory.buffer)
+        if (ptr < 0 || len < 0 || ptr + 2 * len > bytes.byteLength) { throw 'fjs:l0 host: make_string past the memory' }
+        return String.fromCharCode(...Array.from({ length: len }, (_, k) => bytes.getUint16(ptr + 2 * k, true)))
+    }
+    return {
+        imports: {
+            memory,
+            data_base: new WebAssembly.Global({ value: 'i32', mutable: false }, dataBase),
+            make_string: (ptr, len) => make(units(ptr, len)),
+            undefined: constant(-1n, undefined),
+            null: constant(-2n, null),
+            true: constant(-3n, true),
+            false: constant(-4n, false),
+            kind: v.kind,
+            to_f64: v.to_f64,
+            from_f64: x => make(v.from_f64(x)),
+            to_bool: v.to_bool,
+            from_bool: b => make(v.from_bool(/** @type {0 | 1} */ (b))),
+            same: v.same,
+            length: v.length,
+            unit: v.unit,
+            dup,
+            drop,
+            from_unit: c => make(v.from_unit(c)),
+            concat: (a, b) => make(v.concat(a, b)),
+            substring: (s, start, end) => make(v.substring(s, start, end)),
+            item: (c, i) => make(v.item(c, i)),
+            find: v.find,
+            begin_array: n => begin('array', n),
+            begin_object: n => begin('object', n),
+            push: (b, h) => {
+                const { kind, length, items } = builder(b)
+                if (kind !== 'array') { throw 'fjs:l0 host: push of an object builder' }
+                if (items.length >= length) { throw 'fjs:l0 host: push past the length of a builder' }
+                const value = read(h)
+                drop(h)
+                builders.set(b, { kind, length, items: [...items, value] })
+            },
+            push_property: (b, k, h) => {
+                const { kind, length, items } = builder(b)
+                if (kind !== 'object') { throw 'fjs:l0 host: push_property of an array builder' }
+                if (items.length >= length) { throw 'fjs:l0 host: push_property past the length of a builder' }
+                const key = read(k)
+                if (typeof key !== 'string') { throw 'fjs:l0 host: push_property of a key that is not a string' }
+                const value = read(h)
+                drop(k)
+                drop(h)
+                builders.set(b, { kind, length, items: [...items, [key, value]] })
+            },
+            seal: b => {
+                const { kind, length, items } = builder(b)
+                if (items.length !== length) { throw 'fjs:l0 host: seal of a builder that is not full' }
+                builders.delete(b)
+                if (kind === 'array') { return make(items) }
+                // A repeated key keeps its first position and its last value.
+                /** @type {Map<string, unknown>} */
+                const last = new Map()
+                /** @type {string[]} */
+                const order = []
+                for (const [key, value] of /** @type {readonly (readonly [string, unknown])[]} */ (items)) {
+                    if (!last.has(key)) { order.push(key) }
+                    last.set(key, value)
+                }
+                return make(Object.fromEntries(order.map(key => [key, last.get(key)])))
+            },
+            join: (parts, separator) => make(v.join(parts, separator)),
+            make_function: (_code, frame, _length, text) => {
+                drop(frame)
+                drop(text)
+                throw 'fjs:l0 host: make_function of an IR code waits for slice 11'
+            },
+            call: (f, args) => {
+                const fn = read(f)
+                const a = read(args)
+                if (typeof fn !== 'function') { throw 'fjs:l0 host: call of a non-function' }
+                if (!Array.isArray(a)) { throw 'fjs:l0 host: call args is not an array' }
+                try {
+                    return make(fn(...a))
+                } catch (e) {
+                    if (held !== null) { throw 'fjs:l0 host: a throw after a throw' }
+                    held = { value: e }
+                    throw e
+                }
+            },
+            text: f => make(v.text(f)),
+            throw: h => {
+                if (held !== null) { throw 'fjs:l0 host: a throw after a throw' }
+                const value = read(h)
+                drop(h)
+                held = { value }
+            },
+        },
+        has_thrown: () => held === null ? 0 : 1,
+        thrown: () => {
+            if (held === null) { throw 'fjs:l0 host: nothing was thrown' }
+            const { value } = held
+            held = null
+            return make(value)
+        },
+        recover: () => {
+            held = null
+            builders.clear()
+            /** @type {(readonly [bigint, number])[]} */
+            const freed = []
+            for (const [h, { value, count }] of [...cells]) {
+                const k = kept.get(h) ?? 0
+                if (count <= k) { continue }
+                freed.push([h, count - k])
+                if (k === 0) {
+                    cells.delete(h)
+                } else {
+                    cells.set(h, { value, count: k })
+                }
+            }
+            return freed
+        },
+        read,
+        own: make,
+        fail: value => {
+            if (held !== null) { throw 'fjs:l0 host: a throw after a throw' }
+            held = { value }
+        },
+        keep: () => {
+            for (const [h, { count }] of cells) { kept.set(h, count) }
+        },
+        live: () => [
+            ...[...cells].flatMap(([h, { count }]) => kept.get(h) === count ? [] : [/** @type {const} */ ([h, count])]),
+            ...[...kept.keys()].flatMap(h => cells.has(h) ? [] : [/** @type {const} */ ([h, 0])]),
+        ],
+        builders: () => [...builders.keys()],
+    }
+}

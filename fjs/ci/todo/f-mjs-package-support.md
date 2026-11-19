@@ -220,7 +220,7 @@ emission, `npm pack`, and a clean consumer.
 
 - [ ] Keep the authored `.mjs` that is not FunctionalScript type-checked with
       the rest of authored JavaScript. The benchmark this line used to name is
-      gone: it is `fjs/types/bigint/demo.f.mjs` now, and FunctionalScript.
+      gone: it is `fjs/types/bigint/demo.f.js` now, and FunctionalScript.
 - [x] Enable `allowJs` and `checkJs` in the root TypeScript configuration before
       the first `.ts` / `.f.ts` implementation migration.
 - [x] Update NPM package rules to include authored `.mjs` and generated `.d.mts`.
@@ -436,7 +436,7 @@ not, and the pipeline is simplified accordingly.
   — upstream JSDoc typedef stripping limitation; no longer a blocker here, since
   no authored `.mjs` declares a file-scope typedef to strip.
 - [`publishing-packages.md`](./publishing-packages.md) — broader package roadmap.
-- [`../package/module.f.mjs`](../package/module.f.mjs) — the packed-package
+- [`../package/module.f.js`](../package/module.f.js) — the packed-package
   check in the `package` job, which imports a published `.f.js` from a
   clean consumer of the packed package.
 - [`fjs/compiler/README.md`](../../compiler/README.md) — authoritative extension contract.

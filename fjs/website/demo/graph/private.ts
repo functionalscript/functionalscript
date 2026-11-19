@@ -1,10 +1,11 @@
 /**
- * Implementation-private types for `./module.f.mjs`.
+ * Implementation-private types for `./module.f.js`.
  *
  * @module
  */
 
 import type { Edge, Node, Ranked } from './types.ts'
+import type { PersistentMap } from '../../../types/map/types.ts'
 
 /**
  * An outgoing edge and its `index`, its position in the graph's list of
@@ -22,7 +23,7 @@ export type _Out = {
  * row sits, `y` measured from the node's own top edge, and how tall it is:
  * one row's height, or its edge's `span` of them. A row starts right
  * of the node's label column. `ref` is the target's label, when the row
- * draws it in place of a key: see `portsOf` (`./module.f.mjs`).
+ * draws it in place of a key: see `portsOf` (`./module.f.js`).
  */
 export type _Port = _Out & {
     readonly y: number
@@ -148,11 +149,11 @@ export type _Placed = {
     readonly nodes: readonly _Positioned[]
     readonly lanes: readonly _Lane[]
     readonly ends: readonly number[]
-    readonly backs: ReadonlyMap<number, _BackLane>
+    readonly backs: PersistentMap<number, _BackLane>
     /** Local return baseline by destination identity. */
-    readonly bottoms: ReadonlyMap<number, number>
+    readonly bottoms: PersistentMap<number, number>
     /** Vertical bend x by original edge index and route segment index. */
-    readonly bends: ReadonlyMap<string, number>
+    readonly bends: PersistentMap<string, number>
     /** Whether the graph is drawn as a table: its arrows meet each node at its `anchor`. */
     readonly table: boolean
 }

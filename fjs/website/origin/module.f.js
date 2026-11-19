@@ -4,7 +4,7 @@
  *
  * **One home for the preview alias**, because two readers need it to agree:
  * the upload names the preview by it (`--preview-alias` in
- * [`../cloudflare`](../cloudflare/module.f.mjs)), and a page gives its own
+ * [`../cloudflare`](../cloudflare/module.f.js)), and a page gives its own
  * URL by it. A second spelling of the rule would let a page point at a
  * preview the upload never made.
  *

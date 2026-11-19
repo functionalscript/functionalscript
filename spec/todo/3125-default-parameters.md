@@ -33,7 +33,7 @@ It also stands in the way of converting authored modules to `.f.js`. At
 defaults in 14 files, and 7 defaults inside binding patterns, 4 of them in
 parameters; the proofs hold at least as many again. Several read a name of
 the module around them, `extraValidate = always` and
-`checkReferences = ok` in [`fjs/media`](../../fjs/media/module.f.mjs)'s
+`checkReferences = ok` in [`fjs/media`](../../fjs/media/module.f.js)'s
 `dialectEntry` and `jsonDialect`. A default parameter was the one refusal
 of [`fjs/website/demo/code`](../../fjs/website/demo/code/module.f.js)'s
 `codeBlock`, a leaf of the
@@ -108,7 +108,7 @@ sentence that says so:
   default ends the count too, `(({ a } = {}) => 0).length` being `0`,
   while a default *inside* a pattern does not, `(({ a = 1 }) => 0).length`
   being `1`, the pattern one fixed parameter whatever its elements default
-  to ([destructuring](./2450-destructuring.md)). So the EDAG function's
+  to ([destructuring](../bindings/destructuring/README.md)). So the EDAG function's
   `length` is that count, and every parameter from the first default on is
   read from the one per-call `['rest']` array
   ([named and rest parameters](./3120-parameters.md)): the `k`-th such
@@ -210,14 +210,14 @@ and the EDAG function stays well under it either way.
    for errors, in
    [`parser/syntax/types.ts`](../../fjs/compiler/parser/syntax/types.ts).
    The first parameter is read as a value, which
-   [`parser/grammar`](../../fjs/compiler/parser/grammar/module.f.mjs)'s
+   [`parser/grammar`](../../fjs/compiler/parser/grammar/module.f.js)'s
    `afterValue` explains, so the reader records `name = value` beside the
    node as it records a target, and the fold refuses it in a value, where
    it is an assignment, and reads it in a parameter list or a pattern.
 2. **Grammar.** `parameterNames`' fixed target and a pattern's target take
    an optional `= value`. `=` follows a target nowhere else, so the grammar
    stays LL(1), which its proof checks.
-3. **Binding.** In [`parser`](../../fjs/compiler/parser/module.f.mjs)'s
+3. **Binding.** In [`parser`](../../fjs/compiler/parser/module.f.js)'s
    `functionScope`, the `length` stops at the first default; each
    parameter from it on is bound to its read of `['rest']`, and the
    source's rest parameter to the slice. Every parameter name is bound
@@ -276,7 +276,7 @@ default reads — each a refusal rather than another value.
 - [Named and rest parameters](./3120-parameters.md) — the parameter list
   this extends, and the `length` / `arg` / `rest` contract the lowering
   reads through.
-- [Destructuring](./2450-destructuring.md) — the patterns whose defaults
+- [Destructuring](../bindings/destructuring/README.md) — the patterns whose defaults
   this designs with the parameters', as it asks.
 - [Forward references](./3140-forward-references.md) and
   [body const forward reference](../../fjs/compiler/parser/todo/body-const-forward-reference.md)

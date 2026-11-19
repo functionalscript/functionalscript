@@ -1,0 +1,446 @@
+# From normalized FAST
+
+The lowering of the second to the fifth slices
+([todo/slices.md](../todo/slices.md)): a FunctionalScript module's
+normalized FAST, as [`edag/to_fast`](../../edag/to_fast/README.md) makes it,
+to a module of the [IR](../README.md), for the part of the language that
+the first slice admits, for values of unknown kind, which the third reads
+through the L0 view, for the loops that the fourth adds, for the
+functions that the module does not export, the records and L1's native
+rows that the fifth adds, for the module constants that slice 6c adds, the
+string literals that 6d adds, the array literals that 6e adds, the
+reads of an array at a number key that 6f adds, the `throw` and L1's
+error table that 7b adds, and the L0 view's `buildArray` that 8b adds.
+It reads FAST before
+[preparation](../../js/ast/prepare/README.md) adds mutable slots, as
+definition.md's
+[open question 2](../../../doc/sasha-gil/ir/definition.md#open-questions)
+recommends, and as the owner chose to assume on 2026-11-13.
+
+```js
+import { unwrap } from '../../types/result/module.f.js'
+import { check } from '../check/module.f.js'
+import { f64, signature } from '../module.f.js'
+import { lower } from './module.f.js'
+import { sourceOf } from './testlib.f.js'
+
+const { fast, imports } = unwrap(sourceOf('export const max = (a, b) => a < b ? b : a'))
+const ir = unwrap(lower({ max: signature([['a', f64], ['b', f64]], f64) })(fast, imports))
+const checked = unwrap(check(ir))
+```
+
+## Types come from a table
+
+FAST has no types, so the lowering takes a signature for each exported
+function that it lowers, by its name: the names and types of its
+parameters and the type of its result, as a TypeScript signature has them.
+A `number` is an `f64`, a `boolean` a `bool`, a `bigint` the integer range
+that its signature gives it, and a value of unknown kind `any`, which
+[L0](../l0/module.f.js) seals; the checker then finds the range of every
+result and refuses one wider than a word. A `number` is never an integer
+range in these slices.
+
+The table also chooses what to lower. The lowering reads a module's
+functions, not its evaluation: of everything else that the module defines,
+it reads only what a function that it lowers reads, so L1, which exports
+far more, gives only the functions that the slices name as subjects so far
+([todo/slices.md](../todo/slices.md)) and what they read.
+
+## What it lowers
+
+| Normalized FAST | The IR |
+| --- | --- |
+| an exported function that the table names, or a module definition of one | a function, named by its export |
+| `define`, `required`; a `block` or an `if` statement of one result | a `let`, of a local named `#0`, `#1`, … by how many locals enclose it; a binding of a local is that local, and a `let` whose body is only its local is its value |
+| `['if', c, a, b]`, `?:` | `if_(c, a, b)`: a `match` of a `bool` |
+| `['block', b]` | the block's statements as `let`s around its exit's value; a statement that never completes ends the block |
+| `return` | the body's value in the tail of a function, and `return_` elsewhere |
+| a `loop` statement | a `loop`, labelled `L0`, `L1`, … by how many loops enclose it, whose parameters are locals named as `let`s are |
+| `continue` | `next(label, fields)`: a `br` to the loop, anywhere in its body |
+| `break`, where it ends the loop's body | the loop's value |
+| a call of a function that the function defines, or that the module does not export | its body, inlined where the call stands |
+| an object literal of names and values, `{ i: 0, value: 0 }` | a record: a `make` of its keys in their order, `{ i: 0.0, value: 0.0 }` |
+| `r.k` | `field(r, 'k')`, printed `r.k`; the field's own term where `r` is a record made there whose other fields do nothing |
+| any other definition of the module | a constant, `#c0`, `#c1`, … by its place among them, which a term reads as `self.#c0` |
+| `undefined`, `null` | `Any.undefined`, `Any.null`: constants of the L0 interface `Any` |
+| a string, `"abc"` | a `lit` of `any.only(string)`, `"abc"`, which the module's start function makes once |
+| an array literal of values, `[a, "x"]` | its items, each bound to a local first where it does something, then `Containers.seal` of a `Containers.push` of each onto `Containers.begin_array` of their count |
+| `a[0]`, `a[Number(k)]` of an array | the integer of `u(31)` that the key holds, named `a.index`, then `Containers.item(a, a.index)` where it is less than `Containers.length(a)`, and `Any.undefined` where it is not or the key holds no integer, by L1's `get` |
+| `v.x`, `o[0]` of sealed `any` (not array-only at a number) | `self.get(v, "x")` / `self.get(o, from_f64(0))` where the table names `get`; otherwise refused |
+| a `number`, a `bigint`, a `boolean` | a `lit` of `f64c`, a `lit` of its own range, a variant of `bool` |
+| `+`, `-`, `*`, `/`, `<`, `<=` | `add`, `sub`, `mul`, `div`, `lt`, `le` |
+| `a % b` of two floats | `Native.numberRemainder(a, b)`, [L1's native row](#l1s-native-rows) |
+| `a > b`, `a >= b` | `lt(b, a)`, `le(b, a)`, with `a` bound to a local first where it does something |
+| `a === b`, `a !== b` | `eq`, `ne` of numbers; of two booleans, `if_(a, b, not(b))` and `if_(a, not(b), b)` |
+| `-x` | `neg(x)` of a float, `sub(0, x)` of an integer |
+| `!x`, `Number(x)` | `not(x)` of a `bool`; `float(x)` of an integer, and `x` of a float |
+| `Math.sqrt(x)`, `Math.abs(x)` | `sqrt(x)`, `abs(x)` |
+| a call of an exported function, or of the function itself | a `call` of `self` |
+| `throw x` | `Functions.throw(x)`, which answers `never` and may fail |
+| `error.k` of [L1's error table](../../wasm/runtime/l1/error/module.f.js), where the runtime names that module | a `lit` of `any.only(string)` of its text, which `errorTable` reads from the module's FAST |
+
+## Functions that the module does not export
+
+A function that the module does not export has no signature in the table,
+so the lowering inlines it at each call, as it inlines a function inside a
+function, which the owner chose on 2026-11-13. Each copy is typed by what
+its call gives: in [`helpers.f.js`](./helpers.f.js), `twiceInt` takes a
+`u(8)` at one call and a `u(16)` at the next. Its captures are what the
+module's bindings are: a function that the table names is a `call` of
+`self`, a name of the runtime is itself, and another function that the
+module does not export is inlined in its turn. L1's `stringIndex` reads
+`digit` so.
+
+A function that calls itself, by its own name or through others, would be
+inlined forever, so it is refused; normalized FAST has already made a loop
+of one that calls itself in its tail. The other reading of the slice, a
+function of the module typed once from its call sites, would need its calls
+to agree on their types, and no note settles how.
+
+## Records
+
+An object literal whose entries are names and values is a record: a
+product of its keys in their order, `make` in the IR, and `r.k` is a
+`field` of it. A record stays in its function, as a local, a loop's
+parameter or the value of a branch: the checker refuses a product in a
+signature, so a function that returns a record is refused, and one that
+takes one is inlined, where `p.x` of a record made at the call is the
+field's own term. L1's `stringIndex` keeps the state of its loop in a
+record:
+
+```js
+let r = { i: 0, value: 0 }
+while (r.i < n && r.value >= 0) {
+    const d = digit(unit(s, r.i))
+    const value = d < 0 ? -1 : r.value * 10 + d
+    r = { i: r.i + 1, value: value > 0xffff_ffff ? -1 : value }
+}
+return r.value
+```
+
+```
+(
+    loop L0 (#1: { i: f64, value: f64 } = { i: 0.0, value: 0.0 })
+        …
+        br L0 { #1: { i: add(#1.i, 1.0), value: if lt(4294967295.0, #3) then -1.0 else #3 } }
+    …
+).value
+```
+
+A loop's parameter that is a record widens each float field to `f64`, and
+is refused where a field is an integer range. Two records of the same keys
+in another order are of two types, which no one type holds, so
+`c ? { x: a, y: 1 } : { y: 1, x: a }` is refused.
+
+## Loops, and functions inside functions
+
+Normalized FAST makes a function of each loop of the source and calls it
+once, and a call of a function itself in its tail is a loop already. The
+lowering inlines a function inside a function at each call: its parameters
+stand for the arguments, a term that does nothing as itself, such as a
+local, a literal or a record of them, and anything else bound to a local
+first, in their order; its captures stand for what they read where the
+call stands; and the `return` that ends its body is its
+value. [definition.md's rule 5](../../../doc/sasha-gil/ir/definition.md#from-normalized-fast-to-the-ir)
+lifts such a function to the module instead. Inlining needs no closure
+conversion and no new function, and is exact, since the function reads
+nothing but its parameters and its captures, which stand for the same
+values where it is called; it gives one copy of the body for each call.
+
+Each argument is lowered where it stands, after the locals of the
+arguments before it are bound, so the locals that it binds itself are
+named past them: in `mid(a + 1, sq(b + 1))`, `a + 1` is `#0`, and the
+locals of `sq(b + 1)` start at `#1`. The arguments of the view's
+functions of more than one argument, `unit`, `same`, `concat`,
+`substring` and `item`, and of a native row are lowered so too.
+
+The normalization puts a definition that only one function reads in a
+block around that function: a `const` that only a loop reads, or an import
+that only one function of the module reads. The lowering reads the
+function past such blocks, and their statements stand where the function
+is defined, as locals of the function around it or as bindings of the
+module.
+
+```js
+export const steps = a => {
+    const limit = a * 2
+    let i = 0
+    while (i < limit) { i = i + 1 }
+    return i
+}
+```
+
+```
+fn steps(a: f64) -> f64 =
+    let #0 = mul(a, 2.0)
+    loop L0 (#1: f64 = 0.0)
+        if lt(#1, #0) then br L0 { #1: add(#1, 1.0) } else #1
+```
+
+A loop's parameters are locals of the types of their first values, a float
+widened to `f64`, since a later round may give any float, and so is each
+float of a record. An integer range
+is refused, since no bound holds what a later round may give it. JavaScript
+counts with numbers, so a loop's counter is an `f64`, and `unit` reads the
+integer that it holds exactly.
+
+```js
+export const f = a => {
+    let i = 0
+    while (i < a) { i = i + 1 }
+    return i
+}
+```
+
+```
+fn f(a: f64) -> f64 =
+    loop L0 (#0: f64 = 0.0)
+        if lt(#0, a) then br L0 { #0: add(#0, 1.0) } else #0
+```
+
+Normalized FAST keeps the variables of a loop of more than one in an
+array that it reads by index, `s[0]`, so such a loop is refused: an array
+holds values of `any` only, where a counter is a number. A record of them, as
+`stringIndex` keeps, is one variable.
+
+## The L0 view
+
+The caller names the runtime, the specifiers by which the module imports
+the [L0 view](../../wasm/runtime/l0/module.f.js) and
+[L1's native rows](../../wasm/runtime/l1/native/module.f.js), since the
+lowering resolves no path, and the module then imports
+[the interfaces of L0](../l0/module.f.js) and
+[of the rows](../native/module.f.js). Every function of the view that it
+reads takes a value of `any` first, but `fromUnit`, which takes a unit,
+and `buildArray`, which takes a count.
+
+| The L0 view | The IR |
+| --- | --- |
+| `kind(v)` | `float(Any.kind(v))` |
+| `UNDEFINED`, `NULL`, …, `FUNCTION` | the tag, a `lit` of `f64c` |
+| `asBoolean(v)`, `asNumber(v)`, `asString(v)`, `asArray(v)` | a `cast` of `v` to `boolean`, `number`, `string` or `array`, whose arm calls `Any.to_bool` or `Any.to_f64`, or is `v.string` or `v.array`, and a trap for the other kinds; `v` itself where it holds no other kind, and refused where it never holds the kind |
+| `length(v)` | `float` of a `match` of `v`: an arm for each module of L0 that has a `length`, and a trap for the kinds that none takes; a call where one module takes every kind that `v` holds, `String.length(v.string)` |
+| `unit(s, i)` | `float` of a `cast` of `s` to `string`, whose arm reads the integer of `u(31)` that `i` holds, with `exact`, and calls `String.unit`; it traps (`'inexact'`) where `i` holds none |
+| `same(a, b)` | a `cast` of each to `array`, `object` and `function`, named `a.same`, around `Any.same(a.same, b.same)` |
+| `fromUnit(c)` | `String.from_unit` of the integer of `u(16)` that the float `c` holds, with `exact`, named `c.unit`; it traps (`'inexact'`) where `c` holds none |
+| `concat(a, b)` | a `cast` of each to `string`, named `a.string`, around `String.concat(a.string, b.string)` |
+| `substring(s, start, end)` | a `cast` of `s` to `string`, whose arm reads the integers of `u(31)` that `end` and then `start` hold, as the view does, named `s.end` and `s.start`, and calls `String.substring` |
+| `item(v, i)` | a `cast` of `v` to `array` and `object`, named `v.item`, whose arm reads the integer of `u(31)` that `i` holds, named `v.index`, and calls `Containers.item`; `v` itself where it holds no other kind |
+| `buildArray(n, s, next, at)`, with arrow literals of at most one parameter as `next` and `at` | the integer of `u(31)` that `n` holds, with `exact`, named `B0.n`, then a `loop`, labelled `B0`, `B1`, … by its depth, as a `let`'s local is numbered, of `B0.b: builder = Containers.begin_array(B0.n)`, `B0.s`, the state, and `B0.i: f64`, the count of items pushed: each round pushes what `at` answers for the state, then, before the last item, steps the state by `next`, and the round after the last is `Containers.seal(B0.b)`; the callbacks' bodies are inlined, as a function that the module does not export is |
+
+`fromUnit`, `concat` and `substring` answer a string and `item` a value of
+any kind, which the caller owns: L0 makes them, or counts them once more
+([l0-design.md §10](../../../doc/sasha-gil/wasm/l0-design.md#10-lifetime-reference-counting-borrowed-arguments-owned-results)).
+The lowering writes the plain stage, which neither copies nor drops one,
+and the [lifetime pass](../lifetime/module.f.js) writes the owned stage,
+which drops each where its scope ends.
+
+JavaScript reads a tag and a length as numbers, so each is a float, and
+the operators on them are a float's: L1's `kind(v) === NUMBER` is
+`eq(float(Any.kind(v)), 3.0)`. An arm names the operand at its kinds after
+the operand and the kind, `v.number`, or after the module of L0, as
+`length`'s arms do: `v.string`. Where the operand is no local, the
+function's name stands for it. JavaScript reads every argument of `unit`,
+`substring` and `item` before the view casts any, so each that does
+something is bound to a local first, in their order.
+
+A cast narrows the rest of its block, as
+[definition.md's rule 4](../../../doc/sasha-gil/ir/definition.md#from-normalized-fast-to-the-ir)
+says. Where the first thing that a definition does is a cast of a local
+that holds other kinds too, `asString(a)` say, a `cast` of that local wraps
+the definition and the rest of the block, which read the local as
+`a.string`: a cast of it there is the value itself, and its `length` is
+String's. L1's `const n = length(asString(a))` narrows `a` so for the rest
+of `stringEquals`. A cast after something else that the definition does
+narrows nothing, since that would move the cast's trap before it.
+
+A cast of a value that never holds its kind would always trap, so it is
+refused with the kinds that the value holds: `asNumber` of a local that
+`asString` has narrowed is `asNumber of any.only(string): asNumber takes a
+number`. So are `unit` and `substring` of a value that is never a string,
+`item` of one that is never an array or an object, and `length` of one
+whose kinds have none. A unit or an index that is no float is refused
+too.
+
+## L1's native rows
+
+A row's arguments are cast to the kinds that it takes, as `unit`'s string
+is: `bigintEquals(a, b)` of two values of `any` is a `match` of `a` to
+`bigint`, then of `b`, around `Native.bigintEquals(a.bigint, b.bigint)`.
+JavaScript reads every argument before the row checks any, so an argument
+that does something is bound to a local first, in their order; a local
+that two arguments read is cast once, and one that holds no other kind is
+not cast. L0's `same` is cast in the same way.
+
+`%` of two floats is the row `numberRemainder`, since WASM has no
+instruction for it: L1's `numberIndex` tests `n % 1 === 0`, which is
+`eq(Native.numberRemainder(n, 1.0), 0.0)`. A module lowered without the
+runtime imports no row, so it refuses `%`, and `%` of integers is refused
+as their division is.
+
+## Constants
+
+Each definition of the module that is not a function is a constant, named
+for its place among them, `#c0` first, whose term reads only the
+constants before it: the IR's derived `init` evaluates them once, in their
+order
+([L0 design §20](../../../doc/sasha-gil/wasm/l0-design.md#20-a-program-is-one-module-with-an-init-export)),
+and a function borrows each one that it reads. A constant's term is
+lowered as a function's body is: it may call a function of the module or
+inline one that the module does not export, and reads an import itself
+where the normalization writes the read there, as it does `-NUMBER`. The
+module keeps the constants that its functions read, themselves or through
+the constants that they read, in their order.
+
+```js
+const half = 1 / 2
+const quarter = half * half
+export const f = a => a * quarter
+```
+
+```
+const #c0: f64 =
+    div(1.0, 2.0)
+
+const #c1: f64 =
+    mul(self.#c0, self.#c0)
+
+fn f(a: f64) -> f64 =
+    mul(a, self.#c1)
+```
+
+`undefined` and `null` are constants of `Any`, which the host makes
+([L0 design §3](../../../doc/sasha-gil/wasm/l0-design.md#3-constants-imported-immutable-globals)),
+so a module lowered without the runtime refuses them. A string is a
+literal that String makes, which the module's start function makes once
+([L0 design §6](../../../doc/sasha-gil/wasm/l0-design.md#6-literals-built-once-at-start-up)),
+so a module lowered without the runtime refuses it too. A definition of
+the module that holds one is no constant: the normalization writes the
+literal where a function reads it, and a function borrows it, as it
+borrows a constant. An array literal is a value that Containers' builder
+makes
+([L0 design §8](../../../doc/sasha-gil/wasm/l0-design.md#8-containers-a-builder-handle-then-seal)):
+its items first, each lowered where it stands as the arguments of a call
+are, so that the builder begins only once each is a value, and nothing
+between `begin_array` and `seal` traps or leaves while the builder, which
+is linear, is open. An item is a value of `any`, so a number and a boolean
+are refused until they are values too, and a module lowered without the
+runtime refuses an array. A definition of the module that holds one is a
+constant, which `init` builds. A read of an array at a number key,
+`a[0]` or `a[Number(k)]`, follows L1's `get` for that case: the receiver,
+then the key, each lowered as an argument is, then the item where the key
+is an integer from `0` up to the array's length, `-0` reading `0`, and
+`undefined` where it is anything else, a fraction, a NaN or past the end.
+The receiver is an array alone, `any.only(array)`, keeps that path. A sealed
+`any` of another kind is a call of the module's `get` where the signature
+table names it (slice 10a); without `get`, that read is refused. So
+[L1's `typeOf`](../../wasm/runtime/l1/module.f.js) lowers from its text:
+its `typeNames` is a constant that `init` builds, read at `kind(v)`. A definition of
+`Math.abs` or `Math.sqrt`, which the normalization writes where a
+constant calls one, is that operator. A constant of a record is refused,
+since no global holds one, and so is a read of a constant before its
+definition, which normalized FAST never writes. A function that reads a
+constant that the lowering refuses is refused with its reason, after the
+constant's name: `f: #c0: g has no signature`.
+
+## Operators
+
+Where JavaScript has one operator for two types, the operand's type picks
+the IR's: the lowering asks the [checker](../check/module.f.js) for it,
+with `typeOf`, in the scope where the term stands. FAST has no `&&`, `||`
+or `??`: they reach it as conditionals.
+
+`a > b` is `lt(b, a)` and `a >= b` is `le(b, a)`. Where `a` does
+something, it is bound to a local first, so that it is still done before
+`b`: either may trap, as a cast does, and a loop may never end.
+
+## What it refuses
+
+Everything else, with the function's name and the reason
+([DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)):
+an import other than the runtime's, among them a JSON module, a function of
+the view other than these thirteen, a cast of a value that never holds its
+kind, a callback of `buildArray` that is not an arrow literal of at most
+one parameter, a count of it that is not a number, a state of it of an
+integer range, in a record too, an item of it that is not a value of
+`any`, a `throw` inside one of its callbacks, which would leave the
+builder behind, a native row other than `bigintEquals` and
+`numberRemainder`, a constant of a record, a read of a constant before its
+definition, an exported function that the table does not name, which a
+lowered function or constant calls, a function as a value but a callback of
+`buildArray`, a function that calls itself or whose call
+gives another number of arguments than it takes, a loop of more than one
+variable, a loop parameter of an integer range, in a record too, a `break`
+that does not end its loop's body, a `return` inside a loop or before the
+end of a function that is inlined, an entry of an object that is not a name
+and its value, such as a spread, a member read of anything but a name,
+an array's at a number, or sealed `any` where the table names `get`, a
+member read that goes on to a call,
+`?.`, a `lazy` definition, a string, an array, `null`, `undefined` and
+`throw` in a module lowered without the runtime, a read of L1's error
+table as a value or at a computed key, another export of its module, an item of an array
+that is a number or a boolean, a spread in an array, a rest parameter, a
+spread argument, a statement of no result or of several, `%`
+of integers, or in a module lowered without the runtime, and every
+operator not in the table, such as `**` and the bitwise ones. The
+[checker](../check/module.f.js)
+then refuses what the IR does not admit, such as a condition that is not a
+`bool`, integers mixed with floats, a division of integers, or a record
+that leaves its function.
+
+## Proofs
+
+- [`proof.f.js`](./proof.f.js) holds the IR of each form, lowered from
+  text, the L0 view's, loops, inlined functions, records, `%` and native
+  rows among them, and FAST written by hand for the forms that no text
+  makes today: a statement of one result, a `return` in an arm, `?:`, a
+  loop's body that ends otherwise, and two functions that call each other.
+  It holds every refusal too.
+- [`proof.mjs`](./proof.mjs) is a host proof. It reads
+  [`sample.f.js`](./sample.f.js), 26 FunctionalScript functions of floats,
+  booleans and `bigint`s, lowers them from their own text with the
+  signatures of [`testlib.f.js`](./testlib.f.js), and runs them as WASM
+  against the functions themselves, on the edges of their parameters'
+  types, and so does [`helpers.f.js`](./helpers.f.js), lowered over the
+  runtime: functions that call functions it does not export, records, a
+  loop that alone reads a `const`, and
+  `%`, with a copy of L1's `numberIndex`, which only L1's `get` calls. It
+  lowers L1's `toBoolean`, `stringEquals`, `stringLess`, `strictEquals`
+  and `stringIndex` from [L1's own text](../../wasm/runtime/l1/module.f.js)
+  too, over the runtime, and runs them against L1's own: `toBoolean` on a
+  value of every kind, the string comparisons on pairs of strings, a
+  surrogate pair among them, and of other values, `strictEquals` on pairs
+  of values of every kind, the same value and equal ones among them, and
+  `stringIndex` on spellings of indices and on values of other kinds. The
+  IR it makes of each is written out there. It lowers
+  [`strings.f.js`](./strings.f.js) too, six functions that make strings
+  and read items, a loop that owns its string among them, writes their
+  owned stage with the lifetime pass, which is written out there, and runs
+  them against the functions themselves, with every cell of the host as it
+  found it after each call that answers. It lowers
+  [`constants.f.js`](./constants.f.js) too, six functions that read the
+  module's constants of floats, of a `bool` and of strings, and answer
+  `undefined`, and runs them after `init`, with every cell as `init` left
+  it, and [`literals.f.js`](./literals.f.js), five functions that read
+  string literals, the empty one, a unit past ASCII and a pair of
+  surrogates among them, which the start function makes as the module is
+  instantiated, and [`arrays.f.js`](./arrays.f.js), six functions that
+  make arrays of values, one of an array that `init` builds among them,
+  whose arrays are the functions' own item by item, with no builder left
+  open, and [`reads.f.js`](./reads.f.js), four functions that read an
+  array at a number key, on the edges of floats, past the end, at a
+  fraction and at a NaN among them. L1's `typeOf` runs against L1's own
+  on values of every kind. It lowers [`throws.f.js`](./throws.f.js) too,
+  over L1's error table, which the lowering reads from the table's text: a
+  copy of L1's `bigintPair`, a throw of a literal, a rethrow and two of
+  L1's errors one after the other, each of which throws what its original
+  throws and leaves every cell as it found it, and L1's `functionText`
+  runs against L1's own. And [`builds.f.js`](./builds.f.js), whose
+  functions build arrays by the view's `buildArray`, nested builds and a
+  state that is a record among them, and two whose callbacks call
+  functions that throw, which shows the view's order, an item before the
+  next state; L1's `toIterable` runs against L1's own on values of every
+  kind and on strings of code points.
+- [`random/`](./random/README.md) is a seeded host proof: a few hundred
+  random programs in what the slices lower, each against JavaScript. Prefer
+  `node --test` for it.

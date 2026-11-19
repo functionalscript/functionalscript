@@ -11,7 +11,7 @@ Two consumers of an EDAG have to know which nodes are shared without
 running it, and neither can ask the graph directly.
 
 - The FunctionalScript writer
-  ([`fjs/compiler/serializer`](../../compiler/serializer/module.f.mjs))
+  ([`fjs/compiler/serializer`](../../compiler/serializer/module.f.js))
   hoists a shared node into a `const $n`.
 - A JavaScript-compatible executor
   ([`../execution-models.md`](../execution-models.md) §2) evaluates a shared
@@ -119,7 +119,7 @@ type Analysis = {
   answers as one that computes it twice does. It is what lets the
   EDAG-backed outputs retire the AST's route sweep, and it is the equality
   the writer's round trip is stated over
-  ([`fjs/compiler/serializer`](../../compiler/serializer/module.f.mjs)):
+  ([`fjs/compiler/serializer`](../../compiler/serializer/module.f.js)):
   two graphs are the same to the analysis when they differ only where the
   merge says they are one.
 - **Sharing decides how many times, never when.** A shared node has a cache
@@ -144,7 +144,7 @@ type Analysis = {
   writes the JavaScript meaning, so an EDAG the CAVM has optimized is not
   necessarily expressible in `.f.js` and is not promised to survive the
   round trip; that promise is made for the JavaScript-compatible model
-  ([`fjs/compiler/serializer`](../../compiler/serializer/module.f.mjs)).
+  ([`fjs/compiler/serializer`](../../compiler/serializer/module.f.js)).
 - **Numbered, not keyed.** The table is built as the DataJS serializer builds
   its graph, a finished list numbered once, and the one `Map` by object
   lives inside that build; no consumer holds one, since each reads indices:
@@ -202,7 +202,7 @@ the compiler's evaluation, no longer take (`identityAnalysis`).
       where sharing does not decide it, and `['===', s, s]` pinned as `true`
       here and `false` in amnesia.
 - [x] The FunctionalScript writer reads the table for its hoisting: `analysis`
-      in [`fjs/compiler/serializer`](../../compiler/serializer/module.f.mjs), which hoists
+      in [`fjs/compiler/serializer`](../../compiler/serializer/module.f.js), which hoists
       from `shared` — now the identity table, `identityAnalysis`. The value outputs running the EDAG through `fjs/edag/memo`
       is the integration task of
       [`interpret-edag.md`](../../compiler/todo/interpret-edag.md), which carries the
@@ -217,7 +217,7 @@ the compiler's evaluation, no longer take (`identityAnalysis`).
   executors share, and why amnesia itself stays an oracle.
 - [`fjs/compiler/todo/interpret-edag.md`](../../compiler/todo/interpret-edag.md) — the
   interpreter plan, whose per-invocation memoization this table serves.
-- [`fjs/compiler/serializer`](../../compiler/serializer/module.f.mjs) — the writer
+- [`fjs/compiler/serializer`](../../compiler/serializer/module.f.js) — the writer
   that hoists `shared`.
-- [`fjs/media/datajs/serializer`](../../media/datajs/serializer/module.f.mjs) —
+- [`fjs/media/datajs/serializer`](../../media/datajs/serializer/module.f.js) —
   the numbering technique, a finished list and one `Map`, reused here.

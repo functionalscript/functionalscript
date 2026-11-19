@@ -38,7 +38,7 @@ client sent; an `EffectList` over a socket cannot.
 ### Proposal
 
 Give the body a lifetime and refuse a pull outside it, in both runners and in one
-message — the pairing `requestBodyOffsetMessage` (`../module.f.mjs`) already is,
+message — the pairing `requestBodyOffsetMessage` (`../module.f.js`) already is,
 so that a program meeting the refusal in a proof meets the same words on a host.
 
 What has to be decided:

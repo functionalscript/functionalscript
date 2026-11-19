@@ -1,6 +1,6 @@
 /**
  * The host proof of a refused construct's page
- * ([`./module.f.mjs`](./module.f.mjs)), one for every page: each page's
+ * ([`./module.f.js`](./module.f.js)), one for every page: each page's
  * `proof.mjs` is the call of {@link hostProof} with its own files.
  *
  * **The page's files are read, not copied.** A page states its sample's
@@ -23,7 +23,7 @@
 
 import { existsSync, readFileSync } from 'node:fs'
 import { assert, assertEq } from '../../asserts/module.f.js'
-import { alternativeName, dependency, dependencyName, sampleName } from './module.f.mjs'
+import { alternativeName, dependency, dependencyName, sampleName } from './module.f.js'
 
 /**
  * The file `name` beside the module at `url`, as text.

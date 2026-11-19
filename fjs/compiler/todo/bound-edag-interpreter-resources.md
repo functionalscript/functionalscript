@@ -5,7 +5,7 @@
 
 ### Problem
 
-The baseline direct EDAG interpreter, [`fjs/edag/memo`](../../edag/memo/module.f.mjs),
+The baseline direct EDAG interpreter, [`fjs/edag/memo`](../../edag/memo/module.f.js),
 is intentionally separate from module compilation. Hostile or simply very large inputs can consume
 excessive work or memory, and recursive traversal can overflow the host language call
 stack.

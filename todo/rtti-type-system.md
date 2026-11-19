@@ -264,7 +264,7 @@ the program above compiles.
 
 **None of that arises here.** A schema denotes a *set of immutable values*;
 `subset` is inclusion between two such sets, approximated soundly on the canonical
-[`data`](../fjs/rtti/data/module.f.mjs) form, with no writer anywhere to
+[`data`](../fjs/rtti/data/module.f.js) form, with no writer anywhere to
 make the answer go stale. Three concrete consequences — the first two holding
 **within FunctionalScript**, for the reason the next paragraph is careful
 about:
@@ -303,7 +303,7 @@ value coming *in* — from JSON, from a protocol frame".
 **`parse` is the boundary only where the schema names every part.** It
 constructs a fresh container, but `unknown` is `() => ok` and `ok` returns the
 value it was handed
-([`parse`](../fjs/rtti/parse/module.f.mjs)), so a value admitted through
+([`parse`](../fjs/rtti/parse/module.f.js)), so a value admitted through
 an `unknown` — the whole schema, or one field of a struct — comes back as the
 caller's own object, aliases intact. `parse(unknown)(obj)` *is* `obj`. So the
 advice "use `parse` and hold the result" holds for a schema with no `unknown`
@@ -448,7 +448,7 @@ document already establishes, and `.f.mjs` modules keep their JSDoc and their
 
 An npm package ships `.d.ts` so that TypeScript consumers see types; the
 declarations are **generated from the schemas**, never authored.
-[`fjs/rtti/ts/module.f.mjs`](../fjs/rtti/ts/module.f.mjs) is already that
+[`fjs/rtti/ts/module.f.js`](../fjs/rtti/ts/module.f.js) is already that
 printer — `thunk RTTI → toData → dataToTs`, emitting canonical aliases with
 recursion handled — so this is close to plumbing plus an `fjs` command, and it
 is the stage that can land earliest. Not *only* plumbing, though, and not
@@ -580,7 +580,7 @@ stating rather than assuming:
 TypeScript requires an index signature to cover the declared keys too, so the
 printer widens the index type "to the union of the rest and the declared value
 types — the closest expressible supertype"
-([`rtti/ts`](../fjs/rtti/ts/module.f.mjs)). `rest({ a: number }, string)`
+([`rtti/ts`](../fjs/rtti/ts/module.f.js)). `rest({ a: number }, string)`
 therefore emits an index of `number | string`, and a caller may pass
 `{ a: 1, b: 2 }` — a numeric extra key, which the schema rejects because its
 rest is `string`. Note that an exact-key encoding for the bare, closed form
@@ -591,12 +591,12 @@ that type" as two separate constraints.
 **Non-finite numbers and `-0`** are the third, and they are smaller only in
 how often they appear. The printer renders a numeric const as
 `isFinite(c) ? String(c) : 'number'`
-([`fjs/types/ts`](../fjs/types/ts/module.f.mjs), which
-[`rtti/ts`](../fjs/rtti/ts/module.f.mjs) imports), so a `NaN`,
+([`fjs/types/ts`](../fjs/types/ts/module.f.js), which
+[`rtti/ts`](../fjs/rtti/ts/module.f.js) imports), so a `NaN`,
 `Infinity`, or `-Infinity` const becomes the type `number`, and `-0` becomes
 the literal `0`. Validation meanwhile uses `Object.is` **on purpose** — its doc
 comment says so, precisely to match `NaN` and to keep `+0` and `-0` distinct
-([`rtti/common`](../fjs/rtti/common/module.f.mjs)). So a `NaN` schema in
+([`rtti/common`](../fjs/rtti/common/module.f.js)). So a `NaN` schema in
 an exported input position admits any number and rejects all but one, and a
 `-0` schema admits `+0` and rejects it. TypeScript has no `NaN` literal type
 and does not distinguish `-0` from `0`, so this is inexpressible in the same
@@ -635,10 +635,10 @@ it as scoped to the object shapes TypeScript can name.
 | Piece | Where | State |
 | --- | --- | --- |
 | Schema constructors | [`fjs/rtti/module.f.js`](../fjs/rtti/module.f.js) | done |
-| Run-time checking | [`parse/`](../fjs/rtti/parse/module.f.mjs), [`validate/`](../fjs/rtti/validate/module.f.mjs) | done — same acceptance, differing only in what a success carries. `data`'s reader is **not** a third with the same acceptance: see [data-validate-admits-non-djs-values](../fjs/rtti/todo/data-validate-admits-non-djs-values.md) |
-| Canonical data form, `subset` | [`data/`](../fjs/rtti/data/module.f.mjs) | done, and **sound but deliberately incomplete** — it never answers `true` for a non-inclusion, and may answer `false` for one that holds only semantically. The primitive a checker needs, not the whole of assignability |
-| TypeScript emission | [`ts/module.f.mjs`](../fjs/rtti/ts/module.f.mjs) | done as a printer — but it and `Ts<>` disagree on `unknown` and on recognizing an empty rest, by its own doc comment, so it is not yet a faithful `.d.ts` generator |
-| JSON Schema emission | [`fjs/media/json/schema`](../fjs/media/json/schema/module.f.mjs) | done — `toJsonSchema` writes draft 2020-12 through the same data form, as an MCP tool's `inputSchema`; a second output of one schema, not a type-system piece |
+| Run-time checking | [`parse/`](../fjs/rtti/parse/module.f.js), [`validate/`](../fjs/rtti/validate/module.f.js) | done — same acceptance, differing only in what a success carries. `data`'s reader is **not** a third with the same acceptance: see [data-validate-admits-non-djs-values](../fjs/rtti/todo/data-validate-admits-non-djs-values.md) |
+| Canonical data form, `subset` | [`data/`](../fjs/rtti/data/module.f.js) | done, and **sound but deliberately incomplete** — it never answers `true` for a non-inclusion, and may answer `false` for one that holds only semantically. The primitive a checker needs, not the whole of assignability |
+| TypeScript emission | [`ts/module.f.js`](../fjs/rtti/ts/module.f.js) | done as a printer — but it and `Ts<>` disagree on `unknown` and on recognizing an empty rest, by its own doc comment, so it is not yet a faithful `.d.ts` generator |
+| JSON Schema emission | [`fjs/media/json/schema`](../fjs/media/json/schema/module.f.js) | done — `toJsonSchema` writes draft 2020-12 through the same data form, as an MCP tool's `inputSchema`; a second output of one schema, not a type-system piece |
 | Compile-time bridge | `Ts<T>` in [`ts/types.ts`](../fjs/rtti/ts/types.ts) | done, and transitional — see Problem |
 | Annotation convention | [type-annotations](../spec/todo/3360-type-annotations.md) | designed, and narrowed to a name; recognition not started |
 | Compile-time evaluation | [`fjs/compiler/todo/047-compiler-meta-programming.md`](../fjs/compiler/todo/047-compiler-meta-programming.md) | not started |
@@ -659,7 +659,7 @@ not apply here, and answering it needs no erasure rule.
 A FunctionalScript module compiles to an [EDAG](../fjs/edag/README.md), and
 source is serialized back **out of the graph**, by reference count, emitting
 only what is reachable —
-[`fjs/media/datajs/serializer`](../fjs/media/datajs/serializer/module.f.mjs)
+[`fjs/media/datajs/serializer`](../fjs/media/datajs/serializer/module.f.js)
 already does exactly this for DataJS values, counting references, hoisting
 shared ones to `const $N`, and emitting nothing for what nothing points at. A
 schema imported and named only to be mentioned in `//: myType` annotations has
@@ -775,7 +775,7 @@ Three of its features fall out of decisions already made:
   missing is a source span, which is [open question 4](#open-questions) — the
   same work, whether the consumer is a terminal or an editor.
 - **Hover.** The name-only rule guarantees every annotated declaration has a
-  type with a *name*, so hover has something to show, and `ts/module.f.mjs`
+  type with a *name*, so hover has something to show, and `ts/module.f.js`
   already renders a schema to readable TypeScript for the expansion.
 - **Go to definition, on a type.** An annotation body is an ordinary binding,
   so this is the same jump as any `const` — plain identifier resolution, not a
@@ -794,16 +794,16 @@ Three of its features fall out of decisions already made:
   from a non-schema without either running it or having a meta-schema.**
 
 The transport is largely built. LSP is JSON-RPC 2.0, and
-[`fjs/protocol/json_rpc`](../fjs/protocol/json_rpc/module.f.mjs) already
+[`fjs/protocol/json_rpc`](../fjs/protocol/json_rpc/module.f.js) already
 implements the envelope, the standard error codes, and `dispatch`, with
-[`mcp/stdio`](../fjs/protocol/mcp/stdio/module.f.mjs) as a working stdio server
+[`mcp/stdio`](../fjs/protocol/mcp/stdio/module.f.js) as a working stdio server
 to copy. Two pieces are genuinely new, and only one of them is small:
 
 - **framing** — LSP uses `Content-Length` headers where MCP uses
   newline-delimited lines. Small.
 - **notification dispatch** — `dispatch` returns `null` for any message without
   an `id` and never reaches a handler
-  ([`json_rpc`](../fjs/protocol/json_rpc/module.f.mjs)), which is correct for
+  ([`json_rpc`](../fjs/protocol/json_rpc/module.f.js)), which is correct for
   JSON-RPC responses and wrong for a language server: `textDocument/didOpen`
   and `didChange` are notifications, and they are how the server learns the
   buffer's contents. Copied as-is, hover, diagnostics and completion would all
@@ -861,8 +861,8 @@ gain, so the dependencies are stated instead:
   When stage 4 erases that reference while lowering to EDAG, the binding is
   left unreachable from the root — and the compiler already anchors such a
   binding with `','` rather than rejecting it (`anchors` in
-  [`fjs/edag/from_fast`](../fjs/edag/from_fast/module.f.mjs), shown in the
-  [compiler's EDAG demo](../fjs/compiler/edag/demo.f.mjs)), so 12's legality
+  [`fjs/edag/from_fast`](../fjs/edag/from_fast/module.f.js), shown in the
+  [compiler's EDAG demo](../fjs/compiler/edag/demo.f.js)), so 12's legality
   half has landed and does not block stage 4. What 12 still owns is the totality
   exemption, which decides whether such a binding is evaluated or dropped;
   whether stage 4 waits on it for cost is open.
@@ -894,7 +894,7 @@ gain, so the dependencies are stated instead:
   first diagnostic.
 
 - [ ] **1. `.d.ts` generation from schemas.** An `fjs` command over
-  [`ts/module.f.mjs`](../fjs/rtti/ts/module.f.mjs), wired into
+  [`ts/module.f.js`](../fjs/rtti/ts/module.f.js), wired into
   packaging ([publishing-packages](../fjs/ci/todo/publishing-packages.md)).
   No compiler work and no language change — but **not just a command**.
   The printer's own doc comment records two divergences from `Ts<>`. They
@@ -903,8 +903,8 @@ gain, so the dependencies are stated instead:
 
   - **`unknown` — the printer matches the runtime; `Ts<>` is the narrow
     one.** Both readers implement the `unknown` case as `() => ok`
-    ([`validate`](../fjs/rtti/validate/module.f.mjs),
-    [`parse`](../fjs/rtti/parse/module.f.mjs)), so the schema as
+    ([`validate`](../fjs/rtti/validate/module.f.js),
+    [`parse`](../fjs/rtti/parse/module.f.js)), so the schema as
     *executed* accepts anything, functions and symbols included. The
     printer's TypeScript `unknown` says the same. It is `Ts<>` that maps to
     rtti's own `Unknown`, `Primitive | Array | Object`
@@ -953,8 +953,8 @@ gain, so the dependencies are stated instead:
   [primitives](../fjs/rtti/guide/schemas/primitives/README.md) page say any
   DataJS value; `Ts<>` excludes functions and
   symbols; the readers accept them
-  ([`validate`](../fjs/rtti/validate/module.f.mjs) and
-  [`parse`](../fjs/rtti/parse/module.f.mjs) both have
+  ([`validate`](../fjs/rtti/validate/module.f.js) and
+  [`parse`](../fjs/rtti/parse/module.f.js) both have
   `unknown: () => ok`); and the printer emits TypeScript's unrestricted
   `unknown`. Until one is chosen, an exported `unknown` has no settled
   published meaning — so **stage 11 cannot retire a declaration containing
@@ -980,7 +980,7 @@ gain, so the dependencies are stated instead:
 
   **And it is not fully independent of the compiler stages.** The printer
   renders *a schema* to a type expression;
-  [`dataToTs`](../fjs/rtti/ts/module.f.mjs) returns aliases plus that
+  [`dataToTs`](../fjs/rtti/ts/module.f.js) returns aliases plus that
   expression, not `export const ks: …`. Generating a module's `.d.ts` also
   needs to know **which export has which schema**, and that association is
   exactly what an annotation supplies — which does not exist until stages
@@ -1102,7 +1102,7 @@ gain, so the dependencies are stated instead:
   JSON text". DataJS does not have the corner — it writes `NaN`,
   `±Infinity` and `-0` as themselves — so which serializer the snapshot
   goes through decides it. Written as JSON
-  ([`json/serializer`](../fjs/media/json/serializer/module.f.mjs)), a
+  ([`json/serializer`](../fjs/media/json/serializer/module.f.js)), a
   snapshot of `{ x: NaN }` would come back as `{ x: null }`,
   so the run-time schema would differ from the one the compiler checked
   against — the exact disagreement this remedy exists to prevent, arrived
@@ -1130,7 +1130,7 @@ gain, so the dependencies are stated instead:
   **no `parse`**, and no
   `Data`-to-`Type` reconstruction anywhere in the tree. So a snapshot can
   stabilize a `validate` call and cannot stabilize a `parse` one:
-  [`parse`](../fjs/rtti/parse/module.f.mjs) takes the thunk-form
+  [`parse`](../fjs/rtti/parse/module.f.js) takes the thunk-form
   `Type` and walks it, re-entering the thunk, while handing it the `Data`
   instead would change its signature. That is the reader this epic leans on
   hardest — stage 13's inbound remedy is "`parse` against a schema that
@@ -1222,7 +1222,7 @@ gain, so the dependencies are stated instead:
   **It needs the schema itself checked first, and nothing yet does that.**
   `visit` assumes its input already satisfies the static `Type` contract:
   an unrecognized tag falls through to `v.primitive0(tag)`
-  ([`rtti/common`](../fjs/rtti/common/module.f.mjs)), so a binding
+  ([`rtti/common`](../fjs/rtti/common/module.f.js)), so a binding
   whose value is `() => ['wat']` is reducible, callable, and behaves as a
   type that rejects everything — rather than producing the "that is not a
   schema" compile error stage 4 owes. An always-failing type is the worst
@@ -1405,7 +1405,7 @@ gain, so the dependencies are stated instead:
   compile-time fiction (`asNominal` is `identity`), so nothing in the value
   carries it and a generated `.d.ts` cannot recover it.
 - [ ] **10. A language server.** LSP over
-  [`json_rpc`](../fjs/protocol/json_rpc/module.f.mjs) — diagnostics with
+  [`json_rpc`](../fjs/protocol/json_rpc/module.f.js) — diagnostics with
   spans, hover, go-to-definition, completion — so that removing JSDoc does
   not remove the editor experience. Must ship *before* stage 11, and can
   start once stage 5 produces its first real diagnostic — so it overlaps
@@ -1772,7 +1772,7 @@ splits around inference, so the runnable order is 668's representation half
   type Ts<T> = Info<Map<T>, typeof system>
   ```
 
-  `subset` shipped in [`rtti/data`](../fjs/rtti/data/module.f.mjs); the
+  `subset` shipped in [`rtti/data`](../fjs/rtti/data/module.f.js); the
   parser half is this epic.
 - [types-for-fjs.md](./types-for-fjs.md) — why TypeScript's own type system is not
   the target: it cannot analyze mutable types soundly, which is the argument
@@ -1884,7 +1884,7 @@ splits around inference, so the runnable order is 668's representation half
 - [excluded-string-values](../fjs/rtti/todo/excluded-string-values.md) —
   `Type` has no negation, so a set like "any string but these" is unsayable.
   A gap in the eDSL of exactly the kind commitment 1 says gets closed there.
-- [`fjs/protocol/json_rpc`](../fjs/protocol/json_rpc/module.f.mjs) and
+- [`fjs/protocol/json_rpc`](../fjs/protocol/json_rpc/module.f.js) and
   [`fjs/protocol/mcp`](../fjs/protocol/mcp/README.md) — the transport stage 10
   builds on, and the precedent for describing a protocol's messages in RTTI.
 - [error-message-specificity](../fjs/compiler/tokenizer/todo/error-message-specificity.md)

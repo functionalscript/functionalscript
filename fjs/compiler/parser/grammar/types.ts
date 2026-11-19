@@ -9,7 +9,7 @@
  */
 
 import type { Assert } from '../../../asserts/types.ts'
-import type { Option, RepeatFrom, Rule } from '../../../ebnf/types.ts'
+import type { Option, Reference, RepeatFrom, Rule } from '../../../ebnf/types.ts'
 import type { Equal } from '../../../types/ts/types.ts'
 import type { ModuleToken } from '../../tokenizer/types.ts'
 import type { BinaryTag } from '../../ast/types.ts'
@@ -24,13 +24,13 @@ import type {
     identifier,
     identifierName,
     primitive,
-} from './module.f.mjs'
+} from './module.f.js'
 
 // The alphabet the grammar is written over is described twice — as the lists
-// `./module.f.mjs` registers and as the unions below — and the four pins that
+// `./module.f.js` registers and as the unions below — and the four pins that
 // keep the two agreeing sit beside those unions.
 //
-// They were `./proof.f.mjs`'s `consistency` entry, a body of nothing but
+// They were `./proof.f.js`'s `consistency` entry, a body of nothing but
 // typedefs, so none of them bound to a statement and all four were green
 // whatever they claimed (`../../../AGENTS.md` §1.4). That entry's own comment
 // said the function body existed only to give the typedefs a scope, which is
@@ -116,6 +116,9 @@ export type Items<Item extends Rule> = () => readonly ['const', readonly [
     Option<readonly [number, Option<Rule>]>,
 ]]
 
+/** A call's argument list reached through a stable recursive rule reference. */
+export type CallArguments = Reference<ReturnType<Items<Item>>[1]>
+
 /** An opening symbol, an optional list, and the closing symbol. */
 export type Container<Item extends Rule> = readonly [number, Option<Items<Item>>, number]
 
@@ -172,7 +175,7 @@ export type Item = {
 export type Access = {
     readonly property: readonly [number, typeof identifierName]
     readonly index: readonly [number, Value, number]
-    readonly call: readonly [number, Option<Items<Item>>, number]
+    readonly call: readonly [number, Option<CallArguments>, number]
     readonly optional: readonly [number, OptionalStep]
 }
 
@@ -180,14 +183,14 @@ export type Access = {
 export type MemberAccess = Pick<Access, 'property' | 'index'>
 
 /** A name, group or nested construction, with only member steps after it. */
-export type ConstructorCallee = () => readonly ['const', {
+export type ConstructorCallee = Reference<{
     readonly name: readonly [typeof identifier, RepeatFrom<0, MemberAccess>]
     readonly group: readonly [number, Value, CommaOperands, number, RepeatFrom<0, MemberAccess>]
     readonly construct: readonly [NewExpression, RepeatFrom<0, MemberAccess>]
-}]
+}>
 
 /** Generic construction syntax with an explicit, possibly empty, argument list. */
-export type NewExpression = () => readonly ['const', readonly [number, ConstructorCallee, number, Option<Items<Item>>, number]]
+export type NewExpression = () => readonly ['const', readonly [number, ConstructorCallee, number, Option<CallArguments>, number]]
 
 /** A constructor expression statement preserves its ordinary trailing steps. */
 export type NewExpressionStatement = readonly [NewExpression, RepeatFrom<0, Access>, End]
@@ -203,7 +206,7 @@ export type ArrayExpressionStatement = readonly [ArrayStatementValue, End]
 export type OptionalStep = {
     readonly property: typeof identifierName
     readonly index: readonly [number, Value, number]
-    readonly call: readonly [number, Option<Items<Item>>, number]
+    readonly call: readonly [number, Option<CallArguments>, number]
 }
 
 /**
@@ -231,7 +234,7 @@ export type PrefixBranches<Rest extends readonly unknown[]> = {
  * themselves recurse into {@link UnaryOperand}, never {@link Unary}, since
  * JavaScript refuses `**` immediately after a unary-prefixed operand.
  */
-export type Unary = () => readonly ['const', PrefixBranches<readonly []> & {
+export type Unary = Reference<PrefixBranches<readonly []> & {
     readonly primitive: readonly [readonly [typeof primitive, RepeatFrom<0, Access>], PowTail]
     readonly template: readonly [readonly [Template, RepeatFrom<0, Access>], PowTail]
     readonly ref: readonly [readonly [typeof identifier, RepeatFrom<0, Access>], PowTail]
@@ -239,7 +242,7 @@ export type Unary = () => readonly ['const', PrefixBranches<readonly []> & {
     readonly object: readonly [readonly [Container<Entry>, RepeatFrom<0, Access>], PowTail]
     readonly construct: readonly [readonly [NewExpression, RepeatFrom<0, Access>], PowTail]
     readonly group: ParenGroup
-}]
+}>
 
 /**
  * What a prefix takes: every alternative {@link Unary} has, but
@@ -249,7 +252,7 @@ export type Unary = () => readonly ['const', PrefixBranches<readonly []> & {
  * so recursing through this type rather than {@link Unary} keeps that
  * refusal at every depth a prefix chain reaches.
  */
-export type UnaryOperand = () => readonly ['const', PrefixBranches<readonly []> & {
+export type UnaryOperand = Reference<PrefixBranches<readonly []> & {
     readonly primitive: readonly [readonly [typeof primitive, RepeatFrom<0, Access>]]
     readonly template: readonly [readonly [Template, RepeatFrom<0, Access>]]
     readonly ref: readonly [readonly [typeof identifier, RepeatFrom<0, Access>]]
@@ -257,7 +260,7 @@ export type UnaryOperand = () => readonly ['const', PrefixBranches<readonly []> 
     readonly object: readonly [readonly [Container<Entry>, RepeatFrom<0, Access>]]
     readonly construct: readonly [readonly [NewExpression, RepeatFrom<0, Access>]]
     readonly group: ParenGroupOperand
-}]
+}>
 
 /**
  * One round of a binary-operator layer above {@link Unary}: `(op, Unary,
@@ -273,7 +276,7 @@ export type UnaryOperand = () => readonly ['const', PrefixBranches<readonly []> 
  * single generic `Below` this alias once took — would leak the ladder's
  * own follow set down into the function's body and manufacture an LL(1)
  * conflict `fjs/ebnf/ll1` has no way to resolve. See `unary`'s own comment
- * in `./module.f.mjs`.
+ * in `./module.f.js`.
  */
 type _OpRound<Prev extends readonly Rule[]> = readonly [Rule, Unary, ...Prev]
 
@@ -302,7 +305,7 @@ export type EagerTail = readonly [
     _EqualityTail, _BitwiseAndTail, _BitwiseXorTail, _BitwiseOrTail,
 ]
 
-/** One tail per layer of `eagerLayers`: the fold in `./module.f.mjs` builds exactly this many. */
+/** One tail per layer of `eagerLayers`: the fold in `./module.f.js` builds exactly this many. */
 type _EagerTailIsEveryLayer = Assert<Equal<EagerTail['length'], (typeof eagerLayers)['length']>>
 
 /** One round of the `&&` layer: its operand every eager layer's, `a && b | c` being `a && (b | c)`. */
@@ -329,7 +332,7 @@ type _NullishTail = RepeatFrom<0, _NullishRound>
  * and then the repeat lists that may continue it, a `&&` chain continuing
  * into `||` rounds and a `??` chain into `??` rounds alone, so that
  * `a ?? b || c` and `a && b ?? c` have no parse, as JavaScript has none.
- * The shape's own comment is on `circuitTail` in `./module.f.mjs`.
+ * The shape's own comment is on `circuitTail` in `./module.f.js`.
  */
 export type CircuitTail = Option<{
     readonly logicalAnd: readonly [_LogicalAndRound, _LogicalAndTail, _LogicalOrTail]
@@ -377,13 +380,12 @@ export type ValueBranches = PrefixBranches<Tail> & {
 }
 
 /**
- * A value: {@link ValueBranches} and an object of members. A `const`
- * thunk whose payload names the thunk, which is what lets a type alias
- * name itself.
+ * A value: {@link ValueBranches} and an object of members. The reference
+ * carries its payload type while its definition supplies the recursive body.
  */
-export type Value = () => readonly ['const', ValueBranches & {
+export type Value = Reference<ValueBranches & {
     readonly object: readonly [readonly [Container<Entry>, RepeatFrom<0, Access>], PowTail, ...Tail]
-}]
+}>
 
 /**
  * A function's body: {@link ValueBranches} without the object, since
@@ -391,9 +393,9 @@ export type Value = () => readonly ['const', ValueBranches & {
  * is a value again. A group is the other spelling of a body that is an
  * object.
  */
-export type Body = () => readonly ['const', ValueBranches & {
+export type Body = Reference<ValueBranches & {
     readonly block: LoopBlock
-}]
+}>
 
 /** `(` and what it opens: the one alternative a `(` starts. */
 export type Paren = readonly [number, Parenthesized]
@@ -439,10 +441,10 @@ export type ArrowOrRest = {
  * listed as {@link Items} lists anything, and the rest parameter a name,
  * ending the list.
  */
-export type ParameterNames = () => readonly ['const', {
+export type ParameterNames = Reference<{
     readonly rest: readonly [number, typeof identifierName]
     readonly fixed: readonly [BindingTarget, Option<readonly [number, Value]>, Option<readonly [number, Option<ParameterNames>]>]
-}]
+}>
 
 /**
  * What follows `(` value `,`: a cover of the parameters after a named
@@ -503,7 +505,7 @@ export type SimpleStatement = LoopStatement
 /** Empty or nonempty statement lists preserve source order. */
 export type BlockContents = RepeatFrom<0, LoopStatement>
 
-/** A block's statement before its terminator: a declaration, a braced conditional, a loop, or a named assignment or call. A thunk, as {@link Value} is, since it names itself through the block. */
+/** A block's statement before its terminator: a declaration, a braced conditional, a loop, or a named assignment or call. Its reference recurs through the block. */
 export type Statement = LoopStatement
 
 /** An ordinary conditional retains normal arms and the existing terminating guards. */
@@ -516,10 +518,10 @@ export type BranchBlock = readonly [number, BranchContents, number]
 export type BranchContents = BlockContents
 
 /** A braced alternate or another ordinary conditional. */
-export type BranchElse = () => readonly ['const', {
+export type BranchElse = Reference<{
     readonly block: BranchBlock
     readonly if: IfStatement
-}]
+}>
 
 /** Plain and compound assignment spellings read as one token. */
 export type AssignmentOperator = { readonly [K in keyof typeof import('../../ast/module.f.js').assignmentOperators]: number }
@@ -580,8 +582,8 @@ export type ForStatement = readonly [number, number, ForHeader, number, LoopBloc
 /** `{`, a loop's statements, and `}`: no terminator, since the `}` continues the loop. */
 export type LoopBlock = readonly [number, RepeatFrom<0, LoopStatement>, number]
 
-/** A loop block's statement: a declaration, conditional, nested loop, switch, loop or function exit, or what begins with a name. A thunk, since its branches name themselves through {@link LoopBlock}. */
-export type LoopStatement = () => readonly ['const', {
+/** A loop block's statement: a declaration, conditional, nested loop, switch, loop or function exit, or what begins with a name. Its reference recurs through {@link LoopBlock}. */
+export type LoopStatement = Reference<{
     readonly block: LoopBlock
     readonly break: readonly [number, End]
     readonly const: ConstStatement
@@ -598,7 +600,7 @@ export type LoopStatement = () => readonly ['const', {
     readonly do: DoWhileStatement
     readonly while: WhileStatement
     readonly for: ForStatement
-}]
+}>
 
 /** A normal loop-body switch: at least one case and an optional last default. */
 export type LoopSwitch = readonly [number, number, Value, number, number, RepeatFrom<1, LoopCase>, Option<readonly [number, number, LoopBlock]>, number]
@@ -610,10 +612,10 @@ export type LoopCase = readonly [RepeatFrom<1, readonly [number, Value, number]>
 export type LoopIfStatement = readonly [number, number, Value, number, LoopBlock, Option<readonly [number, LoopElse]>]
 
 /** A braced alternate or another conditional, after `else`. */
-export type LoopElse = () => readonly ['const', {
+export type LoopElse = Reference<{
     readonly block: LoopBlock
     readonly if: LoopIfStatement
-}]
+}>
 
 /**
  * What a `const` or a fixed parameter binds: a name, or an array or an
@@ -663,29 +665,29 @@ export type Terminator = {
 /**
  * What follows a case's label: another label, `case`, a value, `:` and
  * this rule again, or the case's {@link Block} and what follows the case,
- * {@link AfterCase}. A thunk, and a variant: the block names the
+ * {@link AfterCase}. A reference to a variant: the block names the
  * terminator, the terminator this rule, and this rule the block, and a
  * cycle keeps a finite `Ast` only through a variant — `_Branch` in
  * `fjs/ebnf/ast` defers a branch where a tuple's element is built with
  * the tuple — as {@link Statement}'s does for the guard.
  */
-export type CaseTail = () => readonly ['const', {
+export type CaseTail = Reference<{
     readonly case: readonly [number, Value, number, CaseTail]
     readonly block: readonly [Block, AfterCase]
-}]
+}>
 
 /**
  * What follows a case's block: the next case, `case`, its first label,
  * `:` and its {@link CaseTail}; `default`, `:`, a {@link Block} and the
  * `}` of the block the switch stands in; or that `}` and the rest of that
- * block, its statements and its terminator. A thunk and a variant, as
+ * block, its statements and its terminator. A reference to a variant, as
  * {@link CaseTail} is.
  */
-export type AfterCase = () => readonly ['const', {
+export type AfterCase = Reference<{
     readonly case: readonly [number, Value, number, CaseTail]
     readonly default: readonly [number, number, Block, number]
     readonly rest: readonly [number, BlockContents]
-}]
+}>
 
 /**
  * The one rest parameter, when a function has one: `...` and the
@@ -711,7 +713,7 @@ export type Func = readonly [Parameters, number, number, Body]
 // Which of the two rules the parameter is, pinned — one guard per
 // direction, since neither covers both:
 //
-// - narrow the *rule* in `./module.f.mjs` and the annotation catches it,
+// - narrow the *rule* in `./module.f.js` and the annotation catches it,
 //   `TS2740`, the literal being short the six properties `identifierName`
 //   demands;
 // - narrow *this alias* and nothing does. The rule stays assignable to the

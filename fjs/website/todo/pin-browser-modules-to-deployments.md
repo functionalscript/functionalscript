@@ -74,7 +74,7 @@ and generated files absent from Git need another source if GitHub is chosen.
 
 ### Related
 
-- [`runner` and generated page scripts](../page/module.f.mjs).
+- [`runner` and generated page scripts](../page/module.f.js).
 - [`startDemo`](../demo-runtime.mjs) and
   [`startBrowserTestSources`](../../emergent_testing/browser/module.mjs).
 - [Use `importmap` as `package-lock.json`](./use-importmap-as-package-lock-json.md)

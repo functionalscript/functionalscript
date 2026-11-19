@@ -10,7 +10,7 @@
 import { assert, assertStructurallySame } from '../asserts/module.f.js'
 import { ok } from '../types/result/module.f.js'
 import { asyncTryCatch } from '../types/result/module.mjs'
-import { all, randomInt } from './common/module.f.mjs'
+import { all, randomInt } from './common/module.f.js'
 import { asyncPartialRun, asyncRunAll } from './module.mjs'
 
 /** A `randomInt` that always answers `4`. @type {() => Promise<ReturnType<RandomInt[1]>>} */

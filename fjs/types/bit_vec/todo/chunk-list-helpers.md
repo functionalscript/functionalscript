@@ -22,18 +22,18 @@ const bytesOf = chunks => flat(map(u8ListMsb)(chunks))
 const fileSizeBytes = chunks => chunks.reduce((acc, c) => acc + Number(byteLength(c)), 0)
 ```
 
-in [`fjs/effects/node`](../../../effects/node/module.f.mjs),
-[`fjs/git/inflater`](../../../git/inflater/module.f.mjs),
-[`fjs/cas/git`](../../../cas/git/module.f.mjs) and
-[`fjs/effects/node/virtual`](../../../effects/node/virtual/module.f.mjs).
+in [`fjs/effects/node`](../../../effects/node/module.f.js),
+[`fjs/git/inflater`](../../../git/inflater/module.f.js),
+[`fjs/cas/git`](../../../cas/git/module.f.js) and
+[`fjs/effects/node/virtual`](../../../effects/node/virtual/module.f.js).
 `inflater` re-derives this module's own `byteLength` as
 `Number(bytesIn(length(v)))`, twice, and
-[`fjs/zlib/inflate`](../../../zlib/inflate/module.f.mjs) spells it the same
+[`fjs/zlib/inflate`](../../../zlib/inflate/module.f.js) spells it the same
 way. The array form of the forward direction,
 `toArray(u8ListToMaxVecChunksMsb(bytes))`, is a private `chunked` in
-[`fjs/git/refstore/write`](../../../git/refstore/write/module.f.mjs) and
-inline in `write` of [`fjs/git/loose`](../../../git/loose/module.f.mjs).
-[`fjs/git/packstore`](../../../git/packstore/module.f.mjs)'s `denseBytes`,
+[`fjs/git/refstore/write`](../../../git/refstore/write/module.f.js) and
+inline in `write` of [`fjs/git/loose`](../../../git/loose/module.f.js).
+[`fjs/git/packstore`](../../../git/packstore/module.f.js)'s `denseBytes`,
 `byteArray(u8ListMsb(v))`, is this module's `u8ArrayMsb` with an assertion
 `u8ListMsb` already guarantees.
 

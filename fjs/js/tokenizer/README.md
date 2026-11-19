@@ -2,13 +2,13 @@
 
 `tokenize` cuts JavaScript text into tokens: keywords, identifiers, numbers,
 strings, templates, punctuation, comments and whitespace. It reads with the
-token grammar [`fjs/ebnf/lib/js`](../../ebnf/lib/js/module.f.mjs), one token
+token grammar [`fjs/ebnf/lib/js`](../../ebnf/lib/js/module.f.js), one token
 at a time, and folds what it read into a `JsToken` stream.
-[`module.f.mjs`](./module.f.mjs) holds it, and the token types are in
+[`module.f.js`](./module.f.js) holds it, and the token types are in
 [`ebnf/lib/js/types.ts`](../../ebnf/lib/js/types.ts).
 
 ```js
-import { tokenize } from './module.f.mjs'
+import { tokenize } from './module.f.js'
 import { stringToCodePointList } from '../../text/utf16/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 
@@ -48,7 +48,7 @@ a token, so the tokenizer stops there rather than guessing.
 
 ## Who reads it
 
-[`fjs/compiler/tokenizer`](../../compiler/tokenizer/module.f.mjs) folds this
+[`fjs/compiler/tokenizer`](../../compiler/tokenizer/module.f.js) folds this
 stream once more into the compiler's tokens, and the website's demos read it
 to colour source code. It replaced a hand-written scanner and matched its
 stream token for token on everything that scanner accepted.

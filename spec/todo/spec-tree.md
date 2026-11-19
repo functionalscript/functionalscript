@@ -139,7 +139,7 @@ which is refused as a read but accepted as a call) is an included page with a
      `◌` [namespace import](./2220-namespace-import.md)
 5. **Bindings**
    - `●` `const`; `●` sharing (a `const` used twice, a repeated expression)
-   - `●` [Destructuring](./2450-destructuring.md)
+   - `●` [Destructuring](../bindings/destructuring/README.md)
    - `●` [Variables](../bindings/variables/README.md): `let` and assignment
      ([normalization](../bindings/variables/README.md#normalization))
    - `◌` [Shadowing](./3150-shadowing.md),
@@ -228,7 +228,7 @@ What is left, each its own pull request:
   together; a single `spec/examples/` mirrors the tree for tooling. Beside the
   page is the default here.
 - **Example names across pages.** The demo proofs look examples up by name
-  ([compiler proof](../../fjs/compiler/proof.f.mjs)); the tree should keep
+  ([compiler proof](../../fjs/compiler/proof.f.js)); the tree should keep
   names unique, or a name becomes `area/page/name`, which touches every proof
   that mentions one.
 - **Status in the data.** The page text says "not implemented yet", but the

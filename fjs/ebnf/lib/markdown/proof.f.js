@@ -1,0 +1,241 @@
+/**
+ * @import { RewriteSet } from '../../ll1/types.ts'
+ * @import { Utf16 } from '../../utf16/types.ts'
+ * @import { Const, DataRule, Tuple, Variant } from '../../types.ts'
+ */
+
+import { eof } from '../../module.f.js'
+import { parser } from '../../ll1/module.f.js'
+import { units } from '../../utf16/module.f.js'
+import { emAfterSpace, emAfterSpan, emAfterWord, entry } from './module.f.js'
+import { demo, diagrams } from './demo.f.js'
+import { assertRecognizes, diagramPage, recognizer } from '../../testlib.f.js'
+import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
+import { isObject } from '../../../types/object/module.f.js'
+import { entry as ownEntry } from '../../../types/object/entry/module.f.js'
+
+/** @type {(rule: Const<DataRule>) => Variant} */
+const choiceOf = rule => {
+    const [tag, value] = rule()
+    assert(tag === 'const' && isObject(value))
+    return /** @type {Variant} */ (value)
+}
+
+/** @type {(choice: Variant, tag: string) => Tuple} */
+const sequenceOf = (choice, tag) => {
+    const value = ownEntry(choice, tag)
+    assert(value instanceof Array)
+    return value
+}
+
+/** @type {RewriteSet<Utf16, never>} */
+const nothing = []
+
+/**
+ * The whole of one entry, `eof` and all. Pairing the rule with `eof` is what
+ * makes a refusal a refusal: without it a prefix matches and the rest of the
+ * entry is silently dropped, the way DataJS would read `export default 1;2`
+ * as `1`.
+ */
+const recognize = assertRecognizes(recognizer(parser([entry, eof], nothing), units))
+
+/**
+ * A proof that the grammar accepts a whole entry.
+ *
+ * @type {(text: string) => void}
+ */
+const accepts = text => recognize([[text, true]])
+
+/**
+ * A proof that the grammar refuses an entry.
+ *
+ * @type {(text: string) => void}
+ */
+const refuses = text => recognize([[text, false]])
+
+const tick = String.fromCharCode(96)
+
+export const proof = {
+    // Each forced space state closes over itself and the one outer span.
+    // Fresh continuations on these edges would make lowering unbounded.
+    emphasisStateGraph: () => {
+        const span = choiceOf(emAfterSpan)
+        const localSpace = /** @type {Const<DataRule>} */ (sequenceOf(span, 'space')[1])
+        const space = choiceOf(localSpace)
+        assertEq(sequenceOf(span, 'code')[1], emAfterSpan)
+        assertEq(sequenceOf(space, 'code')[1], emAfterSpan)
+        assertEq(sequenceOf(space, 'link')[1], emAfterSpan)
+        const afterBold = /** @type {Variant} */ (sequenceOf(space, 'strong')[3])
+        assertEq(sequenceOf(afterBold, 'space')[1], localSpace)
+        const afterWord = /** @type {Variant} */ (sequenceOf(space, 'word')[1])
+        assertEq(sequenceOf(afterWord, 'space')[1], localSpace)
+        assertEq(sequenceOf(afterWord, 'code')[1], emAfterSpan)
+    },
+    // Embedding a word state's data must not add or remove AST nesting:
+    // media/markdown walks these tags and tuple positions directly.
+    emphasisStateAst: () => {
+        const tail = /** @type {const} */ (['word', [units('a'), ['close', units('*')]]])
+        assertStructurallySame(assertOk(parser(emAfterSpan)(units('a*'), 0)), [tail, 2])
+        assertStructurallySame(assertOk(parser(emAfterSpace)(units('a*'), 0)), [tail, 2])
+        assertStructurallySame(assertOk(parser(emAfterWord)(units(' a*'), 0)), [['space', [[units(' ')], tail]], 3])
+    },
+    // The shapes the tree actually contains, one of each.
+    accepts: {
+        empty: () => accepts(''),
+        text: () => accepts('ci: CI generation is not stable (#1807, #1813)'),
+        code: () => accepts(`${tick}types/bit_vec${tick}: enforce a maximum`),
+        strong: () => accepts('**BREAKING CHANGES:** the shape moved'),
+        em: () => accepts('a value is *always* a result'),
+        link: () => accepts('dispatching to the inherited function [#1421](https://example.com/1421)'),
+        // Text runs and spans alternate any number of times, which is the
+        // shape `entry` is written to allow.
+        alternating: () => accepts(`a ${tick}b${tick} c **d** e *f* g`),
+        // A span may open an entry and a span may end one, so neither text
+        // run is required.
+        spanAtEachEnd: () => accepts(`${tick}a${tick} and ${tick}b${tick}`),
+    },
+    /**
+     * **Code binds tightest**, which is the property the corpus forces: a
+     * code span carries the very symbols the other spans are delimited by.
+     * Six entries in the tree hold an asterisk inside code as an operator,
+     * and forty-three hold a bracket inside code as an array type. Both
+     * would leave the entry unbalanced if emphasis or a link were recognised
+     * first, so both parse here and neither opens a span.
+     */
+    codeBindsTightest: {
+        asterisk: () => accepts(`the ${tick}*${tick} operator`),
+        bracket: () => accepts(`answers ${tick}readonly T[]${tick} now`),
+        both: () => accepts(`${tick}*${tick}, ${tick}/${tick} and ${tick}readonly T[]${tick}`),
+    },
+    /**
+     * A parenthesis is ordinary text. A pull request reference is derived
+     * after recognition, so the rules never have to tell `(#1807)` from
+     * parenthesised prose — and an unmatched parenthesis is text too.
+     */
+    parenthesisIsText: {
+        reference: () => accepts('the sign is shared (#1807, #1813)'),
+        prose: () => accepts('a stale re-export (e.g. one nobody imports)'),
+        unmatched: () => accepts('a closing one ) alone'),
+    },
+    // An unclosed delimiter is refused rather than read as a shorter entry.
+    refuses: {
+        code: () => refuses(`${tick}unclosed`),
+        strong: () => refuses('**unclosed'),
+        em: () => refuses('*unclosed'),
+        linkWithoutTarget: () => refuses('[#1421]'),
+        emptyTarget: () => refuses('[#1421]()'),
+        // Neither kind of emphasis has an empty body: `em`'s would begin
+        // with the asterisk `strong` begins with, and the two could not then
+        // be told apart by the one symbol the backend looks at.
+        emptyStrong: () => refuses('****'),
+        emptyEm: () => refuses('**'),
+        // A plain link is a span emphasis holds, as GitHub renders
+        // `**see [details](url)**` bold around a working link, alone, first
+        // or between text and code.
+        linkInsideStrong: () => accepts(`**see [details](u)**`),
+        linkOpeningStrong: () => accepts(`**[a ${tick}b${tick}](u) and ${tick}c${tick}**`),
+        linkInsideEm: () => accepts(`*[a](u)*`),
+        // Its label holds text and code, as an image's does: no emphasis.
+        emphasisInALinkInsideStrong: () => refuses(`**[*a*](u)**`),
+        // Code is a span emphasis holds, as a label holds it: a README sets
+        // a name in bold as `` **`Object` is reserved** ``.
+        codeInsideStrong: () => accepts(`**a ${tick}b${tick} c**`),
+        codeInsideEm: () => accepts(`*${tick}b${tick}*`),
+        // Bold holds emphasis, between runs or right before it closes.
+        emphasisInsideStrong: () => accepts(`**a *b* c *d* e**`),
+        emphasisClosingStrong: () => accepts(`**a *b***`),
+        emphasisWithSpansInsideStrong: () => accepts(`**a *${tick}b${tick} [c](u)* d**`),
+        // Any other nesting CommonMark reads is refused: reading its
+        // delimiters as text would give one source two answers.
+        emphasisOpeningStrong: () => refuses(`***a* b**`),
+        emphasisBesideEmphasisInsideStrong: () => refuses(`**a *b**c* d**`),
+        strongInsideEmphasisInsideStrong: () => refuses(`**a *b **c** d* e**`),
+        // Emphasis holds bold after a space, before a space or its own
+        // closing asterisk, as a file writes it.
+        strongInsideEmphasis: () => accepts(`*a **b** c*`),
+        strongClosingEmphasis: () => accepts(`*a **b***`),
+        // A word may follow a code span or a link in emphasis directly.
+        wordAfterASpanInsideEmphasis: () => accepts(`*(an ${tick}exp${tick}) [b](u)s*`),
+        spansAroundStrongInsideEmphasis: () => accepts(`*${tick}a${tick} [b](u) **${tick}c${tick} d** e*`),
+        // A word right after bold, and bold opening emphasis, are refused:
+        // each is a run GitHub reads otherwise.
+        wordAfterStrongInsideEmphasis: () => refuses(`*a **b**c*`),
+        strongOpeningEmphasis: () => refuses(`***a** b*`),
+        emphasisInsideStrongInsideEmphasis: () => refuses(`*a **b *c* d** e*`),
+        // A bracket that opens nothing is refused too. The rule is about
+        // the symbol, not about whether it went on to form a span.
+        loneBracketInsideStrong: () => refuses(`**a [ b**`),
+        /**
+         * **A longer delimiter is refused rather than misread.** CommonMark
+         * opens a code span with a run of backticks and closes it with a run
+         * of the same length, which a writer needs when the code itself holds
+         * one. Two backticks are read as that delimiter, a body that holds
+         * single backticks and closes at the first pair; three are refused,
+         * as an empty single span would otherwise read them as a different
+         * document from the one GitHub builds.
+         */
+        doubleCodeDelimiter: () => accepts(`${tick}${tick} f${tick}x${tick} ${tick}${tick}`),
+        doubleCodeOpeningWithATick: () => refuses(`${tick}${tick}${tick}x${tick}${tick}${tick}`),
+        doubleCodeUnclosed: () => refuses(`${tick}${tick}x${tick}`),
+        emptyCode: () => refuses(`${tick}${tick}`),
+        // A link label is where nesting shows, and a target is where it
+        // bites: stopping at the first `)` gives the wrong address, with
+        // nothing on the page to say so.
+        formattingInALinkLabel: () => refuses(`[**details**](u)`),
+        // A label holds a code span, as a README names a file by one.
+        codeInALinkLabel: () => accepts(`[${tick}module.f.js${tick}](./module.f.js)`),
+        codeAndTextInALinkLabel: () => accepts(`[the ${tick}a${tick} and ${tick}b${tick} files](u)`),
+        // Matched here, refused after: the alternation cannot say "at least one".
+        emptyLabel: () => accepts(`[](u)`),
+        // One level of balanced parentheses is the address GitHub links to;
+        // an unbalanced or a deeper one is refused.
+        parenthesisInATarget: () => accepts(`[x](a(b)c)`),
+        parenthesisOpeningATarget: () => accepts(`[x]((b)c)`),
+        parenthesesInATarget: () => refuses(`[x](a((b))c)`),
+        unbalancedTarget: () => refuses(`[x](a(b)`),
+        // A badge: a link inside a label, which media/markdown reads as an
+        // image after its `!` or refuses.
+        linkInALabel: () => accepts(`[![a](https://e.x/b.svg)](https://e.x)`),
+        linkInALinkInALabel: () => refuses(`[[[a](b)](c)](d)`),
+        // What a released entry actually carries still reads.
+        anOrdinaryLink: () => accepts(`[#1421](https://example.com/pull/1421)`),
+        /**
+         * **A space beside an asterisk is not emphasis.** CommonMark reads
+         * `a * b * c` as the three words and two asterisks they are. An
+         * asterisk after a space in emphasis opens bold, so a space before
+         * the closing one is refused here; a space after the opening one is
+         * matched, and `fjs/media/markdown` refuses it after.
+         */
+        spaceFlankedAsterisks: () => refuses(`a * b * c`),
+        paddedEm: () => refuses(`* a *`),
+        leadingSpaceInEm: () => accepts(`* a*`),
+        // A code span may hold a space at either end, as GitHub's does;
+        // the one CommonMark strips from each end is stripped where it is
+        // read.
+        paddedCode: () => accepts(`${tick} code ${tick}`),
+        trailingSpaceInCode: () => accepts(`${tick}name: ${tick}`),
+        // The title form: CommonMark ends the destination at the space and
+        // reads the rest as the link title, so admitting it links elsewhere.
+        linkTitle: () => refuses(`[x](https://example.com "t")`),
+        /**
+         * **A backslash escapes the next punctuation mark in CommonMark**,
+         * so `[x](a\\)b)` is a link to `a)b` — the parenthesis is content,
+         * not the end of the destination. Read without escapes the
+         * destination ends early and the link points elsewhere, the same
+         * wrong address the parenthesis and the space are refused for.
+         */
+        backslashInATarget: () => refuses(`[x](a\\)b)`),
+        backslashInText: () => refuses(`\\*a\\*`),
+        backslashInALabel: () => refuses(`[a\\]b](u)`),
+        // The angle-bracket form: CommonMark links to what is between the
+        // brackets, so admitting them as target text links elsewhere.
+        angleBracketedTarget: () => refuses(`[x](<https://example.com>)`),
+        // Only the first symbol opens that form; a later `<` is itself.
+        angleBracketLaterInATarget: () => accepts(`[x](a<b)`),
+        // What a released entry carries still reads.
+        interiorSpaceInEmphasis: () => accepts(`*type parameter*`),
+        interiorSpaceInCode: () => accepts(`${tick}nix develop ./nix${tick}`),
+    },
+    // A diagram per title, and a diagram for every box.
+    demo: diagramPage(demo, diagrams),
+}

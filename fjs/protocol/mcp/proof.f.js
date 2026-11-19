@@ -1,0 +1,605 @@
+/**
+ * @import { Unknown } from '../../media/json/types.ts'
+ * @import { Assert } from '../../asserts/types.ts'
+ * @import { Equal } from '../../types/ts/types.ts'
+ * @import { Operation } from '../../effects/types.ts'
+ * @import { Effect, NotImplemented } from '../../effects/types.ts'
+ * @import { MemOperationMap } from '../../effects/mock/types.ts'
+ * @import { Key, MemOp, MemoryState } from '../../effects/memory/types.ts'
+ * @import {
+ *   ToolsListParams,
+ *   ToolsCallParams,
+ *   ToolsCallResult,
+ *   McpHandlers,
+ *   McpConfig,
+ *   McpSessionState,
+ * } from './types.ts'
+ */
+
+import { assert, assertEq } from '../../asserts/module.f.js'
+import { runPure } from '../../effects/module.f.js'
+import { history, historyStep, mapStep, pureError, pureOk, step } from '../../effects/module.f.js'
+import { error, unwrap as unwrapResult } from '../../types/result/module.f.js'
+import { run } from '../../effects/mock/module.f.js'
+import { internalError } from '../json_rpc/module.f.js'
+import { string } from '../../rtti/module.f.js'
+import { create, memoryInitial, memoryOperationMap, read } from '../../effects/memory/module.f.js'
+import { hasEntry } from '../../types/object/entry/module.f.js'
+import {
+    uninitializedState, mcpStep, notInitialized, fromRegistry, toolEntry, okResult,
+    toolResultStep, toolStep,
+} from './module.f.js'
+import { nameOf } from '../../types/object/name/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
+
+// ── Fixtures ──────────────────────────────────────────────────────────────────
+
+/** @type {McpConfig} */
+const config = {
+    serverInfo: { name: 'test-server', version: '0.1.0' },
+    capabilities: { tools: {} },
+    protocolVersions: ['2024-11-05'],
+}
+
+const configNoTools = { ...config, capabilities: {} }
+
+// A server speaking two revisions, latest first — the case a single
+// `protocolVersion` string could not describe.
+/** @type {McpConfig} */
+const configTwoVersions = { ...config, protocolVersions: ['2025-06-18', '2024-11-05'] }
+
+/** @type {McpHandlers<never>} */
+const handlers = {
+    // Echoes a received cursor as `nextCursor` so tests can observe pagination params.
+    toolsList: (/** @type {ToolsListParams} */ p) =>
+        pureOk(p.cursor === undefined
+            ? { tools: [{ name: 'greet', inputSchema: {} }] }
+            : { tools: [], nextCursor: p.cursor }),
+    toolsCall: (/** @type {ToolsCallParams} */ _p) =>
+        pureOk({ content: [{ type: 'text', text: 'hello' }] }),
+}
+
+// Run a memory effect against the synchronous interpreter and unwrap what it
+// answered. The channel stays generic because nothing here interprets it: a
+// proof has nobody to report a failure to, so an `error` is a panic and the
+// tests read the `ok`.
+/** @type {<T, E>(effect: Effect<MemOp, T, E>) => T} */
+const runMem = effect =>
+    unwrapResult(run(memoryOperationMap)(memoryInitial)(effect)[1])
+
+// TypeScript infers O = Operation (the upper bound) rather than O = never when
+// O flows through McpHandlers<never>, so we cast the widened type down to MemOp.
+/** @type {<T, E>(e: Effect<Operation, T, E>) => Effect<MemOp, T, E>} */
+const asMemEffect = e => /** @type {Effect<MemOp, any, any>} */ (e)
+
+// Pairs the last step's response with the session state read back afterwards.
+// The response is still needed after the read, so it is carried forward in a
+// history rather than closed over by a nested continuation.
+/** @type {(key: Key<McpSessionState>) => (e: Effect<Operation, unknown, never>) => Effect<Operation, readonly [unknown, McpSessionState], NotImplemented>} */
+const withState = key => e => {
+    const read0 = historyStep(history(e), () => read(key))
+    // A history holds `ok` values, so `resp` is the response itself rather
+    // than a `Result` around it: a failed link short-circuits, contributing
+    // nothing to the tuple and skipping this projection with it.
+    return mapStep(read0, ([state, resp]) => /** @type {const} */ ([resp, state]))
+}
+
+// Run one step from uninitializedState, return [response, newState].
+/** @type {(cfg: McpConfig) => (msg: Unknown) => readonly [unknown, McpSessionState]} */
+const step1 = cfg => msg =>
+    runMem(asMemEffect(step(
+        create(uninitializedState),
+        key => withState(key)(mcpStep(cfg)(handlers)(key)(msg)))))
+
+// Run initialize then a second step, return [response, newState] of the second.
+/** @type {(cfg: McpConfig) => (msg1: Unknown) => (msg2: Unknown) => readonly [unknown, McpSessionState]} */
+const step2 = cfg => msg1 => msg2 =>
+    runMem(asMemEffect(step(
+        create(uninitializedState),
+        key => {
+            const r1 = mcpStep(cfg)(handlers)(key)(msg1)
+            const r2 = step(r1, () => mcpStep(cfg)(handlers)(key)(msg2))
+            return withState(key)(r2)
+        })))
+
+// Run initialize, notifications/initialized, then a third step; return [response, newState] of the third.
+/** @type {(cfg: McpConfig) => (msg1: Unknown) => (msg2: Unknown) => (msg3: Unknown) => readonly [unknown, McpSessionState]} */
+const step3 = cfg => msg1 => msg2 => msg3 =>
+    runMem(asMemEffect(step(
+        create(uninitializedState),
+        key => {
+            const r1 = mcpStep(cfg)(handlers)(key)(msg1)
+            const r2 = step(r1, () => mcpStep(cfg)(handlers)(key)(msg2))
+            const r3 = step(r2, () => mcpStep(cfg)(handlers)(key)(msg3))
+            return withState(key)(r3)
+        })))
+
+// ── Response accessors ────────────────────────────────────────────────────────
+//
+// A step's response is `unknown`, and its shape is exactly what these proofs
+// exist to check — so reading it through a cast would assume the thing being
+// proved. These accessors check their way in instead, and fail at the read
+// rather than somewhere downstream.
+
+/** Whether `resp` is an object carrying an `error` member. */
+/** @type {(resp: unknown) => boolean} */
+const hasError = resp =>
+    typeof resp === 'object' && resp !== null && hasEntry(resp, 'error')
+
+/** @type {(resp: unknown) => number} */
+const errorCode = resp => {
+    assert(hasError(resp) && typeof resp === 'object' && resp !== null && hasEntry(resp, 'error'), resp)
+    const { error } = resp
+    assert(typeof error === 'object' && error !== null && hasEntry(error, 'code'), error)
+    const { code } = error
+    assert(typeof code === 'number', code)
+    return code
+}
+
+/** @type {(resp: unknown) => unknown} */
+const errorId = resp => {
+    assert(typeof resp === 'object' && resp !== null && hasEntry(resp, 'id'), resp)
+    return resp.id
+}
+
+/** @type {(resp: unknown) => object} */
+const resultOf = resp => {
+    assert(typeof resp === 'object' && resp !== null && hasEntry(resp, 'result'), resp)
+    const { result } = resp
+    assert(typeof result === 'object' && result !== null, result)
+    return result
+}
+
+/** @type {(resp: unknown) => string} */
+const protocolVersion = resp => {
+    const result = resultOf(resp)
+    assert(hasEntry(result, 'protocolVersion'), result)
+    const { protocolVersion: v } = result
+    assert(typeof v === 'string', v)
+    return v
+}
+
+/** @type {(resp: unknown) => readonly string[]} */
+const toolNames = resp => {
+    const result = resultOf(resp)
+    assert(hasEntry(result, 'tools'), result)
+    const { tools } = result
+    assert(tools instanceof Array, tools)
+    return tools.map(t => {
+        assert(typeof t === 'object' && t !== null && hasEntry(t, 'name'), t)
+        const name = entry(t, 'name')
+        assert(typeof name === 'string', name)
+        return name
+    })
+}
+
+/** @type {(resp: unknown) => unknown} */
+const nextCursor = resp => {
+    const result = resultOf(resp)
+    assert(hasEntry(result, 'nextCursor'), result)
+    return result.nextCursor
+}
+
+/** The `text` of the first content item of a `tools/call` result. */
+/** @type {(resp: unknown) => string} */
+const firstText = resp => {
+    const result = resultOf(resp)
+    assert(hasEntry(result, 'content'), result)
+    const { content } = result
+    assert(content instanceof Array && content.length !== 0, content)
+    const [item] = content
+    assert(typeof item === 'object' && item !== null && hasEntry(item, 'text'), item)
+    const { text } = item
+    assert(typeof text === 'string', text)
+    return text
+}
+
+// ── `toolResultStep` and `toolStep` renderers ─────────────────────────────────
+
+// Shared by both branches so each renderer is written once and reached once:
+// the `ok` test exercises `dashes`, the `error` test `errorText`.
+
+/** @type {(xs: readonly string[]) => string} */
+const dashes = xs => xs.join('-')
+
+/** @type {(e: string) => string} */
+const errorText = e => `failed: ${e}`
+
+/**
+ * `toolStep`'s continuation: it answers the call itself, so the `ok` test sees
+ * its answer rather than a value `toolStep` rendered.
+ *
+ * @type {(xs: readonly string[]) => Effect<never, ToolsCallResult, never>}
+ */
+const continued = xs => pureOk(okResult(`continued: ${dashes(xs)}`))
+
+/** The `text` of the first content item of a `ToolsCallResult`. */
+/** @type {(r: ToolsCallResult) => string} */
+const textOf = r => {
+    const [item] = r.content
+    assert(item.type === 'text', item)
+    return item.text
+}
+
+// ── Test messages ─────────────────────────────────────────────────────────────
+
+/** An `initialize` request asking for `protocolVersion`. */
+/** @type {(protocolVersion: string) => Unknown} */
+const initMsgFor = protocolVersion => ({ jsonrpc: '2.0', method: 'initialize', id: 1,
+    params: { protocolVersion, capabilities: {}, clientInfo: { name: 'client', version: '0.0.1' } } })
+
+const initMsg = initMsgFor('2024-11-05')
+
+const initNotif = { jsonrpc: '2.0', method: 'notifications/initialized' }
+
+/** A memory handler that answers as a runner with no such operation. */
+const memNotImplemented = () => (/** @type {MemoryState} */ state) =>
+    /** @type {const} */ ([state, error(['notImplemented', 'memRead'])])
+
+// Runs one step against the memory interpreter with `overrides` applied, from a
+// session slot created before them so the slot itself always exists.
+/** @type {(overrides: Partial<MemOperationMap<MemOp, MemoryState>>) => (msg: Unknown) => unknown} */
+const failingStep = overrides => msg => {
+    const [state, key] = run(memoryOperationMap)(memoryInitial)(create(uninitializedState))
+    const runner = run(/** @type {MemOperationMap<MemOp, MemoryState>} */ ({ ...memoryOperationMap, ...overrides }))
+    // A `Handle` answers `Effect<…, Response | null, never>`, so the payload
+    // the runner hands back is the `ok` around the response and the unwrap is
+    // total — the failures these tests inject are the ones `mcpStep` itself
+    // absorbs into an error response.
+    return unwrapResult(runner(state)(asMemEffect(mcpStep(config)(handlers)(unwrapResult(key))(msg)))[1])
+}
+
+// ── Tests ─────────────────────────────────────────────────────────────────────
+
+export const proof = {
+    // A session slot the runner cannot reach is `-32603`, not `-32002`.
+    // `notInitialized` tells the client to run the handshake it has already
+    // run, so it would run it forever; an internal error says the fault is the
+    // server's. Three sites answer it — the `initialize` read, the transition
+    // write, and the gate every other method passes through — and a
+    // notification, having no response frame at all, answers `null` instead.
+    sessionStateFailure: {
+        initializeRead: () => {
+            const resp = failingStep({ memRead: memNotImplemented })(initMsg)
+            assertEq(errorCode(resp), internalError.code)
+        },
+        initializeWrite: () => {
+            const resp = failingStep({ memWrite: memNotImplemented })(initMsg)
+            assertEq(errorCode(resp), internalError.code)
+        },
+        gatedMethod: () => {
+            const resp = failingStep({ memRead: memNotImplemented })(
+                { jsonrpc: '2.0', method: 'tools/list', id: 3 })
+            assertEq(errorCode(resp), internalError.code)
+        },
+        // The notification path has nowhere to report, so it stays silent and
+        // leaves the session gated rather than claiming the transition.
+        initializedNotification: () => {
+            const resp = failingStep({ memRead: memNotImplemented })(initNotif)
+            assertEq(resp, null)
+        },
+    },
+    lifecycle: {
+        initialStateIsUninitialized: () => {
+            assert(uninitializedState[0] === 'uninitialized')
+        },
+
+        initializeTransitionsToInitializing: () => {
+            const [, newState] = step1(config)(initMsg)
+            assert(newState[0] === 'initializing')
+        },
+
+        initializedNotificationTransitionsToInitialized: () => {
+            const [resp, newState] = step2(config)(initMsg)(initNotif)
+            assertEq(resp, null)
+            assert(newState[0] === 'initialized')
+        },
+
+        initializeReturnsResult: () => {
+            const [resp] = step1(config)(initMsg)
+            assertEq(protocolVersion(resp), '2024-11-05')
+        },
+
+        initializeWithBadParamsReturnsInvalidParams: () => {
+            const bad = { jsonrpc: '2.0', method: 'initialize', id: 2, params: { wrong: true } }
+            const [resp, newState] = step1(config)(bad)
+            assert(newState[0] === 'uninitialized')
+            assertEq(errorCode(resp), -32_602)
+        },
+
+        notificationBeforeInitReturnNull: () => {
+            const [resp, newState] = step1(config)(initNotif)
+            assert(newState[0] === 'uninitialized')
+            assertEq(resp, null)
+        },
+
+        unknownNotificationReturnNull: () => {
+            const notif = { jsonrpc: '2.0', method: 'notifications/unknown' }
+            const [resp] = step2(config)(initMsg)(notif)
+            assertEq(resp, null)
+        },
+
+        doubleInitializeReturnsInvalidRequest: () => {
+            const [resp, newState] = step2(config)(initMsg)(initMsg)
+            assert(newState[0] === 'initializing')
+            assertEq(errorCode(resp), -32_600)
+        },
+
+        pingBeforeInitSucceeds: () => {
+            const msg = { jsonrpc: '2.0', method: 'ping', id: 11 }
+            const [resp, newState] = step1(config)(msg)
+            assert(newState[0] === 'uninitialized')
+            assert(!hasError(resp), resp)
+        },
+
+        pingDuringInitializingSucceeds: () => {
+            const msg = { jsonrpc: '2.0', method: 'ping', id: 12 }
+            const [resp, newState] = step2(config)(initMsg)(msg)
+            assert(newState[0] === 'initializing')
+            assert(!hasError(resp), resp)
+        },
+
+        pingAfterInitSucceeds: () => {
+            const msg = { jsonrpc: '2.0', method: 'ping', id: 15 }
+            const [resp] = step3(config)(initMsg)(initNotif)(msg)
+            assert(!hasError(resp), resp)
+        },
+
+        pingWithObjectParamsSucceeds: () => {
+            const msg = { jsonrpc: '2.0', method: 'ping', id: 19, params: {} }
+            const [resp] = step1(config)(msg)
+            assert(!hasError(resp), resp)
+        },
+
+        pingInvalidParamsReturnsInvalidParams: () => {
+            const msg = { jsonrpc: '2.0', method: 'ping', id: 20, params: 1 }
+            const [resp] = step1(config)(msg)
+            assertEq(errorCode(resp), -32_602)
+        },
+
+        initializedNotificationObjectParamsTransitions: () => {
+            const notif = { jsonrpc: '2.0', method: 'notifications/initialized', params: {} }
+            const [resp, newState] = step2(config)(initMsg)(notif)
+            assertEq(resp, null)
+            assert(newState[0] === 'initialized')
+        },
+
+        initializedNotificationBadParamsIgnored: () => {
+            const notif = { jsonrpc: '2.0', method: 'notifications/initialized', params: 1 }
+            const [resp, newState] = step2(config)(initMsg)(notif)
+            assertEq(resp, null)
+            assert(newState[0] === 'initializing')
+        },
+
+        methodBeforeInitReturnsNotInitialized: () => {
+            const msg = { jsonrpc: '2.0', method: 'tools/list', id: 3 }
+            const [resp, newState] = step1(config)(msg)
+            assert(newState[0] === 'uninitialized')
+            assertEq(errorCode(resp), notInitialized.code)
+        },
+
+        methodDuringInitializingReturnsNotInitialized: () => {
+            const msg = { jsonrpc: '2.0', method: 'tools/list', id: 16 }
+            const [resp, newState] = step2(config)(initMsg)(msg)
+            assert(newState[0] === 'initializing')
+            assertEq(errorCode(resp), notInitialized.code)
+        },
+
+        invalidEnvelopeReturnsInvalidRequest: () => {
+            const bad = { jsonrpc: '1.0', method: 'ping', id: 4 }
+            const [resp] = step1(config)(bad)
+            assertEq(errorCode(resp), -32_600)
+            assertEq(errorId(resp), null)
+        },
+    },
+
+    // Version negotiation, per the lifecycle spec: answer with the requested
+    // revision when the server speaks it, and with the latest one it does speak
+    // otherwise. The counter-proposal is a success frame, so what distinguishes
+    // the two branches is the answered version, never the session state.
+    versionNegotiation: {
+        supportedRequestIsEchoed: () => {
+            // `2024-11-05` is supported but not the latest — the case a
+            // single-string config had to counter-propose out of.
+            const [resp] = step1(configTwoVersions)(initMsgFor('2024-11-05'))
+            assertEq(protocolVersion(resp), '2024-11-05')
+        },
+
+        unsupportedRequestGetsLatestSupported: () => {
+            const [resp, newState] = step1(configTwoVersions)(initMsgFor('2030-01-01'))
+            assertEq(protocolVersion(resp), '2025-06-18')
+            assert(newState[0] === 'initializing')
+        },
+
+        // A one-element list answers exactly as the `protocolVersion` string
+        // field did: its only revision, whichever branch is taken. The echo
+        // half is `lifecycle.initializeReturnsResult`, which asks `config` for
+        // the one version it has; this is the counter-proposal half.
+        oneVersionCounterProposesItsOnlyVersion: () => {
+            const [resp, newState] = step1(config)(initMsgFor('2030-01-01'))
+            assertEq(protocolVersion(resp), '2024-11-05')
+            assert(newState[0] === 'initializing')
+        },
+    },
+
+    tools: {
+        toolsListSucceeds: () => {
+            const msg = { jsonrpc: '2.0', method: 'tools/list', id: 5 }
+            const [resp] = step3(config)(initMsg)(initNotif)(msg)
+            assertEq(toolNames(resp).length, 1)
+            assertEq(toolNames(resp)[0], 'greet')
+        },
+
+        toolsListPassesCursorToHandler: () => {
+            const msg = { jsonrpc: '2.0', method: 'tools/list', id: 17,
+                params: { cursor: 'page-2' } }
+            const [resp] = step3(config)(initMsg)(initNotif)(msg)
+            assertEq(nextCursor(resp), 'page-2')
+        },
+
+        toolsListInvalidCursorReturnsInvalidParams: () => {
+            const msg = { jsonrpc: '2.0', method: 'tools/list', id: 18,
+                params: { cursor: 42 } }
+            const [resp] = step3(config)(initMsg)(initNotif)(msg)
+            assertEq(errorCode(resp), -32_602)
+        },
+
+        // Only an absent `params` defaults to `{}`; an explicit `null` is
+        // still decoded, and refused.
+        toolsListNullParamsReturnsInvalidParams: () => {
+            const msg = { jsonrpc: '2.0', method: 'tools/list', id: 21, params: null }
+            const [resp] = step3(config)(initMsg)(initNotif)(msg)
+            assertEq(errorCode(resp), -32_602)
+        },
+
+        toolsCallSucceeds: () => {
+            const msg = { jsonrpc: '2.0', method: 'tools/call', id: 6,
+                params: { name: 'greet', arguments: {} } }
+            const [resp] = step3(config)(initMsg)(initNotif)(msg)
+            assertEq(firstText(resp), 'hello')
+        },
+
+        toolsCallBadParamsReturnsInvalidParams: () => {
+            const msg = { jsonrpc: '2.0', method: 'tools/call', id: 7, params: { missing: true } }
+            const [resp] = step3(config)(initMsg)(initNotif)(msg)
+            assertEq(errorCode(resp), -32_602)
+        },
+
+        toolsCallAbsentArgumentsSucceeds: () => {
+            const msg = { jsonrpc: '2.0', method: 'tools/call', id: 13,
+                params: { name: 'greet' } }
+            const [resp] = step3(config)(initMsg)(initNotif)(msg)
+            assertEq(firstText(resp), 'hello')
+        },
+
+        toolsCallNullArgumentsReturnsInvalidParams: () => {
+            const msg = { jsonrpc: '2.0', method: 'tools/call', id: 14,
+                params: { name: 'greet', arguments: null } }
+            const [resp] = step3(config)(initMsg)(initNotif)(msg)
+            assertEq(errorCode(resp), -32_602)
+        },
+
+        toolsListWithoutCapabilityReturnsMethodNotFound: () => {
+            const msg = { jsonrpc: '2.0', method: 'tools/list', id: 8 }
+            const [resp] = step3(configNoTools)(initMsg)(initNotif)(msg)
+            assertEq(errorCode(resp), -32_601)
+        },
+
+        toolsCallWithoutCapabilityReturnsMethodNotFound: () => {
+            const msg = { jsonrpc: '2.0', method: 'tools/call', id: 9,
+                params: { name: 'greet', arguments: {} } }
+            const [resp] = step3(configNoTools)(initMsg)(initNotif)(msg)
+            assertEq(errorCode(resp), -32_601)
+        },
+
+        unknownMethodReturnsMethodNotFound: () => {
+            const msg = { jsonrpc: '2.0', method: 'resources/list', id: 10 }
+            const [resp] = step3(config)(initMsg)(initNotif)(msg)
+            assertEq(errorCode(resp), -32_601)
+        },
+    },
+
+    registry: {
+        toolsListDescribesRegisteredEntries: () => {
+            const handlers = fromRegistry([
+                toolEntry('echo', 'echoes text', { value: string }, ({ value }) => pureOk(okResult(value))),
+            ])
+            const [result] = runPure(handlers.toolsList({}))
+            assert(result !== undefined && result[0] === 'ok', result)
+            const [tool] = result[1].tools
+            assertEq(nameOf(tool), 'echo')
+            assertEq(tool.description, 'echoes text')
+            const schema = tool.inputSchema
+            assert(schema !== null && typeof schema === 'object' && !(schema instanceof Array) && hasEntry(schema, 'type'), schema)
+            assertEq(schema.type, 'object')
+        },
+        unknownToolReturnsAnInBandError: () => {
+            const handlers = fromRegistry([])
+            const [result] = runPure(handlers.toolsCall({ name: 'missing' }))
+            assert(result !== undefined && result[0] === 'ok', result)
+            assertEq(result[1].isError, true)
+            assertEq(textOf(result[1]), 'unknown tool: missing')
+        },
+        invalidArgumentsReturnAnInBandError: () => {
+            const entry = toolEntry('echo', 'echoes', { value: string },
+                ({ value }) => pureOk(okResult(value)))
+            const [result] = runPure(entry.handle({ value: 1 }))
+            assert(result !== undefined && result[0] === 'ok', result)
+            assertEq(result[1].isError, true)
+            assert(textOf(result[1]).startsWith('invalid arguments:'))
+        },
+        // `fromRegistry`'s `toolsCall` defaults a missing `arguments` field to
+        // `{}` before dispatching to the matched entry's `handle`. Exercised
+        // here directly (bypassing `mcpStep`) so the default reaches
+        // `toolEntry`'s own validation: if it were left `undefined` instead,
+        // validating it against the empty-object schema below would fail and
+        // this would observe an error result instead of `ok`.
+        toolsCallAbsentArgumentsDefaultsToEmptyObject: () => {
+            const entry = toolEntry('echo', 'echoes', {},
+                () => pureOk(okResult('ok')))
+            const handlers = fromRegistry([entry])
+            const [r] = runPure(handlers.toolsCall({ name: 'echo' }))
+            assert(r !== undefined && r[0] === 'ok', r)
+            const [item] = r[1].content
+            assert(item.type === 'text', item)
+            assertEq(item.text, 'ok')
+        },
+        // The type guarantee `./README.md` documents: an inline schema literal
+        // reaches the handler as `Ts<T>`, with no cast on either side. That
+        // rests on `toolEntry`'s `const` type parameter — without it `kind`
+        // widens to `string` and the assertion below fails, which is the only
+        // place that would notice.
+        inlineSchemaLiteralKeepsItsLiteralMembers: () => {
+            const entry = toolEntry('tag', 'tags', { kind: 'add', name: string },
+                input => {
+                    /** @typedef {Assert<Equal<typeof input.kind, 'add'>>} _ConstParameter */
+                    return pureOk(okResult(`${input.kind}:${nameOf(input)}`))
+                })
+            const handlers = fromRegistry([entry])
+            const [r] = runPure(handlers.toolsCall(
+                { name: 'tag', arguments: { kind: 'add', name: 'x' } }))
+            assert(r !== undefined && r[0] === 'ok', r)
+            const [item] = r[1].content
+            assert(item.type === 'text', item)
+            assertEq(item.text, 'add:x')
+        },
+    },
+
+    // `toolResultStep` picks between `okResult` and `errorResult`, so both
+    // branches are the whole of it — and the error branch is the one that
+    // proves the failure stays in-band (`isError`) instead of escaping as a
+    // transport error, which the `never` error channel is the type-level claim
+    // of.
+    toolResultStep: {
+        okIsRendered: () => {
+            const [r] = runPure(toolResultStep(pureOk(['a', 'b']), dashes, errorText))
+            assert(r !== undefined && r[0] === 'ok', r)
+            assertEq(r[1].isError, undefined)
+            assertEq(textOf(r[1]), 'a-b')
+        },
+        errorIsRenderedInBand: () => {
+            const [r] = runPure(toolResultStep(pureError('gone'), dashes, errorText))
+            assert(r !== undefined && r[0] === 'ok', r)
+            assertEq(r[1].isError, true)
+            assertEq(textOf(r[1]), 'failed: gone')
+        },
+    },
+
+    // `toolStep` is `toolResultStep` with the `ok` branch handed to the
+    // caller: the error branch is the same in-band refusal, and the `ok`
+    // branch is whatever the continuation answers.
+    toolStep: {
+        okContinues: () => {
+            const [r] = runPure(toolStep(pureOk(['a', 'b']), errorText, continued))
+            assert(r !== undefined && r[0] === 'ok', r)
+            assertEq(r[1].isError, undefined)
+            assertEq(textOf(r[1]), 'continued: a-b')
+        },
+        errorIsRenderedInBand: () => {
+            const [r] = runPure(toolStep(pureError('gone'), errorText, continued))
+            assert(r !== undefined && r[0] === 'ok', r)
+            assertEq(r[1].isError, true)
+            assertEq(textOf(r[1]), 'failed: gone')
+        },
+    },
+}

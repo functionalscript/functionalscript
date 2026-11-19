@@ -76,8 +76,8 @@ reserved word, so it names no `const` and no parameter, while `{ typeof: 1 }`
 and `a.typeof` are a key and a property name as in JavaScript; the
 FunctionalScript writer spells it with a space after the word, `typeof 1`
 and `typeof (1+2)`.
-[`fjs/edag/operations`](../../fjs/edag/operations/module.f.mjs) owns each
-node's meaning, and the [`fjs/nanvm`](../../fjs/nanvm/module.f.mjs) corpus
+[`fjs/edag/operations`](../../fjs/edag/operations/module.f.js) owns each
+node's meaning, and the [`fjs/nanvm`](../../fjs/nanvm/module.f.js) corpus
 checks its cases against a JavaScript engine.
 
 A `bigint` stays exact. Over two of them the arithmetic and bitwise
@@ -125,7 +125,7 @@ operand reaches only lazily is not deleted for it —
 `const d = null.x; const c = a && d; export default b && c;` keeps both `d`
 and `c`, since evaluating `a && d` as a root establishes `d` no more than
 `b && c` established `c`. Required FAST definitions are preserved by
-[`fjs/edag/from_fast`](../../fjs/edag/from_fast/module.f.mjs) under this rule.
+[`fjs/edag/from_fast`](../../fjs/edag/from_fast/module.f.js) under this rule.
 
 Unparenthesized, a function is no operand of these operators, the
 conditional's condition included: `(...a) => body` reads everything to its

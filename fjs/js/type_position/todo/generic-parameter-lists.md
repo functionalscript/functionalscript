@@ -7,7 +7,7 @@ missed colour, not a wrong one
 
 ### Problem
 
-`typePositions` in [`js/type_position`](../module.f.mjs) reads a `(` as a
+`typePositions` in [`js/type_position`](../module.f.js) reads a `(` as a
 parameter list only where it is certain to be one, and `isParams` decides
 that by looking at the token right before it: `function`, or a name after
 `function`. A generic list or a generator's `*` comes between, so the

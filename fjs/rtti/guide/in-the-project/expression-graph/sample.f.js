@@ -1,0 +1,31 @@
+/**
+ * The schemas of [`README.md`](./README.md), the expression graph's operators
+ * and values, as the page's demo and the module page's demo show them: each
+ * imported from the module that declares it, with a value it accepts.
+ *
+ * @module
+ *
+ * @import { DemoExample } from '../../../types.ts'
+ */
+
+import { projectSchema } from '../../../schema-demo/module.f.js'
+import { exp, op1Id } from '../../../../edag/module.f.js'
+import { value as edagValue } from '../../../../edag/value/module.f.js'
+
+/** @type {readonly DemoExample[]} */
+export const lessons = [
+    {
+        id: 'unary-operator',
+        name: 'Unary operator',
+        about: 'The unary operators of the expression graph, as a union of strings. The VM\'s operator cases check membership with validate, the one project use that keeps the value.',
+        schemas: projectSchema('op1Id', 'edag/module.f.js', op1Id),
+        value: 'export default "typeof";',
+    },
+    {
+        id: 'evaluated-edag-value',
+        name: 'Evaluated EDAG value',
+        about: 'An evaluated value of the expression graph: data, and functions whose captures are values. Recursive. Read with validate, so a checked value keeps its identity and sharing.',
+        schemas: projectSchema('value', 'edag/value/module.f.js', edagValue, [[edagValue, '_value'], [exp, '_exp']]),
+        value: 'export default ["[]",[1,"a",["undefined"]]];',
+    },
+]

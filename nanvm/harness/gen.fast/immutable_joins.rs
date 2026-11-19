@@ -1,4 +1,4 @@
-// Fixture source: `fjs/nanvm/fast/immutable_joins/module.f.mjs`; regenerate with `npm run gen`.
+// Fixture source: `fjs/nanvm/fast/immutable_joins/module.f.js`; regenerate with `npm run gen`.
 
 use nanvm_lib::vm::unstable::{f64_any, string_any, string_key};
 use nanvm_lib::vm::{Any, Array, IStaticFunction, Nullish, ToAny, ToArray, ToObject};

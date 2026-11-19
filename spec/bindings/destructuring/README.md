@@ -9,18 +9,20 @@ const f = ([first, { second }], ...r) => [first, second, r];
 export default [a, c, d, length, f];
 ```
 
-A `const`, a module's or a body's, exported or not, and a fixed
+A `const`, a module's or a body's, exported or not, a `let`, and a fixed
 [parameter](../../functions/parameters/README.md) may bind a **pattern** in place of a name: an
 object pattern, `{ p, … }`, each property a shorthand name or a key and a
 target, `a: t`, `"a": t`, `0: t`, `["a"]: t`, `[3]: t`; or an array pattern,
 `[t, …]`, each item a target or an elision, `[, t]`; a target a name or a
-pattern again, and a trailing comma allowed as the literals allow one. Each name is a binding
+pattern again, and a trailing comma allowed except after a rest element. Each name is a binding
 by the rule above — reserved, refused twice, exported as `then`, or
 shadowing a capture, it is refused as a name alone is — and it names the
 part of the value its path reads, as in JavaScript. The initializer is
 evaluated once, however many names read it.
-Every destructuring declaration, including a `let` pattern, requires an
-initializer; only a [named `let`](../variables/README.md#declarations-without-initializers)
+A declaration in a [`for…of` header](../../control-flow/loops/README.md)
+uses the same targets, with the current item as their source. Outside that
+header, every destructuring declaration, including a `let` pattern, requires
+an initializer; only a [named `let`](../variables/README.md#declarations-without-initializers)
 may omit one.
 
 A pattern is sugar over reads the language has, and that is its whole
@@ -53,6 +55,23 @@ use the same binding rules with either spelling.
   element where JavaScript's destructuring stops at the last target; no
   program here can observe the difference, there being no generator, no
   side effect and no infinite iterable.
+- An **array rest element**, `[a, ...r]`, binds the remaining elements to a
+  fresh array. Lowering uses the existing `slice` intrinsic on the array
+  the spread already made, starting after the preceding positions:
+  `[a, ...r]` starts at `1`, and `[, a, ...r]` at `2`. Elisions count even
+  though they bind no name. A source shorter than that prefix gives `[]`;
+  `[...r]` gives a fresh array of the whole source. Elements retain their
+  identities, and repeated reads of one rest binding read that same array.
+  Strings are spread into code points before slicing, so
+  `const [first, ...tail] = '😀x';` binds `first` to `'😀'` and `tail` to
+  `['x']`.
+  The rest target may itself be a pattern, as in `[a, ...[b, ...r]]` or
+  `[...{ length }]`. Defaults inside that target still work, but the rest
+  element itself has no default. It must be last and have no trailing
+  comma (`comma after rest element`). These rules apply to declarations,
+  fixed parameter patterns and declaration `for…of` headers alike. A rest
+  inside a fixed parameter pattern adds no parameter: `([a, ...r]) => r`
+  still has `length` `1`.
 - An **elision**, `[, b]` or `[a, , c]`, skips a position: it binds and
   reads nothing, and the element after it reads the next index of the
   spread, so `const [, b] = v;` is `const $0=[...v];const b=$0[1];`. One
@@ -61,6 +80,30 @@ use the same binding rules with either spelling.
   failure, as the empty pattern below does. It is a pattern's alone: in a
   value the same comma is a hole, which no array of this language has,
   refused by design (`array hole`, [arrays](../../values/arrays/README.md)).
+- An **object rest binding**, `{ a, ...rest }`, binds a fresh object with
+  the source's remaining own enumerable string properties. Exclusions use
+  source keys: `{ a: renamed, ...rest }` excludes `a`, not `renamed`.
+  Numeric literal keys are their string property names. The copy preserves
+  property enumeration order, entries whose value is `undefined`, and the
+  identities of copied values; repeated reads of `rest` read the same object,
+  while another evaluation creates a distinct object, even when empty.
+  Ordinary bindings and their defaults run before the copy, and the copy
+  reads the original source even if a default reassigns the source variable.
+  Arrays contribute their enumerable indices; strings contribute UTF-16
+  code-unit indices, rather than the code points of array destructuring.
+  Numbers, booleans and bigints contribute no entries. Null and undefined
+  throw, including for `{ ...rest }` and when `rest` is unused.
+  The rest target must be an identifier, must be last, and has no default or
+  trailing comma. Unlike array rest, it cannot itself be another pattern.
+  These rules apply in declarations, exports, nested patterns, fixed
+  parameters and declaration `for…of` headers. A rest inside a fixed
+  parameter adds no parameter: `({ a, ...rest }) => rest` has `length` `1`.
+  Lowering captures the source once and uses `Object.entries`, a filter over
+  the selected source keys, and `Object.fromEntries`. A rest-only pattern
+  needs no filter. This uses the existing runtime operations without a new
+  EDAG instruction. The entry arrays and the immutable reconstruction's
+  quadratic copying fallback are the cost of this shared implementation;
+  backend substitutions can optimize it without changing these semantics.
 - A **default**, `= value`, may follow a name or nested target inside a
   pattern: `{ a = 5 }`, `{ key: a = 5 }`, `[a = 5]`, or
   `{ item: { a } = { a: 5 } }`. The source property or element is read
@@ -104,8 +147,10 @@ use the same binding rules with either spelling.
   `const entries = Object.entries;` though `entries` is a prototype name.
   An array pattern over it, and a key it does not admit, are refused at
   the word (`reserved word`) — but a key it does not admit that is a
-  prototype name, `values` or `toString`, is refused first, at the key, as
-  in any pattern (`prohibited property name`).
+  prototype name, such as `toString`, is refused first, at the key, as
+  in any pattern (`prohibited property name`). Object rest cannot copy a
+  namespace: `{ is, ...rest } = Object` is refused because the namespace is
+  not a runtime value.
 - A **parameter pattern** is one fixed parameter, its source the argument
   in its position: `([a, { b }], c) => …` binds `a` and `b` from the first
   argument as `const [a, { b }] = arg;` would, its reads the first entries
@@ -131,15 +176,16 @@ Adding a default to the whole parameter, `({ a = 5 } = {}) => a`, permits
 the omitted argument and has `length === 0`. In either form a `null`
 argument still throws.
 
-Refused, each by name, and open in
-[destructuring](../../todo/2450-destructuring.md): a **rest element**,
-`[a, ...r]` or `{ a, ...r }` (`rest element not supported`); and a **computed key**
+Refused, each by name: a **computed key**
 beyond a constant — a string or a number literal alone in the brackets,
 `{ ["a"]: t }` or `{ [3]: t }`, is the constant key an access admits in
 brackets ([property access](../../property-access/README.md)), read by the literal's
 spelling as `"a": t` is, while `{ [k]: a }`, `{ [Number(i)]: a }` and a
 grouped literal, `{ [(3)]: a }`, are refused (`computed key in a binding
-pattern not supported`). A value in a binding position —
+pattern not supported`, [follow-up](../../todo/computed-binding-keys.md)).
+A pattern under the rest parameter, `(...[a]) => a`, also remains refused
+([follow-up](../../todo/rest-parameter-patterns.md)); it is separate from a
+rest element inside a fixed parameter pattern. A value in a binding position —
 a literal, an access, a call, an operator, or a group, `[(a)]`, which
 JavaScript admits in an assignment and refuses in a binding — is the error
 JavaScript names (`invalid destructuring target`), at the token it begins
@@ -153,20 +199,40 @@ See
 The compiler demo offers the programs `destructuring` in [`module.f.js`](../module.f.js), each with its real output.
 
 The demo on this page runs [`sample.f.js`](./sample.f.js), this page's
-example as a function of one number — an object and an array pattern in a
-body, and patterns and a rest in a parameter list — with every output `fjs
+example as a function of one number — nested object and array patterns with
+object and array rest in a fixed parameter, beside a named rest parameter — with every output `fjs
 compile` makes of it: the expression graph (EDAG), the Rust and the
 WebAssembly that Rust builds to. Its Run button calls the default export
 with `1` and `5`, as JavaScript and as WebAssembly, and shows what each call
 returned or threw.
 
 ```js
-const f = ([first, { second }], ...r) => [first, second, r];
+const f = ([first, { second, ...other }, ...tail], ...r) => [first, second, other, tail, r];
 export default (...a) => {
-    const { x, y: [z] } = { x: a[0], y: [a[0] * 2] };
-    return f([x, { second: z }], 3, 4);
+    const { x, y: [z, ...tail] } = { x: a[0], y: [a[0] * 2, a[0] * 3] };
+    return f([x, { second: z, label: 'value' }, ...tail], 3, 4);
 };
 ```
+
+For `1` this returns `[1, 2, { label: 'value' }, [3], [3, 4]]`; for `5` it
+returns `[5, 10, { label: 'value' }, [15], [3, 4]]`.
+
+## Approval
+
+`sergey-shandar` approved the original binding-pattern syntax and lowering
+in [#2861](https://github.com/functionalscript/functionalscript/pull/2861#issuecomment-6152917345).
+He explicitly approved array rest in the
+[working session](https://chatgpt.com/c/6af4b740-b0c0-8191-8471-4aa5a50fa03a):
+"implement rest destructing by lowering and use `slice`". This increment
+covers existing binding-pattern positions.
+
+He explicitly approved object rest after the entry-enumeration, filtering,
+and reconstruction proposal in this
+[working session](https://chatgpt.com/local/6af76317-5c08-8191-b451-685c94478033):
+"update 3840 and then implement the rest object spread."
+This covers object-rest bindings in the existing pattern positions. Computed
+binding keys beyond literals and patterns under rest parameters remain the
+separate follow-ups above.
 
 ## Reference
 

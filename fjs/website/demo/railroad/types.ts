@@ -1,12 +1,12 @@
 /**
- * Type-level API for `fjs/website/demo/railroad/module.f.mjs`: a syntax
+ * Type-level API for `fjs/website/demo/railroad/module.f.js`: a syntax
  * diagram — a railroad — any demo can hand a grammar to, once it has turned
  * that grammar into a {@link Diagram} of its own.
  *
  * @module
  */
 
-import type { Rule } from '../../../ebnf/types.ts'
+import type { Definition, Rule } from '../../../ebnf/types.ts'
 import type { Alphabet } from '../../../ebnf/railroad/types.ts'
 
 /**
@@ -54,17 +54,18 @@ export type BoxKind = Extract<Diagram, readonly [string, string]>[0]
  * A rule a grammar's page draws, under its title:
  *
  * - `[title, rule]` — a source rule, the grammar itself or one it reaches;
- * - `[title, rule, tag]` — the branch `tag` of the source variant `rule`,
- *   a rule the grammar writes inline rather than names.
+ * - `[title, rule, ...path]` — a rule nested beneath that source rule;
+ *   each string selects a variant branch and each number a sequence item,
+ *   starting at zero. The path follows the one lowered grammar, so it can
+ *   name a local recursive thunk without creating another instance.
  */
-export type Selection =
-    | readonly [string, Rule]
-    | readonly [string, Rule, string]
+export type Selection = readonly [string, Rule, ...readonly (string | number)[]]
 
 /**
  * What `grammarDemo` needs to draw a grammar's page:
  *
  * - `grammar` — the rule the page draws, lowered once;
+ * - `definitions` — bodies for any separately declared rule references;
  * - `alphabet` — what its symbols are: their labels, and which join into
  *   one literal;
  * - `description` — the intro's first clause, saying what the grammar is;
@@ -75,6 +76,7 @@ export type Selection =
  */
 export type GrammarPage = {
     readonly grammar: Rule
+    readonly definitions?: readonly Definition[]
     readonly alphabet: Alphabet
     readonly description: string
     readonly guide: string

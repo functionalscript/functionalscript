@@ -1,0 +1,774 @@
+import { _dotSegmentFold, _foldRejoin, ancestors, basename, concat, extension, escapes, isBareDrive, isDriveLetter, isDriveRoot, isProperPrefix, join, normalize, parent, parse, relativize, root, toPosix, under } from "./module.f.js"
+import { assertEq, assertStructurallySame } from '../asserts/module.f.js'
+import { fold } from '../types/list/module.f.js'
+import { toArray } from '../types/list/alt/module.f.js'
+
+/**
+ * A classifier with spellings of its own, so the proof reads the fold rather
+ * than either consumer's: `~` is a parent, `-` is skipped.
+ *
+ * @type {(segment: string) => 'skip' | 'up' | 'keep'}
+ */
+const tilde = segment => segment === '-' ? 'skip' : segment === '~' ? 'up' : 'keep'
+
+const tildeDotSegments = _dotSegmentFold(tilde)
+
+/** @type {(rooted: boolean) => (segments: readonly string[]) => string} */
+const dots = rooted => segments => toArray(fold(tildeDotSegments(rooted))([])(segments)).join('/')
+
+const dotSegmentFoldTest = [
+    // A skipped segment and a kept one.
+    () => {
+        assertEq(dots(false)(['a', '-', 'b']), 'a/b')
+    },
+    // An `up` cancels the segment before it, in both states.
+    () => {
+        assertEq(dots(false)(['a', 'b', '~']), 'a')
+    },
+    () => {
+        assertEq(dots(true)(['a', 'b', '~']), 'a')
+    },
+    // With nothing to cancel, the clamp: a rooted fold drops the `up`, a
+    // relative one keeps it — written as `..`, whatever its spelling.
+    () => {
+        assertEq(dots(true)(['~', 'a']), 'a')
+    },
+    () => {
+        assertEq(dots(false)(['~', 'a']), '../a')
+    },
+    // A surviving `..` is not a segment to cancel: the next `up` stacks.
+    () => {
+        assertEq(dots(false)(['a', '~', '~', '~']), '../..')
+    },
+    () => {
+        assertEq(dots(true)(['a', '~', '~', '~']), '')
+    },
+]
+
+/**
+ * Keeps every segment, except that `!` cannot be decoded and `x` decodes to `y`.
+ *
+ * @type {(segment: string) => string | null}
+ */
+const bang = segment => segment === '!' ? null : segment === 'x' ? 'y' : segment
+
+const tildeFoldRejoin = _foldRejoin(tilde)(bang)
+
+const foldRejoinTest = [
+    // The fold is the classifier's, and decoding comes after it: `!` refuses
+    // the path only when it survives.
+    () => {
+        assertEq(tildeFoldRejoin('a/-/x'), 'a/y')
+    },
+    () => {
+        assertEq(tildeFoldRejoin('a/!'), null)
+    },
+    () => {
+        assertEq(tildeFoldRejoin('!/~/a'), 'a')
+    },
+    // The root is this module's: each one stays put and clamps the `up`s
+    // below it, while a relative path keeps them.
+    () => {
+        assertEq(tildeFoldRejoin('~/a'), '../a')
+    },
+    () => {
+        assertEq(tildeFoldRejoin('/~/a'), '/a')
+    },
+    // `//` is a root of its own and stops at the two slashes, so `server`
+    // is a segment that an `up` cancels and a second one cannot leave.
+    () => {
+        assertEq(tildeFoldRejoin('//server/~/~/a'), '//a')
+    },
+    // Three slashes are the ordinary root and empty segments, which this
+    // classifier keeps.
+    () => {
+        assertEq(tildeFoldRejoin('///a'), '///a')
+    },
+    () => {
+        assertEq(tildeFoldRejoin('C:/~/x'), 'C:/y')
+    },
+    // The path is already POSIX: `\` is no separator here.
+    () => {
+        assertEq(tildeFoldRejoin('a\\~/x'), 'a\\~/y')
+    },
+]
+
+const normalizeTest = [
+    () => {
+        const norm = normalize("dir/file.json")
+        assertEq(norm, "dir/file.json")
+    },
+    () => {
+        const norm = normalize("dir//file.json")
+        assertEq(norm, "dir/file.json")
+    },
+    () => {
+        const norm = normalize("../../dir/file.json")
+        assertEq(norm, "../../dir/file.json")
+    },
+    () => {
+        const norm = normalize("../../dir/../file.json")
+        assertEq(norm, "../../file.json")
+    },
+    // A root survives normalization: it is not a segment, so it is not one of
+    // the empty ones the fold drops.
+    () => {
+        const norm = normalize("/a/b")
+        assertEq(norm, "/a/b")
+    },
+    () => {
+        const norm = normalize("//srv/share")
+        assertEq(norm, "//srv/share")
+    },
+    () => {
+        const norm = normalize("/")
+        assertEq(norm, "/")
+    },
+    // `..` has no parent of the root to name, so it is dropped — while the
+    // same input without a root keeps it.
+    () => {
+        const norm = normalize("/a/../..")
+        assertEq(norm, "/")
+    },
+    () => {
+        const norm = normalize("a/../..")
+        assertEq(norm, "..")
+    },
+    // A drive letter is an ordinary segment and needs no case of its own.
+    () => {
+        const norm = normalize("C:/a/b")
+        assertEq(norm, "C:/a/b")
+    },
+    () => {
+        const norm = normalize("C:\\a\\b")
+        assertEq(norm, "C:/a/b")
+    },
+    // An *interior* empty segment is still noise: only the leading one is a root.
+    () => {
+        const norm = normalize("a//b")
+        assertEq(norm, "a/b")
+    },
+    () => {
+        const norm = normalize("")
+        assertEq(norm, "")
+    },
+]
+
+const escapesTest = [
+    // A `..` that cancels a real segment does not escape; one with nothing
+    // left to cancel does. `parse` cannot answer this — it folds with the root
+    // in place, which is exactly what removes the escaping `..`.
+    () => {
+        assertEq(escapes("/a/../b"), false)
+    },
+    () => {
+        assertEq(escapes("/../b"), true)
+    },
+    () => {
+        assertEq(escapes("a/../../b"), true)
+    },
+    () => {
+        assertEq(escapes("a/b/../c"), false)
+    },
+    // Taking the root off is not the same as dropping one leading `/`: these
+    // remainders read as rooted again, and a second fold would clamp the very
+    // `..` being looked for.
+    () => {
+        assertEq(escapes("///../secret"), true)
+    },
+    () => {
+        assertEq(escapes("/C:/../../secret"), true)
+    },
+    () => {
+        assertEq(escapes("//../secret"), true)
+    },
+    () => {
+        assertEq(escapes("C:/../secret"), true)
+    },
+    () => {
+        assertEq(escapes(""), false)
+    },
+]
+
+const rootTest = [
+    () => {
+        const r = root("a/b")
+        assertEq(r, "")
+    },
+    () => {
+        const r = root("/a/b")
+        assertEq(r, "/")
+    },
+    () => {
+        const r = root("//srv/share")
+        assertEq(r, "//")
+    },
+    // Three or more leading slashes are an ordinary root followed by empty
+    // segments, which is what POSIX requires; exactly two are the UNC case.
+    () => {
+        const r = root("///a")
+        assertEq(r, "/")
+    },
+    () => {
+        const norm = normalize("///a")
+        assertEq(norm, "/a")
+    },
+    // Windows spells the UNC root with backslashes.
+    () => {
+        const r = root("\\\\srv\\share")
+        assertEq(r, "//")
+    },
+    // A Windows drive is a root, so `..` cannot climb off it — `C:\\..` is
+    // `C:\\` on Windows, not the parent of the drive.
+    () => {
+        const r = root("C:/a")
+        assertEq(r, "C:/")
+    },
+    () => {
+        const r = root("c:/a")
+        assertEq(r, "c:/")
+    },
+    () => {
+        const norm = normalize("C:/..")
+        assertEq(norm, "C:/")
+    },
+    () => {
+        const norm = normalize("C:/a/../../..")
+        assertEq(norm, "C:/")
+    },
+    () => {
+        const norm = normalize("C:/")
+        assertEq(norm, "C:/")
+    },
+    // Only the absolute spelling roots. A bare `C:` and the drive-relative
+    // `C:foo` — the current directory *on* drive C — stay ordinary segments,
+    // and a prefix that is not a single letter is not a drive at all.
+    () => {
+        const r = root("C:")
+        assertEq(r, "")
+    },
+    () => {
+        const r = root("C:a/b")
+        assertEq(r, "")
+    },
+    () => {
+        const r = root("1:/x")
+        assertEq(r, "")
+    },
+    () => {
+        const r = root("ab:/x")
+        assertEq(r, "")
+    },
+    // The UNC root stops at `//`: `server/share` are ordinary segments, so a
+    // `..` can still climb past a share. Parsing them into the root would let
+    // a `../` fold into it, which is what a root must never allow.
+    () => {
+        const c = concat("//srv/share")("../..")
+        assertEq(c, "//")
+    },
+    () => {
+        const p = parse("//a/b")
+        assertEq(join(...p), "a/b")
+    },
+]
+
+// The drive predicates `fjs/git` reads a drive through, so that a path and a
+// git module never disagree about whether a string names one. A drive is one
+// ASCII letter: `1:` and `::` are not drives in any of the three spellings.
+const driveTest = [
+    () => {
+        assertEq(isDriveLetter('C'), true)
+        assertEq(isDriveLetter('z'), true)
+        assertEq(isDriveLetter('1'), false)
+        assertEq(isDriveLetter(':'), false)
+        assertEq(isDriveLetter('@'), false)
+        assertEq(isDriveLetter('['), false)
+        assertEq(isDriveLetter(''), false)
+        // one letter, not a string that sorts between two
+        assertEq(isDriveLetter('ab'), false)
+    },
+    () => {
+        assertEq(isDriveRoot('C:/'), true)
+        assertEq(isDriveRoot('c:/x'), true)
+        assertEq(isDriveRoot('C:'), false)
+        assertEq(isDriveRoot('C:x'), false)
+        assertEq(isDriveRoot('1:/x'), false)
+        assertEq(isDriveRoot('::/x'), false)
+        assertEq(isDriveRoot('/C:/'), false)
+    },
+    () => {
+        assertEq(isBareDrive('C:'), true)
+        assertEq(isBareDrive('C:/'), false)
+        assertEq(isBareDrive('C:x'), false)
+        assertEq(isBareDrive('1:'), false)
+        assertEq(isBareDrive('::'), false)
+    },
+]
+
+const parseTest = [
+    // `parse` answers with segments only, so an absolute and a relative path
+    // that name the same segments are indistinguishable through it. `root`
+    // is what tells them apart.
+    () => {
+        const p = parse("/a/b")
+        assertEq(join(...p), "a/b")
+    },
+    () => {
+        const p = parse("a/b")
+        assertEq(join(...p), "a/b")
+    },
+    // The root still reaches the fold: a `..` that would escape it is dropped.
+    () => {
+        const p = parse("/..")
+        assertEq(p.length, 0)
+    },
+    () => {
+        const p = parse("..")
+        assertEq(join(...p), "..")
+    },
+    () => {
+        const p = parse("../..")
+        assertEq(join(...p), "../..")
+    },
+]
+
+const concatTest = [
+    () => {
+        const c = concat("a")("b")
+        assertEq(c, "a/b")
+    },
+    () => {
+        const c = concat("a///b/")("c")
+        assertEq(c, "a/b/c")
+    },
+    () => {
+        const c = concat("a/../b/..")("c")
+        assertEq(c, "c")
+    },
+    // The root comes from `a`, so `concat` no longer turns an absolute path
+    // into a relative one. This is the shape `fjs compile` resolves imports
+    // with: `concat(concat(path)('..'))(importPath)`.
+    () => {
+        const c = concat("/a/b/m.f.js")("..")
+        assertEq(c, "/a/b")
+    },
+    () => {
+        const c = concat("//srv/share/m.f.js")("..")
+        assertEq(c, "//srv/share")
+    },
+    () => {
+        const c = concat("/a/b")("../c")
+        assertEq(c, "/a/c")
+    },
+    () => {
+        const c = concat("/")("y")
+        assertEq(c, "/y")
+    },
+    () => {
+        const c = concat("/a")("../..")
+        assertEq(c, "/")
+    },
+    () => {
+        const c = concat("C:/a/b/m.f.js")("..")
+        assertEq(c, "C:/a/b")
+    },
+    () => {
+        const c = concat(concat("C:/a/m.f.js")(".."))("../../lib.f.js")
+        assertEq(c, "C:/lib.f.js")
+    },
+    // A bare drive is not a root, and `concat` does not make it one: joined
+    // with a separator, `C:` and `dir` would be the drive root `C:/dir`
+    // instead of the drive-relative `C:dir` — a different place on the disk.
+    () => {
+        const c = concat("C:")("dir")
+        assertEq(c, "C:dir")
+    },
+    () => {
+        const r = root(concat("C:")("dir"))
+        assertEq(r, "")
+    },
+    // The drive-absolute spelling is still reachable, and still a root.
+    () => {
+        const c = concat("C:/")("dir")
+        assertEq(c, "C:/dir")
+    },
+    () => {
+        const r = root(concat("C:/")("dir"))
+        assertEq(r, "C:/")
+    },
+    // Only a real bare drive skips the separator: the letter's case does not
+    // matter, a non-letter is not a drive, and `C:foo` is longer than a bare
+    // drive — reading it as one would join it to `C:foox`.
+    () => {
+        const c = concat("ab:")("dir")
+        assertEq(c, "ab:/dir")
+    },
+    () => {
+        const c = concat("c:")("dir")
+        assertEq(c, "c:dir")
+    },
+    () => {
+        const c = concat("1:")("dir")
+        assertEq(c, "1:/dir")
+    },
+    () => {
+        const c = concat("C:foo")("x")
+        assertEq(c, "C:foo/x")
+    },
+    () => {
+        const c = concat("C:")("/abs")
+        assertEq(c, "/abs")
+    },
+    // The left side is folded before its root is read, so every spelling of a
+    // bare drive is one — testing the unfolded text caught only the literal.
+    () => {
+        const c = concat("./C:")("dir")
+        assertEq(c, "C:dir")
+    },
+    () => {
+        const c = concat("x/../C:")("dir")
+        assertEq(c, "C:dir")
+    },
+    // Whatever `a` spells, appending a relative `b` leaves its root alone.
+    () => {
+        for (const a of ["C:", "./C:", "x/../C:", "C:/", "./a", "/a", "//a", "", "."]) { assertEq(root(concat(a)("dir")), root(normalize(a)), a) }
+    },
+    // An absolute `b` names a path on its own, so it replaces `a` rather than
+    // being appended to it.
+    () => {
+        const c = concat("a")("/abs/x")
+        assertEq(c, "/abs/x")
+    },
+    () => {
+        const c = concat("/a/b")("//srv/share")
+        assertEq(c, "//srv/share")
+    },
+    // The separator `concat` inserts is not a root: with an empty `a`, a
+    // leading `..` in `b` still has nothing to escape.
+    () => {
+        const c = concat("")("../lib.f.js")
+        assertEq(c, "../lib.f.js")
+    },
+    () => {
+        const c = concat("")("./lib.f.js")
+        assertEq(c, "lib.f.js")
+    },
+]
+
+const parentTest = [
+    () => {
+        assertEq(parent('a/b/x.rs'), 'a/b')
+    },
+    // A bare name sits in `.`: the empty path `concat` folds it to is no
+    // directory a host takes.
+    () => {
+        assertEq(parent('x.rs'), '.')
+    },
+    // A name directly below a root sits in the root, whichever root it is.
+    () => {
+        assertEq(parent('/x'), '/')
+    },
+    () => {
+        assertEq(parent('//x'), '//')
+    },
+    () => {
+        assertEq(parent('C:/x'), 'C:/')
+    },
+    () => {
+        assertEq(parent('C:\\a\\x'), 'C:/a')
+    },
+    // The root is its own parent: `..` cannot escape it.
+    () => {
+        assertEq(parent('/'), '/')
+    },
+    // The place the path names, not the text before its last separator.
+    () => {
+        assertEq(parent('a/../b/x'), 'b')
+    },
+    () => {
+        assertEq(parent('a/b/'), 'a')
+    },
+    () => {
+        assertEq(parent('..'), '../..')
+    },
+    () => {
+        assertEq(parent(''), '..')
+    },
+]
+
+const extensionTest = () => {
+    assertEq(extension('a/b/x.rs'), 'rs')
+    assertEq(extension('x.tar.gz'), 'gz')
+    assertEq(extension('a/X.MD/'), 'MD')
+    // A leading dot begins a name.
+    assertEq(extension('.gitignore'), '')
+    assertEq(extension('a/.config.json'), 'json')
+    assertEq(extension('x.'), '')
+    assertEq(extension('a.b/x'), '')
+    assertEq(extension('/'), '')
+}
+
+const basenameTest = [
+    () => {
+        assertEq(basename('a/b/x.rs'), 'x.rs')
+    },
+    () => {
+        assertEq(basename('x.rs'), 'x.rs')
+    },
+    () => {
+        assertEq(basename('/x'), 'x')
+    },
+    () => {
+        assertEq(basename('a\\x'), 'x')
+    },
+    // A trailing separator names nothing of its own.
+    () => {
+        assertEq(basename('a/b/x.rs/'), 'x.rs')
+    },
+    () => {
+        assertEq(basename('a/b/..'), 'a')
+    },
+    () => {
+        assertEq(basename('../..'), '..')
+    },
+    // Folding `./C:/` leaves the bare drive `C:`, an ordinary segment here,
+    // and not the root `C:/`: it is named.
+    () => {
+        assertEq(basename('./C:/'), 'C:')
+    },
+    // A root, or the empty path, has no name.
+    () => {
+        assertEq(basename('/'), '')
+    },
+    () => {
+        assertEq(basename('C:/'), '')
+    },
+    () => {
+        assertEq(basename(''), '')
+    },
+    // A path with a name is its parent and its name again.
+    () => {
+        for (const p of ['a/b/x.rs', 'x.rs', '/x', 'C:/a/x', '../a', './C:/x']) {
+            assertEq(concat(parent(p))(basename(p)), normalize(p))
+        }
+    },
+]
+
+const ancestorsTest = [
+    () => {
+        assertStructurallySame(ancestors('refs/heads/a/b'), ['refs', 'refs/heads', 'refs/heads/a'])
+    },
+    // Below the root, which is not one of them, and keeping it.
+    () => {
+        assertStructurallySame(ancestors('/a/b/c'), ['/a', '/a/b'])
+    },
+    () => {
+        assertStructurallySame(ancestors('C:/a/b'), ['C:/a'])
+    },
+    // A path with one segment, or none, lies under no directory but its base.
+    () => {
+        assertStructurallySame(ancestors('a'), [])
+    },
+    () => {
+        assertStructurallySame(ancestors('/a'), [])
+    },
+    () => {
+        assertStructurallySame(ancestors(''), [])
+    },
+    () => {
+        assertStructurallySame(ancestors('/'), [])
+    },
+    // Folded first, like every other question this module answers.
+    () => {
+        assertStructurallySame(ancestors('a//b/./c/../d/'), ['a', 'a/b'])
+    },
+    // A path that climbs is not under the `..` it starts with: the run of
+    // `..` is its base, and the list starts below it.
+    () => {
+        assertStructurallySame(ancestors('../../a/b'), ['../../a'])
+    },
+    () => {
+        assertStructurallySame(ancestors('../a/b'), ['../a'])
+    },
+    () => {
+        assertStructurallySame(ancestors('../..'), [])
+    },
+    // The root is read once the path is folded: `./C:/a` is `C:/a`, rooted at
+    // `C:/`, so `C:` is its root and not a directory it lies under.
+    () => {
+        assertStructurallySame(ancestors('./C:/a'), [])
+    },
+    () => {
+        assertStructurallySame(ancestors('./C:/a/b'), ['C:/a'])
+    },
+    // The last of them is the path's parent, wherever it has one to list.
+    () => {
+        for (const p of ['a/b/c', '/a/b', '../a/b', 'C:/a/b', './C:/a/b']) {
+            assertEq(ancestors(p).at(-1), parent(p))
+        }
+    },
+]
+
+const joinTest = [
+    () => {
+        const r = join('a', 'b')
+        assertEq(r, 'a/b')
+    },
+    () => {
+        const r = join('/abs/root', 'x')
+        assertEq(r, '/abs/root/x')
+    },
+    () => {
+        const r = join('a', 'b', 'c', 'd')
+        assertEq(r, 'a/b/c/d')
+    },
+    () => {
+        const r = join('', 'x')
+        assertEq(r, '/x')
+    },
+    () => {
+        const r = join()
+        assertEq(r, '')
+    },
+    () => {
+        const r = join('only')
+        assertEq(r, 'only')
+    },
+]
+
+const relativizeTest = [
+    () => {
+        const r = relativize('/repo', '/repo/fs/a.ts')
+        assertEq(r, './fs/a.ts')
+    },
+    () => {
+        const r = relativize('/repo', '/other/a.ts')
+        assertEq(r, '/other/a.ts')
+    },
+    () => {
+        const r = relativize('', './fs/a.ts')
+        assertEq(r, './fs/a.ts')
+    },
+]
+const toPosixTest = [
+    () => {
+        const p = toPosix('a\\b\\c')
+        assertEq(p, 'a/b/c')
+    },
+    () => {
+        const p = toPosix('a/b/c')
+        assertEq(p, 'a/b/c')
+    },
+    () => {
+        const p = toPosix('C:\\Users\\x')
+        assertEq(p, 'C:/Users/x')
+    },
+    () => {
+        const p = toPosix('')
+        assertEq(p, '')
+    },
+]
+
+const isProperPrefixTest = [
+    () => {
+        const r = isProperPrefix(['a', 'b'], ['a', 'b', 'c'])
+        assertEq(r, true)
+    },
+    () => {
+        const r = isProperPrefix(['a', 'b'], ['a', 'b'])
+        assertEq(r, false)
+    },
+    () => {
+        const r = isProperPrefix(['a', 'x'], ['a', 'b', 'c'])
+        assertEq(r, false)
+    },
+    () => {
+        const r = isProperPrefix(['a', 'b', 'c'], ['a', 'b'])
+        assertEq(r, false)
+    },
+    () => {
+        const r = isProperPrefix([], ['a'])
+        assertEq(r, true)
+    },
+    () => {
+        const r = isProperPrefix([], [])
+        assertEq(r, false)
+    },
+]
+
+const underTest = [
+    // An ordinary directory takes the separator `join` would give it.
+    () => {
+        assertEq(under('a/b', 'c'), 'a/b/c')
+    },
+    // A directory of no characters is no directory: the name is read
+    // against the caller's own, so no separator is added.
+    () => {
+        assertEq(under('', '.git'), '.git')
+    },
+    // The roots, each of which already ends in a separator. `/` and `//`
+    // are the POSIX and UNC roots and must stay apart, and `C:/` is the
+    // drive root on the host that has drives.
+    () => {
+        assertEq(under('/', 'config'), '/config')
+    },
+    () => {
+        assertEq(under('//', 'config'), '//config')
+    },
+    () => {
+        assertEq(under('C:/', 'config'), 'C:/config')
+    },
+    // Any directory whose spelling ends in a separator, not only a root.
+    () => {
+        assertEq(under('a/b/', 'c'), 'a/b/c')
+    },
+    // Either separator ends a directory, because this module reads both:
+    // `toPosix` makes `\\` the UNC root and `\` the POSIX one, so appending
+    // a `/` to either would move the name to another root. Two backslashes
+    // read as `//` and would have become `///`, the ordinary root; one
+    // reads as `/` and would have become `//`, the UNC root.
+    () => {
+        assertEq(under('\\\\', 'config'), '\\\\config')
+        assertEq(under('\\', 'config'), '\\config')
+        assertEq(under('a\\', 'c'), 'a\\c')
+    },
+    // The property behind all of those, stated as the property rather than
+    // as a spelling: a name joined below a directory stays under the same
+    // root the directory has. The empty directory is in the list because it
+    // has no root and the name below it must not gain one.
+    () => {
+        for (const dir of ['/', '//', '///', '\\', '\\\\', 'C:/', 'a', 'a/', 'a\\', '', 'ZZ:']) {
+            assertEq(root(under(dir, 'config')), root(dir))
+        }
+    },
+    // Two colons that are not a drive: only a single drive letter makes one,
+    // so these are ordinary names and join as ordinary names do.
+    () => {
+        assertEq(under('ZZ:', 'c'), 'ZZ:/c')
+        assertEq(under('C:x', 'c'), 'C:x/c')
+    },
+    // What `join` would have answered for the same three, which is the
+    // fault this exists to avoid: another separator, and so another root.
+    () => {
+        assertEq(join('/', 'config'), '//config')
+    },
+    () => {
+        assertEq(join('//', 'config'), '///config')
+    },
+    () => {
+        assertEq(join('', '.git'), '/.git')
+    },
+]
+
+const underThrowTest = {
+    // A bare drive is no directory to join below: `C:name` and `C:/name` are
+    // each right on one host, so answering either is a plausible path to the
+    // wrong directory. `C:/name` is also what `join` would give, and it moves
+    // the root from none to `C:/` — the move this function exists to prevent.
+    throw: {
+        bareDrive: () => under('C:', 'config'),
+        bareDriveLower: () => under('c:', 'config'),
+    },
+}
+
+export const proof = { dotSegmentFoldTest, foldRejoinTest, normalizeTest, escapesTest, rootTest, driveTest, parseTest, concatTest, parentTest, basenameTest, extensionTest, ancestorsTest, joinTest, underTest, underThrowTest, relativizeTest, toPosixTest, isProperPrefixTest }

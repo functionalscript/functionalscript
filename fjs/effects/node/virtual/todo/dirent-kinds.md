@@ -5,7 +5,7 @@
 
 ### Problem
 
-[`../module.f.mjs`](../module.f.mjs)'s `readdir` derives its flags from one
+[`../module.f.js`](../module.f.js)'s `readdir` derives its flags from one
 question — `isFile = !isDir(content)`, `isDirectory = !isFile` — so this file
 system can only answer "file" or "directory". A host answers a third thing: a
 symbolic link, a FIFO, a device and a socket are all **neither**, which is the
@@ -15,7 +15,7 @@ reason a walk asks `isDirectory` before descending rather than `!isFile`.
 The consequence is narrow and worth naming: **no fixture can produce the entry
 the two flags exist to distinguish**, so a walk's guard against it cannot be
 proven here. It was found by reading rather than by a failure — the guard in
-`website/module.f.mjs` is pinned by a *directory* fixture, which is the case
+`website/module.f.js` is pinned by a *directory* fixture, which is the case
 that already worked.
 
 `stat` in the same file already models three states: a `JsModule` answers

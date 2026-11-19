@@ -9,7 +9,7 @@
 The MCP server classifies stored content by content-sniffing, not by any
 stored type: `cas_get` folds the read stream through the `fjs/media/type` detector
 (`detectStream`) and reports `{ length, mime_type, type }`. The detector's
-`finish` in `fjs/media/type/module.f.mjs` produces a three-way verdict:
+`finish` in `fjs/media/type/module.f.js` produces a three-way verdict:
 
 1. magic-byte hit (PNG/JPEG/GIF/WebP/PDF/ZIP) → `base64` + the detected mime;
 2. whole-blob-valid UTF-8 text → `text` + `text/plain`;
@@ -23,7 +23,7 @@ well-formed JSON and report `application/json` (RFC 8259 / RFC 6838; UTF-8 is
 the assumed charset, so no `charset` parameter is emitted).
 
 Because the classifier is shared, fixing it in `fjs/media/type` fixes it everywhere:
-`cas_get` (in `fjs/mcp/cas/module.f.mjs`) picks up `application/json`
+`cas_get` (in `fjs/mcp/cas/module.f.js`) picks up `application/json`
 automatically for both the metadata-only and `content: true` paths, and any
 future `fjs/media/type` consumer inherits it.
 
@@ -114,7 +114,7 @@ type). The object/array gate matches how JSON is used as a data format and is
 what §1's `top` tag enforces (`jsonValid` requires `top ∈ { '{', '[' }`). The
 externally visible contract, then: `cas_get` returns `application/json` only for
 object/array documents; scalar-only blobs report `text/plain`. Document this
-next to the module doc's signature table and in `fjs/mcp/cas/module.f.mjs`'s
+next to the module doc's signature table and in `fjs/mcp/cas/module.f.js`'s
 `cas_get` output section. NDJSON / JSON Lines / JSON5 are out of scope.
 
 #### 5. `isSettled` / performance
@@ -189,7 +189,7 @@ exactly the path `cas_get` uses.
       recognizer takes.
 - [ ] Refine `finish` to emit `application/json` for whole-blob-valid UTF-8 that
       is valid JSON **with an object/array top level** (§4 decision).
-- [ ] Add `fjs/media/type/proof.f.mjs` cases: `{"a":1}` and `[1,2,3]` (incl. split
+- [ ] Add `fjs/media/type/proof.f.js` cases: `{"a":1}` and `[1,2,3]` (incl. split
       across chunks) → `application/json`/`text`; trailing garbage after valid
       JSON and truncated JSON → `text/plain`; non-JSON prose → `text/plain`;
       a raw TAB inside a string (`{"a":"⟨TAB⟩"}`) → `text/plain`, not
@@ -204,19 +204,19 @@ exactly the path `cas_get` uses.
       or feeding only one container path through the factor — and every other
       detector case listed above passes all of those while deeply nested blobs
       get the wrong MIME verdict.
-- [ ] Update `fjs/media/type/module.f.mjs` module doc (recognised-types table) and the
-      `cas_get` output section in `fjs/mcp/cas/module.f.mjs` to list
+- [ ] Update `fjs/media/type/module.f.js` module doc (recognised-types table) and the
+      `cas_get` output section in `fjs/mcp/cas/module.f.js` to list
       `application/json`.
 - [ ] `tsc` clean; `fjs t` green with both branches of the JSON verdict
       covered.
 
 ### Related
 
-- `fjs/media/type/module.f.mjs` — `finish`, where the text→JSON refinement
+- `fjs/media/type/module.f.js` — `finish`, where the text→JSON refinement
   lands, and `utf8Step`, the UTF-8 factor beside which the JSON factor runs.
 - [streaming-recognizer](../../json/todo/streaming-recognizer.md) — **blocks
   this**; the payload-free, O(depth) validity recognizer `A_json` wraps.
-- `fjs/ebnf/lib/json/module.f.mjs` — `character`; refuses raw U+0000–U+001F inside strings, so `A_json` inherits the correct verdict without re-deriving it.
-- `fjs/media/json/parser/module.f.mjs` — `parse`, over the grammar the
+- `fjs/ebnf/lib/json/module.f.js` — `character`; refuses raw U+0000–U+001F inside strings, so `A_json` inherits the correct verdict without re-deriving it.
+- `fjs/media/json/parser/module.f.js` — `parse`, over the grammar the
   recognizer reuses value-free.
-- `fjs/mcp/cas/module.f.mjs` — `cas_get`, the consumer that gains `application/json` for free.
+- `fjs/mcp/cas/module.f.js` — `cas_get`, the consumer that gains `application/json` for free.

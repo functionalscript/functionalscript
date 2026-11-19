@@ -27,17 +27,17 @@ through; the one place the two differ is noted in it:
 
 | where | uses |
 | - | - |
-| `fjs/rtti/validate/proof.f.mjs` | 11 (12 expressions: one line carries two) |
-| `fjs/edag/proof.f.mjs` | 4 |
-| `fjs/rtti/common/proof.f.mjs` | 3 |
-| `fjs/rtti/data/proof.f.mjs` | 3 |
-| `fjs/types/range_set/proof.f.mjs` | 3 |
-| `fjs/media/datajs/serializer/proof.f.mjs` | 1 |
-| `fjs/rtti/parse/proof.f.mjs` | 1 |
-| `fjs/sul/proof.f.mjs` | 1 (since replaced by `Array.from`) |
-| `fjs/git/refname/proof.f.mjs` | 1 |
-| `fjs/git/ref/proof.f.mjs` | 1 |
-| **`fjs/rtti/parse/module.f.mjs`** | **1** |
+| `fjs/rtti/validate/proof.f.js` | 11 (12 expressions: one line carries two; since removed) |
+| `fjs/edag/proof.f.js` | 4 (since removed) |
+| `fjs/rtti/common/proof.f.js` | 3 |
+| `fjs/rtti/data/proof.f.js` | 3 (since removed, with its three hole literals) |
+| `fjs/types/range_set/proof.f.js` | 3 |
+| `fjs/media/datajs/serializer/proof.f.js` | 1 (since removed under its FunctionalScript input contract) |
+| `fjs/rtti/parse/proof.f.js` | 1 |
+| `fjs/sul/proof.f.js` | 1 (since replaced by `Array.from`) |
+| `fjs/git/refname/proof.f.js` | 1 |
+| `fjs/git/ref/proof.f.js` | 1 |
+| **`fjs/rtti/parse/module.f.js`** | **1** |
 
 The two `fjs/git` rows arrived after the survey: `isName` in `fjs/git/refname`
 and `packed` in `fjs/git/ref` are each proved to refuse `new Array(1)`, and
@@ -51,7 +51,7 @@ text of a vector proving DataJS rejects `new Array()`.
 things are tangled together.
 
 **A shipped module builds holes on purpose.** `tupleRebuild` in
-[`fjs/rtti/parse/module.f.mjs`](../fjs/rtti/parse/module.f.mjs) allocates with
+[`fjs/rtti/parse/module.f.js`](../fjs/rtti/parse/module.f.js) allocates with
 `new Array(n)` and writes with `Object.defineProperty` in a loop, so that
 "every index it never writes" stays a hole. Its own JSDoc states the rule and
 then works around it — "A hole is the one member shape no expression builds" —
@@ -79,10 +79,10 @@ independently.
 
 **Some guards survive and must not be swept up.** The const-tuple length bound
 in `parse` and `validate` takes both arms on dense values and earns its place
-on speed. The DataJS serializer's array check refuses a hole and an extra own
-property in one message; the hole half may be unreachable while the extra own
-property half is exactly the silently-wrong document its own documentation
-holds up as the counterexample.
+on speed. The DataJS serializer now assumes FunctionalScript values, so holes
+and extra own array properties are both outside its input contract. Its host
+inspection guards and their refusal proofs go together; neither half is a live
+FunctionalScript case that must be retained.
 
 ### Proposal
 
@@ -106,7 +106,7 @@ module they live in.
   cover the same branches.
 - **Guards that survive.** Leave the code, rewrite the prose to say which
   caller it defends against.
-- **Unrelated subset violations found on the way.** `fjs/sul/proof.f.mjs` had
+- **Unrelated subset violations found on the way.** `fjs/sul/proof.f.js` had
   `new Array(n).fill(0n)`, which breaks two rules on one line, since `fill`
   mutates. `Array.from({ length: n }, () => 0n)` is the repository idiom and is
   already used in `fjs/crypto/sha1`.
@@ -116,26 +116,27 @@ module they live in.
 - [ ] **The exception, in writing. Everything else waits on this.** Does the
       subset admit a fresh, never-escaped array built with `new Array(n)` and
       written by index inside a `.f.mjs`?
-      [`fjs/rtti/parse/module.f.mjs`](../fjs/rtti/parse/module.f.mjs) asserts
+      [`fjs/rtti/parse/module.f.js`](../fjs/rtti/parse/module.f.js) asserts
       one and nothing grants it. Answer it in `spec/README.md` beside the
       no-elision rule and in `fjs/AGENTS.md` §3.1, saying also whether it
       covers `Object.defineProperty` and index assignment on an accumulator,
-      which the same function uses. Note the precedent: this exact argument was
-      made for the DataJS corpus, acted on, and reversed.
+      which the same function uses. The DataJS writer's FunctionalScript input
+      contract does not grant an exception for array construction available only
+      on the host.
 - [x] **`fjs/sul` hygiene.** Replace `new Array(n).fill(0n)` with
       `Array.from`, and drop the reassigned local in the same helper. No
-      shipped code, no coverage change, unrelated to holes. Its `push` is a
-      recorder's, which [proof-recorders-mutate](../fjs/todo/proof-recorders-mutate.md)
-      decides for every proof that has one.
-- [ ] **`fjs/edag`.** Delete the four hole entries and trim the two prose
-      clauses that describe `fjs/rtti`'s behaviour rather than `edag`'s.
-      Confirm in the pull request that the dense siblings still cover the
-      length gate and the absence pass.
-- [ ] **The schema side**, if a sparse schema is agreed to be unauthorable. A
+      shipped code, no coverage change, unrelated to holes. Its `push` was a
+      recorder's and is gone too: the log rides in the storage the encoder
+      threads through `add`.
+- [x] **`fjs/edag`.** The four hole entries are gone, with the prose that
+      introduced them; the dense siblings still cover the length gate and the
+      absence pass.
+- [x] **The schema side.** Decided: a sparse schema is unauthorable. A
       schema is an ordinary FunctionalScript value, so the three-way
       distinction between a hole, an empty array and an explicit `undefined`
-      has no inhabitant. Delete whole arrow functions rather than lines, so
-      function coverage stays clean. `tupleSchemaEntries` itself stays: it
+      has no inhabitant. The `sparseTuple` proofs and the hole rows of the
+      acceptance table in `fjs/rtti/validate` are gone, and so are the hole
+      values in `fjs/rtti/data`'s proof. `tupleSchemaEntries` itself stays: it
       keeps its justification from the non-index-own-property half of its
       argument.
 - [x] **The container and rest length checks, all three readers in one pull
@@ -147,19 +148,24 @@ module they live in.
 - [x] **`fjs/rtti/parse`'s hole producer.** It needed no exception:
       `tupleRebuild` is gone, `parse` rebuilds every array kind dense, and a
       hole in the input is outside the readers' contract rather than refused.
-- [ ] **`fjs/types/range_set`.** Its guard and the prose explaining it either
-      both go or both stay, depending on whether it defends a FunctionalScript
-      caller or the published package's JavaScript surface. Leaving the proof
-      entry while removing the guard turns it red.
-- [ ] **`fjs/media/datajs/serializer`**, last. The decision it waited on is
-      taken: its parameter is the data model's `Unknown`, decided in
-      [the module README](../fjs/media/datajs/README.md#every-entry-point-is-fallible-and-the-names-say-so),
-      so a hole is a value only a host can hand it. Separate the hole half of
-      its array check from the extra-own-property half before touching either.
-- [ ] **`fjs/git/refname` and `fjs/git/ref`.** Decide whether the hole half of
-      `byteArray`'s refusal, which both proofs exercise with `new Array(1)`,
-      defends a FunctionalScript caller or only a host one, and keep or drop
-      the proof entries and the JSDoc sentence together.
+- [ ] **`fjs/types/range_set`.** Decided for the proof: a hole is no
+      FunctionalScript value, and the proof entries built on `new Array(1)`
+      are gone, with coverage still whole, since the spread that defends
+      against a hole also runs on a dense list. Left: the spread itself and
+      the prose explaining it in `module.f.js`, which now describe a host
+      caller only. Remove them together, or say which caller they are for.
+- [x] **`fjs/media/datajs/serializer`.** Its TypeScript parameter is `unknown`
+      under a documented contract for FunctionalScript values
+      ([module README](../fjs/media/datajs/README.md#every-entry-point-is-fallible-and-the-names-say-so)).
+      Functions are refused because DataJS cannot write them. Holes, extra own
+      array properties, accessors and cycles are outside that input contract;
+      the host inspection guards and their refusal proofs are removed together.
+- [ ] **`fjs/git/refname` and `fjs/git/ref`.** Decided: the hole half of
+      `byteArray`'s refusal defends a host caller only. The proof entries
+      built on `new Array(1)` are gone, as are the `[, x]` fixtures in
+      `fjs/ebnf/byte` and `fjs/ebnf/data` and the hole cases of
+      `fjs/rtti/common`. Left: the JSDoc sentence in `fjs/git/refname` about
+      a hole in a sparse array.
 - [ ] **The prose sweep.** About ten sites mention `new Array` in explanation.
       Rewrite each to say which caller it is about, and fix the one in
       `fjs/types/range_set` that reads as though `new Array(1)` were an
@@ -175,12 +181,11 @@ module they live in.
 - [`fjs/types/object/structurally_same/README.md`](../fjs/types/object/structurally_same/README.md)
   — already states that FunctionalScript cannot build a sparse array, and
   assumes dense operands on that basis.
-- [`fjs/media/datajs`](../fjs/media/datajs/README.md) — where the same
-  argument was made, acted on, and reversed; the question about the
-  serializer's `unknown` parameter, which gated the last task here, is decided
-  there. The corpus that argument was about is
+- [`fjs/media/datajs`](../fjs/media/datajs/README.md) — the writer assumes
+  FunctionalScript values despite its TypeScript `unknown` parameter; that
+  settles its task here without changing the other APIs above. Its corpus is
   [`spec/datajs/vectors`](../spec/datajs/vectors/README.md), whose README
-  records the gap from its own side.
+  documents what its DataJS-only carrier can establish.
 - [`withLength` pattern](https://github.com/functionalscript/functionalscript/blob/245649cdeeb0fb6318004ee273121143273262db/spec/todo/arity-complete-arguments.md#candidate-mechanism-the-withlength-pattern)
   — retired: it would have admitted one construction-time `defineProperty`,
   on a fresh function's `length`, as a complete matched pattern; nothing in

@@ -19,7 +19,7 @@ both are implemented now.
 
 **One demo per directory, because a page has one demo section.** The website
 refuses a second module exporting `demo` in the same directory and skips both
-([`website/module.f.mjs`](../../website/module.f.mjs), `resolveDemos`). So
+([`website/module.f.js`](../../website/module.f.js), `resolveDemos`). So
 several presets cannot be several demo files in one folder, and the layout
 follows the compiler's own stages instead: each stage folder has one
 `demo.f.mjs` showing *that stage's* output, and its page is where a reader of
@@ -36,8 +36,8 @@ that code lands.
 | `compiler/` | text → `.json`, `.data.js`, `.js`, `.edag.data.js` and `.rs` side by side |
 
 `sugar/` draws the trees on both sides of `normalize`, the stage between
-`parser/` and `edag/`, with [`fjs/compiler/graph`](../graph/module.f.mjs).
-The stage's code is [`fjs/js/ast/sugar`](../../js/ast/sugar/module.f.mjs), which
+`parser/` and `edag/`, with [`fjs/compiler/graph`](../graph/module.f.js).
+The stage's code is [`fjs/js/ast/sugar`](../../js/ast/sugar/module.f.js), which
 cannot hold the page: the page runs the parser, and `fjs/js/ast` importing from
 `fjs/compiler` is the upward import
 [compiler-layer-upward-imports](../../todo/compiler-layer-upward-imports.md)
@@ -49,11 +49,11 @@ the stage's own function (`tryModuleMarked`, `toRustMarked`, `tokenize`, `parse`
 The side-by-side page runs `_outputMarked`, the output route shared with
 `compile`, over an in-memory file system, once per output name, before CLI
 diagnostic formatting
-([`demo.f.mjs`](../demo.f.mjs), [`module.f.mjs`](../module.f.mjs)). A file
+([`demo.f.js`](../demo.f.js), [`module.f.js`](../module.f.js)). A file
 system carries text, so the page takes the output as marked text
 (`fjs/text/marked`) before it is written. JavaScript, DataJS, JSON and Rust
 panes render the producer's markings.
-Its [`proof.f.mjs`](../proof.f.mjs) runs the whole `compile` over the same
+Its [`proof.f.js`](../proof.f.js) runs the whole `compile` over the same
 file system for every example and output, pins acceptance and refusal, and
 holds each pane's text to the file written. See
 [`text/marked/README.md`](../../text/marked/README.md#12-design-record).
@@ -85,7 +85,7 @@ and a failure at run time. Its front-end refusal examples are a hex escape and
 an unfinished module; its imports parse and lower, but need dependency files
 that the output demos do not supply. The EDAG demo's own presets were folded
 into it:
-[`../edag/demo.f.mjs`](../edag/demo.f.mjs) documents what each draws as.
+[`../edag/demo.f.js`](../edag/demo.f.js) documents what each draws as.
 
 **A name says what the program is, and each proof says what its stage
 refuses.** The parser takes an import the Rust output cannot link, so "refused"
@@ -97,11 +97,11 @@ which outputs accept which example.
 ### What the pages show today
 
 - The "Logical not" and "typeof" presets pass every stage and all five
-  outputs, as the [side-by-side proof table](../proof.f.mjs) records. A `\x41`
+  outputs, as the [side-by-side proof table](../proof.f.js) records. A `\x41`
   string escape stops in the tokenizer as an `error` token with a span; the
   unfinished module reaches the parser and is refused as `unexpected end`
-  ([tokenizer proof](../tokenizer/proof.f.mjs),
-  [parser proof](../parser/proof.f.mjs)).
+  ([tokenizer proof](../tokenizer/proof.f.js),
+  [parser proof](../parser/proof.f.js)).
 - Operators and calls execute for `.json` and `.data.js`. A selected function
   is refused during output conversion; a reached failing initializer produces
   a source failure during module initialization. The side-by-side page shows
@@ -124,9 +124,9 @@ which outputs accept which example.
   entries in `.js`, the EDAG and Rust.
 - An import parses and draws in the EDAG demo as unresolved dependency reads.
   The source and Rust stage demos refuse those unbound reads
-  ([EDAG proof](../edag/proof.f.mjs),
-  [serializer proof](../serializer/proof.f.mjs),
-  [Rust proof](../rust/proof.f.mjs)). On the side-by-side page every output
+  ([EDAG proof](../edag/proof.f.js),
+  [serializer proof](../serializer/proof.f.js),
+  [Rust proof](../rust/proof.f.js)). On the side-by-side page every output
   refuses the missing dependency: its in-memory file system holds only the input.
   Linking imports on the page is
   [import-linking-demo](./import-linking-demo.md).
@@ -149,5 +149,5 @@ which outputs accept which example.
 
 - [compiler output boundary](../README.md#ast) —
   the refusal wording the panes show.
-- [`../edag/demo.f.mjs`](../edag/demo.f.mjs) — the EDAG's own demo, and what
+- [`../edag/demo.f.js`](../edag/demo.f.js) — the EDAG's own demo, and what
   each shared program draws as.

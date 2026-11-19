@@ -1,0 +1,1972 @@
+/**
+ * @import { ModuleTokenWithMetadata } from '../tokenizer/types.ts'
+ * @import { Exp } from '../../edag/types.ts'
+ * @import { SourceBlock, SourceValue } from '../../js/ast/sugar/source.ts'
+ * @import { ResolvedModule } from './types.ts'
+ * @import { EdagValue, Values } from '../../edag/value/types.ts'
+ */
+
+import { errorLocation, parseFromTokens } from './module.f.js'
+import { parseSyntax } from './syntax/module.f.js'
+import { unresolved } from '../edag/module.f.js'
+import { analysis } from '../../edag/analysis/module.f.js'
+import { memo } from '../../edag/memo/module.f.js'
+import { toData } from '../../edag/value/to_unknown/module.f.js'
+import { read } from '../../edag/value/property/module.f.js'
+import { tokenize } from '../tokenizer/module.f.js'
+import { toArray } from '../../types/list/alt/module.f.js'
+import { stringToList } from '../../text/utf16/module.f.js'
+import { _stringifyTree } from '../module.f.js'
+import { stringifySorted } from '../../media/json/module.f.js'
+import { ok, unwrap } from '../../types/result/module.f.js'
+import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
+import { _astOf, demo } from './demo.f.js'
+import { textOfResult } from '../../text/marked/module.f.js'
+import { disagreement } from '../../js/marked/module.f.js'
+import { examples } from '../examples/module.f.js'
+import { htmlToString } from '../../media/html/module.f.js'
+import { hasEntry } from '../../types/object/entry/module.f.js'
+import { isObject } from '../../types/object/module.f.js'
+import { generate } from '../../types/array/module.f.js'
+import { nameOf } from '../../types/object/name/module.f.js'
+
+/**
+ * The tokens of a text, the parser's input. Exported, with
+ * {@link stringifyModule}, for the proofs split off this one —
+ * `./operators.proof.f.js` and `./func.proof.f.js` — which read the same
+ * parser the same way.
+ *
+ * @type {(s: string) => readonly ModuleTokenWithMetadata[]}
+ */
+export const tokenizeString = s => toArray(tokenize(stringToList(s))(''))
+
+/** Preserve the admitted graph behavior while the source representation changes. */
+export const stringifyModule = (/** @type {ResolvedModule} */ module) => _stringifyTree(unresolved(module).edag)
+
+/**
+ * `count` copies of `element`, comma-joined.
+ *
+ * Built by repeating the *string*, which allocates the result directly, rather
+ * than allocating an array and then writing over it: `Array(n).fill(x)` mutates
+ * what it just made, and proof code is held to the same immutability rule as
+ * everything else here.
+ *
+ * @type {(element: string) => (count: number) => string}
+ */
+const repeated = element => count => `${`${element},`.repeat(count - 1)}${element}`
+
+/**
+ * `count` distinct `k<i>:<i>` properties, comma-joined — the object form of
+ * {@link repeated}, where each entry has to differ.
+ *
+ * @type {(count: number) => string}
+ */
+const numberedMembers = count =>
+    generate(count, i => `k${i}:${i}`).join(',')
+
+/**
+ * A module read to the tree the proofs pin, a refusal thrown. Exported,
+ * with {@link expectRefused}, for `./destructuring.proof.f.js`, split off
+ * this file as the others were.
+ *
+ * @type {(source: string, expected: string) => void}
+ */
+export const expectModule = (source, expected) => {
+    const [tag, value] = parseFromTokens(tokenizeString(source))
+    assert(tag === 'ok', value)
+    assertEq(stringifyModule(value), expected)
+}
+
+/**
+ * A module refused with the message, at the column on its first line.
+ *
+ * @type {(source: string, message: string, column: number) => void}
+ */
+export const expectRefused = (source, message, column) => {
+    const [tag, value] = parseFromTokens(tokenizeString(source))
+    assert(tag === 'error', tag)
+    assertEq(value.message, message, source)
+    assertEq(value.metadata?.column, column, source)
+}
+
+/** Parser fixtures execute through the shared represented interpreter. @type {(ast: ResolvedModule, args?: Values) => EdagValue} */
+export const _evaluate = (ast, args = []) => assertOk(memo(assertOk(analysis(unresolved(ast).edag)))({ args }))
+
+export const proof = {
+    bigintConversion: () => {
+        expectModule('export default BigInt(1);', '["{}",[[":","default",["BigInt",1]]]]')
+        expectModule('export default (BigInt)("12");', '["{}",[[":","default",["BigInt","12"]]]]')
+        const value = _evaluate(unwrap(parseFromTokens(tokenizeString('export default [BigInt("0x10"), BigInt(true), BigInt(-0), BigInt([7]), BigInt({ valueOf: () => 12 })];'))))
+        assertStructurallySame(assertOk(read(ok(value), 'default')), ['[]', [16n, 1n, 0n, 7n, 12n]])
+        for (const source of ['export default BigInt();', 'export default BigInt(1, 2);', 'export default BigInt(...[1]);']) {
+            expectRefused(source, 'BigInt takes one argument', 16)
+        }
+        for (const source of ['export default BigInt;', 'export default BigInt.asIntN(8, 1n);', 'export default BigInt?.(1);']) {
+            expectRefused(source, 'reserved word', 16)
+        }
+        expectRefused('const BigInt = 1; export default 0;', 'reserved word', 7)
+        expectRefused('export default (BigInt) => 1;', 'reserved word', 17)
+        expectRefused('export default [1][BigInt(0)];', 'computed key is not Number(...)', 20)
+        expectModule('export default { BigInt: 1 }.BigInt;', '["{}",[[":","default",[".",["{}",[[":","BigInt",1]]],"BigInt"]]]]')
+    },
+    // A module may end in `throw` in place of its exports: the body's last
+    // entry is the throw of the value, resolved against every name bound,
+    // and no export object follows it — a named export before it is the
+    // entry it is, and nothing the module exports, since the load never
+    // completes. The `;` may be omitted at the end of input, as any
+    // statement's may.
+    throws: () => {
+        expectModule('throw 1;', "[\"throw\",1]")
+        expectModule('throw 1', "[\"throw\",1]")
+        expectModule('const a = [1]; throw a;', "[\"throw\",[\"[]\",[1]]]")
+        expectModule('export const a = [1]; throw a;', "[\"throw\",[\"[]\",[1]]]")
+        expectModule('import m from "./m.f.js";\nthrow m.x', "[\"throw\",[\".\",[\".\",[\".\",[\"args\"],0],\"default\"],\"x\"]]")
+    },
+    namedImports: {
+        bindings: () => {
+            const source = 'import d, { x, x as y, default as z, as as from, } from "./dep"; export default [d,x,y,z,from];'
+            const module = unwrap(parseFromTokens(tokenizeString(source)))
+            assertStructurallySame(module.imports.map(({ binding, ...record }) => record), ['default', 'x', 'x', 'default', 'as'].map(name => ({ specifier: './dep', json: false, name })))
+            const exports = /** @type {const} */ (['{}', [[':', 'default', 1], [':', 'x', 2], [':', 'as', 3]]])
+            assertStructurallySame(assertOk(toData(_evaluate(module, module.imports.map(() => exports)))), { default: [1, 2, 2, 1, 3] })
+            const syntax = unwrap(parseSyntax(tokenizeString(source)))
+            assertStructurallySame(syntax.imports[0].bindings.map(b => [nameOf(b), b.local.token]), [
+                ['default', { kind: 'id', value: 'd' }], ['x', { kind: 'id', value: 'x' }],
+                ['x', { kind: 'id', value: 'y' }], ['default', { kind: 'id', value: 'z' }],
+                ['as', { kind: 'id', value: 'from' }],
+            ])
+        },
+        empty: () => {
+            const module = unwrap(parseFromTokens(tokenizeString('import {} from "./dep"; import d, {} from "./dep"; export default d;')))
+            assertStructurallySame(module.imports.map(nameOf), [null, 'default'])
+            const exports = /** @type {const} */ (['{}', [[':', 'default', 7]]])
+            assertStructurallySame(assertOk(toData(_evaluate(module, [exports, exports]))), { default: 7 })
+        },
+        json: () => {
+            const module = unwrap(parseFromTokens(tokenizeString('import {default as data} from "./data.json" with {type:"json"}; export default data;')))
+            assertStructurallySame(module.imports.map(({ binding, ...record }) => record), [{ specifier: './data.json', json: true, name: 'default' }])
+        },
+        errors: () => {
+            for (const source of [
+                'import {x,x} from "./d";', 'import {x as a,y as a} from "./d";',
+                'import a,{x as a} from "./d";', 'import {x} from "./d"; const x=1;',
+                'import {x} from "./d"; import x from "./e";',
+                'import {x as class} from "./d";', 'import {default} from "./d";',
+                'import {x as undefined} from "./d";', 'import {x as NaN} from "./d";',
+                'import {x as} from "./d";', 'import {x,,y} from "./d";',
+                'import {,} from "./d";', 'import {x y} from "./d";',
+                'import {"x" as y} from "./d";', 'import * as ns from "./d";',
+                'import d, from "./d";', 'import "./d";',
+                'import {x} from "./d" with {wrong:"json"};',
+                'import {x} from "./d" with {type:"text"};',
+            ]) { assertEq(parseFromTokens(tokenizeString(`${source} export default 1;`))[0], 'error', source) }
+            const duplicate = parseFromTokens(tokenizeString('import {x,\nx as x} from "./d"; export default 1;'))
+            assert(duplicate[0] === 'error')
+            assertEq(duplicate[1].metadata?.line, 2)
+            assertEq(duplicate[1].metadata?.column, 6)
+        },
+    },
+    namedExports: {
+        results: () => {
+            for (const [source, expected] of /** @type {const} */ ([
+                ['export const a=5;', { a: 5 }],
+                ['const base=5; export const z=base; const local=z; export const a=local; export default a;', { a: 5, default: 5, z: 5 }],
+                ['export const a=undefined; export default undefined;', { a: undefined, default: undefined }],
+                ['export const __proto__=7;', Object.fromEntries([['__proto__', 7]])],
+            ])) {
+                const module = unwrap(parseFromTokens(tokenizeString(source)))
+                const result = assertOk(toData(_evaluate(module)))
+                assertStructurallySame(result, expected)
+                assertStructurallySame(Object.keys(/** @type {object} */ (result)), Object.keys(expected))
+            }
+        },
+        errors: () => {
+            for (const source of [
+                'export const a=1; export const a=2;',
+                'const a=1; export const a=2;',
+                'export const a=1; const a=2;',
+                'import a from "./x"; export const a=1;',
+                'export const a=a;', 'export const a=b; export const b=1;',
+                'export const then=1;', 'export const then=()=>1;',
+                'export const default=1;', 'export const await=1;', 'export const undefined=1;',
+                'export const a=1 export const b=2;', 'export const a=1; import b from "./x";',
+                'export default 1; export const a=2;', 'export default 1; export default 2;',
+                'export { a };', 'export let a=1;', 'const a=1;', '',
+                'export const f=()=>{return\n1;};',
+            ]) { assertEq(parseFromTokens(tokenizeString(source))[0], 'error', source) }
+            const duplicate = parseFromTokens(tokenizeString('export const a=1;\nexport const a=2;'))
+            assert(duplicate[0] === 'error')
+            assertEq(duplicate[1].metadata?.line, 2)
+            assertEq(duplicate[1].metadata?.column, 14)
+            const reserved = parseFromTokens(tokenizeString('export const then=1;'))
+            assert(reserved[0] === 'error')
+            assertEq(reserved[1].metadata?.column, 14)
+        },
+    },
+    sourceBlocks: {
+        // A statement's `;` may be omitted where JavaScript inserts one —
+        // before `}`, and before a statement on a new line — and the
+        // syntax tree records the omission; where the next statement
+        // shares the line, the grammar still reads the module and the fold
+        // refuses it at that statement's first token, as JavaScript does.
+        omittedSemicolons: () => {
+            const { exported } = unwrap(parseSyntax(tokenizeString(
+                'export default () => {\n    const x = 1\n    return x\n}')))
+            assert(exported !== null && exported.value[0] === '=>')
+            assertEq(exported.semicolon, false)
+            const body = exported.value[2]
+            assert(body[0] === 'block')
+            assertStructurallySame(body[1].map(([, statement]) => hasEntry(statement, 'semicolon') && statement.semicolon), [false, false])
+            assertEq(parseFromTokens(tokenizeString('export default () => {\n    const x = 1\n    return x\n}'))[0], 'ok')
+            assertEq(parseFromTokens(tokenizeString('export default () => { return 7 };'))[0], 'ok')
+            const sameLine = 'export default () => { const x = 1 return x; };'
+            assertEq(parseSyntax(tokenizeString(sameLine))[0], 'ok')
+            const refused = parseFromTokens(tokenizeString(sameLine))
+            assert(refused[0] === 'error')
+            assertEq(refused[1].message, 'unexpected token')
+            assertEq(refused[1].metadata?.column, 36)
+        },
+        syntaxRefusals: () => {
+            for (const source of [
+                'export default () => { return 7; const x = 1; };',
+                'export default () => { return 7; return 8; };',
+            ]) {
+                assertEq(parseSyntax(tokenizeString(source))[0], 'ok')
+                assertEq(parseFromTokens(tokenizeString(source))[0], 'ok')
+            }
+            // a line break where JavaScript forbids one, before `=>` and
+            // after `return`: the syntax tree holds it, since trivia is no
+            // symbol the grammar reads, and the fold refuses it at the token
+            // on the wrong side of the break — the `=>`, or the value
+            for (const [source, line, column] of /** @type {const} */ ([
+                ['export default ()\n=> 7;', 2, 1],
+                ['export default (a)\n=> 7;', 2, 1],
+                ['export default (a, b)\n=> 7;', 2, 1],
+                ['export default a\n=> 7;', 2, 1],
+                ['export default a // c\n=> 7;', 2, 1],
+                ['export default (...a) /* x\ny */ => 7;', 2, 6],
+                ['export default () => { return\n7; };', 2, 1],
+                ['export default () => { return /*\n*/ 7; };', 2, 4],
+            ])) {
+                assertEq(parseSyntax(tokenizeString(source))[0], 'ok', source)
+                const refused = parseFromTokens(tokenizeString(source))
+                assert(refused[0] === 'error', source)
+                assertEq(refused[1].message, 'unexpected token', source)
+                assertEq(refused[1].metadata?.line, line, source)
+                assertEq(refused[1].metadata?.column, column, source)
+            }
+            // a list malformed before its `=>` answers for the list
+            const malformed = parseFromTokens(tokenizeString('export default (1)\n=> 7;'))
+            assert(malformed[0] === 'error')
+            assertEq(malformed[1].message, 'malformed parameter list')
+            // A line break inside the returned group is still admitted.
+            const source = 'export default () => { return (\n7\n); };'
+            assertEq(parseSyntax(tokenizeString(source))[0], 'ok')
+            assertEq(parseFromTokens(tokenizeString(source))[0], 'ok')
+        },
+    },
+    // Source loops and switches retain their lexical structure. These baseline
+    // graph fixtures keep sugar's resulting scalar recursion and lazy branches
+    // consistent with the previously admitted source behavior.
+    switches: {
+        shape: () => {
+            const [tag, value] = parseFromTokens(tokenizeString('export default n => { switch (n[0]) { case 1: case 2: { const x = [1]; return [x, x]; } case 3: { throw 3; } } const y = [2]; return y; };'))
+            assert(tag === 'ok')
+            assertEq(stringifyModule(value), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"?:\",[\"?:\",[\"===\",[\".\",[\"arg\",0],0],1],[\"===\",[\".\",[\"arg\",0],0],1],[\"===\",[\".\",[\"arg\",0],0],2]],[\"[]\",[[\"[]\",[1]],[\"[]\",[1]]]],[\"?:\",[\"===\",[\".\",[\"arg\",0],0],3],[\"throw\",3],[\"[]\",[2]]]]]]]]")
+            // with a `default`, its block is the last alternate, and the
+            // switch is the body's last statement
+            const [tag2, value2] = parseFromTokens(tokenizeString('export default n => { switch (n) { case 1: { return 1; } default: { return 0; } } };'))
+            assert(tag2 === 'ok')
+            assertEq(stringifyModule(value2), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"?:\",[\"===\",[\"arg\",0],1],1,0]]]]]")
+            // a switch in a case block is the arm's own, its discriminant an
+            // entry of the arm's function, read through the arm's frame
+            const [tag3, value3] = parseFromTokens(tokenizeString('export default n => { switch (n) { case 1: { switch (n) { case 2: { return 2; } } return 1; } } return 0; };'))
+            assert(tag3 === 'ok')
+            assertEq(stringifyModule(value3), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"?:\",[\"===\",[\"arg\",0],1],[\"?:\",[\"===\",[\"arg\",0],2],2,1],0]]]]]")
+            // after a loop, the switch reads the variable's last binding
+            const [tag4, value4] = parseFromTokens(tokenizeString('export default n => { let r = 0; while (r < n) { r = r + 1; } switch (r) { case 1: { return r; } } return 0; };'))
+            assert(tag4 === 'ok')
+            assertEq(stringifyModule(value4), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"?:\",[\"===\",[\"()\",[\"=>\",1,[[\"arg\",0]],[\"?:\",[\"<\",[\"arg\",0],[\"frame\",0]],[\"()\",[\"self\"],[[\"+\",[\"arg\",0],1]]],[\"arg\",0]]],[0]],1],[\"()\",[\"=>\",1,[[\"arg\",0]],[\"?:\",[\"<\",[\"arg\",0],[\"frame\",0]],[\"()\",[\"self\"],[[\"+\",[\"arg\",0],1]]],[\"arg\",0]]],[0]],0]]]]]")
+        },
+        // a switch of thousands of cases, or of labels, is that many levels
+        // of the grammar's tree, read as a list's are: each mapping puts one
+        // item before what its tail returned, on the machine's heap stack,
+        // and the fold closes the chain over a stack of its own
+        stackSafety: () => {
+            const cases = generate(3000, i => `case ${i}: { return ${i}; }`).join(' ')
+            assertEq(parseFromTokens(tokenizeString(`export default (a) => { switch (a) { ${cases} } return 0; };`))[0], 'ok')
+            const labels = generate(3000, i => `case ${i}:`).join(' ')
+            assertEq(parseFromTokens(tokenizeString(`export default (a) => { switch (a) { ${labels} { return 1; } } return 0; };`))[0], 'ok')
+        },
+        // the statements after a switch are the body's one block with the
+        // ones before it: a name that block has bound, or read from outside
+        // in the discriminant, a label or a case block, is not theirs to
+        // bind; a case block is a block of its own and may shadow either
+        scoping: () => {
+            expectRefused('export default (n, c) => { switch (n) { case c: { return 1; } } const c = 2; return c; };', 'duplicate id', 71)
+            expectRefused('export default n => { switch (n) { case 1: { return 1; } } const n = 2; return n; };', 'duplicate id', 66)
+            expectRefused('export default n => { const c = 1; return () => { switch (n) { case c: { return 1; } } const c = 2; return c; }; };', 'capture shadowed', 94)
+            expectRefused('export default n => { const c = 1; return () => { switch (n) { case 1: { return c; } } const c = 2; return c; }; };', 'capture shadowed', 94)
+            expectRefused('export default n => { const c = 1; return () => { switch (c) { case 1: { return 1; } } const c = 2; return c; }; };', 'capture shadowed', 94)
+            const [tag, value] = parseFromTokens(tokenizeString('export default n => { const c = 1; return () => { switch (n) { case 1: { const c = 2; return c; } } return c; }; };'))
+            assert(tag === 'ok')
+            assertEq(stringifyModule(value), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"=>\",0,[[\"arg\",0]],[\"?:\",[\"===\",[\"frame\",0],1],2,1]]]]]]")
+        },
+    },
+    variables: {
+        accepted: () => {
+            // a `let` stands where a `const` does, on its own: a variable
+            // never assigned is a `const` under another name
+            const [tag, value] = parseFromTokens(tokenizeString('export default n => { let r = 0; return r; };'))
+            assert(tag === 'ok')
+            assertEq(stringifyModule(value), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],0]]]]")
+            // an assignment rebinds the variable for the statements after
+            // it, in order, as JavaScript reads them
+            const [tag2, value2] = parseFromTokens(tokenizeString('export default n => { let r = 0; r = r + n; r = r * 2; return r; };'))
+            assert(tag2 === 'ok')
+            assertEq(stringifyModule(value2), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"*\",[\"+\",0,[\"arg\",0]],2]]]]]")
+            // a parameter is a variable too
+            const [tag3, value3] = parseFromTokens(tokenizeString('export default n => { n = n + 1; return n; };'))
+            assert(tag3 === 'ok')
+            assertEq(stringifyModule(value3), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"+\",[\"arg\",0],1]]]]]")
+            // in a guard's block as in the body: each block's assignments
+            // are its own, the block ending in its terminator
+            const [tag4, value4] = parseFromTokens(tokenizeString('export default n => { let r = 0; if (n) { r = 1; return r; } r = 2; return r; };'))
+            assert(tag4 === 'ok')
+            assertEq(stringifyModule(value4), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\",\",[0,[\"?:\",[\"arg\",0],1,2]]]]]]]")
+            // a pattern binds each of its names as a variable
+            const [tag5, value5] = parseFromTokens(tokenizeString('export default n => { let { a } = n; a = 1; return a; };'))
+            assert(tag5 === 'ok')
+            assertEq(stringifyModule(value5), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\",\",[[\".\",[\"arg\",0],\"a\"],1]]]]]]")
+            // a variable never reassigned is captured as a `const` is
+            const [tag6, value6] = parseFromTokens(tokenizeString('export default n => { let r = 0; const f = () => r; return f; };'))
+            assert(tag6 === 'ok')
+            assertEq(stringifyModule(value6), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"=>\",0,[],0]]]]]")
+            // and a function that is a variable's whole value names itself,
+            // as a `const`'s does, while the variable is never reassigned
+            assertEq(stringifyModule(assertOk(parseFromTokens(tokenizeString('export default () => { let f = n => n ? f(n - 1) : 0; return f; };')))), "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\"=>\",1,[],[\"?:\",[\"arg\",0],[\"()\",[\"self\"],[[\"-\",[\"arg\",0],1]]],0]]]]]]")
+            assertEq(stringifyModule(assertOk(parseFromTokens(tokenizeString('export default () => { let f = () => f; return f; };')))), "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\"=>\",0,[],[\"self\"]]]]]]")
+            // a function called where it is written reads a reassigned
+            // variable as JavaScript's does, the value of that moment
+            const [tag7, value7] = parseFromTokens(tokenizeString('export default n => { let r = 0; r = (() => r + 1)(); return r; };'))
+            assert(tag7 === 'ok')
+            assertEq(stringifyModule(value7), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"+\",0,1]]]]]")
+            // a module's variables: a module is a function, and its `let`,
+            // its assignments and its captures follow a body's rules
+            assertEq(stringifyModule(assertOk(parseFromTokens(tokenizeString('let a = 0; a = a + 1; export default a;')))), "[\"{}\",[[\":\",\"default\",[\"+\",0,1]]]]")
+            assertEq(stringifyModule(assertOk(parseFromTokens(tokenizeString('let [a] = [1]; export default a;')))), "[\"{}\",[[\":\",\"default\",[\".\",[\"[]\",[[\"...\",[\"[]\",[1]]]]],0]]]]")
+            assertEq(stringifyModule(assertOk(parseFromTokens(tokenizeString('let a = 0; a = a + 1; export const b = a; export default 1;')))), "[\"{}\",[[\":\",\"b\",[\"+\",0,1]],[\":\",\"default\",1]]]")
+            assertEq(stringifyModule(assertOk(parseFromTokens(tokenizeString('let r = 0; export const f = () => r; export default 1;')))), "[\"{}\",[[\":\",\"default\",1],[\":\",\"f\",[\"=>\",0,[],0]]]]")
+            assertEq(stringifyModule(assertOk(parseFromTokens(tokenizeString('let f = n => n ? f(n - 1) : 0; export default f;')))), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"?:\",[\"arg\",0],[\"()\",[\"self\"],[[\"-\",[\"arg\",0],1]]],0]]]]]")
+            // called where it is written by an optional call as well
+            const [tag9, value9] = parseFromTokens(tokenizeString('export default () => { let r = 0; r = (() => r + 1)?.(); return r; };'))
+            assert(tag9 === 'ok')
+            assertEq(stringifyModule(value9), "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\"?.()\",[\"=>\",0,[],[\"+\",0,1]],[]]]]]]")
+            // a pattern over a namespace names its static functions, as a
+            // `const`'s does
+            const [tag8, value8] = parseFromTokens(tokenizeString('export default x => { let { is } = Object; return is(x, x); };'))
+            assert(tag8 === 'ok')
+            assertEq(stringifyModule(value8), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"()\",[\"Object.is\"],[[\"arg\",0],[\"arg\",0]]]]]]]")
+        },
+        refused: () => {
+            for (const [source, message, column] of /** @type {const} */ ([
+                // an assignment rebinds a variable, a `let`'s or a
+                // parameter's, and nothing else: not a `const`, an import or
+                // the function's own name
+                ['export default n => { const c = 1; c = 2; return c; };', 'assignment to const', 36],
+                ['import x from "./x"; export default n => { x = 1; return x; };', 'assignment to const', 44],
+                ['const f = n => { f = 1; return n; }; export default f;', 'assignment to const', 18],
+                // a variable assigned anywhere in its scope is read by no
+                // function nested in that scope and held as a value, whether
+                // the assignment comes before or after the read, and whether
+                // the function reads or assigns it: JavaScript's closure sees
+                // the last value, where the capture would hold one. Refused
+                // at the first such reference, once the whole scope is read
+                ['export default n => { let r = 0; const f = () => r; r = 1; return f; };', 'reassigned variable captured', 50],
+                ['export default n => { let r = 0; r = 1; const f = () => r; return f; };', 'reassigned variable captured', 57],
+                ['export default n => { let r = 0; const f = () => { r = 1; return r; }; return f; };', 'reassigned variable captured', 52],
+                ['export default n => { n = 1; return () => n; };', 'reassigned variable captured', 43],
+                // a function a chain holds, an optional access on it, is held
+                // as a value; only an optional call calls it where written
+                ['export default () => { let r = 0; const f = (() => r)?.x; r = 1; return f; };', 'reassigned variable captured', 52],
+                // the first offending reference in document order, whether a
+                // held function's own or a function held inside it makes it
+                ['export default () => { let x = 0; let y = 0; const f = () => { const a = x; const g = () => y; return a; }; x = 1; y = 1; return f; };', 'reassigned variable captured', 74],
+                ['export default () => { let r = 0; const f = () => { const g = () => r; return g; }; r = 1; return f; };', 'reassigned variable captured', 69],
+                // a variable is a name of the body as a `const` is
+                ['export default n => { x = 1; return n; };', 'const not found', 23],
+                ['export default n => { let r = r; return r; };', 'const not found', 31],
+                // a function's reference to the variable it is the value of
+                // is a capture: JavaScript's closure would read the variable
+                // where `self` reads the function, so reassigning the variable
+                // anywhere, inside the function or after it, is refused there
+                ['export default () => { let f = n => f(n - 1); f = 1; return f; };', 'reassigned variable captured', 37],
+                ['export default () => { let f = n => { f = 1; return n; }; return f; };', 'reassigned variable captured', 39],
+                ['export default n => { let n = 0; return n; };', 'duplicate id', 27],
+                ['export default r => () => { let r = r; return r; };', 'capture shadowed', 33],
+                ['export default n => { let if = 0; return n; };', 'reserved word', 27],
+                // an assignment ends as every statement does
+                ['export default n => { let r = 0; r = 1 return r; };', 'unexpected token', 40],
+                ['let a = 0; a = 1 export default a;', 'unexpected token', 18],
+                ['let a = 0 a = 1; export default a;', 'unexpected token', 11],
+                ['let a = 0; a = b; export default a;', 'const not found', 16],
+                // a module's variables follow a body's rules: a `const`, an
+                // import or an unknown name is assigned nowhere, a name is
+                // bound once, and a reassigned variable is read by no function
+                // held as a value — an export among them
+                ['const x = 1; x = 2; export default 1;', 'assignment to const', 14],
+                ['a = 1; export default 1;', 'const not found', 1],
+                ['let a = 1; let a = 2; export default a;', 'duplicate id', 16],
+                ['let a = 1; export const a = 2;', 'duplicate id', 25],
+                ['let r = 0; const f = () => r; r = 1; export default f;', 'reassigned variable captured', 28],
+                ['let f = n => f(n); f = 1; export default f;', 'reassigned variable captured', 14],
+                // A pattern still needs an initializer; a module's `let`
+                // is no export, so `export let` remains refused.
+                ['export default () => { let [a]; return a; };', 'unexpected token', 31],
+                ['export let a = 1; export default a;', 'unexpected token', 8],
+            ])) {
+                const result = parseFromTokens(tokenizeString(source))
+                assert(result[0] === 'error', source)
+                assertEq(result[1].message, message, source)
+                assertEq(result[1].metadata?.column, column, source)
+            }
+        },
+    },
+    loops: {
+        shape: () => {
+            const [tag, value] = parseFromTokens(tokenizeString('export default n => { let r = 0; while (r < n) { const d = [2]; r = r + d[0]; } return [r, r]; };'))
+            assert(tag === 'ok')
+            assertEq(stringifyModule(value), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"[]\",[[\"()\",[\"=>\",1,[[\"arg\",0]],[\"?:\",[\"<\",[\"arg\",0],[\"frame\",0]],[\"()\",[\"self\"],[[\"+\",[\"arg\",0],[\".\",[\"[]\",[2]],0]]]],[\"arg\",0]]],[0]],[\"()\",[\"=>\",1,[[\"arg\",0]],[\"?:\",[\"<\",[\"arg\",0],[\"frame\",0]],[\"()\",[\"self\"],[[\"+\",[\"arg\",0],[\".\",[\"[]\",[2]],0]]]],[\"arg\",0]]],[0]]]]]]]]")
+            // an assignment overwritten before any read is an anchor of
+            // the block, established for what it does, as an unused
+            // `const` is
+            const [tag4, value4] = parseFromTokens(tokenizeString('export default n => { let r = 0; while (r < 1) { r = null.x; r = 1; } return r; };'))
+            assert(tag4 === 'ok')
+            assertEq(stringifyModule(value4), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"()\",[\"=>\",1,[],[\"?:\",[\"<\",[\"arg\",0],1],[\",\",[[\".\",null,\"x\"],[\"()\",[\"self\"],[1]]]],[\"arg\",0]]],[0]]]]]]")
+            // the `let` and the `while` are two statements: the loop steps
+            // the variable its block assigns, whatever stands between them
+            const [tag2, value2] = parseFromTokens(tokenizeString('export default n => { let r = 0; const x = 1; while (r < n) { r = r + x; } return r; };'))
+            assert(tag2 === 'ok')
+            assertEq(stringifyModule(value2), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"()\",[\"=>\",1,[[\"arg\",0]],[\"?:\",[\"<\",[\"arg\",0],[\"frame\",0]],[\"()\",[\"self\"],[[\"+\",[\"arg\",0],1]]],[\"arg\",0]]],[0]]]]]]")
+            // a parameter is a variable: a loop over one steps the
+            // function's own argument
+            const [tag5, value5] = parseFromTokens(tokenizeString('export default n => { while (n) { n = n - 1; } return n; };'))
+            assert(tag5 === 'ok')
+            assertEq(stringifyModule(value5), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"?:\",[\"arg\",0],[\"()\",[\"self\"],[[\"-\",[\"arg\",0],1]]],[\"arg\",0]]]]]]")
+            // a `let` in the block is the block's own, as a `const` is, its
+            // assignments the round's: the loop steps the one variable
+            // declared outside the block
+            const [tag6, value6] = parseFromTokens(tokenizeString('export default n => { let r = 0; while (r < n) { let s = 0; s = s + 1; r = r + s; } return r; };'))
+            assert(tag6 === 'ok')
+            assertEq(stringifyModule(value6), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"()\",[\"=>\",1,[[\"arg\",0]],[\"?:\",[\"<\",[\"arg\",0],[\"frame\",0]],[\"()\",[\"self\"],[[\"+\",[\"arg\",0],[\"+\",0,1]]]],[\"arg\",0]]],[0]]]]]]")
+            // a `let` over a namespace in the block names its static functions
+            const [tag8, value8] = parseFromTokens(tokenizeString('export default n => { let r = 0; while (r < n) { let { is } = Object; r = is(r, 0) ? n : r + 1; } return r; };'))
+            assert(tag8 === 'ok')
+            assertEq(stringifyModule(value8), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"()\",[\"=>\",1,[[\"arg\",0]],[\"?:\",[\"<\",[\"arg\",0],[\"frame\",0]],[\"()\",[\"self\"],[[\"?:\",[\"()\",[\"Object.is\"],[[\"arg\",0],0]],[\"frame\",0],[\"+\",[\"arg\",0],1]]]],[\"arg\",0]]],[0]]]]]]")
+            // a `let` with a pattern binds each name once, as a `const`'s
+            // does; the loop steps the one its block assigns
+            const [tag7, value7] = parseFromTokens(tokenizeString('export default n => { let [a, b] = [1, n]; while (a < b) { a = a + 1; } return [a, b]; };'))
+            assert(tag7 === 'ok')
+            assertEq(stringifyModule(value7), "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"[]\",[[\"()\",[\"=>\",1,[[\".\",[\"[]\",[[\"...\",[\"[]\",[1,[\"arg\",0]]]]]],1]],[\"?:\",[\"<\",[\"arg\",0],[\"frame\",0]],[\"()\",[\"self\"],[[\"+\",[\"arg\",0],1]]],[\"arg\",0]]],[[\".\",[\"[]\",[[\"...\",[\"[]\",[1,[\"arg\",0]]]]]],0]]],[\".\",[\"[]\",[[\"...\",[\"[]\",[1,[\"arg\",0]]]]]],1]]]]]]]")
+            // a `const` after the loop holds the value the last round left,
+            // a snapshot, which a later function captures as any `const`;
+            // the variable itself it may not
+            const [tag3, value3] = parseFromTokens(tokenizeString('export default () => { let r = 0; while (r) { r = 1; } const s = [r]; return () => s; };'))
+            assert(tag3 === 'ok')
+            assertEq(stringifyModule(value3), "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\"=>\",0,[[\"[]\",[[\"()\",[\"=>\",1,[],[\"?:\",[\"arg\",0],[\"()\",[\"self\"],[1]],[\"arg\",0]]],[0]]]]],[\"frame\",0]]]]]]")
+            // a nested function's own parameter shadows the variable, as in
+            // JavaScript, and reads as itself
+            assertEq(parseFromTokens(tokenizeString('export default n => { let r = 0; while (r < n) { const f = (r) => r; r = f(r); } return r; };'))[0], 'ok')
+            // a function called where it is written may read the variable:
+            // its closure, called at once, sees the round's value as
+            // JavaScript's does — in the block, in the condition, with an
+            // argument, and nested in another called where written
+            for (const source of [
+                'export default n => { let r = 0; while (r < n) { r = (() => r + 1)(); } return r; };',
+                'export default n => { let r = 0; while ((() => r < n)()) { r = r + 1; } return r; };',
+                'export default n => { let r = 0; while (r < n) { r = (() => r + 1)?.(); } return r; };',
+                'export default n => { let r = 0; while (r < n) { r = ((x) => r + x)(1); } return r; };',
+                'export default n => { let r = 0; while (r < n) { r = (() => (() => r + 1)())(); } return r; };',
+                // a loop in such a function may read the outer variable, in
+                // its condition or in a function its block calls where written
+                'export default n => { let r = 0; while (r < n) { r = (() => { let s = 0; while (s < r + 1) { s = s + 1; } return s; })(); } return r; };',
+                'export default n => { let r = 0; while (r < n) { r = (() => { let s = 0; while (s < n) { s = (() => s + r)(); } return s; })(); } return r; };',
+                'export default n => { let r = 0; while (r < n) { r = (() => { let s = 0; while (s < n) { s = (() => (() => s)() + (() => r)())(); } return s; })(); } return r; };',
+                'export default n => { let r = 0; while (r < n) { r = (() => { const a = (() => r)(); const b = (() => r)(); return a + b; })(); } return r; };',
+            ]) { assertEq(parseFromTokens(tokenizeString(source))[0], 'ok', source) }
+            // the block's statements end as every statement does, at `;`
+            // or a newline, and so does the `let`
+            assertEq(parseFromTokens(tokenizeString('export default n => {\n    let r = 0\n    while (r < n) {\n        r = r + 1\n    }\n    return r\n};'))[0], 'ok')
+        },
+        generalStateAdmission: () => {
+            for (const source of /** @type {const} */ ([
+                'export default ()=>{while(false){}return 7;};',
+                'export default n=>{let r=0;while(r<n){}return r;};',
+                'export default n=>{let r=0;while(r<n){const r=1;}return r;};',
+                'export default ()=>{while(false){let local=0;local=local+1;}return 7;};',
+                'export default n=>{let r=0;let s=0;while(r<n){r=r+1;s=s+r;}return [r,s];};',
+                'export default n=>{let r=0;let s=0;while(r<n){r=r+1;s=s+r;}while(s>n){s=s-1;r=r+1;}return [r,s];};',
+                'export default n=>{if(n){let r=0;let s=0;while(r<n){r=r+1;s=s+r;}return [r,s];}return [];};',
+                'export default n=>{switch(n){case 1:{let r=0;let s=0;while(r<n){r=r+1;s=s+r;}return [r,s];}default:{return [];}}};',
+                'export default n=>{let r=0;let s=0;while(r<n){const snapshot=r;const read=()=>snapshot;r=read()+1;s=s+r;}return [r,s];};',
+            ])) {
+                assertOk(parseFromTokens(tokenizeString(source)))
+            }
+            const declarations = generate(18, index => `let s${index}=0;`).join('')
+            const updates = generate(18, index => `s${index}=s${index}+1;`).join('')
+            assertOk(parseFromTokens(tokenizeString(`export default n=>{${declarations}while(s0<n){${updates}}return s17;};`)))
+        },
+        refused: () => {
+            for (const [source, message, column] of /** @type {const} */ ([
+                // an assignment in the block rebinds a variable, as anywhere
+                ['export default n => { let r = 0; while (r < n) { const x = 1; x = 2; } return r; };', 'assignment to const', 63],
+                // a function nested in the loop that reads the variable is
+                // refused unless called where it is written: held as a value,
+                // its closure would see the last value where the capture
+                // holds the round's — a `const`, a condition, an item, an
+                // argument, a value a function called where written returns,
+                // one held inside such a function, and a function after the
+                // loop, which reads a snapshot instead
+                ['export default n => { let r = 0; while (r < n) { const f = () => r; r = r + 1; } return r; };', 'reassigned variable captured', 66],
+                ['export default n => { let r = 0; while (f => r) { r = r + 1; } return r; };', 'reassigned variable captured', 46],
+                ['export default n => { let r = 0; while (r < n) { r = [() => r]; } return r; };', 'reassigned variable captured', 61],
+                ['export default n => { let r = 0; while (r < n) { r = ((f) => f())(() => r); } return r; };', 'reassigned variable captured', 73],
+                ['export default n => { let r = 0; while (r < n) { r = (() => () => r)()(); } return r; };', 'reassigned variable captured', 67],
+                ['export default n => { let r = 0; while (r < n) { r = (() => { const g = () => r; return g(); })(); } return r; };', 'reassigned variable captured', 79],
+                // the read is every enclosing function's up to the one that
+                // declares the variable: a function held as a value is
+                // refused for a read a function it calls where written makes,
+                // and so is one holding a loop whose condition reads the
+                // outer variable
+                ['export default n => { let r = 0; while (typeof r === "number") { r = () => ((() => r)()); } return r(); };', 'reassigned variable captured', 84],
+                ['export default n => { let r = 0; while (r < n) { r = (() => { const f = () => { let s = 0; while (s < r + 1) { s = s + 1; } return s; }; return f(); })(); } return r; };', 'reassigned variable captured', 103],
+                ['export default n => { let r = 0; while (r < n) { r = r + 1; } return () => r; };', 'reassigned variable captured', 76],
+                // the variable is a name of the body as a `const` is
+                ['export default n => { let r = 0; while (r < n) { r = 1; } const r = 2; return r; };', 'duplicate id', 65],
+                ['export default n => { let r = 0; while (x) { r = 1; } return r; };', 'const not found', 41],
+                ['export default n => { let r = () => r; while (typeof r === "function") { r = [r]; } return r; };', 'reassigned variable captured', 37],
+                ['export default n => { let r = 0; while (r) { const if = 1; } return r; };', 'reserved word', 52],
+                ['export default n => { let r = 0; while (r) { Array = 1; } return r; };', 'reserved word', 46],
+                // a block `const` of a name its initializer read from
+                // outside is refused as a body `const` is
+                ['export default n => { let r = 0; while (r) { const n = n; } return r; };', 'capture shadowed', 52],
+                // a statement on the line of one that ended without its `;`
+                ['export default n => { let r = 0 while (r) { r = 1; } return r; };', 'unexpected token', 33],
+                ['export default n => { let r = 0; while (r) { r = 1 const x = 1; } return r; };', 'unexpected token', 52],
+                ['export default n => { let r = 0; while (r) { const x = 1 r = x; } return r; };', 'unexpected token', 58],
+            ])) {
+                const result = parseFromTokens(tokenizeString(source))
+                assert(result[0] === 'error', source)
+                assertEq(result[1].message, message, source)
+                assertEq(result[1].metadata?.column, column, source)
+            }
+        },
+    },
+    // The corpus that proved parity against the hand-written state machine,
+    // kept as fixed expectations now that the state machine is gone.
+    //
+    // Values were recorded from that parser before it was deleted. Narrow
+    // declared graph migrations are marked below: the numeric spelling and a
+    // required initializer before export evaluation. Every other expectation
+    // stays fixed; these cases do not apply a blanket graph normalizer.
+    parseCorpus: [
+        () => {
+            for (const [source, expected] of [
+                ["export default null;", "[\"{}\",[[\":\",\"default\",null]]]"],
+                ["export default true;", "[\"{}\",[[\":\",\"default\",true]]]"],
+                ["export default false;", "[\"{}\",[[\":\",\"default\",false]]]"],
+                ["export default undefined;", "[\"{}\",[[\":\",\"default\",[\"undefined\"]]]]"],
+                ["export default 0.1;", "[\"{}\",[[\":\",\"default\",0.1]]]"],
+                ["export default 1.1e+2;", "[\"{}\",[[\":\",\"default\",110]]]"],
+                // the three numbers JSON cannot spell, as words — and the
+                // third of them as the negation it is written as, the `-`
+                // being a prefix the grammar reads rather than part of the
+                // word. This line follows the current numeric spelling;
+                // the required-initializer migration is marked separately.
+                ["export default [NaN, Infinity, -Infinity];", "[\"{}\",[[\":\",\"default\",[\"[]\",[NaN,Infinity,-Infinity]]]]]"],
+                ["export default \"abc\";", "[\"{}\",[[\":\",\"default\",\"abc\"]]]"],
+                ["export default 1234567890n;", "[\"{}\",[[\":\",\"default\",1234567890n]]]"],
+                ["export default [];", "[\"{}\",[[\":\",\"default\",[\"[]\",[]]]]]"],
+                ["export default [1];", "[\"{}\",[[\":\",\"default\",[\"[]\",[1]]]]]"],
+                ["export default [1,];", "[\"{}\",[[\":\",\"default\",[\"[]\",[1]]]]]"],
+                ["export default [[]];", "[\"{}\",[[\":\",\"default\",[\"[]\",[[\"[]\",[]]]]]]]"],
+                ["export default [0,[1,[2,[]]],3];", "[\"{}\",[[\":\",\"default\",[\"[]\",[0,[\"[]\",[1,[\"[]\",[2,[\"[]\",[]]]]]],3]]]]]"],
+                ["export default [1234567890n];", "[\"{}\",[[\":\",\"default\",[\"[]\",[1234567890n]]]]]"],
+                ["export default {};", "[\"{}\",[[\":\",\"default\",[\"{}\",[]]]]]"],
+                ["export default {\"a\":1};", "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1]]]]]]"],
+                ["export default {a: 1};", "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1]]]]]]"],
+                ["export default {\"a\":1,};", "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1]]]]]]"],
+                ["export default {[\"a\"]:1};", "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1]]]]]]"],
+                ["export default {a:1,\"b\":2,[\"c\"]:3,};", "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1],[\":\",\"b\",2],[\":\",\"c\",3]]]]]]"],
+                ["export default {\"a\":{\"b\":{\"c\":[\"d\"]}}};", "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",[\"{}\",[[\":\",\"b\",[\"{}\",[[\":\",\"c\",[\"[]\",[\"d\"]]]]]]]]]]]]]]"],
+                ["export default {\"a\":true,\"b\":false,\"c\":null,\"d\":undefined};", "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",true],[\":\",\"b\",false],[\":\",\"c\",null],[\":\",\"d\",[\"undefined\"]]]]]]]"],
+                ["export default {a:1,a:2};", "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1],[\":\",\"a\",2]]]]]]"],
+                ["export default {[\"__proto__\"]: 1};", "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"__proto__\",1]]]]]]"],
+                ["const a = 1;\nexport default a;", "[\"{}\",[[\":\",\"default\",1]]]"],
+                ["const a = 1;\nconst b = 2;\nexport default [a,b];", "[\"{}\",[[\":\",\"default\",[\"[]\",[1,2]]]]]"],
+                ["import x from \"m\";\nexport default x;", "[\"{}\",[[\":\",\"default\",[\".\",[\".\",[\"args\"],0],\"default\"]]]]"],
+                ["import x from \"m\";\nconst a = 1;\nexport default a;", "[\",\",[[\".\",[\".\",[\"args\"],0],\"default\"],[\"{}\",[[\":\",\"default\",1]]]]]"],
+                ["import x from \"m\";\nimport y from \"n\";\nexport default [x,y];", "[\"{}\",[[\":\",\"default\",[\"[]\",[[\".\",[\".\",[\"args\"],0],\"default\"],[\".\",[\".\",[\"args\"],1],\"default\"]]]]]]"],
+                ["// c\nexport default 1;", "[\"{}\",[[\":\",\"default\",1]]]"],
+                ["/* c */ export default 1;", "[\"{}\",[[\":\",\"default\",1]]]"],
+                ["\n\n export default 1; \n\n", "[\"{}\",[[\":\",\"default\",1]]]"],
+                ["const from = 1;\nexport default from;", "[\"{}\",[[\":\",\"default\",1]]]"],
+                ["export default { from: 2, default: 3, with: 4 };", "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"from\",2],[\":\",\"default\",3],[\":\",\"with\",4]]]]]]"],
+                // a `;` ends a statement wherever it stands, and a `;` on
+                // its own line, or several statements on one, are the same
+                // module. The last case is a normalized DataJS document
+                // verbatim: one line, `$`-names, every statement
+                // `;`-terminated, as DataJS requires (spec/datajs).
+                ["const a = 1;\nexport default a;", "[\"{}\",[[\":\",\"default\",1]]]"],
+                ["export default 1;", "[\"{}\",[[\":\",\"default\",1]]]"],
+                ["const a = 1;export default a;", "[\"{}\",[[\":\",\"default\",1]]]"],
+                // a's required allocation precedes the export's first read
+                // of x, rather than waiting for the later reference to a.
+                ["import x from \"m\";const a = [x];export default [x,a];", "[\",\",[[\"[]\",[[\".\",[\".\",[\"args\"],0],\"default\"]]],[\"{}\",[[\":\",\"default\",[\"[]\",[[\".\",[\".\",[\"args\"],0],\"default\"],[\"[]\",[[\".\",[\".\",[\"args\"],0],\"default\"]]]]]]]]]]"],
+                ["const a = 1 ; // c\nexport default a ;", "[\"{}\",[[\":\",\"default\",1]]]"],
+                // whitespace may precede the `;`, newlines included — a
+                // newline is trivia, so the value and its terminator may sit
+                // on different lines
+                ["export default 1\n;", "[\"{}\",[[\":\",\"default\",1]]]"],
+                ["const a = 1\n;\nexport default a;", "[\"{}\",[[\":\",\"default\",1]]]"],
+                // and a `;` may be omitted where JavaScript inserts one:
+                // at the end of input, whatever trivia stands there, and
+                // before a statement on a new line — a line comment ends
+                // the line, and a block comment holding a newline breaks
+                // it (spec/README.md, module structure)
+                ["export default 1", "[\"{}\",[[\":\",\"default\",1]]]"],
+                ["export default 1\n", "[\"{}\",[[\":\",\"default\",1]]]"],
+                ["export default 1 // c", "[\"{}\",[[\":\",\"default\",1]]]"],
+                ["const a = 1\nexport default a", "[\"{}\",[[\":\",\"default\",1]]]"],
+                ["import x from \"m\"\nexport default x", "[\"{}\",[[\":\",\"default\",[\".\",[\".\",[\"args\"],0],\"default\"]]]]"],
+                ["import x from \"m\"\nconst a = x\nexport default a", "[\"{}\",[[\":\",\"default\",[\".\",[\".\",[\"args\"],0],\"default\"]]]]"],
+                ["const a = 1 // c\nexport default a", "[\"{}\",[[\":\",\"default\",1]]]"],
+                ["const a = 1 /* c\n */ export default a", "[\"{}\",[[\":\",\"default\",1]]]"],
+                ["export const a = 1\nexport const b = 2", "[\"{}\",[[\":\",\"a\",1],[\":\",\"b\",2]]]"],
+                ["const f = () => 1\nexport default f", "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],1]]]]"],
+                ["const $0=[1];export default [$0,$0];", "[\"{}\",[[\":\",\"default\",[\"[]\",[[\"[]\",[1]],[\"[]\",[1]]]]]]]"],
+                // a word that denotes a value still names a property: it is
+                // an `IdentifierName` in JavaScript, which reads it as the
+                // string, and `{ "NaN": 1 }` has always denoted that object
+                ["export default {NaN: 1, undefined: 2, true: 3};", "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"NaN\",1],[\":\",\"undefined\",2],[\":\",\"true\",3]]]]]]"],
+                ["const a = {NaN: 1};export default a.NaN;", "[\"{}\",[[\":\",\"default\",[\".\",[\"{}\",[[\":\",\"NaN\",1]]],\"NaN\"]]]]"],
+            ]) {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', [source, tag])
+                assertEq(stringifyModule(value), expected, source)
+            }
+        },
+        () => {
+            /** @type {readonly(readonly[string, string, readonly[number, number] | null])[]} */
+            const cases = [
+                ["42", "unexpected token", [1, 1]],
+                ["", "unexpected end", [1, 1]],
+                ["export default", "unexpected end", [1, 15]],
+                ["[1,2]", "unexpected end", [1, 6]],
+                // Braces now begin a lexical block; its string is the unexpected statement.
+                ["{\"a\":1}", "unexpected token", [1, 2]],
+                ["export default [", "unexpected end", [1, 17]],
+                ["export default {", "unexpected end", [1, 17]],
+                ["const a = 1 export default a", "unexpected token", [1, 13]],
+                ["export default 1 2", "unexpected token", [1, 18]],
+                // a bare name in braces is a shorthand member, `a: a`, so what
+                // is refused is the reference, at the name
+                ["export default {a}", "const not found", [1, 17]],
+                ["export default {:1}", "unexpected token", [1, 17]],
+                ["export default [,]", "array hole", [1, 17]],
+                ["import x from y\nexport default x", "unexpected token", [1, 15]],
+                ["export x from \"m\"\nexport default 1", "unexpected token", [1, 8]],
+                ["const = 1\nexport default 1", "unexpected token", [1, 7]],
+                ["export default {[]:2}", "unexpected token", [1, 18]],
+                // one terminator per statement: a second `;` is not an empty
+                // statement, it is a stray token the next rule rejects,
+                // however much trivia separates it from the first
+                ["export default 1;;", "unexpected token", [1, 18]],
+                ["const a = 1;;\nexport default a", "unexpected token", [1, 13]],
+                ["const a = 1;\n;export default a", "unexpected token", [2, 1]],
+                [";export default 1", "unexpected token", [1, 1]],
+                ["export default ;", "unexpected token", [1, 16]],
+                ["export default 1\nconst b = 2", "unexpected token", [2, 1]],
+                // a statement written without its `;` ends at the newline
+                // before the next statement, as JavaScript's automatic
+                // semicolon insertion has it — and where the next statement
+                // shares its line, JavaScript inserts nothing, so its first
+                // token is unexpected, as it was when the `;` was required;
+                // a comment on the line is on the line, a comment holding a
+                // newline breaks it (spec/README.md, module structure)
+                ["const a = 1 export default a;", "unexpected token", [1, 13]],
+                ["import x from \"m\" export default x;", "unexpected token", [1, 19]],
+                ["import x from \"m\" import y from \"n\";\nexport default x;", "unexpected token", [1, 19]],
+                ["const a = 1 /* c */ const b = 2;\nexport default b;", "unexpected token", [1, 21]],
+                ["const a = 1; const b = 2 export const c = 3;", "unexpected token", [1, 26]],
+                ["export const a = 1 export default a;", "unexpected token", [1, 20]],
+                ["export default () => { const x = 1 return x; };", "unexpected token", [1, 36]],
+                // a module may end in `throw` where `export default` would,
+                // and nothing follows it; `throw` and its value share a line,
+                // as `return` and its value do; and the value is resolved
+                ["throw 1; export default 2;", "unexpected token", [1, 10]],
+                ["export default 2; throw 1;", "unexpected token", [1, 19]],
+                ["throw\n1;", "unexpected token", [2, 1]],
+                ["throw;", "unexpected token", [1, 6]],
+                ["const a = 1 throw a;", "unexpected token", [1, 13]],
+                ["export const a = 1 throw a;", "unexpected token", [1, 20]],
+                ["throw zzz;", "const not found", [1, 7]],
+                // a module with no export is one still, however it ends
+                ["import x from \"m\"", "unexpected end", [1, 18]],
+                ["const a = 1", "unexpected end", [1, 12]],
+                ["const a = 1;\nconst a = 2;\nexport default a;", "duplicate id", [2, 7]],
+                ["import x from \"m\";\nimport x from \"n\";\nexport default x;", "duplicate id", [2, 8]],
+                ["import x from \"m\";\nconst x = 1;\nexport default x;", "duplicate id", [2, 7]],
+                // a function's `length` is at most 16: the 17th fixed name is refused
+                ["export default (a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15,a16)=>1;", "more than 16 fixed parameters", [1, 71]],
+                ["export default zzz;", "const not found", [1, 16]],
+                // `NaN` and `Infinity` are reserved, as `undefined` is, and
+                // reserved is about *binding*: each may name a property,
+                // where JavaScript has an `IdentifierName` and reads the
+                // word as a string, and none may take a name of its own, so
+                // the refusal is the fold's `reserved word` and not the
+                // grammar's `unexpected token` — the same answer `const if`
+                // gets. `{NaN: 1}` and `a.NaN` are accepted above.
+                ["const NaN = 1;\nexport default NaN;", "reserved word", [1, 7]],
+                ["import Infinity from \"m\";\nexport default Infinity;", "reserved word", [1, 8]],
+                ["export default (...undefined) => undefined;", "reserved word", [1, 20]],
+                // a statement wrong in both halves answers for the half a
+                // reader meets first: the name, not the initializer, which
+                // is why the binding name is checked before the value is
+                // read — `const if = missing;` answered `const not found`
+                // at `missing` until it was
+                ["const NaN = missing;\nexport default 1;", "reserved word", [1, 7]],
+                ["const if = missing;\nexport default 1;", "reserved word", [1, 7]],
+                ["const a = 1;\nconst a = missing;\nexport default 1;", "duplicate id", [2, 7]],
+                // `-Infinity` is no name in either language, and it is two
+                // tokens here, so the `-` is what a key position answers at
+                ["export default {-Infinity: 1};", "unexpected token", [1, 17]],
+                ["const undefined = 1;\nexport default undefined;", "reserved word", [1, 7]],
+                ["const a = zzz;\nexport default a;", "const not found", [1, 11]],
+                // a `const` naming itself is a reference before its declaration,
+                // which JavaScript refuses too; it used to name the entry
+                // being defined, and denote the entry before it
+                ["const a = a;\nexport default a;", "const not found", [1, 11]],
+                ["const a = [1];\nconst b = { x: b };\nexport default [a, b];", "const not found", [2, 16]],
+                ["export default [zzz];", "const not found", [1, 17]],
+                ["export default {a: zzz};", "const not found", [1, 20]],
+                ["export default {__proto__: 1};", "__proto__ requires the computed key form", [1, 17]],
+                ["export default {\"__proto__\": 1};", "__proto__ requires the computed key form", [1, 17]],
+                ["import x from \"m\";\nimport x from \"n\";\nimport y from \"o\";\nexport default y;", "duplicate id", [2, 8]],
+                ["const a = 1;\nconst a = 2;\nconst b = 3;\nexport default b;", "duplicate id", [2, 7]],
+            ]
+            for (const [source, message, position] of cases) {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'error', [source, tag])
+                assertEq(value.message, message, source)
+                const { metadata } = value
+                assertStructurallySame(
+                    metadata === null ? null : [metadata.line, metadata.column],
+                    position,
+                    source)
+            }
+        },
+    ],
+    // Wide and deep values. A list is right-recursive, so 5,000 siblings
+    // are 5,000 levels of tree: the machine builds it on a heap stack, each
+    // list node's mapping prepends one item to what its tail returned, and
+    // the resolution walks the value over a stack of its own — no walk
+    // recurses. See `containerStackCost` for the wider case.
+    stackSafety: [
+        () => {
+            const source = `export default [${repeated('null')(5000)}];`
+            const tokens = tokenizeString(source)
+            assertEq(parseFromTokens(tokens)[0], 'ok')
+        },
+        () => {
+            const source = `export default [${repeated('{}')(5000)}];`
+            const tokens = tokenizeString(source)
+            assertEq(parseFromTokens(tokens)[0], 'ok')
+        },
+        () => {
+            const source = `export default ${'['.repeat(5000)}${']'.repeat(5000)};`
+            const tokens = tokenizeString(source)
+            assertEq(parseFromTokens(tokens)[0], 'ok')
+        },
+        () => {
+            // wide objects walk the member list rather than the element list
+            const source = `export default {${numberedMembers(5000)}};`
+            const tokens = tokenizeString(source)
+            assertEq(parseFromTokens(tokens)[0], 'ok')
+        },
+    ],
+    // A chain of lazy operators, or of conditionals, as deep as the source
+    // that built it, at the bar `containerStackCost` sets: a lazy chain
+    // folds left through the same reader as an eager one, and a conditional
+    // nests to the right through its arms — each arm a value already mapped
+    // by the time the conditional's own mapping runs, so the reader never
+    // recurses, and the resolution walks the three operands over its own
+    // explicit stack. Neither shape is bounded by what a human writes: the
+    // eager ladder's own overflow was found at this depth, not reasoned away.
+    lazyStackCost: [
+        () => {
+            const [tag] = parseFromTokens(tokenizeString(`export default 1${' && 1'.repeat(20000)};`))
+            assert(tag === 'ok', tag)
+        },
+        () => {
+            const [tag] = parseFromTokens(tokenizeString(`export default 1${' || 1 && 1'.repeat(20000)};`))
+            assert(tag === 'ok', tag)
+        },
+        () => {
+            const [tag] = parseFromTokens(tokenizeString(`export default 1${' ?? 1'.repeat(20000)};`))
+            assert(tag === 'ok', tag)
+        },
+        () => {
+            // nested to the right through the else arm
+            const [tag] = parseFromTokens(tokenizeString(`export default ${'1 ? 2 : '.repeat(20000)}3;`))
+            assert(tag === 'ok', tag)
+        },
+        () => {
+            // and through the then arm, whose `:` closes each in turn
+            const [tag] = parseFromTokens(tokenizeString(`export default ${'1 ? '.repeat(20000)}2${' : 3'.repeat(20000)};`))
+            assert(tag === 'ok', tag)
+        },
+        () => {
+            // Many written guards stay in one source statement sequence.
+            // Resolution uses the explicit stack without constructing a
+            // nested continuation for every remaining statement.
+            const [tag, value] = parseFromTokens(tokenizeString(`export default (a) => {\n${'if (a) { return 1; }\n'.repeat(5000)}return 0;\n};`))
+            assert(tag === 'ok', tag)
+            assert(value.body.exit[0] === 'yield')
+            const object = value.body.exit[1]
+            assert(object instanceof Array && object[0] === 'object')
+            const entry = object[1][0]
+            assert(entry[0] === ':' && entry[2] instanceof Array && entry[2][0] === 'function')
+            const fn = entry[2][1]
+            assertEq(fn.body.statements.length, 5_000)
+            for (const statement of fn.body.statements) {
+                assert(statement[0] === 'if')
+                const returned = statement[2].statements[0]
+                assert(returned[0] === 'return')
+                assertEq(returned[1], fn.target)
+                assertEq(returned[2], 1)
+            }
+            assert(fn.body.exit[0] === 'return')
+            assertEq(fn.body.exit[2], 0)
+        },
+    ],
+    // An object's members stand in the order they are written, as JavaScript
+    // reads the same literal, and a repeated key keeps its first position
+    // and takes its last value. The parser used to sort them, which the
+    // subset law over the DataJS corpus found: the graph a module denotes
+    // has an order, and a reader that changes it reads another graph. The
+    // syntax keeps more than the value: the members as written, an
+    // integer-like key where it stands and a repeated key twice, which
+    // EDAG's object constructor takes and a plain object cannot hold.
+    membersAsWritten: () => {
+        const [tag, value] = parseFromTokens(tokenizeString('export default {"b": 1, "1": 2, "b": 3};'))
+        assert(tag === 'ok', tag)
+        assertEq(stringifyModule(value), "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"b\",1],[\":\",\"1\",2],[\":\",\"b\",3]]]]]]")
+        const object = assertOk(toData(assertOk(read(ok(_evaluate(value)), 'default'))))
+        assert(isObject(object), object)
+        assertEq(Object.keys(object).join(), '1,b')
+        assertEq(object.b, 3)
+    },
+    // A property access is `['.', base, key]`, the base any value and the
+    // accesses before it, the key the constant written; a key naming the
+    // prototype chain is refused at the key, in either spelling, and the
+    // errors come in document order as everywhere else.
+    access: {
+        forms: () => {
+            /** @type {(source: string, expected: string) => void} */
+            const expect = (source, expected) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', value)
+                assertEq(stringifyModule(value), expected)
+            }
+            expect('const a = {}; export default a.b;', "[\"{}\",[[\":\",\"default\",[\".\",[\"{}\",[]],\"b\"]]]]")
+            expect('const a = {}; export default a["b c"];', "[\"{}\",[[\":\",\"default\",[\".\",[\"{}\",[]],\"b c\"]]]]")
+            expect('const a = []; export default a[0];', "[\"{}\",[[\":\",\"default\",[\".\",[\"[]\",[]],0]]]]")
+            // an index is a constant key, a string or a number token, and
+            // the sign was only ever one because the fold made `-1.5` a
+            // number. It is two tokens now, so a negative key is written as
+            // the string it names — which is the key either spelling gives
+            expect('const a = []; export default a["-1.5"];', "[\"{}\",[[\":\",\"default\",[\".\",[\"[]\",[]],\"-1.5\"]]]]")
+            expect('const a = {}; export default a.b[1].default;', "[\"{}\",[[\":\",\"default\",[\".\",[\".\",[\".\",[\"{}\",[]],\"b\"],1],\"default\"]]]]")
+            // any value takes accesses, a literal as a reference does
+            expect('export default [1].length;', "[\"{}\",[[\":\",\"default\",[\".\",[\"[]\",[1]],\"length\"]]]]")
+            expect('export default "ab"[0];', "[\"{}\",[[\":\",\"default\",[\".\",\"ab\",0]]]]")
+            expect('export default { a: [1] }.a[0];', "[\"{}\",[[\":\",\"default\",[\".\",[\".\",[\"{}\",[[\":\",\"a\",[\"[]\",[1]]]]],\"a\"],0]]]]")
+            expect('export default null.x;', "[\"{}\",[[\":\",\"default\",[\".\",null,\"x\"]]]]")
+            expect('export default true.x;', "[\"{}\",[[\":\",\"default\",[\".\",true,\"x\"]]]]")
+            expect('const n = -1; export default n.x;', "[\"{}\",[[\":\",\"default\",[\".\",-1,\"x\"]]]]")
+            expect('const a = []; export default [a.length, a["length"]];', "[\"{}\",[[\":\",\"default\",[\"[]\",[[\".\",[\"[]\",[]],\"length\"],[\".\",[\"[]\",[]],\"length\"]]]]]]")
+            // a prototype name is a key like any other: only reading it is refused
+            expect('export default { push: 1, toString: 2 };', "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"push\",1],[\":\",\"toString\",2]]]]]]")
+            expect('import m from "./m.f.js"; export default [m.x, { y: m["x"] }];', "[\"{}\",[[\":\",\"default\",[\"[]\",[[\".\",[\".\",[\".\",[\"args\"],0],\"default\"],\"x\"],[\"{}\",[[\":\",\"y\",[\".\",[\".\",[\".\",[\"args\"],0],\"default\"],\"x\"]]]]]]]]]")
+        },
+        // The optional chains, in the EDAG's own shapes
+        // (`fjs/edag/README.md`, Chains): a `?.` opens a region, the steps
+        // after it are the node's own until a group closes it, and each
+        // spelling of the README's table folds to the node it gives.
+        optional: () => {
+            /** @type {(source: string, expected: string) => void} */
+            const expect = (source, expected) => {
+                const [tag, value] = parseFromTokens(tokenizeString(`const a = {}; const c = 1; export default ${source};`))
+                assert(tag === 'ok', value)
+                assert(value.body.exit[0] === 'yield')
+                assertEq(_stringifyTree(value.body.exit[1]), `["object",[[":","default",${expected.replaceAll('["cref",0]', '["ref",{"index":0}]').replaceAll('["cref",1]', '["ref",{"index":0}]')}]]]`)
+            }
+            expect('a?.b', '["?.",["cref",0],"b"]')
+            expect('a?.["b c"]', '["?.",["cref",0],"b c"]')
+            expect('a?.[0]', '["?.",["cref",0],0]')
+            expect('a?.(c)', '["?.()",["cref",0],[["cref",1]]]')
+            expect('a?.(...a)', '["?.()",["cref",0],[["...",["cref",0]]]]')
+            expect('a?.b.c', '["?.",["cref",0],"b",["|.","c"]]')
+            expect('(a?.b).c', '[".",["?.",["cref",0],"b"],"c"]')
+            expect('a?.b(c)', '["?.",["cref",0],"b",["|()",[["cref",1]]]]')
+            expect('(a?.b)(c)', '["?.",["cref",0],"b",["|!()",[["cref",1]]]]')
+            expect('a?.b?.(c)', '["?.",["cref",0],"b",["|?.()",[["cref",1]]]]')
+            // a region closed before a guard is unobservable: the guarded
+            // call keeps the receiver either way
+            expect('(a?.b)?.(c)', '["?.",["cref",0],"b",["|?.()",[["cref",1]]]]')
+            // a guarded access always starts a node
+            expect('a?.b?.c', '["?.",["?.",["cref",0],"b"],"c"]')
+            expect('(a?.b)?.c', '["?.",["?.",["cref",0],"b"],"c"]')
+            expect('(a?.b.c)(c)', '["?.",["cref",0],"b",["|.","c",["|!()",[["cref",1]]]]]')
+            expect('(a?.b).c(c)', '["()",[".",["?.",["cref",0],"b"],"c"],[["cref",1]]]')
+            expect('a?.b(c).d(c)', '["?.",["cref",0],"b",["|()",[["cref",1]],["|.","d",["|()",[["cref",1]]]]]]')
+            expect('a?.b?.(c).d', '["?.",["cref",0],"b",["|?.()",[["cref",1]],["|.","d"]]]')
+            expect('(a?.b)(c).d', '[".",["?.",["cref",0],"b",["|!()",[["cref",1]]]],"d"]')
+            // a guarded call after a call, no receiver live, starts a node
+            expect('a?.b(c)?.(c)', '["?.()",["?.",["cref",0],"b",["|()",[["cref",1]]]],[["cref",1]]]')
+            expect('a?.(c).d(c)', '["?.()",["cref",0],[["cref",1]],["|.","d",["|()",[["cref",1]]]]]')
+            expect('(a?.(c))(c)', '["()",["?.()",["cref",0],[["cref",1]]],[["cref",1]]]')
+            expect('a?.(c)?.(c)', '["?.()",["?.()",["cref",0],[["cref",1]]],[["cref",1]]]')
+            // a guarded call on a plain access is the access's own step,
+            // through a group too, as a plain call is
+            expect('a.b?.(c)', '[".",["cref",0],"b",["|?.()",[["cref",1]]]]')
+            expect('(a.b)?.(c)', '[".",["cref",0],"b",["|?.()",[["cref",1]]]]')
+            expect('a.b?.(c).d', '[".",["cref",0],"b",["|?.()",[["cref",1]],["|.","d"]]]')
+            expect('(a.b?.(c))(c)', '["()",[".",["cref",0],"b",["|?.()",[["cref",1]]]],[["cref",1]]]')
+            expect('a.b(c)?.(c)', '["?.()",["()",[".",["cref",0],"b"],[["cref",1]]],[["cref",1]]]')
+            // a group is one boundary however many parentheses spell it,
+            // and a prefix's operand is a group too
+            expect('((a?.b)).c', '[".",["?.",["cref",0],"b"],"c"]')
+            expect('-(a?.b).c', '["-",[".",["?.",["cref",0],"b"],"c"]]')
+            expect('(a?.b) ** 2', '["**",["?.",["cref",0],"b"],2]')
+            // a key is judged as an access's is, by the step after it:
+            // `length` and a method call pass, a prototype name is refused
+            // as a read and a member function a module may not call at
+            // the key, through a step too
+            expect('a?.b.length', '["?.",["cref",0],"b",["|.","length"]]')
+            expect('a?.at(0)', '["?.",["cref",0],"at",["|()",[0]]]')
+            expectRefused('const a = {}; export default a?.at;', 'prohibited property name', 33)
+            expectRefused('const a = {}; export default a?.push(1);', 'prohibited member function', 33)
+            expectRefused('const a = {}; export default a?.b.push(1);', 'prohibited member function', 35)
+            expectRefused('const a = {}; export default a?.(1).at;', 'prohibited property name', 37)
+            // the names a chain holds are resolved in document order
+            expectRefused('const a = {}; export default a?.b(missing);', 'const not found', 35)
+            expectRefused('const a = {}; export default a?.(missing).b(a);', 'const not found', 34)
+            expectRefused('const a = {}; export default a.b?.(1).c(missing);', 'const not found', 41)
+        },
+        // `-1 .x` is `-(1 .x)` in JavaScript, and it is that here: the `-`
+        // is a prefix the grammar reads, so the negation stands outside the
+        // access rather than inside the literal. An access on a numeric
+        // literal is an access like any other, and `-0n` needs no sign to
+        // tell it by, there being no fold left to lose one.
+        numeric: () => {
+            /** @type {(source: string, ast: string) => void} */
+            const expect = (source, ast) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', value)
+                assertEq(stringifyModule(value), ast)
+            }
+            expect('export default -1 .x;', "[\"{}\",[[\":\",\"default\",[\"-\",[\".\",1,\"x\"]]]]]")
+            expect('export default -0 .x;', "[\"{}\",[[\":\",\"default\",[\"-\",[\".\",0,\"x\"]]]]]")
+            expect('export default -1n .x;', "[\"{}\",[[\":\",\"default\",[\"-\",[\".\",1n,\"x\"]]]]]")
+            expect('export default -0n .x;', "[\"{}\",[[\":\",\"default\",[\"-\",[\".\",0n,\"x\"]]]]]")
+            expect('export default -Infinity.x;', "[\"{}\",[[\":\",\"default\",[\"-\",[\".\",Infinity,\"x\"]]]]]")
+            expect('export default -1["x"];', "[\"{}\",[[\":\",\"default\",[\"-\",[\".\",1,\"x\"]]]]]")
+            // and without a sign the access is all there is
+            expect('export default 1 .x;', "[\"{}\",[[\":\",\"default\",[\".\",1,\"x\"]]]]")
+            expect('export default 0n.x;', "[\"{}\",[[\":\",\"default\",[\".\",0n,\"x\"]]]]")
+            expect('export default NaN.x;', "[\"{}\",[[\":\",\"default\",[\".\",NaN,\"x\"]]]]")
+            expect('export default Infinity["x"];', "[\"{}\",[[\":\",\"default\",[\".\",Infinity,\"x\"]]]]")
+        },
+        prohibited: () => {
+            /** @type {(source: string, column: number) => void} */
+            const expect = (source, column) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'error', tag)
+                assertEq(value.message, 'prohibited property name')
+                assertEq(value.metadata?.column, column)
+            }
+            expect('const a = {}; export default a.__proto__;', 32)
+            expect('const a = {}; export default a["__proto__"];', 32)
+            expect('const a = {}; export default a.constructor;', 32)
+            expect('const a = {}; export default a["constructor"];', 32)
+            expect('const a = {}; export default a.b.constructor.c;', 34)
+            // every name a built-in prototype gives a value, in either
+            // spelling, `length` excepted
+            expect('const a = []; export default a.push;', 32)
+            expect('const a = []; export default a["toString"];', 32)
+            expect('const a = {}; export default a.hasOwnProperty;', 32)
+            expect('const a = ""; export default a.at;', 32)
+            expect('const a = 1; export default a.toFixed;', 31)
+            expect('const a = {}; export default a.valueOf;', 32)
+        },
+        // the base is resolved first, so an unbound base is reported before
+        // a prohibited key, and a prohibited key before an unbound name after it
+        order: () => {
+            const [tag, value] = parseFromTokens(tokenizeString('export default [b.__proto__, a];'))
+            assert(tag === 'error', tag)
+            assertEq(`${value.message} at ${value.metadata?.column}`, 'const not found at 17')
+            const [tag2, value2] = parseFromTokens(tokenizeString('const b = {}; export default [b.__proto__, a];'))
+            assert(tag2 === 'error', tag2)
+            assertEq(`${value2.message} at ${value2.metadata?.column}`, 'prohibited property name at 33')
+        },
+    },
+    memberOrder: () => {
+        const [tag, value] = parseFromTokens(tokenizeString('export default {"b": 1, "a": 2, "b": 3, "c": {"y": 0, "x": 0}};'))
+        assert(tag === 'ok', tag)
+        const object = assertOk(toData(assertOk(read(ok(_evaluate(value)), 'default'))))
+        assert(isObject(object), object)
+        assertEq(Object.keys(object).join(), 'b,a,c')
+        assertEq(object.b, 3)
+        assertEq(Object.keys(/** @type {object} */ (object.c)).join(), 'y,x')
+    },
+    // A JavaScript keyword is refused where JavaScript wants an identifier —
+    // a name bound or referenced — and accepted where JavaScript accepts any
+    // word, a key or the name after `.`: a broken JavaScript program is a
+    // broken FunctionalScript program. The tokenizer hands every keyword
+    // over as an `id` token, so the fold reads the word, framing keywords
+    // included; `from` alone is not reserved.
+    reservedWords: {
+        refused: () => {
+            /** @type {(source: string, column: number) => void} */
+            const expect = (source, column) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'error', tag)
+                assertEq(value.message, 'reserved word')
+                assertEq(value.metadata?.column, column)
+            }
+            expect('const if = 1;\nexport default 1;', 7)
+            expect('const typeof = 1;\nexport default 1;', 7)
+            expect('const export = 1;\nexport default export;', 7)
+            expect('const with = 1;\nexport default 1;', 7)
+            expect('const let = 1;\nexport default 1;', 7)
+            expect('const eval = 1;\nexport default 1;', 7)
+            expect('import class from "m";\nexport default 1;', 8)
+            expect('export default class;', 16)
+            expect('export default [1, { a: import.x }];', 25)
+            // a keyword is refused before its name is looked up
+            expect('export default this;', 16)
+            // `instanceof` is a keyword like `typeof`, and `Array` a
+            // reserved global, refused as a binding, a parameter and a
+            // reference exactly as a keyword is — before and after the
+            // `instanceof` that names it, since neither order is a binding
+            expect('const instanceof = 1;\nexport default 1;', 7)
+            expect('const Array = 1;\nexport default [] instanceof Array;', 7)
+            expect('const x = [] instanceof Array;\nconst Array = 1;\nexport default x;', 7)
+            expect('export default (Array) => 1;', 17)
+            expect('export default (...Array) => 1;', 20)
+            expect('export default Array;', 16)
+            expect('import Array from "m";\nexport default 1;', 8)
+        },
+        accepted: () => {
+            /** @type {(source: string) => void} */
+            const expect = source => {
+                const [tag] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', tag)
+            }
+            expect('const from = 1;\nexport default from;')
+            expect('export default { if: 1, export: 2, with: 3, from: 4, default: 5, this: 6, typeof: 7, instanceof: 8, Array: 9 };')
+            expect('const a = {}; export default [a.if, a.export, a.default, a.class, a.typeof, a.instanceof, a.Array];')
+        },
+    },
+    stringConversion: {
+        read: () => {
+            /** @type {readonly (readonly [string, Exp])[]} */
+            const values = [
+                ['String(42)', ['String', 42]],
+                ['(String)(42)', ['String', 42]],
+                ['String\n(42)', ['String', 42]],
+                ['String(42,)', ['String', 42]],
+                ['String(String(42))', ['String', ['String', 42]]],
+                ['String(Number("42"))', ['String', ['Number', '42']]],
+                ['String(1).length', ['.', ['String', 1], 'length']],
+                ['String(1)(2)', ['()', ['String', 1], [2]]],
+                ['-String(1)', ['-', ['String', 1]]],
+                ['(...a) => String(a[0])', ['=>', 0, [], ['String', ['.', ['rest'], 0]]]],
+            ]
+            for (const [source, value] of values) {
+                expectModule(`export default ${source};`, _stringifyTree(['{}', [[':', 'default', value]]]))
+            }
+        },
+        empty: () => {
+            expectModule('export default String();', _stringifyTree(['{}', [[':', 'default', '']]]))
+            expectModule('export default String().length;', _stringifyTree(['{}', [[':', 'default', ['.', '', 'length']]]]))
+        },
+        reserved: () => {
+            /** @type {readonly (readonly [string, number])[]} */
+            const sources = [
+                ['const String = 1; export default 2;', 7],
+                ['export const String = 1;', 14],
+                ['export default (String) => 1;', 17],
+                ['export default (...String) => 1;', 20],
+                ['import String from "./m.f.js"; export default 1;', 8],
+                ['import { String } from "./m.f.js"; export default 1;', 10],
+                ['import { a as String } from "./m.f.js"; export default 1;', 15],
+                ['export default () => { const String = 1; return 2; };', 30],
+                ['export default String;', 16],
+                ['export default [String];', 17],
+                ['export default { String };', 18],
+                ['export default String.fromCodePoint(65);', 16],
+                ['export default String?.(1);', 16],
+            ]
+            for (const [source, column] of sources) { expectRefused(source, 'reserved word', column) }
+        },
+        arity: () => {
+            for (const source of ['String(1, 2)', 'String(...[1])', 'String(...[])']) {
+                expectRefused(`export default ${source};`, 'String takes one argument', 16)
+            }
+        },
+        key: () => {
+            expectModule('export default { String: 1 }.String;', _stringifyTree(['{}', [[':', 'default', ['.', ['{}', [[':', 'String', 1]]], 'String']]]]))
+            expectModule('export default { String: 1 }["String"];', _stringifyTree(['{}', [[':', 'default', ['.', ['{}', [[':', 'String', 1]]], 'String']]]]))
+        },
+        indexRefused: () => {
+            expectRefused('export default [1][String(0)];', 'computed key is not Number(...)', 20)
+            expectRefused('export default [1][String()];', 'computed key is not Number(...)', 20)
+        },
+    },
+    // `Number` is a reserved global: the fold reads the call of the word
+    // with one plain argument as the conversion, `['Number', v]`, before the
+    // word is resolved, and refuses the word everywhere else as a keyword
+    // is refused — bound, in any binding position, or read, bare or as a
+    // namespace — while a key and a property name stay what JavaScript has
+    // them as (spec/README.md, Number Conversion).
+    conversion: {
+        read: () => {
+            expectModule('export default Number("0x10");', "[\"{}\",[[\":\",\"default\",[\"Number\",\"0x10\"]]]]")
+            // a value like any other: an operand, a base, a callee, an
+            // operand of itself, and the operand any value
+            expectModule('export default -Number(1);', "[\"{}\",[[\":\",\"default\",[\"-\",[\"Number\",1]]]]]")
+            expectModule('export default Number(1 + 2) * 2;', "[\"{}\",[[\":\",\"default\",[\"*\",[\"Number\",[\"+\",1,2]],2]]]]")
+            expectModule('export default Number(1).x;', "[\"{}\",[[\":\",\"default\",[\".\",[\"Number\",1],\"x\"]]]]")
+            expectModule('export default Number(1)(2);', "[\"{}\",[[\":\",\"default\",[\"()\",[\"Number\",1],[2]]]]]")
+            expectModule('export default Number(Number(1n));', "[\"{}\",[[\":\",\"default\",[\"Number\",[\"Number\",1n]]]]]")
+            expectModule('export default Number({ valueOf: () => 7 });', "[\"{}\",[[\":\",\"default\",[\"Number\",[\"{}\",[[\":\",\"valueOf\",[\"=>\",0,[],7]]]]]]]]")
+            expectModule('export default (...a) => Number(a[0]);', "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\"Number\",[\".\",[\"rest\"],0]]]]]]")
+            // a group is no boundary, and neither is a line break before
+            // the arguments, as in JavaScript
+            expectModule('export default (Number)(1);', "[\"{}\",[[\":\",\"default\",[\"Number\",1]]]]")
+            expectModule('export default Number\n(1);', "[\"{}\",[[\":\",\"default\",[\"Number\",1]]]]")
+            // `Number()` is `0`, the literal, as JavaScript has it
+            expectModule('export default Number();', "[\"{}\",[[\":\",\"default\",0]]]")
+            expectModule('export default -Number();', "[\"{}\",[[\":\",\"default\",-0]]]")
+        },
+        // the conversion is the represented interpreter's `Number`: a
+        // string read as a literal, a bigint converted, an array joined, an
+        // object through its own `valueOf`
+        evaluated: () => {
+            const value = _evaluate(unwrap(parseFromTokens(tokenizeString('export default [Number("0x10"), Number(" 4 "), Number(1n), Number([7]), Number(null), Number({ valueOf: () => 7 }), Number("x")];'))))
+            assertStructurallySame(assertOk(read(ok(value), 'default')), ['[]', [16, 4, 1, 7, 0, 7, NaN]])
+        },
+        // the word bound, in every position a name is bound, and read
+        // anywhere but as the conversion's callee
+        reserved: () => {
+            expectRefused('const Number = 1; export default 2;', 'reserved word', 7)
+            expectRefused('export const Number = 1;', 'reserved word', 14)
+            expectRefused('export default (Number) => 1;', 'reserved word', 17)
+            expectRefused('export default (...Number) => 1;', 'reserved word', 20)
+            expectRefused('import Number from "./m.f.js"; export default 1;', 'reserved word', 8)
+            expectRefused('import { Number } from "./m.f.js"; export default 1;', 'reserved word', 10)
+            expectRefused('import { a as Number } from "./m.f.js"; export default 1;', 'reserved word', 15)
+            expectRefused('export default () => { const Number = 1; return 2; };', 'reserved word', 30)
+            expectRefused('export default Number;', 'reserved word', 16)
+            expectRefused('const n = Number; export default n;', 'reserved word', 11)
+            expectRefused('export default [Number];', 'reserved word', 17)
+            expectRefused('export default { Number };', 'reserved word', 18)
+            // a member the namespace does not admit; its four predicates
+            // are `./static.proof.f.js`'s
+            expectRefused('export default Number.parseFloat(1);', 'reserved word', 16)
+            // the guarded call is not read as the conversion yet
+            expectRefused('export default Number?.(1);', 'reserved word', 16)
+            // the `entry` helper under a reserved name is no helper: the
+            // binding is refused as any other is
+            expectRefused('const entry = (Number, b) => { const x = Object.getOwnPropertyDescriptor(Number, b); return x?.enumerable ? [x.value] : []; }; export default entry;', 'reserved word', 16)
+            expectRefused('const entry = (a, b) => { const Number = Object.getOwnPropertyDescriptor(a, b); return Number?.enumerable ? [Number.value] : []; }; export default entry;', 'reserved word', 33)
+        },
+        // more than one argument, or a spread: refused by design at the
+        // word, the conversion an operator of fixed operands
+        arity: () => {
+            expectRefused('export default Number(1, 2);', 'Number takes one argument', 16)
+            expectRefused('export default Number(...[1]);', 'Number takes one argument', 16)
+        },
+        // a key and a property name are not references: an own property of
+        // the name is read, and called, as JavaScript reads and calls it
+        key: () => {
+            expectModule('export default { Number: 1 }.Number;', "[\"{}\",[[\":\",\"default\",[\".\",[\"{}\",[[\":\",\"Number\",1]]],\"Number\"]]]]")
+            expectModule('export default { Number: 1 }["Number"];', "[\"{}\",[[\":\",\"default\",[\".\",[\"{}\",[[\":\",\"Number\",1]]],\"Number\"]]]]")
+            expectModule('export default { Number: () => 1 }.Number(1);', "[\"{}\",[[\":\",\"default\",[\".\",[\"{}\",[[\":\",\"Number\",[\"=>\",0,[],1]]]],\"Number\",[\"|()\",[1]]]]]]")
+            expectModule('export default (...a) => a[0].Number;', "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\".\",[\".\",[\"rest\"],0],\"Number\"]]]]]")
+        },
+        // A key computed at run time is the conversion, `a[Number(i)]`:
+        // the AST's key is the conversion itself, entered after the base,
+        // in a plain access, a method call, a guarded access and a chain's
+        // step alike (spec/README.md, Property Access).
+        index: () => {
+            expectModule('export default (...a) => a[Number(a[0])];', "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\".\",[\"rest\"],[\"Number\",[\".\",[\"rest\"],0]]]]]]]")
+            expectModule('export default (...a) => a[Number(a[0])](1);', "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\".\",[\"rest\"],[\"Number\",[\".\",[\"rest\"],0]],[\"|()\",[1]]]]]]]")
+            expectModule('export default (...a) => a?.[Number(a[0])];', "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\"?.\",[\"rest\"],[\"Number\",[\".\",[\"rest\"],0]]]]]]]")
+            expectModule('export default (...a) => a?.b[Number(a[0])](1);', "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\"?.\",[\"rest\"],\"b\",[\"|.\",[\"Number\",[\".\",[\"rest\"],0]],[\"|()\",[1]]]]]]]]")
+            expectModule('export default [1][Number([0][Number("0")])];', "[\"{}\",[[\":\",\"default\",[\".\",[\"[]\",[1]],[\"Number\",[\".\",[\"[]\",[0]],[\"Number\",\"0\"]]]]]]]")
+            // `Number()` is `0`, a constant key; a group is no boundary
+            expectModule('export default [1][Number()];', "[\"{}\",[[\":\",\"default\",[\".\",[\"[]\",[1]],0]]]]")
+            expectModule('export default [1][(Number("0"))];', "[\"{}\",[[\":\",\"default\",[\".\",[\"[]\",[1]],[\"Number\",\"0\"]]]]]")
+            // a name the key reads is a capture as any read is
+            expectModule('const k = "0"; export default (...a) => a[Number(k)];', "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\".\",[\"rest\"],[\"Number\",\"0\"]]]]]]")
+        },
+        // the interpreter reads the key the conversion gives, as JavaScript
+        // reads it: a number's string, so `NaN` names nothing
+        indexEvaluated: () => {
+            const value = _evaluate(unwrap(parseFromTokens(tokenizeString('const xs = [10, 20, 30]; export default [xs[Number("1")], xs[Number(2n)], "abc"[Number(true)], { "1": "o" }[Number("1")], xs[Number("x")]];'))))
+            assertStructurallySame(assertOk(read(ok(value), 'default')), ['[]', [20, 30, 'b', 'o', ['undefined']]])
+        },
+        // any other value in brackets is refused at the token it begins
+        // with, after the base, as JavaScript evaluates the two
+        indexRefused: () => {
+            for (const source of ['export default [1][i];', 'export default [1][-1];', 'export default [1][NaN];', 'export default [1][1n];', 'export default [1][(0)];', 'export default [1]["a" + "b"];', 'export default [1][Number.x];']) {
+                expectRefused(source, 'computed key is not Number(...)', 20)
+            }
+            expectRefused('export default (...a) => a?.[i];', 'computed key is not Number(...)', 30)
+            expectRefused('export default (...a) => a?.b[i];', 'computed key is not Number(...)', 31)
+            expectRefused('export default [1][Number(1, 2)];', 'Number takes one argument', 20)
+            expectRefused('export default x[i];', 'const not found', 16)
+            expectRefused('export default [1][Number(x)];', 'const not found', 27)
+        },
+    },
+    // `with { type: "json" }` is the one import attribute JavaScript
+    // defines; the grammar takes any key and any string, and the fold reads
+    // both words and names the one it does not know.
+    attribute: {
+        json: () => {
+            const [tag, value] = parseFromTokens(tokenizeString('import x from "m" with { type: "json" };\nexport default x;'))
+            assert(tag === 'ok', tag)
+            assertEq(stringifyModule(value), "[\"{}\",[[\":\",\"default\",[\".\",[\".\",[\"args\"],0],\"default\"]]]]")
+        },
+        refused: () => {
+            /** @type {(source: string, message: string, column: number) => void} */
+            const expect = (source, message, column) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'error', tag)
+                assertEq(value.message, message)
+                assertEq(value.metadata?.column, column)
+            }
+            expect('import x from "m" with { kind: "json" };\nexport default x;', 'unknown import attribute', 26)
+            // a key with a symbol of its own is a word like any other here,
+            // as JavaScript's `IdentifierName` key is: the fold names it
+            expect('import x from "m" with { return: "json" };\nexport default x;', 'unknown import attribute', 26)
+            expect('import x from "m" with { export: "json" };\nexport default x;', 'unknown import attribute', 26)
+            expect('import x from "m" with { type: "css" };\nexport default x;', 'unknown import type', 32)
+        },
+    },
+    valid: [
+        () => {
+            const tokenList = tokenizeString('export default null;')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyModule(obj[1])
+            assertEq(result, "[\"{}\",[[\":\",\"default\",null]]]")
+        },
+        () => {
+            const tokenList = tokenizeString('export default true;')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyModule(obj[1])
+            assertEq(result, "[\"{}\",[[\":\",\"default\",true]]]")
+        },
+        () => {
+            const tokenList = tokenizeString('export default false;')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyModule(obj[1])
+            assertEq(result, "[\"{}\",[[\":\",\"default\",false]]]")
+        },
+        () => {
+            const tokenList = tokenizeString('export default undefined;')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyModule(obj[1])
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"undefined\"]]]]")
+        },
+        () => {
+            const tokenList = tokenizeString('export default 0.1;')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyModule(obj[1])
+            assertEq(result, "[\"{}\",[[\":\",\"default\",0.1]]]")
+        },
+        () => {
+            const tokenList = tokenizeString('export default 1.1e+2;')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyModule(obj[1])
+            assertEq(result, "[\"{}\",[[\":\",\"default\",110]]]")
+        },
+        () => {
+            const tokenList = tokenizeString('export default "abc";')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyModule(obj[1])
+            assertEq(result, "[\"{}\",[[\":\",\"default\",\"abc\"]]]")
+        },
+        () => {
+            const tokenList = tokenizeString('export default [];')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyModule(obj[1])
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"[]\",[]]]]]")
+        },
+        () => {
+            const tokenList = tokenizeString('export default [1];')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyModule(obj[1])
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"[]\",[1]]]]]")
+        },
+        () => {
+            const tokenList = tokenizeString('export default [[]];')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyModule(obj[1])
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"[]\",[[\"[]\",[]]]]]]]")
+        },
+        () => {
+            const tokenList = tokenizeString('export default [0,[1,[2,[]]],3];')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyModule(obj[1])
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"[]\",[0,[\"[]\",[1,[\"[]\",[2,[\"[]\",[]]]]]],3]]]]]")
+        },
+        () => {
+            const tokenList = tokenizeString('export default {};')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyModule(obj[1])
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"{}\",[]]]]]")
+        },
+        () => {
+            const tokenList = tokenizeString('export default [{}];')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyModule(obj[1])
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"[]\",[[\"{}\",[]]]]]]]")
+        },
+        () => {
+            const tokenList = tokenizeString('export default {"a":true,"b":false,"c":null,"d":undefined};')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyModule(obj[1])
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",true],[\":\",\"b\",false],[\":\",\"c\",null],[\":\",\"d\",[\"undefined\"]]]]]]]")
+        },
+        () => {
+            const tokenList = tokenizeString('export default {"a":{"b":{"c":["d"]}}};')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyModule(obj[1])
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",[\"{}\",[[\":\",\"b\",[\"{}\",[[\":\",\"c\",[\"[]\",[\"d\"]]]]]]]]]]]]]]")
+        },
+        () => {
+            const tokenList = tokenizeString('export default {a: 1};')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyModule(obj[1])
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1]]]]]]")
+        },
+        () => {
+            const tokenList = tokenizeString('export default 1234567890n;')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyModule(obj[1])
+            assertEq(result, "[\"{}\",[[\":\",\"default\",1234567890n]]]")
+        },
+        () => {
+            const tokenList = tokenizeString('export default [1234567890n];')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyModule(obj[1])
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"[]\",[1234567890n]]]]]")
+        },
+        () => {
+            const tokenList = tokenizeString('export default [1,];')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyModule(obj[1])
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"[]\",[1]]]]]")
+        },
+        () => {
+            const tokenList = tokenizeString('export default {"a":1,};')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyModule(obj[1])
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1]]]]]]")
+        }
+    ],
+    // A computed key `["a"]` is a third spelling of an ordinary key, next to
+    // the identifier and the string literal (#2470). Any other value in the
+    // brackets is a key computed where the object is built, `{ [k]: v }`:
+    // the AST holds the key's value in the string's place, and the EDAG's
+    // constructor converts it to a property key as JavaScript does.
+    computedKey: [
+        () => {
+            const tokenList = tokenizeString('export default {["a"]:1};')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyModule(obj[1])
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1]]]]]]")
+        },
+        () => {
+            // all three spellings in one object, plus a trailing comma
+            const tokenList = tokenizeString('export default {a:1,"b":2,["c"]:3,};')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyModule(obj[1])
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1],[\":\",\"b\",2],[\":\",\"c\",3]]]]]]")
+        },
+        () => {
+            // trivia is trivia inside the brackets too
+            const tokenList = tokenizeString('export default { [ /* c */ \n // c \n "a" /* c */ \n // c \n ] : 1 };')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyModule(obj[1])
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1]]]]]]")
+        },
+        () => {
+            // the key that has no other spelling
+            const tokenList = tokenizeString('export default {["__proto__"]:{"a":42}};')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyModule(obj[1])
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"__proto__\",[\"{}\",[[\":\",\"a\",42]]]]]]]]]")
+        },
+        () => {
+            // a reference resolves as it does anywhere: a `const` to its
+            // node, a parameter to its slot
+            expectModule('const a = 0; export default {[a]: 5};', "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",0,5]]]]]]")
+            expectModule('const a = [1]; export default {[a]: 5};', "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",[\"[]\",[1]],5]]]]]]")
+            expectModule('export default (k) => ({[k]: 1});', "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"{}\",[[\":\",[\"arg\",0],1]]]]]]]")
+            // a literal of any type is itself, and an expression its node
+            expectModule('export default {["a"]: 1, [0]: 2, [null]: 3};', "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1],[\":\",0,2],[\":\",null,3]]]]]]")
+            expectModule('export default {[1 + 1]: 2};', "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",[\"+\",1,1],2]]]]]]")
+            expectModule('export default {[[1][Number(0)]]: 2};', "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",[\".\",[\"[]\",[1]],[\"Number\",0]],2]]]]]]")
+            expectModule('export default {[(() => { const c = [1]; return c; })()]: 2};', "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",[\"[]\",[1]],2]]]]]]")
+        },
+        () => {
+            // a key that evaluates to `__proto__` is no spelling of the
+            // key JavaScript reads as a prototype: it defines an own
+            // property, as the constant computed spelling does
+            expectModule('const k = "__proto__"; export default {[k]: 1};', "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"__proto__\",1]]]]]]")
+        },
+        () => {
+            // the key is evaluated before the value, and after the members
+            // before it, as JavaScript evaluates them: the first fault in
+            // document order is the one reported
+            expectRefused('export default {[missing]: alsoMissing};', 'const not found', 18)
+            expectRefused('export default {a: missing, [b]: 1};', 'const not found', 20)
+            expectRefused('const a = 1; export default {[a]: missing};', 'const not found', 35)
+        },
+    ],
+    // A shorthand member, `{ a }`, is `a: a` as it is in JavaScript: the
+    // name is the key and a reference to the name is the value, so it
+    // resolves as any reference does — a `const`, an import, a parameter —
+    // and is refused as one is, a name nothing binds or a reserved word.
+    // Only the bare spelling has the shorthand; a string or a computed key
+    // is a key alone and keeps its `:`.
+    shorthand: [
+        () => {
+            expectModule('const a = [1]; export default { a };', "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",[\"[]\",[1]]]]]]]]")
+            // mixed with the three keyed spellings, a trailing comma allowed
+            expectModule('const a = 1; const d = 2; export default { a, "b": 2, ["c"]: 3, d, };', "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1],[\":\",\"b\",2],[\":\",\"c\",3],[\":\",\"d\",2]]]]]]")
+            // a parameter, and an import
+            expectModule('export default (a) => ({ a });', "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"{}\",[[\":\",\"a\",[\"arg\",0]]]]]]]]")
+            expectModule('import m from "./m.f.js"; export default { m };', "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"m\",[\".\",[\".\",[\"args\"],0],\"default\"]]]]]]]")
+            // the shorthand denotes an own property whatever the name, as
+            // JavaScript's does: `{ __proto__ }` is the property, not a
+            // prototype, so it is accepted where `{ __proto__: v }` is not
+            expectModule('const __proto__ = 1; export default { __proto__ };', "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"__proto__\",1]]]]]]")
+        },
+        () => {
+            // a reference, refused as one: at the name
+            expectRefused('export default { a };', 'const not found', 18)
+            expectRefused('export default { a: 1, b };', 'const not found', 24)
+            expectRefused('export default { typeof };', 'reserved word', 18)
+            expectRefused('export default { null };', 'reserved word', 18)
+            // the three literal words are reserved: a value where a value
+            // stands, a binding nowhere, so the shorthand's reference finds
+            // none (spec/todo/2445-literal-words-as-references.md)
+            expectRefused('export default { undefined };', 'reserved word', 18)
+            expectRefused('export default { NaN };', 'reserved word', 18)
+            // a string or a computed key has no shorthand: the grammar wants
+            // its `:`, at the `}`
+            expectRefused('export default { "a" };', 'unexpected token', 22)
+            expectRefused('export default { ["a"] };', 'unexpected token', 24)
+        },
+    ],
+    invalidComputedKey: [
+        () => {
+            // the brackets hold a value, not nothing
+            const tokenList = tokenizeString('export default {[]:2}')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected token')
+        },
+        () => {
+            // eof inside the brackets, before the key
+            const tokenList = tokenizeString('export default {[')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected end')
+        },
+        () => {
+            // the brackets are not closed
+            const tokenList = tokenizeString('export default {["a"}')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected token')
+        },
+        () => {
+            // eof after the key, before ']'
+            const tokenList = tokenizeString('export default {["a"')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected end')
+        },
+        () => {
+            // a computed key still needs its ':'
+            const tokenList = tokenizeString('export default {["a"]}')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected token')
+        },
+        () => {
+            // …whatever value the brackets hold
+            expectRefused('export default {[a]};', 'unexpected token', 20)
+        },
+    ],
+    // `{__proto__: v}` and `{"__proto__": v}` assign a prototype in JavaScript
+    // instead of adding a property, so FunctionalScript rejects both spellings
+    // and accepts only the computed one (#2480).
+    protoKey: [
+        () => {
+            const tokenList = tokenizeString('export default {__proto__:1};')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, '__proto__ requires the computed key form')
+        },
+        () => {
+            const tokenList = tokenizeString('export default {"__proto__":1};')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, '__proto__ requires the computed key form')
+        },
+        () => {
+            // the same two spellings after a ',', the parser's other key state
+            const tokenList = tokenizeString('export default {"a":1,__proto__:2};')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, '__proto__ requires the computed key form')
+        },
+        () => {
+            const tokenList = tokenizeString('export default {"a":1,"__proto__":2};')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, '__proto__ requires the computed key form')
+        },
+    ],
+    invalid: [
+        () => {
+            const tokenList = tokenizeString('export default')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected end')
+        },
+        () => {
+            const tokenList = tokenizeString('export default "123')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected token')
+        },
+        // A literal control character inside a string is not valid JSON
+        // syntax (RFC 8259 §7), and double-quoted string literals are JSON strings.
+        () => {
+            const tokenList = tokenizeString('export default "\t"')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected token')
+        },
+        // an array has no hole (spec/values/arrays.md)
+        () => {
+            const tokenList = tokenizeString('export default [,]')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'array hole')
+        },
+        () => {
+            const tokenList = tokenizeString('export default [1 2]')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected token')
+        },
+        () => {
+            const tokenList = tokenizeString('export default [1,,2]')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'array hole')
+        },
+        () => {
+            const tokenList = tokenizeString('export default []]')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected token')
+        },
+        () => {
+            const tokenList = tokenizeString('export default ["a"')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected end')
+        },
+        () => {
+            const tokenList = tokenizeString('export default [,1]')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'array hole')
+        },
+        () => {
+            const tokenList = tokenizeString('export default [:]')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected token')
+        },
+        () => {
+            const tokenList = tokenizeString('export default ]')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected token')
+        },
+        () => {
+            const tokenList = tokenizeString('export default {,}')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected token')
+        },
+        () => {
+            const tokenList = tokenizeString('export default {1 2}')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected token')
+        },
+        () => {
+            const tokenList = tokenizeString('export default {"1"2}')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected token')
+        },
+        () => {
+            const tokenList = tokenizeString('export default {"1"::2}')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected token')
+        },
+        () => {
+            const tokenList = tokenizeString('export default {"1":2,,"3":4')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected token')
+        },
+        () => {
+            const tokenList = tokenizeString('export default {}}')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected token')
+        },
+        () => {
+            const tokenList = tokenizeString('export default {"1":2')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected end')
+        },
+        () => {
+            const tokenList = tokenizeString('export default {,"1":2}')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected token')
+        },
+        () => {
+            const tokenList = tokenizeString('export default }')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected token')
+        },
+        () => {
+            const tokenList = tokenizeString('export default [{]}')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected token')
+        },
+        () => {
+            const tokenList = tokenizeString('export default {[}]')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected token')
+        },
+        () => {
+            // 'export' with no 'default' before eof.
+            const tokenList = tokenizeString('export')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected end')
+        },
+        () => {
+            // 'const' with no name before eof.
+            const tokenList = tokenizeString('const')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected end')
+        },
+        () => {
+            // 'const <name>' with no '=' before eof.
+            const tokenList = tokenizeString('const x')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected end')
+        },
+        () => {
+            // 'const <name>' followed by a token that isn't '='.
+            const tokenList = tokenizeString('const x 5')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected token')
+        },
+        () => {
+            // 'import' with no name before eof.
+            const tokenList = tokenizeString('import')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected end')
+        },
+        () => {
+            // 'import' followed by a token that isn't an id.
+            const tokenList = tokenizeString('import 5')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected token')
+        },
+        () => {
+            // 'import <name>' with no 'from' before eof.
+            const tokenList = tokenizeString('import a')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected end')
+        },
+        () => {
+            // 'import <name> from' with no module string before eof.
+            const tokenList = tokenizeString('import a from')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected end')
+        },
+        () => {
+            // Array opened but eof arrives before any value/']'.
+            const tokenList = tokenizeString('export default [')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected end')
+        },
+        () => {
+            // Object opened but eof arrives before any key/'}'.
+            const tokenList = tokenizeString('export default {')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected end')
+        },
+        () => {
+            // Object key given but eof arrives before ':'.
+            const tokenList = tokenizeString('export default {"a"')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected end')
+        },
+        () => {
+            // Object ':' given but eof arrives before the value.
+            const tokenList = tokenizeString('export default {"a":')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected end')
+        },
+        () => {
+            // Object value given, followed by a token that's neither ',' nor '}'.
+            const tokenList = tokenizeString('export default {"a":1 2}')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected token')
+        },
+        () => {
+            // Object ',' given but eof arrives before the next key/'}'.
+            const tokenList = tokenizeString('export default {"a":1,')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected end')
+        },
+        () => {
+            // `parseFromTokens` itself, called with no tokens at all. The
+            // tokenizer never produces this — it always emits at least an
+            // `eof` — but the exported function's contract must still answer,
+            // and it names what is missing rather than running out of input.
+            const obj = parseFromTokens([])
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'missing end-of-input token')
+        },
+    ],
+    errorMetadata: [
+        () => {
+            // column 17 is the ',' itself — the tokenizer's metadata is start-anchored
+            // (each token's own position), unlike the previous tokenizer's metadata, which
+            // lagged by one token (an artifact of when its state machine flushed a token).
+            const tokenList = tokenizeString('export default [,]')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            const errorString = stringifySorted(obj[1])
+            assertEq(errorString, '{"message":"array hole","metadata":{"column":17,"line":1,"path":""}}')
+        },
+    ],
+    validWhiteSpaces:[
+        () => {
+            const tokenList = tokenizeString(' export default [ 0 , 1 , 2 ] ; ')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyModule(obj[1])
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"[]\",[0,1,2]]]]]")
+        },
+        () => {
+            const tokenList = tokenizeString(' export default { "a" : 0 , "b" : 1 } ; ')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyModule(obj[1])
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",0],[\":\",\"b\",1]]]]]]")
+        },
+        () => {
+            const tokenList = tokenizeString('\nexport\ndefault\n[\n0\n,\n1\n,\n2\n]\n;\n')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyModule(obj[1])
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"[]\",[0,1,2]]]]]")
+        },
+        () => {
+            const tokenList = tokenizeString('\rexport\rdefault\r{\r"a"\r:\r0\r,\r"b"\r:\r1\r}\r;\r')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyModule(obj[1])
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",0],[\":\",\"b\",1]]]]]]")
+        },
+    ],
+    comments: [
+        () => {
+            const tokenList = tokenizeString('export //comment \n default /* comment */ null; //comment')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyModule(obj[1])
+            assertEq(result, "[\"{}\",[[\":\",\"default\",null]]]")
+        },
+    ],
+    // Regression, from the hand-written parser: closing a container popped its
+    // stack with `drop(1)`, which is lazy, so every closed container left one
+    // unforced thunk wrapping the stack, forced only at the end at a
+    // call-stack frame per container — overflowing at roughly 5000 of them,
+    // nested or flat, while primitives were unbounded. `fjs/media/json`
+    // carried the same defect. Kept as the bar every parser here has met.
+    containerStackCost: [
+        () => {
+            const [tag, value] = parseFromTokens(tokenizeString(
+                `export default [${repeated('{}')(20000)}];`))
+            assert(tag === 'ok', tag)
+            assertEq(value.body.statements.length, 0)
+        },
+        () => {
+            const [tag] = parseFromTokens(tokenizeString(
+                `export default [${repeated('[]')(20000)}];`))
+            assert(tag === 'ok', tag)
+        },
+        () => {
+            const [tag] = parseFromTokens(tokenizeString(
+                'export default ' + '['.repeat(20_000) + ']'.repeat(20_000) + ';'))
+            assert(tag === 'ok', tag)
+        },
+        () => {
+            // a capture through as many functions: resolved by a loop out to
+            // the binding scope and back, where a recursion per function
+            // overflowed, each body capturing the one outside it
+            const [tag, value] = parseFromTokens(tokenizeString(
+                `const x = 1; export default ${'() => '.repeat(20000)}x;`))
+            assert(tag === 'ok', tag)
+            // walked by a loop too: the outermost function captures the
+            // module's `x`, every one inside it its parent's slot
+            /** @type {any} */
+            let fn = /** @type {any} */ (value.body.exit[1])[1][0][2]
+            for (let depth = 1; depth < 20_000; depth += 1) { fn = fn[1].body.exit[2] }
+            assertEq(fn[0], 'function')
+            assertEq(fn[1].body.exit[0], 'return')
+            assertEq(fn[1].body.exit[2][0], 'ref')
+            assertEq(fn[1].body.exit[2][1], value.origins[0].id)
+        },
+        () => {
+            // primitives never touched the stack — the baseline that always passed
+            const [tag] = parseFromTokens(tokenizeString(
+                `export default [${generate(20000, i => i).join(',')}];`))
+            assert(tag === 'ok', tag)
+        },
+    ],
+    // Where a parse error is, as much as it knows: a span, a point, the file
+    // it names, and the file being compiled when it names none — the
+    // parser's contract failure, which no reader `fjs compile` runs
+    // produces, is the one such error left.
+    errorLocation: {
+        spanOneLine: () => {
+            assertEq(errorLocation('input.f.js')({ message: 'invalid token', metadata: { path: 'a.f.js', line: 1, column: 16 }, end: { line: 1, column: 17 } }), 'a.f.js:1:16-17')
+        },
+        spanLines: () => {
+            assertEq(errorLocation('input.f.js')({ message: '*/ expected', metadata: { path: 'a.f.js', line: 1, column: 16 }, end: { line: 3, column: 2 } }), 'a.f.js:1:16-3:2')
+        },
+        point: () => {
+            assertEq(errorLocation('input.f.js')({ message: 'unexpected token', metadata: { path: 'a.f.js', line: 2, column: 5 } }), 'a.f.js:2:5')
+        },
+        file: () => {
+            assertEq(errorLocation('input.f.js')({ message: 'file not found', metadata: null, path: 'm.f.js' }), 'm.f.js')
+        },
+        noFile: () => {
+            assertEq(errorLocation('input.f.js')({ message: 'missing end-of-input token', metadata: null }), 'input.f.js')
+        },
+    },
+    /**
+     * **Every shared example is proved to behave as its name says.** The
+     * escape the tokenizer does not read and the unfinished module are the
+     * refusals; everything else, an import included, parses.
+     */
+    demo: {
+        examples: () => {
+            for (const [name, source] of examples) {
+                const [tag, value] = _astOf(source)
+                assertEq(tag, ['Hex escape', 'Non-breaking space', 'Non-ASCII identifier', 'Parse error'].includes(name) ? 'error' : 'ok')
+                // what the pane marks, the tokenizer agrees with
+                if (tag === 'ok') { assertEq(disagreement(value), null, name) }
+            }
+            assertEq(textOfResult(_astOf('export default 1;')), 'export default {"imports":[],"body":{"statements":[],"exit":["yield",["object",[[":","default",1]]]]}};')
+            assertEq(textOfResult(_astOf('export default "\\x41";')), 'unexpected token')
+        },
+        view: () => {
+            const shown = htmlToString(demo.view(demo.init))
+            assert(shown.includes('<p data-caption="">Abstract syntax tree, DataJS:</p><pre data-code="">'), shown)
+            // the same tree, drawn, and the FAST beside it, are the next page's
+            assert(shown.includes('<a href="../sugar/">compiler/sugar</a>'), shown)
+            const refused = htmlToString(demo.view('export default {bad'))
+            assert(refused.includes('Refused:</p><pre data-result="error">'), refused)
+        },
+    },
+}

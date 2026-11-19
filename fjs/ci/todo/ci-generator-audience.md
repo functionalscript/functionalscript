@@ -21,7 +21,7 @@ Most of that job is a documented contract and works as intended.
 must provide — `cov` and `gen` — shows the typical definitions, and
 explains that a project chains its own generators into `gen` so the drift
 check covers them for free. This repository's own `gen` runs the checked-in
-entry point and `fjs/dev/gen/module.f.mjs`, including `ci/self/module.f.mjs`,
+entry point and `fjs/dev/gen/module.f.js`, including `ci/self/module.f.js`,
 to avoid depending on the package bin
 before the package is installed, which that README says outright. So
 `npm run gen` and its drift check are an extension point, not a private
@@ -41,7 +41,7 @@ pattern cannot answer a question about scope
 
 **A second instance has since appeared, and it is not a convention gate.**
 `fjs ci` now writes `.github/workflows/gen.npm-publish.yml` as well
-([`../publish/module.f.mjs`](../publish/module.f.mjs)), so a project that
+([`../publish/module.f.js`](../publish/module.f.js)), so a project that
 regenerates gets a workflow that attempts to publish it to npm on every push to
 `main`. Deleting the file does not opt out: the next `fjs ci` writes it again,
 and `gen`'s drift check then fails on its absence. `Setup` has no field
@@ -107,11 +107,11 @@ is speculative generality.
 
 ### Related
 
-- [`../node/module.f.mjs`](../node/module.f.mjs) — `nodeVersionJobs`, the job in
+- [`../node/module.f.js`](../node/module.f.js) — `nodeVersionJobs`, the job in
   question.
-- [`../module.f.mjs`](../module.f.mjs) — `ci(setup)` and `canonicalJobs`, where
+- [`../module.f.js`](../module.f.js) — `ci(setup)` and `canonicalJobs`, where
   the jobs are assembled and `nodeExtra` stops short.
-- [`../publish/module.f.mjs`](../publish/module.f.mjs) — the publishing
+- [`../publish/module.f.js`](../publish/module.f.js) — the publishing
   workflow, written unconditionally and with no way to decline it.
 - [`../../../todo/jsdoc-verification.md`](../../../todo/jsdoc-verification.md)
   — whether a convention gate can be built at all; this issue is where one would

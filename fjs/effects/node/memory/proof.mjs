@@ -5,15 +5,15 @@
  * @import { Uuid } from './types.ts'
  */
 
-import { errorSummary } from '../module.f.mjs'
+import { errorSummary } from '../module.f.js'
 import {
     asBase, asNominal,
     create, read, write,
-} from '../../memory/module.f.mjs'
+} from '../../memory/module.f.js'
 import { memoryRun, run } from './module.mjs'
 import { assert, assertEq } from '../../../asserts/module.f.js'
 import { unwrap } from "../../../types/result/module.f.js"
-import { step, unwrapStep } from '../../module.f.mjs'
+import { step, unwrapStep } from '../../module.f.js'
 
 export const proof = {
     nodeInterpreter: async () => {

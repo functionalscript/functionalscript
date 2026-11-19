@@ -5,10 +5,10 @@
 
 ### Problem
 
-`tryApplyDelta` in [`../module.f.mjs`](../module.f.mjs) reads its base and delta
+`tryApplyDelta` in [`../module.f.js`](../module.f.js) reads its base and delta
 as dense arrays and builds its target as one, and a number in an array costs
 about eight bytes of heap (measured over 20 000 byte values: about 156 KiB). So
-[`packstore`](../../packstore/module.f.mjs) holds a delta chain to
+[`packstore`](../../packstore/module.f.js) holds a delta chain to
 `maxDeltaBytes`, 8 MiB, by the size its entries declare — about 64 MiB of heap for
 the target, as much for the base, and the delta beside them. An object stored
 whole is a list over the `Vec` chunks it inflated to, about a byte a byte, and has

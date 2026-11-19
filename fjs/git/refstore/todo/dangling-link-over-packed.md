@@ -16,8 +16,8 @@ link to a name that is not there:
 | `git show-ref`, `git for-each-ref` | list `refs/heads/x` at the packed id, exit 0 |
 | `git rev-parse --verify refs/heads/x` | `fatal: Needed a single revision`, exit 128 |
 
-[`tryRoots`](../module.f.mjs) agrees with the listing: its walk skips a link
-that leads nowhere, and the packed line is listed. [`tryResolve`](../module.f.mjs)
+[`tryRoots`](../module.f.js) agrees with the listing: its walk skips a link
+that leads nowhere, and the packed line is listed. [`tryResolve`](../module.f.js)
 does **not** agree with `rev-parse`: `readFile` through the link answers
 `ENOENT`, `tryBytes` reads that as no loose file, and the packed id is the
 answer, where Git treats the link as the loose file and refuses the name.
@@ -26,7 +26,7 @@ Nothing is lost either way (the packed line stays a root, and `tryRoots`
 lists it), so this is a lookup answering a name Git's lookup refuses rather
 than a retention error. Found while answering a review of
 [#2315](https://github.com/functionalscript/functionalscript/pull/2315), where
-[`tryDelete`](../write/module.f.mjs) removes such a link as Git does and
+[`tryDelete`](../write/module.f.js) removes such a link as Git does and
 answers `true` only for the packed line.
 
 ### Proposal

@@ -130,7 +130,7 @@ The signature is valid if `v = r`.
 
 ### The message exchange demo
 
-[`demo.f.mjs`](./demo.f.mjs) starts from RFC 6979 A.2.5 and shows Alice
+[`demo.f.js`](./demo.f.js) starts from RFC 6979 A.2.5 and shows Alice
 signing, Eve intercepting and Bob verifying. The diagram separates the packet
 route through Eve from Bob’s trust in Alice’s public key. One explanation
 beneath Bob shows why a substituted key cannot authenticate Alice. It reflows vertically on narrow screens.

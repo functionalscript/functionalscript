@@ -3,7 +3,7 @@
  *
  * The data described here is the single source of truth for operator
  * behaviour: [`proof.f.mjs`](./proof.f.mjs) runs it against a standard
- * JavaScript engine, and [`rust/module.f.mjs`](./rust/module.f.mjs) prints it
+ * JavaScript engine, and [`rust/module.f.js`](./rust/module.f.js) prints it
  * as the Rust tests in `nanvm/lib/tests/test/gen.corpus/`.
  *
  * Canonical operation identity and operand contract come
@@ -42,7 +42,7 @@ import type { LogicalTag } from '../js/ast/sugar/source.ts'
  *
  * Writing operands as plain JavaScript is what makes the corpus readable
  * (`args: [2.3], expected: 2.3` rather than a tree of constructor calls) and
- * costs nothing: `fjs/nanvm/module.f.mjs` lowers a value to the EDAG
+ * costs nothing: `fjs/nanvm/module.f.js` lowers a value to the EDAG
  * expression that denotes it, so `typeof` plus `Array.isArray` recovers
  * everything a tag would have carried.
  */
@@ -94,7 +94,7 @@ export type FunctionValue = Special<readonly ['function']>
 
 /**
  * The names of the corpus's callbacks, each a small function a member
- * function such as `map` is handed — its body in `fjs/nanvm/module.f.mjs`'s
+ * function such as `map` is handed — its body in `fjs/nanvm/module.f.js`'s
  * `callbacks`, with its JavaScript spelling.
  */
 export type CallbackName = 'args' | 'first' | 'prop' | 'double' | 'add' | 'pair' | 'ascending' | 'descending' | 'zero'
@@ -142,7 +142,7 @@ export type Throws = Special<readonly ['throw']>
  * throws, which is only ever an `expected: throws` case written the long
  * way. Its use is the lazy positions — `&&`/`||`/`??`'s right operand and
  * either arm of `?:` — where the Rust printer prints it inside the thunk
- * `nanvm-lib` establishes at most once (`fjs/edag/rust/module.f.mjs`,
+ * `nanvm-lib` establishes at most once (`fjs/edag/rust/module.f.js`,
  * `lazy`). Not in {@link Data}'s `shared`, at any depth: a shared value is
  * established before any case on both sides, so `sharedExp` refuses one
  * holding this — the type admits it there only because {@link Struct} is

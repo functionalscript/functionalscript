@@ -190,6 +190,8 @@ export const proof = /** @type {const} */ ({
             'invalid', 'http://untrusted.example/prs/', `${origin}/elsewhere/`,
             `${origin}/prs/?query=true`, `${origin}/prs/#fragment`,
             'https://user:password@functionalscript.example/prs/',
+            'https://user@functionalscript.example/prs/',
+            'https://:password@functionalscript.example/prs/',
         ])
         for (const redirect of redirects) {
             const response = await handleGithubRequest(new Request(`${origin}/auth/github/config`), {

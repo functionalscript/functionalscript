@@ -3,6 +3,16 @@
 **Priority:** P3
 **Status:** open
 
+### What one run already shares
+
+`fjs compile`'s check of every `.f.js` links each file over the modules the
+files before it linked (`resolveOver` in
+[`fjs/compiler/edag`](../edag/module.f.js)), so within a run a module is read,
+parsed and lowered once however many files import it. Linked one program at a
+time, the check took over thirty minutes for 540 files; shared, under two.
+That is in memory and for one run. This issue is the persistent cache, across
+runs, which that sharing does not give.
+
 ### Goal
 
 Persist the temporary `Unresolved` representation so incremental compilation can
@@ -12,7 +22,7 @@ This cache is an optimization around the temporary unresolved representation. It
 not change `Unresolved`, EDAG, or the final compilation result: after module
 resolution, the compiler still produces one final EDAG.
 
-One thing it adds: today's `resolve` in [`fjs/compiler/edag`](../edag/module.f.mjs)
+One thing it adds: today's `resolve` in [`fjs/compiler/edag`](../edag/module.f.js)
 binds an import where the importing module's reference is lowered, from the
 AST, so it never rewrites a finished `Unresolved`. A cached `Unresolved` has no
 AST, so linking from the cache needs a rewrite of its graph — the parameter

@@ -11,6 +11,17 @@ needs no new graph operation or runtime function. The compiler reads
 `Number.MAX_SAFE_INTEGER` from its host, and an independent numeric proof
 pins that value on every engine.
 
+`Number.MAX_VALUE` is the largest finite binary64 number,
+`(2 - 2 ** -52) * 2 ** 1023`. It lowers to the host-defined numeric value
+in the same way, with no runtime operation. `Number["MAX_VALUE"]` and
+`const { MAX_VALUE: max } = Number` are admitted too.
+
+`Number.MIN_SAFE_INTEGER` is `-0x1f_ffff_ffff_ffff`, the smallest safe
+integer, and `Number.MIN_VALUE` is the smallest positive binary64 number, the
+subnormal `2 ** -1074`; half of it is zero. Both lower as the two above do, in
+the same three spellings, with no runtime operation. `Number.NaN` is not
+admitted: the language has `NaN`, and a second spelling of it adds nothing.
+
 `Number["MAX_SAFE_INTEGER"]` and namespace destructuring such as
 `const { MAX_SAFE_INTEGER: max } = Number` read the same value. A guard on
 the namespace, `Number?.MAX_SAFE_INTEGER`, a dynamic key, and other
@@ -19,6 +30,33 @@ operations on the resulting number, with their ordinary semantics.
 
 **Language-design approval:** **sergey-shandar** explicitly requested this
 constant lowering in [the working session](https://chatgpt.com/local/01a19f98-0942-73e9-86cb-c7b41536801e).
+The separate [MAX_VALUE approval](../../todo/2360-built-in.md#numbermax_value-proposal-and-approval)
+extends that lowering to the largest finite value, and the
+[MIN_SAFE_INTEGER and MIN_VALUE approval](../../todo/2360-built-in.md#numbermin_safe_integer-and-numbermin_value-proposal-and-approval)
+to the two lower limits.
+
+## URI component encoding
+
+`encodeURIComponent` is a first-class global function, implemented once in
+FunctionalScript in the common runtime. It converts its argument to a string,
+preserves ASCII letters, digits and `-_.!~*'()`, and writes all other characters
+as uppercase UTF-8 percent escapes. For example,
+`encodeURIComponent('a/雪 😀')` is `'a%2F%E9%9B%AA%20%F0%9F%98%80'`.
+An unpaired UTF-16 surrogate fails; the error payload follows the language's
+[failure equivalence](../../principles/README.md#failure-is-one-outcome).
+
+Its function length is 1. No argument encodes `'undefined'`; additional
+arguments are evaluated and ignored. It can be saved in a binding, passed as
+a callback, or called through optional chaining:
+
+```js
+const encode = encodeURIComponent;
+export default ['a/b', '雪'].map(encode);
+```
+
+The global name cannot be rebound, but remains an ordinary property name.
+The [proposal and approval](../../todo/2360-built-in.md#encodeuricomponent-proposal-and-approval)
+record the admission. No native URI encoder is required.
 
 ## Static functions
 
@@ -28,9 +66,11 @@ const { isInteger } = Number;
 export default [Object.is(0, -0), is(NaN, NaN), [1, 1.5].map(isInteger), Number.isFinite("1"), entries({ b: 1, "0": 2 })];
 ```
 
-The admitted static functions include `Math.log2`, `Object.is`,
-`Object.entries`, `Object.keys`, `Object.fromEntries`, `String.fromCharCode` and the
-four `Number` predicates. `Object.is` is JavaScript's
+The admitted static functions include `Math.log2`, `Math.trunc`, `Math.floor`,
+`Math.abs`, `Math.sqrt`, `Math.ceil`, `Math.imul`, `Math.max`, `Math.min`, `Math.fround`,
+`Math.clz32`, `Math.round`,
+`Object.is`, `Object.entries`, `Object.keys`, `Object.values`, `Object.fromEntries`,
+`String.fromCharCode` and the four `Number` predicates. `Object.is` is JavaScript's
 SameValue, which tells `0` from `-0` and holds `NaN` equal to itself, where
 `===` says the opposite of both. `Object.entries` is JavaScript's too: a
 fresh array of fresh `[key, value]` pairs, one per enumerable own
@@ -53,6 +93,16 @@ arguments after they are evaluated, and works detached as
 through the shared array `map` implementation; no native keys operation is
 added. FunctionalScript values have no getters or proxies, so reading entry
 values while enumerating introduces no additional observation.
+`Object.values` projects the values from those same entries into a fresh
+array: `Object.values({ b: 1, "0": 2, absent: undefined })` is
+`[2, 1, undefined]`. Values retain their identity; no nested object or array
+is copied. Strings contribute UTF-16 code units, so `Object.values("😀")`
+is `["\ud83d", "\ude00"]`. Other primitive inputs and functions yield an
+empty array; nullish inputs fail. Like `Object.keys`, it has `length` 1,
+supports detached calls and namespace destructuring, and evaluates then
+ignores additional arguments. Its body uses the same native entries and
+shared mapper, with no new native operation.
+
 `Object.fromEntries` constructs an object from an array of entries, as in JavaScript:
 a fresh object with each element's `[0]` as a key, converted to a string,
 and its `[1]` as the value, in order, so a key written twice keeps its first
@@ -67,6 +117,76 @@ JavaScript's, none converting its argument: `Number.isInteger`,
 where the global `isFinite("1")`, which converts and is not admitted, is
 `true`.
 
+`Math.min(...values)` converts every argument with `ToNumber`, from left to
+right, then returns the least value. No arguments produce positive infinity.
+Any converted `NaN` produces `NaN`, but all remaining arguments are still
+converted, so `Math.min(NaN, 1n)` throws. Conversion also continues after
+negative infinity. Primitive or converted bigints and failed primitive
+conversion throw; argument expressions are evaluated before invocation.
+Negative zero beats positive zero in either order; either zero alone is
+preserved. The function has `length` 2 and native function text, and is native
+in Rust and core WASM. Rust corrects its native `min`'s `NaN` and zero-tie
+behavior in the variadic binding shared with `max`
+([admission](../../todo/2360-built-in.md#mathmin-proposal-and-approval)).
+
+`Math.max(...values)` converts every argument with `ToNumber`, from left to
+right, then returns the greatest value. No arguments produce negative infinity.
+Any converted `NaN` produces `NaN`, but all remaining arguments are still
+converted, so `Math.max(NaN, 1n)` throws. Conversion also continues after
+positive infinity. Primitive or converted bigints and failed primitive
+conversion throw; argument expressions are evaluated before invocation.
+Positive zero beats negative zero in either order; negative zero alone is
+preserved. The function has `length` 2 and native function text, and is native
+in Rust and core WASM. Rust corrects its native `max`'s `NaN` and zero-tie
+behavior before folding it over the arguments
+([admission](../../todo/2360-built-in.md#mathmax-proposal-and-approval)).
+
+`Math.sqrt(x)` converts its first argument with `ToNumber`, then returns its
+non-negative square root: `Math.sqrt("9")` is `3`. Both zeros are preserved,
+including `Math.sqrt(-0)` returning `-0`; positive infinity remains unchanged.
+Negative numbers, negative infinity and `NaN` return `NaN`.
+
+`Math.ceil(x)` converts its first argument with `ToNumber`, then rounds toward
+positive infinity: `Math.ceil("1.1")` is `2`, and `Math.ceil(-0.5)` is `-0`.
+Both zeros, infinities and `NaN` remain unchanged. For both unary functions,
+missing arguments produce `NaN`; primitive or converted bigints and failed
+conversion throw. Extra arguments are evaluated but not converted.
+
+`Math.imul(a, b)` converts `a` and then `b` with `ToUint32`, and returns the
+low 32 product bits as a signed 32-bit integer: `Math.imul(0xffff_ffff, 5)` is
+`-5`. Finite fractions truncate toward zero; integers reduce modulo `2^32`;
+zeros, infinities and `NaN` become zero. Missing operands become zero through
+`undefined`, so `Math.imul()` and `Math.imul(3)` return positive zero. Primitive
+or converted bigints and failed conversion throw, with the first conversion
+completed before the second begins. Extra arguments are evaluated but not
+converted. `imul` has `length` 2; `sqrt` and `ceil` have `length` 1. All three
+use compatible native operations in Rust and core WASM, without dependencies
+([admission](../../todo/2360-built-in.md#mathsqrt-mathceil-and-mathimul-proposal-and-approval)).
+
+`Math.abs(x)` converts its first argument with `ToNumber`, then returns its
+absolute value: `Math.abs("-1.9")` is `1.9`, `Math.abs(-0)` is positive zero,
+and `Math.abs(-Infinity)` is positive infinity. `NaN` remains `NaN`.
+Missing arguments produce `NaN`; primitive or converted bigints and failed
+conversion throw. Extra arguments are evaluated but not converted.
+The numeric operation is native in Rust and core WASM
+([admission](../../todo/2360-built-in.md#mathabs-proposal-and-approval)).
+
+`Math.floor(x)` converts its first argument with `ToNumber`, then rounds
+toward negative infinity: `Math.floor("1.9")` is `1`, and
+`Math.floor(-0.5)` is `-1`. Both zeros and infinities remain unchanged,
+and `NaN` stays `NaN`. Missing arguments, bigint rejection, conversion
+failures and extra arguments follow the same rules as `Math.trunc` below.
+The numeric operation is native in Rust and core WASM
+([admission](../../todo/2360-built-in.md#mathfloor-proposal-and-approval)).
+
+`Math.trunc(x)` converts its first argument with `ToNumber`, then rounds
+toward zero: `Math.trunc("-1.9")` is `-1`, and `Math.trunc(-0.5)` is `-0`.
+Both zeros and infinities remain unchanged, and `NaN` stays `NaN`.
+Omitting the argument produces `NaN`; a bigint or a failed conversion throws.
+Extra arguments are evaluated but not converted. The function is native in
+every executor because Rust and core WASM both supply compatible truncation
+([admission](../../todo/2360-built-in.md#mathtrunc-proposal-and-approval)).
+
 `Math.log2(x)` returns the base-2 logarithm after JavaScript's `ToNumber`
 conversion: `Math.log2("8")` is `3`, while a BigInt argument throws.
 `NaN` and negative numbers return `NaN`, either zero returns `-Infinity`,
@@ -75,6 +195,46 @@ the argument returns `NaN`; extra arguments are ignored. Ordinary positive
 results are implementation-approximated, as ECMAScript specifies. The
 common runtime supplies the numerical body for the interpreter and Rust;
 WASM can compile that same body without an external math library.
+
+`Math.fround(x)` converts its first argument with `ToNumber` and rounds it
+to binary32 precision, returning an ordinary FJS number. Rounding is to the
+nearest representable value, with exact halfway cases choosing the even
+significand: `Math.fround(1 + 2 ** -24)` is `1`, while
+`Math.fround(1 + 3 * 2 ** -24)` is `1 + 2 ** -22`. Signed zero, NaN and
+infinities are preserved. Tiny negative values can round to negative zero;
+overflow produces the corresponding infinity. Subnormals are retained.
+An omitted argument produces NaN, bigint inputs and failed conversions throw,
+and extra arguments are evaluated but not converted. Its `length` is 1 and
+its text is `function fround() { [native code] }`. One FJS common-runtime body
+supplies the conversion and numeric operation for every backend; no native
+fround binding is added
+([admission](../../todo/2360-built-in.md#mathfround-proposal-and-approval)).
+
+`Math.clz32(x)` converts its first argument with `ToNumber`, then with
+`ToUint32`, and returns the number of leading zero bits of that 32-bit
+value, from `0` to `32`: `Math.clz32(1)` is `31`, `Math.clz32(0x8000_0000)`
+is `0`, and `Math.clz32(-1)` is `0`. A zero has thirty-two, and so has what
+the conversion makes zero: `-0`, `NaN`, both infinities, a fraction below
+one, and an omitted argument. A fraction is truncated toward zero and an
+integer reduced modulo `2 ** 32` first, so `Math.clz32(2 ** 32 + 1)` is `31`.
+Bigint inputs and failed conversions throw, and extra arguments are evaluated
+but not converted. Its `length` is 1 and its text is
+`function clz32() { [native code] }`. It is native: Rust's
+`u32::leading_zeros` and core WASM's `i32.clz` answer as JavaScript does.
+
+`Math.round(x)` converts its first argument with `ToNumber` and returns the
+nearest integer, a tie going toward positive infinity: `Math.round(2.5)` is
+`3` and `Math.round(-2.5)` is `-2`. Signed zero, NaN and infinities are
+preserved, and a value from `-0.5` up to zero rounds to `-0`. It is not the
+floor of `x + 0.5`, which rounds before the floor is taken:
+`Math.round(0.49999999999999994)` is `0`, and an odd integer from `2 ** 52`
+is itself. An omitted argument produces NaN, bigint inputs and failed
+conversions throw, and extra arguments are evaluated but not converted. Its
+`length` is 1 and its text is `function round() { [native code] }`. One FJS
+common-runtime body supplies it for every backend, over the native floor:
+neither Rust's `f64::round`, which rounds a tie away from zero, nor core
+WASM's `f64.nearest`, which rounds it to even, is JavaScript's rule
+([admission](../../todo/2360-built-in.md#mathclz32-and-mathround-proposal-and-approval)).
 
 Each is a value, as in JavaScript — passed,
 compared, read as `Object.is.length` — and one function however often it is
@@ -111,7 +271,7 @@ builds with `this` as its constructor — `Promise.resolve`,
 reserved together with the member it admits. A module cannot bind it as a
 `const`, parameter or import, and it is no value: the word alone,
 `const o = Object;`, an array pattern over it, a member the namespace does
-not admit — `Object.values(o)` — and a computed key, `Object[k]`, are
+not admit — `Object.assign(o)` — and a computed key, `Object[k]`, are
 compilation errors (`reserved word`), a namespace being closed at compile
 time. It stands in one other place, the
 [`entry` helper](../../property-access/entries/README.md)'s
@@ -121,7 +281,8 @@ conversion already, is a namespace the same way, beside the call
 `Number(x)` ([number conversion](../../conversions/number/README.md)). Each later member is
 an admission of its own ([built-ins](../../todo/2360-built-in.md)).
 
-`Math` is reserved in the same way and admits only `log2`.
+`Math` is reserved in the same way and admits `log2`, `trunc`, `floor`, `abs`,
+`sqrt`, `ceil`, `imul`, `max`, `min`, `fround`, `clz32` and `round`.
 `Math.log2`, `Math["log2"]` and `const { log2 } = Math` read the same
 function, with `length` 1 and text `function log2() { [native code] }`.
 The word alone, namespace guards, computed keys and other `Math` members
@@ -136,9 +297,10 @@ a module calls the built-in — and checked there against the host's own
 for exact semantic cases, with separate numerical accuracy cases for
 `Math.log2`;
 every executor answers the node from it, and an executor with no binding
-for it fails, naming it, rather than answer. `Object.entries` and
-`String.fromCharCode` are native primitives; the others,
-`Object.keys`, `Object.fromEntries` and `Math.log2` among them, have bodies. The native
+for it fails, naming it, rather than answer. `Object.entries`,
+`String.fromCharCode` and the admitted `Math` functions other than `log2`, `fround` and
+`round` are native primitives; the others, `Object.keys`, `Object.values`,
+`Object.fromEntries`, `Math.log2`, `Math.fround` and `Math.round` among them, have bodies. The native
 primitives are bound by every executor, and the text `String(Object.entries)` is
 `function entries() { [native code] }`, the NativeFunction syntax
 ECMAScript requires of a built-in, there being no EDAG to render
@@ -155,21 +317,22 @@ The compiler demo offers the programs `staticFunctions` in [`module.f.js`](../mo
 
 The demo on this page runs [`sample.f.js`](./sample.f.js), this page's
 example as a function of one number — the static functions as values:
-`Object.is`, the `Number` predicates and `Object.entries` — with every
+`Object.is`, the `Number` predicates, `Object.entries`, `Math.fround`,
+`encodeURIComponent` and `Number.MAX_VALUE` — with every
 output `fjs compile` makes of it: the expression graph (EDAG), the Rust and
 the WebAssembly that Rust builds to. Its Run button calls the default export
-with `0` and `1.5`, as JavaScript and as WebAssembly, and shows what each
+with `0`, `1.5` and `0.1`, as JavaScript and as WebAssembly, and shows what each
 call returned or threw.
 
 ```js
 const { is } = Object;
 const { isInteger } = Number;
-export default (...a) => [is(a[0], -0), isInteger(a[0]), Number.isFinite(1 / a[0]), Object.entries({ b: a[0], "0": 2 })];
+export default (...a) => [is(a[0], -0), isInteger(a[0]), Number.isFinite(1 / a[0]), Object.entries({ b: a[0], "0": 2 }), Math.fround(a[0]), encodeURIComponent(`n=${a[0]} /😀`), Number.MAX_VALUE];
 ```
 
 ## Reference
 
-- ECMA-262: [Object.is](https://tc39.es/ecma262/#sec-object.is), [Object.entries](https://tc39.es/ecma262/#sec-object.entries), [Object.keys](https://tc39.es/ecma262/#sec-object.keys), [Object.fromEntries](https://tc39.es/ecma262/#sec-object.fromentries), [Number.isInteger](https://tc39.es/ecma262/#sec-number.isinteger)
+- ECMA-262: [Object.is](https://tc39.es/ecma262/#sec-object.is), [Object.entries](https://tc39.es/ecma262/#sec-object.entries), [Object.keys](https://tc39.es/ecma262/#sec-object.keys), [Object.values](https://tc39.es/ecma262/#sec-object.values), [Object.fromEntries](https://tc39.es/ecma262/#sec-object.fromentries), [Number.isInteger](https://tc39.es/ecma262/#sec-number.isinteger)
 - MDN: <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is>, <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/entries>, <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/fromEntries>
 
 `String.fromCharCode(...codes)` is a native static that constructs a string

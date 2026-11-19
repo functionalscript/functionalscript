@@ -28,7 +28,7 @@ export const fromVec = v => {
 Both hardcode the same core chain — `u8ListMsb` bit-unpack →
 `toCodePointList` utf8-decode → `codePointListToString` utf16 re-string —
 and `fromVec` merely wraps it with an octet-alignment check and an
-`isValidCodePoint` filter. `detect` in `fjs/media/module.f.mjs` even documents
+`isValidCodePoint` filter. `detect` in `fjs/media/module.f.js` even documents
 that its own detector re-proves "the same two conditions `fromVec` checks, via
 the same decoder" — evidence the pipeline is being re-derived in several places.
 
@@ -110,7 +110,7 @@ proof. `git/refstore/name` still imports `utf16`'s `codePointListToString` for
       share no pattern. A renamed export changes the public
       API: explain it and update every importer in the same PR. Breaking
       notices are optional before 1.0.
-- [x] Drop the two unused imports in `fjs/effects/node/module.f.mjs`.
+- [x] Drop the two unused imports in `fjs/effects/node/module.f.js`.
 - [ ] `tsc`, `fjs t`.
 
 ### Related
@@ -118,5 +118,5 @@ proof. `git/refstore/name` still imports `utf16`'s `codePointListToString` for
 - [../../todo/190-text-code-unit-string-boundary.md](../../todo/190-text-code-unit-string-boundary.md) — single-character
   `String.fromCharCode`/`codePointAt` boundary; this is the whole-`Vec`
   pipeline, a different layer.
-- `fjs/media/module.f.mjs`, `detect` — the detector's documented re-proof of
+- `fjs/media/module.f.js`, `detect` — the detector's documented re-proof of
   `fromVec`'s checks; a cleaner shared decode API may simplify it.

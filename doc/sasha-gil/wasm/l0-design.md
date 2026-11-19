@@ -351,7 +351,10 @@ strings one item at a time, which is quadratic.
   properties. Each walks `n` states: state 0 is `s`, and each next state is
   `next` of the one before, called only between two items. Item `i` is `at`
   of state `i`, and property `i` is `keyAt` and `valueAt` of it. A key must
-  be a string. A call whose functions are arrow literals lowers to
+  be a string. The calls come in the order of one loop: `at` of a state
+  before `next` of it, and `keyAt`, the key's check, then `valueAt`. The
+  order shows only where a callback fails, and it keeps the view and the
+  WASM failing alike. A call whose functions are arrow literals lowers to
   `begin_array(n)` or `begin_object(n)`, one loop that keeps the state in a
   local and `push`es each item, and `seal`. No closure is allocated, and
   the ABI does not change.

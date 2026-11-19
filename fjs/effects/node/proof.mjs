@@ -7,7 +7,7 @@
  * Proofs that need a filesystem own a temporary tree and remove it in
  * `finally`, through {@link withTemporary}. They exercise the sibling host
  * runner; compiler traversal and diagnostics are proved synchronously in
- * `compiler/transpiler/proof.f.mjs`.
+ * `compiler/transpiler/proof.f.js`.
  *
  * Bun's adapter also meets a host registration callback. Its proof observes
  * the emitted names and asynchronous bodies through that callback; a pure
@@ -35,24 +35,24 @@ import { join, relative, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { ioError, pureError, pureOk, resultMapStep, resultStep, step, unreadableThrownValue } from '../module.f.mjs'
-import { empty as listEnd, nonEmpty } from '../list/module.f.mjs'
+import { ioError, pureError, pureOk, resultMapStep, resultStep, step, unreadableThrownValue } from '../module.f.js'
+import { empty as listEnd, nonEmpty } from '../list/module.f.js'
 import { byteLength, length, maxLengthBytes, u8ListToVecMsb, u8ArrayMsb } from '../../types/bit_vec/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { asBase } from '../../types/nominal/module.f.js'
 import { error, ok, unwrap } from '../../types/result/module.f.js'
-import { toVec } from '../../types/uint8array/module.f.mjs'
-import { utf8 } from '../../text/module.f.mjs'
-import { utf8ToString } from '../../text/utf8/module.f.mjs'
-import { write as writeEnvelope } from '../../git/object/module.f.mjs'
-import { tagLoose, tagPayload } from '../../git/testlib.f.mjs'
+import { toVec } from '../../types/uint8array/module.mjs'
+import { utf8 } from '../../text/module.f.js'
+import { utf8ToString } from '../../text/utf8/module.f.js'
+import { write as writeEnvelope } from '../../git/object/module.f.js'
+import { tagLoose, tagPayload } from '../../git/testlib.f.js'
 import {
     availableParallelism, awaitIfPromise, both, capture, catch_, execFile, childWait, close, doubledLengthMessage, errorMessage,
     framingHeaderMessage, fstat, import_,
     inflate, inflateTrailingCode, open, pread, randomInt, readWhole, rename, requestBodyOffsetMessage,
     resolveFileModule, maxOffset, readBytes, rmdir, spawn, unframedBodyMessage, writeBytes, writeExclusive,
     writeFile as writeFileEffect,
-} from './module.f.mjs'
+} from './module.f.js'
 import { _wrapInlineTest, readFlags, runEffect } from './module.mjs'
 import { isNode, loopback, within, withServer, withTemporary } from './testlib.mjs'
 
@@ -931,7 +931,7 @@ export const proof = {
             // least willingly, and nothing here has measured what it does — the
             // same reason `writeExclusive.symlink` above guards it. The claim is
             // modelled on every platform by the virtual runner
-            // (`handles.namesAnInode` in `./virtual/proof.f.mjs`); this is the
+            // (`handles.namesAnInode` in `./virtual/proof.f.js`); this is the
             // descriptor it is modelled after.
             if (process.platform === 'win32') { return }
             const path = join(root, 'a.bin')
@@ -965,7 +965,7 @@ export const proof = {
         // | `rename` onto its own name, then a write | the same |
         //
         // The last two were reasoning about inodes until this ran, and they are what
-        // lets `handles.movesWithItsName` in `./virtual/proof.f.mjs` claim them.
+        // lets `handles.movesWithItsName` in `./virtual/proof.f.js` claim them.
         //
         // Skipped on Windows for `namesAnInode`'s reason: what that host does with a
         // name another handle holds open is unmeasured here.
@@ -1098,7 +1098,7 @@ export const proof = {
         // Both now go through `windowRefusal`, before the allocation and before
         // the read, so the two runners refuse the same numbers **in the same
         // words** — which is what a proof written against either can rely on.
-        // `./proof.f.mjs` (`windowRefusal`) holds the words; this is the host
+        // `./proof.f.js` (`windowRefusal`) holds the words; this is the host
         // producing them.
         refusesAWindowNoHostCanRead: () => withTemporary('fjs-handle-window-', async root => {
             const path = join(root, 'a.bin')

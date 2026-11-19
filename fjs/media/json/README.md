@@ -4,8 +4,8 @@ Two codecs over one grammar and one reader:
 
 | Codec                              | Numeric leaves     | Entry point                                       |
 | ---------------------------------- | ------------------ | ------------------------------------------------- |
-| standard (`json.parse`/`stringify`) | `number`           | [`module.f.mjs`](./module.f.mjs)                   |
-| extended                            | `number \| bigint` | [`extended/module.f.mjs`](./extended/module.f.mjs) |
+| standard (`json.parse`/`stringify`) | `number`           | [`module.f.js`](./module.f.js)                   |
+| extended                            | `number \| bigint` | [`extended/module.f.js`](./extended/module.f.js) |
 
 ```text
 JSON text
@@ -21,7 +21,7 @@ parse(policy)             one rewrite set folded into the parse, one numeric pol
    +--> another policy    -> that codec's own domain
 ```
 
-The reader is [`parser/module.f.mjs`](./parser/module.f.mjs): a mapping per
+The reader is [`parser/module.f.js`](./parser/module.f.js): a mapping per
 rule of the grammar, folded by [`fjs/ebnf/ll1`](../../ebnf/ll1/README.md) as
 it parses, so that the value is built where each node is and nesting depth
 stays on the machine's own stack. A parse that fails reports where; a number
@@ -43,7 +43,7 @@ JSON's integer core.
 is not.** A format frozen by its specification cannot sit on a lexer that
 grows with the language, which is what this reader once did through an
 adapter over `fjs/js/tokenizer`; and a grammar of a few dozen readable lines
-over [`fjs/ebnf`](../../ebnf/module.f.mjs) is what replaced a hand-written
+over [`fjs/ebnf`](../../ebnf/module.f.js) is what replaced a hand-written
 tokenizer and container machine per format, whose defects review had to find
 one at a time. A grammar under `fjs/ebnf/lib` that no codec imports and no
 proof covers is how a dead copy happens, so none is added without proofs.
@@ -54,8 +54,23 @@ the reader became the grammar and with no consumer but its own proofs; it
 was retired with that scanner rather than rebuilt, since a token stream
 nothing reads is not an API worth keeping. JSON's lexical facts are pinned
 where they are decided, in
-[`fjs/ebnf/lib/json`](../../ebnf/lib/json/module.f.mjs) and the parser's
+[`fjs/ebnf/lib/json`](../../ebnf/lib/json/module.f.js) and the parser's
 proofs.
+
+## Indented output
+
+`stringifyIndented('  ')(identity)(value)` writes the standard codec's JSON
+with two spaces per nesting level and the original property order. Pass `sort`
+instead of `identity` for canonical key order. The indentation unit is a literal
+string, neither coerced nor truncated; use spaces or tabs for JSON whitespace.
+An empty unit keeps compact output. Empty containers remain `[]` and `{}`, and
+no final newline is added.
+
+The shared serializer accepts the same unit as the optional second argument to
+`codec(leaf, indent)` and `treeSerialize(leaf, indent)`. Compact and indented
+output share the container walk, leaf spellings, omission of undefined object
+fields and explicit `-0` policy. `serialize` and `marked` retain the chosen
+layout too.
 
 ## Losslessness starts at the grammar
 
@@ -115,7 +130,7 @@ deliberate difference: `-0` is written `-0`, not `0`. It is valid JSON, the
 reader keeps its sign, and so a standard round trip keeps both zeros apart.
 `NaN` and the infinities are written `null`, as `JSON.stringify` writes them.
 The finite spelling has one owner, `numberSerialize` in
-[`serializer/module.f.mjs`](./serializer/module.f.mjs); DataJS writes its
+[`serializer/module.f.js`](./serializer/module.f.js); DataJS writes its
 finite numbers through it and spells the non-finite ones as words.
 
 Extended: bare integer syntax becomes a `bigint`, exactly, whatever its

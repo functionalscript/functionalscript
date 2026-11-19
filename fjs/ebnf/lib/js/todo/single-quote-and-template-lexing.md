@@ -12,11 +12,11 @@ Nothing blocks this. It used to live beside the hand-written scanner in
 that scanner regressed the public JSON tokenizer built over it. It moved here
 when
 [the token layer became JavaScript's](../../../../compiler/README.md#the-token-layer-is-javascripts-the-parser-is-the-subset)
-and the scanner went: JSON reads [`ebnf/lib/json`](../../json/module.f.mjs),
+and the scanner went: JSON reads [`ebnf/lib/json`](../../json/module.f.js),
 not this grammar, so widening this grammar regresses nothing, and the ordering
 problem that blocked the old issue is gone with the module it was about.
 
-The JS token grammar in [`module.f.mjs`](../module.f.mjs) takes its quoted
+The JS token grammar in [`module.f.js`](../module.f.js) takes its quoted
 `string` rule from JSON: JSON's string between double quotes, or the same
 between single quotes with `\'`, `\xHH` and `\v` added
 ([2460](../../../../../spec/todo/2460-js-string-literals.md)). Template chunks
@@ -35,7 +35,7 @@ bounded `\xHH` and `\v` increment. The measurement below predates both and
 template support, when `'x'` and templates were `invalid token`s too.
 
 The original measurement over every `.mjs` under `fjs/` and `spec/` through
-[`fjs/js/tokenizer`](../../../../js/tokenizer/module.f.mjs)'s `tokenize`, the
+[`fjs/js/tokenizer`](../../../../js/tokenizer/module.f.js)'s `tokenize`, the
 grammar's reader (it was `compiler/tokenizer`'s `tokenizeJs` when measured; the
 same code, moved) found that **nearly every module stopped at an error token;
 a handful tokenized cleanly**. They were the small ones and the data modules —
@@ -87,7 +87,7 @@ cannot satisfy this issue's own success check — see below.
 
 The grammar has three readers, and the widening reaches each differently.
 
-- [`compiler/tokenizer`](../../../../compiler/tokenizer/module.f.mjs), the compiler's.
+- [`compiler/tokenizer`](../../../../compiler/tokenizer/module.f.js), the compiler's.
   A spelling it reads that the language does not accept is one the compiler
   must still refuse, so the fold that classifies tokens gains the refusals
   the grammar loses. Double quotes must keep JSON's policy; single quotes
@@ -108,14 +108,14 @@ The grammar has three readers, and the widening reaches each differently.
   the compiler checks against its accepted escape subset. The quoted-string
   grammar currently recognises only admitted spellings, so its provenance
   and the corresponding compiler check land with the future widening.
-- [`fjs/js/tokenizer`](../../../../js/tokenizer/module.f.mjs), the general
+- [`fjs/js/tokenizer`](../../../../js/tokenizer/module.f.js), the general
   JS stream over this grammar since the scanner went. It is the consumer this issue
   exists for: the website's
   [source-and-doc-view](../../../../website/todo/source-and-doc-view.md)
   reads it, and a future `fjs lint` would. It refuses nothing the grammar
   recognises.
-- JSON. Not reached at all: [`media/json`](../../../../media/json/module.f.mjs)
-  folds [`ebnf/lib/json`](../../json/module.f.mjs), a separate grammar this
+- JSON. Not reached at all: [`media/json`](../../../../media/json/module.f.js)
+  folds [`ebnf/lib/json`](../../json/module.f.js), a separate grammar this
   one *imports rules from* and never the reverse, so `'x'` stays
   `unexpected symbol at 0` there whatever this grammar learns. The JSON
   tokenizer whose `escapeJsHasAndJsonDoesNot` proof the old issue had to
@@ -139,12 +139,12 @@ of their own — among them:
 
 | file | shape |
 | --- | --- |
-| [`compiler/parser/proof.f.mjs`](../../../../compiler/parser/proof.f.mjs), `repeated` | `` `${`${element},`.repeat(count - 1)}${element}` `` |
-| [`js/tokenizer/proof.f.mjs`](../../../../js/tokenizer/proof.f.mjs) | nested in a `map` |
-| [`website/page/module.f.mjs`](../../../../website/page/module.f.mjs) | nested in a `map` |
-| [`media/datajs/parser/proof.f.mjs`](../../../../media/datajs/parser/proof.f.mjs) | nested in a conditional |
-| [`ci/deno/proof.f.mjs`](../../../../ci/deno/proof.f.mjs) | nested two deep |
-| [`ci/rust/proof.f.mjs`](../../../../ci/rust/proof.f.mjs) | nested in a `map` |
+| [`compiler/parser/proof.f.js`](../../../../compiler/parser/proof.f.js), `repeated` | `` `${`${element},`.repeat(count - 1)}${element}` `` |
+| [`js/tokenizer/proof.f.js`](../../../../js/tokenizer/proof.f.js) | nested in a `map` |
+| [`website/page/module.f.js`](../../../../website/page/module.f.js) | nested in a `map` |
+| [`media/datajs/parser/proof.f.js`](../../../../media/datajs/parser/proof.f.js) | nested in a conditional |
+| [`ci/deno/proof.f.js`](../../../../ci/deno/proof.f.js) | nested two deep |
+| [`ci/rust/proof.f.js`](../../../../ci/rust/proof.f.js) | nested in a `map` |
 
 An LL(1) token grammar cannot hold that nesting, and it should not try: this
 is the rule the grammar already follows — what one LL(1) layer cannot decide
@@ -166,7 +166,7 @@ position, not in the grammar.
 Two fixtures the tree scan cannot see, because a wrong split there is not an
 error but a template that swallows the rest of the file as text: a
 substitution holding a block body — `map(c => { switch (c) { … } })`, as
-[`media/rust/module.f.mjs`](../../../../media/rust/module.f.mjs) once had —
+[`media/rust/module.f.js`](../../../../media/rust/module.f.js) once had —
 so its first `}` must stay an operator, and `` `${{ x: 1 }.x}` ``, an object
 literal as the whole substitution.
 
@@ -234,7 +234,7 @@ them to FunctionalScript.
 Single quotes, including the bounded `\xHH` and `\v` increment, and templates
 still leave real modules failing, because quoted strings use the rest of the
 JS escape surface too. An example from the original measurement was
-[`git/testlib.f.mjs`](../../../../git/testlib.f.mjs)'s `rootTree`, which
+[`git/testlib.f.js`](../../../../git/testlib.f.js)'s `rootTree`, which
 used ordinary data, not a test of escapes:
 
 ```js
@@ -256,7 +256,7 @@ that.
 
 Do not answer this with a longer list, though. The list keeps acquiring rows —
 first `\'`, then the backtick, then `\$` for the escaped substitution opener
-in [`media/nix/module.f.mjs`](../../../../media/nix/module.f.mjs)'s `indentedPart` —
+in [`media/nix/module.f.js`](../../../../media/nix/module.f.js)'s `indentedPart` —
 because JavaScript does not have a list. Its rule is **the listed escapes,
 otherwise the character itself**: `\q` is `q`, `\$` is `$`. JSON's `escape`
 rule does the opposite and refuses, which is right for JSON and is why the JS
@@ -265,8 +265,8 @@ the JS rule once retires every enumeration above. Template decoding now uses
 that rule; quoted-string decoding remains in the tasks below.
 
 The decode side has the same split. `simpleEscapes` in
-[`js/string_escape`](../../../../js/string_escape/module.f.mjs) is shared with
-[`media/json/serializer`](../../../../media/json/serializer/module.f.mjs)'s
+[`js/string_escape`](../../../../js/string_escape/module.f.js) is shared with
+[`media/json/serializer`](../../../../media/json/serializer/module.f.js)'s
 encoder, so an apostrophe row there would make the JSON serializer emit `\'`
 and produce invalid JSON. The JS rule's decoder — the listed escapes, else the
 character — belongs in a layer above that table, which stays JSON's.
@@ -282,7 +282,7 @@ The repository had two, one per module, and **they are not the same case**:
 
 | regex | tokenizes as | cost |
 | --- | --- | --- |
-| [`effects/node`](../../../../effects/node/module.f.mjs)'s `versionParts` `` /^v/ `` | `/`, `^`, `id v`, `/` | one line coloured as divisions |
+| [`effects/node`](../../../../effects/node/module.f.js)'s `versionParts` `` /^v/ `` | `/`, `^`, `id v`, `/` | one line coloured as divisions |
 | `text/sgr`'s `str` `` /\x1b\[[0-9;]*m/g ``, since replaced by the scanner `stripSgr` | `invalid token` at the `\` | the module is lost from there on |
 
 Both are `.f.mjs` modules, where regular expressions are ruled out, which is
@@ -314,7 +314,7 @@ not reconstruct the text it came from, and it anchored each token at its
 **end**, so the old issue spent a section on the slicing rule that recovers
 the text from end positions. The grammar route keeps the first two — a
 `string` token is still its cooked value, and trivia is still valueless — but
-not the third: [`fjs/js/tokenizer`](../../../../js/tokenizer/module.f.mjs)
+not the third: [`fjs/js/tokenizer`](../../../../js/tokenizer/module.f.js)
 reads a token's text as "the input between where it began and where it
 ended" and anchors the token at its start, and only an `error` token carries
 an end. Since trivia is emitted rather than skipped, the stream is
@@ -365,12 +365,12 @@ the source view rests on.
       change.
 - [ ] Fixtures for that rule, all failing when this was written; the first
       reads since 2460, whose `\'` it needs and nothing more:
-      [`git/testlib.f.mjs`](../../../../git/testlib.f.mjs)'s `mergePayload`
+      [`git/testlib.f.js`](../../../../git/testlib.f.js)'s `mergePayload`
       (`'Merge tag \'vt\''`), its `rootTree` (`\0` and `\xNN` in ordinary
       data),
-      [`media/datajs/vectors/matrix/proof.f.mjs`](../../../../media/datajs/vectors/matrix/proof.f.mjs)'s
+      [`media/datajs/vectors/matrix/proof.f.js`](../../../../media/datajs/vectors/matrix/proof.f.js)'s
       `unrenderable` (escaped backticks in a template), and
-      [`media/nix/module.f.mjs`](../../../../media/nix/module.f.mjs)'s
+      [`media/nix/module.f.js`](../../../../media/nix/module.f.js)'s
       `indentedPart`, which is `` `\${${reference}}` `` — an escaped substitution opener and a
       real substitution on one line, so it pins the two against each other.
 - [x] A template chunk rule, and the nesting context in the reader's scan

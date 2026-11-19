@@ -53,7 +53,7 @@ and common preparation emits it with existing private state/result storage.
 before the shared continuation: dropping the test or duplicating a shared call
 would change required evaluation or sharing.
 
-The [shared-continuation proof](../shared_continuations.proof.f.mjs)
+The [shared-continuation proof](../shared_continuations.proof.f.js)
 `factoredInvocationProfilesKeepSelectedWorkAndSharedResults` covers this profile,
 required-prefix and observed-rest variants, plus a shared allocation case. The
 [host corpus](../../../../../compiler/serializer/value/control_flow.proof.mjs)
@@ -304,6 +304,6 @@ explicit `Result` error
 ### Related
 
 - [Source loop output](../README.md)
-- [Source-loop proof boundary cases](../proof.f.mjs)
+- [Source-loop proof boundary cases](../proof.f.js)
 - [Shared terminal fold](../../../../../js/ast/loop/terminal/module.f.js)
 - [Common preparation](../../../../../js/ast/prepare/README.md)

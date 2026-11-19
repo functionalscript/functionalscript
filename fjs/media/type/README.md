@@ -5,7 +5,7 @@ against one signature list. No I/O, no dependencies beyond
 [`fjs/types/bit_vec`](../../types/bit_vec/).
 
 ```ts
-import { detect } from './module.f.mjs'
+import { detect } from './module.f.js'
 
 detect(pngBytes)   // 'image/png'
 detect(textBytes)  // null
@@ -40,7 +40,7 @@ sits between the `RIFF` and `WEBP` markers, so its pattern carries four wildcard
 bytes in that gap.
 
 The table above is documentation; the signatures themselves are declared once, as
-the `signatures` list in [`module.f.mjs`](./module.f.mjs). `detect` and the
+the `signatures` list in [`module.f.js`](./module.f.js). `detect` and the
 streaming detector both eliminate against that one list through the same
 `magicStep`, so adding or correcting a signature is a single edit.
 
@@ -52,7 +52,7 @@ the module also exports `detectStream` — the streaming form of the **same
 byte-accepting state machine**:
 
 ```ts
-import { detectStream, detectVec, detector } from './module.f.mjs'
+import { detectStream, detectVec, detector } from './module.f.js'
 
 // fold a CAS read stream (EffectList<O, Vec, IoChannel>) into { length, mime_type, type }
 detectStream(stream)            // Effect<O, DetectMeta, IoChannel>
@@ -115,7 +115,7 @@ clause, touching no existing transition.
 "what does this file name claim to be", from the extension alone:
 
 ```ts
-import { detectPath } from './module.f.mjs'
+import { detectPath } from './module.f.js'
 
 detectPath('index.html')   // 'text/html; charset=utf-8'
 detectPath('logo.png')     // 'image/png'

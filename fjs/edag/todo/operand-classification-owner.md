@@ -16,13 +16,13 @@ and the direct Rust writer have been retired. Their disagreement is no longer
 a reason to export a second placement API. Remaining core representations still
 have different uses:
 
-- [`analysis`](../analysis/module.f.mjs) supplies operands of analyzed `Node`s.
+- [`analysis`](../analysis/module.f.js) supplies operands of analyzed `Node`s.
 - [`sharing`](../sharing/module.f.js) queries linked `Exp` objects by identity.
-- [`operations`](../operations/module.f.mjs) implements reference evaluation and
+- [`operations`](../operations/module.f.js) implements reference evaluation and
   its operational operand-demand order.
-- [`to_fast`](../to_fast/module.f.mjs) classifies operands for common placement,
+- [`to_fast`](../to_fast/module.f.js) classifies operands for common placement,
   stopping at established bindings and respecting successful lazy paths.
-- [`js/ast`](../../js/ast/module.f.mjs) maps normalized value operands and chain
+- [`js/ast`](../../js/ast/module.f.js) maps normalized value operands and chain
   metadata without choosing evaluation regions.
 
 Whether a smaller shared core helper would simplify these consumers remains

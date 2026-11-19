@@ -9,7 +9,7 @@
  * **A demo is discovered by its export, not its filename**, exactly as a proof
  * is: a module is a demo module if and only if it exports `demo`. `demo.f.mjs`
  * is the preferred home because it keeps view code out of the module's
- * dependency closure, and an inline `export const demo` in `module.f.mjs` is
+ * dependency closure, and an inline `export const demo` in `module.f.js` is
  * as valid as an inline `proof`.
  *
  * @module
@@ -133,7 +133,7 @@ export type Demo<State, Event, O extends Operation = never> = {
 }
 
 /**
- * What `textDemo` (`./module.f.mjs`) needs to draw a demo whose state is a
+ * What `textDemo` (`./module.f.js`) needs to draw a demo whose state is a
  * text: its introductory paragraph, the textarea's `name` (also its `id`,
  * which the runtime's `refocus` and `resize` key on), the words before it, how tall it is (8 rows unless
  * given), the text it opens on, and, optionally, the examples a drop-down

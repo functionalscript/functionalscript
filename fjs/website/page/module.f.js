@@ -1,0 +1,1043 @@
+/**
+ * The directory page: what one directory of the repository looks like as
+ * HTML.
+ *
+ * **Every link is root-relative.** A page at `fjs/types/list/index.html` and
+ * the root page write the same href for the same target, so a link is built
+ * from the repository path alone and never from where the page happens to
+ * sit. The stylesheet is already linked this way, and the demo runtime will
+ * be for the same reason: a relative specifier is resolved against something,
+ * and the page is not always that something.
+ *
+ * **Except a file a reader opens, when the build knows its commit.** The site
+ * serves every file raw, which is right for a module a page imports and wrong
+ * for one a person reads: no highlighting, and Markdown shown as its source.
+ * Until this site has a source view of its own, GitHub is that view, so a
+ * listed file links to it — at the commit the site was built from, not at a
+ * branch, because a preview outlives its branch and a page's proofs ran that
+ * exact commit. A build that does not know its commit keeps the raw link,
+ * since a GitHub link to a commit nobody pushed opens nothing.
+ *
+ * **The root is a directory like any other.** {@link page} builds its page
+ * too, so a reader moving between the root and any directory sees one
+ * catalogue and one frame, not two. It differs from the rule in three leaves
+ * only: its title and fallback heading are the site's name, it has no
+ * breadcrumb, having no ancestors, and its suite opens with a paragraph on
+ * where the suite comes from.
+ *
+ * @module
+ *
+ * @import { Element, Node } from '../../media/html/types.ts'
+ * @import { Build, Card, Dir, Head, Kind, PageDemo, Proof } from './types.ts'
+ * @import { Funding } from '../funding/types.ts'
+ * @import { Issue } from '../issue/types.ts'
+ */
+
+import { permalink } from '../permalink/module.f.js'
+import { sharingStatus, earlyInputCapture } from '../demo/sharing/module.f.js'
+import { scopeIds, scopeMarker } from '../demo/control_ids/module.f.js'
+import { stringLiteral } from '../../js/string_escape/module.f.js'
+import { buildDirectory as wasmDirectory } from '../../nanvm/demos/page/module.f.js'
+import { htmlDocument, mapElement, parseElement, textContent } from '../../media/html/module.f.js'
+import { ancestors, basename, concat as pathConcat } from '../../path/module.f.js'
+import { demoMarker, faviconLinks, logoPath, stylesheetLink } from '../style/module.f.js'
+import { intersperse } from '../../types/list/module.f.js'
+import { toArray } from '../../types/list/alt/module.f.js'
+import { priorities, statuses } from '../issue/module.f.js'
+import { origin } from '../origin/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
+import { assertNotNullish } from '../../asserts/module.f.js'
+
+/**
+ * The repository the site is built from, which is where a file is read when
+ * the site cannot show it itself.
+ *
+ * @type {string}
+ */
+export const repository = 'https://github.com/functionalscript/functionalscript'
+
+/**
+ * The name of a directory's card image, written beside its page: the
+ * directory's README as its page shows it, at the size a large card shows
+ * uncropped ([`../card`](../card/module.f.js)).
+ *
+ * **Generated, so `_`-prefixed,** as `_main.css` is: git ignores it and the
+ * site serves it.
+ *
+ * @type {string}
+ */
+export const cardImageName = '_card.png'
+
+/**
+ * The site's name, which the root page's title is on its own.
+ *
+ * @type {string}
+ */
+export const siteName = 'FunctionalScript'
+
+/**
+ * What the site is, in one sentence: the description of a page that has none
+ * of its own.
+ *
+ * @type {string}
+ */
+export const siteDescription = 'FunctionalScript is a safe, purely functional programming language and a strict subset of ECMAScript/JavaScript.'
+
+/**
+ * Whether a paragraph is a field rather than prose: it opens with a bold
+ * label ending in a colon, as `**Status:** implemented` renders.
+ *
+ * A bold lead-in that opens prose ends its sentence with a period instead,
+ * so it is not a field.
+ *
+ * @type {(children: readonly Node[]) => boolean}
+ */
+const isField = ([first]) => first !== undefined && typeof first !== 'string'
+    && first[0] === 'strong' && textContent(first).trim().endsWith(':')
+
+/**
+ * The longest description a page gives: about what a search result shows
+ * before it cuts the text, and more than most cards show.
+ *
+ * @type {number}
+ */
+export const descriptionLimit = 160
+
+/**
+ * A paragraph's text as runs, each marked with whether it is code: the text
+ * of a `code` element is one run, whatever is inside it.
+ *
+ * @type {(nodes: readonly Node[]) => readonly (readonly [string, boolean])[]}
+ */
+const runs = nodes => nodes.flatMap(n => {
+    if (typeof n === 'string') { return [/** @type {const} */ ([n, false])] }
+    const [tag, , children] = parseElement(n)
+    return tag === 'code' ? [/** @type {const} */ ([textContent(n), true])] : runs(children)
+})
+
+/**
+ * The first sentence of a paragraph's runs: its text up to the first `.`,
+ * `!` or `?` that ends a run of prose and is followed by a space or by
+ * nothing, or the whole text where no sentence ends.
+ *
+ * **Not inside code**, because there `.` is a property access and `!` an
+ * operator: in "the conditional (`?:`) and `!`", neither ends a sentence.
+ *
+ * @type {(runs: readonly (readonly [string, boolean])[]) => string}
+ */
+const firstSentence = runs => {
+    const text = runs.map(([t]) => t).join('')
+    const ends = runs.flatMap(([t, code], i) => {
+        const start = runs.slice(0, i).reduce((n, [s]) => n + s.length, 0)
+        // Code units, as `text` is indexed: every character looked for is one.
+        return code ? [] : t.split('').flatMap((c, j) => {
+            const end = start + j + 1
+            return '.!?'.includes(c) && (end === text.length || text[Number(end)] === ' ') ? [end] : []
+        })
+    })
+    return text.slice(0, ends[0] ?? text.length)
+}
+
+/**
+ * `text` without the punctuation and spaces that end it, which would dangle
+ * before an ellipsis.
+ *
+ * @type {(text: string) => string}
+ */
+const trimEndPunctuation = text => {
+    const last = text.at(-1)
+    return last !== undefined && ',;:—- '.includes(last) ? trimEndPunctuation(text.slice(0, -1)) : text
+}
+
+/**
+ * `text` without a high surrogate at its end: what is left when a cut falls
+ * inside a character outside the Basic Multilingual Plane, half of which
+ * would show as a broken character.
+ *
+ * @type {(text: string) => string}
+ */
+const wholeCharacters = text => {
+    const last = text.charCodeAt(text.length - 1)
+    return last >= 0xd800 && last <= 0xdbff ? text.slice(0, -1) : text
+}
+
+/**
+ * `text` cut to {@link descriptionLimit}: whole, or up to the last space that
+ * leaves room for an ellipsis, without the punctuation before it.
+ *
+ * @type {(text: string) => string}
+ */
+const limit = text => {
+    if (text.length <= descriptionLimit) { return text }
+    const cut = wholeCharacters(text.slice(0, descriptionLimit - 1))
+    const space = cut.lastIndexOf(' ')
+    return `${trimEndPunctuation(space > 0 ? cut.slice(0, space) : cut)}…`
+}
+
+/**
+ * What a rendered README holds, or `null` where the README is not rendered:
+ * a page without one, or one whose README the reader refused, which is a
+ * note in its place.
+ *
+ * @type {(readme: readonly Element[]) => readonly Node[] | null}
+ */
+export const readmeArticle = readme => readme
+    .flatMap(e => {
+        const [tag, { 'data-readme': article }, children] = parseElement(e)
+        return tag === 'article' && article !== undefined ? [children] : []
+    })[0] ?? null
+
+/**
+ * A directory's description: the first sentence of the first paragraph of
+ * prose in its README, or `undefined` for a directory whose README has none,
+ * or is not rendered.
+ *
+ * **The first paragraph of prose**, because a README often opens with
+ * something else: a paragraph of badges, which are images whose text is in
+ * an attribute, so it has none; or a field such as `**Status:** implemented`
+ * ({@link isField}), which opens most READMEs under `spec/`.
+ *
+ * **The first sentence, within {@link descriptionLimit}.** A card or a search
+ * result cuts a longer text wherever its own length runs out, a different
+ * place on each, mid-sentence. A first sentence usually says what the page
+ * is and reads whole; one longer than the limit is cut at a word, and says
+ * so with an ellipsis.
+ *
+ * @type {(readme: readonly Element[]) => string | undefined}
+ */
+export const readmeDescription = readme => (readmeArticle(readme) ?? [])
+    .flatMap(n => {
+        if (typeof n === 'string') { return [] }
+        const [tag, , children] = parseElement(n)
+        return tag === 'p' && !isField(children) ? [limit(firstSentence(runs(children)).trim())] : []
+    })
+    .find(text => text !== '')
+
+/**
+ * A page's `<title>`: what the page is, then the site it belongs to.
+ *
+ * **The site's name, because a title travels without the page.** It is the
+ * headline of a search result, the label of a bookmark and of a link pasted
+ * into a chat, and what a browser's history matches a search against. A
+ * directory's path alone — `fjs/types` — says nothing there about which
+ * project it belongs to.
+ *
+ * **The page first and the site last.** A browser narrows a tab by cutting
+ * its title from the right, so with the site first every tab of this site
+ * would read the same few letters; with it last, what is cut is the part
+ * that is the same on every tab.
+ *
+ * @type {(page: string) => string}
+ */
+export const pageTitle = page => `${page} · ${siteName}`
+
+/**
+ * The language every page of the site is written in, as its `<html lang>`.
+ *
+ * One value for the whole site, since every page is in English — the prose,
+ * the headings and the release notes alike. Paths and identifiers are not a
+ * language of their own, and a page made mostly of them is still read aloud
+ * in this one.
+ *
+ * @type {string}
+ */
+export const lang = 'en'
+
+/**
+ * Where a run's results go: an empty container the runner fills with one
+ * foldable group per module.
+ *
+ * **No longer a `pre` around one list.** Six thousand rows in one list gave a
+ * reader no way to find the one that failed, and the `pre` was only there so a
+ * failure's stack kept its lines — so the runner now gives each failure its own
+ * `pre`, and every other row is ordinary text.
+ *
+ * @type {Element}
+ */
+const report = ['div', { 'data-test-results': '' }]
+
+/**
+ * The proofs of `dir`'s subtree, named the way a page at `dir` loads them.
+ *
+ * **A subtree is a prefix, and the test is on the separator** — `fjs/types/`
+ * and not `fjs/types` — so `fjs/types_old/` is a different subtree rather
+ * than a longer spelling of this one.
+ *
+ * **The name is page-relative, and that is the point.** A proof under
+ * `fjs/types/list/` is `./proof.f.mjs` on that directory's page and
+ * `./fjs/types/list/proof.f.mjs` at the root, which is exactly what `fjs t`
+ * calls it when run from either place. Three spellings of one test is the
+ * problem this repository has been removing, so a page's shorter list is the
+ * same list said from where the page stands.
+ *
+ * @type {(dir: string) => (all: readonly Proof[]) => readonly Proof[]}
+ */
+export const subtree = dir => all => {
+    const prefix = dir === '.' ? '' : `${dir}/`
+    return all.flatMap(proof => {
+        const name = assertNotNullish(entry(proof, 'name'))
+        return name.startsWith(prefix)
+            ? [{ name: `./${name.slice(prefix.length)}`, blockers: proof.blockers }]
+            : []
+    })
+}
+
+/**
+ * The script that runs this page's proofs, with its own sources written into
+ * it.
+ *
+ * **Each page carries its list rather than slicing a shared one.** Which
+ * proofs belong to a subtree, and what they are called from here, is decided
+ * by {@link subtree} — pure, and proven — so what reaches the browser is an
+ * answer rather than the question. The alternative was one manifest module
+ * every page fetched and filtered at run time, which puts that rule in a
+ * string of impure JavaScript no proof can reach.
+ *
+ * Nothing starts on load: the runner is bound to the button, as
+ * [browser-test-controls](../../emergent_testing/todo/browser-test-controls.md)
+ * requires.
+ *
+ * @type {(sources: readonly string[]) => Element}
+ */
+const runner = sources => ['script', { type: 'module' },
+    `import { startDirectoryDrawer } from '/fjs/website/directory-runtime.mjs'
+import { startBrowserTestSources } from '/fjs/emergent_testing/browser/module.mjs'
+
+startDirectoryDrawer(document.querySelector('[data-directory-layout]'))
+const root = document.querySelector('[data-browser-tests]')
+const sources = [
+${sources.map(source => `    '${source}',`).join('\n')}
+]
+document.querySelector('[data-test-run]').addEventListener(
+    'click',
+    () => startBrowserTestSources(root, sources))
+`]
+
+/**
+ * One proof in the section's list: its name, or its name and what stops a
+ * browser linking it.
+ *
+ * **A blocked proof is marked**, because it is the one entry a run cannot
+ * repeat. Once a run has results, every runnable entry is a group in the report
+ * above and the stylesheet hides it; a blocked proof never produces a group, so
+ * it stays — otherwise a green count would read as the whole subtree passing.
+ *
+ * **A runnable entry names its source in `data-source`**, for the same reason
+ * one step later: a proof with no tests in it runs and produces no group
+ * either. The runner reads these names after a run and marks the entries that
+ * reported nothing, so they stay listed rather than vanish with the rest.
+ *
+ * @type {(proof: Proof) => Element}
+ */
+const proofItem = proof => proof.blockers.length === 0
+    ? ['li', { 'data-source': assertNotNullish(entry(proof, 'name')) }, assertNotNullish(entry(proof, 'name'))]
+    : ['li', { 'data-blocked': '' }, `${entry(proof, 'name')} — not linkable in a browser: ${proof.blockers.join(', ')}`]
+
+/**
+ * A section's title: the `summary` a reader folds the section by, holding
+ * the section's heading.
+ *
+ * **A heading inside the summary, not the summary as the heading.** A
+ * `summary` is a button to assistive technology, so a section titled by one
+ * alone is invisible to a screen reader's list of headings, and a reader
+ * who moves by heading skips straight past every section on the page. The
+ * `h2` puts each one in that list under the page's `h1`, and the fold still
+ * works as it did.
+ *
+ * Anything after the heading — the suite's counts — is outside it, so the
+ * heading's name stays the section's name however a run changes the counts.
+ *
+ * **A heading beside other content is valid HTML.** The HTML Standard's
+ * content model for `summary` is "phrasing content, optionally intermixed
+ * with heading content", so the suite's `h2` followed by its counts `span`
+ * conforms. Older versions of the spec allowed either phrasing content or a
+ * single heading, and a validator or a reviewer quoting one of them will flag
+ * this markup; that rule is gone, and moving the counts out of the summary to
+ * satisfy it would take them out of sight when the section is folded.
+ *
+ * @type {(heading: string) => (...rest: readonly Node[]) => Element}
+ */
+const summary = heading => (...rest) => ['summary', ['h2', heading], ...rest]
+
+/** Fixed section headings capture their links once, before any page is built.
+ * @type {(id: string, label: string) => (...rest: readonly Node[]) => Element}
+ */
+const linkedSummary = (id, label) => {
+    /** @type {Element} */
+    const heading = ['h2', { id }, label]
+    const link = permalink(id, label)
+    return (...rest) => ['summary', heading, link, ...rest]
+}
+
+const demoSummary = linkedSummary('demo', 'Demo')
+const testSummary = linkedSummary('emergent-testing', 'Emergent Testing')
+
+/**
+ * A demo's first view with every action control disabled: each `button`, and
+ * each `input` of type `button`, which the runtime hears a click on, and each
+ * element marked `data-demo-click` or `data-demo-drag`, which it hears a click
+ * or a drag on.
+ *
+ * **Until the runtime has loaded, an action on one goes nowhere.** A field's
+ * edit can be read back when the runtime arrives; a click or a drag leaves
+ * nothing behind, so it would be lost without a word. Disabled, the control
+ * says it is not ready. The runtime's first render after `start` patches the
+ * attributes to the demo's own view, which enables them.
+ *
+ * **An SVG control has no `disabled`**, so it is marked `aria-disabled`, which
+ * says so to assistive technology, and the stylesheet stops it taking a
+ * pointer while it is.
+ *
+ * A tag and a type are read ignoring ASCII case, as the browser reads them.
+ *
+ * @type {(view: Element) => Element}
+ */
+const inactive = mapElement((tag, attributes) => {
+    const name = tag.toLowerCase()
+    const action = name === 'button' || (name === 'input' && attributes.type?.toLowerCase() === 'button')
+    const pointed = attributes['data-demo-click'] !== undefined || attributes['data-demo-drag'] !== undefined
+    return [tag, action ? { ...attributes, disabled: '' } : pointed ? { ...attributes, 'aria-disabled': 'true' } : attributes]
+})
+
+/**
+ * The demo section: what this module *does*, if it says.
+ *
+ * The section holds a patchable demo root, persistent sharing controls and
+ * its startup script. The script names the module in `demoMarker`, so the
+ * runtime never guesses a filename. Sharing controls survive every render.
+ *
+ * **The root already holds the demo's first view**, rendered by the build, so
+ * the demo shows with the page rather than after the runtime and the demo's
+ * whole module graph have loaded — a chain of imports twenty-six deep for
+ * `fjs/compiler`'s. It is readable, selectable and editable at once; the
+ * runtime takes it over as it finds it, with whatever the reader typed in the
+ * meantime. Its action controls are disabled until then ({@link inactive}). A
+ * demo the build could not render keeps an empty root, which the runtime
+ * fills as before.
+ *
+ * @type {(demo: PageDemo, scope?: string) => readonly Node[]}
+ */
+export const demoSection = ({ path, view }, scope = path) => [['details', { 'data-section': '', open: '' },
+    scope === path ? demoSummary(sharingStatus()) : linkedSummary(`demo-section:${scope.length}:${scope}`, 'Demo')(sharingStatus()),
+    ['div', { [demoMarker]: path, [scopeMarker]: scope }, ...(view === null ? [] : [inactive(scopeIds(scope)(view))])],
+    ['script', { type: 'module' },
+        `import { startDemo } from '/fjs/website/demo-runtime.mjs'
+
+startDemo(Array.from(document.querySelectorAll('[${demoMarker}]')).find(root => root.getAttribute('${scopeMarker}') === ${stringLiteral(scope).replaceAll('<', '\\u003c')}))
+`],
+]]
+
+/**
+ * The suite section: what this subtree proves, and the control that runs it.
+ *
+ * Omitted where the subtree has no proofs, like every other empty section — a
+ * `Run` button over nothing is a control that lies about what it will do.
+ *
+ * **A proof a browser cannot link is named, not hidden**, with what stops it.
+ * Dropping it would leave an empty list ambiguous between "nothing here" and
+ * "nothing that runs here", and those are different facts about a directory.
+ *
+ * **The control follows what can run, not what exists.** Where every proof of
+ * a subtree is blocked, the section keeps its list and its reasons and loses
+ * the button: a run over an empty source list loads nothing, finds no
+ * failures, and is reported `passed` — a plausible wrong value for a subtree
+ * where nothing ran at all, which is the one answer this repository refuses
+ * ([DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
+ * Reporting such a run as not-passing was the alternative; it is a change to
+ * `reportOf`, which decides `fjs t`'s verdict too, for a case the command line
+ * does not have.
+ *
+ * **Folded until a reader opens it.** The suite is something a reader asks
+ * for, not what they came for, and its list of proofs is as long as the
+ * subtree — the root's is nearly two hundred lines. Folded, it is one line: the
+ * heading and, once a run has them, its counts, which are in the title so a
+ * run is still read at a glance.
+ *
+ * @type {(dir: Dir) => (intro: readonly Node[]) => readonly Node[]}
+ */
+export const testSection = dir => intro => {
+    if (dir.proofs.length === 0) { return [] }
+    /** @type {(title: Element) => (rest: readonly Node[]) => readonly Node[]} */
+    const section = title => rest => [['details', { 'data-section': '' },
+        title,
+        ...intro,
+        ...rest,
+        // After the report, and marked, so the stylesheet can hide it once the
+        // report has anything in it: from then on every source it names is a
+        // group above it, and the list is the same names a second time.
+        ['ul', { 'data-test-sources': '' }, ...dir.proofs.map(proofItem)],
+    ]]
+    const linkable = dir.proofs.filter(proof => proof.blockers.length === 0)
+    if (linkable.length === 0) { return section(testSummary())([]) }
+    // **The run's counts go in the title**, so they stay in sight with the
+    // section folded. The slot is there only where something can run: a title
+    // waiting for counts over a suite with no control would wait for ever.
+    return section(testSummary(['span', { 'data-test-counts': '' }]))([
+        ['p', { 'data-test-summary': '' }, 'Idle. Press Run to start the suite.'],
+        ['button', { type: 'button', 'data-test-run': '' }, 'Run'],
+        report,
+        runner(linkable.map(proof => assertNotNullish(entry(proof, 'name')))),
+    ])
+}
+
+/**
+ * A repository path as a URL path: each segment percent-encoded, the
+ * separators kept.
+ *
+ * **A file name is not a URL.** A space, `#`, `?` or `%` in one would end the
+ * path, start a fragment or a query, or read as an escape, and the link would
+ * go somewhere else without anything saying so. None of the tree's paths has
+ * such a character today, which is exactly when a rule is cheap to have: the
+ * first one to arrive would otherwise be a broken link on its page.
+ *
+ * Segment by segment rather than the path whole, because `/` is the one
+ * character that must survive, and `encodeURIComponent` encodes it.
+ *
+ * @type {(path: string) => string}
+ */
+export const urlPath = path => path.split('/').map(encodeURIComponent).join('/')
+
+/**
+ * Where a directory's page is written, relative to the site's root:
+ * `changelog/index.html`, and `index.html` for the root itself.
+ *
+ * **The file-system twin of {@link pageHref}, kept apart from it**, because
+ * a path to write is neither root-relative nor URL-encoded, and an href is
+ * both. Every page the generator writes is named here, and every link to one
+ * is built from it, so the layout is written once.
+ *
+ * @type {(path: string) => string}
+ */
+export const pagePath = path => pathConcat(path)('index.html')
+
+/**
+ * The page for a directory path, as a root-relative URL.
+ *
+ * The root's page is `/index.html` rather than `/./index.html`: `'.'` is the
+ * path of the repository root, and a URL says that by having no segments at
+ * all — which {@link pagePath} already does, by normalizing.
+ *
+ * @type {(path: string) => string}
+ */
+export const pageHref = path => `/${urlPath(pagePath(path))}`
+
+/**
+ * The directory the release history is kept in, and whose page is the
+ * release index rather than a listing of its files.
+ *
+ * Here rather than beside the changelog's builders because the
+ * {@link header} every page carries links to it.
+ *
+ * @type {string}
+ */
+export const changelogDir = 'changelog'
+
+/** The generated page for current pull requests. @type {string} */
+export const prsDir = 'prs'
+
+/** The dedicated CLI reference route. @type {string} */
+export const cliDir = 'cli'
+
+/**
+ * The playground: a directory whose subdirectories are games, each a demo,
+ * so its ordinary directory page lists them, each with its play mark.
+ *
+ * @type {string}
+ */
+export const playgroundDir = 'fjs/website/playground'
+
+/**
+ * A file in a directory, as a reader opens it: on GitHub at `commit`, or
+ * root-relative on this site when there is no commit to link. Generated
+ * WASM assets stay on this site because they are absent from Git.
+ *
+ * Only the links a person follows go through here. A page's proofs and its
+ * demo are imported by the browser from this site, and pointing those at
+ * GitHub would not load them.
+ *
+ * @type {(commit: string | null) => (path: string) => (name: string) => string}
+ */
+export const fileHref = commit => path => name => {
+    const file = urlPath(path === '.' ? name : `${path}/${name}`)
+    return commit === null || path === wasmDirectory ? `/${file}` : `${repository}/blob/${commit}/${file}`
+}
+
+/**
+ * One entry of a directory's list: a link, marked with its kind.
+ *
+ * **The kind is an attribute, not markup.** The stylesheet draws the icon from
+ * `data-kind` and gives it a text alternative, so the page carries one word
+ * per entry instead of an SVG, and the three pictures live in one place.
+ *
+ * **On the link, not the list item.** The icon's text alternative is part of
+ * whatever element draws it, and only a link's own content is its accessible
+ * name. On the `li`, a file and an issue with the same name were two links a
+ * screen reader's list of links announced identically; on the `a`, one is
+ * "file a.md" and the other "issue a.md". The icon is clickable too.
+ *
+ * @type {(kind: Kind) => (href: string) => (text: string) => Element}
+ */
+const item = kind => href => text => ['li', ['a', { href, 'data-kind': kind }, text]]
+
+/**
+ * An issue's entry: its priority as a badge, then the link with its status
+ * as the icon and its name — `P1 ◐ name`.
+ *
+ * **The status is on the link**, as the kind is (see {@link item}), so its
+ * icon's text alternative — "wip issue" — is part of the link's name.
+ * `data-issue-status` and not `data-status`, which the test runner's report
+ * already gives `passed` and `failed`: one attribute naming two unrelated
+ * things is a collision waiting for a value they share.
+ *
+ * **The badge comes first, outside the link.** The list is ordered by
+ * priority (see {@link issueOrder}), so the badges make its left column and a
+ * reader sees where each priority starts. Outside the link, the badge is read
+ * as a word of its own — "P1", then the link "wip issue a.md" — and the link's
+ * name and underline are the name's alone.
+ *
+ * @type {(href: string) => (issue: Issue) => Element}
+ */
+export const issueItem = href => issue => {
+    const name = assertNotNullish(entry(issue, 'name'))
+    const { status, priority } = issue
+    return ['li',
+        ['span', { 'data-priority': priority }, priority],
+        ' ',
+        ['a', { href, 'data-kind': 'issue', 'data-issue-status': status }, name]]
+}
+
+/**
+ * The order a directory lists its issues in: by priority, most urgent first,
+ * then by status in {@link statuses}' order — work in progress, then work not
+ * started, then work waiting or deferred, then the record, then what will not
+ * be done — then by name. The P1s, the issues that block everything else,
+ * lead the list, and within one priority the issues group by icon.
+ *
+ * @type {(a: Issue, b: Issue) => number}
+ */
+export const issueOrder = (a, b) => {
+    const priority = priorities.indexOf(a.priority) - priorities.indexOf(b.priority)
+    if (priority !== 0) { return priority }
+    const status = statuses.indexOf(a.status) - statuses.indexOf(b.status)
+    if (status !== 0) { return status }
+    return assertNotNullish(entry(a, 'name')) < assertNotNullish(entry(b, 'name')) ? -1 : 1
+}
+
+/**
+ * A subdirectory's entry, marked when a demo is somewhere under it.
+ *
+ * **Under it, not in it.** Every demo lives several levels down, so a mark
+ * only on a demo's own directory would leave the root page with nothing
+ * marked, and no trail to follow. Marked by subtree, the marks lead from any
+ * page to every demo below it.
+ *
+ * The mark is an attribute for the same reason the kind is (see {@link item}):
+ * the stylesheet draws it and gives it its text alternative. It is not
+ * `demoMarker`, which is what the demo runtime looks the demo's root up by.
+ *
+ * @type {(dir: Dir) => (name: string) => Element}
+ */
+const dirItem = dir => name => ['li', ['a', {
+    href: pageHref(dir.path === '.' ? name : `${dir.path}/${name}`),
+    'data-kind': 'dir',
+    'data-has-demo': dir.demoDirs.includes(name) ? '' : undefined,
+}, name]]
+
+/**
+ * One section of a directory's catalogue: a heading a reader can fold the
+ * section away under, over a list of entries — or nothing at all when there
+ * are none, so a page says only what is true of its directory.
+ *
+ * @type {(heading: string) => (items: readonly Element[]) => readonly Node[]}
+ */
+const section = heading => items =>
+    items.length === 0
+        ? []
+        : [['details', { 'data-section': '', open: heading === 'Contents' ? '' : undefined },
+            summary(heading)(),
+            ['ul', { 'data-links': '' }, ...items]]]
+
+/**
+ * The catalogue of one directory: what it holds, under Contents, and the
+ * issues filed against it, under Issues.
+ *
+ * **Contents is one list, with an icon per entry.** Directories and files in
+ * two sections made a reader decide which to open before seeing what the
+ * directory holds, and repeated a heading over lists often one line long.
+ * The kind is still there to see — it is the icon. Directories come first,
+ * then files, as GitHub and a file manager list them: a directory is where a
+ * reader goes next, and a file is where the reading stops.
+ *
+ * **Issues are a list of their own, collapsed by default.** An issue is about
+ * the directory rather than in it. Contents starts open; a reader expands
+ * Issues when they want to browse the directory's work.
+ * Each entry's icon is its status and a badge its priority, and the list is
+ * in {@link issueOrder}: by priority, the P1s first, and by status within
+ * each priority, rather than wherever their names sort.
+ *
+ * The root page inserts these into its own frame; {@link page} wraps them in
+ * one. Nothing here depends on which of the two is calling.
+ *
+ * `commit` is where files are read — see {@link fileHref}.
+ *
+ * @type {(commit: string | null) => (dir: Dir) => readonly Node[]}
+ */
+export const sections = commit => dir => [
+    ...section('Contents')([
+        ...dir.dirs.map(dirItem(dir)),
+        ...dir.files.map(name => item('file')(fileHref(commit)(dir.path)(name))(name)),
+    ]),
+    ...section('Issues')(dir.todo.toSorted(issueOrder).map(issue =>
+        issueItem(fileHref(commit)(dir.path)(`todo/${entry(issue, 'name')}`))(issue))),
+]
+
+/**
+ * A directory's catalogue in the left margin beside its main content.
+ * Contents and Issues keep their own disclosure controls. On a narrow
+ * screen the directory runtime moves the catalogue into a modal drawer.
+ *
+ * @type {(build: Build) => (dir: Dir) => (main: Element) => Element}
+ */
+export const directoryLayout = build => dir => main => ['div', { 'data-directory-layout': '' },
+    ['aside', { 'data-catalogue': '', 'aria-label': 'Directory catalogue' }, ...sections(build.commit)(dir)],
+    main,
+]
+
+/**
+ * The path to each ancestor of `path`, root first, paired with the name to
+ * show for it. The directory itself is not included: a page does not link to
+ * itself.
+ *
+ * @type {(path: string) => readonly (readonly [string, string])[]}
+ */
+const breadcrumbs = path => [
+    /** @type {const} */ (['.', 'root']),
+    ...ancestors(path).map(a => /** @type {const} */ ([a, basename(a)])),
+]
+
+/**
+ * Where the page sits: a link to each ancestor of `path`, root first, then
+ * `name`, the page itself, as text.
+ *
+ * **The breadcrumb is navigation, not the heading.** The page's `h1` is its
+ * README's own title ({@link pageHeading}), which says what the page is about
+ * rather than where it is, and is what a screen reader's heading list and a
+ * search engine take the page's topic from.
+ *
+ * @type {(path: string) => (name: string) => Element}
+ */
+export const breadcrumb = path => name => ['nav', { 'aria-label': 'Breadcrumb' },
+    ...toArray(intersperse(/** @type {Node} */ (' / '))([
+        ...breadcrumbs(path).map(([href, text]) => /** @type {Node} */ (['a', { href: pageHref(href) }, text])),
+        /** @type {Node} */ (['span', { 'aria-current': 'page' }, name]),
+    ])),
+]
+
+/** Whether a node is a heading of the first level. @type {(node: Node) => boolean} */
+const isH1 = node => typeof node !== 'string' && parseElement(/** @type {Element} */ (node))[0] === 'h1'
+
+/**
+ * Whether a rendered README has a title of its own: an `h1`, which a
+ * README's `#` heading is, wrapped beside its permalink.
+ *
+ * @type {(readme: readonly Element[]) => boolean}
+ */
+const hasTitle = readme => (readmeArticle(readme) ?? []).some(n => {
+    if (typeof n === 'string') { return false }
+    const [tag, , children] = parseElement(n)
+    return tag === 'div' && children.some(isH1)
+})
+
+/**
+ * The page's `h1` where its README does not give one: `name`, the
+ * directory's own, for a directory without a README, with one whose README
+ * is not rendered, or with one that has no `#` title.
+ *
+ * **A README's title is the page's heading**, so the README is the page's
+ * own content and not a document set beneath a heading that repeats it.
+ *
+ * @type {(readme: readonly Element[]) => (name: string) => readonly Element[]}
+ */
+export const pageHeading = readme => name => hasTitle(readme) ? [] : [['h1', name]]
+
+/**
+ * The branch the published site is built from. Every other branch's build is
+ * a preview.
+ *
+ * @type {string}
+ */
+const productionBranch = 'main'
+
+/**
+ * The line that says which build a preview is: its branch, and the commit it
+ * was built from, each linked on GitHub. Nothing on the published site or a
+ * local build — the first is always `main` at its latest, and the second has
+ * nothing on GitHub to link.
+ *
+ * **Short commit, full link.** Seven characters is what GitHub and `git log
+ * --oneline` show, and what a reader matches against a pull request; the link
+ * carries the whole id.
+ *
+ * @type {(build: Build) => readonly Element[]}
+ */
+const buildLine = ({ branch, commit }) => branch === null || branch === productionBranch
+    ? []
+    : [['p', { 'data-build': '' },
+        'Preview: ',
+        ['a', { href: `${repository}/tree/${urlPath(branch)}` }, branch],
+        .../** @type {readonly Node[]} */ (commit === null ? [] : [
+            ' @ ',
+            ['a', { href: `${repository}/commit/${commit}` }, commit.slice(0, 7)],
+        ])]]
+
+/**
+ * The header every page opens with: the logo and the site's name, linking
+ * home, then the CLI reference, pull requests, releases, the playground and
+ * repository.
+ *
+ * **One element for every page**, as {@link stylesheetLink} is one link: the
+ * root page, a directory's page and a release's page each used to carry their
+ * own few links, and each carried different ones.
+ *
+ * **The logo's `alt` is empty**, because the name beside it is the link's
+ * text: a screen reader would otherwise read "FunctionalScript
+ * FunctionalScript". The arrow after GitHub, which says the link leaves the
+ * site, is hidden from one for the same reason the changelog hides its
+ * arrows.
+ *
+ * @type {(build: Build) => Element}
+ */
+export const header = build => ['header',
+    ['nav', { 'aria-label': 'Site' },
+        ['a', { href: pageHref('.'), 'data-home': '' },
+            ['img', { src: logoPath, alt: '', width: '24', height: '24' }],
+            siteName],
+        // The site's links are one group, so a narrow screen wraps them
+        // together under the name rather than one beside it and one below.
+        ['span', { 'data-site-links': '' },
+            ['a', { href: `/${cliDir}/` }, 'CLI'],
+            ['a', { href: pageHref(prsDir) }, 'PRs'],
+            ['a', { href: pageHref(changelogDir) }, 'Releases'],
+            ['a', { href: pageHref(playgroundDir) }, 'Playground'],
+            ['a', { href: repository }, 'GitHub', ['span', { 'aria-hidden': 'true' }, ' ↗']]]],
+    ...buildLine(build)]
+
+/**
+ * The footer every page closes with: one link per funding channel, in
+ * `funding.json`'s order.
+ *
+ * **Every page, and below the page.** A reader lands on any of the site's
+ * pages from a search, so a link only the root page carried would reach few
+ * of them; and asking for money is not where a reader can go next on this
+ * site, which is what the {@link header} says, so it is not in the header.
+ *
+ * **The links are separated by text, not only by spacing**, as the
+ * breadcrumb is: a screen reader, or the page without its stylesheet, still
+ * reads three names rather than one run-together line. The space before
+ * each separator is a no-break space, so on a narrow screen a separator
+ * stays at the end of the line it closes rather than opening the next. Each ends with the
+ * arrow the header's GitHub link carries, because each leaves the site, and
+ * the arrow is hidden from a screen reader for the same reason.
+ *
+ * No channels, no footer: a heading for an empty list says nothing.
+ *
+ * @type {(funding: readonly Funding[]) => readonly Element[]}
+ */
+export const footer = funding => funding.length === 0 ? [] : [['footer', { 'data-funding': '' },
+    'Support FunctionalScript: ',
+    ...toArray(intersperse(/** @type {Node} */ ('\u00a0· '))(funding.map(({ description, address }) =>
+        /** @type {Node} */ (['a', { href: address }, description, ['span', { 'aria-hidden': 'true' }, ' ↗']])))),
+]]
+
+/**
+ * The large card's tags: `card`'s image at `origin`.
+ *
+ * @type {(origin: string) => (card: Card) => readonly Element[]}
+ */
+const largeCard = origin => ({ href, alt }) => [
+    ['meta', { property: 'og:image', content: `${origin}${href}` }],
+    ['meta', { property: 'og:image:alt', content: alt }],
+    ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
+]
+
+/**
+ * The card tags, showing `card`'s image where the build has an origin.
+ *
+ * @type {(origin: string | null) => (card: Card) => readonly Element[]}
+ */
+const cardMeta = origin => card => [
+    ['meta', { property: 'og:site_name', content: siteName }],
+    ['meta', { property: 'og:type', content: 'website' }],
+    ...(origin === null
+        ? [/** @type {Element} */ (['meta', { name: 'twitter:card', content: 'summary' }])]
+        : largeCard(origin)(card)),
+]
+
+/**
+ * A directory's card image, as a root-relative URL.
+ *
+ * @type {(path: string) => string}
+ */
+export const cardImageHref = path => `/${urlPath(pathConcat(path)(cardImageName))}`
+
+/**
+ * The root page's card, which every page without a card of its own shows:
+ * its alt text is the site's name, since it is the site's card wherever it
+ * is shown.
+ *
+ * @type {Card}
+ */
+const rootCard = { href: cardImageHref('.'), alt: siteName }
+
+/**
+ * The card tags that are the same on every page: the site, the kind of
+ * page and, when the build has an origin, the root page's card image.
+ *
+ * **Shared with rustdoc's pages.** `cargo doc` writes the Rust API
+ * reference, and the site adds one fixed fragment to every page's `<head>`
+ * there, so these are all the card tags those pages can carry. rustdoc
+ * writes each page's own `<title>` and description, which a card falls back
+ * to, and they show the root page's card, as every page without a README of
+ * its own does.
+ *
+ * **Open Graph, and Twitter's card type beside it.** Slack, Telegram,
+ * Discord, Facebook and LinkedIn read Open Graph; X reads Open Graph's title
+ * and image too, but shows no card without `twitter:card`: the large one
+ * where there is an image, and the small `summary` where there is none.
+ *
+ * **`og:image` is absolute or absent.** Open Graph requires an absolute URL,
+ * so a local build, which has no origin, leaves it out rather than write a
+ * relative one.
+ *
+ * @type {(origin: string | null) => readonly Element[]}
+ */
+export const siteMeta = origin => cardMeta(origin)(rootCard)
+
+/**
+ * A page's `og:url`: its root-relative `href` under the build's origin, and
+ * nothing where the build has none, since Open Graph takes only an absolute
+ * URL. One tag, shared with rustdoc's pages
+ * ([`../cargo-doc`](../cargo-doc/module.f.js)), which get it as they are
+ * copied.
+ *
+ * @type {(origin: string | null) => (href: string) => readonly Element[]}
+ */
+export const urlMeta = origin => href =>
+    origin === null ? [] : [['meta', { property: 'og:url', content: `${origin}${href}` }]]
+
+/**
+ * The `<meta>` tags a chat or a social network reads to build the card it
+ * shows for a pasted link: the page's title, what it is about and, when the
+ * build has an origin, its own URL, then the {@link siteMeta}
+ * every page shares.
+ *
+ * **In the static page, because a crawler runs no script.** Every tag here
+ * is in the HTML the build writes, so the card needs nothing from the
+ * runtime.
+ *
+ * **The description twice.** `description` is the one a search engine shows
+ * under the title; `og:description` is the card's.
+ *
+ * **`og:url` is absolute or absent** ({@link urlMeta}), as `og:image` is.
+ *
+ * **A page's own card is described by its title**, which is what the image
+ * shows: the page's README under its heading. A page without one shows the
+ * root page's card.
+ *
+ * @type {(origin: string | null) => (head: Head) => readonly Element[]}
+ */
+export const previewMeta = origin => ({ href, title, description, card }) => [
+    ['meta', { name: 'description', content: description }],
+    ['meta', { property: 'og:title', content: title }],
+    ['meta', { property: 'og:description', content: description }],
+    ...urlMeta(origin)(href),
+    ...cardMeta(origin)(card === undefined ? rootCard : { href: card, alt: title }),
+]
+
+/**
+ * The frame every page of the site shares: its `<head>`, its {@link header}
+ * and its {@link footer}, around the page's own content.
+ *
+ * **One builder, so a page cannot drift from the rest.** The root page, a
+ * directory's page, a release's page and the release index each used to
+ * spell out the same title, stylesheet, icons and header; a meta tag added to
+ * one of them would have been missing from the others with nothing to say
+ * so.
+ *
+ * **The content is the page's, attributes and all**, because pages differ there on
+ * purpose: one that runs a suite marks it for the runtime — see
+ * {@link testsMain} — and a changelog page does not.
+ *
+ * @type {(build: Build) => (head: Head) => (content: Element) => string}
+ */
+export const shell = build => head => content => htmlDocument(lang)(
+    ['title', head.title],
+    // OAuth callback parameters must not become subresource referrers.
+    ['meta', { name: 'referrer', content: 'no-referrer' }],
+    ...previewMeta(origin(build.branch))(head),
+    stylesheetLink,
+    ...faviconLinks,
+    earlyInputCapture,
+    ['script', { type: 'module' }, `import { startFragments } from '/fjs/website/fragment-runtime.mjs'\nstartFragments(document)`],
+)(
+    header(build),
+    content,
+    ...footer(build.funding),
+)
+
+/**
+ * The `main` of a page that carries a test suite, marked for the
+ * browser-test runtime, which looks for `data-browser-tests` and tracks the
+ * run in `data-state`.
+ *
+ * @type {(...nodes: readonly Node[]) => Element}
+ */
+const testsMain = (...nodes) => ['main', { 'data-browser-tests': '', 'data-state': 'idle' }, ...nodes]
+
+/**
+ * What introduces the root's suite: where the suite comes from.
+ *
+ * @type {Element}
+ */
+const suiteIntro = ['p',
+    'FunctionalScript derives this browser-native unit-test suite from exported proofs. ',
+    ['a',
+        { href: 'https://medium.com/javascript-in-plain-english/emergent-testing-in-javascript-e44760d71688' },
+        'Read “Emergent Testing in JavaScript”'
+    ],
+    '.'
+]
+
+/**
+ * The whole page for a directory: where it sits, what it holds, and what is
+ * open against it.
+ *
+ * **The root is the project's page.** Its title and the heading it gets
+ * without a README title are the site's name, its description the site's,
+ * it has no ancestors and so no breadcrumb, and its suite opens with
+ * {@link suiteIntro}. The repository and the releases are linked from the
+ * header every page carries ({@link shell}), not from the page's own frame.
+ *
+ * **The catalogue sits beside the demo and test suite.** A reader can
+ * navigate the directory without a growing demo or report moving its links.
+ *
+ * @type {(build: Build) => (dir: Dir) => string}
+ */
+export const page = build => dir => {
+    const isRoot = dir.path === '.'
+    const name = isRoot ? siteName : basename(dir.path)
+    return shell(build)({
+        href: pageHref(dir.path),
+        title: isRoot ? siteName : pageTitle(dir.path),
+        description: isRoot ? siteDescription : readmeDescription(dir.readme) ?? siteDescription,
+        ...(readmeArticle(dir.readme) === null ? {} : { card: cardImageHref(dir.path) }),
+    })(directoryLayout(build)(dir)(testsMain(
+        ...(isRoot ? [] : [breadcrumb(dir.path)(name)]),
+        ...pageHeading(dir.readme)(name),
+        ...(dir.api === null ? [] : [/** @type {Element} */ (['p', ['a', { href: dir.api }, 'API documentation']])]),
+        ...(dir.apiIndex === null ? [] : [/** @type {Element} */ (['p', ['a', { href: dir.apiIndex }, 'Rust API documentation']])]),
+        ...dir.readme,
+        ...(dir.demo === null ? [] : demoSection(dir.demo)),
+        ...testSection(dir)(isRoot ? [suiteIntro] : []),
+    )))
+}

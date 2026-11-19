@@ -6,10 +6,10 @@
 ### Problem
 
 Every case in [`fjs/nanvm/`](../README.md) now denotes an EDAG expression:
-`caseExp` in [`module.f.mjs`](../module.f.mjs) derives it, the proof
+`caseExp` in [`module.f.js`](../module.f.js) derives it, the proof
 validates it against the [`fjs/edag`](../../edag/README.md) schema and runs it
 through `amnesia` with the corpus's shared nodes supplied as memoized values.
-[`rust/module.f.mjs`](../rust/module.f.mjs) prints direct operator calls.
+[`rust/module.f.js`](../rust/module.f.js) prints direct operator calls.
 Authoring is shared, but the corpus still needs to exercise `fjs/edag/memo`
 and compare direct Rust execution with interpretation of the same EDAG as data.
 
@@ -41,7 +41,7 @@ Its temporaries are bound inside the closure with their `?`, the root's
 own `Result` is the closure's answer, and `check` receives it whole;
 `scope` is the harness's, a name for the call rather than `(|| …)()`,
 which clippy calls redundant. `caseText` in
-[`../rust/module.f.mjs`](../rust/module.f.mjs) decides, by
+[`../rust/module.f.js`](../rust/module.f.js) decides, by
 `fjs/edag/rust`'s `nestsOperation`, and a flat case keeps its shape in the
 generated `gen.corpus/` files. `unreachedPlusOne` and
 `unreachedCondition` are the corpus's own instances: an eager position
@@ -67,7 +67,7 @@ expressions may later travel through `Any`/CBOR serialization, but that is
 not a prerequisite.
 
 On JavaScript hosts, run the corpus through
-[`fjs/edag/memo`](../../edag/memo/module.f.mjs) as well. Its observable results,
+[`fjs/edag/memo`](../../edag/memo/module.f.js) as well. Its observable results,
 including sharing and throws, must agree with direct Rust and with the same
 FJS interpreter compiled to Rust. `amnesia` stays
 the oracle ([`../../edag/amnesia/README.md`](../../edag/amnesia/README.md)),
@@ -116,6 +116,6 @@ plan or native self-hosting.
   FunctionalScript executor run beside the `amnesia` oracle here.
 - [`../../../todo/edag-stage1-discussion.md`](../../../todo/edag-stage1-discussion.md)
   — positional laziness.
-- `comparisonCases` in [`../module.f.mjs`](../module.f.mjs) (shipped) — the
+- `comparisonCases` in [`../module.f.js`](../module.f.js) (shipped) — the
   four relational groups derived from one table, so an argument pair reaches
   all of them or none.

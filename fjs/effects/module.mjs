@@ -9,7 +9,7 @@
  * @import { Result } from '../types/result/types.ts'
  */
 
-import { ioError, match, notImplemented, partialMatch, toIoError, unreadableThrownValue } from './module.f.mjs'
+import { ioError, match, notImplemented, partialMatch, toIoError, unreadableThrownValue } from './module.f.js'
 import { asyncTryCatch } from '../types/result/module.mjs'
 import { error, ok } from '../types/result/module.f.js'
 

@@ -17,7 +17,7 @@ consumer actually needs it.
   ordering (`cmp`).
 
 A consequence is two readers: the thunk-direct
-[`../parse`](../parse/module.f.mjs) walks the thunk graph at dispatch time —
+[`../parse`](../parse/module.f.js) walks the thunk graph at dispatch time —
 simple, no preprocessing, good for ad-hoc use — while `validate` here consumes
 a `Data` produced by `toData` and benefits from the canonical form: unions are
 already flattened, subset-covered patterns already dropped. The two coexist;
@@ -80,9 +80,11 @@ two spellings a bare container reaches are `{ prefix }` and
 `UnionSet` or the name of a rule. Unlike `fjs/ebnf/data`, only definitions that
 are actually cyclic become rules — everything else is inlined — so a
 non-recursive schema is a pure tree with an empty rule set, and structural
-identity does not depend on traversal order. Rule names come from the
-defining functions' names (a recursive thunk is necessarily a named binding),
-disambiguated with a counter on collision.
+identity does not depend on traversal order. Recursive rule names are decimal
+ordinals (`"0"`, `"1"`, …), assigned when a cycle or deferred merge first
+requires a reference. The same thunk reuses its ordinal, independent of its
+JavaScript function name. After unused rules are pruned, the surviving names
+are compacted to remove gaps while preserving the lexical order of references.
 
 ## Canonical form
 
@@ -109,20 +111,21 @@ disambiguated with a counter on collision.
   `list` — and a re-stated fixpoint collapses: for
   `list = readonly list[]`, `array(list)` is `list` itself.
 
-Schema identity is a property of this form, not of thunks: two `or(a, b)`
-calls produce distinct thunks, but `toData(or(a, b))` and `toData(or(b, a))`
-are structurally identical, and `equal`/`cmp` decide identity and canonical
-order with plain structural comparison. Two known limits, both accepted by
-design:
+Schema identity is a property of this form, not of thunk identity:
+`equal`/`cmp` compare structure and decide its canonical order. For
+non-recursive schemas, `toData(or(a, b))` and `toData(or(b, a))` are
+structurally identical despite their distinct thunks. Recursive schemas retain
+two limits:
 
-- rule *names* are part of the structure, so two recursive schemas that
-  differ only in the names of their defining functions are semantically equal
-  yet structurally distinct — full graph canonicalization is
-  bisimulation-grade work the simple form deliberately avoids. `subset`
-  resolves references coinductively, so such a pair is a mutual `subset`
-  without being `equal` — mutual inclusion implies equality of the *sets*,
-  not of the spellings — and their union normalizes to whichever spelling
-  sorts first;
+- rule *names* are part of the structure. Reversing a union of two distinct
+  recursive shapes can swap their ordinals, so the results remain
+  `equivalent` but are not `equal`. Function names no longer affect the
+  result: independently converted self-recursive lists both
+  use `"0"`. Full graph canonicalization is bisimulation-grade work the
+  simple form deliberately avoids. `subset` resolves references
+  coinductively; mutual inclusion compares the *sets*, while `equal` compares
+  their spellings. When a union contains mutually included patterns, it keeps
+  the first canonical spelling;
 - a reference is never recognized as `unknown` or `never`, so e.g. a cyclic
   rule whose fixpoint happens to be the whole domain is not collapsed to
   `unknown`.
@@ -131,12 +134,12 @@ design:
 
 The form is plain immutable data — no functions — so it serializes with the
 repository's data serializers. DataJS
-([`fjs/media/datajs/serializer`](../../media/datajs/serializer/module.f.mjs)) covers the
+([`fjs/media/datajs/serializer`](../../media/datajs/serializer/module.f.js)) covers the
 whole form, including `bigint` literal sets and `NaN`, `±Infinity` and `-0`
 literal members. JSON is narrower. It has no `bigint`, and its number model
 writes a `NaN` or `±Infinity` literal member as `null`, so a schema using one
 does not round-trip through JSON text. The repository's own JSON serializer
-([`fjs/media/json`](../../media/json/serializer/module.f.mjs)) keeps `-0`;
+([`fjs/media/json`](../../media/json/serializer/module.f.js)) keeps `-0`;
 the host's `JSON.stringify` writes it as `0`.
 
 ## `subset` is sound and deliberately incomplete
@@ -153,7 +156,11 @@ hold semantically, in the corners known to be hard:
   no finite values;
 - an array pattern shorter than the one it is included in, every position
   past its end being one the longer pattern admits as absent — only the
-  longest array each side admits is tested against the other.
+  longest array each side admits is tested against the other;
+- one cycle spelled at two depths, e.g.
+  `even = () => ['const', { value: number, next: or(option, () => ['const', { value: number, next: or(option, even) }]) }]`
+  against `odd = () => ['const', { value: number, next: or(option, even) }]`:
+  the two are one set, and `subset` answers `false` both ways.
 
 CDuce / Castagna's semantic-subtyping work and BDD-based encodings of
 set-theoretic types have the complete (and far heavier) answers; this module
@@ -181,7 +188,7 @@ parse([number, or(option, string)])([42])            // ['ok', [42]]
 validate(toData([number, or(option, string)]))([42]) // ['ok', [42]]
 ```
 
-`../validate/proof.f.mjs` runs one acceptance table through all three readers,
+`../validate/proof.f.js` runs one acceptance table through all three readers,
 so a `toData` that changed which values a schema admits fails there rather
 than silently. That table is also where an empty `rest` is pinned: this form
 normalizes a rest that makes no difference away, and the *thunk* readers need

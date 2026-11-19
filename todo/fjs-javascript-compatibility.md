@@ -74,7 +74,7 @@ a different result and no invalid program was accepted; every difference
 was a refusal. The one output defect found was a wrong kind of failure,
 not a wrong value — a string the `.rs` writer could not spell was thrown
 past the compiler or written as a file `rustc` refused — and
-[`fjs/media/rust`](../fjs/media/rust/module.f.mjs) now spells or refuses
+[`fjs/media/rust`](../fjs/media/rust/module.f.js) now spells or refuses
 each such literal.
 
 #### Module resolution — current implementation, rule 2
@@ -94,7 +94,7 @@ admitted a unary expression to the left of exponentiation,
 instead, and its `c1d7166` refuses `**` immediately after a `-`/`~` operand
 at any nesting through the grammar's `unaryOperand`, as ECMAScript's
 [exponentiation](https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#sec-exp-operator)
-does; `fjs/compiler/parser/proof.f.mjs` holds the refusals and the valid
+does; `fjs/compiler/parser/proof.f.js` holds the refusals and the valid
 `(-2) ** 2` and `-(2 ** 2)`. What is left is the comparison against a native
 JavaScript engine's early errors, and extending that gate to the
 logical/nullish operators and parameter syntax, which have since landed. The
@@ -183,8 +183,8 @@ and `self` renders as a finite named function expression. They retain represente
 functions through explicit and indirect conversion, rather than exposing host
 arrow-factory text. See the
 [function-text contract](../fjs/edag/function-text.md), `functionText` and `self`
-in the [serializer proofs](../fjs/compiler/serializer/proof.f.mjs), and
-[conversion proofs](../fjs/edag/value/convert/proof.f.mjs).
+in the [serializer proofs](../fjs/compiler/serializer/proof.f.js), and
+[conversion proofs](../fjs/edag/value/convert/proof.f.js).
 
 The structural FJS source serializer remains partial. The implemented
 JavaScript runtime-value emitter materializes captures separately and can emit
@@ -323,7 +323,7 @@ randomness and external mutation.
       FJS/native-ESM escaped-filename regression.
 - [x] **P1:** refuse a source that is not correct UTF-8 rather than decode
       it to a value Node does not give (`readSource` in
-      [`fjs/compiler/transpiler`](../fjs/compiler/transpiler/module.f.mjs)).
+      [`fjs/compiler/transpiler`](../fjs/compiler/transpiler/module.f.js)).
 - [x] **P1:** refuse a `toString` radix in `nanvm-lib` rather than answer in
       radix ten, until the radix is implemented
       ([member functions](../nanvm/lib/todo/member-functions.md)).

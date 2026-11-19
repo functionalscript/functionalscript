@@ -50,7 +50,7 @@ const appendChunk = (chunkLength, compress) => chunk => state =>
  * The Merkle–Damgård framing SHA-1 and SHA-2 share, over a compression it
  * is given: data folded into the state a block at a time, and the last
  * block padded with a `1` bit, zeros, and the message length. SHA-2's
- * `base` is built on it, and so is [`fjs/crypto/sha1`](../sha1/module.f.mjs),
+ * `base` is built on it, and so is [`fjs/crypto/sha1`](../sha1/module.f.js),
  * whose compression alone differs; a fix to the framing is made once.
  * SHA-3 is not one of them: it is a sponge, absorbing and squeezing a
  * state rather than folding blocks into a hash value, and a hash built
@@ -102,7 +102,7 @@ export const framing = ({ chunkLength, lengthLength, digestLength, compress, dig
  * `hash` and answering `hashLength` bits: the one place the
  * `hashBytes`/`blockBytes` rounding and the initial state are spelled.
  * Every SHA-2 variant is one, and so is
- * [`fjs/crypto/sha1`](../sha1/module.f.mjs).
+ * [`fjs/crypto/sha1`](../sha1/module.f.js).
  *
  * It takes the `FramingInit` rather than a built `Framing` so that the
  * block length it advertises is the one its `update` and `end` were
@@ -331,7 +331,7 @@ const base = init => {
 
 /**
  * Computes a hash from a list of message chunks: any SHA-2 variant, or
- * SHA-1 from [`fjs/crypto/sha1`](../sha1/module.f.mjs), which has the
+ * SHA-1 from [`fjs/crypto/sha1`](../sha1/module.f.js), which has the
  * same shape over a state of its own, answering what the hash's `end`
  * answers.
  *

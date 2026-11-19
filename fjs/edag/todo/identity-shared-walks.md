@@ -5,7 +5,7 @@
 
 ### Current ownership
 
-[`analysis`](../analysis/module.f.mjs) builds a table that merges structurally
+[`analysis`](../analysis/module.f.js) builds a table that merges structurally
 equal identity-free nodes within each scope; `identityAnalysis` retains source
 node identity. The latter uses [`sharing`](../sharing/module.f.js)'s
 `sharedNodesOf` for repeated source-object counts. Distinct equal allocations
@@ -37,7 +37,7 @@ captures. `analysis.operandsOf` walks analyzed `Node` operands and includes
 captures followed by the body. A one-invocation query must stop at nested
 function bodies; whole-program capability queries may include them.
 
-The [EDAG-to-Rust adapter](../rust/module.f.mjs) still makes raw graph queries
+The [EDAG-to-Rust adapter](../rust/module.f.js) still makes raw graph queries
 for capability/import metadata and supplied invocation environments. It does
 not make binding-placement decisions. `compiler/rust` delegates common graph
 conversion and prepared emission through that adapter.
@@ -89,6 +89,6 @@ need not enforce the same first failing operation in generated output.
 - [`sharing`](../sharing/module.f.js) — linked-object identity queries.
 - [analysis](./analysis.md) — merged and identity-table contracts.
 - [`to_fast`](../to_fast/README.md) — common output placement and normalization.
-- [`edag/rust` proofs](../rust/proof.f.mjs) — raw graph adapter regression cases.
+- [`edag/rust` proofs](../rust/proof.f.js) — raw graph adapter regression cases.
 - [prepared Rust serializer](../../rust/serializer/README.md) — completed target
   declaration ownership, separate from optional graph traversal consolidation.

@@ -1,4 +1,5 @@
-import type { BindingId, FunctionTarget, LoopTarget } from '../../../../js/ast/types.ts'
+import type { BindingId, Block, FunctionTarget, LoopTarget } from '../../../../js/ast/types.ts'
+import type { Task } from '../../../../js/ast/task/types.ts'
 
 export type _Context = {
     readonly owner: FunctionTarget
@@ -14,3 +15,6 @@ export type _Result<T> = {
     readonly tail: boolean
     readonly base: boolean
 }
+
+/** The recursive block walk is an explicit dependency of its operand helpers. */
+export type _BlockTask = (block: Block, context: _Context, returnedYield: boolean) => Task<_Result<Block>>

@@ -1,15 +1,15 @@
 # Node effects
 
 The operations a program performs on Node.js, and the `NodeProgram` type a
-command-line program is. [`module.f.mjs`](./module.f.mjs) declares the
+command-line program is. [`module.f.js`](./module.f.js) declares the
 operations and their helpers, [`types.ts`](./types.ts) their types, and
 [`module.mjs`](./module.mjs) is the runner that performs them against Node's
 own APIs.
 
 ```js
-import { exitStep, readUtf8File } from './module.f.mjs'
-import { log } from '../common/module.f.mjs'
-import { mapStep, step } from '../module.f.mjs'
+import { exitStep, readUtf8File } from './module.f.js'
+import { log } from '../common/module.f.js'
+import { mapStep, step } from '../module.f.js'
 
 /** Prints how many lines a file has, counting line breaks as `wc -l` does. @type {import('./types.ts').NodeProgram} */
 export const main = ({ args }) => {

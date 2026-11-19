@@ -6,7 +6,7 @@
 ### Problem
 
 The memo executor analyses an invoked function's body at every call:
-the `run` that `invokeWith` in [`../module.f.mjs`](../module.f.mjs) hands
+the `run` that `invokeWith` in [`../module.f.js`](../module.f.js) hands
 `invokerWith` builds `identityAnalysis(fn)` each time a represented function
 is invoked. The
 cost of a call grows with the size of its body's table, and faster than
@@ -67,8 +67,8 @@ Investigate, then improve:
 
 ### Related
 
-- [`../../analysis/module.f.mjs`](../../analysis/module.f.mjs) —
+- [`../../analysis/module.f.js`](../../analysis/module.f.js) —
   `identityAnalysis`, `analysis`.
-- [`../../../compiler/transpiler/module.f.mjs`](../../../compiler/transpiler/module.f.mjs)
+- [`../../../compiler/transpiler/module.f.js`](../../../compiler/transpiler/module.f.js)
   — evaluates a module by the identity table.
 - [`immutable-cache.md`](./immutable-cache.md) — the executor's cache.

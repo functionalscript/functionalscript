@@ -237,7 +237,7 @@ their numeric and non-string relational results remain available.
 #### What shapes the plan
 
 - **The shared renderer is implemented.** The FunctionalScript writer,
-  [`fjs/compiler/serializer`](../../../fjs/compiler/serializer/module.f.mjs),
+  [`fjs/compiler/serializer`](../../../fjs/compiler/serializer/module.f.js),
   already wrote a function node as text: `['=>', 1, [], ['arg', 0]]` was
   `($a_0,...$a)=>$a_0` historically (now `($0)=>$0`, with an unused
   rest parameter omitted), and a shared array in a body became a `const`.
@@ -341,7 +341,7 @@ is still tracked below; its proposed spelling is already implemented.
 2. **The writer spells calls and chains** (done): `f(a)`, `a.b(c)`, and a
    callee that is an access through a `const`.
 3. **`functionText` in FunctionalScript** (done): the trusted, analyzed
-   function entry in [`fjs/compiler/serializer`](../../../fjs/compiler/serializer/module.f.mjs)
+   function entry in [`fjs/compiler/serializer`](../../../fjs/compiler/serializer/module.f.js)
    renders every admitted body, each slot named `$i` (D2). Its checked
    `tryFunctionText` entry returns admission diagnostics for separately
    supplied expressions. Represented conversion and the Rust printer,
@@ -350,7 +350,7 @@ is still tracked below; its proposed spelling is already implemented.
    function text falls back to general JavaScript when source reconstruction
    is unavailable. The source-reconstructible cases retain the original
    module-text/read-back proofs; the
-   [function-text proofs](../../../fjs/compiler/serializer/function_text/proof.f.mjs)
+   [function-text proofs](../../../fjs/compiler/serializer/function_text/proof.f.js)
    cover the general rendering, which is not a FJS source round trip.
 4. **Rust, for an empty frame** (done). `static_function` takes the text,
    `Option<&'static str>`, and `IFunction::text` answers it. The printer

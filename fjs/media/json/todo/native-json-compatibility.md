@@ -68,7 +68,7 @@ not cause additional P3 design work.
 
 ### Related
 
-- [`numberSerialize`](../serializer/module.f.mjs) — keeps `-0`, intentional
+- [`numberSerialize`](../serializer/module.f.js) — keeps `-0`, intentional
   default behavior that native-compatibility work must not undo.
 - [Standard/extended value transforms](./standard-transform.md) — make gradual
   policy changes easier once the runtime layers exist.

@@ -1,0 +1,260 @@
+/**
+ * @import { Unknown } from '../../media/json/types.ts'
+ */
+
+import {
+    toCodePointList,
+    fromCodePointList,
+    stringToList,
+    listToString,
+    stringToCodePointList,
+    codePointListToString,
+    codePointToString,
+    codeUnitToString,
+    floorCodePointBoundary,
+    isWellFormed,
+    codePoints,
+    utf16Decoder,
+} from './module.f.js'
+import { stringifySorted as stringify } from '../../media/json/module.f.js'
+import { toArray } from '../../types/list/alt/module.f.js'
+import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
+import { next } from '../../types/list/module.f.js'
+
+// /** @type {(a: readonly Unknown[]) => string} */
+// const stringify = stringifySorted
+
+export const proof = {
+    lifecycle: () => {
+        const initial = utf16Decoder.init
+        assert(initial[0] === 'next')
+        assertEq(stringify(utf16Decoder.end(initial[2])), '["done",[],null]')
+        const saved = utf16Decoder.update(initial[2], 0xd83d)
+        assert(saved[0] === 'next')
+        assertEq(stringify(saved[1]), '[]')
+        const resumed = utf16Decoder.update(saved[2], 0xde00)
+        assert(resumed[0] === 'next')
+        assertEq(stringify(resumed[1]), '[128512]')
+        assertEq(resumed[2], null)
+        assertEq(stringify(utf16Decoder.end(saved[2])), '["done",[-2147428291],null]')
+        assertEq(stringify(utf16Decoder.update(saved[2], 0xde00)), stringify(resumed))
+    },
+    lazyOutput: () => {
+        const input = { first: 0x41, tail: () => { throw 'read past the emitted character' } }
+        assertEq(assertNotNullish(next(toCodePointList(input))).first, 0x41)
+    },
+    toCodePointList: [
+        () => {
+            const result = stringify(toArray(toCodePointList([-1, 0x1_0000])))
+            assertEq(result, '[2147483648,2147483648]')
+        },
+        // `-0` is not a second spelling of the code unit `0`.
+        () => {
+            const result = stringify(toArray(toCodePointList([-0])))
+            assertEq(result, '[2147483648]')
+        },
+        () => {
+            const result = stringify(toArray(toCodePointList([0, 0x24, 0x20ac, 0xd7ff, 0xe000, 0xffff])))
+            assertEq(result, '[0,36,8364,55295,57344,65535]')
+        },
+        () => {
+            const result = stringify(toArray(toCodePointList([0xdc00, 0xdfff])))
+            assertEq(result, '[-2147427328,-2147426305]')
+        },
+        () => {
+            const result = stringify(toArray(toCodePointList([0xd800, 0xdc00, 0xd801, 0xdc37, 0xd852, 0xdf62, 0xdbff, 0xdfff])))
+            assertEq(result, '[65536,66615,150370,1114111]')
+        },
+        () => {
+            const result = stringify(toArray(toCodePointList([0xd800, 0xd800])))
+            assertEq(result, '[-2147428352,-2147428352]')
+        },
+        () => {
+            const result = stringify(toArray(toCodePointList([0xd800, 0])))
+            assertEq(result, '[-2147428352,0]')
+        },
+        () => {
+            const result = stringify(toArray(toCodePointList([0xdc00])))
+            assertEq(result, '[-2147427328]')
+        },
+        () => {
+            const result = stringify(toArray(toCodePointList([0xdc00, 0])))
+            assertEq(result, '[-2147427328,0]')
+        },
+        // `U16` is just `number`, so a non-integer in [0x0000, 0xFFFF] is a
+        // possible (if malformed) input. It must be rejected as invalid, not
+        // misclassified by the surrogate/BMP range checks, which only
+        // partition the integers in that range.
+        () => {
+            const result = stringify(toArray(toCodePointList([56_319.5])))
+            assertEq(result, '[2147483648]')
+        },
+        // A non-integer word doesn't disturb a pending high surrogate: it is
+        // reported invalid on its own, and the surrogate is still flagged
+        // unpaired at EOF.
+        () => {
+            const result = stringify(toArray(toCodePointList([0xd800, 56_319.5])))
+            assertEq(result, '[2147483648,-2147428352]')
+        }
+    ],
+    fromCodePointList: [
+        () => {
+            const result = stringify(toArray(fromCodePointList([0])))
+            assertEq(result, '[0]')
+        },
+        () => {
+            const result = stringify(toArray(fromCodePointList([0x24])))
+            assertEq(result, '[36]')
+        },
+        () => {
+            const result = stringify(toArray(fromCodePointList([0x20AC])))
+            assertEq(result, '[8364]')
+        },
+        () => {
+            const result = stringify(toArray(fromCodePointList([0xd7ff])))
+            assertEq(result, '[55295]')
+        },
+        () => {
+            const result = stringify(toArray(fromCodePointList([0xe000])))
+            assertEq(result, '[57344]')
+        },
+        () => {
+            const result = stringify(toArray(fromCodePointList([0xffff])))
+            assertEq(result, '[65535]')
+        },
+        () => {
+            const result = stringify(toArray(fromCodePointList([0x1_0000])))
+            assertEq(result, '[55296,56320]')
+        },
+        () => {
+            const result = stringify(toArray(fromCodePointList([0x1_0437])))
+            assertEq(result, '[55297,56375]')
+        },
+        () => {
+            const result = stringify(toArray(fromCodePointList([0x2_4B62])))
+            assertEq(result, '[55378,57186]')
+        },
+        () => {
+            const result = stringify(toArray(fromCodePointList([0x10_ffff])))
+            assertEq(result, '[56319,57343]')
+        },
+        () => {
+            const result = stringify(toArray(fromCodePointList([-1, 0xd800, 0xdfff, 0x11_0000])))
+            assertEq(result, '[65535,55296,57343,0]')
+        }
+    ],
+    string: [
+        () => {
+            const utf16List = stringToList("Hello world!😂🚜🚲")
+            const result = listToString(utf16List)
+            assertEq(result, "Hello world!😂🚜🚲")
+        },
+        () => {
+            const cpList = stringToCodePointList("Hello world!😂🚜🚲")
+            const result = codePointListToString(cpList)
+            assertEq(result, "Hello world!😂🚜🚲")
+        },
+        () => {
+            const a = stringToList("Hello world!😂🚜🚲")
+            const b = toCodePointList(a)
+            const c = fromCodePointList(b)
+            const result = listToString(c)
+            assertEq(result, "Hello world!😂🚜🚲")
+        }
+    ],
+    stringToList: [
+        () => {
+            const inputString = "Hello, i like js"
+            const utf16List = stringToList(inputString)
+        },
+        () => {
+            const inputString = "😇🤬🫥😑🫠"
+            const utf16List = stringToList(inputString)
+        }
+    ],
+    listToString: [
+        () => {
+            const utf16List = [0x0041, 0x0042, 0x0043]
+            const outputString = listToString(utf16List)
+        }
+    ],
+    stringToCodePointList: [
+        () => {
+            const inputString = "Hello, 😀"
+            const codePoints = stringToCodePointList(inputString)
+        }
+    ],
+    codePointListToString: [
+        () => {
+            const codePoints = [0x48, 0x65, 0x6C, 0x6C, 0x6F]
+            const outputString = codePointListToString(codePoints)
+        }
+    ],
+    codePointToString: [
+        () => { assertEq(codePointToString(0x48), 'H') },
+        // supplementary plane: one code point, two code units
+        () => { assertEq(codePointToString(0x1_f600), '😀') },
+        // a surrogate is not a code point; it round-trips as its own code unit
+        () => { assertEq(codePointToString(0xd800), '\ud800') },
+        // above the maximum code point, the low 16 bits are kept
+        () => { assertEq(codePointToString(0x11_0000), '\u0000') },
+    ],
+    codeUnitToString: [
+        () => { assertEq(codeUnitToString(0x41), 'A') },
+        // a lone surrogate is kept as its own code unit
+        () => { assertEq(codeUnitToString(0xd800), '\ud800') },
+    ],
+    // One code point per element: an astral character is one, not the two
+    // UTF-16 units it occupies. A lone surrogate, high or low, is no code
+    // point and is refused rather than tagged into a negative number.
+    codePoints: {
+        text: () => {
+            assertEq(stringify(codePoints('')), '[]')
+            assertEq(stringify(codePoints('a\u{1F600}')), '[97,128512]')
+        },
+        throw: {
+            loneHigh: () => codePoints('\uD800'),
+            loneLow: () => codePoints('a\uDC00'),
+        },
+    },
+    isWellFormed: () => {
+        assertEq(isWellFormed(''), true)
+        assertEq(isWellFormed('abc'), true)
+        // a pair is one code point, not two unpaired surrogates
+        assertEq(isWellFormed('a\u{1F600}b'), true)
+        assertEq(isWellFormed('\ud800'), false)
+        assertEq(isWellFormed('\udc00'), false)
+        assertEq(isWellFormed('a\ud800b'), false)
+        // reversed halves pair with nothing
+        assertEq(isWellFormed('\ude00\ud83d'), false)
+        // one paired, one not
+        assertEq(isWellFormed('\u{1F600}\ud800'), false)
+    },
+    floorCodePointBoundary: {
+        boundaries: () => {
+            const at = floorCodePointBoundary('a\u{1F600}b')
+            // between code points, the index itself
+            assertEq(at(0), 0)
+            assertEq(at(1), 1)
+            assertEq(at(3), 3)
+            // between the halves of a pair, the pair's start
+            assertEq(at(2), 1)
+            // the end, and past it
+            assertEq(at(4), 4)
+            assertEq(at(9), 4)
+            assertEq(floorCodePointBoundary('')(0), 0)
+            // an unpaired surrogate is a code point of its own
+            assertEq(floorCodePointBoundary('\ud800a')(1), 1)
+            assertEq(floorCodePointBoundary('a\udc00')(1), 1)
+            // reversed halves are two unpaired surrogates
+            assertEq(floorCodePointBoundary('\ude00\ud83d')(1), 1)
+        },
+        // an index that names no position between code units is refused
+        throw: {
+            fraction: () => floorCodePointBoundary('abc')(1.5),
+            negative: () => floorCodePointBoundary('abc')(-1),
+            notANumber: () => floorCodePointBoundary('abc')(NaN),
+            negativeZero: () => floorCodePointBoundary('abc')(-0),
+        },
+    },
+}

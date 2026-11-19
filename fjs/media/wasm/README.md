@@ -2,16 +2,16 @@
 
 `application/wasm`, read and written in FunctionalScript: an AST of a
 module's sections, a binary parser, a binary writer and a WAT writer. The
-WASM demo pages' [publisher](../../nanvm/demos/publish/module.f.mjs) is
+WASM demo pages' [publisher](../../nanvm/demos/publish/module.f.js) is
 their first user, and none of them depends on it.
 
 | Module | What it does |
 | --- | --- |
 | [`types.ts`](./types.ts) | The AST |
 | [`instruction`](./instruction/module.f.js) | The opcode table every module below reads |
-| [`binary/parse`](./binary/parse/module.f.mjs) | Bytes to the AST, or an error naming the byte |
-| [`binary/write`](./binary/write/module.f.mjs) | The AST to bytes |
-| [`wat`](./wat/module.f.mjs) | The AST to text, laid out as `wasmprinter` lays it out, and its functions as marked text, each word with its kind |
+| [`binary/parse`](./binary/parse/module.f.js) | Bytes to the AST, or an error naming the byte |
+| [`binary/write`](./binary/write/module.f.js) | The AST to bytes |
+| [`wat`](./wat/module.f.js) | The AST to text, laid out as `wasmprinter` lays it out, and its functions as marked text, each word with its kind |
 
 ## Scope
 

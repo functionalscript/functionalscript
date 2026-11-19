@@ -5,7 +5,7 @@
 
 ### Problem
 
-[`tryRoots`](../module.f.mjs) answers a list of one entry per name, which is
+[`tryRoots`](../module.f.js) answers a list of one entry per name, which is
 right for every name a repository ordinarily has and wrong for exactly one.
 A `packed-refs` file may hold a line named `HEAD`, and a repository always has
 a `HEAD` file, and Git keeps **both** — the file as what the name *means*, the

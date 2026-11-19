@@ -6,7 +6,7 @@ grammar reads. It is the byte half of
 [unicode-rules](../unicode/todo/unicode-rules.md), landed for its first
 consumer, [`fjs/git`](../../git/README.md).
 
-- `module.f.mjs` — `byte`, `not`, `bytes`, `symbols`, `meta`, `byteParser`,
+- `module.f.js` — `byte`, `not`, `bytes`, `symbols`, `meta`, `byteParser`,
   and, for a consumer that reads or writes bytes: `symbolsOf`, the bytes
   under a tree's leaves; `ascii`, ASCII text as bytes; `byteArray`, a list
   as a dense array of bytes with anything else refused, a hole included; and
@@ -38,12 +38,12 @@ one `Meta<Byte>` per byte with one shared metadata record, in the shape of
 
 ## What `byteParser` refuses, and what it cannot
 
-`byteParser(rule, set)` is `parser` from [`../ll1`](../ll1/README.md) behind
+`byteParser(rule, set, definitions)` is `parser` from [`../ll1`](../ll1/README.md) behind
 a check of the grammar against the alphabet, run before any input over the
 identity map `toData` returns — the map is keyed by every rule the lowering
 met, a string literal included, so the literal is checked as the text it is;
-the one rule it does not key, a `const` thunk's payload, the check reaches
-through the thunk:
+the payloads it does not key separately, behind a `const` thunk or a defined
+reference, are checked through the thunk or its supplied definition:
 
 - a **string** that is not ASCII;
 - a **symbol** that is not a byte — negative, fractional, `-0`, or `256`

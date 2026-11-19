@@ -33,6 +33,12 @@ pub(crate) fn unexpected_type<A: IVm>() -> Any<A> {
     type_error("unexpected type")
 }
 
+/// A reference map set under a key that is no reference: a primitive is
+/// never a key, so the set is refused where a read answers `undefined`.
+pub(crate) fn reference_map_key<A: IVm>() -> Any<A> {
+    type_error("a reference map key is an object or a function")
+}
+
 /// A compiled module that answered a value other than its export object,
 /// which no module `fjs compile` prints does ([`exports`](crate::vm::exports)).
 pub(crate) fn not_an_export_object<A: IVm>() -> Any<A> {

@@ -1,7 +1,7 @@
 # CAS
 
 Content-addressable storage: blobs on disk, addressed by content hash
-([fjs/cas/module.f.mjs](module.f.mjs)). The store is type-agnostic — it keeps
+([fjs/cas/module.f.js](module.f.js)). The store is type-agnostic — it keeps
 raw bytes only, sharded by cBase32 hash under `~/.cas/` — and never records a
 mutable pointer or a per-blob type tag; both are recovered at the edges that
 need them.
@@ -10,7 +10,7 @@ need them.
   media-type detection: `cas_add` / `cas_get` / `cas_list` plus
   [fjs/cas/evo](evo/)'s `evo_list` / `evo_head` / `evo_revision` / `evo_add`,
   all served from one process.
-- [`cas` CLI](cli/module.f.mjs) — direct filesystem access for content larger
+- [`cas` CLI](cli/module.f.js) — direct filesystem access for content larger
   than the MCP inline-content cap.
 - [fjs/cas/git](git/) — the same store in a Git branch: a commit's tree as
   the map, `add` as one commit on a local branch; `fjs cas git` from the

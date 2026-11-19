@@ -7,9 +7,9 @@
  * has to precede every use of it, and neither is a question the walk can
  * answer while it is still walking. Reading the caller's value into the
  * nodes below first is what turns both into questions about data: which
- * node is referred to more than once, and whether every reference points
- * backwards. Each is a function over this shape in
- * [`module.f.mjs`](./module.f.mjs), proved against it directly.
+ * node is referred to more than once, and where it belongs in the document.
+ * FunctionalScript's acyclic construction makes post-order traversal put
+ * every node before the nodes that refer to it.
  *
  * @module
  */
@@ -24,7 +24,7 @@ import type { Primitive } from '../types.ts'
  * a container node.
  *
  * `R` is how a reference is spelled, and it is spelled twice. While the
- * caller's value is being read a reference is the host object itself,
+ * caller's value is being read a reference is the container itself,
  * because that is the only name a container has before the read has
  * finished; once the graph is linked it is an index into `nodes`, because
  * that is a name the rules below can compare.
@@ -44,15 +44,14 @@ export type _Node<R, L = Primitive> =
 /** One member: the key as the object carries it, and the member's value. */
 export type _Member<R, L = Primitive> = readonly [string, _Value<R, L>]
 
-/** A container node as it was read, paired with the host object it was read from. */
+/** A container node as it was read, paired with the container it was read from. */
 export type _Read<L = Primitive> = readonly [object, _Node<object, L>]
 
 /**
  * The linked graph. `nodes` is in post-order — a node comes after every
  * node it refers to — so a reference is always an index smaller than the
  * index of the node holding it. That is what makes the document's
- * declare-before-use rule satisfiable by writing the consts in this order,
- * and a reference pointing the other way is what a cycle looks like here.
+ * declare-before-use rule satisfiable by writing the consts in this order.
  */
 export type _Graph<L = Primitive> = {
     readonly nodes: readonly _Node<number, L>[]

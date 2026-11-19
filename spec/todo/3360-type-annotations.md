@@ -94,12 +94,12 @@ More than half of this is built:
 | Schema constructors | `fjs/rtti/module.f.js` | `boolean`, `number`, `string`, `bigint`, `unknown`, `array`, `record`, `or`, `option`, `never`, plus `Const` (primitive / tuple / struct used directly as its own schema) |
 | Value checking | `fjs/rtti/parse/` | `parse(schema)(value)` |
 | Canonical data form | `fjs/rtti/data/` | `toData`, `cmp`, `equal`, **`subset`**, data-driven `validate` |
-| TypeScript emission | `fjs/rtti/ts/module.f.mjs` | runtime printer: `thunk RTTI → toData → dataToTs`, emitting canonical type aliases, recursion included |
+| TypeScript emission | `fjs/rtti/ts/module.f.js` | runtime printer: `thunk RTTI → toData → dataToTs`, emitting canonical type aliases, recursion included |
 | Compile-time bridge | `Ts<T>` in `fjs/rtti/ts/types.ts` | maps a schema to its TypeScript type, so `tsc` keeps working through the transition |
 
 Two of these matter more than they look. `data`'s **`subset`** is assignability
 as a decidable operation on the canonical form — the primitive a checker needs.
-And `ts/module.f.mjs` is already the `.d.ts` generator: schemas in, canonical
+And `ts/module.f.js` is already the `.d.ts` generator: schemas in, canonical
 TypeScript aliases out.
 
 ### Open questions

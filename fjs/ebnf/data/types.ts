@@ -12,6 +12,7 @@
 
 import type { AbstractRequiredMap, StringMap } from '../../types/object/types.ts'
 import type { RangeSet } from '../../types/range_set/types.ts'
+import type { PersistentMap } from '../../types/map/types.ts'
 import type { Rule as FRule } from '../types.ts'
 
 /**
@@ -58,7 +59,7 @@ export type RuleSet = AbstractRequiredMap<string, Rule>
  * transformer keyed by the rule an author wrote crosses to reach its data
  * rule.
  */
-export type RuleNameMap = ReadonlyMap<FRule, string>
+export type RuleNameMap = PersistentMap<FRule, string>
 
 /** What `toData` returns: the rule set, its entry, and the identity map. */
 export type GrammarData = readonly [
@@ -69,7 +70,7 @@ export type GrammarData = readonly [
 
 /**
  * One handler per rule kind, each receiving the rule's payload without its
- * tag. `matchRule` in `./module.f.mjs` is the one place the tag is read.
+ * tag. `matchRule` in `./module.f.js` is the one place the tag is read.
  */
 export type RuleVisitor<R> = {
     readonly set: (s: RangeSet) => R

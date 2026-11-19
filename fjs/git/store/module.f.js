@@ -1,0 +1,432 @@
+/**
+ * The object store: from an id to the object it names, checked. A caller
+ * that has an id — from a ref, from a `tree` or `parent` header, from a
+ * tree entry — asks here and gets the `Envelope`, or a refusal; nothing
+ * above this module spells a path under `objects/`, and nothing above it
+ * trusts a file name, since every object read is hashed with
+ * [`fjs/git/oid`](../oid/module.f.js)'s `of` and refused where the hash
+ * is not the id asked for.
+ *
+ * Both places an object lives are read, in every object directory the
+ * repository has: the loose file at {@link objectPath}, and the packs below
+ * `objects/pack/` through
+ * [`fjs/git/packstore`](../packstore/module.f.js), which is where
+ * `git clone` and `git gc` put nearly everything. The repository's own
+ * `objects/` is the first such directory and its `objects/info/alternates`
+ * names the rest, as [`fjs/git/alternates`](../alternates/module.f.js)
+ * decodes it — see {@link objectsDirs}, which walks them, and
+ * {@link readIn}, which reads over the list. The caller gives the common
+ * directory, `.git` for a main worktree; finding it from a worktree of any
+ * kind is [`fjs/git/repo`](../repo/module.f.js)'s `tryCommonDir`.
+ * Walking from a commit to the blob a path names is
+ * [`fjs/git/walk`](../walk/module.f.js), over this reader or any other.
+ *
+ * **The loose file is read first, and a pack answers for it where it cannot.**
+ * Git asks its packs before the loose path, so an object that is both packed
+ * and loose comes from the pack — measured on Git 2.43.0: with a file of
+ * garbage planted at a packed object's loose path, `git cat-file -p` printed
+ * the object and only `git fsck` complained about the file. The same answers
+ * come out of the other order, since an object is the same object wherever it
+ * is stored and the hash below checks whichever copy answered, and this order
+ * is the cheaper one: an index is hashed whole when it is opened, so asking
+ * the packs first would pay that on every read of a repository whose objects
+ * are loose. So anything but a good loose object — no file, no zlib stream,
+ * bytes that are no object, bytes that hash to another id — tries the packs,
+ * and what the loose read said stands only where no pack holds the id.
+ *
+ * **What this asks of its host.** A loose read needs `readWhole`, which opens the
+ * file once and answers the chunks it holds; a packed one adds `readdir` for the
+ * pack directory, `stat` and `readBytes` for the pack, and the index is read by
+ * `readWhole` too, since its size is the pack's object count and no `Vec` holds
+ * it — one operation and not a fold, so the chunks it answers are one file's.
+ * The pack is read at known offsets instead, which is what `stat` and
+ * `readBytes` are for: the length, then the header, the trailer and the windows
+ * of an entry. `readFile` is for the alternates, and
+ * `inflate` is not asked for at all: the objects are inflated by
+ * [`fjs/zlib/inflate`](../../zlib/inflate/module.f.js), which is pure. The
+ * host's `inflate` effect, which answered one `Vec` of 128 KiB at most for one of
+ * the same, refused every object over that length — about one in a hundred in
+ * this repository's own history; none is refused for its length now, though a delta
+ * chain is held to a ceiling (see [`fjs/git/pack`](../pack/module.f.js)).
+ *
+ * Each of these is a `NodeOp`, so a program on the node runner notices nothing.
+ * What has to grow is an interpreter written for exactly an older set, which a
+ * mock or a partial runner is: a loose object is now one `readWhole` where it was
+ * a `readFile` and an `inflate`.
+ *
+ * @module
+ *
+ * @import { IoChannel, ReadBytes, ReadFile, ReadWhole, Readdir, Stat } from '../../effects/node/types.ts'
+ * @import { Effect } from '../../effects/types.ts'
+ * @import { Nullable } from '../../types/nullable/types.ts'
+ * @import { Result } from '../../types/result/types.ts'
+ * @import { Envelope } from '../object/types.ts'
+ * @import { Held } from '../packstore/types.ts'
+ * @import { _Outcome } from './private.ts'
+ * @import { Bytes, ObjectType, Oid, OidBytes } from '../types.ts'
+ * @import { List } from '../../types/list/types.ts'
+ */
+
+import { catchStep, ioError, mapStep, pureError, pureOk, resultStep, step, walkStep } from '../../effects/module.f.js'
+import { namesNothing, readUtf8File } from '../../effects/node/module.f.js'
+import { join, under } from '../../path/module.f.js'
+import { error, ok } from '../../types/result/module.f.js'
+import { alternatesIn } from '../alternates/module.f.js'
+import { path as loosePath, tryRead as readLoose } from '../loose/module.f.js'
+import { hexText, of, ofWidth } from '../oid/module.f.js'
+import { tryRead as readPacked } from '../packstore/module.f.js'
+
+/**
+ * A repository's own object directory: `objects/` below it.
+ *
+ * Joined with {@link under} for the reason {@link objectPath} gives.
+ *
+ * @type {(dir: string) => string}
+ */
+export const objectsDir = dir => under(dir, 'objects')
+
+/**
+ * Where a loose object lives: `objects/`, a directory named by the first
+ * two hex digits of the id, a file named by the rest.
+ *
+ * Joined below `dir` with {@link under} rather than by writing the
+ * separator, because `dir` is the caller's and a directory that already
+ * ends in one must not get another: `/` and `//` are two roots, so a `dir`
+ * of `/` would otherwise name `objects/` under the UNC root instead of the
+ * POSIX one.
+ *
+ * @type {(dir: string) => (id: Oid) => string}
+ */
+export const objectPath = dir => id => loosePath(objectsDir(dir), id)
+
+/**
+ * Where an object directory records the stores it borrows from.
+ *
+ * @type {(od: string) => string}
+ */
+const alternatesPath = od => under(od, join('info', 'alternates'))
+
+/**
+ * The code an object is refused with when the bytes at its path hash to
+ * another id: corruption, or a file put where it does not belong, and
+ * either way not the object asked for. The channel's, beside the codes
+ * the host gives a file it cannot read, since a caller that asked for an
+ * object by id has one question and both are its answer.
+ */
+export const objectIdCode = /** @type {const} */ ('ERR_OBJECT_ID')
+
+/**
+ * The message beside {@link objectIdCode}: the path read, and the id its
+ * bytes have.
+ *
+ * @type {(path: string, actual: string) => string}
+ */
+export const objectIdMessage = (path, actual) => `${path} holds the object ${actual}`
+
+/**
+ * How many borrowings deep the search goes: six, which is where Git stops.
+ *
+ * Measured on Git 2.43.0 with chains of one to nine links, each repository
+ * borrowing from the next and only the last holding the blob: six links answer,
+ * and at seven `git cat-file -p` prints `error: <the sixth>: ignoring alternate
+ * object stores, nesting too deep` and exits 128. So a directory reached at this
+ * depth is searched and its *own* borrowings are not followed.
+ *
+ * **The stores above the limit still answer**, which is why this is a bound on
+ * the walk and not a refusal. Measured with an object written into the store one
+ * link away while the chain ran seven deep: Git printed the same error and then
+ * the object, at exit 0. The too-deep tail is dropped and everything above it is
+ * read.
+ *
+ * It is also what ends a cycle no string comparison can see. An entry of `sub`
+ * where `objects/sub` is a symlink to `objects` names a new path every hop —
+ * `objects/sub`, `objects/sub/sub` — so {@link borrowedBy}'s check never fires;
+ * measured on Git 2.43.0, Git ends that walk too rather than following it for
+ * ever.
+ */
+export const maxBorrowDepth = /** @type {const} */ (6)
+
+/**
+ * One object directory of the search, and the directories it borrows from, to be
+ * searched after it.
+ *
+ * **A directory already seen is skipped**, which ends the cycle a reader can
+ * see: measured on Git 2.43.0 with a borrower and a donor naming each other,
+ * `git cat-file -p` answers rather than looping, so Git does not follow one
+ * twice either. A cycle spelled differently at every hop is ended by
+ * {@link maxBorrowDepth} instead.
+ *
+ * **A borrowing that cannot be consulted contributes nothing.** A missing
+ * `alternates` file is the ordinary case, since almost no repository has one;
+ * but an entry naming a regular file gives `ENOTDIR` for the same read, and an
+ * unreadable directory gives `EACCES`, and Git treats all three alike. Measured
+ * on Git 2.43.0 with an entry naming a regular file: `git cat-file -p` prints
+ * `error: object directory <file> does not exist; check
+ * .git/objects/info/alternates` and then answers the object, at exit 0. An
+ * earlier revision failed the whole store on anything but `ENOENT`, which made a
+ * repository Git reads unreadable here.
+ *
+ * **Every failure is a skip**, with no exception. An earlier revision kept one —
+ * a file naming a path this layer cannot spell — and that refusal cost more
+ * than the case it caught: see {@link alternatesIn}.
+ *
+ * **This is the one place a reader is quieter than Git**, which prints `error:`
+ * and carries on. There is no channel here to print on, so an unusable borrowing
+ * is passed over in silence; giving a warning somewhere to go is
+ * [`todo/byte-paths.md`](../todo/byte-paths.md)'s neighbour rather than this
+ * module's to invent.
+ *
+ * @type {(at: readonly [string, number]) => (seen: readonly string[]) => Effect<ReadFile, readonly [readonly string[], List<readonly [string, number]>], IoChannel>}
+ */
+const borrowedBy = ([od, depth]) => seen => {
+    if (seen.includes(od)) { return pureOk(/** @type {const} */ ([seen, null])) }
+    const kept = /** @type {readonly string[]} */ ([...seen, od])
+    if (depth === maxBorrowDepth) { return pureOk(/** @type {const} */ ([kept, null])) }
+    const text = catchStep(readUtf8File(alternatesPath(od)), () => pureOk(''))
+    return mapStep(text, t => /** @type {const} */ ([
+        kept,
+        alternatesIn(od, t).map(n => /** @type {const} */ ([n, depth + 1])),
+    ]))
+}
+
+/**
+ * The object directories a repository's reads search, in order: its own
+ * `objects/` first, then each directory its `objects/info/alternates` names,
+ * then each of *those* directories' own, and so on to {@link maxBorrowDepth},
+ * with a directory already reached skipped.
+ *
+ * **An alternate is a whole object store and not a loose-object directory.**
+ * Measured on Git 2.43.0: a borrower reads the donor's objects after the donor
+ * was `git repack -adq`'d into a single pack, so the packs of a borrowed store
+ * answer as its loose files do. That is why this answers directories and the
+ * read below asks each of them both questions.
+ *
+ * The borrowings of one directory are searched before the next directory's, so
+ * the order is the file's with each store's own inserted after it. The order
+ * cannot change which object comes back, since an id names its content and the
+ * read checks the hash; it decides only which file is opened first.
+ *
+ * @type {(dir: string) => Effect<ReadFile, readonly string[], IoChannel>}
+ */
+export const objectsDirs = dir => walkStep(
+    pureOk([/** @type {readonly [string, number]} */ ([objectsDir(dir), 0])]),
+    /** @type {readonly string[]} */ ([]),
+    borrowedBy)
+
+/**
+ * What a loose read answers, checked against the id it was asked for: the
+ * object where its bytes hash to that id, `null` where they are no object,
+ * and {@link objectIdCode} where they hash to another id, with the path
+ * read and the id they have. An error from the read is passed on as it is.
+ *
+ * The id, the path and the hash come first so that the step itself closes
+ * over nothing.
+ *
+ * @type {(idOf: (type: ObjectType, payload: Bytes) => Oid, p: string, id: Oid) => (r: Result<Nullable<Envelope>, IoChannel>) => Result<Nullable<Envelope>, IoChannel>}
+ */
+const checkedAt = (idOf, p, id) => r => {
+    const [tag, e] = r
+    if (tag === 'error') { return r }
+    if (e === null) { return ok(null) }
+    const { type, payload } = e
+    const actual = idOf(type, payload)
+    return actual === id ? ok(e) : error(ioError({ code: objectIdCode, message: objectIdMessage(p, hexText(actual)) }))
+}
+
+/**
+ * What a packed read answers, checked the same way: the pack that held the
+ * object names the path, so a refusal names the file the bytes came from and not
+ * the directory it was found under.
+ *
+ * Where no pack of this directory holds the id, the loose read's own outcome
+ * stands — this directory has nothing, and the next one is asked next.
+ *
+ * `loose` is a `Result` and not an error, because the three things a loose read
+ * can say short of the object are three different answers and each is still the
+ * answer once this directory's packs have nothing: no file is its error, bytes
+ * that are no object is `null`, and bytes of another object is
+ * {@link objectIdCode}.
+ *
+ * @type {(idOf: (type: ObjectType, payload: Bytes) => Oid, id: Oid, loose: Result<Nullable<Envelope>, IoChannel>) => (r: Result<Nullable<Held>, IoChannel>) => Result<Nullable<Envelope>, IoChannel>}
+ */
+const packedOr = (idOf, id, loose) => r => {
+    const [tag, h] = r
+    if (tag === 'error') { return r }
+    if (h === null) { return loose }
+    return checkedAt(idOf, h.path, id)(ok(h.envelope))
+}
+
+/**
+ * Which of two outcomes stands: the object, then a refusal, then the first
+ * directory's answer.
+ *
+ * **A refusal outlives a miss, whichever directory it came from.** A borrowed
+ * store whose pack cannot answer for an id it holds is corruption, and reporting
+ * the repository's own `ENOENT` instead would answer "no such object" for a
+ * question that was never answered — the plausible wrong value `fjs/AGENTS.md`
+ * forbids. Git says both, in its own way: it prints the borrowed store's failure
+ * and then reports the miss. With one channel, the failure is the one worth
+ * carrying.
+ *
+ * **Among misses the first directory's answer stands**, because the three things
+ * a read can say short of the object — no file, bytes that are no object, bytes
+ * of another object — are about the store that was asked and not about the last
+ * store it borrows from. Among refusals the first stands for the same reason.
+ *
+ * @type {(found: Nullable<_Outcome>, o: _Outcome) => _Outcome}
+ */
+const kept = (found, o) => {
+    if (found === null) { return o }
+    const [answer, refusal] = o
+    if (answer[0] === 'ok' && answer[1] !== null) { return o }
+    return refusal && !found[1] ? o : found
+}
+
+/**
+ * One directory of the search: its answer where it has the object, and otherwise
+ * the first directory's answer kept for the end.
+ *
+ * **The answer that stands when nothing holds the object is the repository's
+ * own.** The three things a read can say short of the object are three different
+ * answers — no file is its error, bytes that are no object is `null`, bytes of
+ * another object is {@link objectIdCode} — and the one worth reporting is about
+ * the store that was asked, not about the last store it borrows from. With no
+ * alternates there is one directory and this is what the reader did before.
+ *
+ * @type {(idOf: (type: ObjectType, payload: Bytes) => Oid, oidBytes: OidBytes, id: Oid) => (od: string) => (found: Nullable<_Outcome>) => Effect<Readdir | ReadFile | Stat | ReadWhole | ReadBytes, readonly [Nullable<_Outcome>, List<string>], IoChannel>}
+ */
+const storeOf = (idOf, oidBytes, id) => {
+    /**
+     * What one object directory answers for the id: its loose file, or its
+     * packs where that is anything but the object.
+     *
+     * A `Result` and not an error, because none of the three things short of
+     * the object ends the search — the next directory may hold it — and each is
+     * still an answer once every directory has been asked.
+     *
+     * @type {(od: string) => Effect<Readdir | ReadFile | Stat | ReadWhole | ReadBytes, _Outcome, IoChannel>}
+     */
+    const inOne = od => {
+        const p = loosePath(od, id)
+        // `resultStep` and not `resultMapStep`: the answer is wanted as a
+        // *value* and not lifted back into the channel, because none of the
+        // three things short of the object ends the search here.
+        const loose = resultStep(readLoose(p), r => pureOk(checkedAt(idOf, p, id)(r)))
+        return step(loose, r => {
+            if (r[0] === 'ok' && r[1] !== null) { return pureOk(/** @type {_Outcome} */ ([r, false])) }
+            // On the loose side, a failure meaning *nothing is at this path* is
+            // not a refusal: it is what a store without the object looks like.
+            // That is `ENOENT`, and also the `ENOTDIR` of a path whose
+            // component is a regular file and the `ELOOP` of one whose links
+            // cycle — an alternates entry naming either is a borrowing Git
+            // warns about and reads past. Everything else that read can say is
+            // a refusal — a hash mismatch, because the file is there and holds
+            // something else; a stream that is no zlib stream, because the file
+            // is there and is broken; an `EACCES`, because the file may be there
+            // and the host will not say. An earlier revision named only the
+            // hash mismatch, so a borrowed store's corrupt loose object hid
+            // behind the repository's own `ENOENT`; a later one named only
+            // `ENOENT`, so an unusable *directory* refused the store.
+            const looseRefused = r[0] === 'error' && !namesNothing(r[1])
+            return resultStep(readPacked(od, oidBytes)(id), h => {
+                const answered = packedOr(idOf, id, r)(h)
+                return pureOk(/** @type {_Outcome} */ ([
+                    answered,
+                    // On the packed side there is no such failure to spare: an
+                    // index that names the id has said the store holds it, so
+                    // *every* way the read can fail afterwards is a refusal — an
+                    // `ENOENT` for the `.pack` beside a readable `.idx` among
+                    // them. Which side answered is the question, not which errno
+                    // came back; asking the code alone turns that missing pack
+                    // into a miss.
+                    answered === r ? looseRefused : answered[0] === 'error',
+                ]))
+            })
+        })
+    }
+    return od => found => {
+        if (found !== null && found[0][0] === 'ok' && found[0][1] !== null) {
+            return pureOk(/** @type {const} */ ([found, null]))
+        }
+        return mapStep(
+            inOne(od),
+            o => /** @type {const} */ ([kept(found, o), null]))
+    }
+}
+
+/**
+ * Reads the object an id names from the object directories `ods`, at the
+ * repository's width, and checks it: the loose file or the packs of each,
+ * whichever answers, hashed and given back only where the hash is the id, and
+ * the same two questions again in each directory the repository borrows from.
+ * `null` where nothing holds it as an object — the loose file's bytes are no
+ * object and no pack has the id; a file that cannot be read, a stream that is
+ * no zlib stream, a pack that cannot answer for an id it holds, and bytes that
+ * hash to another id are the channel's, the last as {@link objectIdCode}
+ * naming the file the bytes came from.
+ *
+ * Which file is read first, and what makes the other one answer, is the module
+ * doc's; which directories are searched and in what order is
+ * {@link objectsDirs}'s; that a pack's own failures are not a miss is
+ * [`fjs/git/packstore`](../packstore/module.f.js)'s.
+ *
+ * **A store this reader falls through, Git stops at.** Measured on Git 2.43.0
+ * with a file of garbage planted at the borrower's own loose path and a good
+ * copy in the alternate: `git cat-file -p` answers `fatal: Not a valid object
+ * name` and exits 128, where this reader goes on to the alternate and answers
+ * the object. The same rule the loose-then-packs order already had, applied to
+ * directories as well — and it is safe here for the reason it is safe there: the
+ * bytes that come back are hashed, so what falls through is never a wrong
+ * object, only a different copy of the right one. Git is stricter on purpose, so
+ * that corruption is noticed rather than worked around; a reader is the wrong
+ * place to notice it, and `git fsck` is where that belongs.
+ *
+ * The width is bound first, so the hash is chosen once for a store and
+ * not once per object.
+ *
+ * @throws As [`fjs/git/oid`](../oid/module.f.js)'s `ofWidth` does, on an
+ * id that is not `oidBytes` wide.
+ *
+ * @type {(ods: readonly string[], oidBytes: OidBytes) => (id: Oid) => Effect<Readdir | ReadFile | Stat | ReadWhole | ReadBytes, Nullable<Envelope>, IoChannel>}
+ */
+export const readIn = (ods, oidBytes) => {
+    const idOf = of(oidBytes)
+    return ofWidth(oidBytes)(id => {
+        const walked = walkStep(
+            pureOk(ods),
+            /** @type {Nullable<_Outcome>} */ (null),
+            storeOf(idOf, oidBytes, id))
+        return step(walked, found => {
+            const r = found === null
+                ? /** @type {Result<Nullable<Envelope>, IoChannel>} */ (ok(null))
+                : found[0]
+            return r[0] === 'error' ? pureError(r[1]) : pureOk(r[1])
+        })
+    })
+}
+
+/**
+ * The same, for a repository: its object directories resolved and then read.
+ *
+ * **This asks for the borrowings once per object.** {@link objectsDirs} is an
+ * effect, so a reader built here reads `objects/info/alternates` again for every
+ * id it is given — one extra read per object, and a walk from a commit to a blob
+ * is many objects. A caller reading more than one object should resolve the
+ * directories once and hold {@link readIn} instead, which is why that is the
+ * exported pair rather than an implementation detail. Holding the answer *here*
+ * would mean a reader that never notices a repository gaining an alternate,
+ * which is a cache with no way to spell its own invalidation, so the choice is
+ * the caller's to make.
+ *
+ * @throws As [`fjs/git/oid`](../oid/module.f.js)'s `ofWidth` does, on an
+ * id that is not `oidBytes` wide.
+ *
+ * @type {(dir: string, oidBytes: OidBytes) => (id: Oid) => Effect<Readdir | ReadFile | Stat | ReadWhole | ReadBytes, Nullable<Envelope>, IoChannel>}
+ */
+export const tryRead = (dir, oidBytes) => {
+    const dirs = objectsDirs(dir)
+    // Asked here as well as in `readIn`, because the effect below is not run
+    // until it is stepped: a caller that hands over an id of the wrong width
+    // has a bug now, not one command later.
+    return ofWidth(oidBytes)(id => step(dirs, ods => readIn(ods, oidBytes)(id)))
+}

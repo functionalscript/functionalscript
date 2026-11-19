@@ -5,10 +5,10 @@
 
 ### Problem
 
-[`module.f.mjs`](../module.f.mjs) exports only `tryRead`. The writer of a
+[`module.f.js`](../module.f.js) exports only `tryRead`. The writer of a
 loose object — envelope, zlib-stored stream, `tmp_obj_*` below `objects/`,
 rename into `objects/ab/<rest>` — is `writeObject` in
-[`fjs/cas/git`](../../../cas/git/module.f.mjs). Nothing in it is CAS-specific:
+[`fjs/cas/git`](../../../cas/git/module.f.js). Nothing in it is CAS-specific:
 it imports `readLoose` from here, `objectPath` and `objectsDir` from
 `git/store`, `of` from `git/oid`, `writeEnvelope` from `git/object` and
 `stored` from `zlib/stored`. Its one CAS dependency is `random256`, whose doc
@@ -20,7 +20,7 @@ does not list object writing as an intended gap.
 
 The publish step inside it — write exclusively to a staged name, rename into
 place, remove the staged file where the rename fails — is what
-[`fjs/git/refstore/write`](../../refstore/write/module.f.mjs) keeps private as
+[`fjs/git/refstore/write`](../../refstore/write/module.f.js) keeps private as
 `unlocked` and uses twice, in `tryWrite` and `packedRewritten`. `writeObject`
 is its third spelling, longhand.
 
@@ -33,7 +33,7 @@ is its third spelling, longhand.
 - One exported publish helper — `published(staged, path, chunks)`: write
   exclusively, then rename, with the staged file removed on failure — used by
   `tryWrite`, `packedRewritten` and the loose writer. Its error policy is
-  `fjs/effects`' [`compensateStep`](../../../effects/module.f.mjs), which all
+  `fjs/effects`' [`compensateStep`](../../../effects/module.f.js), which all
   three already use.
 
 `branchCas` then calls the loose writer; `WriteOperation` in `cas/git`'s

@@ -44,7 +44,7 @@
           "continue-on-error": true
         },
         {
-          "run": "test \"$(mise exec -- rustc --version | cut -d' ' -f1,2)\" = \"rustc 1.99.1\"",
+          "run": "test \"$(mise exec -- rustc --version | cut -d' ' -f1,2)\" = \"rustc 1.100.0\"",
           "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
@@ -54,7 +54,7 @@
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "test \"$(mise exec -- node --version)\" = \"v26.13.0\"",
+          "run": "test \"$(mise exec -- node --version)\" = \"v26.13.1\"",
           "shell": "bash"
         },
         {
@@ -160,17 +160,17 @@
           "continue-on-error": true
         },
         {
-          "run": "test \"$(mise exec -- rustc --version | cut -d' ' -f1,2)\" = \"rustc 1.99.1\"",
+          "run": "test \"$(mise exec -- rustc --version | cut -d' ' -f1,2)\" = \"rustc 1.100.0\"",
           "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "test \"$(mise exec -- node --version)\" = \"v26.13.0\"",
+          "run": "test \"$(mise exec -- node --version)\" = \"v26.13.1\"",
           "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true'"
         },
         {
-          "run": "test \"$(mise exec -- wasmtime --version | cut -d' ' -f1,2)\" = \"wasmtime 50.0.1\"",
+          "run": "test \"$(mise exec -- wasmtime --version | cut -d' ' -f1,2)\" = \"wasmtime 50.0.2\"",
           "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
@@ -393,12 +393,12 @@
           "continue-on-error": true
         },
         {
-          "run": "test \"$(mise exec -- rustc --version | cut -d' ' -f1,2)\" = \"rustc 1.99.1\"",
+          "run": "test \"$(mise exec -- rustc --version | cut -d' ' -f1,2)\" = \"rustc 1.100.0\"",
           "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "test \"$(mise exec -- node --version)\" = \"v26.13.0\"",
+          "run": "test \"$(mise exec -- node --version)\" = \"v26.13.1\"",
           "shell": "bash"
         },
         {
@@ -484,12 +484,12 @@
           "continue-on-error": true
         },
         {
-          "run": "test \"$(mise exec -- rustc --version | cut -d' ' -f1,2)\" = \"rustc 1.99.1\"",
+          "run": "test \"$(mise exec -- rustc --version | cut -d' ' -f1,2)\" = \"rustc 1.100.0\"",
           "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "test \"$(mise exec -- node --version)\" = \"v26.13.0\"",
+          "run": "test \"$(mise exec -- node --version)\" = \"v26.13.1\"",
           "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true'"
         },
@@ -592,12 +592,12 @@
           "continue-on-error": true
         },
         {
-          "run": "test \"$(mise exec -- node --version)\" = \"v26.13.0\"",
+          "run": "test \"$(mise exec -- node --version)\" = \"v26.13.1\"",
           "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "test \"$(mise exec -- rustc --version | cut -d' ' -f1,2)\" = \"rustc 1.99.1\"",
+          "run": "test \"$(mise exec -- rustc --version | cut -d' ' -f1,2)\" = \"rustc 1.100.0\"",
           "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
@@ -700,12 +700,12 @@
           "continue-on-error": true
         },
         {
-          "run": "test \"$(mise exec -- node --version)\" = \"v26.13.0\"",
+          "run": "test \"$(mise exec -- node --version)\" = \"v26.13.1\"",
           "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true'"
         },
         {
-          "run": "test \"$(mise exec -- rustc --version | cut -d' ' -f1,2)\" = \"rustc 1.99.1\"",
+          "run": "test \"$(mise exec -- rustc --version | cut -d' ' -f1,2)\" = \"rustc 1.100.0\"",
           "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
@@ -1042,7 +1042,7 @@
           "continue-on-error": true
         },
         {
-          "run": "test \"$(mise exec -- node --version)\" = \"v26.13.0\"",
+          "run": "test \"$(mise exec -- node --version)\" = \"v26.13.1\"",
           "shell": "bash"
         },
         {
@@ -1163,7 +1163,7 @@
           }
         },
         {
-          "run": "test \"$(mise exec -- node --version)\" = \"v26.13.0\"",
+          "run": "test \"$(mise exec -- node --version)\" = \"v26.13.1\"",
           "shell": "bash"
         },
         {
@@ -1196,7 +1196,7 @@
           "uses": "actions/setup-node@v7.1.0",
           "with": {
             "package-manager-cache": "false",
-            "node-version": "26.13.0"
+            "node-version": "26.13.1"
           }
         },
         {

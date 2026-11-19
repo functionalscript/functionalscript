@@ -103,7 +103,7 @@ Admitted-source fixed points and established scalar source spelling retain
 their existing contracts.
 
 The source consumer is the admitted-source adapter in
-[`js/ast/sugar`](../../js/ast/sugar/module.f.mjs). Source admission finishes
+[`js/ast/sugar`](../../js/ast/sugar/module.f.js). Source admission finishes
 before graph construction. Physical prepared FAST is never an input to this API.
 
 ## Helper construction
@@ -129,7 +129,7 @@ own following work and transitions.
 Already-established free values cross the helper boundary as ordinary captures.
 Caller-owned lazy values use the normal-exit memo transport described below.
 
-[`loop`](./loop/module.f.mjs) builds these helpers as normalized single-input
+[`loop`](./loop/module.f.js) builds these helpers as normalized single-input
 invocation loops, then the existing root resolver and ordinary function
 constructor produce their graphs. A helper's graph uses one array argument,
 direct self calls with the next state array, and direct result arrays, without
@@ -145,7 +145,7 @@ sharing normalization and repeated conversions stabilize.
 
 ## Shared lazy demand state
 
-[`loop/memo`](./loop/memo/module.f.mjs) preserves lazy identity
+[`loop/memo`](./loop/memo/module.f.js) preserves lazy identity
 across normal-exit helpers. Its lexical inventory selects deferred recipes used
 free by loops throughout the owner's eager statement and value regions; direct
 lazy reference aliases share the original cell. Selection also inspects deferred
@@ -266,7 +266,7 @@ inside a lazy value operand.
 
 ## Owning returns in value regions
 
-At source-function entry, the shared FAST [`returns`](../../js/ast/returns/module.f.mjs) pass lifts owning
+At source-function entry, the shared FAST [`returns`](../../js/ast/returns/module.f.js) pass lifts owning
 returns in direct plain value blocks and conditionals used as required
 initializers or return payloads. Within an exposed region, a single yielded
 value can expose another such region. Statement blocks and conditionals bind
@@ -379,7 +379,7 @@ root matching at each owning block boundary.
 
 ## Enclosing-function returns
 
-[`loop/completions`](./loop/completions/module.f.mjs) carries statement-level
+[`loop/completions`](./loop/completions/module.f.js) carries statement-level
 returns and outer-loop transfers through helpers. A terminal loop has no normal
 completion: return-only helpers carry the owning function's result directly,
 and several outward exit kinds dispatch exhaustively over their actual cases.
@@ -457,7 +457,7 @@ following result processing retains a separate helper.
 
 The general root domain uses the complete invocation signature:
 zero through sixteen fixed parameters, optional rest, and one opaque public
-result. [`loop/root`](./loop/root/module.f.mjs) checks that each loop entry
+result. [`loop/root`](./loop/root/module.f.js) checks that each loop entry
 aliases the corresponding current argument and the function directly returns
 that loop's one result. The shared invocation-alias inventory also admits
 prefix references to already established captures and self values. Those

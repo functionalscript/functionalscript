@@ -101,7 +101,7 @@ not, and both outcomes occur:
 requires, and a citation to one is left just as bare. The worked example was
 `nullable-analysis-shared`, cited bare from the `rule-visitor` issue after it
 had shipped as `emptyTagMap` — now in
-[`fjs/ebnf/data`](../fjs/ebnf/data/module.f.mjs) — and its file had been
+[`fjs/ebnf/data`](../fjs/ebnf/data/module.f.js) — and its file had been
 deleted in the same change. `rule-visitor` has since been retired too, shipped
 as `matchRule` in the same module, so neither is left to repair. The same
 search finds such citations, against the todo path rather than `issues/`:
@@ -140,7 +140,7 @@ correctly-resolved citation as outstanding. A resolution takes one of two forms:
 ```md
 - [i167](../fjs/types/bit_vec/module.f.js) — the identifier as a link label,
   where a document survives to link to.
-- i143 (retired; shipped as [`fjs/rtti/data/`](../fjs/rtti/data/module.f.mjs))
+- i143 (retired; shipped as [`fjs/rtti/data/`](../fjs/rtti/data/module.f.js))
   — the identifier with `retired` beside it and the target named, for code.
 - the retired `i171` … resolved **won't fix**, reason in `parseTestSet`'s JSDoc.
 ```

@@ -28,7 +28,7 @@ JavaScript text
 
 The first and fourth stages are here, and `compiler/edag` runs the last two.
 The token stream is shared: the compiler folds it once more into its own
-tokens, and [`marked`](./marked/module.f.mjs) reads it as it is to find the runs
+tokens, and [`marked`](./marked/module.f.js) reads it as it is to find the runs
 the website colours source text by.
 
 ## The modules
@@ -36,7 +36,7 @@ the website colours source text by.
 |Module                                      |Holds                                                                       |Used by                                      |
 |--------------------------------------------|----------------------------------------------------------------------------|---------------------------------------------|
 |[`tokenizer`](./tokenizer/README.md)        |`tokenize`: text to a stream of `JsToken`s, or the first lexical error      |compiler, website demos                      |
-|[`marked`](./marked/module.f.mjs)           |`spansOf`: the runs of JavaScript or TypeScript text, and `disagreement`    |website, compiler and media/json proofs      |
+|[`marked`](./marked/module.f.js)           |`spansOf`: the runs of JavaScript or TypeScript text, and `disagreement`    |website, compiler and media/json proofs      |
 |[`keywords`](./keywords/README.md)          |the reserved words, literal words and reserved globals, and `isKeyword`     |compiler, ebnf, rtti, website                |
 |[`identifier`](./identifier/README.md)      |`isIdentifier` and its start and part classes                               |compiler, rtti, emergent_testing, text/marked|
 |[`string_escape`](./string_escape/README.md)|the escape sequences, and `stringLiteral`, the one writer of a quoted string|compiler, media/json, types/ts, ci           |
@@ -50,7 +50,7 @@ the website colours source text by.
 
 ## Related
 
-- [`fjs/ebnf/lib/js`](../ebnf/lib/js/module.f.mjs) is the token grammar the
+- [`fjs/ebnf/lib/js`](../ebnf/lib/js/module.f.js) is the token grammar the
   tokenizer reads with.
 - [`doc/DESIGN.md` §13](../../doc/DESIGN.md#13-one-source-of-truth-optimize-by-substitution)
   is the principle behind "each written once".

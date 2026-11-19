@@ -17,7 +17,7 @@ export const f = (...a) => { const g = (...b) => x; const x = 2; return g; };
 JavaScript resolves every reference in the body to the body's own `const`,
 the ones written before it included: the first body throws when it reads
 `x` before its declaration, and `g` in the second reads the body's `x`,
-`2`, once called. The resolver in [`../module.f.mjs`](../module.f.mjs)
+`2`, once called. The resolver in [`../module.f.js`](../module.f.js)
 resolves a reference where it is written, against the names bound so far,
 so it would read the module's `x` — a plausible wrong value — and the
 program is refused instead

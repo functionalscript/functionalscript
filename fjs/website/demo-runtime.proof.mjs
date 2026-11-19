@@ -15,7 +15,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.js'
 import { startDemo } from './demo-runtime.mjs'
-import { dragAxis } from './demo/module.f.mjs'
+import { dragAxis } from './demo/module.f.js'
 import { toDom } from '../media/html/module.mjs'
 
 /**
@@ -599,7 +599,7 @@ export const proof = {
     // An action that changes a shared field keeps the address bar on it, so
     // the address bar stays the link to share, and adds no history entry.
     actionChangesSharedFieldReplacesHistory: async () => {
-        const d = dom(new URL('../crypto/pow/demo.f.mjs', import.meta.url).href)
+        const d = dom(new URL('../crypto/pow/demo.f.js', import.meta.url).href)
         const links = shared(d, '#demo')
         await startDemo(d.root)
         await settle()

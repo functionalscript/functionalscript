@@ -1,5 +1,5 @@
 /**
- * Type-level API for `fjs/website/demo/graph/module.f.mjs`: a node-and-edge
+ * Type-level API for `fjs/website/demo/graph/module.f.js`: a node-and-edge
  * diagram any demo can hand a value to, once it can say what {@link Shape}
  * each of its values has.
  *
@@ -53,7 +53,7 @@ export type Node = {
  */
 export type Group = readonly [label: string, rows: number]
 
-/** A {@link Node} once `ranked` (`./module.f.mjs`) has placed it. */
+/** A {@link Node} once `ranked` (`./module.f.js`) has placed it. */
 export type Ranked = Node & { readonly rank: number }
 
 /**
@@ -163,7 +163,7 @@ export type Entry = {
 }
 
 /**
- * A graph `graphSvg` (`./module.f.mjs`) can draw: every node ranked, every
+ * A graph `graphSvg` (`./module.f.js`) can draw: every node ranked, every
  * edge named, and the {@link Entry} arrows into it, if it has any.
  */
 export type Graph = {
@@ -192,7 +192,7 @@ export type Graph = {
 }
 
 /**
- * How `graphOf` (`./module.f.mjs`) reads one value: a node, with the
+ * How `graphOf` (`./module.f.js`) reads one value: a node, with the
  * values its edges lead to, a spelling drawn inline in its parent's port,
  * or a {@link Back} reference to a node the walk is inside.
  *

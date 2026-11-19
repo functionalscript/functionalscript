@@ -1,0 +1,476 @@
+/**
+ * ASN.1 BER/DER encoding and decoding over bit vectors. Includes tag/class
+ * helpers, length-prefixed payloads, and OID conversion via Base-128.
+ *
+ * @module
+ *
+ * @import { Vec } from '../types/bit_vec/types.ts'
+ * @import { ObjectIdentifier, Raw, Record, Sequence, SupportedRecord, _Tag } from './types.ts'
+ * @import { _ClassPc, _Codecs, _ParsedTag, _Records } from './private.ts'
+ * @import { Thunk } from '../types/list/types.ts'
+ * @import { StringMap } from '../types/object/types.ts'
+ */
+
+import { bitLength } from '../types/bigint/module.f.js'
+import {
+    bitsIn,
+    byteLength,
+    empty,
+    isVec,
+    length,
+    msb,
+    uint,
+    unpack,
+    vec,
+    vec8,
+    wholeBytes,
+} from '../types/bit_vec/module.f.js'
+import { assert } from '../asserts/module.f.js'
+import { identity } from '../types/function/module.f.js'
+import { toArray } from '../types/list/alt/module.f.js'
+import { entry } from '../types/object/entry/module.f.js'
+import { max } from '../types/function/compare/module.f.js'
+import { encode as b128encode, decode as b128decode } from '../basen/base128/module.f.js'
+
+//
+
+const { popFront: pop, listToVec } = msb
+
+const pop8 = pop(8n)
+
+// tag
+
+const classPcMask = 0b111_00000n
+
+const tagNumberMask = 0b000_11111n
+
+/** @type {([classPc, number]: _ParsedTag) => Vec} */
+const parsedTagEncode = ([classPc, number]) => {
+    const [firstByteNumber, rest] = number < tagNumberMask
+        ? [number, empty]
+        : [tagNumberMask, b128encode(number)]
+    return listToVec([vec8(classPc | firstByteNumber), rest])
+}
+
+/** @type {(v: Vec) => readonly[_ParsedTag, Vec]} */
+const parsedTagDecode = v => {
+    const [firstByte, rest] = pop8(v)
+    const classPc = firstByte & classPcMask
+    // `classPcMask` is the top three bits, so the result is one of eight values;
+    // the assert is what narrows `bigint` to `_ClassPc`.
+    assert(classPc === 0b000_00000n || classPc === 0b001_00000n
+        || classPc === 0b010_00000n || classPc === 0b011_00000n
+        || classPc === 0b100_00000n || classPc === 0b101_00000n
+        || classPc === 0b110_00000n || classPc === 0b111_00000n, classPc)
+    const firstByteNumber = firstByte & tagNumberMask
+    const [number, rest1] = firstByteNumber < tagNumberMask
+        ? [firstByteNumber, rest]
+        : b128decode(rest)
+    return [[classPc, number], rest1]
+}
+
+/** @type {(tag: _Tag) => Vec} */
+const tagEncode = tag =>
+    wholeBytes(max(bitLength(tag))(1n))(tag)
+
+/** @type {(v: Vec) => readonly[_Tag, Vec]} */
+const tagDecode = v => {
+    const [parsedTag, rest] = parsedTagDecode(v)
+    return [uint(parsedTagEncode(parsedTag)), rest]
+}
+
+//
+
+const eoc = 0x00n
+/** ASN.1 universal BOOLEAN tag. */
+export const boolean = 0x01n
+/** ASN.1 universal INTEGER tag. */
+export const integer = 0x02n
+const bitString = 0x03n
+/** ASN.1 universal OCTET STRING tag. */
+export const octetString = 0x04n
+const null_ = 0x05
+/** ASN.1 universal OBJECT IDENTIFIER tag. */
+export const objectIdentifier = 0x06n
+const objectDescriptor = 0x07
+const external = 0x08
+const real = 0x09
+const enumerated = 0x0A
+const embeddedPdv = 0x0B
+const utf8string = 0x0C
+const relativeOid = 0x0D
+const time = 0x0E
+const sequence = 0x10
+const set = 0x11
+const numericString = 0x12
+const printableString = 0x13
+const t61String = 0x14
+const videotexString = 0x15
+const ia5String = 0x16
+const utcTime = 0x17
+const generalizedTime = 0x18
+const graphicString = 0x19
+const visibleString = 0x1A
+const generalString = 0x1B
+const universalString = 0x1C
+const characterString = 0x1D
+const bmpString = 0x1E
+const date = 0x1F
+const timeOfDay = 0x20
+const dateTime = 0x21
+const duration = 0x22
+const oidIri = 0x23
+const relativeOidIri = 0x24
+
+const constructed = 0x20
+
+export const constructedSequence = 0x30n // constructed | sequence
+export const constructedSet = 0x31n      // constructed | set
+
+//
+
+/** @type {(uint: bigint) => Vec} */
+const lenEncode = uint => {
+    if (uint < 0x80n) {
+        return vec8(uint)
+    }
+    const v = wholeBytes(bitLength(uint))(uint)
+    return listToVec([vec8(0x80n | byteLength(v)), v])
+}
+
+/**
+ * Decodes the length field of an ASN.1 TLV and returns the length in bits and the remaining input.
+ *
+ * @param {Vec} v - The input bit vector starting with the length field.
+ * @returns {readonly[bigint, Vec]} A tuple containing the length in bits and the remaining input after the length field.
+ */
+const lenDecode = v => {
+    const firstAndRest = pop8(v)
+    const [first, rest1] = firstAndRest
+    const [byteLen, rest2] = first < 0x80n ? firstAndRest : pop(bitsIn(first & 0x7Fn))(rest1)
+    return [bitsIn(byteLen), rest2]
+}
+
+// raw
+
+/**
+ * Encodes a raw ASN.1 TLV tuple into a bit vector.
+ *
+ * @type {(_: Raw) => Vec}
+ */
+export const encodeRaw = ([tag, value]) => {
+    const v = wholeBytes(length(value))(uint(value))
+    return listToVec([tagEncode(tag), lenEncode(byteLength(v)), v])
+}
+
+/**
+ * Decodes a raw ASN.1 TLV tuple and returns the remaining input.
+ *
+ * @type {(v: Vec) => readonly[Raw, Vec]}
+ */
+export const decodeRaw = v => {
+    const [tag, v1] = tagDecode(v)
+    const [len, v2] = lenDecode(v1)
+    const [result, next] = pop(len)(v2)
+    return [[tag, vec(len)(result)], next]
+}
+
+// boolean
+
+/**
+ * Encodes a JavaScript boolean as an ASN.1 BOOLEAN value.
+ *
+ * @type {(b: boolean) => Vec}
+ */
+export const encodeBoolean = b => vec8(b ? 0xFFn : 0x00n)
+
+/**
+ * Decodes an ASN.1 BOOLEAN value.
+ *
+ * @type {(v: Vec) => boolean}
+ */
+export const decodeBoolean = v => uint(v) !== 0n
+
+// integer (two's compliment)
+
+/**
+ * Encodes a signed bigint using ASN.1 INTEGER two's complement representation.
+ *
+ * @type {(uint: bigint) => Vec}
+ */
+export const encodeInteger = uint => {
+    const offset = uint < 0n ? 1n : 0n
+    return wholeBytes(bitLength(uint + offset) + 1n)(uint)
+}
+
+/**
+ * Decodes an ASN.1 INTEGER encoded in two's complement.
+ *
+ * @type {(v: Vec) => bigint}
+ */
+export const decodeInteger = v => {
+    const { length, uint } = unpack(v)
+    const sign = uint >> (length - 1n)
+    return sign === 0n ? uint : uint - (1n << length)
+}
+
+// octet string
+
+/**
+ * Encodes an OCTET STRING value.
+ *
+ * @type {(v: Vec) => Vec}
+ */
+export const encodeOctetString = v => v
+
+/**
+ * Decodes an OCTET STRING value.
+ *
+ * @type {(v: Vec) => Vec}
+ */
+export const decodeOctetString = v => v
+
+// object identifier
+
+/**
+ * Encodes an OBJECT IDENTIFIER value.
+ *
+ * @type {(oid: ObjectIdentifier) => Vec}
+ */
+export const encodeObjectIdentifier = oid => {
+    const [first, second, ...rest] = oid
+    const firstByte = first * 40n + second
+    return listToVec([vec8(firstByte), ...rest.map(b128encode)])
+}
+
+/**
+ * Lazily drains a bit vector by repeatedly applying a step until the vector is
+ * empty, yielding every decoded item.
+ *
+ * @type {<T>(step: (v: Vec) => readonly [T, Vec]) => (v: Vec) => Thunk<T>}
+ */
+const decodeList = step => v => () => {
+    if (length(v) === 0n) { return null }
+    const [first, rest] = step(v)
+    return { first, tail: decodeList(step)(rest) }
+}
+
+/**
+ * Drains a bit vector into an array of every decoded item. The items are
+ * collected into a list and converted once, so the array is built in linear
+ * time.
+ *
+ * @type {<T>(step: (v: Vec) => readonly [T, Vec]) => (v: Vec) => readonly T[]}
+ */
+const decodeAll = step => v => toArray(decodeList(step)(v))
+
+/**
+ * Decodes an OBJECT IDENTIFIER value.
+ *
+ * @type {(v: Vec) => ObjectIdentifier}
+ */
+export const decodeObjectIdentifier = v => {
+    const [firstByte, rest] = pop8(v)
+    return [firstByte / 40n, firstByte % 40n, ...decodeAll(b128decode)(rest)]
+}
+
+// sequence
+
+/**
+ * @type {(encode: (record: Record) => Vec) => (map: (vec: readonly Vec[]) => readonly Vec[]) => (...records: Sequence) => Vec}
+ */
+const genericEncodeSequence = encode => map => (...records) =>
+    listToVec(map(records.map(encode)))
+
+// codecs
+
+/** @type {<T extends _Tag>(tag: T) => `${T}`} */
+const key = tag => /** @type {const} */ (`${tag}`)
+
+/**
+ * A row of the codec table: `encode` turns a value into a payload, and
+ * `decode` turns a payload into the record tagged `tag`.
+ *
+ * @type {<T extends _Tag, V>(
+ *     tag: T,
+ *     encode: (value: V, encode: (record: Record) => Vec) => Vec,
+ *     decode: (v: Vec, decode: (v: Vec) => readonly [Record, Vec]) => V,
+ * ) => { readonly encode: (value: V, encode: (record: Record) => Vec) => Vec, readonly decode: (v: Vec, decode: (v: Vec) => readonly [Record, Vec]) => readonly[T, V] }}
+ */
+const codec = (tag, encode, decode) => ({ encode, decode: (v, recurse) => [tag, decode(v, recurse)] })
+
+/**
+ * The supported tags, one row each. `_Codecs` requires a row for every
+ * `SupportedRecord` and nothing else, so a tag can be neither encoded
+ * without being decoded nor decoded without being encoded.
+ *
+ * @type {_Codecs}
+ */
+const codecs = {
+    [key(boolean)]: codec(boolean, encodeBoolean, decodeBoolean),
+    [key(integer)]: codec(integer, encodeInteger, decodeInteger),
+    [key(octetString)]: codec(octetString, encodeOctetString, decodeOctetString),
+    [key(objectIdentifier)]: codec(objectIdentifier, encodeObjectIdentifier, decodeObjectIdentifier),
+    [key(constructedSequence)]: codec(constructedSequence,
+        (v, encode) => genericEncodeSequence(encode)(identity)(...v),
+        (v, decode) => decodeAll(decode)(v)),
+    [key(constructedSet)]: codec(constructedSet,
+        (v, encode) => genericEncodeSequence(encode)(items => items.toSorted((a, b) => msb.cmp(a)(b)))(...v),
+        (v, decode) => decodeAll(decode)(v)),
+}
+
+// encode
+
+/**
+ * Generic in the key, so that the row and the value are typed by the same
+ * `K`: indexed by a union of keys, `codecs` would offer a union of encoders,
+ * which no single value can be passed to.
+ *
+ * @template {keyof _Codecs} K
+ * @param {(record: Record) => Vec} encode
+ * @param {K} k
+ * @param {_Records[K][1]} value
+ * @returns {Vec}
+ */
+const encodeValue = (encode, k, value) => /** @type {_Codecs[K]} */ (entry(codecs, k)).encode(value, encode)
+
+/** @type {(encode: (record: Record) => Vec) => (_: SupportedRecord) => Vec} */
+const recordToRaw = encode => ([tag, value]) => encodeValue(encode, key(tag), value)
+
+/**
+ * Encodes a supported ASN.1 record as TLV.
+ *
+ * @type {(record: Record) => Vec}
+ */
+export const encode = record =>
+    isVec(record) ? record : encodeRaw([record[0], recordToRaw(encode)(record)])
+
+// decode
+
+/** @type {(decode: (v: Vec) => readonly [Record, Vec]) => (raw: Raw) => Record} */
+const rawToRecord = decode => raw => {
+    const [tag, value] = raw
+    const c = entry(/** @type {StringMap<_Codecs[keyof _Codecs]>} */ (codecs), key(tag))
+    return c === undefined ? encodeRaw(raw) : c.decode(value, decode)
+}
+
+/**
+ * Decodes one supported ASN.1 record and returns the remaining input.
+ *
+ * @type {(v: Vec) => readonly[Record, Vec]}
+ */
+export const decode = v => {
+    const [raw, rest] = decodeRaw(v)
+    return [rawToRecord(decode)(raw), rest]
+}
+
+// sequence
+
+/**
+ * Encodes a SEQUENCE payload from ordered records.
+ *
+ * @type {(...records: Sequence) => Vec}
+ */
+export const encodeSequence = genericEncodeSequence(encode)(identity)
+
+/**
+ * Decodes a SEQUENCE payload into records.
+ *
+ * @type {(v: Vec) => Sequence}
+ */
+export const decodeSequence = v => decodeAll(decode)(v)
+
+// set
+
+/**
+ * Encodes a SET payload with canonical byte ordering.
+ *
+ * @type {(...records: Sequence) => Vec}
+ */
+export const encodeSet = genericEncodeSequence(encode)(v => v.toSorted((a, b) => msb.cmp(a)(b)))
+
+/**
+ * Decodes a SET payload.
+ *
+ * @type {(v: Vec) => Sequence}
+ */
+export const decodeSet = decodeSequence
+
+/*
+TimeStampReq ::= SEQUENCE {
+    version        INTEGER { v1(1) },               // [x]
+    messageImprint MessageImprint,
+    reqPolicy      TSAPolicyId OPTIONAL,
+    nonce          INTEGER OPTIONAL,                // [X]
+    certReq        BOOLEAN DEFAULT FALSE,           // [X]
+    extensions     [0] IMPLICIT Extensions OPTIONAL // [X]
+}
+
+MessageImprint ::= SEQUENCE {
+    hashAlgorithm  AlgorithmIdentifier,
+    hashedMessage  OCTET STRING         // [X]
+}
+
+TSAPolicyId ::= OBJECT IDENTIFIER // [X]
+*/
+
+/*
+TimeStampResp ::= SEQUENCE {
+    status          PKIStatusInfo,
+    timeStampToken  TimeStampToken OPTIONAL
+}
+
+PKIStatusInfo ::= SEQUENCE {
+    status        PKIStatus,
+    statusString  PKIFreeText OPTIONAL,
+    failInfo      PKIFailureInfo OPTIONAL
+}
+
+PKIStatus ::= INTEGER {         // [X]
+    granted                (0),
+    grantedWithMods        (1),
+    rejection              (2),
+    waiting                (3),
+    revocationWarning      (4),
+    revocationNotification (5)
+}
+
+TimeStampToken ::= ContentInfo
+
+ContentInfo ::= SEQUENCE {
+    contentType ContentType,
+    content     [0] EXPLICIT ANY DEFINED BY contentType
+}
+
+ContentType ::= OBJECT IDENTIFIER
+
+SignedData ::= SEQUENCE {
+    version          CMSVersion,
+    digestAlgorithms SET OF DigestAlgorithmIdentifier,            // [X]
+    encapContentInfo EncapsulatedContentInfo,
+    certificates     [0] IMPLICIT CertificateSet OPTIONAL,
+    crls             [1] IMPLICIT RevocationInfoChoices OPTIONAL,
+    signerInfos      SET OF SignerInfo                            // [X]
+}
+
+EncapsulatedContentInfo ::= SEQUENCE {
+    eContentType ContentType,
+    eContent     [0] EXPLICIT OCTET STRING OPTIONAL
+}
+
+TSTInfo ::= SEQUENCE  {
+    version        INTEGER  { v1(1) },
+    policy         TSAPolicyId,
+    messageImprint MessageImprint,
+    serialNumber   INTEGER,
+    genTime        GeneralizedTime,
+    accuracy       Accuracy OPTIONAL,
+    ordering       BOOLEAN DEFAULT FALSE,
+    nonce          INTEGER OPTIONAL,
+    tsa            [0] GeneralName OPTIONAL,
+    extensions     [1] IMPLICIT Extensions OPTIONAL
+}
+
+Bits:  8 7   | 6    | 5 4 3 2 1
+       Class | P/C  | Tag number
+*/

@@ -15,7 +15,7 @@
 A grammar is written over an abstract symbol alphabet, and the same
 machinery reads bytes, Unicode code points, token symbols and whatever
 intermediate stream a layered parser produces. The front end,
-[`../../module.f.mjs`](../../module.f.mjs), should not know that any
+[`../../module.f.js`](../../module.f.js), should not know that any
 particular symbol is a Unicode code point beyond what its own rule union
 says, and everything that reads text to build a rule should live in an
 adapter for that alphabet.
@@ -29,18 +29,18 @@ asked for is settled there; what remains is the adapter itself.
 
 ### Proposal
 
-- `fjs/ebnf/module.f.mjs` defines the symbols, the rule union and the
+- `fjs/ebnf/module.f.js` defines the symbols, the rule union and the
   combinators. A JavaScript `string` in the `Rule` union means one terminal
   per code point — the front end's own meaning, applied by the lowering in
   [`../../data`](../../data/README.md) — and `range`, `set` and `unicodeMax`
   ship there too (**Amended**, below).
 - `fjs/ebnf/unicode/module.f.mjs` holds the text helpers the rule union does
   *not* imply, in EBNF forms: `str`, `not` and `unicodeRange`.
-- `fjs/ebnf/byte/module.f.mjs` holds the helpers over a byte stream —
+- `fjs/ebnf/byte/module.f.js` holds the helpers over a byte stream —
   shipped, with the byte range `0..255`, `bytes`, `not` and `ascii`.
 
 **Amended.** The front end shipped with `range`, `set` and `unicodeMax` in
-`fjs/ebnf/module.f.mjs`, which therefore imports `fjs/text/utf16`. What
+`fjs/ebnf/module.f.js`, which therefore imports `fjs/text/utf16`. What
 settles it: **a `string` in the `Rule` union is a Unicode sequence** — one
 terminal per code point ([`../../README.md`](../../README.md)). The front
 end is Unicode-aware in its own rule union: every grammar written against
@@ -64,7 +64,7 @@ beyond a literal:
 - `not` — difference against the Unicode universe, returning a terminal
   rule as the front end's `set`, `range`, `union` and `remove` do
   ([ebnf-range-set](../../terminal/todo/ebnf-range-set.md), **Amended**).
-  The `djs` tokenizer's grammar, [`../../lib/js`](../../lib/js/module.f.mjs),
+  The `djs` tokenizer's grammar, [`../../lib/js`](../../lib/js/module.f.js),
   spells its complements today as `remove` over `range('\0' + unicodeMax)`,
   which is what `not` names.
 
@@ -89,7 +89,7 @@ Everything here is additive in `fjs/ebnf/`.
 - [ ] Add `fjs/ebnf/unicode/module.f.mjs` with `unicodeRange`, `str` and
       `not`, and its proof: string/code-point conversion, an astral character
       as one terminal, the universe's boundaries, a complement's.
-- [x] Add `fjs/ebnf/byte/module.f.mjs` for binary byte-stream rule helpers —
+- [x] Add `fjs/ebnf/byte/module.f.js` for binary byte-stream rule helpers —
       shipped as [`../../byte`](../../byte/README.md), for
       [`fjs/git`](../../../git/README.md), with proofs of the
       alphabet's boundaries and every rule form over bytes.
@@ -97,14 +97,14 @@ Everything here is additive in `fjs/ebnf/`.
       when it lands, so no `ebnf/` module reads text constants from a front
       end — a repoint of one constant after the adapter exists, which
       nothing waits on.
-- [ ] Leave `range`, `set` and `unicodeMax` in `fjs/ebnf/module.f.mjs`
+- [ ] Leave `range`, `set` and `unicodeMax` in `fjs/ebnf/module.f.js`
       (**Amended** above); keep byte-container interpretation out of the
-      front end and out of `fjs/ebnf/data/module.f.mjs`.
+      front end and out of `fjs/ebnf/data/module.f.js`.
 - [ ] Keep EOF generic and width-independent: `fjs/ebnf/terminal/`'s
       `EOF = -1`, and every alphabet adapter restricted to ordinary
       non-negative symbols without reserving the maximal value.
 - [ ] Have [recognizer-backend](../../todo/recognizer-backend.md) consume
-      byte helpers from `fjs/ebnf/byte/module.f.mjs` rather than defining
+      byte helpers from `fjs/ebnf/byte/module.f.js` rather than defining
       another binary-helper family — recorded there.
 - [ ] Document the boundary: the core is generic; `fjs/ebnf/unicode` and
       `fjs/ebnf/byte` adapt concrete alphabets to generic grammar symbols.
@@ -127,7 +127,7 @@ Everything here is additive in `fjs/ebnf/`.
   `fjs/ebnf/byte` helpers instead of owning a duplicate binary authoring API.
 - [`../../byte`](../../byte/README.md) — the byte half of this issue,
   shipped.
-- [`../../module.f.mjs`](../../module.f.mjs) — the shipped front end, which
+- [`../../module.f.js`](../../module.f.js) — the shipped front end, which
   carries `range`, `set` and `unicodeMax` (**Amended** above).
 - [ebnf-range-set](../../terminal/todo/ebnf-range-set.md) — the
   `ebnf/terminal/` module, which supplies the terminal domain and the

@@ -10,7 +10,7 @@ A write to `\uD800` therefore creates a name returned as `\uFFFD` by `readdir`;
 `\uD800`, `\uDC00` and `\uFFFD` can refer to the same host file. A virtual
 `Dir` instead stores these as distinct JavaScript keys.
 
-The [name comparator](../readdir/module.f.mjs) now uses the host's replacement
+The [name comparator](../readdir/module.f.js) now uses the host's replacement
 rule for ordering, rather than the text codec's lossless malformed encoding.
 It does not change fixture keys or make filesystem operations resolve aliases.
 This pre-existing identity mismatch needs one policy across the virtual host;

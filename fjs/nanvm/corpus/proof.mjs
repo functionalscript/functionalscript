@@ -7,14 +7,14 @@
 import { readdirSync } from 'node:fs'
 
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { _transpileDefault } from '../../compiler/transpiler/module.f.mjs'
-import { pureOk } from '../../effects/module.f.mjs'
-import { vm } from '../../edag/amnesia/module.f.mjs'
+import { _transpileDefault } from '../../compiler/transpiler/module.f.js'
+import { pureOk } from '../../effects/module.f.js'
+import { vm } from '../../edag/amnesia/module.f.js'
 import { read } from '../../edag/value/property/module.f.js'
-import { virtualAt } from '../../effects/node/virtual/module.f.mjs'
+import { virtualAt } from '../../effects/node/virtual/module.f.js'
 import { runNodeEffect } from '../../effects/node/module.mjs'
 import runtimeEdag from '../../js/runtime/gen.edag.js'
-import { utf8 } from '../../text/module.f.mjs'
+import { utf8 } from '../../text/module.f.js'
 import { corpus, exceptions, fixturesDirectory, undefinedDefault, withAliasing } from './module.f.js'
 
 const names = readdirSync(fixturesDirectory, { withFileTypes: true })

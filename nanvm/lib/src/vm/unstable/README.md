@@ -37,3 +37,11 @@ A computed property uses `property_item((key).to_string()?, value)`.
 `Any::to_string` converts the key before Rust starts the value argument and
 propagates conversion failure at that position. `property_item` takes the
 established VM string directly, for both literal and computed keys.
+
+`ref_map` is the reference map of `fjs/types/ref_map`
+([reference map](../../../../../spec/built-ins/reference-map/README.md)): a new empty map, a
+function, which a compiled module spells where it establishes the map. A map
+keeps its entries in its frame, in a trie over each key's address, so a call
+takes a number of steps bounded by the address's width where the runtime's
+map searches a list. The address is the VM's, `IComplex::address`, and never
+reaches a program.

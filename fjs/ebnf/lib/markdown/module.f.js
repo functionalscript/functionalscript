@@ -1,0 +1,402 @@
+/**
+ * The Markdown subset a changelog entry is written in.
+ *
+ * `changelog/README.md` fixes that subset deliberately — "no Markdown beyond
+ * paragraphs, list items, inline code, and bold, so the website can render
+ * entries with a small self-hosted parser" — and this grammar is the subset,
+ * not Markdown at large. It recognises the spans of **one entry**, and the
+ * entry reaches it as a single line of text.
+ *
+ * **The block structure is resolved before this grammar sees anything, and
+ * cannot be resolved by it.** An entry is a `- ` list item whose wrapped
+ * continuation lines are indented by two spaces, and a code span may open on
+ * one of those lines and close on the next — twenty lines in the tree carry
+ * an odd number of backticks for that reason. A grammar reading the file
+ * line by line would split those spans with no way to rejoin them, so the
+ * lines are joined first and this grammar reads the result.
+ *
+ * **Code binds tightest, which the alternation below spells as an ordering
+ * of first symbols rather than as a precedence rule.** An inline code span
+ * carries the very characters the other spans are delimited by: `*` is an
+ * operator inside code in six entries, and `[` opens an array type —
+ * `readonly T[]` — in forty-three. Because `code` is a branch of `inline`
+ * and its body admits every symbol but the backtick, those characters are
+ * consumed as code content and never reach the emphasis or link rules.
+ *
+ * **Emphasis holds text, code and plain links, and refuses what it cannot
+ * hold.** A README sets a name in bold as `` **`Object` is reserved** ``,
+ * and a document links from bold, `**[capl.md](./capl.md)**`. Bold holds
+ * emphasis, `**… *be* …**`, emphasis holds bold, `*… **constrains** …*`,
+ * and no deeper nesting is in the tree, so the rules say so. Where CommonMark would nest otherwise, this refuses
+ * rather than reading the delimiters as text: the same file is read on
+ * GitHub too, and a body that swallowed them would give the two renderings
+ * different answers about one source.
+ *
+ * What this grammar does **not** do, and what processing must do after it:
+ * derive a link from a bare `(#NNN)` pull request reference, which is
+ * ordinary text here so that the rules never have to tell it from
+ * parenthesised prose.
+ *
+ * @module
+ *
+ * @import { Const, DataRule, Rule, Variant } from '../../types.ts'
+ */
+
+import { option, range, remove, repeatFrom0, repeatFrom1, set, unicodeMax } from '../../module.f.js'
+
+/**
+ * Every symbol a span may hold: space through the last code point, as
+ * JSON's `character` rule takes it. An entry is one joined line by the time
+ * it is read, so no rule below has to admit a line break.
+ */
+const any = range(` ${unicodeMax}`)
+
+/**
+ * The three symbols that open a span. Everything else is text, which is why
+ * a parenthesis, a bracket that closes one and a digit are all ordinary
+ * here. The backslash is not a span opener at all: it escapes the next
+ * punctuation mark in CommonMark, so `\\*a\\*` is the literal `*a*` there
+ * and would be emphasis here. Nothing in this subset reads it, so it is
+ * refused rather than read as the character it is not.
+ */
+const opening = '`*[\\'
+
+/** A run of plain text: at least one symbol that opens no span. */
+export const text = repeatFrom1(remove(any, set(opening)))
+
+/** A run of symbols other than a backtick. */
+const notTicks = repeatFrom1(remove(any, set('`')))
+
+/**
+ * The body of a code span opened by two backticks, through the two that
+ * close it: runs of symbols other than a backtick, each followed by one
+ * backtick that either closes the span, with a second one, or continues it.
+ *
+ * **Two backticks open a span that may hold one**, which is the form a
+ * README names a backtick-holding expression in: ``` `` f`x` `` ```. A run of
+ * three is refused, as it would open a different span on GitHub, and so is a
+ * body that opens with a backtick. The one space CommonMark strips from each
+ * end is stripped where the span is read.
+ *
+ * The body names itself, so it is a thunk, and `const` says the thunk yields
+ * a data rule, as JSON's `value` does.
+ *
+ * @type {Const<DataRule>}
+ */
+export const doubleBody = () => ['const', [notTicks, '`', { end: '`', more: doubleBody }]]
+
+/**
+ * An inline code span. Its body admits every symbol but the backtick that
+ * ends it, which is what makes code bind tightest.
+ *
+ * **Two backticks open the {@link doubleBody} form; one opens a non-empty
+ * body.** CommonMark opens a code span with a run of backticks and closes it
+ * with a run of the same length — a form a writer needs when the code itself
+ * holds a backtick. A run of two is read as that; a run of three, read one
+ * backtick at a time, would be an empty span, an `x`, and another empty
+ * span, a different document from the one GitHub builds, so a single body
+ * is non-empty and a double one may not open with a backtick.
+ *
+ * **Either body may hold a space at either end**, as GitHub's does:
+ * `` `name: ` `` is the code `name: `. CommonMark strips one space from
+ * each end of a body that has one at both and is not all spaces, so
+ * `` ` code ` `` is the code `code`; that is done where the span is read,
+ * in [`media/markdown`](../../../media/markdown/module.f.js).
+ */
+export const code = /**@type {const}*/(['`', {
+    double: ['`', doubleBody],
+    single: [notTicks, '`'],
+}])
+
+
+/** A run of a link label's text: no bracket, asterisk, backtick or backslash. */
+const labelText = repeatFrom1(remove(any, set('][*`\\')))
+
+/** A run of an emphasis body's text: no asterisk, backtick, bracket or backslash. */
+const emphasisText = repeatFrom1(remove(any, set('*`[\\')))
+
+/** A run of a link target's symbols: no parenthesis, space or backslash. */
+const targetText = remove(any, set(')( \\'))
+
+/**
+ * A pair of parentheses in a target and what they hold, which holds no
+ * pair: CommonMark reads `[x](a(b)c)` as a link to `a(b)c`, its
+ * parentheses balanced. GitHub stops balancing past a depth this subset
+ * never needs, so a pair inside a pair is refused rather than read to a
+ * depth one reader may not share.
+ */
+const targetGroup = ['(', repeatFrom0(targetText), ')']
+
+/**
+ * A label in brackets, then its target in parentheses: a first symbol that
+ * may not open the angle-bracket form, then the rest.
+ *
+ * @type {(label: Rule) => Rule}
+ */
+const labelled = label => ['[', label, '](',
+    { text: remove(any, set(')( \\<')), group: targetGroup },
+    repeatFrom0({ text: targetText, group: targetGroup }), ')']
+
+/**
+ * A link whose label holds text and code only: the form an image takes,
+ * and the form a link inside a label takes.
+ */
+const plainLink = labelled([option(labelText), repeatFrom0([code, option(labelText)])])
+
+/**
+ * A code span or a plain link inside emphasis, and the run of text after
+ * it, if any: a backtick or a bracket tells them apart.
+ */
+const emphasisSpan = {
+    code: [code, option(emphasisText)],
+    link: [plainLink, option(emphasisText)],
+}
+
+/**
+ * A body of emphasis: text, and the code spans and plain links between.
+ *
+ * **What it does not read is a refusal, not an oversight.** CommonMark
+ * nests, and every released file here is read on GitHub as well as on the
+ * site. A body that admitted a span opener as ordinary text would put the
+ * two renderings of one file at odds: a link on GitHub, its own brackets on
+ * the site. So a body holds the spans it reads and none other: a code span,
+ * the form a README sets a name in bold with, and a plain link, as GitHub
+ * renders `**see [details](url)**` bold around a working link. Its label
+ * holds text and code, as an image's does; emphasis inside emphasis stays
+ * out, but for emphasis inside bold ({@link strongRest}). A body opens with
+ * text or with a span, the two branches told apart by their first symbol.
+ * Its padding — a space
+ * just inside an asterisk — is matched here and refused after, in
+ * [`media/markdown`](../../../media/markdown/module.f.js): with code inside,
+ * "no space before the closing asterisk" is no longer a choice one symbol
+ * of lookahead can make. Supporting the rest of the nesting CommonMark
+ * defines is `todo/commonmark-constructs.md`.
+ */
+const emphasised = {
+    text: [emphasisText, repeatFrom0(emphasisSpan)],
+    span: repeatFrom1(emphasisSpan),
+}
+
+/**
+ * What follows a run of a bold body, from the asterisk that ends the run:
+ * a second asterisk closes the bold, and anything else opens emphasis
+ * inside it, `**a *b* c**`. After that emphasis's closing asterisk, the
+ * bold goes on with another run, or closes at once, `**a *b***`.
+ *
+ * **One asterisk of lookahead decides it**, as {@link emphasis} decides
+ * between bold and emphasis: the asterisk is consumed, and the symbol after
+ * it is a second asterisk or the first symbol of an emphasis body. The
+ * emphasis holds what a body holds, and no bold: CommonMark reads
+ * `**a *b **c** d* e**` too, and no file writes it. Two emphasis spans side
+ * by side, `*b**c*`, are refused, as the two asterisks between them are a
+ * run GitHub reads otherwise.
+ *
+ * The rest names itself, so it is a thunk, as {@link doubleBody} is.
+ *
+ * @type {Const<DataRule>}
+ */
+export const strongRest = () => ['const', ['*', {
+    end: '*',
+    em: [emphasised, '*', { more: [emphasised, strongRest], end: '**' }],
+}]]
+
+/** A run of an emphasis body's words: no space, asterisk, backtick, bracket or backslash. */
+const word = repeatFrom1(remove(any, set(' *`[\\')))
+
+/** A run of spaces. */
+const spaces = repeatFrom1(' ')
+
+/**
+ * The word state's branches, with the span and space states it continues at.
+ * A `const` thunk and its payload produce the same AST, so embedding these
+ * branches keeps the word/space/span tags without another recursive identity.
+ *
+ * @type {(afterSpan: Const<DataRule>, afterSpace: Const<DataRule>) => Variant}
+ */
+const wordAfter = (afterSpan, afterSpace) => ({
+    space: [spaces, afterSpace],
+    code: [code, afterSpan],
+    link: [plainLink, afterSpan],
+    close: '*',
+})
+
+/**
+ * What follows a space in emphasis: a word, a code span, a link, or bold,
+ * `**…**`, then a space or the asterisk that closes the emphasis,
+ * `*a **b***`. The bold holds what a body holds, and no emphasis.
+ *
+ * **An asterisk after a space never closes the emphasis**: CommonMark
+ * would not close it there, and GitHub reads `a * b * c` as prose. Bold
+ * needs a space before it for the same reason: `*a**b** c*` is a closing
+ * asterisk and an opening one, a reading neither side shares.
+ *
+ * Each space state closes over its span state and itself. The lowerer reads
+ * the thunk once and records that identity before following either edge.
+ *
+ * @type {(afterSpan: Const<DataRule>) => Const<DataRule>}
+ */
+const spaceAfter = afterSpan => {
+    /** @type {Const<DataRule>} */
+    const afterSpace = () => ['const', {
+        word: [word, wordAfter(afterSpan, afterSpace)],
+        code: [code, afterSpan],
+        link: [plainLink, afterSpan],
+        strong: ['**', emphasised, '**', { space: [spaces, afterSpace], close: '*' }],
+    }]
+    return afterSpace
+}
+
+/**
+ * What follows a code span or a link in emphasis: what follows a word, or a
+ * word, `` *(an `exp`)* ``. A word cannot follow a word, as a word runs to
+ * the symbol that ends it, so the two are states of their own.
+ *
+ * The span state is the outer recursive identity. Its space state captures
+ * it and itself; word states are data referring to those two identities.
+ * That finite graph needs no forward reference between declarations.
+ *
+ * @type {Const<DataRule>}
+ */
+export const emAfterSpan = () => {
+    const afterSpace = spaceAfter(emAfterSpan)
+    const afterWord = wordAfter(emAfterSpan, afterSpace)
+    return ['const', { word: [word, afterWord], ...afterWord }]
+}
+
+/**
+ * The space state for an emphasis body that starts with spaces, sharing the
+ * span state above. The space nested inside {@link emAfterSpan} is a separate
+ * instance of the same rule, with its own stable recursive identity.
+ *
+ * @type {Const<DataRule>}
+ */
+export const emAfterSpace = spaceAfter(emAfterSpan)
+
+/**
+ * What follows a word, a code span or a link in emphasis: a space, another
+ * span, or the asterisk that closes it.
+ *
+ * **Emphasis is read a word at a time so that it may hold bold**,
+ * `*every issue that **constrains** what a destination emits*`. Read as one
+ * run, the asterisk after it could close the emphasis or open bold inside
+ * it, and only the symbol after that tells which, while a span that opens
+ * with an asterisk may also follow the emphasis; one symbol cannot decide.
+ * But CommonMark closes emphasis only with an asterisk that follows no
+ * space, so after a word the asterisk closes it, and after a space
+ * ({@link emAfterSpace}) it opens bold.
+ *
+ * @type {Const<DataRule>}
+ */
+export const emAfterWord = () => ['const', wordAfter(emAfterSpan, emAfterSpace)]
+
+/**
+ * Bold or emphasis, **factored through the asterisk they share**. Written as
+ * two alternatives, `** … **` and `* … *`, both would begin with the same
+ * symbol and the backend could not choose between them with the one symbol
+ * of lookahead it has. So the opening asterisk is consumed first and the
+ * choice is made on the symbol after it: another asterisk is `strong`, and
+ * anything else is the first symbol of `em`'s body. That body is non-empty
+ * for the same reason — an empty one would let `em` begin with the asterisk
+ * `strong` begins with.
+ *
+ * **Bold and emphasis may hold each other, one level deep**, as files in
+ * the tree write them: `**… *be* …**` stresses a word inside a bold
+ * sentence, and `*… **constrains** …*` a word inside an emphasised one. A
+ * bold body is runs and the emphasis between them ({@link strongRest}); an
+ * emphasis body is words, spaces and spans, bold among them
+ * ({@link emAfterWord}). A body that opens with a space is matched here and
+ * refused after.
+ */
+export const emphasis = /**@type {const}*/(['*', {
+    strong: ['*', emphasised, strongRest],
+    em: {
+        word: [word, emAfterWord],
+        code: [code, emAfterSpan],
+        link: [plainLink, emAfterSpan],
+        space: [spaces, emAfterSpace],
+    },
+}])
+
+/**
+ * An inline link.
+ *
+ * **Its label holds text and code and no other span opener, and its target
+ * no parenthesis**, both for the reason the emphasis body excludes them:
+ * CommonMark reads more here than this subset does, and admitting the
+ * symbols as text would give one source two readings.
+ *
+ * A label is where it shows: GitHub renders `[**details**](u)` as a link
+ * whose words are bold, and reading the asterisks as label text would print
+ * them. A code span is the one span a label holds — a README names a file
+ * as ``[`module.f.js`](./module.f.js)`` — and it is read as the code it is,
+ * text and code alternating as they do in {@link entry}. An empty label is
+ * matched here and refused after, since the alternation cannot say "at
+ * least one" without the conflict {@link entry} describes. A target is where it bites: a destination may hold balanced
+ * parentheses, so GitHub reads `[x](a(b)c)` as a link to `a(b)c`, while
+ * stopping at the first `)` gives a link to `a(b)` — not a stray rendering
+ * but the wrong address, and nothing on the page would say so. So a target
+ * reads one level of balanced parentheses, as a Wikipedia address needs,
+ * and refuses an unbalanced one or a deeper one.
+ *
+ * **A space in the target is refused for the same reason.** CommonMark
+ * ends an unbracketed destination at the first space and reads what
+ * follows as the link's title, so `[x](u "t")` links to `u` there and
+ * would link to `u "t"` here — the wrong address again, and the form a
+ * writer reaches for when captioning a link.
+ *
+ * **A backslash is refused wherever it would escape something.**
+ * CommonMark escapes a punctuation mark with one, so `[x](a\\)b)` is a link
+ * to `a)b` — the closing parenthesis is content, not the end of the
+ * destination. Read without escapes the destination ends early and the
+ * link points somewhere else, the same wrong-address failure the
+ * parenthesis and the space are refused for. The label refuses one too,
+ * and so does a text run, where `\\*a\\*` would otherwise become emphasis
+ * the source does not have.
+ *
+ * **A target that opens with `<` is refused.** CommonMark reads
+ * `[x](<u>)` as a link to `u`, the angle brackets delimiting the
+ * destination rather than belonging to it, and read here they would be
+ * part of the address — the wrong address once more. Only the first symbol
+ * decides that form, so a `<` later in a target is the character it looks
+ * like to both readers and stays admitted.
+ *
+ * **A label may hold one plain link, for an image.** `[![alt](src)](href)`
+ * is a badge: an image that links somewhere. Read a symbol at a time it is
+ * a `!` and a link inside a label, so the label admits a link whose own
+ * label holds text and code only, and
+ * [`media/markdown`](../../../media/markdown/module.f.js) reads the `!`
+ * before it as an image or refuses the link: GitHub never nests a link in
+ * a link.
+ */
+export const link = labelled([option(labelText), repeatFrom0({
+    code: [code, option(labelText)],
+    link: [plainLink, option(labelText)],
+})])
+
+/**
+ * One delimited span. The three branches open with disjoint symbols — a
+ * backtick, an asterisk, a bracket — so one symbol of lookahead picks
+ * between them. Plain text is deliberately not a branch here; see
+ * {@link entry}.
+ */
+export const span = /**@type {const}*/({ code, emphasis, link })
+
+/**
+ * One entry: a run of text, then any number of spans each followed by a run
+ * of text.
+ *
+ * **Text alternates with spans rather than being a fourth branch repeated
+ * beside them.** Written the obvious way — a repetition of "code, emphasis,
+ * link or text" — the grammar is not LL(1) and the backend refuses it: after
+ * one symbol of a text run the machine must choose between continuing that
+ * run and ending it to begin a new one, and both continue with the same
+ * symbols. Alternating makes the choice a real one, because whatever follows
+ * a text run can only be a backtick, an asterisk or a bracket, and whatever
+ * follows a span is text or the end.
+ *
+ * Empty is a match. `changelog/README.md` allows a released file that
+ * records no notable change, and an entry that is only text is the common
+ * case rather than a shape worth a rule of its own — both fall out of the
+ * two optional runs rather than needing one.
+ */
+export const entry = /**@type {const}*/([option(text), repeatFrom0([span, option(text)])])

@@ -1,0 +1,180 @@
+/**
+ * Shared CI types and helpers: GitHub Actions step/job RTTI schemas, the
+ * `MetaStep` representation used by tool-specific modules, and assemblers like
+ * `install`, `npmGlobalInstall`, `test`, `job`, `ubuntu`, and `toSteps`. See `./types.ts` for the
+ * `Os`/`Architecture`/`Image`/`Step`/`Job`/`Jobs`/`GitHubAction`/`StepType`/
+ * `MetaStep` type-level API.
+ *
+ * @module
+ *
+ * @import { Architecture, Image, Step, Job, MetaStep, Os, StepType } from './types.ts'
+ */
+
+import { actions, images, jobTimeout } from '../config/module.f.js'
+import { array, number, option, or, record, string } from '../../rtti/module.f.js'
+import { parse as rttiParse } from '../../rtti/parse/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
+
+export const os = /** @type {const} */ (['ubuntu', 'macos', 'windows'])
+
+export const architecture = /** @type {const} */ (['intel', 'arm'])
+
+/**
+ * The one directory GitHub reads workflows from. It lives here, below both
+ * modules that write a workflow, because `fjs/ci` imports `fjs/ci/publish` and
+ * so neither can hold it for the other. The `_` says it is linkage, not API:
+ * the paths built on it, `ciPath` and `npmPublishPath`, are the public names.
+ */
+export const _workflowsDirectory = /** @type {const} */ ('.github/workflows')
+
+// These three are **closed**, which is the bare form's meaning and the right
+// one here: `parseGitHubAction` reads back a workflow this repo generates, so
+// a key the schema does not name is generator drift rather than a field a
+// third party added. Reading a hand-written workflow — which carries `name`
+// and much else — would need `open`.
+
+// `continue-on-error` is admitted as the literal `true` rather than as a
+// boolean: `false` is the field's own default, so emitting it would say
+// nothing, and a schema that accepts both invites a step that spells its
+// default out. A step carrying it is a step whose failure is an expected
+// outcome: npm publish may find the version already published, and cache
+// access and reports may fail without invalidating the checks themselves.
+export const stepSchema = /** @type {const} */ ({
+    // The cache bootstrap exposes hit flags through $GITHUB_OUTPUT; its id
+    // and each dependent step's condition name those flags.
+    id: or(option, string),
+    if: or(option, string),
+    run: or(option, string),
+    shell: or(option, string),
+    uses: or(option, string),
+    with: or(option, record(string)),
+    // Environment for one step. The generator writes it in exactly one
+    // place: an injected command travels here rather than inside the quotes
+    // of the command that runs it, so a value GitHub substitutes into it is
+    // never read back as shell source. See `../module.f.js`'s `inShell`.
+    env: or(option, record(string)),
+    // The directory a `run` step starts in, when it is not the checkout. The
+    // packed-package check is the one user: it runs as a consumer, in a
+    // directory outside the repository. See `../package/module.f.js`.
+    'working-directory': or(option, string),
+    'continue-on-error': or(option, true)
+})
+
+// `needs` is how one job waits for another: the package consumer waits for
+// the node job to upload its tarball. Platform checks and website previews
+// run independently.
+// `parseGitHubAction` reads back the workflow this repository generates, so
+// an unmodelled key would fail that round-trip.
+//
+// `if` is the condition a job runs under, used by merge-queue-only platform jobs.
+//
+// `timeout-minutes` is required, so no job can be built without a limit on how
+// long it holds its runner: GitHub's default is six hours. Every generated job
+// takes `jobTimeout` from `../config/module.f.js`.
+export const jobSchema = /** @type {const} */ ({
+    'runs-on': string,
+    // Only jobs using the build cache need to publish commits. The workflow
+    // stays read-only for the generic generator and publishing workflow.
+    permissions: or(option, record(string)),
+    if: or(option, string),
+    needs: or(option, array(string)),
+    'timeout-minutes': number,
+    steps: array(stepSchema)
+})
+
+export const jobsSchema = record(jobSchema)
+
+/** A trigger with no configuration fields; `{}` alone is the unconstrained schema. */
+const emptyTrigger = record(or())
+
+export const gitHubActionSchema = /** @type {const} */ ({
+    name: string,
+    // Every trigger any generated workflow uses, all optional, because no
+// workflow uses them all: generic CI is a pull-request gate and the publish
+    // workflow fires on a push to a branch. `push` carries the branch list;
+    // without it a push to any branch would publish.
+    on: {
+        pull_request: or(option, emptyTrigger),
+        // Runs the workflow as the base branch defines it, never as the pull
+        // request does: the personal-notes approval relies on it, since a
+        // workflow a pull request could rewrite could approve itself.
+        // `edited` is named because a changed base branch changes the files
+        // a pull request carries without a new commit.
+        pull_request_target: or(option, { types: array(string) }),
+        merge_group: or(option, emptyTrigger),
+        push: or(option, { branches: array(string) })
+    },
+    // A condition cancels superseded PR checks while keeping production uploads running.
+    concurrency: or(option, { group: string, 'cancel-in-progress': or(true, string) }),
+    permissions: record(string),
+    jobs: jobsSchema
+})
+
+export const parseGitHubAction = rttiParse(gitHubActionSchema)
+
+/** @type {(name: keyof typeof actions, w?: Record<string, string>) => Step} */
+export const uses = (name, w) => ({
+    uses: `${name}@${entry(actions, name)}`,
+    ...(w === undefined ? {} : { with: w })
+})
+
+/** @type {(step: Step) => MetaStep} */
+export const install = step => ({ type: 'install', step })
+
+/**
+ * Installs the `version` release of the npm package `pkg` globally: the one
+ * shape every pinned npm tool a job needs takes. Curried, so a job that
+ * always installs the same package can bind it once.
+ *
+ * @type {(pkg: string) => (version: string) => MetaStep}
+ */
+export const npmGlobalInstall = pkg => version =>
+    install({ run: `npm install -g ${pkg}@${version}` })
+
+/** @type {(step: Step) => MetaStep} */
+export const test = step => ({ type: 'test', step })
+
+/** @type {(m: readonly MetaStep[]) => readonly Step[]} */
+export const toSteps = m => {
+    /** @type {(st: StepType) => Step[]} */
+    const filter = st => m.flatMap(mt => mt.type === st ? [mt.step] : [])
+    const needRust = m.find(v => v.type === 'rust') !== undefined
+    const targets = m.flatMap(v => v.type === 'rust' && v.target !== undefined ? [v.target] : []).join(',')
+    return [
+        ...(needRust ? [uses('dtolnay/rust-toolchain', {
+            components: 'rustfmt,clippy',
+            ...(targets === '' ? {} : { targets }),
+        })] : []),
+        ...filter('install'),
+        uses('actions/checkout'),
+        ...filter('test'),
+    ]
+}
+
+/**
+ * A job on the `image` runner, run only under `condition` when one is given,
+ * holding the runner for at most `jobTimeout` minutes.
+ *
+ * @type {(image: Image, condition?: string) => (ms: readonly MetaStep[]) => Job}
+ */
+export const job = (image, condition) => ms => ({
+    'runs-on': image,
+    ...(condition === undefined ? {} : { if: condition }),
+    'timeout-minutes': jobTimeout,
+    steps: toSteps(ms)
+})
+
+/** @type {(ms: readonly MetaStep[]) => Job} */
+export const ubuntu = job(images.ubuntu.intel)
+
+/** @type {(ms: readonly MetaStep[]) => Job} */
+export const ubuntuArm = job(images.ubuntu.arm)
+
+/**
+ * Whether a platform is the one {@link ubuntuArm} runs on: Ubuntu on ARM, the
+ * runner every canonical job uses. A platform job that carries a canonical
+ * check of its own asks this, rather than naming the pair itself.
+ *
+ * @type {(v: Os, a: Architecture) => boolean}
+ */
+export const isUbuntuArm = (v, a) => v === 'ubuntu' && a === 'arm'

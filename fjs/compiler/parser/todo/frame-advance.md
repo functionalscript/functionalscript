@@ -5,7 +5,7 @@
 
 ### Problem
 
-The explicit-stack evaluator in [`module.f.mjs`](../module.f.mjs) keeps
+The explicit-stack evaluator in [`module.f.js`](../module.f.js) keeps
 frames that count operands, over the shared `_Counted<T>` base (`index`,
 `done`) in [`private.ts`](../private.ts). The step past an operand is
 written once, `advanced`, and so is a binding statement's value landing

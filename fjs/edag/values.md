@@ -1,8 +1,8 @@
 # EDAG values
 
 `EdagValue` is the evaluated subset of [EDAG](README.md), and the sole language
-value representation of the FJS interpreters. [Memo](memo/module.f.mjs),
-[Amnesia](amnesia/module.f.mjs), and compiler module initialization use
+value representation of the FJS interpreters. [Memo](memo/module.f.js),
+[Amnesia](amnesia/module.f.js), and compiler module initialization use
 `Result<EdagValue, EdagValue>`. The old AST value evaluator is retired.
 Rust NaNVM keeps its native `Any` representation.
 
@@ -49,15 +49,15 @@ no cycle preflight or repeated result-validation pipeline is needed.
 
 An explicit boundary accepting EDAG supplied as FJS data checks constructible
 errors in shape, metadata, bindings and scope while preserving sharing. The
-existing [metadata](value/metadata/module.f.mjs),
-[closure](value/closure/module.f.mjs), and [analysis](analysis/module.f.mjs)
+existing [metadata](value/metadata/module.f.js),
+[closure](value/closure/module.f.js), and [analysis](analysis/module.f.js)
 checks serve those boundaries. Object normalization applies to evaluated data
 and captures; object expressions inside bodies retain construction semantics.
 The proposed public interpreter admission API
 is tracked [separately](../compiler/todo/interpret-edag.md).
 
 Both interpreters use the same value forms and represented
-[operation dispatcher](operations/module.f.mjs), with their own
+[operation dispatcher](operations/module.f.js), with their own
 [execution models](execution-models.md). Memo reuses a shared computation
 within one invocation and starts fresh on the next. Amnesia recomputes each
 edge except caller-established nodes. Neither interns equal-looking values.
@@ -116,7 +116,7 @@ host's function-text exception have distinct contracts in
 
 An unresolved module contains imports and an initializer EDAG. Constructing it
 does not execute initialization. The compiler's
-[`interpret`](../compiler/transpiler/module.f.mjs) resolves dependencies to
+[`interpret`](../compiler/transpiler/module.f.js) resolves dependencies to
 represented export values and runs each module's initializer with memo:
 
 ```text
@@ -139,7 +139,7 @@ need their own [proposal](../compiler/todo/047-compiler-meta-programming.md).
 
 ## Runtime compilation
 
-[`toUnknown`](value/to_unknown/module.f.mjs) has type
+[`toUnknown`](value/to_unknown/module.f.js) has type
 `(value: EdagValue) => Effect<CompileValue, unknown, IoChannel>`. Here `unknown`
 means an ordinary FJS runtime value with reflection erased: primitives and
 containers become ordinary data, and represented functions become callables
@@ -166,7 +166,7 @@ handler for callable results. JSON/DataJS outputs use `toData` and their own
 representability rules: a valid function value can still be refused by a data
 output. Output refusals name the output; initialization failures name the source.
 
-The [JavaScript value emitter](../compiler/serializer/value/module.f.mjs)
+The [JavaScript value emitter](../compiler/serializer/value/module.f.js)
 provides `stringify` for a default-exported value and `factoryStringify` for
 a default-exported construction function. It accepts primitive, repeated and
 unused evaluated capture slots, preserving positions and allocation lifetimes.
@@ -174,7 +174,7 @@ It follows the JavaScript/memo profile and may emit JavaScript beyond the
 current FJS parser. The separate source writer's `tryStringify` preserves a
 structural source round trip and can refuse those captures.
 
-The existing [Rust emitter](../compiler/rust/module.f.mjs) accepts `EdagValue`
+The existing [Rust emitter](../compiler/rust/module.f.js) accepts `EdagValue`
 directly as an EDAG subset and emits native value construction and function
 bodies. Both backends preserve their supported result-graph profile:
 primitives, containers, nested captures, distinct closures, shared identity,
@@ -182,7 +182,7 @@ fresh invocation values, lazy branches and explicit throws. Rust retains its
 output refusals, including shared computations without an eager binding
 scope; the value representation does not expand backend capabilities.
 
-The [interpreted capture fixture](../nanvm/values/module.f.mjs) is checked by
+The [interpreted capture fixture](../nanvm/values/module.f.js) is checked by
 pure interpreter proofs, JavaScript runtime proofs, and
 [native Rust tests](../../nanvm/harness/tests/values.rs). Additional emitter,
 conversion and initializer proofs live beside their APIs.

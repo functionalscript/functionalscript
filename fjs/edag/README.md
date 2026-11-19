@@ -44,10 +44,10 @@ shape schema: data and functions with evaluated captures and unevaluated
 bodies. Both FJS interpreters and compiler module initialization use this
 representation; [EDAG values](values.md) records its construction, identity,
 failure and runtime-compilation contracts.
-[`validateMetadata`](value/metadata/module.f.mjs) checks unique, correctly
+[`validateMetadata`](value/metadata/module.f.js) checks unique, correctly
 ordered object keys in evaluated data and captures,
 preserving value identity.
-[`validateClosure`](value/closure/module.f.mjs) checks closure bindings,
+[`validateClosure`](value/closure/module.f.js) checks closure bindings,
 function-body scopes and function lengths, including nested function creation,
 and also preserves value identity. These checks require shape-checked FJS data
 and serve explicit boundaries accepting EDAG supplied as data. VM constructors
@@ -62,8 +62,8 @@ the error payload. Failures from operands and invoked callbacks propagate
 unchanged, retaining container and callable identities. Module initialization
 preserves that payload alongside its source path; admission and loading
 diagnostics keep their separate channels. The [joint interpreter
-proofs](memo/proof.f.mjs) exercise actual throwing callbacks through array
-methods and an enclosing operand; [compiler proofs](../compiler/transpiler/proof.f.mjs)
+proofs](memo/proof.f.js) exercise actual throwing callbacks through array
+methods and an enclosing operand; [compiler proofs](../compiler/transpiler/proof.f.js)
 cover direct and imported module initialization.
 
 [`value/semantics`](value/semantics/module.f.js) provides truthiness, `typeof`
@@ -126,8 +126,8 @@ or `undefined`, so an array's or a string's elements and never a
 call of the `hasEntry` helper answers.
 Callers own operand evaluation order, key resolution and source-name
 admission. Memo connects these reads to chains and to the helper's calls;
-[`value/method`](value/method/module.f.mjs) dispatches admitted built-ins, with
-represented array callbacks in [`value/array_method`](value/array_method/module.f.mjs).
+[`value/method`](value/method/module.f.js) dispatches admitted built-ins, with
+represented array callbacks in [`value/array_method`](value/array_method/module.f.js).
 The internal `memberPresent` query shares the call resolver: it reads the
 property first, retains own-field shadowing and then asks whether the resolved
 member is present. Presence does not imply callable: an own `0` is present,
@@ -135,11 +135,11 @@ while own null or undefined is absent. For an admitted built-in name with no
 own field, the runtime's answer is present unless it is undefined, with native
 fallback where the executor supplies one. Resolution failures propagate before
 any subsequent argument work. The query itself invokes no argument-stage body.
-[`value/convert`](value/convert/module.f.mjs) supplies primitive conversion for
+[`value/convert`](value/convert/module.f.js) supplies primitive conversion for
 objects, arrays and functions, using the shared function-text renderer in both
 interpreters; a static function, the built-in and not its body, answers the
 NativeFunction text of its name.
-[`compiler/transpiler.interpret`](../compiler/transpiler/module.f.mjs) uses memo
+[`compiler/transpiler.interpret`](../compiler/transpiler/module.f.js) uses memo
 to evaluate each module with represented dependency exports. The AST value
 evaluator is retired; both FJS EDAG VMs and compiler initialization use this
 representation. [Runtime compilation](values.md#runtime-compilation) converts
@@ -152,7 +152,7 @@ run through the call helper; their first primitive result or failure returns
 unchanged. Its primitive helpers convert the represented `Primitive` subset
 to strings and numeric values, decoding tagged undefined through the shared
 semantics helper. Abstract ToNumber rejects bigint; ToNumeric preserves it.
-[`value/convert`](value/convert/module.f.mjs) composes these helpers with array
+[`value/convert`](value/convert/module.f.js) composes these helpers with array
 and function conversion; memo owns operation dispatch.
 
 [`value/numeric`](value/numeric/module.f.js) supplies a `unary` operation
@@ -197,7 +197,7 @@ Both take numbers: the array and string method dispatchers convert the
 operands with `toNumber` first, so a bigint index fails there, once, and
 neither module converts again.
 
-The shared [serializer](../compiler/serializer/module.f.mjs) exposes
+The shared [serializer](../compiler/serializer/module.f.js) exposes
 `functionText(analysis, index): string` for a function whose analysis and body
 bindings are already established. It renders every admitted body without
 repeating admission; `tryFunctionText` remains the checked raw-expression entry
@@ -213,7 +213,7 @@ conversion. It does not save captured values or implement callable runtime
 compilation. Source serialization with `tryStringify` remains partial and
 requires every slot to survive its structural round trip.
 
-[`value/to_unknown`](value/to_unknown/module.f.mjs) exposes
+[`value/to_unknown`](value/to_unknown/module.f.js) exposes
 `toUnknown(value): Effect<CompileValue, unknown, IoChannel>`. Data-only graphs
 materialize without a host operation. Callable graphs request `compileValue`
 with a generated construction module, and a runner can provide the
@@ -230,7 +230,7 @@ wrapper also prevents asynchronous loading from interpreting a value's own
 callable `then` property. `toData` is the synchronous data-only converter; it
 continues to refuse functions for consumers that require data.
 
-[`compiler/serializer/value`](../compiler/serializer/value/module.f.mjs) emits
+[`compiler/serializer/value`](../compiler/serializer/value/module.f.js) emits
 closed value graphs as JavaScript modules, including executable functions with
 their evaluated captures. Its `stringify` API preserves shared data and function
 references under the JavaScript/memo profile; calls have fresh body allocations
@@ -256,22 +256,23 @@ two cannot drift. Every tuple in the schema is closed — none of them says
 `open`, which is what an rtti tuple needs to admit more than it declares — so
 the static tuples and the runtime ones agree exactly, an exact-length
 [TupleTs](../rtti/ts/types.ts) rendering over an exact-length set.
-[proof.f.mjs](proof.f.mjs) pins what the schema accepts and rejects, node
+[proof.f.js](proof.f.js) pins what the schema accepts and rejects, node
 kind by node kind — validation behavior, not execution semantics — with
-`comma` pinned by the compiler that emits it, `fjs/compiler/edag`. Its `ownJs` and
-`chainsJs` sections are the exception that proves the rule: they run the JS
+`comma` pinned by the compiler that emits it, `fjs/compiler/edag`. Its `ownJs`
+section and the `chainsJs` section of
+[chains_js.proof.f.mjs](chains_js.proof.f.mjs) are the exception that proves the rule: they run the JS
 whose behavior the nodes are built around, which is how those semantics were
 pinned before anything executed an EDAG. [amnesia](amnesia/README.md) now
 does — a tree-walking evaluator for testing the semantics, and deliberately
 not a VM to run FunctionalScript on — over represented
-[operations](operations/module.f.mjs), parameterized by how an
+[operations](operations/module.f.js), parameterized by how an
 operand is evaluated, how one in tail position is, and which interpreter
 invokes a function. Both Amnesia
 and memo return `Result<EdagValue, EdagValue>`, each making the calls a body
 leaves in tail position in the invocation's place; their different reuse
 policies are preserved. [Module initialization](values.md#module-initialization) uses
 memo with represented dependency exports.
-[analysis](analysis/module.f.mjs) reads
+[analysis](analysis/module.f.js) reads
 a graph into one table — every operation node once, in walk order, its
 operands by index, its scope, and which entries are shared — so that a
 writer can hoist what is shared and an executor can cache it without a
@@ -291,7 +292,7 @@ function's captures followed by its body. The serializer uses the same helper,
 keeping only captures when walking a function in its enclosing scope.
 `itemOperand(item)` unwraps a spread or returns a plain operand unchanged;
 analysis and the serializer share it for array items and call arguments.
-[memo](memo/module.f.mjs) is that
+[memo](memo/module.f.js) is that
 interpreter: it returns `Result<EdagValue, EdagValue>`, evaluating every shared
 entry once per invocation with an immutable cache. Functions retain their
 bodies and evaluated captures; invocation does not construct host callables.
@@ -309,7 +310,7 @@ enumeration order and retain explicitly present `undefined` values. Every
 occurrence gets fresh nodes, including repeated input containers.
 
 The `other` hook translates function leaves into expressions and can supply
-shared nodes. The [NaNVM corpus](../nanvm/module.f.mjs) uses it for its function
+shared nodes. The [NaNVM corpus](../nanvm/module.f.js) uses it for its function
 markers and explicit shared references. JSON imports use the same encoder
 with no function leaves. This conversion describes literals; it does not
 recover the code or identity of runtime values after reflection is erased.
@@ -343,7 +344,7 @@ vocabularies.
 | `['entry']` | the language's `entry` helper, as a value: a function of `length` `2` capturing nothing, fresh where it is established as every `=>` is, whose call `['()', ['entry'], [a, b]]` reads the enumerable own property `b` names of `a`: its value, or `undefined` where there is none |
 | `['hasEntry']` | the `hasEntry` helper beside it, the same function but for its answer: `['()', ['hasEntry'], [a, b]]` is whether the enumerable own property is there, `true` for one holding `undefined` ([spec: entry](../../spec/property-access/entries/README.md)) |
 | `['slice']`, `['charCodeAt']` | an intrinsic, as a value: the helper calling a member function no body defines, `(s, a, b) => s.slice(a, b)` recognized whole, a function of its helper's `length`, `3` for `slice`, capturing nothing, fresh where it is established as `entry` is, whose call `['()', ['slice'], [s, a, b]]` is the member call `s.slice(a, b)` as an executor answers it with no runtime — the receiver's own property, else the native, else the `TypeError` — so the runtime's bodies reach a native without naming what the runtime defines (`intrinsics`; [`fjs/js/intrinsic`](../js/intrinsic/module.f.js)) |
-| `['Object.is']`, `['Object.entries']`, `['Object.keys']`, `['Object.fromEntries']`, `['Number.isInteger']`, `['Number.isSafeInteger']`, `['Number.isNaN']`, `['Number.isFinite']` | a static function, as a value, its tag its path's keys joined by `.` (`staticIds`): the built-in, identified by its name, so the node is its own value, `===` compares the tags, and `String` spells its name's NativeFunction text (`staticText`); capturing nothing, called as any function is, `['()', ['Object.is'], [a, b]]`, its call and its `length` answered by the body the runtime's `static` function answers for the id, `runtime.static('Object.is')`, the id a path [`fjs/js/static`](../js/static/module.f.js) admits joined by `.` — but `Object.entries`, which no body defines and every executor binds natively ([`./value/entries`](./value/entries/module.f.js)). One function, as in JavaScript, not fresh where it is established: two occurrences merge, and every read is the same function. An executor with no binding for it fails rather than answer |
+| `['Object.is']`, `['Object.entries']`, `['Object.keys']`, `['Object.values']`, `['Object.fromEntries']`, `['Number.isInteger']`, `['Number.isSafeInteger']`, `['Number.isNaN']`, `['Number.isFinite']` | a static function, as a value, its tag its path's keys joined by `.` (`staticIds`): the built-in, identified by its name, so the node is its own value, `===` compares the tags, and `String` spells its name's NativeFunction text (`staticText`); capturing nothing, called as any function is, `['()', ['Object.is'], [a, b]]`, its call and its `length` answered by the body the runtime's `static` function answers for the id, `runtime.static('Object.is')`, the id a path [`fjs/js/static`](../js/static/module.f.js) admits joined by `.` — but `Object.entries`, which no body defines and every executor binds natively ([`./value/entries`](./value/entries/module.f.js)). One function, as in JavaScript, not fresh where it is established: two occurrences merge, and every read is the same function. An executor with no binding for it fails rather than answer |
 | `['=>', length, slots[], body]` | function; integer length metadata, the slots of its frame — each an `exp` evaluated in the enclosing scope, `[]` for no captures — and the invocation-scope body |
 | `['frame', N]` | slot `N` of the owning function's captured frame |
 | `['()', exp, items[]]` | call with no receiver, `exp(…)` over the argument list `items[]` — see [Chains](#chains) |
@@ -609,15 +610,16 @@ its item list: `f(a, b)` has `c = [a, b]`, and `f(...xs)` has
 | `a?.(...c).d` | `['?.()', a, c, ['\|.', 'd']]` |
 | `(a?.(...c))(...d)` | `['()', ['?.()', a, c], d]` |
 
-The `chains` section of [proof.f.mjs](proof.f.mjs) pins the shape of every
-spelling above, `chainsJs` next to it runs them as JS on the host engine, and
-[amnesia/proof.f.mjs](amnesia/proof.f.mjs) evaluates them as nodes.
+The `chains` section of [proof.f.js](proof.f.js) pins the shape of every
+spelling above, `chainsJs` in [chains_js.proof.f.mjs](chains_js.proof.f.mjs)
+runs them as JS on the host engine, and
+[amnesia/proof.f.js](amnesia/proof.f.js) evaluates them as nodes.
 
 ### What cannot be written
 
 The uniqueness is structural: the duplicate families a flat array of steps
 admitted are not forbidden, they are unspellable, and the `unspellable`
-section of [proof.f.mjs](proof.f.mjs) is one case per family.
+section of [proof.f.js](proof.f.js) is one case per family.
 
 | family | why |
 |---|---|
@@ -656,9 +658,9 @@ chain, so `undefined` is called. V8 does throw; JavaScriptCore (hence
 oracle can establish it on every supported runner. The EDAG follows the
 specification — `['?.', u, 'b', ['|!()', d]]` denotes the throwing
 reading, and an executor must produce it whatever its host does — as
-[amnesia](amnesia/module.f.mjs) does, where
+[amnesia](amnesia/module.f.js) does, where
 `optionRegion.throw.closeStepOnUndefined` in
-[amnesia/proof.f.mjs](amnesia/proof.f.mjs) evaluates the node and pins the
+[amnesia/proof.f.js](amnesia/proof.f.js) evaluates the node and pins the
 throw on every runner. `(u?.b).c`, the property counterpart, throws everywhere
 and is what `chainsJs` pins for this boundary.
 
@@ -671,9 +673,9 @@ one step further in. JavaScript cannot pin them, because they are `|!()`
 terms; and neither can the node, because *both* readings throw, this language
 has no mutation for a skipped operand to record itself with, and a `throw`
 case is pass/fail rather than payload-inspecting (`fjs/AGENTS.md` §1.5). What
-`amnesia/proof.f.mjs` pins is that each side throws where it should. The order
+`amnesia/proof.f.js` pins is that each side throws where it should. The order
 itself is carried by the shape of `callProperty` in
-[amnesia/module.f.mjs](amnesia/module.f.mjs) — it takes the argument *node*
+[amnesia/module.f.js](amnesia/module.f.js) — it takes the argument *node*
 and evaluates it inside the call expression, so JavaScript's own order applies
 — and by that function's JSDoc, which says so. Take an evaluated array there
 instead and every test still passes.

@@ -3,13 +3,13 @@
 Typed mutable slots for an effectful program: `create` a slot with a value,
 then `read` and `write` it in later steps. A slot's key carries its value type,
 so a key made for a number can only be read as a number.
-[`module.f.mjs`](./module.f.mjs) holds the operations and the synchronous
+[`module.f.js`](./module.f.js) holds the operations and the synchronous
 interpreter, and [`types.ts`](./types.ts) the `Key<T>` and `MemOp` types.
 
 ```js
-import { history, historyStep, mapStep } from '../module.f.mjs'
-import { run } from '../mock/module.f.mjs'
-import { create, memoryInitial, memoryOperationMap, read, write } from './module.f.mjs'
+import { history, historyStep, mapStep } from '../module.f.js'
+import { run } from '../mock/module.f.js'
+import { create, memoryInitial, memoryOperationMap, read, write } from './module.f.js'
 
 const created = history(create(0))
 const written = historyStep(created, key => write(key, 41))
@@ -17,7 +17,7 @@ const incremented = historyStep(written, (_, key) => mapStep(read(key), n => n +
 const counter = mapStep(incremented, ([n]) => n)
 
 run(memoryOperationMap)(memoryInitial)(counter)
-// [{ next: 1, values: { mem0: 41 } }, ['ok', 42]]
+// [{ next: 1, slots: { mem0: 41 } }, ['ok', 42]]
 ```
 
 Each link is bound at one level, and `historyStep` carries the key forward so

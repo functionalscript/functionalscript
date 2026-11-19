@@ -38,7 +38,7 @@ result is thrown away. A third reader, the data form's `validate`, reads the
 same values against `toData(s)`, the schema as plain data, and accepts exactly
 the DataJS values the other two do (a function or a symbol it may admit, see
 [`data-validate-admits-non-djs-values`](../../../todo/data-validate-admits-non-djs-values.md));
-[`validate/proof.f.mjs`](../../../validate/proof.f.mjs)
+[`validate/proof.f.js`](../../../validate/proof.f.js)
 runs one acceptance table through all three. How the two schema-form readers
 share their code is in
 [`common`'s README](../../../common/README.md#one-kernel-two-readers).
@@ -68,6 +68,6 @@ defined in [`sample.f.js`](./sample.f.js), and the
 
 ## Where it is implemented
 
-[`parse`](../../../parse/module.f.mjs), [`validate`](../../../validate/module.f.mjs)
-and the data form's `validate` in [`data`](../../../data/module.f.mjs), over
-the shared kernel in [`common`](../../../common/module.f.mjs).
+[`parse`](../../../parse/module.f.js), [`validate`](../../../validate/module.f.js)
+and the data form's `validate` in [`data`](../../../data/module.f.js), over
+the shared kernel in [`common`](../../../common/module.f.js).

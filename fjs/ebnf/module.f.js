@@ -1,0 +1,296 @@
+/**
+ * The EBNF front end: the constructors a grammar is written with.
+ *
+ * A terminal is a set of symbol ranges rather than a single symbol, so the
+ * range-set algebra in `types/range_set` is what `set`, `union` and `remove`
+ * lift here. Repetition fixes `repeat`'s bounds; `reference` and `define`
+ * separate a recursive rule's identity from its body. See
+ * `./types.ts` for what the constructors build.
+ *
+ * @module
+ *
+ * @import { RangeSet } from '../types/range_set/types.ts'
+ * @import { StringMap } from '../types/object/types.ts'
+ * @import { JoinNode } from './ast/types.ts'
+ * @import { DataRule, Definition, Info, Join, Reference, Set, Rule, Repeat, Option, RepeatFrom, Times } from './types.ts'
+ */
+
+import { assert } from "../asserts/module.f.js"
+import { unmapped } from "./ast/module.f.js"
+import { isRepeatBounds, isSymbol } from "./data/module.f.js"
+import { codePointListToString, codePointToString, codePoints } from "../text/utf16/module.f.js"
+import { maxCodePoint } from "../text/code_point/module.f.js"
+import { isFixedArray } from "../types/array/module.f.js"
+import { definedEntries } from "../types/object/module.f.js"
+import { entry } from "../types/object/entry/module.f.js"
+import { fromValues, size } from "../types/set/module.f.js"
+import { complement, empty, fromRange, intersection, union as setUnion } from "../types/range_set/module.f.js"
+
+const { fromEntries } = Object
+
+const isFixedArray2 =
+    isFixedArray(2)
+
+/**
+ * A fresh rule identity, declared before the body that may refer back to it.
+ * Annotate it with `Reference<Body>` and supply its `define` pair when the
+ * grammar is lowered or parsed. Two calls make two distinct rules.
+ *
+ * @template {DataRule} R
+ * @returns {Reference<R>}
+ */
+export const reference = () => () => ['ref']
+
+/**
+ * Bind a reference's checked body without mutating the reference. Curried so
+ * the reference fixes the body's type before the body is supplied.
+ *
+ * @template {DataRule} R
+ * @param {Reference<R>} reference
+ * @returns {(body: R) => Definition}
+ */
+export const define = reference => body => [reference, body]
+
+/**
+ * The range `rangeEncode` and `range` both return: one function, so the
+ * check is made once, and each export types it as a `Set` carrying its own
+ * spelling. What it refuses is documented on `rangeEncode`.
+ *
+ * @type {(a: number, b: number) => Info<readonly ['set', ...readonly number[]]>}
+ */
+const rangeInfo = (a, b) => {
+    assert(isSymbol(a) && isSymbol(b) && a <= b && isSymbol(b + 1))
+    const r = /**@type {const}*/(['set', a, b + 1])
+    return () => r
+}
+
+/**
+ * Encodes a two-symbol string into a terminal range.
+ *
+ * @throws If `ab` does not contain exactly two unicode code points, or holds
+ * a lone surrogate.
+ *
+ * @type {<const S extends string>(ab: S) => Set<readonly ['range', S]>}
+ */
+export const range = ab => {
+    const a = codePoints(ab)
+    assert(isFixedArray2(a))
+    return rangeInfo(...a)
+}
+
+/**
+ * Encodes a closed range of symbols as a terminal, exclusive above.
+ *
+ * @throws If either endpoint is not an ordinary symbol, if the range runs
+ * backwards, or if the exclusive boundary above `b` is not a symbol either —
+ * a call site that hands over one of those has made a mistake, and answering
+ * it with a plausible range would hide that.
+ *
+ * @type {<const A extends number, const B extends number>(a: A, b: B) => Set<readonly ['rangeEncode', A, B]>}
+ */
+export const rangeEncode = rangeInfo
+
+/** @type {(a: Set) => RangeSet} */
+const rangeSet = a => {
+    const [, ...r] = a()
+    return r
+}
+
+/**
+ * @type {<T>(f: (v: T) => RangeSet) =>
+ *  (v: readonly T[]) =>
+ *  Info<readonly ['set', ...readonly number[]]>}
+ */
+const unionX = f => v => {
+    const r = /**@type {const}*/([
+        'set',
+        ...v.map(f).reduce(
+            (a, b) => setUnion(a)(b),
+            empty)])
+    return () => r
+}
+
+const setUnionX = unionX(b => fromRange([b, b + 1]))
+
+/**
+ * The set of the code points of `a`.
+ *
+ * @throws If `a` holds a lone surrogate: it is no code point, and encoded
+ * as one it would be a symbol outside the domain.
+ *
+ * @type {<const S extends string>(a: S) => Set<readonly ['set', S]>}
+ */
+export const set = a => setUnionX(codePoints(a))
+
+const infoUnionX = unionX(rangeSet)
+
+/** @type {<const A extends readonly Set[]>(...a: A) => Set<readonly ['union', ...A]>} */
+export const union = (...a) => infoUnionX(a)
+
+/**
+ * @type {<A extends Set, B extends Set>(a: A, b: B) =>
+ *  Set<readonly ['remove', A, B]>}
+ */
+export const remove = (a, b) => {
+    const r = /**@type {const}*/([
+        'set',
+        ...intersection(rangeSet(a))(complement(rangeSet(b)))])
+    return () => r
+}
+
+/**
+ * The repetition every repetition constructor returns: one function, so the
+ * bounds are checked once, at the call that wrote them rather than wherever
+ * the grammar is first consumed. Bounds outside `isRepeatBounds`' domain
+ * would build a rule that looks ordinary and matches nothing anyone asked
+ * for.
+ *
+ * @type {<A extends number, B extends number>(a: A, b: B) =>
+ *  <const R extends Rule>(rule: R) =>
+ *  Repeat<A, B, R>}
+ */
+const repeatInfo = (a, b) => {
+    assert(isRepeatBounds(a, b))
+    return rule => () => ['repeat', a, b, rule]
+}
+
+/**
+ * `min..max` copies of a rule. A bound is spelled or refused: a literal
+ * type says which bound is meant, where `number` — the type `Infinity` has,
+ * and the type a bound widens to — would read as unbounded to whatever
+ * matches rules by their types (`./map`). So a bound that is not a literal
+ * is refused here, and `repeatFrom` spells the unbounded case.
+ *
+ * @type {<const A extends number, const B extends number>(
+ *  a: number extends A ? never : A,
+ *  b: number extends B ? never : B) =>
+ *  <const R extends Rule>(rule: R) =>
+ *  Repeat<A, B, R>}
+ */
+export const repeat = repeatInfo
+
+/**
+ * `n` or more copies of a rule: the one repetition whose `max` is
+ * `Infinity`, spelled `number` in its type.
+ *
+ * @type {<const N extends number>(n: number extends N ? never : N) =>
+ *  <const R extends Rule>(rule: R) =>
+ *  RepeatFrom<N, R>}
+ */
+export const repeatFrom = n => repeatInfo(n, Infinity)
+
+export const repeatFrom0 = repeatFrom(0)
+export const repeatFrom1 = repeatFrom(1)
+
+/**
+ * @type {<const N extends number>(n: number extends N ? never : N) =>
+ *  <const R extends Rule>(rule: R) => Times<N, R>}
+ */
+export const times = n => repeatInfo(n, n)
+
+/** @type {<const R extends Rule>(rule: R) => Option<R>} */
+export const option = repeatInfo(0, 1)
+
+/**
+ * A list of `r`s separated by `s`, optional as a whole so that an empty
+ * list is one too.
+ *
+ * @type {<const S extends Rule>(s: S) =>
+ *  <const R extends Rule>(r: R) =>
+ *  Join<S, R>}
+ */
+export const join = s => r => option([r, repeatFrom0([s, r])])
+
+/**
+ * The items of a list `join` matched, in order, read out of the node the
+ * machine built for it: empty, or the first item beside the separator-item
+ * pairs. The pairs, and the option around them, are scaffolding `join`
+ * builds and hands to nobody, so no mapping ever fills those positions;
+ * the items may be mapped, and are returned as they stand. Typed by the
+ * shape of the node, for the reason `Unmapped` in `./ast/types.ts` gives.
+ *
+ * @type {<T>(list: JoinNode<T>) => readonly T[]}
+ */
+export const joined = list => {
+    if (list.length === 0) { return [] }
+    const [first, rest] = unmapped(list[0])
+    return [first, ...unmapped(rest).map(pair => unmapped(pair)[1])]
+}
+
+/**
+ * The subtree of the words that begin here: each word is the tail left
+ * after the characters above, and an empty tail marks a word that ends
+ * here. At least one word, and no word twice.
+ *
+ * @type {(words: readonly (readonly number[])[]) => Rule}
+ */
+const node = words => {
+    /** @type {StringMap<readonly (readonly number[])[]>} */
+    const groups = words
+        .filter(w => w.length !== 0)
+        .reduce(
+            /** @type {(m: StringMap<readonly (readonly number[])[]>, w: readonly number[]) => StringMap<readonly (readonly number[])[]>} */
+            ((m, [c, ...tail]) => {
+                const k = codePointListToString([c])
+                return { ...m, [k]: [...(entry(m, k) ?? []), tail] }
+            }),
+            {})
+    // A branch is its character alone where the one word through it ends
+    // right there, and the character then the subtree of what goes on.
+    const branches = fromEntries(definedEntries(groups).map(([k, tails]) =>
+        [k, tails.every(tail => tail.length === 0) ? k : [k, node(tails)]]))
+    return words.some(w => w.length === 0) ? option(branches) : branches
+}
+
+/**
+ * One of the words, the longest the lookahead leads to: the words as a
+ * prefix tree.
+ *
+ * A variant of the words is not LL(1) where two share a first character —
+ * `=`, `==` and `===` begin alike, and one symbol of lookahead cannot pick
+ * one — but it can decide whether to go on, so the tree asks that instead:
+ * each node is a variant keyed by the next character, optional where a
+ * word ends there and longer words continue. An optional round starts
+ * whenever the lookahead is in its first set, so a parse reads the longest
+ * word, which is what a tokenizer means by maximal munch.
+ *
+ * Going on is decided on one symbol and never undone, as every LL(1)
+ * choice is. Where the words have a gap — `.` and `...` with no `..` —
+ * the second `.` commits to `...`, so `..x` is refused at the `x` rather
+ * than read as `.` twice: the shorter word is not a fallback, since a
+ * fallback is a second reading and this backend takes one. A grammar that
+ * wants `..` as two words says so in the list.
+ *
+ * What follows the rule in a grammar may not begin with a character that
+ * continues a word: `literals(['a', 'ab'])` then `'b'` reads `ab` two
+ * ways, and the backend refuses it as the first/follow conflict it is. A
+ * one-token grammar has nothing after it, and that is where this belongs.
+ *
+ * The tree is the words' own structure, so the node a match builds is
+ * nested — the word's characters down its branches — and a mapping reads
+ * the word back as the symbols under the node, as `lexeme` in
+ * `./utf16` does.
+ *
+ * @throws On no words, on an empty word — a rule that may match nothing
+ * decides nothing, and a token is never empty — on a word spelled twice,
+ * and on a word holding a lone surrogate.
+ *
+ * @type {(words: readonly string[]) => Rule}
+ */
+export const literals = words => {
+    assert(words.length !== 0)
+    assert(words.every(w => w !== ''))
+    assert(size(fromValues(words)) === words.length)
+    return node(words.map(codePoints))
+}
+
+/**
+ * The end of input, as a rule. A grammar that must consume the whole input
+ * ends in it: `[value, eof]`.
+ *
+ * @type {null}
+ */
+export const eof = null
+
+export const unicodeMax =
+    codePointToString(maxCodePoint)

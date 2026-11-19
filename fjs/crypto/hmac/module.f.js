@@ -10,7 +10,7 @@
  *
  * ```ts
  * import { vec } from '../../types/bit_vec/module.f.js'
- * import { utf8 } from '../../text/module.f.mjs'
+ * import { utf8 } from '../../text/module.f.js'
  * import { sha256 } from '../sha2/module.f.js'
  *
  * const r = hmac(sha256)(utf8('key'))(utf8('The quick brown fox jumps over the lazy dog'))

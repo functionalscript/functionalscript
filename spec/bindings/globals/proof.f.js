@@ -1,0 +1,23 @@
+import { assert, assertEq } from '../../../fjs/asserts/module.f.js'
+import { report, suggestedText } from '../../../fjs/compiler/refused_demo/module.f.js'
+import alternative from './alternative.f.js'
+import { demo, sample, suggestion } from './demo.f.js'
+
+export const proof = {
+    // `globalThis` stays unbound even though Math now admits log2. Pin
+    // `name.unbound` (spec/todo/refused-constructs.md), not namespace admission.
+    refused: () => {
+        const r = report(sample)
+        assert(r[0] === 'error', 'name.unbound is accepted')
+        assertEq(r[1][1], "sample.mjs:1:16 - error: const not found")
+    },
+    alternative: () => assertEq(String(alternative), "2"),
+    // The proposed message is at the refused token, and its fix is the alternative's line.
+    suggested: () => {
+        const r = report(sample)
+        assert(r[0] === 'error')
+        const text = suggestedText(suggestion)(sample)(r[1])
+        assert(text.includes(`\n          ${suggestion.fix}\n`), text)
+    },
+    demo: () => assertEq(demo.init.source[0], 'loading'),
+}

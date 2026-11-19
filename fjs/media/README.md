@@ -2,7 +2,7 @@
 
 `fjs/media/` holds content formats — the modules that read and write content
 whose identity is a media type — and the detector that recognizes them.
-[`module.f.mjs`](./module.f.mjs) is the dialect-aware detection entry point
+[`module.f.js`](./module.f.js) is the dialect-aware detection entry point
 layered over the byte-signature detector in [`type/`](./type/README.md).
 
 ## Membership
@@ -23,7 +23,7 @@ Stays out:
 - `basen/` — `base64`, `cbase32`, `base128` are transfer encodings, not media
   types.
 
-There is no `media/fjs/` entry: `fjs/module.f.mjs` is only the CLI
+There is no `media/fjs/` entry: `fjs/module.f.js` is only the CLI
 dispatcher, so a `media/fjs/` module appears only if a library-form
 FunctionalScript format module comes to exist.
 
@@ -122,7 +122,7 @@ under [`fjs/cas/evo`](../cas/evo/) and import it. [`lock/`](./lock/README.md)
 sits beside `revision/` for the same reason and imports the lock-map schema
 from it rather than restating it.
 
-The detector in [`module.f.mjs`](./module.f.mjs) takes the dialect entries as
+The detector in [`module.f.js`](./module.f.js) takes the dialect entries as
 a parameter rather than importing them, so it knows no dialect of its own;
 [detect-json](./type/todo/detect-json.md) is the direction in which the
 byte-level detector dispatches over its siblings' declared formats instead of

@@ -34,14 +34,14 @@ at the site's own view, and GitHub can stay as a second link.
   spends, for output that is stale the moment a module changes.
 - **One tokenization serves both views.** The source view and the doc view are
   two renderings of the same token list, read from the JS token grammar
-  [`fjs/ebnf/lib/js`](../../ebnf/lib/js/module.f.mjs) the way the compiler's
-  [`fjs/compiler/tokenizer`](../../compiler/tokenizer/module.f.mjs) reads it: comments
+  [`fjs/ebnf/lib/js`](../../ebnf/lib/js/module.f.js) the way the compiler's
+  [`fjs/compiler/tokenizer`](../../compiler/tokenizer/module.f.js) reads it: comments
   and trivia are tokens, every token knows where it begins, and the stream is
   contiguous, so a token's text runs from its start to the next token's — the
   prerequisite says what that still needs — and it is authored
   FunctionalScript, so it loads in a browser like any other module.
   Nothing is written twice. The token stream is
-  [`fjs/js/tokenizer`](../../js/tokenizer/module.f.mjs)'s — the grammar's
+  [`fjs/js/tokenizer`](../../js/tokenizer/module.f.js)'s — the grammar's
   general JS stream, which the compiler's tokenizer folds — since the
   grammar replaced the hand-written scanner behind that path.
 - **The grammar must first recognise the sources it will show.** Its string
@@ -80,7 +80,7 @@ at the site's own view, and GitHub can stay as a second link.
 - `fjs/website/source-view/module.f.mjs` — pure: `(source: string) => Node`
   for the highlighted source, and `(source: string) => Node` for the docs,
   both built from one `tokenize` call and rendered with
-  [`media/html`](../../media/html/module.f.mjs). Its `proof.f.mjs` covers a
+  [`media/html`](../../media/html/module.f.js). Its `proof.f.mjs` covers a
   module with a `@module` block, an export with JSDoc, an export without, and a
   comment that is not JSDoc.
 - The page emits `<pre data-source="./module.f.mjs">`, a `<section
@@ -116,7 +116,7 @@ at the site's own view, and GitHub can stay as a second link.
 - [Publish `deno doc` to website](../../../todo/blocked/publish-deno-doc-to-website.md)
   — the full type reference, deliberately not this.
 - [Generate website](generate-website.md) — "Source code highlighting" is this issue.
-- [`fjs/js/tokenizer`](../../js/tokenizer/module.f.mjs) — the token stream
-  both views read, over the grammar [`fjs/ebnf/lib/js`](../../ebnf/lib/js/module.f.mjs).
+- [`fjs/js/tokenizer`](../../js/tokenizer/module.f.js) — the token stream
+  both views read, over the grammar [`fjs/ebnf/lib/js`](../../ebnf/lib/js/module.f.js).
 - [single-quote-and-template-lexing](../../ebnf/lib/js/todo/single-quote-and-template-lexing.md)
   — the prerequisite, as its own issue.

@@ -11,23 +11,22 @@ case), `decodeCodePoints` (either case, over code points) and `decodeLower`
 (lowercase only) read a continuous run of pairs back, or refuse it. A
 separator, a prefix or a width stays the caller's grammar, checked around the
 codec. `fjs/git/oid`'s `tryFromHex` and `toHex`, `fjs/git/testlib.f.mjs`'s
-`hexBytes`, `fjs/zlib/testlib.f.mjs`'s `hex`, `fjs/git/refstore/name`'s
-`nameForMessage` and `fjs/media/datajs/vectors`'s `bytes` are on it. These still spell their own:
+`hexBytes`, `fjs/zlib/testlib.f.js`'s `hex`, `fjs/git/refstore/name`'s
+`nameForMessage`, `fjs/media/datajs/vectors`'s `bytes` and
+`fjs/rust/demangle`'s `utf8Nibbles` are on it. These still spell their own:
 
-- [`fjs/types/uint8array`](../../types/uint8array/module.f.mjs) —
+- [`fjs/types/uint8array`](../../types/uint8array/module.mjs) —
   `fromVec` reads a pair back with ``Number(`0x…`)``; it works a bigint at
   a time for a reason its doc gives, which the codec's byte lists do not
   respect, so it is not moved. Its writers, `hexOfByte` and the padding of
   the whole vector's spelling, are `encodeScalar`.
-- [`fjs/rust/demangle`](../../rust/demangle/module.f.mjs) — `utf8Nibbles`
-  reads a lowercase-hex byte list with `parseInt` over each pair, and
-  `uint` reads a hex run with the `BigInt` string constructor; the first
-  is `decodeLower`, odd count refused, and the second `hexDigitsValue`.
+- [`fjs/rust/demangle`](../../rust/demangle/module.f.js) — `uint` reads a
+  hex run with the `BigInt` string constructor; it could use `hexDigitsValue`.
   `integer62` and `punycodeDecode` there subtract letter offsets for a
   base-62 and a base-36 digit, which `digitsValue` stops short of on
   purpose; a digit value over the alphanumeric alphabet in `text/ascii`
   would own both.
-- [`fjs/website`](../../website/module.f.mjs) — `commitOf` turns the
+- [`fjs/website`](../../website/module.f.js) — `commitOf` turns the
   environment's string into code units and screens out anything above `0x7f`
   by hand, because `fjs/git/oid`'s reader takes bytes; the codec's `decode`
   takes the string and refuses a wide unit itself, but the width check is
@@ -49,8 +48,8 @@ added it with the `vdf` demo's `parseHex` on it, and
 [#2938](https://github.com/functionalscript/functionalscript/pull/2938)
 moved the other readers that summed their own digits onto it:
 [`fjs/git/config`](../../git/config/module.f.js)'s `tryDigits`,
-[`fjs/media/json/parser`](../../media/json/parser/module.f.mjs)'s
-`escapeMapping`, [`fjs/js/tokenizer`](../../js/tokenizer/module.f.mjs)'s
+[`fjs/media/json/parser`](../../media/json/parser/module.f.js)'s
+`escapeMapping`, [`fjs/js/tokenizer`](../../js/tokenizer/module.f.js)'s
 four-digit `\u` and two-digit `\x` escapes, and the `pow` demo's
 `parseNBits`. The tokenizer's braced `\u{…}` escape still reads a digit
 at a time through `hexDigitValue`, by choice: the run has no length limit,
@@ -60,7 +59,7 @@ which reading the whole run as one `bigint` would not.
 The writing side has a sibling, a scalar spelled in fixed-width hex, and
 the codec covers it as `encodeScalar(width)(value)`: lowercase, padded to
 `width` and never cut to it. `hexLiteral` in
-[`fjs/media/rust`](../../media/rust/module.f.mjs), `byteLiteral` in
+[`fjs/media/rust`](../../media/rust/module.f.js), `byteLiteral` in
 `fjs/nanvm/expected`, `unicodeEscape` in `fjs/js/string_escape`,
 `pathByte` in `fjs/text/percent` (in capitals, over it), the `vdf`,
 `sign`, `hash` and `secp` demos, and `fjs/text/utf8`'s demo, one byte at
@@ -106,6 +105,8 @@ unit, surrogates included.
       onto it.
 - [ ] Move the consumers still listed above onto it, or record why each
       stays, `fjs/types/uint8array` included.
+- [x] Move `rust/demangle`'s UTF-8 byte reader onto `decodeLower`, keeping
+      empty input, odd-count refusal and invalid UTF-8 refusal unchanged.
 - [x] The radix-16 digit-run reader: `hexDigitsValue` in `text/ascii`,
       landed by [#2787](https://github.com/functionalscript/functionalscript/pull/2787)
       with the `vdf` demo on it.

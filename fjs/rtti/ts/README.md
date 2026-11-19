@@ -1,6 +1,6 @@
 # `rtti/ts` — TypeScript type inference for RTTI schemas
 
-`Ts<T>` (`module.f.mjs`) maps an RTTI schema `Type` to its TypeScript type at
+`Ts<T>` (`types.ts`) maps an RTTI schema `Type` to its TypeScript type at
 compile time. It works by walking the schema's structural shape with a chain of
 conditional types and `infer`.
 
@@ -37,7 +37,7 @@ class of accidental overflows without touching the rest of `Ts<T>`.
 ## A `WithOut` phantom output type
 
 For recursive schemas (e.g. the JSON Schema `unknown` type in
-`fjs/media/json/schema/module.f.mjs`) even the non-`any` walk overflows because the
+`fjs/media/json/schema/module.f.js`) even the non-`any` walk overflows because the
 schema references itself. The fix is to annotate the schema with its output type
 once, at construction time, and have `Ts<T>` read that annotation directly —
 one indexed-access, no structural walk.
@@ -59,7 +59,7 @@ a string key `$out` would have to extend `Type`. A symbol key is excluded from
 string index signatures, so `WithOut<S, Out>` is valid for any `Out` regardless
 of whether `Out` extends `Type`.
 
-Usage (abbreviated from `fjs/media/json/schema/module.f.mjs`):
+Usage (abbreviated from `fjs/media/json/schema/module.f.js`):
 
 ```ts
 const unknownThunk = () => ['const', unknownConst] as const
@@ -107,7 +107,7 @@ so one rendering
 
 What counts as empty is a semantic question, a `toData` conversion compared
 with the bare container's by `equivalent` in
-[`data/module.f.mjs`](../data/module.f.mjs), which `types.ts` cannot invoke. So `RestTs` recognizes the
+[`data/module.f.js`](../data/module.f.js), which `types.ts` cannot invoke. So `RestTs` recognizes the
 one directly spellable empty rest, `or()`, and keeps the tail whenever it
 cannot tell. A kept tail is wider than the schema but sound, which is the
 direction a success cast needs. The runtime printer goes through the data form
@@ -116,7 +116,7 @@ the printer drops the tail there and `Ts<>` does not.
 
 ## Remaining open problems
 
-The `as any` casts in `parse/module.f.mjs` cannot
+The `as any` casts in `parse/module.f.js` cannot
 be removed without language features TypeScript does not yet have:
 
 **Problem A — visitor rank-2 erasure.** `Visitor<R>` requires a uniform `R`

@@ -41,7 +41,7 @@ file-scope block indented differently is missed; a `@typedef` inside a string, a
 template literal, or a Markdown block in a comment is flagged. Both call the
 answer with the same confidence.
 
-Its own near-miss is the sharpest evidence. `fjs/ci/node/module.f.mjs` holds the
+Its own near-miss is the sharpest evidence. `fjs/ci/node/module.f.js` holds the
 pattern as a JavaScript string and a comment naming the tag, in an authored
 `.mjs` the gate searched — matched by neither branch only because both sit
 indented past what the pattern accepts. The guard passed on the file that

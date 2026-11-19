@@ -1,0 +1,542 @@
+/**
+ * The DataJS writer: a FunctionalScript value, read into a graph and written
+ * out as a document. Inputs obey FunctionalScript's value contract: its
+ * constructed containers are immutable and acyclic. Functions are refused;
+ * each format's leaf rule decides which primitives its document can hold.
+ *
+ * ```text
+ * FunctionalScript value
+ *    |
+ *    v
+ * read                      one traversal: array elements or Object.entries,
+ *    |                      reading every container once
+ *    v
+ * link                      the containers replaced by node indices, in
+ *    |                      post-order
+ *    v
+ * write                     the shared nodes as `const` statements, then
+ *    |                      `export default`
+ *    v
+ * DataJS text
+ * ```
+ *
+ * Arrays are read by element; other non-null objects by `Object.entries`,
+ * in their observable property order. A member holding `undefined` remains
+ * a member, so it stays distinct from an absent property.
+ *
+ * **What comes out is normalized form** — one line, a single space after
+ * `const`, `export` and `default` and nowhere else, a node hoisted into a
+ * `const` exactly when more than one reference reaches it, and the consts
+ * named `$0`, `$1`, … in the order they are emitted. A caller that wants a
+ * readable layout is the reason the specification leaves layout free, and
+ * is what would make a second writer worth having; there is one today, so
+ * it is the one whose bytes are pinned.
+ *
+ * Both passes keep the reader's depth contract: the read walks an explicit
+ * stack, a frame per container, and the write reads the linked graph in the
+ * post-order `link` left it in, so nesting as deep as the reader accepts
+ * costs no call stack on the way back out. Neither squares the number of
+ * containers: the containers entered are a persistent set with a
+ * logarithmic add, and the shared nodes are read off sorted occurrences.
+ *
+ * `trySerialize` and `tryStringify` write DataJS; `tryJsonSerialize` and
+ * `tryJsonStringify` write JSON. A JSON document is the tree a DataJS graph
+ * unfolds to, so its writer is this read under JSON's leaf rule and lives
+ * here rather than in `fjs/media/json`, which this module imports.
+ *
+ * **The writer builds `Chunk`s and says what it wrote.** A leaf, a key and the
+ * words `const`, `export` and `default` are runs with a kind, and the rest
+ * plain strings. `trySerialize` and `tryJsonSerialize` answer the plain
+ * strings (`chunkStrings`), as they always have; `_trySerialize` and
+ * `_tryJsonSerialize` keep the kinds, for the writers that build on this one
+ * (they are linkage, with the `_` prefix), and `tryMarked` and `tryJsonMarked`
+ * are the public marked text. The non-finite numbers are the language's
+ * literal words, `NaN` and `Infinity`.
+ *
+ * @module
+ *
+ * @import { List } from '../../../types/list/types.ts'
+ * @import { Chunk, Marked } from '../../../text/marked/types.ts'
+ * @import { Result } from '../../../types/result/types.ts'
+ * @import { Primitive } from '../types.ts'
+ * @import { _Graph, _Leaf, _Member, _Node, _Read, _Value } from './types.ts'
+ * @import { _Frame, _Step, _Visit, _Walk } from './private.ts'
+ * @import { WalkFold } from '../../../types/stack_walk/types.ts'
+ * @import { PersistentMap } from '../../../types/map/types.ts'
+ * @import { PersistentSet } from '../../../types/set/types.ts'
+ */
+
+import { assertNotNullish } from '../../../asserts/module.f.js'
+import { serialize as bigintSerialize } from '../../../types/bigint/module.f.js'
+import { empty, flat } from '../../../types/list/module.f.js'
+import { toArray } from '../../../types/list/alt/module.f.js'
+import { cmp } from '../../../types/number/module.f.js'
+import { error, mapOk, ok } from '../../../types/result/module.f.js'
+import { add, empty as noneStarted, fromValues, has } from '../../../types/set/module.f.js'
+import { empty as noNames, fromEntries, mapEntries, mapGet, mapSet, size } from '../../../types/map/module.f.js'
+import { walkFold } from '../../../types/stack_walk/module.f.js'
+import { chunksMarked, chunkStrings, chunksText, keyword, withNames } from '../../../text/marked/module.f.js'
+import { arrayWrap, boolSerialize, colon, leafSerialize as leafSerializeWith, nullSerialize, numberSerialize, objectWrap, stringSerialize } from '../../json/serializer/module.f.js'
+
+// ── leaves and keys ───────────────────────────────────────────────────────────
+
+/** `undefined`, a DataJS leaf that JSON has no spelling for. @type {List<Chunk>} */
+const undefinedSerialize = [['undefined', 'literal']]
+
+/**
+ * A number as ECMAScript `ToString` spells it, which is the algorithm the
+ * specification restates, with the one departure it names: `-0` is written
+ * `-0` where `ToString` writes `0`. A finite number is JSON's
+ * `numberSerialize`, which owns that rule; `NaN` and the infinities are
+ * words, where JSON's `numberSerialize` writes `null` for them. Exported
+ * because the compiler's JSON output and its proofs' dump, in
+ * `fjs/compiler`, write numbers the same way, and the rule has one owner;
+ * the `_` prefix says that export is linkage rather than API.
+ *
+ * @type {(value: number) => List<Chunk>}
+ */
+export const _numberSerialize = value => Number.isFinite(value) ? numberSerialize(value) : [[`${value}`, 'literal']]
+
+/**
+ * A leaf as a document spells it — this format's counterpart to JSON's
+ * `stringSerialize` and `numberSerialize`, and public as those are: the
+ * FunctionalScript writer in `fjs/compiler` spells the leaves of its own
+ * documents this way, DataJS's leaves being FunctionalScript's, and the
+ * rule has one owner.
+ *
+ * @type {(value: Primitive) => List<Chunk>}
+ */
+export const leafSerialize = leafSerializeWith(_numberSerialize)({
+    bigint: value => [[bigintSerialize(value), 'number']],
+    undefined: () => undefinedSerialize,
+})
+
+const protoKey = '__proto__'
+
+/**
+ * A member's key as the document spells it. `__proto__` has one spelling,
+ * the computed form: JavaScript reads `{"__proto__": v}` as an instruction
+ * to replace the object's prototype, so a document spelling a member that
+ * way would not read back the member it was given, and the reader refuses
+ * it outright. This is the key seam
+ * [157](../../json/todo/157-json-djs-shared-value-machine.md) counts,
+ * and since the old `fjs/djs/serializer` was retired its only implementation.
+ *
+ * Public beside {@link leafSerialize}, and for the same reason: the
+ * FunctionalScript writer spells an object's key this way too.
+ *
+ * @type {(key: string) => List<Chunk>}
+ */
+export const keySerialize = key => key === protoKey
+    ? flat([['['], stringSerialize(key), [']']])
+    : stringSerialize(key)
+
+// ── reading the caller's value ────────────────────────────────────────────────
+
+/** @type {_Walk<never>} */
+const start = { started: noneStarted, finished: empty }
+
+/** A leaf as the leaf rule kept it. @type {<L>(kept: L) => _Value<object, L>} */
+const leaf = kept => ['leaf', kept]
+
+/** @type {<L>(member: _Member<object, L>) => _Value<object, L>} */
+const memberOf = ([, value]) => value
+
+/**
+ * A FunctionalScript container opened as a frame, with its members in their
+ * observable order. Array elements and object entries both retain undefined.
+ *
+ * @type {<L>(value: object) => _Frame<L>}
+ */
+const open = value => value instanceof Array
+    ? { value, kind: 'array', properties: value.map((element, i) => [String(i), element]), index: 0, done: empty }
+    : { value, kind: 'object', properties: Object.entries(value), index: 0, done: empty }
+
+/**
+ * The node a frame closes into once every member is read.
+ *
+ * @type {<L>(frame: _Frame<L>) => _Node<object, L>}
+ */
+const close = ({ kind, done }) => {
+    const members = toArray(done)
+    return kind === 'array' ? { kind, items: members.map(memberOf) } : { kind, members }
+}
+
+/**
+ * The next member of a frame followed — or, when none is left, the frame
+ * closed: its node appended after every node it refers to, and the reference
+ * standing in its place handed down.
+ *
+ * @type {<L>(walk: _Walk<L>, frame: _Frame<L>) => _Visit<L>}
+ */
+const round = (walk, frame) => {
+    const { value, properties, index } = frame
+    if (index < properties.length) {
+        return [walk, ['push', frame, properties[Number(index)][1]]]
+    }
+    return [
+        { started: walk.started, finished: { head: walk.finished, tail: [[value, close(frame)]] } },
+        ok(['ref', value]),
+    ]
+}
+
+/**
+ * One value of the caller's: a leaf as the leaf rule keeps it where it is
+ * met, or refused there; a container as a node of its own the first time it
+ * is met and a reference to that node every time after, which is what
+ * carries the sharing. A function is refused where it is met. So a refusal
+ * is the first one in the reader's order — a container reached twice met
+ * once — whichever rule refuses it.
+ *
+ * @template L
+ * @param {_Leaf<L>} leafRule
+ * @returns {(walk: _Walk<L>, value: unknown) => _Visit<L>}
+ */
+const enter = leafRule => (walk, value) => {
+    if (typeof value === 'function') { return [walk, error('a function is not a DataJS value')] }
+    if (value !== null && typeof value === 'object') {
+        if (has(value)(walk.started)) { return [walk, ok(['ref', value])] }
+        return round({ started: add(value)(walk.started), finished: walk.finished }, open(value))
+    }
+    // The input contract leaves only FunctionalScript primitives here.
+    return [walk, mapOk(leaf)(leafRule(/** @type {Primitive} */ (value)))]
+}
+
+/**
+ * A frame taken back with the value its member was read as: the member
+ * appended, and the next one read.
+ *
+ * @type {<L>(walk: _Walk<L>, top: _Frame<L>, value: _Value<object, L>) => _Visit<L>}
+ */
+const resume = (walk, top, value) => {
+    const [key] = top.properties[Number(top.index)]
+    return round(walk, { ...top, index: top.index + 1, done: { head: top.done, tail: [[key, value]] } })
+}
+
+/**
+ * The caller's value read into the graph, each leaf kept as the leaf rule
+ * keeps it where the read meets it, over an explicit stack: a frame per
+ * container being read, its members read in order, so that a value nested
+ * as deep as the reader accepts costs no call stack. The reader walks the
+ * same way, which is what makes a document it accepts one this can write
+ * back.
+ *
+ * @template L
+ * @param {_Leaf<L>} leafRule
+ * @returns {(value: unknown) => Result<_Step<L>, string>}
+ */
+const read = leafRule => {
+    /** @type {WalkFold<_Walk<L>, unknown, _Frame<L>, _Value<object, L>, string>} */
+    const w = { enter: enter(leafRule), resume }
+    return walkFold(w)(start)
+}
+
+// ── linking, sharing and writing ──────────────────────────────────────────────
+
+/** The values a node holds, in the order it holds them. @type {<R, L>(node: _Node<R, L>) => readonly _Value<R, L>[]} */
+const nodeValues = node => node.kind === 'array' ? node.items : node.members.map(([, value]) => value)
+
+/** A value with its reference, if any, replaced by the index of the node it refers to. @type {(position: PersistentMap<object, number>) => <L>(value: _Value<object, L>) => _Value<number, L>} */
+const linkValueBy = position => value => value[0] === 'ref'
+    ? ['ref', assertNotNullish(mapGet(position, value[1]), 'a reference to a container that was never finished')]
+    : value
+
+/** @type {(position: PersistentMap<object, number>) => <L>(node: _Node<object, L>) => _Node<number, L>} */
+const linkNodeBy = position => {
+    const linkValue = linkValueBy(position)
+    return node => node.kind === 'array'
+        ? { kind: 'array', items: node.items.map(linkValue) }
+        : { kind: 'object', members: node.members.map(([key, value]) => [key, linkValue(value)]) }
+}
+
+/**
+ * The graph the read produced, with each container reference replaced by its
+ * node index. FunctionalScript's acyclic construction ensures that a container
+ * finishes after every container it reaches, so every reference points back.
+ *
+ * @type {<L>(finished: readonly _Read<L>[], root: _Value<object, L>) => _Graph<L>}
+ */
+const link = (finished, root) => {
+    const position = fromEntries(finished.map(
+        /** @type {(entry: readonly [object, unknown], i: number) => readonly [object, number]} */
+        (([value], i) => [value, i])
+    ))
+    const linkValue = linkValueBy(position)
+    const linkNode = linkNodeBy(position)
+    const nodes = finished.map(([, node]) => linkNode(node))
+    return { nodes, root: linkValue(root) }
+}
+
+/**
+ * The nodes a document has to hoist into a `const`: those more than one
+ * reference occurrence reaches, counted by occurrence rather than by
+ * root-to-node path. For `root=[p,p]` with `p=[c]`, `p` has two occurrences
+ * and `c` has one, so `c` stays inline even though two paths reach it — an
+ * implementation counting paths gets that wrong and passes the simple
+ * cases. Leaves are never counted: the specification declines to hoist
+ * them, and counting them by value would raise the `0`/`-0` and `NaN`
+ * questions the `Object.is` guarantee forbids answering.
+ *
+ * The occurrences are sorted and a repeat is a neighbour equal to the one
+ * before it, so the count costs a sort rather than an `indexOf` per
+ * occurrence.
+ *
+ * @type {<L>(graph: _Graph<L>) => PersistentSet<number>}
+ */
+const shared = ({ nodes, root }) => {
+    const refs = [root, ...nodes.flatMap(nodeValues)]
+        .flatMap(value => value[0] === 'ref' ? [value[1]] : [])
+        .toSorted((a, b) => cmp(a)(b))
+    return fromValues(refs.filter((ref, i) => i > 0 && refs[Number(i - 1)] === ref))
+}
+
+/**
+ * The name of each hoisted node. The nodes are in post-order, so taking
+ * them in index order takes them in the order their consts are emitted,
+ * which is the order `$0`, `$1`, … names them in.
+ *
+ * @type {<L>(graph: _Graph<L>) => PersistentMap<number, string>}
+ */
+const constNames = graph => {
+    const hoisted = shared(graph)
+    return fromEntries(graph.nodes
+        .flatMap((_, i) => has(i)(hoisted) ? [i] : [])
+        .map(
+            /** @type {(i: number, n: number) => readonly [number, string]} */
+            ((i, n) => [i, `$${n}`])
+        ))
+}
+
+/**
+ * The chunks of every node and of any value of a graph, each leaf spelled
+ * by `spellLeaf` from what the read kept, a hoisted node written as its
+ * name and every other reference as a thunk over its node's chunks.
+ *
+ * This pass needs no stack of its own, because `link` left the nodes in
+ * post-order: a node comes after every node it refers to, so the chunks of
+ * each node are built, in index order, from the chunks of nodes already
+ * built. Each thunk captures the persistent map of those completed chunks,
+ * forced only as the document is read out — which the list's iteration does
+ * without recursion — so nesting as deep as the reader accepts costs no
+ * call stack here either. Shared references retain the same chunk body;
+ * even JSON's exponentially unfolded tree is read only as demanded.
+ *
+ * @template L
+ * @param {(key: string) => List<Chunk>} key
+ * @returns {(spellLeaf: (kept: L) => List<Chunk>) => (names: PersistentMap<number, string>) => (graph: _Graph<L>) => { readonly chunks: readonly List<Chunk>[], readonly value: (value: _Value<number, L>) => List<Chunk> }}
+ */
+const chunksOf = key => spellLeaf => names => ({ nodes }) => {
+    /** @type {(chunks: PersistentMap<number, List<Chunk>>) => (value: _Value<number, L>) => List<Chunk>} */
+    const valueIn = chunks => v => {
+        if (v[0] === 'leaf') { return spellLeaf(v[1]) }
+        const name = mapGet(names, v[1])
+        return name === undefined ? () => assertNotNullish(mapGet(chunks, v[1])) : [name]
+    }
+    /** @type {PersistentMap<number, List<Chunk>>} */
+    const initial = noNames
+    const chunks = nodes.reduce((previous, node, index) => {
+        const value = valueIn(previous)
+        const inline = node.kind === 'array'
+            ? arrayWrap(node.items.map(value))
+            : objectWrap(node.members.map(([k, v]) => flat([key(k), colon, value(v)])))
+        return mapSet(previous, index, inline)
+    }, initial)
+    return { chunks: mapEntries(chunks).map(([, value]) => value), value: valueIn(chunks) }
+}
+
+/**
+ * The DataJS read's leaf rule: a primitive kept as it is, refused never.
+ * Leaves are spelled by {@link write} after the complete graph has been read,
+ * so encountering a function refuses the document before spelling its leaves.
+ *
+ * @type {_Leaf<Primitive>}
+ */
+const kept = ok
+
+/** A leaf a tree document's read already spelled. @type {(chunks: List<Chunk>) => List<Chunk>} */
+const spelled = chunks => chunks
+
+/**
+ * The document: a `const` per hoisted node, in post-order so that every
+ * name is declared before it is used, and then the exported value, the
+ * leaves spelled here from the linked graph.
+ *
+ * `unknownExport` writes an ordinary JavaScript module with an explicitly
+ * unknown default boundary, rather than a DataJS document. Its extra const
+ * follows the shared-node names, so it cannot shadow one of them.
+ *
+ * @type {(graph: _Graph, unknownExport?: boolean) => List<Chunk>}
+ */
+const write = (graph, unknownExport = false) => {
+    const names = constNames(graph)
+    const { chunks, value } = chunksOf(keySerialize)(leafSerialize)(names)(graph)
+    const statements = mapEntries(names).map(([i, name]) => flat([[keyword('const'), ` ${name}=`], chunks[Number(i)], [';']]))
+    const exported = unknownExport
+        ? flat([['\n/** @type {unknown} */\n', keyword('const'), ` $${size(names)}=`], value(graph.root), [';'], [keyword('export'), ' ', keyword('default'), ` $${size(names)};`]])
+        : flat([[keyword('export'), ' ', keyword('default'), ' '], value(graph.root), [';']])
+    return flat([flat(statements), exported])
+}
+
+/**
+ * The tree a graph unfolds to, as a document with no `const`: a node
+ * reached by more than one reference is written where each reaches it, as
+ * `JSON.stringify` writes the same value. Nothing is hoisted, so no name
+ * is needed and every reference is a thunk over its node's chunks; the
+ * leaves were spelled by the read.
+ *
+ * @type {(key: (key: string) => List<Chunk>) => (graph: _Graph<List<Chunk>>) => List<Chunk>}
+ */
+const writeTree = key => graph => chunksOf(key)(spelled)(noNames)(graph).value(graph.root)
+
+// ── entry points ──────────────────────────────────────────────────────────────
+
+/** A FunctionalScript graph written by the supplied document writer. @type {(write: (graph: _Graph) => List<Chunk>) => (value: unknown) => Result<List<Chunk>, string>} */
+const tryDocument = write => value => mapOk(
+    /** @type {(step: _Step<Primitive>) => List<Chunk>} */
+    (([walk, root]) => write(link(toArray(walk.finished), root)))
+)(read(kept)(value))
+
+/**
+ * {@link trySerialize} with the kind of each leaf kept: the chunks a writer
+ * builds on, where `trySerialize` answers their text alone. Exported for
+ * linkage, as the other `_` exports are.
+ *
+ * @type {(value: unknown) => Result<List<Chunk>, string>}
+ */
+export const _trySerialize = value => tryDocument(write)(value)
+
+/**
+ * A FunctionalScript value as the chunks of a DataJS document, or why the
+ * document cannot hold it.
+ *
+ * The input is a FunctionalScript value. Its TypeScript parameter is
+ * `unknown`, so a function is an input whose refusal can be observed; the
+ * writer relies on FunctionalScript's container invariants and does not
+ * validate arbitrary host objects.
+ *
+ * It takes no mapping over an object's members, which JSON's `serialize`
+ * does: observable key order is part of a DataJS value, so a caller
+ * reordering it would get back a valid document denoting a different
+ * object.
+ *
+ * @type {(value: unknown) => Result<List<string>, string>}
+ */
+export const trySerialize = value => mapOk(chunkStrings)(_trySerialize(value))
+
+/**
+ * A shared-node JavaScript module exporting unknown rather than an inferred
+ * structural type. Used by the generated common-runtime EDAG, whose graph
+ * exceeds TypeScript's declaration serialization limit. This is ordinary
+ * JavaScript, not DataJS: its JSDoc annotation is outside DataJS's grammar.
+ *
+ * @type {(value: unknown) => Result<string, string>}
+ */
+export const _tryUnknownStringify = value => mapOk(chunksText)(tryDocument(graph => write(graph, true))(value))
+
+/**
+ * A FunctionalScript value as the chunks of a tree document — JSON's
+ * shape, under a spelling of a leaf and of a key — or why it is not one.
+ * The value is read into the same graph {@link trySerialize} reads it
+ * into, each leaf spelled by the rule where the read meets it, and the
+ * tree is written only then, a node reached twice written where each
+ * reference reaches it as `JSON.stringify` writes it. That order is the
+ * point: a leaf the rule refuses is found over the graph, which may be
+ * exponentially smaller than the tree it unfolds to, so a document that
+ * will not be written costs no unfolding; and the leaf refused is the
+ * first in the reader's order, a node reached twice met once, so
+ * `[undefined, [1n]]` names `undefined` under JSON's rule. What the data
+ * model cannot hold, a function, is refused as in `trySerialize`.
+ *
+ * @type {(leaf: _Leaf) => (key: (key: string) => List<Chunk>) => (value: unknown) => Result<List<Chunk>, string>}
+ */
+const tryTreeSerialize = leaf => key => value => mapOk(
+    /** @type {(step: _Step<List<Chunk>>) => List<Chunk>} */
+    (([walk, root]) => writeTree(key)(link(toArray(walk.finished), root)))
+)(read(leaf)(value))
+
+/**
+ * Why a value cannot be written as JSON. The wording names the thing JSON
+ * has no spelling for, because that is the whole reason: nothing here is
+ * malformed, and the same value writes as a DataJS document without
+ * complaint.
+ *
+ * @type {(what: string) => Result<never, string>}
+ */
+const noJson = what => error(`no JSON spelling for ${what}`)
+
+/**
+ * A leaf in JSON, or the refusal. `undefined`, a bigint and the three
+ * non-finite numbers are refused rather than approximated: `JSON.stringify`
+ * writes `null` for `NaN` and drops an `undefined` member, and the extended
+ * codec would write `1n` as `1`, which the standard reader takes back as
+ * the *number* `1` — each a different value read back without a word. A
+ * finite number is written by JSON's own `numberSerialize`, which keeps
+ * `-0`, a JSON number that `JSON.stringify` alone loses.
+ *
+ * @type {_Leaf}
+ */
+const jsonLeaf = value => {
+    switch (typeof value) {
+        case 'boolean': { return ok(boolSerialize(value)) }
+        case 'string': { return ok(stringSerialize(value)) }
+        case 'number': { return Number.isFinite(value) ? ok(numberSerialize(value)) : noJson(`${value}`) }
+        case 'bigint': { return noJson(`${value}n`) }
+        case 'undefined': { return noJson('undefined') }
+        default: { return ok(nullSerialize) }
+    }
+}
+
+/**
+ * {@link tryJsonSerialize} with the kind of each leaf kept, as
+ * {@link _trySerialize} is to {@link trySerialize}.
+ *
+ * @type {(value: unknown) => Result<List<Chunk>, string>}
+ */
+export const _tryJsonSerialize = tryTreeSerialize(jsonLeaf)(stringSerialize)
+
+/**
+ * A FunctionalScript value as the chunks of a JSON document, or why it
+ * has none: the tree the value unfolds to, under {@link jsonLeaf} and JSON's
+ * own spelling of a key — `__proto__` included, which a DataJS document
+ * alone has to spell computed. JSON carries no identity, so a node two
+ * references reach is written where each reaches it, as `JSON.stringify`
+ * writes the same value; what JSON cannot spell is refused rather than
+ * approximated, the first such leaf in the reader's order named, and what
+ * the data model refuses is refused as {@link trySerialize} refuses it.
+ *
+ * @type {(value: unknown) => Result<List<string>, string>}
+ */
+export const tryJsonSerialize = value => mapOk(chunkStrings)(_tryJsonSerialize(value))
+
+/**
+ * {@link trySerialize} as marked text: the document with the kind of each
+ * leaf and keyword, and each name — a `const`'s — an `identifier`, which
+ * `fjs compile` writes the text of.
+ *
+ * @type {(value: unknown) => Result<Marked, string>}
+ */
+export const tryMarked = value => mapOk(chunks => withNames(chunksMarked(chunks)))(_trySerialize(value))
+
+/**
+ * {@link tryJsonSerialize} as marked text, as {@link tryMarked} is to
+ * {@link trySerialize}.
+ *
+ * @type {(value: unknown) => Result<Marked, string>}
+ */
+export const tryJsonMarked = value => mapOk(chunksMarked)(_tryJsonSerialize(value))
+
+/**
+ * {@link tryJsonSerialize} as one string: what `fjs compile` writes for a
+ * `.json` output.
+ *
+ * @type {(value: unknown) => Result<string, string>}
+ */
+export const tryJsonStringify = value => mapOk(chunksText)(_tryJsonSerialize(value))
+
+/**
+ * {@link trySerialize} as one string: the document in normalized form, the
+ * bytes a caller asks for to hash or compare documents.
+ *
+ * @type {(value: unknown) => Result<string, string>}
+ */
+export const tryStringify = value => mapOk(chunksText)(_trySerialize(value))

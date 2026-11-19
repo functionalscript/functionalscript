@@ -25,9 +25,9 @@ parameter and return types are fixed. A type parameter has nowhere to go in
 
 | Site | Cast |
 | --- | --- |
-| `create` in `fjs/effects/memory/module.f.mjs` | `<T>(value: T) => Effect<MemCreate, Key<T>>` |
-| `read` in `fjs/effects/memory/module.f.mjs` | `<T>(key: Key<T>) => Effect<MemRead, T>` |
-| `all` in `fjs/effects/common/module.f.mjs` | `<O extends Operation, T, E>(...a: readonly Effect<O, T, E>[]) => Effect<O \| All, readonly Result<T, E>[], NotImplemented>` |
+| `create` in `fjs/effects/memory/module.f.js` | `<T>(value: T) => Effect<MemCreate, Key<T>>` |
+| `read` in `fjs/effects/memory/module.f.js` | `<T>(key: Key<T>) => Effect<MemRead, T>` |
+| `all` in `fjs/effects/common/module.f.js` | `<O extends Operation, T, E>(...a: readonly Effect<O, T, E>[]) => Effect<O \| All, readonly Result<T, E>[], NotImplemented>` |
 
 The contrast is visible in one file: the non-generic constructors are written
 as `/** @type {Func<Stat>} */ const stat = do_('stat')` — an annotated
@@ -43,7 +43,7 @@ its parameters alone, where `unknown` is the accepting side.
 operation's signature with `infer P` / `infer R`, and inference through a
 generic signature instantiates its type parameter at the constraint. So the
 handler an operation map writes receives `T = unknown` and has to cast its way
-back: the `sandbox` handler in `fjs/effects/node/virtual/module.f.mjs` is
+back: the `sandbox` handler in `fjs/effects/node/virtual/module.f.js` is
 `f => state => [state, ok(/** @type {SandboxResult<unknown>} */ (f()))]`, and
 without the cast `f()` is `unknown`, which `OpResult<SandboxResult<unknown>>`
 will not take.
@@ -67,7 +67,7 @@ with `Operation` written into the declaration, so `Pr` erases nothing — the
 handler is handed the widest listener the type says it may be handed, and
 narrowing it to `NodeOp` is what the cast does. The `<O extends Operation>`
 signature it looks like it should have exists only on the effect constructor
-(`createServer` in `../node/module.f.mjs`), which is itself a cast.
+(`createServer` in `../node/module.f.js`), which is itself a cast.
 
 That makes it a third cause, needing its own answer: whether `CreateServer` can
 carry the listener's op-set instead of pinning `Operation`, and what the

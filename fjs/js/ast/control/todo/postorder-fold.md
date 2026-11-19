@@ -11,13 +11,13 @@ and each writes the same engine: an explicit work stack of `enter` and
 short-circuits a node already folded, and a loop that pops exactly as many
 results as the node has children before calling the node's own `finish`.
 
-- `flows` in [`fjs/js/ast/prepare`](../../prepare/module.f.mjs), over its
+- `flows` in [`fjs/js/ast/prepare`](../../prepare/module.f.js), over its
   `facts` table;
-- `summaries` in [`fjs/edag/from_fast`](../../../../edag/from_fast/module.f.mjs),
+- `summaries` in [`fjs/edag/from_fast`](../../../../edag/from_fast/module.f.js),
   over its `children`;
-- `walk` in [`fjs/edag/from_fast/loop/completions`](../../../../edag/from_fast/loop/completions/module.f.mjs),
+- `walk` in [`fjs/edag/from_fast/loop/completions`](../../../../edag/from_fast/loop/completions/module.f.js),
   over `childrenOf`, driving `encodedBody` and `completeBlock`;
-- `aggregateBody` in [`fjs/edag/from_fast/loop`](../../../../edag/from_fast/loop/module.f.mjs),
+- `aggregateBody` in [`fjs/edag/from_fast/loop`](../../../../edag/from_fast/loop/module.f.js),
   over the blocks of `block` and `if` statements.
 
 `flows` and `summaries` are the same loop to the variable names:
@@ -44,7 +44,7 @@ is restated with each copy: `_Visit` and `_Flow` in
 [`from_fast/private.ts`](../../../../edag/from_fast/private.ts). Only two
 things differ between the four: which nodes are a node's children, and what
 a node comes to once its children have. `expressionText` in
-[`serializer`](../../serializer/module.f.mjs) is the same fold again, over
+[`serializer`](../../serializer/module.f.js) is the same fold again, over
 values only and without the memo.
 
 [`fjs/types/stack_walk`](../../../../types/stack_walk/module.f.js) owns the
@@ -55,7 +55,7 @@ nobody has written once.
 
 ### Proposal
 
-A `postorder` in [`control`](../module.f.mjs), beside `foldNodes` and
+A `postorder` in [`control`](../module.f.js), beside `foldNodes` and
 `someBlock`, the preorder walks:
 
 ```ts

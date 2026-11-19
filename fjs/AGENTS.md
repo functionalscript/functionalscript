@@ -7,9 +7,8 @@ live in [DESIGN.md](../doc/DESIGN.md).
 
 Authored FunctionalScript has two extensions: `.f.mjs`, and `.f.js` for source
 the current compiler accepts ([`compiler/README.md`](./compiler/README.md) defines
-both). Every rule below stated for `.f.mjs` applies to `.f.js` alike; the one
-difference, that a proof stays `proof.f.mjs`, is in
-[§1.2](#12-proof-coverage-is-mandatory). What to write instead of what the
+both). Every rule below stated for `.f.mjs` applies to `.f.js` alike, a proof's
+name included ([§1.2](#12-proof-coverage-is-mandatory)). What to write instead of what the
 compiler refuses, construct by construct, is
 [CONVERTING.md](../doc/CONVERTING.md).
 
@@ -52,25 +51,28 @@ the code so it isn't there rather than leaving it uncovered.
 
 An implementation is `module.f.mjs`, or `module.f.js` once the compiler
 accepts it (stage 2, [`fjs/compiler/README.md`](./compiler/README.md)), and its proof is
-`proof.f.mjs` either way. Stage 1 of the TypeScript-to-JavaScript migration is
+named the same way: `proof.f.mjs`, or `proof.f.js` once the compiler accepts the
+proof itself. Stage 1 of the TypeScript-to-JavaScript migration is
 complete: no authored implementation or proof `.f.ts` remains, so write both
 files as JavaScript with JSDoc. Authored `types.ts` companions may remain
 permanently and hold the type-level API.
 
 Proof discovery and coverage follow the same extension: `shouldLoad` in
-[`fjs/dev/module.f.mjs`](./dev/module.f.mjs) matches authored
+[`fjs/dev/module.f.js`](./dev/module.f.js) matches authored
 FunctionalScript source, and both `npm start cov node` and `deno task cov` include
-`module.f.mjs`, `module.f.js` and `demo.f.mjs`. Ordinary (non-FunctionalScript)
+`module.f.mjs`, `module.f.js`, `demo.f.mjs` and `demo.f.js`. Ordinary (non-FunctionalScript)
 `.mjs` files stay opt-in through the `proof.mjs` filename convention.
 
-A `proof.f.mjs` is authored `.f.mjs` like any other. Its relative **runtime**
-imports must target FunctionalScript modules, `.f.mjs` or `.f.js`. A
-`module.f.js` keeps a `proof.f.mjs` for now: a proof's assertion calls are
-call statements the language reads
-([spec: call statements](../spec/functions/call-statements/README.md)). Proof
-filenames retain the `.f.mjs` discovery convention, including proofs accepted
-by the compiler. Function fallthrough and `for` loops are now supported;
-remaining unsupported constructs are tracked by the dependency scan.
+A proof is authored FunctionalScript like any other, and is named by what the
+compiler accepts, as a module is: `proof.f.js`, or `name.proof.f.js`, once the
+compiler accepts the proof whole, and `.f.mjs` until then. Rename it in the
+pull request that makes it compile, with its importers. The two names are
+independent — a `module.f.js` may still have a `proof.f.mjs`, where the proof
+uses a construct the compiler refuses — and discovery loads both, since it
+matches authored FunctionalScript by its `.f.` infix. Its relative **runtime**
+imports must target FunctionalScript modules, `.f.mjs` or `.f.js`. A proof's
+assertion calls are call statements the language reads
+([spec: call statements](../spec/functions/call-statements/README.md)).
 `fjs/asserts` itself is an `.f.js`. Type-only APIs may live in an authored
 `types.ts` companion and are referenced directly through that real source path.
 Its leading JSDoc block may include, for example:
@@ -135,13 +137,13 @@ the last thing in a function body compiles. Put any statement after it and the
 same line is TS2344.
 
 So a proof entry that *ends* with its typedefs checks nothing from there on.
-`fjs/edag/proof.f.mjs`'s `consistency` and `fjs/effects/proof.f.mjs`'s
+`fjs/edag/proof.f.js`'s `consistency` and `fjs/effects/proof.f.js`'s
 `signatures` were the worked cases, a body of nothing but typedefs each: all
 28 `Assert<Check<…>>` pins of the one and all eight `Assert<Equal<…>>` of the
 other were green whatever they claimed. Both entries are gone, and their
 claims sit at module scope in `fjs/edag/types.ts` and `fjs/effects/types.ts`.
 Where a typedef is followed by an `assert` call, as in
-`fjs/ebnf/ll1/proof.f.mjs`'s `constParameter`, it is checked and does its job.
+`fjs/ebnf/ll1/proof.f.js`'s `constParameter`, it is checked and does its job.
 
 **Prefer module scope in a `.ts` file**, where a type alias is resolved
 whether or not anything follows or references it, so the claim cannot be
@@ -151,7 +153,7 @@ silenced by an edit that moves a line.
 Keep a typedef in the proof only for a claim about a *local* inference that
 has no module-scope spelling — a `const` type parameter's effect at a call
 site is the standing example — and then make sure a statement follows it.
-[`fjs/ebnf/byte/proof.f.mjs`](./ebnf/byte/proof.f.mjs) has both halves: two
+[`fjs/ebnf/byte/proof.f.js`](./ebnf/byte/proof.f.js) has both halves: two
 such claims, each stated right after the binding it is about and before the
 assertions that follow, and a third that was about a module-scope export and
 moved to `./ebnf/byte/types.ts`.
@@ -202,9 +204,9 @@ loose. See
 Never use `try`/`catch` in `.f.mjs` files — FunctionalScript itself has no
 `try`/`catch` and isn't planning to add it soon. To test that a call throws,
 nest the test function under a `throw` property key instead of wrapping it in
-`try`/`catch` (see `fjs/asserts/proof.f.mjs`).
+`try`/`catch` (see `fjs/asserts/proof.f.js`).
 
-The test runner (`fjs/emergent_testing/module.f.mjs`) treats `throw` as a
+The test runner (`fjs/emergent_testing/module.f.js`) treats `throw` as a
 structural marker: any function reachable under a `throw` key gets
 `throws: true`, and the runner inverts the sandboxed result so a thrown error
 counts as a pass — with no manual `caught`/`threw` flag or `assert` needed.
@@ -270,8 +272,8 @@ A `proof` object's keys are the test names the runner prints
 convention: camelCase — `lsbAligned`, `hashMergeShift`, not `lsb_aligned`.
 
 A key that names an export it exercises is spelled as the export is —
-`do_` in `fjs/effects/proof.f.mjs`, `prime_field` in
-`fjs/types/prime_field/proof.f.mjs` — and `throw` is the runner's structural
+`do_` in `fjs/effects/proof.f.js`, `prime_field` in
+`fjs/types/prime_field/proof.f.js` — and `throw` is the runner's structural
 marker ([§1.5](#15-never-use-trycatch-test-throwing-with-the-throw-key)), not
 a word to re-case.
 
@@ -483,7 +485,7 @@ module linkage requires an export" is the reach of the rule, not an example of
 it. A `const` that is never exported reaches no emitted declaration and no
 consumer, so it has nothing to disclaim and takes no prefix: `toNode` and
 `accessed` in
-[`fjs/compiler/parser`](./compiler/parser/module.f.mjs) are the
+[`fjs/compiler/parser`](./compiler/parser/module.f.js) are the
 ordinary shape, beside the exported `_Frame` and `_UnaryFrame` in its
 [`private.ts`](./compiler/parser/private.ts), which are the rule's. Measured across `fjs/`, module-private constants run about 1,900
 unprefixed to eight prefixed — so reading the rule as reaching them would put
@@ -1120,7 +1122,7 @@ languages require. TypeScript narrows string literals precisely, so the string
    mapping (and `keyof typeof my` gives you the key type).
 
 Existing examples: `os` / `Os` and `architecture` / `Architecture` in
-`fjs/ci/common/module.f.mjs`, and `actions` in `fjs/ci/config/module.f.js`.
+`fjs/ci/common/module.f.js`, and `actions` in `fjs/ci/config/module.f.js`.
 
 #### Write the call, not the value it computes
 
@@ -1246,7 +1248,7 @@ than a single access.
 **There is one effect type, in one module.** `Effect<O, T, E>`
 (`fjs/effects/types.ts`) is a `Pure` thunk yielding `Result<T, E>` or a `Do`
 node — the error channel is part of the representation, not a wrapper over it.
-`E` defaults to `NotImplemented`. `fjs/effects/module.f.mjs` holds all of it:
+`E` defaults to `NotImplemented`. `fjs/effects/module.f.js` holds all of it:
 the representation, the interpreters `match` / `partialMatch` / `runPure`, and
 the combinators.
 
@@ -1369,7 +1371,7 @@ repository-owned dependencies follow these source rules:
   in the `package` CI job imports a published `.f.js` from a clean
   consumer of the packed package, runs it and type-checks a use of its
   declaration with a negative control
-  ([`ci/package/module.f.mjs`](./ci/package/module.f.mjs)).
+  ([`ci/package/module.f.js`](./ci/package/module.f.js)).
 
 Avoid references to built-in or external Node modules such as `node:path` in
 FunctionalScript source. No `try`/`catch` — see

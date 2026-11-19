@@ -235,7 +235,7 @@ cover explicit backedge refusal and retained one-pass self behavior.
 The [source-loop proofs](proof.f.mjs) retain exact first-parse graph/text checks,
 source exits, nested and 18-state loops, required failures, rest and capture
 lifetimes. `lazyTerminalPrefixesRetainTheirInvocationLoops` and the
-[shared-continuation proofs](./shared_continuations.proof.f.mjs), including
+[shared-continuation proofs](./shared_continuations.proof.f.js), including
 `factoredInvocationProfilesKeepSelectedWorkAndSharedResults`, cover newly retained
 profiles and their first source readback; they do not claim general fixed points.
 `sourceLoopRetentionChecksLexicalTransferRegions` pins the remaining lexical
@@ -247,10 +247,10 @@ and mixed completion paths.
 The [native serializer proofs](../../../../compiler/serializer/value/proof.mjs)
 observe deep transfers, required evaluation order, held creating-iteration
 captures, rest identity and public arity. Complete initial source spellings are
-pinned by [compiler output proofs](../../../../compiler/proof.f.mjs).
+pinned by [compiler output proofs](../../../../compiler/proof.f.js).
 The [control-flow host corpus](../../../../compiler/serializer/value/control_flow.proof.mjs)
 executes supplied nested joins, parameterized continuations, selected prefixes,
 rest and named exports through both source and code-only output, with deep
 self-tail transfers.
-Common preparation's [proofs](../../../../js/ast/prepare/proof.f.mjs) pin
+Common preparation's [proofs](../../../../js/ast/prepare/proof.f.js) pin
 physical state/result writes separately from logical graph conversion.

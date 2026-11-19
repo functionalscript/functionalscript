@@ -23,7 +23,8 @@
  * a symbol is its `Meta<I, S>`, the literal kept; a string is its symbols; a
  * tuple maps its elements; a variant is the branch taken, tagged by its key,
  * and an empty one, which nothing can match, is `never`; a `const` thunk is
- * its payload, the two being one rule to the data layer; a set is one
+ * its payload, the two being one rule to the data layer; a reference is its
+ * separately supplied body; a set is one
  * symbol; and a repeat is a `BoundedArray` of its item, so every bound shape
  * is one flat array with a different `.length`.
  *
@@ -36,7 +37,7 @@
 import type { Assert } from '../../asserts/types.ts'
 import type { BoundedArray } from '../../types/array/types.ts'
 import type { Equal } from '../../types/ts/types.ts'
-import type { Const, Rule, Tuple, Variant, Set, Repeat, Option } from '../types.ts'
+import type { Const, Reference, Rule, Tuple, Variant, Set, Repeat, Option } from '../types.ts'
 
 /**
  * One symbol, and what the grammar ignored about it: where it came from, or,
@@ -91,6 +92,8 @@ export type Children<R extends Rule, I, O = never> =
     // Const: the thunk and its payload are one rule, so the thunk's mapping
     // receives the payload's node.
     R extends Const<infer D> ? Children<D, I, O> :
+    // A separately defined reference has the body's node, with no extra row.
+    R extends Reference<infer D> ? Children<D, I, O> :
     // Set
     R extends () => readonly['set'] ? never :
     R extends Set ? Meta<I> :
@@ -104,6 +107,8 @@ type _MO = 'mo'
 
 type _Any = Assert<Equal<Ast<Rule, _MI, _MO>, _AnyAst<_MI, _MO>>>
 type _AnyChildren = Assert<Equal<Children<Rule, _MI, _MO>, _AnyAst<_MI, _MO>>>
+type _Reference = Assert<Equal<Children<Reference<readonly [42, null]>, _MI, _MO>, Children<readonly [42, null], _MI, _MO>>>
+type _ReferenceAst = Assert<Equal<Ast<Reference<readonly [42, null]>, _MI>, Ast<readonly [42, null], _MI>>>
 
 type _Number = Assert<Equal<Ast<number, _MI, _MO>, Meta<_MO> | Meta<_MI>>>
 type _Number0 = Assert<Equal<Ast<42, _MI, _MO>, Meta<_MO> | Meta<_MI, 42>>>
@@ -238,7 +243,7 @@ type _RepeatAst<Min extends number, Max extends number, D extends Rule, I, O> =
 export type Unmapped<N> = Meta<unknown> | N
 
 /**
- * The node `join` in `../module.f.mjs` produces, over the item node `T`:
+ * The node `join` in `../module.f.js` produces, over the item node `T`:
  * empty, or the first item beside the separator-item pairs. `joined` reads
  * the items back out of it.
  */

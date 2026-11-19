@@ -14,7 +14,7 @@ expression. The shared renderer covers every admitted body; the separate FJS
 source serializer remains partial, and JavaScript runtime-value compilation
 materializes captures with EDAG reflection erased. See
 [function text](../../fjs/edag/function-text.md), `functionText` and `self` in the
-[serializer proofs](../../fjs/compiler/serializer/proof.f.mjs), and
+[serializer proofs](../../fjs/compiler/serializer/proof.f.js), and
 [runtime compilation](../../fjs/edag/values.md#runtime-compilation).
 
 This TODO proposes a future

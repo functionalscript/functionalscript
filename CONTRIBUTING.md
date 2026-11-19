@@ -167,7 +167,7 @@ npm start cov node      # still in fjs/basen
 
 The runner executes each module directory's own proofs in a fresh Node
 process and requires 100% line, branch and function coverage of its immediate
-`module.f.mjs`, `module.f.js` and `demo.f.mjs` files. Imported dependencies and
+`module.f.mjs`, `module.f.js`, `demo.f.mjs` and `demo.f.js` files. Imported dependencies and
 descendant modules cannot supply coverage to another directory's result.
 The runner prepares every manifest and completes one cache lookup before
 executing jobs in batches bounded by Node's `os.availableParallelism()`. Children
@@ -229,7 +229,7 @@ coverage, including proofs outside measured module directories. The dedicated
 `cov` job owns the coverage gate.
 
 Node's `npm start cov node` and Deno's `cov` and `cov-html` reports measure
-`module.f.mjs`, `module.f.js` and `demo.f.mjs`. Bun's `bun test --coverage`
+`module.f.mjs`, `module.f.js`, `demo.f.mjs` and `demo.f.js`. Bun's `bun test --coverage`
 already includes imported demos without a filename filter; CI uses Node's
 100% line, branch and function thresholds as the coverage gate.
 
@@ -248,11 +248,12 @@ affects emitted declarations — follow
 
 New `.f.mjs` and `.f.js` modules need a co-located proof with 100% proof
 coverage — see [fjs/AGENTS.md §1](./fjs/AGENTS.md#1-testing-and-proof-coverage).
-Authored FunctionalScript is JavaScript with JSDoc: a `module.f.mjs` is
-accompanied by a `proof.f.mjs`, and a separately useful type-level API may live
+Authored FunctionalScript is JavaScript with JSDoc: a module is
+accompanied by a proof, and a separately useful type-level API may live
 in a sibling `types.ts`. Compiler support is not required of a `.f.mjs`;
 a module the current compiler accepts whole is renamed `module.f.js` in the same
-pull request, which promises it and keeps a `proof.f.mjs` too.
+pull request, which promises it. A proof is named by the same rule, on its own:
+`proof.f.js` once the compiler accepts the proof, `proof.f.mjs` until then.
 
 `types.ts` and an optional sibling `private.ts` are the only authored
 TypeScript in the repository, and both are permanent rather than migration debt

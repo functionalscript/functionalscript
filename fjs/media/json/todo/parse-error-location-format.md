@@ -5,10 +5,10 @@
 
 ### Problem
 
-`parse` in [`../parser/module.f.mjs`](../parser/module.f.mjs) reports a
+`parse` in [`../parser/module.f.js`](../parser/module.f.js) reports a
 refusal as the index of the code unit it stopped at, inside the message
 (`unexpected symbol at N`), and no position. `_parseJson` in
-[`fjs/compiler/transpiler`](../../../compiler/transpiler/module.f.mjs) therefore builds a
+[`fjs/compiler/transpiler`](../../../compiler/transpiler/module.f.js) therefore builds a
 `ParseError` with `metadata: null` and the file's `path`, and `fjs compile`
 prints the file and the offset where a module error gets `path:line:column`:
 
@@ -19,7 +19,7 @@ bad.json - error: unexpected symbol at 6
 
 The other half of the original issue has shipped: a `ParseError` carries the
 `path` of a failure with no token (`file not found`, `circular dependency`),
-and `errorLocation` in [`fjs/compiler/parser`](../../../compiler/parser/module.f.mjs)
+and `errorLocation` in [`fjs/compiler/parser`](../../../compiler/parser/module.f.js)
 prints it.
 
 ### Proposal
@@ -34,10 +34,10 @@ module does.
       `circular dependency`: its `path` field in `fjs/compiler/parser/types.ts`.
 - [ ] Positions in `fjs/media/json`'s parse errors, carried by `_parseJson`.
 - [ ] Assert the exact `stderr`, next to the cases
-      [`fjs/compiler/proof.f.mjs`](../../../compiler/proof.f.mjs) already pins.
+      [`fjs/compiler/proof.f.js`](../../../compiler/proof.f.js) already pins.
 
 ### Related
 
-- `errorLocation` in [`fjs/compiler/parser`](../../../compiler/parser/module.f.mjs) —
+- `errorLocation` in [`fjs/compiler/parser`](../../../compiler/parser/module.f.js) —
   the formatting site, beside `ParseError`, so the type and its renderer
   change in one module.

@@ -6,11 +6,11 @@
 ### Problem
 
 [`data`](../data/README.md)'s reader and the thunk readers
-([`validate`](../validate/module.f.mjs), [`parse`](../parse/module.f.mjs))
+([`validate`](../validate/module.f.js), [`parse`](../parse/module.f.js))
 disagree about values that are neither primitives nor arrays nor plain objects.
 The thunk readers guard object positions with `isObject`, which is
 `typeof value === 'object' && !isArray(value) && value !== null`
-([`common`](../common/module.f.mjs), via
+([`common`](../common/module.f.js), via
 [`fjs/types/object`](../../types/object/module.f.js)) — so a function or a symbol
 fails it. `data`'s `unionValidate` instead dispatches on primitives and arrays
 and lets **everything else** fall through to object validation:
@@ -88,13 +88,15 @@ can be checked at all without recursive descent, given `object: true`
 short-circuits in `patternsValidate` and carries no members to walk; and what
 such a descent does on a cyclic input, since no reader has a visited-set today.
 
-On that last point, one measured fact worth having before the investigation
-starts: a cyclic value is not serializable as DataJS either —
-[`fjs/media/datajs/serializer`](../../media/datajs/serializer/module.f.mjs)'s
-`tryStringify` refuses a cycle by name, as it refuses every value outside the
-data model. So "reject cycles" may be the honest answer
-rather than a limitation, and the question is whether the readers should agree
-with the serializer or be more permissive than it.
+DataJS documents denote acyclic graphs, but its writer does not establish a
+cycle-validation policy for these readers.
+[`fjs/media/datajs/serializer`](../../media/datajs/serializer/module.f.js)
+assumes a FunctionalScript value, despite its TypeScript `unknown` parameter.
+Such values are acyclic; cyclic host inputs are outside its contract, with
+undefined behavior. It still refuses functions, which FunctionalScript can
+construct but DataJS cannot write. That serializer contract does not settle
+what RTTI's exported `unknown` should mean or which inputs its readers should
+validate; those remain the questions above.
 
 That last one connects to [identity-aware-parse](identity-aware-parse.md),
 which needs input-keyed identity tracking for its own reasons. Whether one

@@ -4,7 +4,7 @@ One pass over an EDAG that answers what both a writer and a VM need to know
 without running it: which nodes are shared. Sharing is node identity, and a
 walk sees identity only by keeping a map of nodes it has met, so `analysis`
 walks once and returns a table that needs no such map downstream.
-[`module.f.mjs`](./module.f.mjs) holds it, and the `Analysis` table is
+[`module.f.js`](./module.f.js) holds it, and the `Analysis` table is
 described in [`types.ts`](./types.ts).
 
 The table lists every operation node once, in walk order, naming its operands

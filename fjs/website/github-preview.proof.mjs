@@ -11,7 +11,7 @@ import { dirname, isAbsolute } from 'node:path'
 
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.js'
 import { uploadGitHubPreview, uploadGitHubVersion } from './github-preview.mjs'
-import { uploadArgs } from './cloudflare/module.f.mjs'
+import { uploadArgs } from './cloudflare/module.f.js'
 
 const env = /** @type {const} */ ({
     GITHUB_CLIENT_ID: 'public-client-id',

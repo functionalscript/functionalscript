@@ -1,13 +1,13 @@
 # A function's text in the EDAG interpreters
 
 Amnesia and memo retain function bodies and evaluated captures as `EdagValue`s.
-Their shared [conversion](./value/convert/module.f.mjs) uses canonical code
+Their shared [conversion](./value/convert/module.f.js) uses canonical code
 rendered from the EDAG for explicit `String(f)` and indirect conversion through
 arrays, object coercion, keys and built-in methods. Neither interpreter creates
 host callables or overrides a host function's `toString`.
 
 The trusted `functionText(analysis, index): string` entry in the
-[serializer](../compiler/serializer/module.f.mjs) renders every admitted body
+[serializer](../compiler/serializer/module.f.js) renders every admitted body
 through EDAG → normalized FAST → common preparation → JavaScript syntax.
 Source serialization, runtime-value output and Rust output share that
 conversion and preparation; they select their own output form. `tryFunctionText`
@@ -33,7 +33,7 @@ function text describes its code, independently of the chosen execution model.
 This is code-only text, not a serialization of captured values, a FJS source
 round trip or an implementation of callable runtime compilation. Source
 serialization through `tryStringify` remains partial. Callable runtime
-compilation uses [`value/to_unknown`](./value/to_unknown/module.f.mjs) and the
+compilation uses [`value/to_unknown`](./value/to_unknown/module.f.js) and the
 JavaScript value emitter. `compiler/transpiler.transpile` uses that boundary
 for ordinary runtime exports; the
 [value contract](./values.md#runtime-compilation) describes target support.
@@ -71,7 +71,7 @@ change across this deliberate migration under the
 Function arity, successful evaluation, required failures, captured allocation
 identity and lazy sharing retain their existing contracts. Representative exact
 spellings and host behavior are pinned by the
-[function-text proofs](../compiler/serializer/function_text/proof.f.mjs) and the
+[function-text proofs](../compiler/serializer/function_text/proof.f.js) and the
 [prepared JavaScript proofs](../js/ast/serializer/proof.mjs).
 
 ## Conditional representation of short-circuit expressions

@@ -5,7 +5,7 @@
 
 ### Problem
 
-`readFile` and `readBytes` in [`../module.f.mjs`](../module.f.mjs) answer a
+`readFile` and `readBytes` in [`../module.f.js`](../module.f.js) answer a
 `JsModule` by throwing — `jsModuleUnsupported`, reached through `resolveFile`.
 `writeBytes` answers the same entry with an `IoResult` error, and the asymmetry
 is deliberate today: it was settled that way in
@@ -45,7 +45,7 @@ Not decided; the two answers are not equally cheap.
 
 - [ ] Decide which of the two, with [dirent-kinds](./dirent-kinds.md) in view.
 - [ ] Pin a read of a non-regular entry that fails as a value, in
-      [`../proof.f.mjs`](../proof.f.mjs).
+      [`../proof.f.js`](../proof.f.js).
 
 ### Related
 

@@ -78,6 +78,10 @@ admitted, `Object.entries` the second
 `Boolean` is reserved with its conversion operator
 ([boolean conversion](../conversions/boolean/README.md)); its common runtime
 body is double negation, and the global word has no standalone function value.
+`encodeURIComponent` is reserved with its admission as a first-class global
+function ([URI component encoding](../built-ins/static-functions/README.md#uri-component-encoding)).
+It may be read, passed and called, but not rebound. Existing imported or local
+encoder bindings and the percent library export use `encodeUriComponent`.
 Every other name joins that list before 2360 admits any of it.
 
 ### Open questions

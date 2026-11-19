@@ -1,0 +1,98 @@
+/**
+ * Index resolved source writes once, before immutable value normalization.
+ * Held functions contribute no evaluation effects; their bodies are indexed
+ * independently, while direct calls include their analyzed source writes.
+ *
+ * @module
+ * @import { BindingId, FunctionTarget, Operator } from '../../types.ts'
+ * @import { ExpansionPlan, SourceBlock, SourceValue } from '../source.ts'
+ * @import { List } from '../../../../types/list/types.ts'
+ * @import { PersistentMap } from '../../../../types/map/types.ts'
+ * @import { Task } from '../../task/types.ts'
+ */
+
+import { operatorOperands } from '../../module.f.js'
+import { bind, call, done, run } from '../../task/module.f.js'
+import { toArray } from '../../../../types/list/alt/module.f.js'
+import { entry } from '../../../../types/object/entry/module.f.js'
+import { assert, assertNotNullish } from '../../../../asserts/module.f.js'
+import { fromEntries, mapGet } from '../../../../types/map/module.f.js'
+import { fromValues, values } from '../../../../types/set/module.f.js'
+
+/** Pattern reads evaluate their own defaults in structural source order. @type {(plan: ExpansionPlan) => readonly SourceValue[]} */
+const defaults = plan => plan.reads.flatMap(read => read.default === undefined ? [] : [read.default.value])
+
+/**
+ * Return one immutable plan for a non-primitive node, without joining outer bindings.
+ * @type {(node: SourceValue | SourceBlock, functions: PersistentMap<FunctionTarget, readonly BindingId[]>) => {
+ *     readonly children: readonly (SourceValue | SourceBlock)[],
+ *     readonly own: readonly BindingId[],
+ *     readonly opaque: boolean,
+ * }}
+ */
+const planFor = (node, functions) => {
+    if (node instanceof Array) {
+        if (node[0] === 'function') { return { children: [...node[1].parameters.flatMap(parameter => [...(parameter.default === null ? [] : [parameter.default.value]), ...defaults(parameter.plan)]), node[1].body], own: [], opaque: true } }
+        if (node[0] === 'block') { return { children: [node[1]], own: [], opaque: false } }
+        if (node[0] === 'ref') { return { children: [], own: [], opaque: false } }
+        const children = operatorOperands(/** @type {Operator<SourceValue>} */ (node))
+        const own = node[0] === '()' && node[1] instanceof Array && node[1][0] === 'function'
+            ? assertNotNullish(mapGet(functions, node[1][1].target), 'missing source function write facts') : []
+        return { children, own, opaque: false }
+    }
+    const block = /** @type {SourceBlock} */ (node)
+    /** @type {readonly (SourceValue | SourceBlock)[]} */
+    let children = []
+    /** @type {readonly BindingId[]} */
+    let own = []
+    for (const statement of block.statements) {
+        if (statement[0] === 'write' || statement[0] === 'compound-write') { own = [...own, statement[1]] }
+        children = [...children, ...(statement[0] === 'initialize' ? [statement[2], ...defaults(statement[1])] : statement[0] === 'write' ? [statement[2]]
+            : statement[0] === 'compound-write' ? [statement[3]]
+            : statement[0] === 'if' ? [statement[1], statement[2], statement[3]]
+            : statement[0] === 'while' ? [statement[1].condition, statement[1].body, ...(statement[1].step === undefined ? [] : [statement[1].step])]
+            : statement[0] === 'for-of' ? [statement[1].source, statement[1].body]
+            : statement[0] === 'switch' ? [statement[1].discriminant, ...statement[1].cases.flatMap(arm => [...arm.labels, arm.body]), statement[1].otherwise]
+            : statement[0] === 'return' ? [statement[2]] : statement[0] === 'throw' ? [statement[1]] : [])]
+    }
+    const exit = block.exit
+    children = [...children, ...(exit[0] === 'if' ? [exit[1], exit[2], exit[3]]
+        : exit[0] === 'switch' ? [exit[1], ...exit[2].flatMap(arm => [...arm.labels, arm.body]), exit[3]]
+            : exit[0] === 'terminal-loop' ? [exit[1].condition, exit[1].body, ...(exit[1].step === undefined ? [] : [exit[1].step])]
+            : [exit[0] === 'return' ? exit[2] : exit[1]])]
+    return { children, own, opaque: false }
+}
+
+/** @type {<T>(result: { readonly entries: T }) => T} */
+const entriesOf = result => {
+    const entries = entry(result, 'entries')
+    assert(entries !== undefined)
+    return entries
+}
+
+/**
+ * @param {SourceValue | SourceBlock} root
+ * @param {PersistentMap<FunctionTarget, readonly BindingId[]>} functions
+ * @returns {PersistentMap<SourceValue | SourceBlock, readonly BindingId[]>}
+ */
+export const writes = (root, functions) => {
+    /**
+     * @typedef {SourceValue | SourceBlock} Node
+     * @typedef {List<readonly [Node, readonly BindingId[]]>} Entries
+     * @typedef {{ readonly writes: readonly BindingId[], readonly entries: Entries }} Result
+     * @type {(node: Node, entries: Entries) => Task<Result>}
+     */
+    const visit = (node, entries) => call(() => {
+        if (node === null || typeof node !== 'object') { return done({ writes: [], entries }) }
+        // The deferred walk captures only the completed immutable plan.
+        const { children: descendants, own: localWrites, opaque: held } = planFor(node, functions)
+        /** @type {(index: number, entries: Entries, found: List<readonly BindingId[]>) => Task<Result>} */
+        const each = (index, entries, found) => call(() => {
+            if (index !== descendants.length) { return bind(visit(descendants[Number(index)], entries), result => each(index + 1, entriesOf(result), { first: result.writes, tail: found })) }
+            const all = held ? [] : values(fromValues([...localWrites, ...toArray(found).flat()]))
+            return done({ writes: all, entries: { first: [node, all], tail: entries } })
+        })
+        return each(0, entries, null)
+    })
+    return fromEntries(toArray(entriesOf(run(visit(root, null)))))
+}

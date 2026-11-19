@@ -1,5 +1,5 @@
 /**
- * Type-level API of `fjs/edag/loop/module.f.mjs`: the parts of a function
+ * Type-level API of `fjs/edag/loop/module.f.js`: the parts of a function
  * that is a loop.
  *
  * @module

@@ -5,9 +5,9 @@
 
 ### Problem
 
-`branchCas`'s `write` in [`fjs/cas/git`](../module.f.mjs) reads the
+`branchCas`'s `write` in [`fjs/cas/git`](../module.f.js) reads the
 branch ref, builds a commit on top of what it read, and writes the ref
-at the new commit through [`fjs/git/refstore/write`](../../../git/refstore/write/module.f.mjs)'s
+at the new commit through [`fjs/git/refstore/write`](../../../git/refstore/write/module.f.js)'s
 `tryWrite`. That writer takes Git's `.lock` on the ref's file, so two
 writers never corrupt it, but it compares nothing: it writes the id it is
 given whatever the file held in between. Two processes writing to the same
@@ -58,5 +58,5 @@ new head.
 
 ### Related
 
-- [`fjs/git/refstore/write`](../../../git/refstore/write/module.f.mjs) —
+- [`fjs/git/refstore/write`](../../../git/refstore/write/module.f.js) —
   the writer that would compare.

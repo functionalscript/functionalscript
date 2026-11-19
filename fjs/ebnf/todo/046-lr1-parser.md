@@ -7,13 +7,13 @@
 
 This issue was filed because LL(1) could not handle line breaks in comments.
 That reason no longer holds: the LL(1) token grammar
-[`../lib/js`](../lib/js/module.f.mjs) reads a line comment up to its newline
+[`../lib/js`](../lib/js/module.f.js) reads a line comment up to its newline
 and a block comment holding newlines, and `fjs/js/tokenizer`'s proof covers
 both. An LR(1) backend needs a current motivation — a grammar in the tree
 that LL(1) refuses — before it is worth building.
 
-The parser targets the EBNF front end, [../module.f.mjs](../module.f.mjs),
-and its serializable form, [../data/module.f.mjs](../data/module.f.mjs), as
+The parser targets the EBNF front end, [../module.f.js](../module.f.js),
+and its serializable form, [../data/module.f.js](../data/module.f.js), as
 a sibling of the LL(1) backend [../ll1/](../ll1/README.md). It produces the
 AST every backend owes a grammar, `Ast<R, I, O>` — see
 [`../ast`](../ast/README.md) for its shape.

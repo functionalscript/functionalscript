@@ -36,7 +36,7 @@ through its own effect error channel.
   `flat(map(([, output]) => output)(transduce(machine)(input)))`; consume the events
   once when both output and summary are needed.
 
-[`effects/list`](../../../effects/list/module.f.mjs) supplies:
+[`effects/list`](../../../effects/list/module.f.js) supplies:
 
 - `run(machine)(input)` — returns an effect producing the summary.
 - `transduce(machine)(emit)(input)` — sends each nonempty output chunk to the

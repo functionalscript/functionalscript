@@ -2,7 +2,7 @@
 
 **Priority:** P2
 **Status:** done — kept as the record; cited by `nanvm/lib/src/vm/lambda/mod.rs`
-and `method.rs` (the dispatch algorithm), `fjs/nanvm/methods/module.f.mjs`,
+and `method.rs` (the dispatch algorithm), `fjs/nanvm/methods/module.f.js`,
 `nanvm/lib/README.md`, `spec/built-ins/member-functions/README.md`,
 `spec/todo/cavm-function-to-string.md`, `spec/design/serialization.md`,
 `spread-operations.md` and `fjs/nanvm/todo/corpus-improvements.md`
@@ -263,7 +263,7 @@ are [`vm/string/README.md`](../src/vm/string/README.md):
 - [`fjs/edag/README.md`](../../../fjs/edag/README.md), Chains — the two bits
   and the four steps the lambda types transcribe; the printer's
   per-position laziness is in
-  [`fjs/edag/rust/module.f.mjs`](../../../fjs/edag/rust/module.f.mjs).
+  [`fjs/edag/rust/module.f.js`](../../../fjs/edag/rust/module.f.js).
 - [`callable-function-objects.md`](./callable-function-objects.md) — Stage
   4, the method call: the mechanism a built-in here is reached through,
   landed. Which built-ins it reaches is this file's own checklist, not

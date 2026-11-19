@@ -5,7 +5,7 @@
 
 ### Problem
 
-`fileCas(sha2)(path).read` (`fjs/cas/module.f.mjs`, the `read` method on the `FileCas`
+`fileCas(sha2)(path).read` (`fjs/cas/module.f.js`, the `read` method on the `FileCas`
 returned by `fileCas`) streams whatever bytes live at the addressed path without
 recomputing the hash. After **synchronization by copying files**
 (see `doc/plan/vision.md`), or simply over time on a faulty disk, a blob can become
@@ -45,7 +45,7 @@ Open design points:
 ### Tasks
 
 - [ ] Add a `verify` function over `Cas` that rehashes and reports mismatches
-- [ ] Wire it as a `cas verify` CLI command in `fjs/cas/cli/module.f.mjs`
+- [ ] Wire it as a `cas verify` CLI command in `fjs/cas/cli/module.f.js`
 - [ ] Quarantine corrupted blobs, per `plan/scrub.md`
 - [ ] Tests: seed a store with a corrupted/truncated/misnamed blob and assert it is caught
 - [ ] Document the command in `fjs/cas/README.md`

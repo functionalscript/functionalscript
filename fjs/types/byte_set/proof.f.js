@@ -1,0 +1,91 @@
+import { has, empty, set, setRange, unset, universe, complement, toRangeMap } from './module.f.js'
+import { every, countdown, map } from '../list/module.f.js'
+import { toArray } from '../list/alt/module.f.js'
+import { stringifySorted } from '../../media/json/module.f.js'
+import { assert, assertEq } from '../../asserts/module.f.js'
+
+export const proof = {
+    has: [
+        () => {
+            assert(!(has(0)(empty)), empty)
+            assert(!(has(1)(empty)), empty)
+            assert(!(has(33)(empty)), empty)
+        },
+        () => {
+            const s = set(0)(empty)
+            assertEq(s, 1n)
+            assert(has(0)(s), s)
+            assert(!(has(1)(s)), s)
+            assert(!(has(33)(s)), s)
+        },
+        () => {
+            const s = set(33)(empty)
+            assertEq(s, 8_589_934_592n)
+            assert(!(has(0)(s)), s)
+            assert(!(has(1)(s)), s)
+            assert(has(33)(s), s)
+        }
+    ],
+    setRange: {
+        inner: () => {
+            const result = setRange([2, 5])(empty)
+            assertEq(result, 60n)
+        },
+        single: () => {
+            const result = setRange([7, 7])(empty)
+            assertEq(result, set(7)(empty))
+        },
+        full: () => {
+            const result = setRange([0, 255])(empty)
+            assertEq(result, universe)
+        },
+    },
+    unset: [
+        () => {
+            const a = set(0)(empty)
+            const result = unset(0)(a)
+            assertEq(result, 0n)
+        },
+        () => {
+            const a = set(255)(empty)
+            const result = unset(255)(a)
+            assertEq(result, 0n)
+        }
+    ],
+    universe: () => {
+        //       0    1    2    3    4    5    6    7    8    9    A    B    C    D    E    F
+        assertEq(universe, 0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFFn)
+        const x = every(map((/** @type {any} */ v) => has(v)(universe))(countdown(256)))
+        assert(x, x)
+    },
+    compliment: {
+        empty: () => {
+            const r = complement(empty)
+            assertEq(r, universe)
+        },
+        universe: () => {
+            const r = complement(universe)
+            assertEq(r, empty)
+        },
+    },
+    toRangeMap: [
+        () => {
+            const result = stringifySorted(toArray(toRangeMap(empty)))
+            assertEq(result, '[]')
+        },
+        () => {
+            const s = set(0)(empty)
+            const result = stringifySorted(toArray(toRangeMap(s)))
+            assertEq(result, '[[true,0]]')
+        },
+        () => {
+            const s = setRange([1, 2])(empty)
+            const result = stringifySorted(toArray(toRangeMap(s)))
+            assertEq(result, '[[false,0],[true,2]]')
+        },
+        () => {
+            const result = stringifySorted(toArray(toRangeMap(universe)))
+            assertEq(result, '[[true,255]]')
+        },
+    ]
+}

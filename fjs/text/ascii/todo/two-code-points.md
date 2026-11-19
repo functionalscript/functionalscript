@@ -11,7 +11,7 @@ exports a second `codePoints`, `[...s].map(one)`, with a weaker contract: a
 lone surrogate comes back unflagged, as its own code unit. Its callers — the
 digit readers' inputs in `git/config`, the `crypto` demos, `website`, and
 proofs in `compiler`, `zlib/adler32` and `nanvm/demos` — pass ASCII, which
-the strict reader serves as well. [`fjs/ebnf/railroad`](../../../ebnf/railroad/module.f.mjs)
+the strict reader serves as well. [`fjs/ebnf/railroad`](../../../ebnf/railroad/module.f.js)
 exports an unrelated `codePoints` (its `Alphabet`), so three modules export
 the name for three meanings.
 

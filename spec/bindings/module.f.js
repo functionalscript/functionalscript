@@ -25,6 +25,7 @@ const variables = [
 const destructuring = [
     ['Destructuring', 'const { a, "b": [c, d] } = { a: 1, b: [2, 3] };\nconst [e] = "hi";\nconst f = ([x, { y }], z) => [x, y, z];\nexport default [a, c, d, e, f([4, { y: 5 }], 6)];', 'destructuring'],
     ['Destructuring: an elision', 'const [, b, , d] = [1, 2, 3, 4];\nconst second = ([, x]) => x;\nexport default [b, d, second("ab")];', 'destructuring-an-elision'],
+    ['Destructuring: object rest', 'const { a: first, ...rest } = { a: 1, b: 2, c: undefined };\nexport default [first, rest, Object.keys(rest)];', 'destructuring-object-rest'],
 ]
 
 export default { constants, variables, destructuring, all: [...constants, ...variables, ...destructuring] }

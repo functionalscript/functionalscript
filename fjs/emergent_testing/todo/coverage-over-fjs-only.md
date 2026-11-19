@@ -6,7 +6,7 @@
 ### Current state
 
 `npm start cov node` runs each directory's own FunctionalScript proofs through
-`one.mjs`, measuring `module.f.mjs`, `module.f.js` and `demo.f.mjs` with the
+`one.mjs`, measuring `module.f.mjs`, `module.f.js`, `demo.f.mjs` and `demo.f.js` with the
 existing 100% thresholds. The former combined `npm run cov` script was removed.
 The Deno and Bun CI jobs run the FJS-only native entry without coverage;
 local `deno task cov` still offers combined-suite coverage.
@@ -29,7 +29,7 @@ Deno and Bun test host JavaScript through their native runners without
 coverage, on each OS assigned by the plan. Adding Deno or Bun coverage to CI
 is outside this task.
 
-The measured set is `module.f.mjs`, `module.f.js` and `demo.f.mjs`. FunctionalScript
+The measured set is `module.f.mjs`, `module.f.js`, `demo.f.mjs` and `demo.f.js`. FunctionalScript
 files under other names are loaded but not measured, by two routes. A
 parser's fixtures, the `rtti` guide's examples, `testlib.f.js` and
 `data.f.js` are discovered: `loadModuleMap` imports every file

@@ -2,7 +2,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.js'
 import { startDemoSharing, writeDelay } from './demo-sharing-runtime.mjs'
-import { textSharing, recordSharing, encodeQuery, defaultsOf } from './demo/sharing/module.f.mjs'
+import { textSharing, recordSharing, encodeQuery, defaultsOf } from './demo/sharing/module.f.js'
 
 /** @type {(sharing?: any, hash?: string) => any} */
 const fixture = (sharing = textSharing('source', 'first', [['First', 'first', 'first'], ['Second', 'second', 'second']]), hash = '?example=second#demo') => {

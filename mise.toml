@@ -3,14 +3,14 @@
 min_version = "2026.10.19"
 
 [tools]
-node = "26.13.0"
+node = "26.13.1"
 "npm:typescript" = "7.0.2"
 bun = "1.4.4"
 rust = [
-    { version = "1.99.1", profile = "minimal", components = ["clippy", "rustfmt"], targets = ["wasm32-wasip1", "wasm32-wasip2", "wasm32-unknown-unknown", "wasm32-wasip1-threads", "i686-unknown-linux-gnu"], os = ["linux/x64"] },
-    { version = "1.99.1", profile = "minimal", components = ["clippy", "rustfmt"], targets = ["wasm32-wasip1", "wasm32-wasip2", "wasm32-unknown-unknown", "wasm32-wasip1-threads"], os = ["linux/arm64", "macos"] },
-    { version = "1.99.1", profile = "minimal", components = ["clippy", "rustfmt"], targets = ["i686-pc-windows-msvc"], os = ["windows/x64"] },
-    { version = "1.99.1", profile = "minimal", components = ["clippy", "rustfmt"], os = ["windows/arm64"] },
+    { version = "1.100.0", profile = "minimal", components = ["clippy", "rustfmt"], targets = ["wasm32-wasip1", "wasm32-wasip2", "wasm32-unknown-unknown", "wasm32-wasip1-threads", "i686-unknown-linux-gnu"], os = ["linux/x64"] },
+    { version = "1.100.0", profile = "minimal", components = ["clippy", "rustfmt"], targets = ["wasm32-wasip1", "wasm32-wasip2", "wasm32-unknown-unknown", "wasm32-wasip1-threads"], os = ["linux/arm64", "macos"] },
+    { version = "1.100.0", profile = "minimal", components = ["clippy", "rustfmt"], targets = ["i686-pc-windows-msvc"], os = ["windows/x64"] },
+    { version = "1.100.0", profile = "minimal", components = ["clippy", "rustfmt"], os = ["windows/arm64"] },
 ]
 
 [tools."github:denoland/deno"]
@@ -25,15 +25,15 @@ windows-x64 = { asset_pattern = "deno-x86_64-pc-windows-msvc.zip" }
 windows-arm64 = { asset_pattern = "deno-aarch64-pc-windows-msvc.zip" }
 
 [tools."github:bytecodealliance/wasmtime"]
-version = "50.0.1"
+version = "50.0.2"
 
 [tools."github:bytecodealliance/wasmtime".platforms]
-linux-x64 = { asset_pattern = "wasmtime-v50.0.1-x86_64-linux.tar.xz" }
-linux-arm64 = { asset_pattern = "wasmtime-v50.0.1-aarch64-linux.tar.xz" }
-macos-x64 = { asset_pattern = "wasmtime-v50.0.1-x86_64-macos.tar.xz" }
-macos-arm64 = { asset_pattern = "wasmtime-v50.0.1-aarch64-macos.tar.xz" }
-windows-x64 = { asset_pattern = "wasmtime-v50.0.1-x86_64-windows.zip" }
-windows-arm64 = { asset_pattern = "wasmtime-v50.0.1-aarch64-windows.zip" }
+linux-x64 = { asset_pattern = "wasmtime-v50.0.2-x86_64-linux.tar.xz" }
+linux-arm64 = { asset_pattern = "wasmtime-v50.0.2-aarch64-linux.tar.xz" }
+macos-x64 = { asset_pattern = "wasmtime-v50.0.2-x86_64-macos.tar.xz" }
+macos-arm64 = { asset_pattern = "wasmtime-v50.0.2-aarch64-macos.tar.xz" }
+windows-x64 = { asset_pattern = "wasmtime-v50.0.2-x86_64-windows.zip" }
+windows-arm64 = { asset_pattern = "wasmtime-v50.0.2-aarch64-windows.zip" }
 
 [tools."github:wasmerio/wasmer"]
 version = "7.5.0"

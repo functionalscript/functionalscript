@@ -84,7 +84,7 @@ export type Primitive0 = 'bigint' | 'boolean' | 'number' | 'string'
 // has to be pinned against it. `Tag0` below needs no such pin: it *is* its
 // list, read through `typeof`.
 //
-// This and `_Tag1Pinned` were `./proof.f.mjs`'s `pinnedLists` entry, a body
+// This and `_Tag1Pinned` were `./proof.f.js`'s `pinnedLists` entry, a body
 // of nothing but typedefs — so neither bound to a statement and both were
 // green whatever they claimed (`../AGENTS.md` §1.4).
 type _Primitive0Pinned = Assert<Equal<Primitive0, typeof _primitive0List[number]>>
@@ -198,19 +198,24 @@ export type _MakeRest =
 /**
  * `open`'s signature. It is not `_MakeRest` partially applied: the `const`
  * modifier is what keeps `open([42])` a literal tuple rather than widening it
- * to `Type[]`, so the modifier has to be restated here. `../proof.f.mjs` pins
+ * to `Type[]`, so the modifier has to be restated here. `../proof.f.js` pins
  * that, as it does for every other `const`-taking constructor.
  */
 export type _MakeOpen =
     <const C extends ConstObject>(c: C) => Rest<C, Unknown>
 
+/** Explicit graph labels for schema thunks, matched by identity rather than function names. */
+export type DemoSchemaNames = readonly (readonly [schema: Exclude<Type, Const>, label: string])[]
+
 /** One schema of a demo example: the source a reader sees, and the schema it builds. */
 export type DemoSchema = {
     readonly source: string
     readonly schema: Type
+    /** Thunks without a display name draw under their structural label, such as `or`. */
+    readonly names?: DemoSchemaNames
     /**
-     * The directory of the module that declares the schema, for one the
-     * project uses — `fjs/media/note` — or absent for one written for the demo.
+     * The full path of the module that declares the schema, for one the project
+     * uses — `fjs/media/note/module.f.js` — or absent for one written for the demo.
      */
     readonly module?: string
 }

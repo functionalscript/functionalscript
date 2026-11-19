@@ -5,7 +5,7 @@
 
 ### Problem
 
-The Evo cache (`fjs/cas/evo/module.f.mjs`) is built once at server startup
+The Evo cache (`fjs/cas/evo/module.f.js`) is built once at server startup
 (`initEvo` → `buildCache`) and afterwards is only ever updated by writes that
 go *through this same running process*: `evo_add` (`addRevision`) and a
 `cas_add` that happens to store a `vnd.fjs.revision` blob (`syncRevision`,
@@ -97,7 +97,7 @@ store.
 
 - [fjs/cas/evo/README.md](../README.md) — "In-memory cache is per process":
   the adjacent (but distinct) multi-process cache-sharing problem.
-- `gcStage` in `fjs/cas/module.f.mjs` — an existing precedent for lazy,
+- `gcStage` in `fjs/cas/module.f.js` — an existing precedent for lazy,
   best-effort background maintenance in this same store.
 - `fjs/cas/todo/web-api-server.md` — a shared HTTP(S) server would have one
   cache read by many clients, raising the same staleness question from the

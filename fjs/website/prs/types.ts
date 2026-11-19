@@ -5,7 +5,7 @@
  */
 
 import type { Ts } from '../../rtti/ts/types.ts'
-import type { checksSchema, pullsSchema, statusesSchema } from './module.f.mjs'
+import type { checksSchema, pullsSchema, statusesSchema } from './module.f.js'
 
 /** Open pull requests returned by GitHub, including draft pull requests. */
 export type Pulls = Ts<typeof pullsSchema>

@@ -5,9 +5,9 @@
 
 ### Problem
 
-Reading refs is done: [`fjs/git/ref`](../../ref/module.f.mjs) reads the three
+Reading refs is done: [`fjs/git/ref`](../../ref/module.f.js) reads the three
 files as the grammars they are, and
-[`fjs/git/refstore`](../module.f.mjs) finds and opens them, answering
+[`fjs/git/refstore`](../module.f.js) finds and opens them, answering
 every ref a repository holds and the id one name resolves to.
 
 Writing and deleting one are done. `tryWrite` writes the loose file under Git's
@@ -22,7 +22,7 @@ it, and renames it over `refs/heads/x`, so a concurrent writer fails to create
 the lock rather than interleaving. The rename is the atomic step, and the lock
 file is why `fjs/git/refstore`'s walk skips a name ending in `.lock`: such a
 file is a write in progress and not a ref.
-[`refstore/write`](../write/module.f.mjs)'s `tryWrite` does that, in five
+[`refstore/write`](../write/module.f.js)'s `tryWrite` does that, in five
 effects — `packed-refs`, a `stat` of the ref's own path, the directories above
 the file, the exclusive write of the id's hex digits and an LF, the rename — and
 gives the lock back where a
@@ -369,7 +369,7 @@ nonexistent object`, and a file holding such an id makes `show-ref` answer
 `bad ref`, `for-each-ref` and `rev-list --all` exit 128, and `fsck` report
 `invalid sha1 pointer`. So the check is worth having, and it makes a writer of
 refs a reader of objects: the id would have to be looked up through
-[`fjs/git/store`](../../store/module.f.mjs), which nothing in `refstore` imports
+[`fjs/git/store`](../../store/module.f.js), which nothing in `refstore` imports
 today. A caller that wrote the object knows it is there, which is why this is
 deferred rather than done with the write.
 
@@ -506,20 +506,20 @@ else in the name has moved DISOT semantics into Git's namespace.
 
 - [git-name-resolution](../../../../todo/git-name-resolution.md) — the rule
   above, and why a ref is only a retention root.
-- [`fjs/git/refstore`](../module.f.mjs) — the reading half, and the name rules
+- [`fjs/git/refstore`](../module.f.js) — the reading half, and the name rules
   both halves share.
-- [`fjs/git/refstore/write`](../write/module.f.mjs) — `tryWrite` and
+- [`fjs/git/refstore/write`](../write/module.f.js) — `tryWrite` and
   `tryDelete`, with the measurements behind every refusal.
-- [`fjs/git/refname`](../../refname/module.f.mjs) — `lockSuffix`, and why no ref
+- [`fjs/git/refname`](../../refname/module.f.js) — `lockSuffix`, and why no ref
   is ever named by a writer's lock file.
-- [`fjs/git/ref`](../../ref/module.f.mjs) — the file grammars a writer must
+- [`fjs/git/ref`](../../ref/module.f.js) — the file grammars a writer must
   produce, measured against Git, and `writeLoose`, the bytes `tryWrite` puts
   in a loose file. A symbolic write's `ref: <name>\n` belongs beside it, as a
   `writeSymbolic` proved by its round trip through `tryRef`, not as a format
   string in the store.
-- [`fjs/git/store`](../../store/module.f.mjs) — from an id to the object a ref
+- [`fjs/git/store`](../../store/module.f.js) — from an id to the object a ref
   keeps, and what an object-existence check would have to read.
-- [`fjs/effects/node/virtual`](../../../effects/node/virtual/module.f.mjs) —
+- [`fjs/effects/node/virtual`](../../../effects/node/virtual/module.f.js) —
   `mkdirOp`, the virtual `mkdir` this write no longer reaches, which now refuses
   a file in its path with the host's `ENOTDIR` or `EEXIST` rather than replacing
   it with a directory.

@@ -1,0 +1,620 @@
+/**
+ * The table `analysis` builds — one section per claim the module makes:
+ * numbering and walk order, what merges and what does not, scopes, edges
+ * from lazy positions, the node kinds, and the refusal.
+ *
+ * @import { Exp } from '../types.ts'
+ * @import { Analysis, Node, Operand, Ref } from './types.ts'
+ */
+
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
+import { analysis, checked, identityAnalysis, itemOperand, operandsOf, ownOperandsOf, scopeHolds } from './module.f.js'
+import { sharedNodesOf } from '../sharing/module.f.js'
+
+/**
+ * Every index an entry names, wherever it stands. A `Ref` is `['#', i]`
+ * and a table holds nothing else tagged `'#'` — the string `'#'` as a
+ * primitive operand is not an array — so the collection can be structural,
+ * where the module's own edge count is not.
+ *
+ * @type {(x: unknown) => readonly number[]}
+ */
+const refs = x => !(x instanceof Array) ? []
+    : x[0] === '#' && typeof x[1] === 'number' ? [x[1]]
+    : x.flatMap(refs)
+
+/**
+ * What every table satisfies, checked on every case: an entry names only
+ * entries before it, since a node comes after its operands; a scope is the
+ * module's or a `=>` after the entry, since a `=>` comes after its body; and
+ * `shared` is in index order.
+ *
+ * @type {(a: Analysis) => Analysis}
+ */
+const sound = a => {
+    const { nodes, scope, shared } = a
+    assertEq(scope.length, nodes.length)
+    for (const [i, node] of nodes.map((node, i) => /** @type {const} */ ([i, node]))) {
+        for (const r of refs(node)) { assert(r < i, ['an operand after its node', i, r]) }
+        assert(scope[Number(i)] === -1 || (scope[Number(i)] > i && nodes[Number(scope[Number(i)])][0] === '=>'), ['a scope that is not a later =>', i])
+    }
+    for (const [n, s] of shared.map((s, n) => /** @type {const} */ ([n, s]))) { assert(n === 0 || shared[Number(n - 1)] < s, ['shared out of order', shared]) }
+    return a
+}
+
+/** @type {(e: Exp) => Analysis} */
+const an = e => sound(assertOk(analysis(e)))
+
+/** The identity table, checked as every table is. @type {(e: Exp) => Analysis} */
+const identity = e => sound(assertOk(identityAnalysis(e)))
+
+/** The table but its `exps`, which `exps` below is about. @type {(e: Exp, expected: Omit<Analysis, 'exps'>) => void} */
+const table = (e, expected) => {
+    const { root, nodes, scope, shared } = an(e)
+    assertStructurallySame({ root, nodes, scope, shared }, expected)
+}
+
+/** The nodes of a table, when that is all a case is about. @type {(e: Exp) => readonly Node[]} */
+const nodesOf = e => an(e).nodes
+
+/** `[]`, a constructor. @type {Exp} */
+const empty = ['[]', []]
+
+/** `(...a) => a[0]`, no frame. @type {Exp} */
+const first = ['=>', 0, [], ['.', ['rest'], 0]]
+
+export const proof = {
+    booleanOperand: () => {
+        assertStructurallySame(nodesOf(['Boolean', ['[]', []]]), [['[]', []], ['Boolean', ['#', 0]]])
+        assertStructurallySame(nodesOf(['Boolean', ['undefined']]), [['undefined'], ['Boolean', ['#', 0]]])
+    },
+    bigintOperand: () => {
+        assertStructurallySame(nodesOf(['BigInt', ['+', 1, 2]]), [['+', 1, 2], ['BigInt', ['#', 0]]])
+    },
+    itemOperand: () => {
+        /** @type {Ref} */
+        const ref = ['#', 0]
+        assertEq(itemOperand('...'), '...')
+        assertEq(itemOperand(ref), ref)
+        assertEq(itemOperand(['...', 'value']), 'value')
+        assertEq(itemOperand(['...', ref]), ref)
+    },
+    operandsOf: () => {
+        // Equal indices do not make distinct input Ref tuples interchangeable.
+        /** @type {Ref} */
+        const a = ['#', 0]
+        /** @type {Ref} */
+        const b = ['#', 0]
+        /** @type {readonly (readonly [Node, readonly Operand[]])[]} */
+        const cases = [
+            [['undefined'], []], [['args'], []], [['rest'], []],
+            [['entry'], []], [['hasEntry'], []], [['refMap'], []],
+            [['arg', 2], []], [['frame', 3], []],
+            [['!', a], [a]], [['+', a], [a]], [['+', a, b], [a, b]],
+            // the constructor name is metadata, never an operand
+            [['instanceof', a, 'Array'], [a]], [['instanceof', 'Array', 'Array'], ['Array']],
+            // and so is the key of an entry check, a string that is no literal operand
+            [['in', 'x', a], [a]], [['in', 'x', 'x'], ['x']],
+            [['memberPresent', a, b], [a, b]], [['memberPresent', a, 'length'], [a, 'length']],
+            [['?:', false, a, false], [false, a, false]], [['?:', true, true, b], [true, true, b]],
+            [['?:', null, a, null], [null, a, null]], [['?:', true, a, b], [true, a, b]],
+            [['[]', []], []], [['{}', []], []], [[',', []], []],
+            [['[]', [a, ['...', b], '#', '=>', a]], [a, b, '#', '=>', a]],
+            [['{}', [[':', a, b], [':', '#', '...'], ['...', a]]], [a, b, '#', '...', a]],
+            [[',', [a, 1, b, a]], [a, 1, b, a]],
+            [['=>', 2, [a, 42, b], a], [a, 42, b, a]],
+            [['=>', 0, [], 7], [7]],
+            [['()', a, [b, ['...', a], 'args']], [a, b, a, 'args']],
+            [['?.()', a, []], [a]],
+            [['.', a, '#'], [a, '#']], [['?.', null, 0], [null, 0]],
+            [['.', a, 'field', ['|()', [b]]], [a, 'field', b]],
+            [['?.', a, 'field', ['|?.()', []]], [a, 'field']],
+            [['?.()', a, [1], ['|!()', [b]]], [a, 1, b]],
+            [['.', a, 'field', ['|?.()', [b, ['...', a]],
+                ['|.', b, ['|()', [null], ['|.', 'end']]]]],
+            [a, 'field', b, a, b, null, 'end']],
+        ]
+        for (const [node, expected] of cases) {
+            const actual = operandsOf(node)
+            assertEq(actual.length, expected.length)
+            for (const [i, operand] of expected.map((operand, i) => /** @type {const} */ ([i, operand]))) { assertEq(actual[Number(i)], operand) }
+        }
+    },
+    // A function's own operands are its captures, without its body; every
+    // other node's are all of them.
+    ownOperandsOf: () => {
+        /** @type {Ref} */
+        const a = ['#', 0]
+        /** @type {Ref} */
+        const b = ['#', 1]
+        assertStructurallySame(ownOperandsOf(['=>', 2, [a, 42], b]), [a, 42])
+        assertStructurallySame(ownOperandsOf(['=>', 0, [], 7]), [])
+        assertStructurallySame(ownOperandsOf(['+', a, b]), [a, b])
+    },
+    checked: () => {
+        const a = an(first)
+        assertEq(assertOk(checked(a)), a)
+        assertEq(assertError(checked(an(['frame', 0]))), 'invalid frame slot index or scope')
+    },
+    memberPresent: () => {
+        const key = /** @type {const} */ (['Number', ['+', 1, 2]])
+        table(['memberPresent', empty, key], {
+            root: ['#', 3],
+            nodes: [['[]', []], ['+', 1, 2], ['Number', ['#', 1]], ['memberPresent', ['#', 0], ['#', 2]]],
+            scope: [-1, -1, -1, -1], shared: [],
+        })
+        assertStructurallySame(nodesOf(['memberPresent', null, 'length']), [['memberPresent', null, 'length']])
+        // Pure queries merge by content, while identity admission preserves
+        // separately allocated queries and the receiver they share.
+        const first = /** @type {const} */ (['memberPresent', empty, 'length'])
+        const second = /** @type {const} */ (['memberPresent', empty, 'length'])
+        const merged = an(['[]', [first, second]])
+        assertEq(merged.nodes.length, 3)
+        assertStructurallySame(merged.exps[1], first)
+        const distinct = identity(['[]', [first, second, first]])
+        assertEq(distinct.nodes.length, 4)
+        assertEq(distinct.exps[1], first)
+        assertEq(distinct.exps[2], second)
+        assertStructurallySame(distinct.shared, [0, 1])
+    },
+    constructorMetadata: () => {
+        // The constructor name survives graph numbering without becoming a
+        // value dependency, including when the operand has the same text.
+        assertStructurallySame(nodesOf(['instanceof', 'Array', 'Array']), [
+            ['instanceof', 'Array', 'Array'],
+        ])
+        assertStructurallySame(nodesOf(['instanceof', empty, 'Array']), [
+            ['[]', []], ['instanceof', ['#', 0], 'Array'],
+        ])
+        // The key of an entry check survives the same way, its operand
+        // numbered and the key kept as the spelling it is.
+        assertStructurallySame(nodesOf(['in', 'x', 'x']), [
+            ['in', 'x', 'x'],
+        ])
+        assertStructurallySame(nodesOf(['in', 'x', empty]), [
+            ['[]', []], ['in', 'x', ['#', 0]],
+        ])
+    },
+    // `Object.is` is a value wherever one stands — a callee, the root, an
+    // argument, an element, a captured slot, a receiver — and one function
+    // on every read, so twins in one scope merge into one entry, as any
+    // value no node mints does.
+    objectIs: () => {
+        /** @type {Exp} */
+        const is = ['Object.is']
+        for (const e of /** @type {readonly Exp[]} */ ([
+            ['()', is, [-0, 0]], ['=>', 0, [], ['()', is, [1, 1]]],
+            is, ['[]', [is]], ['()', ['=>', 1, [], ['arg', 0]], [is]], ['=>', 0, [is], 1],
+            ['.', is, 'length'], ['()', ['=>', 0, [], is], []],
+        ])) { assertOk(checked(an(e))) }
+        const twice = an(['[]', [['()', is, [1]], ['()', ['Object.is'], [2]]]])
+        assertEq(twice.nodes.filter(node => node[0] === 'Object.is').length, 1)
+        assertStructurallySame(operandsOf(is), [])
+    },
+    // A Math static is a shared value, not a fresh closure at each read.
+    mathStatics: () => {
+        for (const id of /** @type {const} */ (['Math.log2', 'Math.trunc', 'Math.floor', 'Math.abs', 'Math.sqrt', 'Math.ceil', 'Math.imul', 'Math.max', 'Math.min', 'Math.fround', 'Math.clz32', 'Math.round'])) {
+            const fn = /** @type {const} */ ([id])
+            assertOk(checked(an(['=>', 0, [fn], ['.', ['frame', 0], 'length']])))
+            const twice = an(['[]', [fn, [id]]])
+            assertEq(twice.nodes.filter(node => node[0] === id).length, 1)
+            assertStructurallySame(operandsOf(fn), [])
+        }
+    },
+    objectKeys: () => {
+        const keys = /** @type {const} */ (['Object.keys'])
+        const repeated = an(['[]', [keys, ['Object.keys']]])
+        assertEq(repeated.nodes.filter(node => node[0] === 'Object.keys').length, 1)
+        assertStructurallySame(operandsOf(keys), [])
+        assertOk(checked(an(['()', keys, [['{}', []]]])))
+    },
+    uriComponent: () => {
+        const encode = /** @type {const} */ (['encodeURIComponent'])
+        const repeated = an(['[]', [encode, ['encodeURIComponent']]])
+        assertEq(repeated.nodes.filter(node => node[0] === 'encodeURIComponent').length, 1)
+        assertStructurallySame(operandsOf(encode), [])
+        assertOk(checked(an(['()', encode, ['雪']])))
+    },
+    objectValues: () => {
+        const values = /** @type {const} */ (['Object.values'])
+        const repeated = an(['[]', [values, ['Object.values']]])
+        assertEq(repeated.nodes.filter(node => node[0] === 'Object.values').length, 1)
+        assertStructurallySame(operandsOf(values), [])
+        assertOk(checked(an(['=>', 0, [values], ['.', ['frame', 0], 'length']])))
+        assertOk(checked(an(['()', values, [['{}', []]]])))
+    },
+    validation: () => {
+        for (const e of /** @type {readonly Exp[]} */ ([
+            ['rest'], ['arg',0], ['=>',0,[],['arg',0]], ['=>',1,[],['arg',1]],
+            ['=>',1,[],['arg',-0]], ['=>',1,[],['arg',-1]], ['=>',1,[],['arg',0.5]],
+            ['=>',1,[],['arg',Infinity]], ['=>',1,[],['args']],
+            ['=>',1,[],['=>',0,[['arg',0],['rest']],['arg',0]]],
+            // a frame slot read outside a function, and one whose index is
+            // no canonical index
+            ['frame',0], ['[]',[['frame',0]]],
+            ['=>',0,[['[]',[]]],['frame',-0]], ['=>',0,[['[]',[]]],['frame',-1]],
+            ['=>',0,[['[]',[]]],['frame',0.5]], ['=>',0,[['[]',[]]],['frame',Infinity]],
+            // `self` outside a function: bare, in a container, and as a slot
+            // of a top-level function, which its enclosing scope evaluates
+            ['self'], ['[]',[['self']]], ['=>',0,[['self']],1],
+        ])) { assertError(checked(assertOk(analysis(e)))) }
+        // a frame slot read belongs to the function whose body holds it,
+        // nested or not, and its index is below that function's slot count
+        assertOk(checked(assertOk(analysis(['=>',0,[['[]',[]]],['frame',0]]))))
+        assertOk(checked(assertOk(analysis(['=>',0,[['[]',[]],['{}',[]]],['frame',1]]))))
+        assertEq(assertError(checked(assertOk(analysis(['=>',0,[['[]',[]]],['frame',1]])))), 'invalid frame slot index or scope')
+        assertEq(assertError(checked(assertOk(analysis(['=>',0,[],['frame',0]])))), 'invalid frame slot index or scope')
+        assertOk(checked(assertOk(analysis(['=>',0,[['[]',[]]],['=>',0,[['frame',0]],['frame',0]]]))))
+        // a nested body's index is checked against that function's slots,
+        // not its parent's
+        assertEq(assertError(checked(assertOk(analysis(['=>',0,[['[]',[]],['{}',[]]],['=>',0,[['frame',1]],['frame',1]]])))), 'invalid frame slot index or scope')
+        // a function's `length` is at most 16, nested or not
+        assertOk(checked(assertOk(analysis(['=>',16,[],['arg',15]]))))
+        for (const e of /** @type {readonly Exp[]} */ ([
+            ['=>',17,[],1], ['=>',2 ** 32,[],1], ['=>',0,[],['=>',17,[],1]],
+        ])) { assertEq(assertError(checked(assertOk(analysis(e)))), 'a function length above 16') }
+        assertOk(checked(assertOk(analysis(['=>',1,[['args']],['arg',0]]))))
+        assertOk(checked(assertOk(analysis(['=>',1,[],['=>',0,[['arg',0],['rest']],['rest']]]))))
+        // `self` belongs to the function whose body holds it, and a nested
+        // function reaches its parent's through a slot evaluated there
+        assertOk(checked(assertOk(analysis(['=>',0,[],['()',['self'],[]]]))))
+        assertOk(checked(assertOk(analysis(['=>',1,[],['=>',0,[['self']],['()',['frame',0],[0]]]]))))
+        assertEq(assertError(checked(assertOk(analysis(['self'])))), 'self outside a function')
+    },
+
+    functionBindings: () => {
+        for (const [e, expected] of /** @type {readonly (readonly [Exp, string | null])[]} */ ([
+            // Captures are expressions in the enclosing invocation, whose
+            // parameter and frame sizes an isolated function cannot know.
+            [['=>', 0, [['arg', 3], ['frame', 8], ['rest']], ['frame', 2]], null],
+            // Captured functions are not part of the selected body's code.
+            [['=>', 0, [['=>', 0, [], ['arg', 0]], ['=>', 17, [], 1]], ['frame', 0]], null],
+            [['=>', 17, [], 1], 'a function length above 16'],
+            [['=>', 1, [], ['arg', 1]], 'invalid fixed parameter index or scope'],
+            [['=>', 0, [], ['frame', 0]], 'invalid frame slot index or scope'],
+            [['=>', 0, [], ['args']], 'module args in a function'],
+            [['=>', 1, [], ['=>', 0, [['arg', 0]], ['frame', 0]]], null],
+            [['=>', 0, [], ['=>', 0, [['arg', 0]], 1]], 'invalid fixed parameter index or scope'],
+            [['=>', 0, [], ['=>', 0, [], ['arg', 0]]], 'invalid fixed parameter index or scope'],
+            [['=>', 0, [], ['=>', 17, [], 1]], 'a function length above 16'],
+        ])) {
+            const a = an(e)
+            assert(a.root instanceof Array)
+            const result = checked(a, a.root[1])
+            if (expected === null) { assertEq(assertOk(result), a) }
+            else { assertEq(assertError(result), expected) }
+        }
+        // Selecting a nested function ignores errors in its enclosing code,
+        // while whole-program binding validation still reports them.
+        const a = an(['=>', 1, [], ['[]', [['arg', 1], ['=>', 1, [['arg', 0]], ['arg', 0]]]]])
+        const nested = a.nodes.findIndex(n => n[0] === '=>')
+        assertEq(assertOk(checked(a, nested)), a)
+        assertEq(assertError(checked(a)), 'invalid fixed parameter index or scope')
+    },
+
+    invalidLength: () => {
+        for (const length of [-0, -1, 0.5, NaN, Infinity]) {
+            assertEq(assertError(analysis(['=>', length, [], 1])), 'invalid function length')
+        }
+    },
+
+    firstProblem: () => {
+        // Walking continues after the first failure, but a later failure
+        // cannot replace the diagnostic already recorded.
+        assertEq(assertError(analysis(['[]', [empty, ['=>', -1, [], empty]]])), 'invalid function length')
+        assertEq(assertError(analysis(['[]', [empty, ['=>', 0, [], empty], ['=>', -1, [], 1]]])), 'a node shared across a function boundary')
+    },
+
+    // A primitive is a leaf, written and evaluated in place: `export
+    // default 1;` is an empty table with the root `1`.
+    primitive: () => {
+        table(1, { root: 1, nodes: [], scope: [], shared: [] })
+        table('a', { root: 'a', nodes: [], scope: [], shared: [] })
+        table(null, { root: null, nodes: [], scope: [], shared: [] })
+    },
+    // Walk order: depth first from the root, operands as written, a node
+    // after its operands and on the first edge that reaches it — the
+    // design's own example, `const a = [{}]; export default [a[0], a[0]];`.
+    // The two accesses become one entry while `a` still has two edges.
+    order: () => {
+        /** @type {Exp} */
+        const a = ['[]', [['{}', []]]]
+        table(['[]', [['.', a, 0], ['.', a, 0]]], {
+            root: ['#', 3],
+            nodes: [['{}', []], ['[]', [['#', 0]]], ['.', ['#', 1], 0], ['[]', [['#', 2], ['#', 2]]]],
+            scope: [-1, -1, -1, -1],
+            shared: [1, 2],
+        })
+    },
+    // A constructor mints identity: one node reached twice is one entry,
+    // shared, and two nodes spelled the same are two entries, two arrays.
+    constructor: () => {
+        table(['[]', [empty, empty]], {
+            root: ['#', 1],
+            nodes: [['[]', []], ['[]', [['#', 0], ['#', 0]]]],
+            scope: [-1, -1],
+            shared: [0],
+        })
+        table(['[]', [['[]', []], ['[]', []]]], {
+            root: ['#', 2],
+            nodes: [['[]', []], ['[]', []], ['[]', [['#', 0], ['#', 1]]]],
+            scope: [-1, -1, -1],
+            shared: [],
+        })
+        assertStructurallySame(nodesOf(['[]', [['{}', []], ['{}', []]]]), [['{}', []], ['{}', []], ['[]', [['#', 0], ['#', 1]]]])
+        assertEq(nodesOf(['[]', [first, ['=>', 0, [], ['.', ['rest'], 0]]]]).length, 7)
+    },
+    // A plain read is decided by its inputs, so two spelled the same over
+    // the same inputs are one entry — shared, since both edges stay — and
+    // two over different keys stay apart; the same node twice is the same
+    // entry either way.
+    access: () => {
+        /** @type {Exp} */
+        const cfg = ['args']
+        /** @type {Exp} */
+        const read = ['.', cfg, 'a']
+        /** @type {Omit<Analysis, 'exps'>} */
+        const merged = {
+            root: ['#', 2],
+            nodes: [['args'], ['.', ['#', 0], 'a'], ['[]', [['#', 1], ['#', 1]]]],
+            scope: [-1, -1, -1],
+            shared: [0, 1],
+        }
+        table(['[]', [read, read]], merged)
+        table(['[]', [['.', cfg, 'a'], ['.', ['args'], 'a']]], merged)
+        assertStructurallySame(nodesOf(['[]', [['.', cfg, 'a'], ['.', cfg, 'b']]]), [['args'], ['.', ['#', 0], 'a'], ['.', ['#', 0], 'b'], ['[]', [['#', 1], ['#', 2]]]])
+        // A computed key is a `Number` node, an entry of its own, and merges
+        // as any operator does.
+        assertStructurallySame(nodesOf(['[]', [['.', cfg, ['Number', 'a']], ['.', cfg, ['Number', 'a']]]]),
+            [['args'], ['Number', 'a'], ['.', ['#', 0], ['#', 1]], ['[]', [['#', 2], ['#', 2]]]])
+        // `?.` without a continuation is a plain read too.
+        assertEq(nodesOf(['[]', [['?.', cfg, 'a'], ['?.', cfg, 'a']]]).length, 3)
+        // the `entry` helper mints a function, as `=>` does: two are two
+        assertEq(nodesOf(['[]', [['entry'], ['entry']]]).length, 3)
+        assertEq(nodesOf(['[]', [['hasEntry'], ['hasEntry']]]).length, 3)
+        // and so does the empty reference map: written twice, two maps
+        assertEq(nodesOf(['[]', [['refMap'], ['refMap']]]).length, 3)
+        // and so does an intrinsic's helper
+        assertEq(nodesOf(['[]', [['slice'], ['slice']]]).length, 3)
+    },
+    // Inputs are the same by `Object.is`: `0` and `-0` are different inputs,
+    // so `1 / 0` and `1 / -0` stay two entries, `Infinity` and `-Infinity`;
+    // `NaN` is the same as `NaN`, so two operators over it are one.
+    sameValue: () => {
+        assertStructurallySame(nodesOf(['[]', [['/', 1, 0], ['/', 1, -0]]]), [['/', 1, 0], ['/', 1, -0], ['[]', [['#', 0], ['#', 1]]]])
+        assertStructurallySame(nodesOf(['[]', [['+', NaN, 1], ['+', NaN, 1]]]), [['+', NaN, 1], ['[]', [['#', 0], ['#', 0]]]])
+        // ... and a different arity or a different primitive is a different spelling.
+        assertEq(nodesOf(['[]', [['-', 1], ['-', 1, 1]]]).length, 3)
+        assertEq(nodesOf(['[]', [['+', 1, 1], ['+', 1, '1']]]).length, 3)
+        assertEq(nodesOf(['[]', [['+', 1, 1], ['+', 1n, 1]]]).length, 3)
+    },
+    // Operators, the comma and the three operations with no operands merge
+    // as reads do; an edge from a lazy position is an edge, so a node
+    // reached only through a conditional arm is shared all the same,
+    // and the merged `?:` keeps every edge its occurrences gave `s`.
+    operators: () => {
+        assertEq(nodesOf(['[]', [['args'], ['args']]]).length, 2)
+        assertEq(nodesOf(['[]', [['undefined'], ['undefined']]]).length, 2)
+        assertEq(nodesOf(['[]', [[',', [1, 2]], [',', [1, 2]]]]).length, 2)
+        assertEq(nodesOf(['[]', [['?:', 1, 2, 3], ['?:', 1, 2, 3]]]).length, 2)
+        /** @type {Exp} */
+        const s = ['[]', [1]]
+        table(['[]', [['?:', ['args'], s, ['args']], ['?:', ['args'], s, ['args']]]], {
+            root: ['#', 3],
+            nodes: [['args'], ['[]', [1]], ['?:', ['#', 0], ['#', 1], ['#', 0]], ['[]', [['#', 2], ['#', 2]]]],
+            scope: [-1, -1, -1, -1],
+            shared: [0, 1, 2],
+        })
+        // Three edges to one node list it once.
+        table(['[]', [s, s, s]], { root: ['#', 1], nodes: [['[]', [1]], ['[]', [['#', 0], ['#', 0], ['#', 0]]]], scope: [-1, -1], shared: [0] })
+    },
+    // A call may mint a fresh result each time, in any spelling, so two are
+    // two entries: `()`, `?.()`, and a chain that continues, since only a
+    // call can spend the receiver a continuation carries.
+    calls: () => {
+        /** @type {Exp} */
+        const args = ['args']
+        assertEq(nodesOf(['[]', [['()', args, [args]], ['()', args, [args]]]]).length, 4)
+        assertEq(nodesOf(['[]', [['?.()', args, [args]], ['?.()', args, [args]]]]).length, 4)
+        assertEq(nodesOf(['[]', [['.', args, 'f', ['|()', [args]]], ['.', args, 'f', ['|()', [args]]]]]).length, 4)
+        assertEq(nodesOf(['[]', [['?.', args, 'f', ['|.', 'g']], ['?.', args, 'f', ['|.', 'g']]]]).length, 4)
+        assertEq(nodesOf(['[]', [['?.()', args, [args], ['|.', 'g']], ['?.()', args, [args], ['|.', 'g']]]]).length, 4)
+    },
+    // The `=>` boundary is the scope. A body's entries name their `=>`,
+    // which comes after them; the frame is walked in the enclosing scope;
+    // two scopes never merge, so sibling bodies keep a read each; and a
+    // body inside a body names the inner `=>`.
+    scope: () => {
+        // `(...a) => [a[0], a[0]]` — shared inside the body, cached per call.
+        table(['=>', 0, [], ['[]', [['.', ['rest'], 0], ['.', ['rest'], 0]]]], {
+            root: ['#', 3],
+            nodes: [['rest'], ['.', ['#', 0], 0], ['[]', [['#', 1], ['#', 1]]], ['=>', 0, [], ['#', 2]]],
+            scope: [3, 3, 3, -1],
+            shared: [0, 1],
+        })
+        // The slots belong to the enclosing scope; a slot read is
+        // a leaf of the body, one entry however many places read it.
+        table(['=>', 0, [['[]', [1]]], ['[]', [['frame', 0], ['frame', 0]]]], {
+            root: ['#', 3],
+            nodes: [['[]', [1]], ['frame', 0], ['[]', [['#', 1], ['#', 1]]], ['=>', 0, [['#', 0]], ['#', 2]]],
+            scope: [-1, 3, 3, -1],
+            shared: [1],
+        })
+        // A slot that is a primitive stands in place, as any operand does,
+        // and a slot reached elsewhere too is shared.
+        table(['[]', [['=>', 0, [1, empty], ['frame', 1]], empty]], {
+            root: ['#', 3],
+            nodes: [['[]', []], ['frame', 1], ['=>', 0, [1, ['#', 0]], ['#', 1]], ['[]', [['#', 2], ['#', 0]]]],
+            scope: [-1, 2, -1, -1],
+            shared: [0],
+        })
+        // `[(...a) => "x".length, (...b) => "x".length]` keeps a `.` per body.
+        table(['[]', [['=>', 0, [], ['.', 'x', 'length']], ['=>', 0, [], ['.', 'x', 'length']]]], {
+            root: ['#', 4],
+            nodes: [['.', 'x', 'length'], ['=>', 0, [], ['#', 0]], ['.', 'x', 'length'], ['=>', 0, [], ['#', 2]], ['[]', [['#', 1], ['#', 3]]]],
+            scope: [1, -1, 3, -1, -1],
+            shared: [],
+        })
+        // A body inside a body: `() => () => "x".length`.
+        table(['=>', 0, [], ['=>', 0, [], ['.', 'x', 'length']]], {
+            root: ['#', 2],
+            nodes: [['.', 'x', 'length'], ['=>', 0, [], ['#', 0]], ['=>', 0, [], ['#', 1]]],
+            scope: [1, 2, -1],
+            shared: [],
+        })
+        // A body's primitive root is an operand of the `=>`, and no entry.
+        table(['=>', 0, [], 5], { root: ['#', 0], nodes: [['=>', 0, [], 5]], scope: [-1], shared: [] })
+    },
+    // A function's own scope holds what its body reads, and not what a
+    // nested function's body reads: `(...a) => [a, () => self]`.
+    scopeHolds: () => {
+        const a = an(['=>', 0, [], ['[]', [['rest'], ['=>', 0, [], ['self']]]]])
+        assertStructurallySame(a.scope, [4, 2, 4, 4, -1])
+        assert(scopeHolds(a, 4, 'rest'))
+        assert(!scopeHolds(a, 4, 'self'))
+        assert(scopeHolds(a, 2, 'self'))
+        assert(!scopeHolds(a, 2, 'rest'))
+        assert(!scopeHolds(a, 4, 'arg'))
+    },
+    // Every node kind and every step, walked in written order — the shapes
+    // `order`, `access`, `calls` and `scope` do not reach.
+    kinds: () => {
+        /** @type {Exp} */
+        const a = ['args']
+        // `[a, ...a]`, `{ [a]: a, ...a }`: a spread's operand is walked and
+        // the spread kept, a property's key and value are both operands.
+        assertStructurallySame(nodesOf(['[]', [a, ['...', a]]]), [['args'], ['[]', [['#', 0], ['...', ['#', 0]]]]])
+        assertStructurallySame(nodesOf(['{}', [[':', a, a], ['...', a]]]), [['args'], ['{}', [[':', ['#', 0], ['#', 0]], ['...', ['#', 0]]]]])
+        // Every operator shape: one operand, two, three, and both arities of `+`.
+        assertStructurallySame(nodesOf(['!', a]), [['args'], ['!', ['#', 0]]])
+        assertStructurallySame(nodesOf(['?:', a, a, a]), [['args'], ['?:', ['#', 0], ['#', 0], ['#', 0]]])
+        assertStructurallySame(nodesOf(['[]', [['+', a], ['+', a, a]]]), [['args'], ['+', ['#', 0]], ['+', ['#', 0], ['#', 0]], ['[]', [['#', 1], ['#', 2]]]])
+        // `a.b?.(...a).c(...a).d`: a step of each kind that continues, each
+        // operand an edge — four to `a` here, and the chain one entry.
+        table(['.', a, 'b', ['|?.()', [['...', a]], ['|.', 'c', ['|()', [['...', a]], ['|.', 'd']]]]], {
+            root: ['#', 1],
+            nodes: [['args'], ['.', ['#', 0], 'b', ['|?.()', [['...', ['#', 0]]], ['|.', 'c', ['|()', [['...', ['#', 0]]], ['|.', 'd']]]]]],
+            scope: [-1, -1],
+            shared: [0],
+        })
+        // `a?.b?.(...a)`, `(a?.b)(...a)` and `a?.b[a](...a)`: the guarded
+        // and the escaping step ending a chain, and a computed key in a step.
+        assertStructurallySame(nodesOf(['?.', a, 'b', ['|?.()', [['...', a]]]]), [['args'], ['?.', ['#', 0], 'b', ['|?.()', [['...', ['#', 0]]]]]])
+        assertStructurallySame(nodesOf(['?.', a, 'b', ['|!()', [['...', a]]]]), [['args'], ['?.', ['#', 0], 'b', ['|!()', [['...', ['#', 0]]]]]])
+        assertStructurallySame(nodesOf(['?.', a, 'b', ['|.', ['Number', a], ['|()', [['...', a]]]]]),
+            [['args'], ['Number', ['#', 0]], ['?.', ['#', 0], 'b', ['|.', ['#', 1], ['|()', [['...', ['#', 0]]]]]]])
+        // `a?.(...a).b`
+        assertStructurallySame(nodesOf(['?.()', a, [['...', a]], ['|.', 'b']]), [['args'], ['?.()', ['#', 0], [['...', ['#', 0]]], ['|.', 'b']]])
+    },
+    // The identity table merges nothing: one node read twice and two equal
+    // nodes are two tables, where the merged table gives both one, and
+    // `shared` is the nodes reached from more than one place — exactly
+    // what `../sharing` lists in each scope, the module's and each body's.
+    identity: {
+        sharedNode: () => {
+            /** @type {Exp} */
+            const x = ['+', ['arg', 0], ['arg', 0]]
+            /** @type {Exp} */
+            const e = ['=>', 1, [], ['+', x, x]]
+            assertStructurallySame(identity(e), {
+                root: ['#', 4],
+                nodes: [['arg', 0], ['arg', 0], ['+', ['#', 0], ['#', 1]], ['+', ['#', 2], ['#', 2]], ['=>', 1, [], ['#', 3]]],
+                scope: [4, 4, 4, 4, -1],
+                shared: [2],
+                exps: [['arg', 0], ['arg', 0], x, ['+', x, x], e],
+            })
+            /** @type {() => Exp} */
+            const twin = () => ['+', ['arg', 0], ['arg', 0]]
+            /** @type {Exp} */
+            const twins = ['=>', 1, [], ['+', twin(), twin()]]
+            assertEq(identity(twins).nodes.length, 8)
+            assertStructurallySame(identity(twins).shared, [])
+            // the merged table gives both one
+            assertStructurallySame(an(e), an(twins))
+        },
+        // A node met again by identity is its entry, and a twin is not.
+        constructor: () => {
+            assertStructurallySame(identity(['[]', [empty, empty]]).shared, [0])
+            assertEq(identity(['[]', [['.', ['args'], 'a'], ['.', ['args'], 'a']]]).nodes.length, 5)
+        },
+        primitive: () => {
+            assertStructurallySame(identity(1), { root: 1, nodes: [], scope: [], shared: [], exps: [] })
+        },
+        // the count is `../sharing`'s, scope by scope: a frame's slot the
+        // scope around the body's, and what the body shares the body's
+        sharing: () => {
+            /** @type {Exp} */
+            const x = ['[]', []]
+            /** @type {Exp} */
+            const y = ['.', ['rest'], 0]
+            /** @type {Exp} */
+            const body = ['[]', [['frame', 0], y, y]]
+            /** @type {Exp} */
+            const e = ['[]', [x, ['=>', 0, [x], body]]]
+            const a = identity(e)
+            assertStructurallySame(a.shared.map(i => a.nodes[Number(i)]), [['[]', []], ['.', ['#', 2], 0]])
+            assertEq(a.shared.length, sharedNodesOf(e).length + sharedNodesOf(body).length)
+            assertEq(assertError(identityAnalysis(['[]', [x, ['=>', 0, [], x]]])), 'a node shared across a function boundary')
+        },
+    },
+    // The expression each entry stands for: the node the walk was handed,
+    // where nothing merges, and the expression restored once from the table,
+    // with its sharing, where entries merge.
+    exps: {
+        identity: () => {
+            /** @type {Exp} */
+            const x = ['+', ['arg', 0], ['arg', 0]]
+            /** @type {Exp} */
+            const body = ['+', x, x]
+            /** @type {Exp} */
+            const e = ['=>', 1, [], body]
+            const { exps } = identity(e)
+            assertEq(exps.length, 5)
+            assertEq(exps[2], x)
+            assertEq(exps[3], body)
+            assertEq(exps[4], e)
+        },
+        merged: () => {
+            /** @type {() => Exp} */
+            const twin = () => ['+', ['arg', 0], ['arg', 0]]
+            /** @type {Exp} */
+            const e = ['=>', 1, [], ['+', twin(), twin()]]
+            const { nodes, exps } = an(e)
+            assertEq(exps.length, nodes.length)
+            assertStructurallySame(exps.at(-1), e)
+            // the twins are one entry, so one expression
+            const [, , , body] = /** @type {readonly ['=>', number, readonly Exp[], readonly ['+', Exp, Exp]]} */ (exps.at(-1))
+            assertEq(body[1], body[2])
+        },
+        // Every kind of position restores: items and spreads, properties,
+        // captures, a comma, calls, and chains with every kind of step.
+        restored: () => {
+            /** @type {Exp} */
+            const a = ['args']
+            /** @type {Exp} */
+            const e = ['[]', [
+                ['[]', [a, ['...', a]]],
+                ['{}', [[':', 'k', a], ['...', a]]],
+                ['=>', 0, [a], ['frame', 0]],
+                [',', [a, 1]],
+                ['()', a, [a, ['...', a]]],
+                ['?.()', a, [a]],
+                ['?.()', a, [], ['|.', 'm', ['|?.()', []]]],
+                ['.', a, 'k'],
+                ['.', a, 'k', ['|()', [a]]],
+                ['.', a, 'k', ['|?.()', [a], ['|.', 'm', ['|!()', [a]]]]],
+                ['?.', a, 'k', ['|()', [a], ['|.', 'm']]],
+            ]]
+            const { exps } = an(e)
+            assertStructurallySame(exps.at(-1), e)
+        },
+    },
+    // A node reached from two scopes is not a graph the compiler emits, and
+    // the EDAG's scope rule forbids it: refused where it is met, from either
+    // side of the boundary.
+    crossScope: {
+        outsideThenInside: () => assertEq(assertError(analysis(['[]', [empty, ['=>', 0, [], empty]]])), 'a node shared across a function boundary'),
+        insideThenOutside: () => assertEq(assertError(analysis(['[]', [['=>', 0, [], empty], empty]])), 'a node shared across a function boundary'),
+        siblingBodies: () => assertEq(assertError(analysis(['[]', [['=>', 0, [], empty], ['=>', 0, [], empty]]])), 'a node shared across a function boundary'),
+    },
+}

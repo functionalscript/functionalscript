@@ -8,7 +8,7 @@ any other value.
 ## Scope
 
 **In a browser, this framework runs authored FunctionalScript — `.f.mjs` and
-`.f.js` — and nothing else.** `website/module.f.mjs` selects on the extension,
+`.f.js` — and nothing else.** `website/module.f.js` selects on the extension,
 so the proof list it writes into a page contains only those modules. That is the design, not a first
 iteration: an impure `.mjs` proof means whatever its host gives it — `node:fs`,
 `node:vm`, `process`, `node:test`, a filesystem, a subprocess — and a page has
@@ -145,8 +145,8 @@ deno test -A ../../emergent_testing/one.mjs
 ```
 
 For coverage, run `fjs cov node` or `npm start cov node` from the directory
-whose modules you want to check. The runner discovers `module.f.mjs`,
-`module.f.js` and `demo.f.mjs` beneath that directory, then runs each module
+whose modules you want to check. The runner discovers `module.f.js`,
+`module.f.js`, `demo.f.mjs` and `demo.f.js` beneath that directory, then runs each module
 directory's own proofs in a separate Node process. Each measured file must
 reach 100% line, branch and function coverage. Missing proofs or coverage
 fail the check.
@@ -402,6 +402,9 @@ in its path. Because the expectation is encoded in the path, no separate marker
 is needed in the output — `fjs test` appends `# EXPECTED TO THROW` to such a case
 when it passes.
 
+Only keys in the proof path set the expectation. Place an aliased function
+under a `throw` key when it is expected to throw.
+
 ### Return value as a sub-tree
 
 When a non-throw test case returns an object or another function, the return
@@ -505,7 +508,7 @@ FunctionalScript, which by convention has no promises.
 receives a `SandboxResult`, so the host value never reaches the logic. That is
 the discipline `fjs/effects` applies to a live HTTP server, which pure code
 holds as a content-hashed handle while the interpreter keeps the object. The
-browser now works the same way — `browser/module.f.mjs` is the logic,
+browser now works the same way — `browser/module.f.js` is the logic,
 `browser/module.mjs` the host — and `instanceof Promise` lives only in
 interpreters. See [`doc/plan/capl.md`](../../doc/plan/capl.md) for the general
 form, and

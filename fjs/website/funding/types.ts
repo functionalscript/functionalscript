@@ -1,5 +1,5 @@
 /**
- * Types for `fjs/website/funding/module.f.mjs`: one funding channel as the
+ * Types for `fjs/website/funding/module.f.js`: one funding channel as the
  * website links it.
  *
  * @module

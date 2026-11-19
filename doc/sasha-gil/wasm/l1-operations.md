@@ -31,7 +31,7 @@ Sources: [`nanvm/lib/src/vm`](../../../nanvm/lib/src/vm/mod.rs),
 
 | Option | Meaning | For | Against |
 | --- | --- | --- | --- |
-| A. In the runtime | Each operation is an import. The program never looks inside a value. | The smallest generated code. The runtime owns all behaviour. | A new runtime implements about 50 operations before the first program runs. |
+| A. In the runtime | Each operation is an import. The program never looks inside a value. | The smallest generated code. The runtime owns all behaviour. | A new runtime implements every operation of the [L1 design's table](./l1-design.md#the-operations) before the first program runs. |
 | B. In the program | Each operation is FJS or WAT over L0, linked into each program. The runtime is only L0. | The smallest runtime, and one definition of the behaviour. | Larger programs. Number formatting and parsing and bigint arithmetic are hard to write well over L0. Speed depends on inlining across modules. |
 | C. A named list, native by default, with a reference body | Each operation is an import, as in A, and also has a reference body in FJS over L0, as in B. A runtime implements it natively or links the body. | NaNVM keeps its native code. A new runtime starts with L0 and the bodies, then replaces hot operations one at a time. The bodies are a test oracle. | Two definitions per operation to keep equal. Conformance has to check both. |
 

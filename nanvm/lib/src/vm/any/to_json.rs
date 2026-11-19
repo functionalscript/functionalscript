@@ -19,7 +19,7 @@ use crate::vm::{
 /// `to_json` itself is hand-written Rust standing in for FJS-compiled
 /// logic — see `nanvm/lib/todo/to-json-fjs-migration.md` for the plan to
 /// retire it once `fjs compile` can reach
-/// `fjs/media/json/serializer/module.f.mjs`.
+/// `fjs/media/json/serializer/module.f.js`.
 #[derive(Debug, PartialEq)]
 pub enum JsonError {
     Undefined,
@@ -78,7 +78,7 @@ fn json_string<A: IVm>(v: String<A>) -> std::string::String {
             // it as its own `\uXXXX` escape rather than refusing the
             // whole string — the same convention this repository's own
             // JSON serializer follows
-            // (`fjs/media/json/serializer/module.f.mjs`).
+            // (`fjs/media/json/serializer/module.f.js`).
             Err(e) => {
                 let _ = write!(out, "\\u{:04x}", e.unpaired_surrogate());
             }

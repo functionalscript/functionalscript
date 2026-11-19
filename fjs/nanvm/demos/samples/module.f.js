@@ -1,12 +1,12 @@
 /**
  * The WASM demo pages' samples, each by its name and the directory that
  * holds its `sample.f.js`: the one list the generator compiles
- * ([`../module.f.mjs`](../module.f.mjs)), its build script publishes
+ * ([`../module.f.js`](../module.f.js)), its build script publishes
  * (`nanvm/demos/gen.build.sh`), and each page finds its own place in.
  *
  * A function sample, a spec page's example, also lists its calls: each
  * input the page's Run button calls it with, and what JavaScript answers,
- * as [`spell`](../spell/module.f.mjs) writes it. The list is their one
+ * as [`spell`](../spell/module.f.js) writes it. The list is their one
  * statement: the host proof beside this module holds JavaScript to them,
  * and the generator writes them into Rust tests that hold the compiled
  * sample to the same answers, so a page whose two runs would disagree fails
@@ -41,16 +41,22 @@ export const samples = [
         [-2, ['returned', '[2,1]']],
     ] },
     { name: 'destructuring', directory: 'spec/bindings/destructuring', calls: [
-        [1, ['returned', '[1,2,[3,4]]']],
-        [5, ['returned', '[5,10,[3,4]]']],
+        [1, ['returned', '[1,2,{"label":"value"},[3],[3,4]]']],
+        [5, ['returned', '[5,10,{"label":"value"},[15],[3,4]]']],
     ] },
     { name: 'member_functions', directory: 'spec/built-ins/member-functions', calls: [
         [0, ['returned', '"10-20-30-40"']],
         [2, ['returned', '"30-40"']],
     ] },
     { name: 'static_functions', directory: 'spec/built-ins/static-functions', calls: [
-        [0, ['returned', '[false,true,false,[["0",2],["b",0]]]']],
-        [1.5, ['returned', '[false,false,true,[["0",2],["b",1.5]]]']],
+        [0, ['returned', '[false,true,false,[["0",2],["b",0]],0,"n%3D0%20%2F%F0%9F%98%80",1.7976931348623157e+308]']],
+        [1.5, ['returned', '[false,false,true,[["0",2],["b",1.5]],1.5,"n%3D1.5%20%2F%F0%9F%98%80",1.7976931348623157e+308]']],
+        [0.1, ['returned', '[false,false,true,[["0",2],["b",0.1]],0.10000000149011612,"n%3D0.1%20%2F%F0%9F%98%80",1.7976931348623157e+308]']],
+    ] },
+    { name: 'reference_map', directory: 'spec/built-ins/reference-map', calls: [
+        [0, ['returned', '"an object"']],
+        [1, ['returned', '"an array"']],
+        [2, ['returned', 'undefined']],
     ] },
     { name: 'guards', directory: 'spec/control-flow/guards', calls: [
         [-5, ['returned', '"negative"']],

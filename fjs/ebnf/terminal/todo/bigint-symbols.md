@@ -62,7 +62,7 @@ symbols only; parser backends preserve the logical one-time EOF behavior defined
 by the EOF task.
 
 The ordinary-symbol domain — today the open-above range set `[0]` in
-[`../../data`](../../data/module.f.mjs) — covers `0n .. 2^256 - 1n`; `eof` is
+[`../../data`](../../data/module.f.js) — covers `0n .. 2^256 - 1n`; `eof` is
 the singleton `-1n` set.
 
 This change expands the semantic terminal domain from `2^53` values to
@@ -128,7 +128,7 @@ needed.
   semantics this migration keeps.
 - [Investigate TerminalRange representation](./terminal-range-representation.md)
   — selects a representation for the expanded bigint terminal domain.
-- [`fjs/media/json/extended/module.f.mjs`](../../../media/json/extended/module.f.mjs)
+- [`fjs/media/json/extended/module.f.js`](../../../media/json/extended/module.f.js)
   — provides exact serialization for bigint-valued grammar data.
 - [Separate alphabet-specific helpers](../../unicode/todo/unicode-rules.md) —
   keeps the front end independent from Unicode and byte-specific authoring

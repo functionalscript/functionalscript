@@ -9,7 +9,7 @@ MCP lets a tool declare the JSON Schema of its result as an optional
 `outputSchema` in its `tools/list` descriptor, and answer a matching
 `structuredContent` from `tools/call`. The protocol does not require it, and
 nothing here provides it: the `tool` descriptor schema in
-[`../module.f.mjs`](../module.f.mjs) has `name`, `description` and
+[`../module.f.js`](../module.f.js) has `name`, `description` and
 `inputSchema` only, and `toolEntry` takes an rtti schema for a tool's input but
 none for its output. So a client cannot learn what shape a tool answers, and a
 handler's result is checked against no declared type.

@@ -239,8 +239,8 @@ it does not claim lazy strings or frame serialization are implemented today.
   same EDAG-derived text. Render semantic code, not optimization/cache state.
 - [x] Prove represented direct/indirect conversion and implemented source
   round trips, including captures and `self`: see
-  [conversion proofs](../../fjs/edag/value/convert/proof.f.mjs) and
-  [serializer proofs](../../fjs/compiler/serializer/proof.f.mjs).
+  [conversion proofs](../../fjs/edag/value/convert/proof.f.js) and
+  [serializer proofs](../../fjs/compiler/serializer/proof.f.js).
 - [ ] Specify broader callable/interchange serialization guarantees,
   including the supported captured-sharing and `self` round trips.
 - [ ] If a function serializer instantiates the frame (question 1; `String(f)`

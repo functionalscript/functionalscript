@@ -19,7 +19,7 @@
 
 import { readFileSync } from 'node:fs'
 import { assert, assertEq } from '../../../asserts/module.f.js'
-import { spell } from '../spell/module.f.mjs'
+import { spell } from '../spell/module.f.js'
 import { samples } from './module.f.js'
 
 /** The repository's root, from this directory. */

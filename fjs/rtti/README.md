@@ -17,17 +17,17 @@ declaration:
 
 | From one schema `s` | | Where |
 | --- | --- | --- |
-| a decoder that builds a fresh value | `parse(s)(value)` | [`parse/`](./parse/module.f.mjs) |
-| a membership check that returns the value it was given | `validate(s)(value)` | [`validate/`](./validate/module.f.mjs) |
+| a decoder that builds a fresh value | `parse(s)(value)` | [`parse/`](./parse/module.f.js) |
+| a membership check that returns the value it was given | `validate(s)(value)` | [`validate/`](./validate/module.f.js) |
 | the static TypeScript type | `Ts<typeof s>` | [`ts/types.ts`](./ts/types.ts) |
-| the TypeScript type as text | `printer()(s)`, `dataToTs()(toData(s))` | [`ts/module.f.mjs`](./ts/module.f.mjs) |
-| a canonical form with `equal`, `cmp`, `subset` | `toData(s)` | [`data/`](./data/module.f.mjs) |
-| a JSON Schema (draft 2020-12) | `toJsonSchema(s)` | [`../media/json/schema`](../media/json/schema/module.f.mjs) |
+| the TypeScript type as text | `printer()(s)`, `dataToTs()(toData(s))` | [`ts/module.f.js`](./ts/module.f.js) |
+| a canonical form with `equal`, `cmp`, `subset` | `toData(s)` | [`data/`](./data/module.f.js) |
+| a JSON Schema (draft 2020-12) | `toJsonSchema(s)` | [`../media/json/schema`](../media/json/schema/module.f.js) |
 
 ```js
 import { array, number, open, option, or, string } from 'functionalscript/fjs/rtti/module.f.js'
-import { parse } from 'functionalscript/fjs/rtti/parse/module.f.mjs'
-import { validate } from 'functionalscript/fjs/rtti/validate/module.f.mjs'
+import { parse } from 'functionalscript/fjs/rtti/parse/module.f.js'
+import { validate } from 'functionalscript/fjs/rtti/validate/module.f.js'
 
 const person = { name: string, age: number, tags: or(option, array(string)) }
 // Ts<typeof person> is
@@ -43,7 +43,7 @@ The [outputs area](./guide/outputs/README.md) of the guide has a page for each
 row but the readers. The module page has a demo: pick a lesson or one of the
 project's own schemas, see it drawn as a graph with its TypeScript type, JSON
 Schema and canonical form, compare it with any other schema, and type a value
-to see what `parse` and `validate` make of it ([`demo.f.mjs`](./demo.f.mjs)).
+to see what `parse` and `validate` make of it ([`demo.f.js`](./demo.f.js)).
 
 ## Who uses it
 
@@ -89,24 +89,24 @@ siblings there are single data structures and type-level helpers.
 - `module.f.js` — schema construction: defines `Type`, `Info`, and schema builder values
 - `ts/types.ts` — type-level transformer: `Ts<T>` maps a schema to its TypeScript type
   (see `ts/README.md`)
-- `ts/module.f.mjs` — the runtime printer: a schema's TypeScript type as text,
+- `ts/module.f.js` — the runtime printer: a schema's TypeScript type as text,
   through the data form
-- `common/module.f.mjs` — shared kernel for runtime consumers: error shape, path
+- `common/module.f.js` — shared kernel for runtime consumers: error shape, path
   bookkeeping, primitive checks, `visit`/`orVisit` (the `Type` dispatchers),
   and the container skeletons the two schema-form readers read through
-- `parse/module.f.mjs` — runtime deserialization: `parse(schema)(value)` returns
+- `parse/module.f.js` — runtime deserialization: `parse(schema)(value)` returns
   a freshly constructed value containing only the declared fields/elements
-- `validate/module.f.mjs` — runtime validation: `validate(schema)(value)`
+- `validate/module.f.js` — runtime validation: `validate(schema)(value)`
   returns the *original* value on success. Same acceptance as `parse`, so the
   two differ only in what a success carries — see
   [`parse` and `validate`](./guide/readers/parse-and-validate/README.md)
-- `data/module.f.mjs` — the serializable data form: `toData(schema)` converts a
+- `data/module.f.js` — the serializable data form: `toData(schema)` converts a
   thunk-form schema into a function-free, canonical representation with `cmp`,
   `equal`, `subset`, and a data-driven `validate` (see `data/README.md`)
 - `demo.f.mjs` — the module page's demo: every guide page's lessons, then
   schemas the project itself uses, imported from the modules that declare
   them (its module comment describes each part)
-- `schema-demo/module.f.mjs` — the demo as a factory, `schemaDemo`, over the
+- `schema-demo/module.f.js` — the demo as a factory, `schemaDemo`, over the
   examples it offers: the module page's demo and every guide page's demo are
   this one function of their lessons
 

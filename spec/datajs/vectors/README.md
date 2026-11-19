@@ -41,7 +41,7 @@ shape — every vector named and classed with a non-empty string, the ids one of
 kind, the document and the graph present. Running a set against an
 implementation is a second thing, and where it lives depends on the role: the
 three writer-side sets are run from those same files, and the reader's two from
-the reader's side, in `fjs/media/datajs/vectors/proof.f.mjs`. Below the matrix
+the reader's side, in `fjs/media/datajs/vectors/proof.f.js`. Below the matrix
 says which run is where. A third-party implementation is closed by its own
 harness, reading the same sets.
 
@@ -56,7 +56,7 @@ harness, reading the same sets.
 The writer has landed, so those three name an implementation that exists rather
 than one to come, and every set is now run against it. The runs are in two
 places, by which role they are about. **The reader's** are with the reader, in
-[`fjs/media/datajs/vectors/proof.f.mjs`](../../../fjs/media/datajs/vectors/proof.f.mjs):
+[`fjs/media/datajs/vectors/proof.f.js`](../../../fjs/media/datajs/vectors/proof.f.js):
 every accept document read to the graph its vector asserts, and every reject
 document refused — each by the surface its form calls for, a string of code units
 to `tryParse` and a byte record to `tryParseBytes`, so a byte record tests the
@@ -109,7 +109,7 @@ input no taxonomy and the corpus carries no vectors for one.
 Three records carry bytes instead of code units, as a tagged hex string,
 `["hex", "ef bb bf …"]` — lowercase pairs separated by single spaces, at
 least one pair, which `bytes` in
-[`fjs/media/datajs/vectors/module.f.mjs`](../../../fjs/media/datajs/vectors/module.f.mjs)
+[`fjs/media/datajs/vectors/module.f.js`](../../../fjs/media/datajs/vectors/module.f.js)
 decodes, refusing any other spelling. All three are classed `byte/…`, and a
 consumer that reads the byte form reads all three. Two of them are tests like
 any other. `byte-bom-first` puts a BOM before an otherwise valid document, and
@@ -142,7 +142,7 @@ the corpus. The limitation
 [is stated below](#what-this-corpus-cannot-establish); the empty object shares
 normally. A proof compares the graph an implementation produced with
 `difference` in
-[`fjs/media/datajs/vectors/module.f.mjs`](../../../fjs/media/datajs/vectors/module.f.mjs):
+[`fjs/media/datajs/vectors/module.f.js`](../../../fjs/media/datajs/vectors/module.f.js):
 leaves by `Object.is`, so that `-0` and `0` differ and `NaN` is itself;
 an array by `instanceof Array`, the spelling FunctionalScript uses; an
 object by its members and nothing else, since no implementation written in
@@ -158,23 +158,18 @@ position.
 **A serializer-side input** is an ordinary graph, spelled by the same literal
 a reader-side expected graph is. There is no set of inputs a serializer
 refuses, so the corpus describes none: a serializer is handed a value of the
-data model and the type is what says so, checked by `tsc` at the call.
+data model, which the vector's record type states and `tsc` checks.
 
-The specification does state refusals — [§What may be serialized](../README.md#what-may-be-serialized)
-names a function, a symbol, a `Date`, a hole, a symbol key, an accessor, a
-non-enumerable property, an array with an extra own property and a cycle — and
-**no vector can carry one**, because a set is a DataJS data module: DataJS has
-no functions, no `Symbol`, no `Date`, and no way to spell a hole, an accessor or
-a class. That is a property of the carrier rather than an omission, which is why
-that section is a rule an implementation answers in its own tests, in whatever
-host can build the value. [This repository's writer](../../../fjs/media/datajs/README.md#every-entry-point-is-fallible-and-the-names-say-so)
-takes the data model's own type, so from FunctionalScript there is no input
-outside the model to reach its refusals, and it keeps them for what a host
-hands it cast; its first draft took `unknown`, which admitted values no set
-could carry — the same carrier fact — and narrowing the parameter is what
-closed that. §What may be serialized is the same shape: a rule an
-implementation answers in a host that can build the values, not something a
-vector reaches.
+[This repository's writer](../../../fjs/media/datajs/README.md#every-entry-point-is-fallible-and-the-names-say-so)
+takes TypeScript `unknown` and assumes a FunctionalScript value.
+A function is a FunctionalScript value but has no DataJS spelling,
+so the writer refuses it. **No vector can carry that case**, because a set is
+a DataJS data module; the writer's own FunctionalScript proofs cover it.
+The broader TypeScript annotation does not admit arbitrary host JavaScript
+values. Holes, accessors, non-enumerable members, extra array properties,
+symbol keys and cycles are outside the writer's input contract, with undefined
+behavior. The corpus neither tests those host shapes nor requires host tests
+or descriptor-helper fixtures for them.
 
 **Normalized bytes** are the document as a string, and the set's proof
 compares that string against what the shipped writer emits rather than
@@ -379,9 +374,9 @@ or read a passing corpus as more than it is.
   refused: it changes every record type and every proof that reads one, and a
   set would stop being an ordinary graph `tsc` checks. So this repository
   covers itself where the corpus cannot: `sharedEmptyArray` in
-  [`graph-equivalence/proof.f.mjs`](./graph-equivalence/proof.f.mjs) checks
+  [`graph-equivalence/proof.f.js`](./graph-equivalence/proof.f.js) checks
   the graph against the reader and the writer, and `sharedEmptyArray` in
-  [`normalize/proof.f.mjs`](./normalize/proof.f.mjs) pins the writer's bytes.
+  [`normalize/proof.f.js`](./normalize/proof.f.js) pins the writer's bytes.
   An implementation that wants the coverage writes the case in its own
   language.
 - **Arbitrary precision.** No finite set of vectors establishes it, because
@@ -391,11 +386,12 @@ or read a passing corpus as more than it is.
   `i64`/`u64`, 128 from `i128`/`u128` — and stop there because there is no next
   standard width to defeat, not because three ceilings prove a negative. A
   backend bounded wider than 128 bits needs a vector of its own.
-- **A serializer's refusals**, for the reason the record section gives: the
-  inputs [§What may be serialized](../README.md#what-may-be-serialized) names
-  cannot be spelled by a DataJS data module, so a serializer that answers one of
-  them with a plausible wrong value passes this corpus. That rule is answered in
-  an implementation's own tests, in a host that can build the value.
+- **A serializer's refusals**, for the reason the record section gives: a
+  FunctionalScript function cannot be spelled by a DataJS data module, so a
+  writer that silently serializes one as data passes this corpus. The
+  repository's writer covers that refusal in its own FunctionalScript proofs.
+  Other host JavaScript shapes are outside its input contract, rather than
+  refusals the corpus must establish.
 
 ## What a vector may not do
 
@@ -424,7 +420,7 @@ or read a passing corpus as more than it is.
 
   A harness that can see *where* a refusal happened concludes more, and one
   exists: the reader proof in
-  [`fjs/media/datajs/vectors/proof.f.mjs`](../../../fjs/media/datajs/vectors/proof.f.mjs)
+  [`fjs/media/datajs/vectors/proof.f.js`](../../../fjs/media/datajs/vectors/proof.f.js)
   hands a byte record to the reader's byte path and, for the two rules only
   bytes can break, requires that rule's own words rather than any refusal. Under
   that check the vector does discriminate: a decoder that substitutes U+FFFD

@@ -2,7 +2,7 @@
 
 The `data/` layer of [`fjs/ebnf`](../README.md): the
 intermediate representation (IR) the EBNF backends consume, and the lowering
-from the front end in [`../module.f.mjs`](../module.f.mjs) into it. It settles
+from the front end in [`../module.f.js`](../module.f.js) into it. It settles
 the carrier question the front-end design ([`../README.md`](../README.md),
 Problem 1 of the ebnf-front-end issue it absorbed) and
 [ebnf-range-set](../terminal/todo/ebnf-range-set.md) ("Decided with the
@@ -18,13 +18,21 @@ its worked example). Its issue
 triage moved them to where the links above point, and the front-end design
 became `fjs/ebnf/README.md`.
 
-- `module.f.mjs` — `matchRule`, `emptyTagMap`, `validate`, `toData`;
+- `module.f.js` — `matchRule`, `emptyTagMap`, `validate`, `toData`;
 - `types.ts` — the `Rule` union, `RuleSet`, `RuleVisitor`, `GrammarData`.
 
 Grammar record carriers are plain objects built by FunctionalScript or a
 DataJS decoder. Their shape is checked with `isObject`, which rejects null,
 arrays and primitives. Prototype inspection and admission of foreign host
 objects belong at a separately defined host boundary.
+
+`toData(rule, definitions)` also accepts the front end's separately defined
+references. It registers the reference identity before lowering its supplied
+body, so mutually recursive bodies share the same rules and rewrite mappings
+keep their identity keys. The body is emitted under the reference's name,
+just as a `const` thunk's payload is, without an extra data or AST node.
+Missing reached definitions and duplicate definition identities are refused;
+unused bodies are not lowered.
 
 ## Why not the classical form
 
@@ -115,7 +123,7 @@ a dropped argument cannot read as plausible — holds one layer down.
 `fjs/rtti/data` made the same call for `bigint`.
 
 **The DataJS serializer spells `Infinity`**:
-[`fjs/media/datajs/serializer`](../../media/datajs/serializer/module.f.mjs)
+[`fjs/media/datajs/serializer`](../../media/datajs/serializer/module.f.js)
 writes numbers as `ToString` does, so a set holding
 `['repeat', 0, Infinity, 'x']` is written as `['repeat', 0, Infinity, 'x']`
 and reads back as the unbounded repeat it is. Before that it reused JSON's
@@ -241,8 +249,13 @@ them; a rule the entry cannot reach is dead, not wrong.
 ## The lowering: `toData`
 
 ```ts
-toData: (rule: Rule) => readonly [RuleSet, entry: string, names: ReadonlyMap<Rule, string>]
+toData: (rule: Rule) => readonly [RuleSet, entry: string, names: RuleNameMap]
 ```
+
+`RuleNameMap` is a `PersistentMap<Rule, string>` from
+[`types/map`](../../types/map/module.f.js). Read a rule's name with
+`mapGet(names, rule)` and enumerate the rule identities with `mapEntries(names)`.
+An empty-string name is present; only `undefined` means the rule was not met.
 
 The lowering is a transcription, and the first code that can tell a mistake
 from a grammar, so it validates what the constructors do not — a hand-written
@@ -265,22 +278,26 @@ tuple is the one way an unvalidated value reaches it:
   value, so `'aa'` is a sequence naming one terminal twice. A thunk is
   registered under its name *before* its info is read, so a rule that names
   itself finds itself; its info is read once. A value built inside a thunk's
-  body — the variant `value` in [`../lib/json`](../lib/json/module.f.mjs)
+  body — the variant `value` in [`../lib/json`](../lib/json/module.f.js)
   returns — is fresh per call and has no identity an author holds, so an
   author attaches to the thunk, which the map names.
-- **Names** come from a thunk's `.name` where it has one, and otherwise from
-  the rule it was reached from and the position it was reached at — a
-  branch's tag, an element's index, `item` under a repeat — as `value.array`
-  or `json.0`, with a counter where a name is taken. The path is what an
-  error naming the rule points at, so it is kept whole even where a shared
-  rule is first reached deep inside another. As today, only the returned
-  entry is part of the contract; a consumer matches by the entry, and reads
-  any other rule through `names`, never by a name read off the set.
+- **Names** follow the path at which a rule was first reached — a branch's
+  tag, an element's index, `item` under a repeat — as `choice.array` or
+  `0.item`, with a counter where a name is taken. The
+  root's hint is the empty string, for a thunk as for any other rule.
+  JavaScript's inferred function names play no part: FunctionalScript
+  functions [carry no observable name](../../../spec/functions/names-and-identity/README.md).
+  The path is what an error naming the rule points at, so it is kept whole
+  even where a shared rule is first reached deep inside another. Consumers
+  match by the returned entry and read any other rule through `names`, never
+  by guessing a generated name.
+  Diagram titles are supplied separately by the caller's selections, which
+  identify source rules and variant branches rather than generated names.
 - **`names`** maps every rule identity the lowering met to its name. That is
   the bridge the transformer protocol keys on through `Entry.rule` and the
   "rule identity must survive" requirement: transformers attach to the rule
   the author wrote, and the item of a repeat transformer is the `rule` of
-  the `['repeat', min, max, rule]` info, whose name is `names.get(rule)`.
+  the `['repeat', min, max, rule]` info, whose name is `mapGet(names, rule)`.
 - **Nothing is derived and nothing is pruned.** Every rule emitted is
   reachable from the entry by construction, so the classical `detectRepeat`
   pass and the orphan pruning it needed do not exist here, and the classical

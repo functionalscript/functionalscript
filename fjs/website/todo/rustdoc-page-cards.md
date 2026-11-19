@@ -9,7 +9,7 @@
 The Rust API reference under `/cargo.doc/<crate>/` lacks `og:title`, which
 the [Open Graph protocol](https://ogp.me/) requires on every page. `cargo doc`
 writes those pages, and the site adds only one fixed fragment to each
-`<head>`, `rustdocHead` in [`../cargo-doc/module.f.mjs`](../cargo-doc/module.f.mjs),
+`<head>`, `rustdocHead` in [`../cargo-doc/module.f.js`](../cargo-doc/module.f.js),
 through `--html-in-header`. It is the same on every page, so it carries the
 tags that do not vary by page: `og:site_name`, `og:type`, `og:image` and
 `twitter:card`

@@ -1,5 +1,5 @@
 /**
- * Type-level API for `fjs/website/demo/bits/module.f.mjs`: a demo that shows
+ * Type-level API for `fjs/website/demo/bits/module.f.js`: a demo that shows
  * a base-N codec cutting a text's UTF-8 bits into groups.
  *
  * @module

@@ -1,5 +1,5 @@
 /**
- * Type-level API for `fjs/media/note/module.f.mjs`: `Note` and `NoteError`.
+ * Type-level API for `fjs/media/note/module.f.js`: `Note` and `NoteError`.
  */
 
 import type { Assert } from '../../asserts/types.ts'
@@ -8,7 +8,7 @@ import type { Ts } from '../../rtti/ts/types.ts'
 import type { Rest, Type } from '../../rtti/types.ts'
 import type { Equal } from '../../types/ts/types.ts'
 import type { JsonDialect } from '../types.ts'
-import type { decodeText, encodeText, mediaType, noteSchema, validate } from './module.f.mjs'
+import type { decodeText, encodeText, mediaType, noteSchema, validate } from './module.f.js'
 
 /** The TypeScript type derived from `noteSchema` — the single source of truth. */
 export type Note = Ts<typeof noteSchema>
@@ -27,7 +27,7 @@ export type NoteError = ValidationError | string
  * so its pin is on the literal the kit itself derives. An error type left
  * uninferred would be `any` at this JavaScript call site and pass the
  * annotation; the `never` default that prevents it is pinned at a call in
- * `../proof.f.mjs` (`_NoRefinementError`).
+ * `../proof.f.js` (`_NoRefinementError`).
  */
 type _Kit = JsonDialect<typeof noteSchema extends Rest<infer S, Type> ? S : never>
 

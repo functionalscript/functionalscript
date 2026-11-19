@@ -5,18 +5,18 @@
 
 ### Problem
 
-[`module.f.mjs`](../module.f.mjs) owns the FAST vocabulary and a few facts
+[`module.f.js`](../module.f.js) owns the FAST vocabulary and a few facts
 about it, `isSpread` and `operatorOperands` among them. Four more facts are
 re-spelled by the passes that need them, each in several modules:
 
 **A plain call of a member is a continued access.** `['()', ['.', base,
 key], args]` is the same computation as `['.', base, key, ['|()', args]]`,
 and the rewrite is written in `valueTask` and `_exposeOperands` of
-[`returns`](../returns/module.f.mjs), `prepareValue` of
-[`prepare`](../prepare/module.f.mjs), `sequencedOperator` of
-[`sugar`](../sugar/module.f.mjs) and `valueTask` of
-[`fjs/edag/from_fast`](../../../edag/from_fast/module.f.mjs); `guarded` in
-[`memo`](../memo/module.f.mjs) asks the test without the rewrite:
+[`returns`](../returns/module.f.js), `prepareValue` of
+[`prepare`](../prepare/module.f.js), `sequencedOperator` of
+[`sugar`](../sugar/module.f.js) and `valueTask` of
+[`fjs/edag/from_fast`](../../../edag/from_fast/module.f.js); `guarded` in
+[`memo`](../memo/module.f.js) asks the test without the rewrite:
 
 ```js
 // returns: valueTask
@@ -43,13 +43,13 @@ keeps a private `yielded` for it.
 
 **A value is a reference to a binding.** `value instanceof Array &&
 value[0] === 'ref' && value[1] === binding` is exported as `namesBinding`
-from [`fjs/edag/from_fast/loop`](../../../edag/from_fast/loop/module.f.mjs),
+from [`fjs/edag/from_fast/loop`](../../../edag/from_fast/loop/module.f.js),
 which the `fjs/js/ast` modules may not import
 ([compiler-layer-upward-imports](../../../todo/compiler-layer-upward-imports.md)),
-so [`loop`](../loop/module.f.js), [`loop/invariant`](../loop/invariant/module.f.mjs)
+so [`loop`](../loop/module.f.js), [`loop/invariant`](../loop/invariant/module.f.js)
 and [`invocation`](../invocation/module.f.js) each keep a private `names`,
 `prepare` spells it inline against `loop.parameters[0]`, and `sameTest` in
-[`fjs/edag/to_fast/join`](../../../edag/to_fast/join/module.f.mjs) spells
+[`fjs/edag/to_fast/join`](../../../edag/to_fast/join/module.f.js) spells
 it against a second reference. The export in the wrong layer is what makes
 the copies, which is the case [AGENTS.md §1](../../../../AGENTS.md#1-workflow)
 names. The `ref` constructor itself is a private `ref` or `reference` in

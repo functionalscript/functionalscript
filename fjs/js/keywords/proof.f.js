@@ -1,0 +1,64 @@
+/**
+ * @import { Assert } from '../../asserts/types.ts'
+ * @import { Equal } from '../../types/ts/types.ts'
+ * @import { restrictedNames, strictModeReservedWords } from './module.f.js'
+ */
+
+import { assertEq } from '../../asserts/module.f.js'
+import { isKeyword, isReservedGlobal, keywords, literalGlobals, literalWords, reservedGlobals, reservedWords } from './module.f.js'
+
+export const proof = {
+    // `keywords` is derived from the four groups; what the derivation does
+    // not give by construction is that no name is in two groups — strictly
+    // ascending means sorted and each name once. The order is by code unit,
+    // so the capitalized globals come first. The type-level pin keeps the
+    // element type the literal union rather than `string`.
+    aggregate: () => {
+        /**
+         * @typedef {Assert<Equal<
+         *  typeof keywords[number],
+         *  | typeof reservedWords[number]
+         *  | typeof strictModeReservedWords[number]
+         *  | typeof restrictedNames[number]
+         *  | typeof literalGlobals[number]
+         * >>} _KeywordsPinned
+         */
+        assertEq(keywords.every((w, i) => i === 0 || keywords[Number(i - 1)] < w), true)
+        assertEq(keywords.slice(0, 3).join(), 'Infinity,NaN,arguments')
+    },
+    // `literalWords` is the three literals the reserved words hold and the
+    // three literal globals, and nothing else — a keyword either denotes a
+    // value or may name one, and which of the two a word is decides whether
+    // a tokenizer gives it a kind of its own.
+    literal: () => {
+        /** @type {readonly string[]} */
+        const words = literalWords
+        /** @type {readonly string[]} */
+        const reserved = reservedWords
+        /** @type {readonly string[]} */
+        const globals = literalGlobals
+        /** @type {readonly string[]} */
+        const all = keywords
+        assertEq(words.join(), 'Infinity,NaN,false,null,true,undefined')
+        assertEq(words.filter(w => reserved.includes(w)).join(), 'false,null,true')
+        assertEq(words.filter(w => globals.includes(w)).join(), literalGlobals.join())
+        assertEq(words.filter(w => all.includes(w)).length, words.length)
+    },
+    // `isKeyword` holds for every keyword and nothing else: not a near miss
+    // by case, not a prototype member a plain object would answer for, and
+    // not the empty word.
+    isKeyword: () => {
+        assertEq(keywords.every(isKeyword), true)
+        assertEq(['If', 'nan', 'constructor', 'toString', 'x', ''].some(isKeyword), false)
+    },
+    // A reserved global is no keyword, and `isReservedGlobal` holds for the
+    // list and nothing else — not for a keyword, a literal global, a case
+    // variant, a prototype member or the empty word.
+    reservedGlobals: () => {
+        assertEq(reservedGlobals.join(), 'Array,BigInt,Boolean,Math,Number,Object,String,encodeURIComponent')
+        assertEq(isReservedGlobal('encodeUriComponent'), false)
+        assertEq(reservedGlobals.some(isKeyword), false)
+        assertEq(reservedGlobals.every(isReservedGlobal), true)
+        assertEq([...keywords, 'array', 'boolean', 'BOOLEAN', 'math', 'MATH', 'number', 'NUMBER', 'string', 'STRING', 'Map', 'constructor', 'x', ''].some(isReservedGlobal), false)
+    },
+}

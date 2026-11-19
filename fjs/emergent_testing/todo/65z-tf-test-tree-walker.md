@@ -5,7 +5,7 @@
 
 ### Problem
 
-`fjs/emergent_testing/module.f.mjs` already factors out the static collection step into
+`fjs/emergent_testing/module.f.js` already factors out the static collection step into
 `collectTests`, which walks the export tree and returns a flat list of
 `[path, TestEntry]` pairs. Both downstream consumers then walk each leaf's
 *return value* by their own means, and at `36c8d4a` the two means have diverged:
@@ -49,7 +49,7 @@ Lift the traversal into a single `walkTests` combinator parameterized over the
 per-leaf action and the accumulator merge:
 
 ```ts
-// ./fjs/emergent_testing/module.f.mjs (sketch)
+// ./fjs/emergent_testing/module.f.js (sketch)
 
 type Walker<O extends Operation, S> = {
     /** What to do at a single leaf. May return a sub-tree value to recurse into. */

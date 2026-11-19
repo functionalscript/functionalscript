@@ -74,7 +74,7 @@ const greetArgs = { name: string, greeting: or(option, string) } as const
 Create tool entries with type-safe handlers:
 
 ```ts
-import { toolEntry, errorResult } from './module.f.mjs'
+import { toolEntry, errorResult } from './module.f.js'
 
 const addTool = toolEntry(
     'add',
@@ -97,7 +97,7 @@ const greetTool = toolEntry(
 Compose into a registry and build handlers:
 
 ```ts
-import { fromRegistry, mcpStep } from './module.f.mjs'
+import { fromRegistry, mcpStep } from './module.f.js'
 import type { McpHandlers } from './types.ts'
 
 const myHandlers = fromRegistry([addTool, greetTool])
@@ -110,7 +110,7 @@ const myHandlers = fromRegistry([addTool, greetTool])
 Tool-level errors are returned in-band via `isError: true`. Use the `errorResult` helper:
 
 ```ts
-import { errorResult } from './module.f.mjs'
+import { errorResult } from './module.f.js'
 
 const safeTool = toolEntry(
     'example',
@@ -131,7 +131,7 @@ A tool whose whole body is one fallible call does not write that dispatch out.
 channel, so the handler is a single line:
 
 ```ts
-import { toolResultStep } from './module.f.mjs'
+import { toolResultStep } from './module.f.js'
 
 const headTool = toolEntry(
     'evo_head',
@@ -144,7 +144,7 @@ const headTool = toolEntry(
 Both renderers are required. The error one is what pins the handler to a
 particular error channel, so a fallible call added upstream becomes a compile
 error at the tool that has to say what the new failure reads like — the reason
-`unwrapStep` (`fjs/effects/module.f.mjs`) asks for its `summary`.
+`unwrapStep` (`fjs/effects/module.f.js`) asks for its `summary`.
 
 A tool whose chain goes on after the call succeeds uses `toolStep` instead: the
 failure is the same `isError` result, and the `ok` value goes to a continuation
@@ -159,7 +159,7 @@ toolStep(c.write(content), () => 'write', hash => resultStep(
 
 ## The CAS MCP Server: A Real-World Example
 
-The content-addressable store MCP adapter (`fjs/mcp/cas/module.f.mjs`) demonstrates the pattern in production:
+The content-addressable store MCP adapter (`fjs/mcp/cas/module.f.js`) demonstrates the pattern in production:
 
 1. Define argument schemas (`casAddArgs`, `casGetArgs`, `casListArgs`)
 2. Build a registry with `toolEntry` and type-safe handlers

@@ -1,5 +1,5 @@
 /**
- * Type-level API for `fjs/protocol/json_rpc/module.f.mjs`: `Id`, `Request`,
+ * Type-level API for `fjs/protocol/json_rpc/module.f.js`: `Id`, `Request`,
  * `RpcError`, and `Response`, derived from the module's own rtti schemas,
  * plus the `Handler` / `Handlers` shapes a dispatcher is built from.
  *
@@ -10,7 +10,7 @@ import type { Unknown } from '../../media/json/types.ts'
 import type { Result } from '../../types/result/types.ts'
 import type {
     _id, request, error as errorSchema, response, successResponse, errorResponse,
-} from './module.f.mjs'
+} from './module.f.js'
 import type { Ts } from '../../rtti/ts/types.ts'
 
 export type Id = Ts<typeof _id>

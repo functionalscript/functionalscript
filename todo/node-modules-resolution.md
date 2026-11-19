@@ -10,7 +10,7 @@ A program cannot import an installed package by name. The specifier
 `node_modules/functionalscript/fjs/module.f.js`, as Node's native ESM does, but
 every FJS host implements `resolveFileModule` for file paths only: the
 [Node runner](../fjs/effects/node/module.mjs), the
-[virtual runner](../fjs/effects/node/virtual/module.f.mjs) and native
+[virtual runner](../fjs/effects/node/virtual/module.f.js) and native
 `resolve_file_module` in [`resolve.rs`](../nanvm/effects-node/src/resolve.rs).
 Native implements no `import` effect; its module loading is the
 [FJS module loader](../fjs/compiler/todo/load-modules-without-import-effect.md),
@@ -24,14 +24,14 @@ The empty specifier, which Node's ESM refuses, is the importer itself to the
 Node runner and native, and its directory to the virtual runner.
 The [module-resolution record](../fjs/compiler/todo/module-resolution-compatibility.md)
 says bare imports are refused, and only the compiler's admission —
-`_importSources` in [`compiler/source`](../fjs/compiler/source/module.f.mjs) —
+`_importSources` in [`compiler/source`](../fjs/compiler/source/module.f.js) —
 refuses them, before any host is asked. Any other caller of the effect gets a
 plausible wrong module ([DESIGN.md §10](../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
 
 ### Proposal
 
 Every FJS host follows one convention, written once. The package lookup is
-FunctionalScript, shared the way [`fjs/path/import`](../fjs/path/import/module.f.mjs)'s
+FunctionalScript, shared the way [`fjs/path/import`](../fjs/path/import/module.f.js)'s
 specifier rules are, and composed over the file effects the hosts already have.
 No host implements package logic, and `resolveFileModule` stays a file-path
 effect. Native's resolver is generated from that FJS source, never a

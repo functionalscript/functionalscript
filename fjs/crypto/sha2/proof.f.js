@@ -1,0 +1,412 @@
+/**
+ * @import { DemoEvent } from '../../website/demo/types.ts'
+ * @import { Hash, Sha2, State } from './types.ts'
+ * @import { Vec } from '../../types/bit_vec/types.ts'
+ * @import { Step } from '../../types/function/operator/types.ts'
+ */
+
+import { utf8 } from '../../text/module.f.js'
+import { bytesIn, maxLengthBytes, repeat, u8ListToVecMsb, uint, vec } from '../../types/bit_vec/module.f.js'
+import { flip } from '../../types/function/module.f.js'
+import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
+import { map } from '../../types/list/module.f.js'
+import { base32, base64, ch, computeSync, framed, fromWords, maj, sha224, sha256, sha384, sha512, sha512x224, sha512x256 } from './module.f.js'
+import { demo, digest } from './demo.f.js'
+import { htmlToString } from '../../media/html/module.f.js'
+import { unwrap } from '../../types/result/module.f.js'
+import { runPure } from '../../effects/module.f.js'
+import { doneStep } from '../../types/function/operator/module.f.js'
+import { generate } from '../../types/array/module.f.js'
+import { toJson } from '../../media/json/module.f.js'
+
+/** The state a live hash step holds. @type {<S, A>(step: Step<S, never, A>) => S} */
+const stateOf = ([tag, , value]) => (assert(tag === 'next'), value)
+
+/**
+ * Every SHA-2 length is a whole number of bytes, so the rounded-up byte count
+ * and the exact division agree — this pins both that identity and the values.
+ *
+ * @type {(sha2: Sha2) => (hashBytes: bigint, blockBytes: bigint) => void}
+ */
+const checkBytes = ({ hashLength, blockLength, hashBytes, blockBytes }) => (h, b) => {
+    assertEq(hashBytes, h)
+    assertEq(blockBytes, b)
+    assertEq(hashBytes, bytesIn(hashLength))
+    assertEq(blockBytes, bytesIn(blockLength))
+}
+
+/**
+ * A message whose every byte differs from its neighbours, long enough to
+ * fill three blocks of whatever hash reads it.
+ *
+ * @type {(bytes: number) => readonly number[]}
+ */
+const varied = bytes => generate(bytes * 3, i => (i * 37 + 11) & 0xFF)
+
+/**
+ * The digest of a message split in two is the digest of the message,
+ * wherever the split falls: before the first block is full, at its edge,
+ * and past it. A split before an edge leaves a remainder the next piece
+ * completes the block from, which is the one place the framing assembles a
+ * block out of two halves — and only a message that differs across the
+ * seam can tell the halves apart, so this is what pins the order they go
+ * in. Every other proof reaching that line repeats one byte, where the two
+ * halves are the same bytes either way round.
+ *
+ * @template S
+ * @param {Hash<S>} h
+ * @returns {void}
+ */
+const seam = h => {
+    const bytes = Number(h.blockBytes)
+    const msg = varied(bytes)
+    const whole = uint(computeSync(h)([u8ListToVecMsb(msg)]))
+    for (const at of [1, bytes >> 1, bytes - 1, bytes, bytes + 1, bytes * 2 - 1]) {
+        assertEq(uint(computeSync(h)([u8ListToVecMsb(msg.slice(0, at)), u8ListToVecMsb(msg.slice(at))])), whole, at)
+    }
+}
+
+/**
+ * A remainder held, then a `Vec` as long as a `Vec` may be: appending the
+ * two gives what computing over the two gives, so the framing never joins
+ * them into one `Vec`, which would be over the ceiling every host honours.
+ * The two pieces are parameters so the check is closed over nothing.
+ *
+ * Only that. The order the pieces come in is not free — a message is the
+ * pieces in the order they arrive, which is what {@link seam} pins — and
+ * swapping them here would agree only because both pieces of the one
+ * caller repeat a byte.
+ *
+ * @template S
+ * @param {Vec} held
+ * @param {Vec} full
+ * @returns {(h: Hash<S>) => void}
+ */
+const heldThenFull = (held, full) => h => {
+    const compute = computeSync(h)
+    assertEq(uint(h.end(stateOf(h.update(stateOf(h.update(stateOf(h.init), held)), full)))[2]), uint(compute([held, full])))
+}
+
+/** @type {(sha2: Sha2) => (x: bigint) => void} */
+const checkEmpty = ({ init, end, hashLength }) => x => {
+    const result = end(stateOf(init))[2]
+    assertEq(result, vec(hashLength)(x), [result, x])
+}
+
+// https://en.wikipedia.org/wiki/SHA-2#Test_vectors
+//
+// https://csrc.nist.gov/Projects/Cryptographic-Algorithm-Validation-Program/Secure-Hashing
+export const proof = {
+    lifecycle: () => {
+        const [initial, emitted, state] = sha256.init
+        assertEq(initial, 'next')
+        assertEq(emitted.length, 0)
+        const held = sha256.update(state, utf8('ab'))
+        const [continued, output] = held
+        assertEq(continued, 'next')
+        assertEq(output.length, 0)
+        const resumed = computeSync({ ...sha256, init: held })
+        assertEq(uint(resumed([utf8('c')])), 0xba78_16bf_8f01_cfea_4141_40de_5dae_2223_b003_61a3_9617_7a9c_b410_ff61_f200_15adn)
+        assertEq(uint(resumed([utf8('d')])), uint(computeSync(sha256)([utf8('abd')])))
+        const [completed, flushed, digest] = sha256.end(held[2])
+        assertEq(completed, 'done')
+        assertEq(flushed.length, 0)
+        assertEq(uint(digest), uint(computeSync(sha256)([utf8('ab')])))
+    },
+    genericResult: () => {
+        /** @type {Hash<State, { readonly digest: Vec }>} */
+        const hash = { ...sha256, end: state => doneStep({ digest: sha256.end(state)[2] }) }
+        const result = computeSync(hash)([utf8('abc')])
+        assertEq(uint(result.digest), uint(computeSync(sha256)([utf8('abc')])))
+    },
+    base: {
+        b32: () => {
+            const { fromV8, compress, chunkLength } = base32
+            const e = 1n << (chunkLength - 1n)
+            return {
+                s256: () => {
+                    const result = fromV8(compress(stateOf(sha256.init).hash)(e))
+                    const x = 0xe3b0_c442_98fc_1c14_9afb_f4c8_996f_b924_27ae_41e4_649b_934c_a495_991b_7852_b855n
+                    assertEq(result, x, [result.toString(16), x.toString(16)])
+                },
+                s224: () => {
+                    const result = fromV8(compress(stateOf(sha224.init).hash)(e)) >> 32n
+                    const x = 0xd14a_028c_2a3a_2bc9_4761_02bb_2882_34c4_15a2_b01f_828e_a62a_c5b3_e42fn
+                    assertEq(result, x, [result, x])
+                },
+            }
+        },
+        b64: () => {
+            const { fromV8, compress, chunkLength } = base64
+            const e = 1n << (chunkLength - 1n)
+            return {
+                s512: () => {
+                    const result = fromV8(compress(stateOf(sha512.init).hash)(e))
+                    const x = 0xcf83_e135_7eef_b8bd_f154_2850_d66d_8007_d620_e405_0b57_15dc_83f4_a921_d36c_e9ce_47d0_d13c_5d85_f2b0_ff83_18d2_877e_ec2f_63b9_31bd_4741_7a81_a538_327a_f927_da3en
+                    assertEq(result, x, [result, x])
+                },
+                s384: () => {
+                    const result = fromV8(compress(stateOf(sha384.init).hash)(e)) >> 128n
+                    const x = 0x38b0_60a7_51ac_9638_4cd9_327e_b1b1_e36a_21fd_b711_14be_0743_4c0c_c7bf_63f6_e1da_274e_debf_e76f_65fb_d51a_d2f1_4898_b95bn
+                    assertEq(result, x, [result, x])
+                },
+                s512x256: () => {
+                    const result = fromV8(base64.compress(stateOf(sha512x256.init).hash)(e)) >> 256n
+                    const x = 0xc672_b8d1_ef56_ed28_ab87_c362_2c51_1406_9bdd_3ad7_b8f9_7374_98d0_c01e_cef0_967an
+                    assertEq(result, x, [result, x])
+                },
+                s512x224: () => {
+                    const result = fromV8(compress(stateOf(sha512x224.init).hash)(e)) >> 288n
+                    const x = 0x6ed0_dd02_806f_a89e_25de_060c_19d3_ac86_cabb_87d6_a0dd_d05c_333b_84f4n
+                    assertEq(result, x, [result, x])
+                },
+            }
+        }
+    },
+    // Each bit of the answer is a function of the three bits in its place,
+    // so eight bits holding all eight combinations pin the whole function.
+    ch: () => assertEq(ch(0b11110000n, 0b11001100n, 0b10101010n), 0b11001010n),
+    maj: () => assertEq(maj(0b11110000n, 0b11001100n, 0b10101010n), 0b11101000n),
+    fromWords: {
+        empty: () => assertEq(fromWords(32n)([]), 0n),
+        bytes: () => assertEq(fromWords(8n)([0xabn, 0xcdn, 0x00n, 0xffn]), 0xabcd_00ffn),
+        // SHA-1's initial hash value, five words, as one number.
+        v5: () => assertEq(
+            fromWords(32n)([0x6745_2301n, 0xefcd_ab89n, 0x98ba_dcfen, 0x1032_5476n, 0xc3d2_e1f0n]),
+            0x6745_2301_efcd_ab89_98ba_dcfe_1032_5476_c3d2_e1f0n),
+        // The same field with one owner behind it: `base32.fromV8` is
+        // `fromWords(32n)` over eight words.
+        v8: () => {
+            const { hash } = stateOf(sha256.init)
+            assertEq(fromWords(32n)(hash), base32.fromV8(hash))
+        },
+        throw: {
+            zeroWidth: () => { fromWords(0n) },
+            negativeWidth: () => { fromWords(-8n) },
+            wideWord: () => { fromWords(8n)([0x100n, 0n]) },
+            negativeWord: () => { fromWords(8n)([-1n]) },
+        },
+    },
+    framed: () => {
+        const { bitLength, chunkLength, compress, fromV8 } = base32
+        const init = {
+            chunkLength,
+            lengthLength: bitLength << 1n,
+            digestLength: bitLength << 3n,
+            compress,
+            digest: fromV8,
+        }
+        const { hash } = stateOf(sha256.init)
+        const abc = [utf8('abc')]
+        return {
+            // `sha256` rebuilt from its parts is `sha256`.
+            sha256: () => {
+                const h = framed(init, hash, 256n)
+                checkBytes(h)(32n, 64n)
+                assertEq(computeSync(h)(abc), computeSync(sha256)(abc))
+            },
+            // The shortest hash the bound admits: the digest's top bit.
+            oneBit: () => assertEq(uint(computeSync(framed(init, hash, 1n))(abc)), uint(computeSync(sha256)(abc)) >> 255n),
+            throw: {
+                zero: () => { framed(init, hash, 0n) },
+                pastDigest: () => { framed(init, hash, 257n) },
+            },
+        }
+    },
+    sha2: {
+        sha256: () => checkEmpty(sha256)(0xe3b0_c442_98fc_1c14_9afb_f4c8_996f_b924_27ae_41e4_649b_934c_a495_991b_7852_b855n),
+        sha224: () => checkEmpty(sha224)(0xd14a_028c_2a3a_2bc9_4761_02bb_2882_34c4_15a2_b01f_828e_a62a_c5b3_e42fn),
+        sha512: () => checkEmpty(sha512)(0xcf83_e135_7eef_b8bd_f154_2850_d66d_8007_d620_e405_0b57_15dc_83f4_a921_d36c_e9ce_47d0_d13c_5d85_f2b0_ff83_18d2_877e_ec2f_63b9_31bd_4741_7a81_a538_327a_f927_da3en),
+        sha384: () => checkEmpty(sha384)(0x38b0_60a7_51ac_9638_4cd9_327e_b1b1_e36a_21fd_b711_14be_0743_4c0c_c7bf_63f6_e1da_274e_debf_e76f_65fb_d51a_d2f1_4898_b95bn),
+        sha512x256: () => checkEmpty(sha512x256)(0xc672_b8d1_ef56_ed28_ab87_c362_2c51_1406_9bdd_3ad7_b8f9_7374_98d0_c01e_cef0_967an),
+        sha512x224: () => checkEmpty(sha512x224)(0x6ed0_dd02_806f_a89e_25de_060c_19d3_ac86_cabb_87d6_a0dd_d05c_333b_84f4n),
+    },
+    // The byte counts consumers read instead of converting bit lengths
+    // themselves. Asserted against the bit length each is derived from, not
+    // against a hand-written number, so the pairing is what is pinned.
+    byteLengths: [
+        () => checkBytes(sha224)(28n, 64n),
+        () => checkBytes(sha256)(32n, 64n),
+        () => checkBytes(sha384)(48n, 128n),
+        () => checkBytes(sha512)(64n, 128n),
+        () => checkBytes(sha512x224)(28n, 128n),
+        () => checkBytes(sha512x256)(32n, 128n),
+    ],
+    utf8: [
+        () => {
+            const e = 0x730e_109b_d7a8_a32b_1cb9_d9a0_9aa2_325d_2430_587d_dbc0_c38b_ad91_1525n
+            {
+                const s = utf8("The quick brown fox jumps over the lazy dog")
+                const h = computeSync(sha224)([s])
+                assertEq(uint(h), e, h)
+            }
+            {
+                const s = ['The', ' quick', ' brown', ' fox', ' jumps', ' over', ' the', ' lazy', ' dog']
+                const h = computeSync(sha224)(map(utf8)(s))
+                assertEq(uint(h), e, h)
+            }
+        },
+        () => {
+            const s = utf8("The quick brown fox jumps over the lazy dog.")
+            const h = computeSync(sha224)([s])
+            assertEq(uint(h), 0x619c_ba8e_8e05_826e_9b8c_519c_0a5c_68f4_fb65_3e8a_3d8a_a04b_b2c8_cd4cn, h)
+        },
+        () => {
+            const s = utf8("hello world")
+            assertEq(uint(s), 0x68_656C_6C6F_2077_6F72_6C64n, s)
+            let state = stateOf(sha256.init)
+            state = stateOf(sha256.update(state, s))
+            const h = sha256.end(state)[2]
+            assertEq(uint(h), 0xb94d_27b9_934d_3e08_a52e_52d7_da7d_abfa_c484_efe3_7a53_80ee_9088_f7ac_e2ef_cde9n, h)
+        }
+    ],
+    fill: () => {
+        const times = flip(repeat)(vec(32n)(0x3131_3131n))
+        return {
+            8: () => {
+                const r = times(8n)
+                let state = stateOf(sha256.init)
+                state = stateOf(sha256.update(state, r))
+                const h = uint(sha256.end(state)[2])
+                assertEq(h >> 224n, 0x8a83_665fn, h)
+            },
+            16: () => {
+                const r = times(16n)
+                let state = stateOf(sha256.init)
+                state = stateOf(sha256.update(state, r))
+                const h = sha256.end(state)[2]
+                assertEq(uint(h), 0x3138_bb9b_c78d_f27c_473e_cfd1_410f_7bd4_5eba_c1f5_9cf3_ff9c_fe4d_b77a_ab7a_edd3n, h)
+            }
+        }
+    },
+    padding: {
+        overflow: () => {
+            const zero = vec(8n)(0n)
+            const msg = flip(repeat)(zero)(113n)
+            const h = computeSync(sha384)([msg])
+            const x = 0x6be9_af2c_f3cd_5dd1_2c8d_9399_ec2b_34e6_6034_fbd6_99d4_e022_1d39_0741_72a3_8065_6089_caaf_e8f3_9963_f94c_c7c0_a07e_3d21n
+            assertEq(uint(h), x, h)
+        },
+    },
+    // Regression guard (sha2-append-quadratic): `update` used to be
+    // quadratic in the input size, not linear — a single call on a
+    // 100,000-byte `Vec` used to cost real seconds and scale worse than
+    // O(n²); now near-linear (~40-60ms on Node, well under `bun test`'s 5s
+    // per-test limit on Bun). No timing assertion (duration varies by
+    // engine/machine); relies on the test runner's own per-test timing to
+    // catch a regression, same convention as `fjs/basen/base64/proof.f.js`
+    // `encodeLargeVecIsSlow`.
+    // A remainder held, then a `Vec` as long as a `Vec` may be, for one
+    // variant of each word size: the framing never joins the two into one,
+    // which would be over the ceiling every host honours.
+    remainderThenFull: () => {
+        const a = vec(8n)(0x61n)
+        const check = heldThenFull(a, repeat(maxLengthBytes)(a))
+        check(sha256)
+        check(sha512)
+    },
+    // The block a held remainder is completed into, pinned: one variant of
+    // each word size, over a message no two bytes of which are alike.
+    seam: () => {
+        seam(sha256)
+        seam(sha512)
+    },
+    updateLargeVecIsFast: () => {
+        const big = repeat(100_000n)(vec(8n)(0xffn))
+        let state = stateOf(sha256.init)
+        state = stateOf(sha256.update(state, big))
+        const h = sha256.end(state)[2]
+        const x = 0xbe87_f6db_e42c_df68_2276_fbec_ab36_36fb_fcaa_008c_f454_d635_dd77_872b_50d9_40aan
+        assertEq(uint(h), x, h)
+    },
+    demo: {
+        oversized: () => {
+            // Two bytes per character: pin the byte limit, not string length.
+            const atLimit = 'é'.repeat(Number(maxLengthBytes) / 2)
+            assertEq(digest(atLimit), 'd98095f273e7fc6421a31c287c93720d7e53ff40b6825d1311d730cf8826a593')
+            const tooLong = `${atLimit}a`
+            assertEq(digest(tooLong), null)
+            const html = htmlToString(demo.view({ ...demo.init, text: tooLong }))
+            assert(html.includes('Refused:'))
+            assert(html.includes(`Input too long: more than ${maxLengthBytes} UTF-8 bytes.`))
+            assert(html.includes('name="text"'))
+            assert(!html.includes('Copy digest'))
+            assert(!html.includes('Copy OpenSSL command'))
+        },
+        /**
+         * **The digest the demo shows is this module's own.** The empty
+         * string's is the value `checkEmpty` already pins above, written in
+         * hex — which is also what `sha256sum` prints, so the page can be
+         * checked from outside this repository. A change to the hash or to
+         * the way the demo renders it lands here rather than only on a page
+         * nobody is looking at.
+         */
+        digest: () => {
+            // The same literal `checkEmpty` pins above, said in hex — which is
+            // also what `sha256sum` prints, so the page can be checked from
+            // outside this repository.
+            assertEq(digest(''), 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855')
+            assertEq(assertNotNullish(digest('')).length, 64)
+            assertEq(digest('hello'), '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824')
+            // `1234` hashes to `03ac…`, whose leading hex *digit* is zero:
+            // four bits, so one digest in sixteen does it. That is the input
+            // the pad exists for — without it this prints 63 characters that
+            // still look like a digest.
+            assertEq(digest('1234'), '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4')
+        },
+        // Typing replaces the text, selecting replaces the algorithm, and every
+        // other event leaves both alone.
+        update: () => {
+            /**
+             * **`runPure` and not a call.** An effect is a `Pure` thunk or a
+             * `Do` node, and only the first is callable; `[r]` says this demo
+             * reached a value without asking for an operation, which is what
+             * `O = never` claims.
+             *
+             * @type {(event: DemoEvent) => (state: typeof demo.init) => typeof demo.init}
+             */
+            const step = event => state => unwrap(assertNotNullish(
+                runPure(demo.update(state)(event))[0],
+                'expected the demo to reach a value without asking for an operation'))
+            assertEq(
+                toJson(step({ kind: 'input', name: 'text', value: 'hello' })(demo.init)),
+                toJson({ algorithm: 'SHA-256', text: 'hello' }))
+            assertEq(
+                toJson(step({ kind: 'input', name: 'algorithm', value: 'SHA-512' })(demo.init)),
+                toJson({ algorithm: 'SHA-512', text: '' }))
+            assertEq(toJson(step({ kind: 'start' })(demo.init)), toJson(demo.init))
+            assertEq(toJson(step({ kind: 'input', name: 'other', value: 'ignored' })(demo.init)), toJson(demo.init))
+        },
+        /**
+         * **The fields carry names, and that is the contract.** They come back
+         * as the event's `name`, so the demo tells the selector and text input
+         * apart without ever holding a DOM node.
+         */
+        view: () => {
+            const empty = htmlToString(demo.view(demo.init))
+            assert(empty.startsWith('<!DOCTYPE html><div><p>Hashes UTF-8 text with the selected SHA-2 algorithm and shows the digest in hexadecimal. Use the OpenSSL command below the result to check it independently.</p><p><label'), empty)
+            assert(empty.includes('name="algorithm"'), empty)
+            assert(empty.includes('name="text"'), empty)
+            assert(empty.includes(assertNotNullish(digest(''))), empty)
+            assert(empty.includes('openssl dgst -sha256'), empty)
+            const multiline = htmlToString(demo.view({ algorithm: 'SHA-256', text: 'a\nb' }))
+            assert(multiline.includes('>a\nb</textarea>'), multiline)
+            const nul = htmlToString(demo.view({ algorithm: 'SHA-256', text: 'a\u0000b' }))
+            assert(nul.includes('OpenSSL command unavailable:'), nul)
+            assert(!nul.includes('Copy OpenSSL command'), nul)
+            const typed = htmlToString(demo.view({ algorithm: 'SHA-256', text: 'hello' }))
+            assert(typed.includes('>hello</textarea>'), typed)
+            assert(typed.includes(assertNotNullish(digest('hello'))), typed)
+            assert(typed.includes("<pre>printf '%s' 'hello' | openssl dgst -sha256</pre>"), typed)
+            assert(typed.includes('aria-label="Copy digest"'), typed)
+            assert(typed.includes('aria-label="Copy OpenSSL command"'), typed)
+            const quoted = htmlToString(demo.view({ algorithm: 'SHA-256', text: "a'b $HOME `whoami` \\" }))
+            assert(quoted.includes("<pre>printf '%s' 'a'\\''b $HOME `whoami` \\' | openssl dgst -sha256</pre>"), quoted)
+            const sha512 = htmlToString(demo.view({ algorithm: 'SHA-512', text: 'hello' }))
+            assert(sha512.includes('openssl dgst -sha512'), sha512)
+        },
+        throw: {
+            unknownAlgorithm: () => { demo.view({ algorithm: 'unknown', text: 'hello' }) },
+        },
+    },
+}

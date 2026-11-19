@@ -5,17 +5,17 @@
 
 ### Problem
 
-[`module.f.mjs`](../module.f.mjs) owns the value-level operand table once, as
+[`module.f.js`](../module.f.js) owns the value-level operand table once, as
 `operatorOperands`, but the block and statement half of "what are this node's
 children" is re-spelled by every pass that walks FAST. The same two
 expressions appear, near-verbatim, in `hasLoopTransfer`, `blockTasks` and
-`freeBindings` in [`control`](../control/module.f.mjs), `_hasReturn` in
-[`memo/cells`](../memo/cells/module.f.mjs), `ownsMemo` in
-[`memo`](../memo/module.f.mjs), `references` in
-[`sugar`](../sugar/module.f.mjs), `facts` in
-[`prepare`](../prepare/module.f.mjs), `definitions` in
-[`fjs/compiler/graph`](../../../compiler/graph/module.f.mjs), `children` in
-[`fjs/edag/from_fast`](../../../edag/from_fast/module.f.mjs) and once more in
+`freeBindings` in [`control`](../control/module.f.js), `_hasReturn` in
+[`memo/cells`](../memo/cells/module.f.js), `ownsMemo` in
+[`memo`](../memo/module.f.js), `references` in
+[`sugar`](../sugar/module.f.js), `facts` in
+[`prepare`](../prepare/module.f.js), `definitions` in
+[`fjs/compiler/graph`](../../../compiler/graph/module.f.js), `children` in
+[`fjs/edag/from_fast`](../../../edag/from_fast/module.f.js) and once more in
 its `loop/root`:
 
 ```js
@@ -29,8 +29,8 @@ children = [...node.statements.flatMap(statement => statement[0] === 'define' ? 
 ```
 
 The prepared-FAST sibling, with its `slot`, `write`, `memo` and `while` rows,
-appears twice more: `scan` in [`serializer`](../serializer/module.f.mjs) and
-`children` in [`fjs/rust/serializer`](../../../rust/serializer/module.f.mjs).
+appears twice more: `scan` in [`serializer`](../serializer/module.f.js) and
+`children` in [`fjs/rust/serializer`](../../../rust/serializer/module.f.js).
 `exitValues`, the exit row, already lives once in `control` and is imported by
 several of these; the statement and value rows never were. The
 [README](../README.md) calls `control` "one explicit-stack traversal", but
@@ -59,7 +59,7 @@ does the same for the two serializers as a second step.
 
 - [x] `children` and `someBlock` (the preorder walk asking a predicate of
       each block) in `control`, beside `exitValues`, which stays there:
-      `js/ast/module.f.mjs` cannot import `control`, which imports it.
+      `js/ast/module.f.js` cannot import `control`, which imports it.
 - [x] `hasLoopTransfer` and `memo/cells`' `_hasReturn` over `someBlock`.
 - [x] `sugar`'s `references` (which collects rather than asks) over
       `children`, through `control`'s `foldNodes`, the preorder fold beside

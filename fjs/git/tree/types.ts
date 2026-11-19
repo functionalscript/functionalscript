@@ -12,7 +12,7 @@ import type { Bytes, Oid } from '../types.ts'
  * Git writes the unpadded one and `git fsck` only warns about the other,
  * so both exist and a writer owes the spelling it read — the name as the
  * bytes the file system gave, and the id as the raw bytes the format fixes
- * the width of. `mode` in `./module.f.mjs` reads the number off the digits.
+ * the width of. `mode` in `./module.f.js` reads the number off the digits.
  */
 export type TreeEntry = {
     readonly mode: Bytes

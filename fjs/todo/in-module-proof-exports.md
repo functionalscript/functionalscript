@@ -9,14 +9,14 @@ Five implementation modules exported a `proof` object of their own, although
 each already has a `proof.f.mjs` beside it; only `fjs/types/btree/remove`
 still does:
 
-- [`fjs/dev`](../dev/module.f.mjs) — a whole suite (`allFilesSkipsNodeModules`,
+- [`fjs/dev`](../dev/module.f.js) — a whole suite (`allFilesSkipsNodeModules`,
   `allFilesFindsFunctionalScript`, the `loadModuleMap…` cases). The module
   imports `fjs/asserts` and `fjs/effects/node/virtual` at runtime for it and
   for nothing else.
-- [`fjs/mcp`](../mcp/module.f.mjs) — calls `casMcpServer('/')` "to cover its
+- [`fjs/mcp`](../mcp/module.f.js) — calls `casMcpServer('/')` "to cover its
   effect-building body". `casMcpServer` is exported, so nothing about the
   case needs the module's scope.
-- [`fjs/compiler/transpiler`](../compiler/transpiler/module.f.mjs) —
+- [`fjs/compiler/transpiler`](../compiler/transpiler/module.f.js) —
   `mapDjsUnresolvedImport`, a guard its comment calls "unreachable through
   `transpile`'s public API".
 - [`fjs/types/bigfloat`](../types/bigfloat/module.f.js) —

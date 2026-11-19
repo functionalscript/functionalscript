@@ -19,7 +19,7 @@ computed.f.js:1:27 - error: unexpected token
 ```
 
 The refusal is at `a`: the grammar's `member` rule in
-[`parser/grammar`](../parser/grammar/module.f.mjs) spells the computed
+[`parser/grammar`](../parser/grammar/module.f.js) spells the computed
 form as `[`, a `string` token, `]`, so `{ ["x"]: 5 }` is accepted as a
 third spelling of the constant key `"x"` and nothing else fits between the
 brackets. The spec records the gap
@@ -63,14 +63,14 @@ language accepts, and keep the three constant spellings as they are:
   only the compiler's lowering and the serializer learn the non-constant
   key. The Rust output prints one already: a property whose key is no
   string is converted with `Any::to_string` before its value is evaluated in
-  [`rust/serializer`](../../rust/serializer/module.f.mjs), then passed to
+  [`rust/serializer`](../../rust/serializer/module.f.js), then passed to
   `property_item` with the value. The compiler's Rust output uses that printer.
 - The key's value is converted where the object is built, by the
   interpreter and the VM as they already do: `ToString` on every value,
   and the literal fails where that conversion does — an object whose
   `toString` throws or yields no primitive, `{ [{ toString: 0 }]: 1 }` —
   as the Rust key argument propagates its `to_string` error before the value and
-  [`edag/memo`](../../edag/memo/proof.f.mjs)'s `keyFailure` pins for the
+  [`edag/memo`](../../edag/memo/proof.f.js)'s `keyFailure` pins for the
   interpreter. The compiler refuses nothing of its own and passes the node
   through, so the constant spellings and the computed one meet the same
   contract.

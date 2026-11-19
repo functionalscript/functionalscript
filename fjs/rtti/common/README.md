@@ -1,7 +1,7 @@
 # `rtti/common` — the readers' shared kernel
 
-[`module.f.mjs`](./module.f.mjs) holds what [`parse`](../parse/module.f.mjs)
-and [`validate`](../validate/module.f.mjs) share: the error shape and its path
+[`module.f.js`](./module.f.js) holds what [`parse`](../parse/module.f.js)
+and [`validate`](../validate/module.f.js) share: the error shape and its path
 bookkeeping, the primitive checks, `visit` and `orVisit`, and the container
 skeletons `readerOf` instantiates for both readers. Its module comment lists
 each export. What a schema *means* is in [the guide](../guide/README.md); this
@@ -18,8 +18,8 @@ for every container kind once, so the two readers read a container in the same
 order, and with the same shapes, by construction. What differs is what each
 passes to `readerOf`: what it collects of the members — nothing for
 `validate`, the parsed members for `parse` — and what it builds of each
-container kind. The data form's `validate` ([`data`](../data/module.f.mjs)) is
-the same shape over `Data`, and [`validate/proof.f.mjs`](../validate/proof.f.mjs)
+container kind. The data form's `validate` ([`data`](../data/module.f.js)) is
+the same shape over `Data`, and [`validate/proof.f.js`](../validate/proof.f.js)
 pins the acceptance agreement of all three as a table so they cannot drift.
 
 ## Reading a tuple schema

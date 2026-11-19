@@ -7,7 +7,7 @@
 
 A scope evaluates an unread `const` through its comma, `[',', [t, value]]`,
 so that a failure in it is the program's (`anchoring` in
-[`../module.f.mjs`](../module.f.mjs)). The lowering also anchors nodes the
+[`../module.f.js`](../module.f.js)). The lowering also anchors nodes the
 scope evaluates anyway: a `const` read only through a call inlined in the
 same scope, and an unread import that another import's module reaches.
 
@@ -75,12 +75,12 @@ and agrees with the writers on what is eager.
 - [ ] Choose where: the lowering, the linker, or a pass over the EDAG.
 - [ ] Emit no redundant anchor; prove the inputs above round-trip to the
       same graph through `fjsRoundTrip` in
-      [`../../proof.f.mjs`](../../proof.f.mjs), where their text is pinned
+      [`../../proof.f.js`](../../proof.f.js), where their text is pinned
       today.
 
 ### Related
 
-- [`../../serializer/module.f.mjs`](../../serializer/module.f.mjs) —
+- [`../../serializer/module.f.js`](../../serializer/module.f.js) —
   `statement`, which writes such an anchor as its node's `const`.
 - [`../../../edag/todo/operand-classification-owner.md`](../../../edag/todo/operand-classification-owner.md)
   — what is eager in a method call.

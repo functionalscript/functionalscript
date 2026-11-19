@@ -1,5 +1,5 @@
 /**
- * Type-level API for `fjs/compiler/parser/syntax/module.f.mjs`: the syntax
+ * Type-level API for `fjs/compiler/parser/syntax/module.f.js`: the syntax
  * tree its rewrite set builds — a node per value, a record per statement,
  * a module of them — and the alphabet it returns them in, `Out`. The input
  * alphabet is the grammar's, in `../grammar/types.ts`, and the error a
@@ -403,20 +403,24 @@ export type PlainBindingTarget =
 /**
  * An element of an array pattern: a target; an {@link Elision}, which
  * skips the source's element at its position; or a rest element,
- * `...target`, by its `...` — JavaScript's, which the fold refuses for now
- * ([destructuring](../../../../spec/todo/2450-destructuring.md)).
+ * `...target`, by its `...`. A comma following a rest element is retained
+ * only in this binding cover, so the fold can refuse it without changing
+ * an array value's spread and trailing-comma syntax
+ * ([destructuring](../../../../spec/bindings/destructuring/README.md)).
  */
-export type BindingElement = BindingTarget | Elision | readonly ['...', ModuleTokenWithMetadata, PlainBindingTarget]
+export type BindingElement = BindingTarget | Elision | readonly ['...', ModuleTokenWithMetadata, PlainBindingTarget, ModuleTokenWithMetadata?]
 
 /**
  * A property of an object pattern: its key, as an access's — the token a
  * constant key is read from, or a computed key — and the target it binds,
  * the shorthand `{ a }` binding the key's own name; or a rest property,
- * `...target`, by its `...`, which the fold refuses for now.
+ * `...target`, by its `...`. A following comma is retained only in this
+ * binding cover, for the fold to refuse without changing object-literal
+ * spread and trailing-comma syntax.
  */
 export type BindingProperty =
     | { readonly key: Key, readonly target: BindingTarget }
-    | readonly ['...', ModuleTokenWithMetadata, PlainBindingTarget]
+    | readonly ['...', ModuleTokenWithMetadata, PlainBindingTarget, ModuleTokenWithMetadata?]
 
 /**
  * A statement that is a value: a block's `return` or `throw`, and a

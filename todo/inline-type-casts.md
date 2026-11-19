@@ -89,7 +89,7 @@ mutable array type. `createServer`'s replacement is barely callable. Three are
 now annotated declarations; `createServer` must stay an inline cast, because
 `Func<O>` has nowhere to put a type parameter.
 
-**Six deleted the assertion itself.** `types/nominal/proof.f.mjs` demonstrates,
+**Six deleted the assertion itself.** `types/nominal/proof.f.js` demonstrates,
 per branding strategy, whether `<` compiles between two branded values. The
 casts *are* the demonstration — they give the values the brand — and a brand is
 unconstructible by design, so the declaration form rejects what the inline cast
@@ -161,11 +161,11 @@ This table is an audit snapshot, and its counts above are derived from it, so
 rows are kept as they were recorded even when the code has since moved. Its
 line numbers and counts were taken on the audit's branch, before `05601a5`,
 and are not re-measured; read against a later tree, a line number locates
-nothing. Two rows have since moved: the `fjs/cas/evo/module.f.mjs` cast went
+nothing. Two rows have since moved: the `fjs/cas/evo/module.f.js` cast went
 with the flattening of `Evo.add`'s nested `Result`, and the
-`fjs/cas/module.f.mjs` one now reads `Effect<Rm, Vec, IoChannel>` — the same
+`fjs/cas/module.f.js` one now reads `Effect<Rm, Vec, IoChannel>` — the same
 type, spelled through the three-parameter `Effect`. And the
-`fjs/compiler/proof.f.mjs` row names a file that has since been replaced: the
+`fjs/compiler/proof.f.js` row names a file that has since been replaced: the
 range-map lexer stub it audited was deleted when the front end moved into
 `fjs/compiler`, and the `proof.f.mjs` at that path today is the compiler's,
 moved from `fjs/djs`, whose casts this table never recorded. The three
@@ -178,56 +178,56 @@ is the way to refresh this file, not a partial edit.
 
 | File | Line | `@type {T}` | Why it stays |
 | --- | --- | --- | --- |
-| `fjs/cas/evo/module.f.mjs` | 466 | `Effect<MemOp, Result<Hash, string>>` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/cas/module.f.mjs` | 348 | `(v: Vec) => Effect<Rm, IoResult<Vec>>` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/crypto/sign/proof.f.mjs` | 65 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/compiler/module.f.mjs` | 41 | `(result: Result<Unknown, ParseError>) => Effect<_CompileOp…` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/compiler/tokenizer/module.f.mjs` | 295 | `TokenMetadata` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/compiler/tokenizer/module.f.mjs` | 393 | `JsToken` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/compiler/tokenizer/module.f.mjs` | 406 | `JsToken` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/compiler/transpiler/module.f.mjs` | 103 | `(context: ParseContext) => Effect<ReadFile, Result<Unknown…` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/cas/evo/module.f.js` | 466 | `Effect<MemOp, Result<Hash, string>>` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/cas/module.f.js` | 348 | `(v: Vec) => Effect<Rm, IoResult<Vec>>` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/crypto/sign/proof.f.js` | 65 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/compiler/module.f.js` | 41 | `(result: Result<Unknown, ParseError>) => Effect<_CompileOp…` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/compiler/tokenizer/module.f.js` | 295 | `TokenMetadata` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/compiler/tokenizer/module.f.js` | 393 | `JsToken` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/compiler/tokenizer/module.f.js` | 406 | `JsToken` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/compiler/transpiler/module.f.js` | 103 | `(context: ParseContext) => Effect<ReadFile, Result<Unknown…` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/effects/memory/module.f.mjs` | 34 | `<T>(value: T) => Effect<MemCreate, Key<T>>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/effects/memory/module.f.mjs` | 39 | `<T>(key: Key<T>) => Effect<MemRead, T>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/effects/node/memory/module.mjs` | 60 | `ToAsyncOperationMap<MemOp>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/effects/node/memory/proof.mjs` | 28 | `import('../../types.ts').ToAsyncOperationMap<MemOp>` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/effects/node/module.f.mjs` | 47 | `<O extends Operation, T>(...a: readonly Effect<O, T>[]) =>…` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/effects/node/module.f.mjs` | 57 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/effects/node/module.f.mjs` | 186 | `<O extends Operation>(listener: RequestListener<O>) => Eff…` | `tsc --noEmit` passes without it, but the emitted `.d.mts` changes — see "Corrections found in review" |
+| `fjs/effects/node/module.f.js` | 47 | `<O extends Operation, T>(...a: readonly Effect<O, T>[]) =>…` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/effects/node/module.f.js` | 57 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/effects/node/module.f.js` | 186 | `<O extends Operation>(listener: RequestListener<O>) => Eff…` | `tsc --noEmit` passes without it, but the emitted `.d.mts` changes — see "Corrections found in review" |
 | `fjs/effects/node/module.mjs` | 287 | `Erl<NodeOp>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/effects/node/module.mjs` | 305 | `_Server` | reads an `unknown` the surrounding code has already established |
-| `fjs/effects/node/virtual/module.f.mjs` | 409 | `SandboxResult<unknown>` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/effects/proof.f.mjs` | 85 | `(value: number) => Effect<never, import('../types/result/t…` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/emergent_testing/module.f.mjs` | 64 | `TestFn` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/emergent_testing/proof.f.mjs` | 333 | `Parameters<typeof mockRun<_RegisterMockOps, _RegisterMockS…` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/emergent_testing/proof.f.mjs` | 341 | `readonly [_RegisterMockState, readonly unknown[]]` | no overlap without going through `unknown` — a deliberately wrong value, or a nominal brand |
-| `fjs/emergent_testing/proof.f.mjs` | 434 | `Parameters<typeof mockRun<_RegisterMockOps \| Readdir \| Imp…` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/emergent_testing/proof.f.mjs` | 443 | `readonly [undefined, readonly unknown[]]` | no overlap without going through `unknown` — a deliberately wrong value, or a nominal brand |
-| `fjs/emergent_testing/proof.f.mjs` | 448 | `Effect<_RegisterMockOps \| Readdir \| Import, number>` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/compiler/proof.f.mjs` | 21 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/js/tokenizer/module.f.mjs` | 262 | `JsToken` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/js/tokenizer/module.f.mjs` | 689 | `List<List<number \| null>>` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/mcp/cas/proof.f.mjs` | 33 | `readonly unknown[]` | arrived on `main` after the audit — not measured here |
-| `fjs/mcp/cas/proof.f.mjs` | 38 | `unknown` | arrived on `main` after the audit — not measured here |
-| `fjs/mcp/cas/proof.f.mjs` | 65 | `Parameters<typeof match>[0]` | arrived on `main` after the audit — not measured here |
-| `fjs/mcp/cas/proof.f.mjs` | 85 | `any` | arrived on `main` after the audit — not measured here |
-| `fjs/mcp/cas/proof.f.mjs` | 93 | `Key<Cache>` | arrived on `main` after the audit — not measured here |
-| `fjs/mcp/cas/proof.f.mjs` | 93 | `any` | arrived on `main` after the audit — not measured here |
-| `fjs/mcp/cas/proof.f.mjs` | 101 | `NonNullable<typeof entry>` | arrived on `main` after the audit — not measured here |
-| `fjs/mcp/cas/proof.f.mjs` | 121 | `ToolsCallResult` | arrived on `main` after the audit — not measured here |
-| `fjs/mcp/cas/proof.f.mjs` | 132 | `ToolsCallResult` | arrived on `main` after the audit — not measured here |
-| `fjs/mcp/cas/proof.f.mjs` | 149 | `ToolsCallResult` | arrived on `main` after the audit — not measured here |
-| `fjs/mcp/proof.f.mjs` | 67 | `Unknown` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/mcp/proof.f.mjs` | 174 | `ToolsCallResult` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/media/json/proof.f.mjs` | 18 | `null` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/media/json/proof.f.mjs` | 18 | `unknown` | no overlap without going through `unknown` — a deliberately wrong value, or a nominal brand |
-| `fjs/media/json/proof.f.mjs` | 23 | `null` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/media/json/proof.f.mjs` | 23 | `unknown` | no overlap without going through `unknown` — a deliberately wrong value, or a nominal brand |
-| `fjs/module.f.mjs` | 63 | `NodeProgram` | `tsc --noEmit` passes without it, but the emitted `.d.mts` changes — see "Corrections found in review" |
+| `fjs/effects/node/virtual/module.f.js` | 409 | `SandboxResult<unknown>` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/effects/proof.f.js` | 85 | `(value: number) => Effect<never, import('../types/result/t…` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/emergent_testing/module.f.js` | 64 | `TestFn` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/emergent_testing/proof.f.js` | 333 | `Parameters<typeof mockRun<_RegisterMockOps, _RegisterMockS…` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/emergent_testing/proof.f.js` | 341 | `readonly [_RegisterMockState, readonly unknown[]]` | no overlap without going through `unknown` — a deliberately wrong value, or a nominal brand |
+| `fjs/emergent_testing/proof.f.js` | 434 | `Parameters<typeof mockRun<_RegisterMockOps \| Readdir \| Imp…` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/emergent_testing/proof.f.js` | 443 | `readonly [undefined, readonly unknown[]]` | no overlap without going through `unknown` — a deliberately wrong value, or a nominal brand |
+| `fjs/emergent_testing/proof.f.js` | 448 | `Effect<_RegisterMockOps \| Readdir \| Import, number>` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/compiler/proof.f.js` | 21 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/js/tokenizer/module.f.js` | 262 | `JsToken` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/js/tokenizer/module.f.js` | 689 | `List<List<number \| null>>` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/mcp/cas/proof.f.js` | 33 | `readonly unknown[]` | arrived on `main` after the audit — not measured here |
+| `fjs/mcp/cas/proof.f.js` | 38 | `unknown` | arrived on `main` after the audit — not measured here |
+| `fjs/mcp/cas/proof.f.js` | 65 | `Parameters<typeof match>[0]` | arrived on `main` after the audit — not measured here |
+| `fjs/mcp/cas/proof.f.js` | 85 | `any` | arrived on `main` after the audit — not measured here |
+| `fjs/mcp/cas/proof.f.js` | 93 | `Key<Cache>` | arrived on `main` after the audit — not measured here |
+| `fjs/mcp/cas/proof.f.js` | 93 | `any` | arrived on `main` after the audit — not measured here |
+| `fjs/mcp/cas/proof.f.js` | 101 | `NonNullable<typeof entry>` | arrived on `main` after the audit — not measured here |
+| `fjs/mcp/cas/proof.f.js` | 121 | `ToolsCallResult` | arrived on `main` after the audit — not measured here |
+| `fjs/mcp/cas/proof.f.js` | 132 | `ToolsCallResult` | arrived on `main` after the audit — not measured here |
+| `fjs/mcp/cas/proof.f.js` | 149 | `ToolsCallResult` | arrived on `main` after the audit — not measured here |
+| `fjs/mcp/proof.f.js` | 67 | `Unknown` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/mcp/proof.f.js` | 174 | `ToolsCallResult` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/media/json/proof.f.js` | 18 | `null` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/media/json/proof.f.js` | 18 | `unknown` | no overlap without going through `unknown` — a deliberately wrong value, or a nominal brand |
+| `fjs/media/json/proof.f.js` | 23 | `null` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/media/json/proof.f.js` | 23 | `unknown` | no overlap without going through `unknown` — a deliberately wrong value, or a nominal brand |
+| `fjs/module.f.js` | 63 | `NodeProgram` | `tsc --noEmit` passes without it, but the emitted `.d.mts` changes — see "Corrections found in review" |
 | `fjs/nanvm/proof.f.mjs` | 59 | `readonly any[]` | reads an `unknown` the surrounding code has already established |
-| `fjs/protocol/mcp/module.f.mjs` | 171 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/protocol/mcp/module.f.mjs` | 174 | `Ts<T>` | "instantiation excessively deep" |
-| `fjs/protocol/mcp/proof.f.mjs` | 81 | `Effect<MemOp, any>` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/protocol/mcp/stdio/proof.f.mjs` | 26 | `{ readonly id?: Id }` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/protocol/mcp/module.f.js` | 171 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/protocol/mcp/module.f.js` | 174 | `Ts<T>` | "instantiation excessively deep" |
+| `fjs/protocol/mcp/proof.f.js` | 81 | `Effect<MemOp, any>` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/protocol/mcp/stdio/proof.f.js` | 26 | `{ readonly id?: Id }` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/sul/id/module.f.mjs` | 45 | `V8` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/text/code_point/module.f.js` | 49 | `List<List<Unit\|null>>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/types/btree/find/module.f.mjs` | 17 | `TNode<T>` | cast overrides the inferred type — needs a type/API change, not a different cast |
@@ -237,38 +237,38 @@ is the way to refresh this file, not a partial edit.
 | `fjs/types/function/compare/module.f.js` | 29 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
 | `fjs/types/nominal/module.f.js` | 12 | `<N extends string, R extends string, B>(b: B) => Nominal<N…` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/types/nominal/module.f.js` | 16 | `<T extends string, R extends string, B>(n: Nominal<T, R, B…` | nominal branding of `identity` — no runtime representation |
-| `fjs/types/nominal/proof.f.mjs` | 26 | `_IntersectionSafeId` | the brand is unconstructible by design, so only an override can produce a value of this type; the cast **is** the demonstration |
-| `fjs/types/nominal/proof.f.mjs` | 27 | `_IntersectionSafeId` | the brand is unconstructible by design, so only an override can produce a value of this type; the cast **is** the demonstration |
-| `fjs/types/nominal/proof.f.mjs` | 41 | `_SymbolKeyBranded` | the brand is unconstructible by design, so only an override can produce a value of this type; the cast **is** the demonstration |
-| `fjs/types/nominal/proof.f.mjs` | 42 | `_SymbolKeyBranded` | the brand is unconstructible by design, so only an override can produce a value of this type; the cast **is** the demonstration |
-| `fjs/types/nominal/proof.f.mjs` | 49 | `_SymbolIntersectionBranded` | the brand is unconstructible by design, so only an override can produce a value of this type; the cast **is** the demonstration |
-| `fjs/types/nominal/proof.f.mjs` | 49 | `any` | the brand is unconstructible by design, so only an override can produce a value of this type; the cast **is** the demonstration |
-| `fjs/types/nominal/proof.f.mjs` | 50 | `_SymbolIntersectionBranded` | the brand is unconstructible by design, so only an override can produce a value of this type; the cast **is** the demonstration |
-| `fjs/types/nominal/proof.f.mjs` | 50 | `any` | the brand is unconstructible by design, so only an override can produce a value of this type; the cast **is** the demonstration |
+| `fjs/types/nominal/proof.f.js` | 26 | `_IntersectionSafeId` | the brand is unconstructible by design, so only an override can produce a value of this type; the cast **is** the demonstration |
+| `fjs/types/nominal/proof.f.js` | 27 | `_IntersectionSafeId` | the brand is unconstructible by design, so only an override can produce a value of this type; the cast **is** the demonstration |
+| `fjs/types/nominal/proof.f.js` | 41 | `_SymbolKeyBranded` | the brand is unconstructible by design, so only an override can produce a value of this type; the cast **is** the demonstration |
+| `fjs/types/nominal/proof.f.js` | 42 | `_SymbolKeyBranded` | the brand is unconstructible by design, so only an override can produce a value of this type; the cast **is** the demonstration |
+| `fjs/types/nominal/proof.f.js` | 49 | `_SymbolIntersectionBranded` | the brand is unconstructible by design, so only an override can produce a value of this type; the cast **is** the demonstration |
+| `fjs/types/nominal/proof.f.js` | 49 | `any` | the brand is unconstructible by design, so only an override can produce a value of this type; the cast **is** the demonstration |
+| `fjs/types/nominal/proof.f.js` | 50 | `_SymbolIntersectionBranded` | the brand is unconstructible by design, so only an override can produce a value of this type; the cast **is** the demonstration |
+| `fjs/types/nominal/proof.f.js` | 50 | `any` | the brand is unconstructible by design, so only an override can produce a value of this type; the cast **is** the demonstration |
 | `fjs/types/patricia_trie/module.f.mjs` | 49 | `readonly [typeof lastHash, typeof storage]` | arrived on `main` after the audit — not measured here |
 | `fjs/types/range_map/module.f.mjs` | 114 | `RangeMapArray<T>` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/rtti/common/module.f.mjs` | 61 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/rtti/common/module.f.mjs` | 78 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/rtti/common/module.f.js` | 61 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/rtti/common/module.f.js` | 78 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
 | `fjs/rtti/module.f.mjs` | 27 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
 | `fjs/rtti/module.f.mjs` | 69 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/rtti/parse/module.f.mjs` | 101 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/rtti/parse/module.f.mjs` | 103 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/rtti/parse/module.f.mjs` | 105 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/rtti/parse/module.f.mjs` | 133 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/rtti/parse/module.f.mjs` | 137 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/rtti/parse/module.f.mjs` | 159 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/rtti/parse/module.f.mjs` | 159 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/rtti/parse/module.f.mjs` | 185 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/rtti/parse/proof.f.mjs` | 30 | `T` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/rtti/parse/proof.f.mjs` | 37 | `ValidationError` | reads an `unknown` the surrounding code has already established |
-| `fjs/rtti/parse/proof.f.mjs` | 316 | `_A` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/rtti/parse/proof.f.mjs` | 316 | `unknown` | no overlap without going through `unknown` — a deliberately wrong value, or a nominal brand |
-| `fjs/rtti/validate/module.f.mjs` | 88 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/rtti/validate/module.f.mjs` | 114 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/rtti/validate/module.f.mjs` | 120 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/rtti/validate/module.f.mjs` | 140 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/rtti/validate/module.f.mjs` | 140 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/rtti/validate/module.f.mjs` | 158 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/rtti/validate/proof.f.mjs` | 23 | `ValidationError` | reads an `unknown` the surrounding code has already established |
-| `fjs/rtti/validate/proof.f.mjs` | 307 | `_A` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/rtti/validate/proof.f.mjs` | 307 | `unknown` | no overlap without going through `unknown` — a deliberately wrong value, or a nominal brand |
+| `fjs/rtti/parse/module.f.js` | 101 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/rtti/parse/module.f.js` | 103 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/rtti/parse/module.f.js` | 105 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/rtti/parse/module.f.js` | 133 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/rtti/parse/module.f.js` | 137 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/rtti/parse/module.f.js` | 159 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/rtti/parse/module.f.js` | 159 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/rtti/parse/module.f.js` | 185 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/rtti/parse/proof.f.js` | 30 | `T` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/rtti/parse/proof.f.js` | 37 | `ValidationError` | reads an `unknown` the surrounding code has already established |
+| `fjs/rtti/parse/proof.f.js` | 316 | `_A` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/rtti/parse/proof.f.js` | 316 | `unknown` | no overlap without going through `unknown` — a deliberately wrong value, or a nominal brand |
+| `fjs/rtti/validate/module.f.js` | 88 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/rtti/validate/module.f.js` | 114 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/rtti/validate/module.f.js` | 120 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/rtti/validate/module.f.js` | 140 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/rtti/validate/module.f.js` | 140 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/rtti/validate/module.f.js` | 158 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/rtti/validate/proof.f.js` | 23 | `ValidationError` | reads an `unknown` the surrounding code has already established |
+| `fjs/rtti/validate/proof.f.js` | 307 | `_A` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/rtti/validate/proof.f.js` | 307 | `unknown` | no overlap without going through `unknown` — a deliberately wrong value, or a nominal brand |

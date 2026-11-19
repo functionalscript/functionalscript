@@ -26,6 +26,7 @@ export type ValueSpread = readonly ['...', SourceValue]
 export type ValueStatic = readonly [StaticId]
 export type ValueEntryFunction = readonly ['entry']
 export type ValueHasEntryFunction = readonly ['hasEntry']
+export type ValueRefMap = readonly ['refMap']
 export type ValueIntrinsic = readonly [IntrinsicId]
 export type ValueAccess = _Access<SourceValue>
 export type ValueCall = _Call<SourceValue>
@@ -113,6 +114,7 @@ export type _Frame = _ScopedFrame | _ContainerFrame | _CallFrame | _AccessFrame 
 export type _Stack = { readonly top: _Frame; readonly rest: _Stack } | null
 /** A named declaration's value entered under its name: the word, its binding, and whether the declaration is a variable's. */
 export type _Self = readonly [string, BindingId, boolean]
-export type _Step = readonly ['region', _LoopBodyFrame] | readonly ['enter', Node] | readonly ['define', Node, _Self] | Result<SourceValue, ParseError>
+/** Rounds schedule their continuation here, so defaults and regions never recurse through helpers. */
+export type _Step = readonly ['pattern', _PatternFrame] | readonly ['parameter', _LateFrame] | readonly ['region', _LoopBodyFrame] | readonly ['enter', Node] | readonly ['define', Node, _Self] | Result<SourceValue, ParseError>
 export type _State = readonly [stack: _Stack, scope: _Scope, step: _Step]
 export type _Evaluated = { readonly value: SourceValue; readonly scope: _Scope }

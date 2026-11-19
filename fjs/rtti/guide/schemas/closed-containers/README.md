@@ -33,7 +33,7 @@ states for object keys, as the `absentBit` of a member's unit bitset.
 The data form says the same thing in its own vocabulary — a bare container's
 `rest` is `never` on both kinds — so `validate(toData(s))` accepts exactly what
 `parse(s)` and `validate(s)` do.
-[`validate/proof.f.mjs`](../../../validate/proof.f.mjs) runs one acceptance
+[`validate/proof.f.js`](../../../validate/proof.f.js) runs one acceptance
 table through all three readers.
 
 **A schema that admits more says so** — see
@@ -78,8 +78,8 @@ type (the cast stays sound), and the rendered type additionally admits values
 the schema rejects. A static type cannot certify acceptance; that direction is
 the harmless one.
 
-[`parse/proof.f.mjs`](../../../parse/proof.f.mjs) and
-[`validate/proof.f.mjs`](../../../validate/proof.f.mjs) pin closedness on both
+[`parse/proof.f.js`](../../../parse/proof.f.js) and
+[`validate/proof.f.js`](../../../validate/proof.f.js) pin closedness on both
 kinds.
 
 ## Inherited members
@@ -117,7 +117,7 @@ schema is a subset of the open one. The lesson is defined in [`sample.f.js`](./s
 
 ## Where it is implemented
 
-The container skeletons in [`common`](../../../common/module.f.mjs), read
-by [`parse`](../../../parse/module.f.mjs) and
-[`validate`](../../../validate/module.f.mjs); the data form's `rest` in
-[`data`](../../../data/module.f.mjs).
+The container skeletons in [`common`](../../../common/module.f.js), read
+by [`parse`](../../../parse/module.f.js) and
+[`validate`](../../../validate/module.f.js); the data form's `rest` in
+[`data`](../../../data/module.f.js).

@@ -1,0 +1,1775 @@
+/**
+ * @import { Unknown } from '../media/datajs/types.ts'
+ * @import { Dir } from '../effects/node/virtual/types.ts'
+ * @import { Accept, Document, Normalize } from '../media/datajs/vectors/types.ts'
+ * @import { Analysis } from '../edag/analysis/types.ts'
+ * @import { Vec } from '../types/bit_vec/types.ts'
+ * @import { NodeOp } from '../effects/node/types.ts'
+ * @import { Commands } from '../effects/types.ts'
+ * @import { CompileValue } from '../edag/value/to_unknown/types.ts'
+ * @import { Exp } from '../edag/types.ts'
+ */
+
+import { exitCode, readUtf8File, nodeCommands } from '../effects/node/module.f.js'
+import { compile, compileFile, outputText, noRuntime, runtimeSource, _stringifyTree } from './module.f.js'
+import { transpile } from './transpiler/module.f.js'
+import { parse } from './source/module.f.js'
+import runtimeEdag from '../js/runtime/gen.edag.js'
+import { pureOk } from '../effects/module.f.js'
+import { resolve, unresolved } from './edag/module.f.js'
+import { analysis } from '../edag/analysis/module.f.js'
+import { memo } from '../edag/memo/module.f.js'
+import { read } from '../edag/value/property/module.f.js'
+import { toData, compileCommands } from '../edag/value/to_unknown/module.f.js'
+import { tryParse as parseDataJs, tryStringify } from '../media/datajs/module.f.js'
+import { bytes, difference } from '../media/datajs/vectors/module.f.js'
+import { virtual, virtualAt, virtualOperationMap, emptyState, nodeProgramOptions } from '../effects/node/virtual/module.f.js'
+import { partialRun } from '../effects/mock/module.f.js'
+import { utf8 } from '../text/module.f.js'
+import { fromVec, utf8ToString } from '../text/utf8/module.f.js'
+import { unwrap } from '../types/result/module.f.js'
+import { fromEntries, isObject } from '../types/object/module.f.js'
+import { codePoints } from '../text/ascii/module.f.js'
+import { assert, assertEq, assertOk, assertNotNullish, assertStructurallySame } from '../asserts/module.f.js'
+import { _writtenProgram, demo, outputs } from './demo.f.js'
+import { compiled, compiledProgram } from './compiled/module.f.js'
+import { disagreement } from '../js/marked/module.f.js'
+import { textOfResult } from '../text/marked/module.f.js'
+import { examples } from './examples/module.f.js'
+import { htmlToString } from '../media/html/module.f.js'
+import { encodeQuery } from '../website/demo/sharing/module.f.js'
+import { maxLengthBytes, u8ListToVecMsb } from '../types/bit_vec/module.f.js'
+import accept from '../../spec/datajs/vectors/accept/data.f.js'
+import normalize from '../../spec/datajs/vectors/normalize/data.f.js'
+import { dirOf, encode } from './demo_files/module.f.js'
+import { dependenciesOf } from './examples/module.f.js'
+import { toJson } from '../media/json/module.f.js'
+import { entry } from '../types/object/entry/module.f.js'
+import { generate } from '../types/array/module.f.js'
+
+/** An example's program: its main module, then the files it imports. @type {(source: string, id: string) => import('./demo_files/types.ts').Files} */
+const programOf = (source, id) => [['input.f.js', source], ...dependenciesOf(id)]
+
+/** Execute successful catch operations with the real compiler, without host exceptions.
+ * @type {(state: typeof demo.init, event: import('../website/demo/types.ts').DemoEvent) => typeof demo.init}
+ */
+const nextDemo = (state, event) => {
+    let effect = demo.update(state)(event)
+    while (typeof effect !== 'function') {
+        const { payload: [f], continuation } = effect
+        effect = continuation(['ok', ['ok', f()]])
+    }
+    return unwrap(effect())
+}
+
+/**
+ * The package's runtime at its path, beside a root's files, for the compiles
+ * of a data output: `fjs compile` interprets the module under it, and the
+ * virtual root is the package. A stand-in holding one body, so a module
+ * calling `startsWith` at initialization compiles too.
+ *
+ * @type {(root: Dir) => Dir}
+ */
+const withRuntime = root => ({
+    ...root,
+    'fjs': { 'js': { 'runtime': { 'module.f.js': [utf8("const startsWith = self => s => self.slice(0, s.length) === s; export const runtime = { member: { startsWith }, dot: (self, key) => key === 'startsWith' ? startsWith(self) : undefined };")] } } },
+})
+
+/** @type {Commands<NodeOp | CompileValue>} */
+const runtimeCommands = [...nodeCommands, ...compileCommands]
+export const runtime = partialRun(runtimeCommands)(virtualOperationMap)
+
+/** The DataJS accept corpus, typed at the import since a data module carries no annotations. */
+const acceptSet = /** @type {readonly Accept[]} */ (accept)
+
+/** The normalized-form corpus, typed the same way. */
+const normalizeSet = /** @type {readonly Normalize[]} */ (normalize)
+
+/**
+ * A vector's document as the front end reads it: a string as it is, and a
+ * byte-form document decoded — the front end takes code units, as
+ * `transpile` feeds it, so a byte document reaches it the way it reaches any
+ * code-unit reader, through a decoder that refuses what is not UTF-8. Every
+ * accept document is UTF-8, so `null` here is a corpus defect, not a case.
+ *
+ * @type {(document: Document) => string | null}
+ */
+const documentText = document => {
+    if (typeof document === 'string') { return document }
+    const octets = bytes(document[1])
+    return octets === null ? null : fromVec(u8ListToVecMsb(octets))
+}
+
+/**
+ * What the front end makes of a source: the graph the module denotes, or
+ * the error it reports. The transpiler's own `parse`, then its evaluator,
+ * with no imports to resolve — a DataJS document has none — which is what
+ * `transpile` does behind the file system; the parts are the compiler's,
+ * not a second assembly of them.
+ *
+ * @type {(source: string) => readonly ['ok', Unknown] | readonly ['error', string]}
+ */
+const evaluate = source => {
+    const [tag, value] = parse('')(source)
+    if (tag === 'error') { return ['error', value.message] }
+    const result = read(memo(unwrap(analysis(unresolved(value).edag)))({ args: [] }), 'default')
+    return result[0] === 'error' ? ['error', 'module initialization failed'] : toData(result[1])
+}
+
+/**
+ * The graph {@link evaluate} makes of a vector's document, failing the proof
+ * with the front end's message if it refuses. The message is built on a
+ * refusal only: on success the value is the graph, and SpiderMonkey's
+ * `Array.prototype.join` overflows stringifying arrays nested 410 deep.
+ *
+ * @type {(id: string, source: string) => Unknown}
+ */
+const evaluated = (id, source) => {
+    const [tag, value] = evaluate(source)
+    if (tag === 'error') { assert(false, `${id}: the front end refused the document: ${value}`) }
+    return value
+}
+
+/** The complete module result has an own default export. @type {(value: unknown) => unknown} */
+export const defaultValue = value => {
+    assert(isObject(value))
+    return value.default
+}
+
+/** @type {(root: typeof emptyState.root, path: string) => string} */
+export const readOutput = (root, path) => {
+    const file = entry(root, path)
+    assert(file instanceof Array && file.length !== 0, `${path} is not a file`)
+    return utf8ToString(file[0])
+}
+
+/** @type {(source: string) => (outputFileName: string) => string} */
+export const compileSource = source => outputFileName => {
+    const root = { 'input.f.js': [utf8(source)] }
+    const [state, code] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['input.f.js', outputFileName])))
+    assertEq(exitCode(code), 0, state.stderr)
+    return readOutput(state.root, outputFileName)
+}
+
+/**
+ * What `fjs compile` prints when compiling `input.f.js` to a module fails
+ * over `root`: the exit code is `1`, nothing is written, and the message
+ * names the file that failed.
+ *
+ * @type {(root: typeof emptyState.root) => string}
+ */
+export const stderrOf = root => {
+    const [state, code] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['input.f.js', 'output.data.js'])))
+    assertEq(exitCode(code), 1)
+    assertEq(state.root['output.data.js'], undefined)
+    return state.stderr.trim()
+}
+
+/** What `fjs compile` prints when the module itself fails: {@link stderrOf} over the one source. @type {(source: string) => string} */
+export const moduleRefused = source => stderrOf({ 'input.f.js': [utf8(source)] })
+
+/** The one module importing `m.f.js`, for a failure to be found there. @type {typeof emptyState.root} */
+export const importing = { 'input.f.js': [utf8('import m from "./m.f.js"; export default [m];')] }
+
+/** A source over `cfg`, an object of two arrays and a leaf. @type {(source: string) => string} */
+export const withCfg = source => `const cfg = { a: [1], b: [2], c: 3 }; ${source}`
+
+/** A source over `a`, whose `other` member shares a node its `selected` member does not reach. @type {(source: string) => string} */
+export const withSelected = source => `const x = []; const a = { selected: 1, other: [x, x] }; ${source}`
+
+/**
+ * What `fjs compile` prints when it refuses to write `.json` for a module:
+ * the exit code is `1`, nothing is written, and the message names the output
+ * file, because the module is sound and the output is what cannot be.
+ *
+ * @type {(source: string) => string}
+ */
+export const jsonRefused = source => {
+    const root = { 'input.f.js': [utf8(source)] }
+    const [state, code] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['input.f.js', 'output.json'])))
+    assertEq(exitCode(code), 1, state.stderr)
+    assertEq(state.root['output.json'], undefined)
+    return state.stderr.trim()
+}
+
+/**
+ * What `fjs compile` prints when it refuses to write `.f.js` for a module:
+ * the exit code is `1`, nothing is written, and the message names the output
+ * file, since the module is sound and the output is what cannot be.
+ *
+ * @type {(root: typeof emptyState.root) => string}
+ */
+const fjsRefused = root => {
+    const [state, code] = virtualAt(root)(compile(nodeProgramOptions(['input.f.js', 'output.f.js'])))
+    assertEq(exitCode(code), 1, state.stderr)
+    assertEq(state.root['output.f.js'], undefined)
+    return state.stderr.trim()
+}
+
+/**
+ * The table of the graph `fjs compile` links a one-file module into: the
+ * compiler's own linker, not a second assembly of it, so that the round trip
+ * below compares what the compiler compiles.
+ *
+ * @type {(source: string) => Analysis}
+ */
+const graphOf = source => {
+    const root = { 'input.f.js': [utf8(source)] }
+    const [, result] = virtualAt(root)(resolve('input.f.js'))
+    assert(result[0] === 'ok', result[1])
+    return assertOk(analysis(result[1]))
+}
+
+/**
+ * The `.f.js` output of a module, once compiling that output again gives the
+ * same graph the module itself compiles to — the tables compared whole:
+ * root, nodes, scopes and shared — and the same output again. That is the
+ * writer's whole claim at the command level: the text is FunctionalScript
+ * the compiler reads back, it denotes the program it was written from, and
+ * the program read back shares what the text does. The names and the
+ * places a value is written are the writer's to choose, which is why the
+ * tables are compared and not the source's text with the output's; the
+ * table merges equal nodes, so the output's own text, which names each
+ * shared node and writes every other in place, is what tells one shared
+ * node from two. A node two lazy operands reach with no eager path, a
+ * loop's condition and block among them, is written in each, two equal
+ * nodes; the pinned text is what records that.
+ *
+ * @type {(source: string) => string}
+ */
+export const fjsRoundTrip = source => {
+    const output = compileSource(source)('output.f.js')
+    assertStructurallySame(graphOf(output), graphOf(source), output)
+    assertEq(compileSource(output)('output.f.js'), output)
+    return output
+}
+
+/**
+ * Modules the FunctionalScript writer accepts, one per thing it has a
+ * spelling for that a value output has none of or writes differently: a
+ * function in every position, an anchor, an access left unevaluated, and the
+ * leaves and sharing the DataJS corpus covers too, for the two routes to be
+ * compared on the same graph.
+ *
+ * @type {readonly string[]}
+ */
+const fjsCorpus = [
+    'export default 1;',
+    'export default [undefined, 42n, NaN, Infinity, -Infinity, -0];',
+    'export default {["__proto__"]:{"a":42}};',
+    'const a = [1]; export default [a, a];',
+    'const a = { b: [1, 2] }; export default [a.b, a["b"][1], a.b.length];',
+    'export default (...a) => a;',
+    'export default (...a) => [a, a];',
+    'export default (...a) => (...b) => b;',
+    'export default [(...a) => a, (...a) => a];',
+    'export default (...a) => { return { x: a }; };',
+    'export default () => 1;',
+    'export default () => (...a) => a;',
+    'const f = (...a) => 1; export default 2;',
+    'const a = []; export default 1;',
+    'const n = null; const check = n.x; export default 1;',
+    'export default {b:1,"0":2,a:3,b:4};',
+    'const x = []; export default {a: x, a: 1};',
+    'export default (a, b) => (a + b) * 2 - (-a) ** 2 & ~b;',
+    'export default (a, b) => a ? b : c => a ?? (b || c);',
+    'export default (...a) => { const o = []; return a[0] ? [o, o] : a.at(0)(1); };',
+    'const a = [1]; export default [...a, 0, ...a, ..."ab",];',
+    'const f = (...r) => r; export default (...r) => f(...r);',
+    'const o = { m: (...r) => r }; export default (...r) => o.m(...r, 1);',
+    'const o = { a: 1 }; export default [{ x: 0, ...o }, { ...o, x: 0 }, { ...o, ...o, }, (...r) => ({ ...r })];',
+]
+
+/** The `.json` document `fjs compile` writes for the module `a.f.js` in `root`. @type {(root: typeof emptyState.root) => string} */
+export const jsonOf = root => {
+    const [state, code] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['a.f.js', 'output.json'])))
+    assertEq(exitCode(code), 0, state.stderr)
+    return readOutput(state.root, 'output.json')
+}
+
+/** The module `fjs compile` writes for a value. @type {(value: Unknown) => string} */
+const moduleText = value => unwrap(tryStringify(value))
+
+/** The value every `protoKey` test below denotes. */
+export const protoValue = fromEntries([['__proto__', { a: 42 }]])
+
+const sharedArray = [1, 2]
+
+/**
+ * Values the DataJS emitter must be able to write as source that evaluates
+ * back to them. It covers every leaf type, both containers, the shared values
+ * that become a `const`, and the `__proto__` key in both positions — the key
+ * whose obvious spelling evaluates to something else entirely.
+ *
+ * @type {readonly Unknown[]}
+ */
+const roundTripCorpus = [
+    null,
+    true,
+    false,
+    undefined,
+    0,
+    -0,
+    -1.5,
+    NaN,
+    Infinity,
+    -Infinity,
+    42n,
+    'a"b\n\\',
+    [],
+    {},
+    [1, [2, [3, []]]],
+    { a: 1, 'b c': [true, undefined, 3n], d: {} },
+    [sharedArray, sharedArray],
+    { a: 'dup', b: 'dup' },
+    protoValue,
+    fromEntries([['__proto__', 3]]),
+    [protoValue, protoValue],
+    { a: protoValue },
+]
+
+export const proof = {
+    stringifyTree: () => {
+        assertEq(_stringifyTree([null, true, false, 'text', 0, 42n]), '[null,true,false,"text",0,42n]')
+        // The proof dump retains undefined leaves and own members while
+        // sorting object keys independently of their insertion order.
+        assertEq(_stringifyTree(undefined), 'undefined')
+        assertEq(_stringifyTree({ z: undefined, a: [undefined] }), '{"a":[undefined],"z":undefined}')
+    },
+    // A data output interprets the module under the package's runtime: a
+    // module calling `startsWith` at initialization writes its value. The
+    // runtime is loaded then and only then — a code output of the same
+    // module, and a JSON input, compile from a package without one — and a
+    // package without one fails a data output naming the runtime.
+    runtime: () => {
+        const root = { 'input.f.js': [utf8("export default 'ab'.startsWith('a');")] }
+        const [state, code] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['input.f.js', 'output.json'])))
+        assertEq(exitCode(code), 0, state.stderr)
+        assertEq(readOutput(state.root, 'output.json'), 'true')
+        const [codeState, codeCode] = virtualAt(root)(compile(nodeProgramOptions(['input.f.js', 'output.f.js'])))
+        assertEq(exitCode(codeCode), 0, codeState.stderr)
+        const [jsonState, jsonCode] = virtualAt({ 'input.json': [utf8('1')] })(compile(nodeProgramOptions(['input.json', 'output.data.js'])))
+        assertEq(exitCode(jsonCode), 0, jsonState.stderr)
+        const [missingState, missingCode] = virtualAt(root)(compile(nodeProgramOptions(['input.f.js', 'output.json'])))
+        assertEq(exitCode(missingCode), 1)
+        assertEq(missingState.stderr.trim(), `${runtimeSource('.')} - error: file not found`)
+        assertEq(runtimeSource('/pkg'), '/pkg/fjs/js/runtime/module.f.js')
+    },
+    namedRestOutput: () => {
+        const source = 'export default (a,b,c,...x)=>[a,b,c,x];'
+        assert(compileSource(source)('parameters.edag.data.mjs').includes('["=>",3,[],'))
+        const written = compileSource(source)('parameters.f.mjs')
+        assertEq(parse('parameters.f.mjs')(written)[0], 'ok')
+        /** @type {(length: number) => string} */
+        const large = length => `export default (${generate(length, i => `a${i},`).join('')}...x)=>x;`
+        assert(compileSource(large(16))('large.edag.data.mjs').includes('["=>",16,[],'))
+        assertEq(parse('large.f.mjs')(compileSource(large(16))('large.f.mjs'))[0], 'ok')
+        assert(moduleRefused(large(17)).includes('more than 16 fixed parameters'))
+    },
+    namedExports: {
+        values: () => {
+            assertEq(compileSource('export const a=5; export default 7;')('output.json'), '7')
+            assertEq(compileSource('export const a=5;')('output.data.js'), 'export default undefined;')
+            assertEq(jsonRefused('export const a=5;'), 'output.json - error: no JSON spelling for undefined')
+            assertEq(compileSource('export const a=[]; export default a;')('output.json'), '[]')
+            assertEq(compileSource('const x=[]; export const a=[x,x]; export default 7;')('output.json'), '7')
+            assertEq(compileSource('export const a=[]; export default [a,a];')('output.json'), '[[],[]]')
+            assertEq(compileSource('export const a=undefined; export default undefined;')('output.data.js'), 'export default undefined;')
+        },
+        imports: () => {
+            const input = 'import a from "./dep.f.js"; export default a;'
+            const root = { 'input.f.js': [utf8(input)], 'dep.f.js': [utf8('export const x=[]; export default x;')] }
+            const [state, code] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['input.f.js', 'output.json'])))
+            assertEq(exitCode(code), 0, state.stderr)
+            assertEq(readOutput(state.root, 'output.json'), '[]')
+            const [source, sourceCode] = virtualAt(root)(compile(nodeProgramOptions(['input.f.js', 'output.f.js'])))
+            assertEq(exitCode(sourceCode), 0, source.stderr)
+            assertStructurallySame(evaluate(readOutput(source.root, 'output.f.js')), ['ok', []])
+            assertEq(stderrOf({ ...root, 'dep.f.js': [utf8('export const x=7;')] }), 'dep.f.js - error: module has no default export')
+            assertEq(stderrOf({ ...root, 'dep.f.js': [utf8('export const bad=null.x; export default 7;')] }), 'dep.f.js - error: module initialization failed')
+            const [defined, definedCode] = virtualAt(withRuntime({ ...root, 'dep.f.js': [utf8('export const x=1; export default undefined;')] }))(compile(nodeProgramOptions(['input.f.js', 'output.data.js'])))
+            assertEq(exitCode(definedCode), 0, defined.stderr)
+            assertEq(readOutput(defined.root, 'output.data.js'), 'export default undefined;')
+        },
+        sourceAndRust: () => {
+            const source = 'export const z=5; export const a=z; export default 7;'
+            assertEq(compileSource(source)('output.f.js'), 'export const a=5;export const z=5;export default 7;')
+            const rust = compileSource(source)('output.rs')
+            assert(rust.includes('string_key("a")'))
+            assert(rust.includes('string_key("z")'))
+            assert(rust.includes('string_key("default")'))
+        },
+    },
+    moduleBoundary: {
+        fixedPoint: () => {
+            for (const source of ['export default 7;', 'export default {"default":7};', 'export default undefined;']) {
+                for (const output of ['output.data.js', 'output.f.js']) {
+                    const once = compileSource(source)(output)
+                    assertEq(once, source)
+                    assertEq(compileSource(once)(output), source)
+                }
+            }
+            assertEq(compileSource('export default 7;')('output.json'), '7')
+        },
+        jsonDocuments: () => {
+            for (const document of ['7', 'null', '{"default":7}']) {
+                for (const output of ['output.json', 'output.data.js', 'output.f.js']) {
+                    const root = { 'input.json': [utf8(document)] }
+                    const [state, code] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['input.json', output])))
+                    assertEq(exitCode(code), 0, state.stderr)
+                    const expected = output.endsWith('.json') ? document : `export default ${document};`
+                    assertEq(readOutput(state.root, output), expected)
+                }
+            }
+        },
+    },
+    tooFewArgs: {
+        oneArg: () => {
+            const [state, code] = virtual(emptyState)(compile(nodeProgramOptions(['input.f.js'])))
+            assertEq(exitCode(code), 1)
+            assert(state.stderr.includes('Requires 2 arguments'), state.stderr)
+        },
+    },
+    // `fjs compile` with no arguments is the check: every `.f.js` under the
+    // source root compiled through the pipeline every output begins with, and
+    // nothing written. The `.f.js` extension promises the compiler of the same
+    // revision accepts the module, and only this check keeps that promise —
+    // `tsc` accepts source the compiler refuses.
+    check: {
+        everyFileAccepted: () => {
+            // Discovery descends into subdirectories, and the count on `stdout`
+            // says how many files the walk found: `0 checked` from a
+            // misplaced root would pass the exit code alone.
+            const root = {
+                'a.f.js': [utf8('export default 1;')],
+                'sub': { 'b.f.js': [utf8('export default (...x) => x;')] },
+            }
+            const [state, code] = virtualAt(root)(compile(nodeProgramOptions([])))
+            assertEq(exitCode(code), 0, state.stderr)
+            assertEq(state.stdout.trim(), '.f.js: 2 checked')
+            assertEq(state.stderr, '')
+        },
+        nothingToCheck: () => {
+            // A tree with no `.f.js` passes, and says so, rather than failing a
+            // repository that has not renamed its first module yet.
+            const [state, code] = virtualAt({})(compile(nodeProgramOptions([])))
+            assertEq(exitCode(code), 0, state.stderr)
+            assertEq(state.stdout.trim(), '.f.js: 0 checked')
+        },
+        reportsEveryRefusal: () => {
+            // Two refused among an accepted one: both are named, each with the
+            // diagnostic the command would print for it, so a run that stopped
+            // at the first would fail this. Nothing is written, and the last
+            // line counts what the walk saw.
+            const root = {
+                'ok.f.js': [utf8('export default 1;')],
+                'bad.f.js': [utf8('export default @;')],
+                'sub': { 'worse.f.js': [utf8('export default {')] },
+            }
+            const [state, code] = virtualAt(root)(compile(nodeProgramOptions([])))
+            assertEq(exitCode(code), 1)
+            const lines = state.stderr.trim().split('\n')
+            assertEq(lines.length, 3, state.stderr)
+            assert(lines.some(line => line.startsWith('./bad.f.js:1:16-18 - error: ')), state.stderr)
+            assert(lines.some(line => line.startsWith('./sub/worse.f.js:1:17 - error: ')), state.stderr)
+            assertEq(lines[2], '.f.js: 3 checked, 2 refused')
+            assertEq(state.stdout, '')
+            assertEq(Object.keys(state.root).toSorted().join(','), 'bad.f.js,ok.f.js,sub')
+        },
+        checksAuthoredOnly: () => {
+            // An `.f.mjs` states intent and promises nothing, so a refused one
+            // beside an accepted `.f.js` is no failure; a hidden directory and
+            // `node_modules` are not walked, as the test runner's discovery
+            // does not walk them.
+            const root = {
+                'ok.f.js': [utf8('export default 1;')],
+                'refused.f.mjs': [utf8('export default @;')],
+                '.hidden': { 'a.f.js': [utf8('export default @;')] },
+                'node_modules': { 'b.f.js': [utf8('export default @;')] },
+            }
+            const [state, code] = virtualAt(root)(compile(nodeProgramOptions([])))
+            assertEq(exitCode(code), 0, state.stderr)
+            assertEq(state.stdout.trim(), '.f.js: 1 checked')
+        },
+        followsImports: () => {
+            // The check links the program as a compile does, so an `.f.js`
+            // whose import the compiler refuses is refused with it: the
+            // promise is about the module as compiled, dependencies included,
+            // and the diagnostic names the module the error is in.
+            const root = {
+                'main.f.js': [utf8('import d from "./dep.f.mjs"; export default d;')],
+                'dep.f.mjs': [utf8('export default @;')],
+            }
+            const [state, code] = virtualAt(root)(compile(nodeProgramOptions([])))
+            assertEq(exitCode(code), 1)
+            assert(state.stderr.startsWith('dep.f.mjs:1:16-18 - error: '), state.stderr)
+            assert(state.stderr.trim().endsWith('.f.js: 1 checked, 1 refused'), state.stderr)
+        },
+        startsAtInitCwd: () => {
+            // Under `npm run`, `INIT_CWD` is where the command was invoked, so
+            // the check scopes to that subtree as `fjs test` does: the refused
+            // file above it is not seen.
+            const root = {
+                'a.f.js': [utf8('export default @;')],
+                'sub': { 'b.f.js': [utf8('export default 1;')] },
+            }
+            const options = { ...nodeProgramOptions([]), env: { INIT_CWD: 'sub' } }
+            const [state, code] = virtualAt(root)(compile(options))
+            assertEq(exitCode(code), 0, state.stderr)
+            assertEq(state.stdout.trim(), '.f.js: 1 checked')
+        },
+        unreadableRoot: () => {
+            // A tree that cannot be listed is a failed check, reported in the
+            // host's words, not a pass over zero files.
+            const options = { ...nodeProgramOptions([]), env: { INIT_CWD: 'missing' } }
+            const [state, code] = virtualAt({})(compile(options))
+            assertEq(exitCode(code), 1)
+            assertEq(state.stderr.trim(), 'invalid path')
+            assertEq(state.stdout, '')
+        },
+    },
+    malformedUtf8: () => {
+        // A source that is not correct UTF-8 is refused, naming the file,
+        // rather than decoded: a lenient decoder gives a raw `FF` in a
+        // string U+00FF where a JavaScript host reads U+FFFD — a different
+        // successful value (DESIGN.md §10).
+        /** @type {(before: string, bad: readonly number[], after: string) => Vec} */
+        const source = (before, bad, after) => u8ListToVecMsb([...codePoints(before), ...bad, ...codePoints(after)])
+        const sequences = [[0xff], [0xc2], [0xc0, 0xaf], [0xed, 0xa0, 0x80]]
+        for (const bad of sequences) {
+            /** @type {readonly (readonly [string, Vec, string])[]} */
+            const cases = [
+                ['input.f.js', source('export default "a', bad, 'b";'), 'input.f.js'],
+                ['input.f.js', source('export default { "a', bad, '": 1 };'), 'input.f.js'],
+                ['input.f.js', source('// a', bad, '\nexport default 1;'), 'input.f.js'],
+                ['input.json', source('"a', bad, '"'), 'input.json'],
+            ]
+            for (const [input, bytes, named] of cases) {
+                const root = { [input]: [bytes] }
+                const [state, code] = virtualAt(withRuntime(root))(compile(nodeProgramOptions([input, 'output.json'])))
+                assertEq(exitCode(code), 1, state.stderr)
+                assert(state.stderr.includes(`${named} - error: not UTF-8 text`), state.stderr)
+                assertEq(state.root['output.json'], undefined)
+            }
+            const root = {
+                'input.f.js': [utf8('import a from "./a.json" with { type: "json" };\nexport default a;')],
+                'a.json': [source('"a', bad, '"')],
+            }
+            const [state, code] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['input.f.js', 'output.json'])))
+            assertEq(exitCode(code), 1, state.stderr)
+            assert(state.stderr.includes('a.json - error: not UTF-8 text'), state.stderr)
+        }
+        // Correct UTF-8 beyond ASCII still reads, a four-byte sequence included.
+        const root = { 'input.f.js': [utf8('export default "é中😀";')] }
+        const [state, code] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['input.f.js', 'output.json'])))
+        assertEq(exitCode(code), 0, state.stderr)
+        assertEq(readOutput(state.root, 'output.json'), '"é中😀"')
+    },
+    tooManyArgs: () => {
+        // A third argument is refused and named, not dropped: nothing reads
+        // it, so a success would claim work the command line asked for and
+        // never did (DESIGN.md §10). No output is written.
+        const root = { 'input.f.js': [utf8('export default 42;')] }
+        const [state, code] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['input.f.js', 'output.json', '--tree'])))
+        assertEq(exitCode(code), 1)
+        assert(state.stderr.includes('unexpected argument --tree'), state.stderr)
+        assertEq(state.root['output.json'], undefined)
+    },
+    success: () => {
+        const root = { 'input.f.js': [utf8('export default 42;')] }
+        const [state, code] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['input.f.js', 'output.data.js'])))
+        assertEq(exitCode(code), 0)
+        const content = readOutput(state.root, 'output.data.js')
+        assertEq(content, 'export default 42;')
+    },
+    // The output's directory is created when it does not exist, however deep.
+    missingDirectory: () => {
+        const root = { 'input.f.js': [utf8('export default 42;')] }
+        const [state, code] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['input.f.js', 'gen.out/sub/output.data.js'])))
+        assertEq(exitCode(code), 0, state.stderr)
+        const [, read] = virtual(state)(readUtf8File('gen.out/sub/output.data.js'))
+        assertStructurallySame(read, ['ok', 'export default 42;'])
+    },
+    jsonOutput: () => {
+        const root = { 'input.f.js': [utf8('export default 42;')] }
+        const [state, code] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['input.f.js', 'output.json'])))
+        assertEq(exitCode(code), 0)
+        const content = readOutput(state.root, 'output.json')
+        assertEq(content, '42')
+    },
+    // An output is the language its extension declares, as an input is,
+    // matched by the longest suffix first. The JavaScript names are nested
+    // rather than disjoint — a DataJS document is a JavaScript module, and
+    // so is the EDAG's — so the order is what picks the narrowest writer the
+    // name asks for.
+    interpretedData: () => {
+        const source = 'export const f = x => x; export default 7;'
+        assertEq(compileSource(source)('output.json'), '7')
+        assertEq(compileSource(source)('output.data.js'), 'export default 7;')
+        assertEq(compileSource('const f = x => x + 2; export default f(3);')('output.json'), '5')
+        assertEq(compileSource('const f = x => y => x + y; export default f(2)(3);')('output.data.js'), 'export default 5;')
+        // Supply the authored common runtime for map rather than extending
+        // the stand-in with a second implementation of its body.
+        const common = unwrap(read(memo(unwrap(analysis(/** @type {Exp} */ (/** @type {unknown} */ (runtimeEdag)))))({ args: [] }), 'runtime'))
+        assert(common instanceof Array && common[0] === '{}')
+        const root = /** @type {const} */ ({ 'input.f.js': [utf8('export default [1, 2].map(x => x + 1);')] })
+        const [state, result] = virtualAt(root)(compileFile(pureOk(common))('input.f.js', 'output.json'))
+        unwrap(result)
+        assertEq(readOutput(state.root, 'output.json'), '[2,3]')
+        assertEq(jsonRefused('export const unused = null.x; export default 7;'), 'input.f.js - error: module initialization failed')
+    },
+    outputRoute: {
+        // one module, every route it has a spelling in
+        languages: () => {
+            const source = 'const a = [1]; export default [a, a];'
+            const dataJs = 'const $0=[1];export default [$0,$0];'
+            assertEq(compileSource(source)('out.data.js'), dataJs)
+            assertEq(compileSource(source)('out.data.mjs'), dataJs)
+            assertEq(compileSource(source)('out.js'), dataJs)
+            assertEq(compileSource(source)('out.mjs'), dataJs)
+            const edag = 'const $0=["[]",[1]];export default ["{}",[[":","default",["[]",[$0,$0]]]]];'
+            assertEq(compileSource(source)('out.edag.data.js'), edag)
+            assertEq(compileSource(source)('out.edag.data.mjs'), edag)
+            // JSON denotes a tree, so the shared node is written where each
+            // reference reaches it
+            assertEq(compileSource(source)('out.json'), '[[1],[1]]')
+        },
+        // The order of these is the claim: the longer suffix wins, so the
+        // EDAG route and the DataJS one are both reachable although every
+        // name here ends `.js`. A function tells the three apart, having a
+        // spelling in the widest writer alone.
+        longestSuffix: () => {
+            assertEq(compileSource('export default [1];')('x.edag.data.js'), 'export default ["{}",[[":","default",["[]",[1]]]]];')
+            assertEq(compileSource('export default [1];')('x.data.js'), 'export default [1];')
+            assertEq(compileSource('export default [1];')('x.js'), 'export default [1];')
+            assertEq(compileSource('export default (...a) => a;')('x.js'), 'export default (...$0)=>$0;')
+            assertEq(compileSource('export default (...a) => a;')('x.edag.data.js'), 'export default ["{}",[[":","default",["=>",0,[],["rest"]]]]];')
+            assertEq(moduleRefused('export default (...a) => a;'), 'output.data.js - error: callable materialization requires a target compile/load boundary')
+        },
+        // Any other JavaScript name is FunctionalScript: `.f.js` says which
+        // subset a source is written in, and an output the compiler writes
+        // is in that subset whatever it is called. `.d.js` is one of them:
+        // it was DJS's spelling and went with the name.
+        anyJavaScriptName: () => {
+            assertEq(compileSource('export default (...a) => a;')('out.f.js'), 'export default (...$0)=>$0;')
+            assertEq(compileSource('export default (...a) => a;')('out.f.mjs'), 'export default (...$0)=>$0;')
+            assertEq(compileSource('export default (...a) => a;')('out.d.js'), 'export default (...$0)=>$0;')
+            assertEq(compileSource('export default (...a) => a;')('a.js'), 'export default (...$0)=>$0;')
+        },
+        // A name declaring no language is refused, naming the eight — and
+        // the input is not read at all, since there is nothing to read it
+        // for. This is where the old fall-through went: every name that was
+        // not `.json` used to be written as DataJS.
+        unknown: () => {
+            const expected = 'no output language for this extension: expected .json, .rs, .js, .mjs, .data.js, .data.mjs, .edag.data.js or .edag.data.mjs'
+            /** @type {(outputFileName: string) => string} */
+            const refused = outputFileName => {
+                const root = { 'input.f.js': [utf8('export default 1;')] }
+                const [state, code] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['input.f.js', outputFileName])))
+                assertEq(exitCode(code), 1)
+                assertEq(entry(state.root, outputFileName), undefined)
+                return state.stderr.trim()
+            }
+            assertEq(refused('out.txt'), `out.txt - error: ${expected}`)
+            assertEq(refused('out.ts'), `out.ts - error: ${expected}`)
+            assertEq(refused('out'), `out - error: ${expected}`)
+            // the input is never read: a missing one is refused the same way
+            const [state, code] = virtual(emptyState)(compile(nodeProgramOptions(['missing.f.js', 'out.txt'])))
+            assertEq(exitCode(code), 1)
+            assertEq(state.stderr.trim(), `out.txt - error: ${expected}`)
+        },
+    },
+    // The FunctionalScript output: the linked graph written back as source,
+    // rather than the value the program denotes. This route preserves code
+    // without evaluating module initializers.
+    fjsOutput: {
+        // the same sources, side by side, in the two module outputs: an
+        // access is read by the value output and stays an access here, a
+        // selected function has no DataJS document, and an anchor is
+        // a `const` in both
+        graph: () => {
+            assertEq(fjsRoundTrip('const a = { b: 1 }; export default a.b;'), 'export default {"b":1}.b;')
+            assertEq(compileSource('const a = { b: 1 }; export default a.b;')('output.data.js'), 'export default 1;')
+            assertEq(fjsRoundTrip('export default (...a) => a;'), 'export default (...$0)=>$0;')
+            assertEq(moduleRefused('export default (...a) => a;'), 'output.data.js - error: callable materialization requires a target compile/load boundary')
+            assertEq(fjsRoundTrip('const f = (...a) => 1; export default 2;'), 'const $0=()=>1;export default 2;')
+            // an empty parameter list reaches here as the node a rest
+            // parameter's function does, the AST carrying no parameter, and
+            // the writer names the rest parameter only where the body reads
+            // it — so both lists are written `()`, one node, one text
+            assertEq(fjsRoundTrip('export default () => 1;'), 'export default ()=>1;')
+            // A zero-input tail loop introduces the source aggregate helper
+            // on its first parse. Its normalized graph and text stay exact.
+            const loop = compileSource('const f = () => f();\nexport default f;')('output.f.js')
+            assertEq(loop, 'const $0=()=>{while(true){continue;}return undefined;};export default $0;')
+            const canonical = fjsRoundTrip(loop)
+            assert(canonical.includes('while('), canonical)
+            // a shorthand member is written as the member it denotes
+            assertEq(fjsRoundTrip('const a = [1];\nexport default { a, b: a };'), 'const $0=[1];export default {"a":$0,"b":$0};')
+            // an unused alias of the name is dropped with the `const`, as an alias of a capture is
+            assertEq(fjsRoundTrip('const f = () => { const g = f; return 1; };\nexport default f;'), 'export default ()=>1;')
+        },
+        zeroInputNormalLoopOutput: () => {
+            for (const [source, expected] of /** @type {const} */ ([
+                ['const f=()=>false?f():7;export default f;', 'const $0=()=>{let $1=undefined;while(false){$1=$1;}const $2=7;return $2;};export default $0;'],
+                ['const f=()=>true?7:f();export default f;', 'const $0=()=>{let $1=undefined;while(!true){$1=$1;}const $2=7;return $2;};export default $0;'],
+            ])) {
+                const output = compileSource(source)('output.f.js')
+                assertEq(output, expected)
+                const canonical = fjsRoundTrip(output)
+                assert(canonical.includes('while('), canonical)
+            }
+        },
+        zeroInputBaseCaseDefinitionsLoopOutput: () => {
+            for (const [source, expected] of /** @type {const} */ ([
+                ['const f=()=>false?f():(()=>{const x=[1];return[x,x];})();export default f;', 'const $0=()=>{let $1=undefined;while(false){$1=$1;}const $2=(()=>{const $3=[1];return [$3,$3];})();return $2;};export default $0;'],
+                ['const f=()=>true?(()=>{const x=[1];return[x,x];})():f();export default f;', 'const $0=()=>{let $1=undefined;while(!true){$1=$1;}const $2=(()=>{const $3=[1];return [$3,$3];})();return $2;};export default $0;'],
+            ])) {
+                const output = compileSource(source)('output.f.js')
+                assertEq(output, expected)
+                const canonical = fjsRoundTrip(output)
+                assert(canonical.includes('while('), canonical)
+            }
+        },
+        multiInputLoopOutput: () => {
+            for (const [source, expected] of /** @type {const} */ ([
+                ['const f=(n,a)=>n>0?f(n-1,a+n):a;export default f;', 'const $0=($1,$2)=>{let $3=[$1,$2];while((()=>{const $4=$3[0];const $5=$3[1];return $4>0;})()){const $6=$3[0];const $7=$3[1];const $8=[$6-1,$7+$6];$3=$8;}const $9=(()=>{const $10=$3[0];const $11=$3[1];return $11;})();return $9;};export default $0;'],
+                ['const f=(n,a)=>n===0?a:f(n-1,a+n);export default f;', 'const $0=($1,$2)=>{let $3=[$1,$2];while((()=>{const $4=$3[0];const $5=$3[1];return !($4===0);})()){const $6=$3[0];const $7=$3[1];const $8=[$6-1,$7+$6];$3=$8;}const $9=(()=>{const $10=$3[0];const $11=$3[1];return $11;})();return $9;};export default $0;'],
+            ])) {
+                const output = compileSource(source)('output.f.js')
+                assertEq(output, expected)
+                const canonical = fjsRoundTrip(output)
+                assert(canonical.includes('while('), canonical)
+            }
+        },
+        explicitThrowTailLoopOutput: () => {
+            for (const [source, expected] of /** @type {const} */ ([
+                ['const f=(n,a)=>{if(n===0){throw a;}return f(n-1,a+1);};export default f;', 'const $0=($1,$2)=>{const $3=[$1,$2];let $4=$3;while(true){const $5=$4[0];const $6=$4[1];if($5===0){throw $6;}else{const $7=[$5-1,$6+1];$4=$7;continue;}}return $4;};export default $0;'],
+                ['const f=(n,a)=>{if(n!==0){return f(n-1,a+1);}throw a;};export default f;', 'const $0=($1,$2)=>{const $3=[$1,$2];let $4=$3;while(true){const $5=$4[0];const $6=$4[1];if($5!==0){const $7=[$5-1,$6+1];$4=$7;continue;}else{throw $6;}}return $4;};export default $0;'],
+                ['const f=(n,...xs)=>{if(n===0){throw xs;}return f(n-1,...xs);};export default f;', 'const $0=($1,...$2)=>{const $3=[$1,$2];let $4=$3;while(true){const $5=$4[0];const $6=$4[1];if($5===0){throw $6;}else{const $7=[$5-1,...$6];const $8=[$7[0],(($9,$10,$11)=>$9.slice($10,$11))($7,1)];$4=$8;continue;}}return $4;};export default $0;'],
+                ['const f=(...xs)=>{if(xs[0]===0){throw xs;}return f(xs[0]-1,...xs.slice(1));};export default f;', 'const $0=(...$1)=>{const $2=$1;let $3=$2;while(true){const $4=$3;if($4[0]===0){throw $4;}else{const $5=[$4[0]-1,...$4.slice(1)];const $6=(($7,$8,$9)=>$7.slice($8,$9))($5,0);$3=$6;continue;}}return $3;};export default $0;'],
+                ['export default test=>{const f=()=>{if(test()===0){throw 7;}return test()===1?0:f();};return f;};', 'export default ($0)=>{const $1=()=>{let $2=undefined;while(true){if($0()===0){throw 7;}else{if($0()===1){const $3=0;$2=$3;break;}else{continue;}}}return $2;};return $1;};'],
+            ])) {
+                const output = compileSource(source)('output.f.js')
+                assertEq(output, expected)
+                const canonical = fjsRoundTrip(output)
+                assert(canonical.includes('while('), canonical)
+            }
+        },
+        continuingOnlyTailLoopOutput: () => {
+            for (const [source, expected] of /** @type {const} */ ([
+                ['const f=(a,b)=>f(b,a);export default f;', 'const $0=($1,$2)=>{const $3=[$1,$2];let $4=$3;while(true){const $5=$4[0];const $6=$4[1];const $7=[$6,$5];$4=$7;continue;}return $4;};export default $0;'],
+                ['const f=(a,...xs)=>f(xs[0],a);export default f;', 'const $0=($1,...$2)=>{const $3=[$1,$2];let $4=$3;while(true){const $5=$4[0];const $6=$4[1];const $7=[$6[0],$5];const $8=[$7[0],(($9,$10,$11)=>$9.slice($10,$11))($7,1)];$4=$8;continue;}return $4;};export default $0;'],
+                ['const f=(...xs)=>f(xs[1],xs[0]);export default f;', 'const $0=(...$1)=>{const $2=$1;let $3=$2;while(true){const $4=$3;const $5=[$4[1],$4[0]];const $6=(($7,$8,$9)=>$7.slice($8,$9))($5,0);$3=$6;continue;}return $3;};export default $0;'],
+                ['const f=(a,b)=>a>0?f(b,a):f(b+1,a);export default f;', 'const $0=($1,$2)=>{const $3=[$1,$2];let $4=$3;while(true){const $5=$4[0];const $6=$4[1];if($5>0){const $7=[$6,$5];$4=$7;continue;}else{const $8=[$6+1,$5];$4=$8;continue;}}return $4;};export default $0;'],
+            ])) {
+                const output = compileSource(source)('output.f.js')
+                assertEq(output, expected)
+                const canonical = fjsRoundTrip(output)
+                assert(canonical.includes('while('), canonical)
+            }
+        },
+        zeroInputTerminalLoopOutput: () => {
+            for (const [source, expected] of /** @type {const} */ ([
+                ['export default test=>{const f=()=>{const pair=[test()];return pair[0]?f():pair;};return f;};', 'export default ($0)=>{const $1=()=>{let $2=undefined;while(true){const $3=[$0()];if($3[0]){continue;}else{const $4=$3;$2=$4;break;}}return $2;};return $1;};'],
+                ['export default test=>{const f=()=>{const pair=[test()];return !pair[0]?pair:f();};return f;};', 'export default ($0)=>{const $1=()=>{let $2=undefined;while(true){const $3=[$0()];if(!$3[0]){const $4=$3;$2=$4;break;}else{continue;}}return $2;};return $1;};'],
+                ['export default test=>{const f=()=>test()?(test()?0:f()):1;return f;};', 'export default ($0)=>{const $1=()=>{let $2=undefined;while(true){if($0()){if($0()){const $3=0;$2=$3;break;}else{continue;}}else{const $4=1;$2=$4;break;}}return $2;};return $1;};'],
+                ['export default test=>{const f=()=>!test()?1:!test()?f():0;return f;};', 'export default ($0)=>{const $1=()=>{let $2=undefined;while(true){if(!$0()){const $3=1;$2=$3;break;}else{if(!$0()){continue;}else{const $4=0;$2=$4;break;}}}return $2;};return $1;};'],
+            ])) {
+                const output = compileSource(source)('output.f.js')
+                assertEq(output, expected)
+                const canonical = fjsRoundTrip(output)
+                assert(canonical.includes('while('), canonical)
+            }
+        },
+        sharedRequiredPrefixLoopOutput: () => {
+            for (const [source, expected] of /** @type {const} */ ([
+                ['const f=(n,a)=>{const pair=[n,a];return n>0?f(n-1,pair[1]+1):pair;};export default f;', 'const $0=($1,$2)=>{const $3=[$1,$2];let $4=$3;while(true){const $5=$4[0];const $6=$4[1];const $7=[$5,$6];if($5>0){const $8=[$5-1,$7[1]+1];$4=$8;continue;}else{const $9=$7;$4=$9;break;}}return $4;};export default $0;'],
+                ['const f=(n,a)=>{const pair=[n,a];return n<=0?pair:f(n-1,pair[1]+1);};export default f;', 'const $0=($1,$2)=>{const $3=[$1,$2];let $4=$3;while(true){const $5=$4[0];const $6=$4[1];const $7=[$5,$6];if($5<=0){const $8=$7;$4=$8;break;}else{const $9=[$5-1,$7[1]+1];$4=$9;continue;}}return $4;};export default $0;'],
+            ])) {
+                const output = compileSource(source)('output.f.js')
+                assertEq(output, expected)
+                const canonical = fjsRoundTrip(output)
+                assert(canonical.includes('while('), canonical)
+            }
+        },
+        mixedTailLoopOutput: () => {
+            for (const [source, expected] of /** @type {const} */ ([
+                ['const f=(n,a)=>n>0?(n===1?a:f(n-1,a+1)):a;export default f;', 'const $0=($1,$2)=>{const $3=[$1,$2];let $4=$3;while(true){const $5=$4[0];const $6=$4[1];if($5>0){if($5===1){const $7=$6;$4=$7;break;}else{const $8=[$5-1,$6+1];$4=$8;continue;}}else{const $9=$6;$4=$9;break;}}return $4;};export default $0;'],
+                ['const f=(n,a)=>n<=0?a:n===1?a:f(n-1,a+1);export default f;', 'const $0=($1,$2)=>{const $3=[$1,$2];let $4=$3;while(true){const $5=$4[0];const $6=$4[1];if($5<=0){const $7=$6;$4=$7;break;}else{if($5===1){const $8=$6;$4=$8;break;}else{const $9=[$5-1,$6+1];$4=$9;continue;}}}return $4;};export default $0;'],
+            ])) {
+                const output = compileSource(source)('output.f.js')
+                assertEq(output, expected)
+                const canonical = fjsRoundTrip(output)
+                assert(canonical.includes('while('), canonical)
+            }
+        },
+        branchingTailLoopOutput: () => {
+            for (const [source, expected] of /** @type {const} */ ([
+                ['const f=(n,a)=>n>0?(n%2===0?f(n-2,a+2):f(n-1,a+1)):a;export default f;', 'const $0=($1,$2)=>{let $3=[$1,$2];while((()=>{const $4=$3[0];const $5=$3[1];return $4>0;})()){const $6=$3[0];const $7=$3[1];const $8=$6%2===0?[$6-2,$7+2]:[$6-1,$7+1];$3=$8;}const $9=(()=>{const $10=$3[0];const $11=$3[1];return $11;})();return $9;};export default $0;'],
+                ['const f=(n,a)=>n<=0?a:n%2===0?f(n-2,a+2):f(n-1,a+1);export default f;', 'const $0=($1,$2)=>{let $3=[$1,$2];while((()=>{const $4=$3[0];const $5=$3[1];return !($4<=0);})()){const $6=$3[0];const $7=$3[1];const $8=$6%2===0?[$6-2,$7+2]:[$6-1,$7+1];$3=$8;}const $9=(()=>{const $10=$3[0];const $11=$3[1];return $11;})();return $9;};export default $0;'],
+            ])) {
+                const output = compileSource(source)('output.f.js')
+                assertEq(output, expected)
+                const canonical = fjsRoundTrip(output)
+                assert(canonical.includes('while('), canonical)
+            }
+        },
+        restInputLoopOutput: () => {
+            for (const [source, expected] of /** @type {const} */ ([
+                ['const f=(n,...xs)=>n>0?f(n-1,xs[0]+n):xs[0];export default f;', 'const $0=($1,...$2)=>{let $3=[$1,$2];while((()=>{const $4=$3[0];const $5=$3[1];return $4>0;})()){const $6=$3[0];const $7=$3[1];const $8=[$6-1,$7[0]+$6];const $9=[$8[0],(($10,$11,$12)=>$10.slice($11,$12))($8,1)];$3=$9;}const $13=(()=>{const $14=$3[0];const $15=$3[1];return $15[0];})();return $13;};export default $0;'],
+                ['const f=(n,...xs)=>n===0?xs[0]:f(n-1,xs[0]+n);export default f;', 'const $0=($1,...$2)=>{let $3=[$1,$2];while((()=>{const $4=$3[0];const $5=$3[1];return !($4===0);})()){const $6=$3[0];const $7=$3[1];const $8=[$6-1,$7[0]+$6];const $9=[$8[0],(($10,$11,$12)=>$10.slice($11,$12))($8,1)];$3=$9;}const $13=(()=>{const $14=$3[0];const $15=$3[1];return $15[0];})();return $13;};export default $0;'],
+            ])) {
+                const output = compileSource(source)('output.f.js')
+                assertEq(output, expected)
+                const canonical = fjsRoundTrip(output)
+                assert(canonical.includes('while('), canonical)
+            }
+        },
+        baseFirstRestOnlyLoopOutput: () => {
+            for (const [source, expected] of /** @type {const} */ ([
+                ['const f=(...xs)=>xs[0]===0?xs[1]:f(xs[0]-1,xs[1]+xs[0]);export default f;', 'const $0=(...$1)=>{let $2=$1;while((()=>{const $3=$2;return !($3[0]===0);})()){const $4=$2;const $5=[$4[0]-1,$4[1]+$4[0]];const $6=(($7,$8,$9)=>$7.slice($8,$9))($5,0);$2=$6;}const $10=(()=>{const $11=$2;return $11[1];})();return $10;};export default $0;'],
+                ['const f=(...xs)=>xs[0]===0?xs:f(xs[0]-1,xs[1]+1);export default f;', 'const $0=(...$1)=>{let $2=$1;while((()=>{const $3=$2;return !($3[0]===0);})()){const $4=$2;const $5=[$4[0]-1,$4[1]+1];const $6=(($7,$8,$9)=>$7.slice($8,$9))($5,0);$2=$6;}return $2;};export default $0;'],
+            ])) {
+                const output = compileSource(source)('output.f.js')
+                assertEq(output, expected)
+                const canonical = fjsRoundTrip(output)
+                assert(canonical.includes('while('), canonical)
+            }
+        },
+        baseCaseDefinitionsLoopOutput: () => {
+            for (const [source, expected] of /** @type {const} */ ([
+                ['const f=(n,a)=>n>0?f(n-1,a+n):(()=>{const x=[a];return[x,x];})();export default f;', 'const $0=($1,$2)=>{let $3=[$1,$2];while((()=>{const $4=$3[0];const $5=$3[1];return $4>0;})()){const $6=$3[0];const $7=$3[1];const $8=[$6-1,$7+$6];$3=$8;}const $9=(()=>{const $10=$3[0];const $11=$3[1];const $12=[$11];return [$12,$12];})();return $9;};export default $0;'],
+                ['const f=(n,a)=>n===0?(()=>{const x=[a];return[x,x];})():f(n-1,a+n);export default f;', 'const $0=($1,$2)=>{let $3=[$1,$2];while((()=>{const $4=$3[0];const $5=$3[1];return !($4===0);})()){const $6=$3[0];const $7=$3[1];const $8=[$6-1,$7+$6];$3=$8;}const $9=(()=>{const $10=$3[0];const $11=$3[1];const $12=[$11];return [$12,$12];})();return $9;};export default $0;'],
+            ])) {
+                const output = compileSource(source)('output.f.js')
+                assertEq(output, expected)
+                const canonical = fjsRoundTrip(output)
+                assert(canonical.includes('while('), canonical)
+            }
+        },
+        conditionalBaseCaseLoopOutput: () => {
+            for (const [source, expected] of /** @type {const} */ ([
+                ['const f=(n,a)=>n>0?f(n-1,a):a>0?[a]:[n];export default f;', 'const $0=($1,$2)=>{let $3=[$1,$2];while((()=>{const $4=$3[0];const $5=$3[1];return $4>0;})()){const $6=$3[0];const $7=$3[1];const $8=[$6-1,$7];$3=$8;}const $9=(()=>{const $10=$3[0];const $11=$3[1];return $11>0?[$11]:[$10];})();return $9;};export default $0;'],
+                ['const f=(n,a)=>n===0?a>0?[a]:[n]:f(n-1,a);export default f;', 'const $0=($1,$2)=>{let $3=[$1,$2];while((()=>{const $4=$3[0];const $5=$3[1];return !($4===0);})()){const $6=$3[0];const $7=$3[1];const $8=[$6-1,$7];$3=$8;}const $9=(()=>{const $10=$3[0];const $11=$3[1];return $11>0?[$11]:[$10];})();return $9;};export default $0;'],
+            ])) {
+                const output = compileSource(source)('output.f.js')
+                assertEq(output, expected)
+                const canonical = fjsRoundTrip(output)
+                assert(canonical.includes('while('), canonical)
+            }
+        },
+        restBaseCaseDefinitionsLoopOutput: () => {
+            for (const [source, expected] of /** @type {const} */ ([
+                ['const f=(n,...xs)=>n>0?f(n-1,...xs):(()=>{const x=[xs];return[x,x];})();export default f;', 'const $0=($1,...$2)=>{let $3=[$1,$2];while((()=>{const $4=$3[0];const $5=$3[1];return $4>0;})()){const $6=$3[0];const $7=$3[1];const $8=[$6-1,...$7];const $9=[$8[0],(($10,$11,$12)=>$10.slice($11,$12))($8,1)];$3=$9;}const $13=(()=>{const $14=$3[0];const $15=$3[1];const $16=[$15];return [$16,$16];})();return $13;};export default $0;'],
+                ['const f=(n,...xs)=>n===0?(()=>{const x=[xs];return[x,x];})():f(n-1,...xs);export default f;', 'const $0=($1,...$2)=>{let $3=[$1,$2];while((()=>{const $4=$3[0];const $5=$3[1];return !($4===0);})()){const $6=$3[0];const $7=$3[1];const $8=[$6-1,...$7];const $9=[$8[0],(($10,$11,$12)=>$10.slice($11,$12))($8,1)];$3=$9;}const $13=(()=>{const $14=$3[0];const $15=$3[1];const $16=[$15];return [$16,$16];})();return $13;};export default $0;'],
+            ])) {
+                const output = compileSource(source)('output.f.js')
+                assertEq(output, expected)
+                const canonical = fjsRoundTrip(output)
+                assert(canonical.includes('while('), canonical)
+            }
+        },
+        restOnlyBaseCaseDefinitionsLoopOutput: () => {
+            for (const [source, expected] of /** @type {const} */ ([
+                ['const f=(...xs)=>xs[0]>0?f(xs[0]-1):(()=>{const x=[xs];return[x,x];})();export default f;', 'const $0=(...$1)=>{let $2=$1;while((()=>{const $3=$2;return $3[0]>0;})()){const $4=$2;const $5=[$4[0]-1];const $6=(($7,$8,$9)=>$7.slice($8,$9))($5,0);$2=$6;}const $10=$2;const $11=[$10];const $12=[$11,$11];return $12;};export default $0;'],
+                ['const f=(...xs)=>xs[0]===0?(()=>{const x=[xs];return[x,x];})():f(xs[0]-1);export default f;', 'const $0=(...$1)=>{let $2=$1;while((()=>{const $3=$2;return !($3[0]===0);})()){const $4=$2;const $5=[$4[0]-1];const $6=(($7,$8,$9)=>$7.slice($8,$9))($5,0);$2=$6;}const $10=$2;const $11=[$10];const $12=[$11,$11];return $12;};export default $0;'],
+                ['const f=(...xs)=>xs[0]>0?f(xs[0]-1,()=>xs,...xs.slice(2)):(()=>{const pair=[xs];return[xs[1],()=>pair];})();export default f;', 'const $0=(...$1)=>{let $2=$1;while((()=>{const $3=$2;return $3[0]>0;})()){const $4=$2;const $5=[$4[0]-1,()=>$4,...$4.slice(2)];const $6=(($7,$8,$9)=>$7.slice($8,$9))($5,0);$2=$6;}const $10=$2;const $11=[$10];const $12=[$10[1],()=>$11];return $12;};export default $0;'],
+                ['const f=(...xs)=>xs[0]===0?(()=>{const pair=[xs];return[xs[1],()=>pair];})():f(xs[0]-1,()=>xs,...xs.slice(2));export default f;', 'const $0=(...$1)=>{let $2=$1;while((()=>{const $3=$2;return !($3[0]===0);})()){const $4=$2;const $5=[$4[0]-1,()=>$4,...$4.slice(2)];const $6=(($7,$8,$9)=>$7.slice($8,$9))($5,0);$2=$6;}const $10=$2;const $11=[$10];const $12=[$10[1],()=>$11];return $12;};export default $0;'],
+            ])) {
+                const output = compileSource(source)('output.f.js')
+                assertEq(output, expected)
+                const canonical = fjsRoundTrip(output)
+                assert(canonical.includes('while('), canonical)
+            }
+        },
+        // Source logical syntax lowers once to conditionals. Each left value
+        // is established once, right-side work stays in the selected arm,
+        // and branch-local or captured arrays retain their shared identity.
+        logical: () => {
+            assertEq(fjsRoundTrip('export default (...a) => (a[0] && a[1] || a[2]) ?? a[3];'), 'export default (...$0)=>{const $1=$0[0];const $2=$1?$0[1]:$1;const $3=$2?$2:$0[2];return ($3===null?true:$3===undefined)?$0[3]:$3;};')
+            assertEq(fjsRoundTrip('export default (...a) => a[0] && (() => { const x = null.x; return 1; })();'), 'export default (...$0)=>{const $1=$0[0];return $1?(()=>{const $2=null.x;return 1;})():$1;};')
+            assertEq(fjsRoundTrip('export default (...a) => a[0] ? (() => { const x = [1]; return [a[1] && x, a[2] && x]; })() : 4;'), 'export default (...$0)=>$0[0]?(()=>{const $1=[1];const $2=$0[1];const $3=$2?$1:$2;const $4=$0[2];return [$3,$4?$1:$4];})():4;')
+            assertEq(fjsRoundTrip('const c = []; export default (...a) => [a[0] && c, a[1] && c];'), 'const $0=[];export default (...$1)=>[(()=>{const $2=$1[0];return $2?$0:$2;})(),(()=>{const $3=$1[1];return $3?$0:$3;})()];')
+            assertEq(fjsRoundTrip('export default (...a) => (a[0] + 1) && a[1] + (a[2] ? 1 : 2);'), 'export default (...$0)=>{const $1=$0[0]+1;return $1?$0[1]+($0[2]?1:2):$1;};')
+        },
+        // The lazy operators and the conditional, and the block a lazy
+        // operand opens where it needs one: a call of a parameterless
+        // function written at the call, which the lowering inlines, so
+        // the text reads back as the graph it was written from — the same
+        // graph, not the same text: `(() => [1, 2])()` is the array.
+        lazy: () => {
+            assertEq(fjsRoundTrip('export default (...a) => a[0] ? a[1] ? 1 : 2 : a[2] ? 3 : 4;'), 'export default (...$0)=>$0[0]?$0[1]?1:2:$0[2]?3:4;')
+            assertEq(fjsRoundTrip('export default (() => [1, 2])();'), 'export default [1,2];')
+            assertEq(fjsRoundTrip('export default (() => { const x = [1]; return [x, x]; })();'), 'const $0=[1];export default [$0,$0];')
+            assertEq(fjsRoundTrip('export default (...a) => a[0] ? (() => { const x = [1]; return [x, x]; })() : 4;'), 'export default (...$0)=>$0[0]?(()=>{const $1=[1];return [$1,$1];})():4;')
+            assertEq(fjsRoundTrip('export default (...a) => [(() => { const x = null.x; return 1; })()];'), 'export default ()=>{const $0=null.x;return [1];};')
+            assertEq(fjsRoundTrip('export default (...a) => a[0] ? (() => { const x = [1]; return [x, x, (() => { const y = [2]; return a[1] ? [y, y] : 1; })()]; })() : 4;'), 'export default (...$0)=>$0[0]?(()=>{const $1=[2];const $2=[1];return [$2,$2,$0[1]?[$1,$1]:1];})():4;')
+            assertEq(fjsRoundTrip('export default (...a) => { const y = a[0] ? [] : 1; return [y, y]; };'), 'export default (...$0)=>{const $1=$0[0]?[]:1;return [$1,$1];};')
+            // an unused alias of a capture leaves no slot behind, in a body
+            // or in a call inlined into one; the `const` is anchored instead
+            assertEq(fjsRoundTrip('const c = [1]; export default (...a) => { const x = c; return 1; };'), 'const $0=[1];export default ()=>1;')
+            assertEq(fjsRoundTrip('const c = null.x; export default (...a) => (() => { const x = c; return 1; })();'), 'const $0=null.x;export default ()=>1;')
+            assertEq(fjsRoundTrip('const c = [1]; export default (...a) => { const x = c; return [x, c]; };'), 'const $0=[1];export default ()=>[$0,$0];')
+            assertEq(fjsRoundTrip('export const f = (...a) => a[0] ? (() => { const x = [1]; return [x, x]; })() : 4; export default 1;'), 'export const f=(...$0)=>$0[0]?(()=>{const $1=[1];return [$1,$1];})():4;export default 1;')
+        },
+        // A node the graph shares is one `const`, whatever its kind, and a
+        // node it does not is written where it stands: one node read twice
+        // and two equal nodes are two graphs and two texts, and the text
+        // grows with the nodes, not with the paths to them. A node shared
+        // within one lazy operand is a `const` of the block the operand
+        // opens; a source `const` read only lazily is anchored, so the
+        // scope reaches it and names it.
+        sharing: () => {
+            assertEq(fjsRoundTrip('export default a => { const x = a + a; return x + x; };'), 'export default ($0)=>{const $1=$0+$0;return $1+$1;};')
+            assertEq(fjsRoundTrip('export default a => (a + a) + (a + a);'), 'export default ($0)=>$0+$0+($0+$0);')
+            assertEq(fjsRoundTrip('export default a => { const x = a + a; return [x, x, a + a]; };'), 'export default ($0)=>{const $1=$0+$0;return [$1,$1,$0+$0];};')
+            assertEq(
+                fjsRoundTrip('export default (x) => { const a = x + 1; const b = a * a; const c = b * b; const d = c * c; return d * d; };'),
+                'export default ($0)=>{const $1=$0+1;const $2=$1*$1;const $3=$2*$2;const $4=$3*$3;return $4*$4;};')
+            assertEq(fjsRoundTrip('export default a => a ? (() => { const x = a + 1; return [x, x]; })() : 0;'), 'export default ($0)=>$0?(()=>{const $1=$0+1;return [$1,$1];})():0;')
+            assertEq(fjsRoundTrip('export default (f, a) => f?.((() => { const x = a + 1; return [x, x]; })());'), 'export default ($0,$1)=>$0?.((()=>{const $2=$1+1;return [$2,$2];})());')
+            assertEq(fjsRoundTrip('export default (f, x) => { const t = x + 1; return f?.(t, t); };'), 'export default ($0,$1)=>{const $2=$1+1;return $0?.($2,$2);};')
+            assertEq(fjsRoundTrip('export default (o) => { const x = o.y; return [x, x]; };'), 'export default ($0)=>{const $1=$0.y;return [$1,$1];};')
+            // a parameter and a `const` alias of it are one capture, read by
+            // one name, in the source and in `String(f)`
+            assertEq(fjsRoundTrip('export default (a) => { const b = a; return () => [a, b]; };'), 'export default ($0)=>()=>[$0,$0];')
+            assertEq(fjsRoundTrip('const f = (n) => { const g = f; return () => [f, g]; }; export default f;'), 'const $0=($1)=>()=>[$0,$0];export default $0;')
+            assertEq(compileSource('const f = (a) => { const b = a; return () => [a, b]; }; export default [String(f), String(f(1))];')('output.json'), '["($0)=>()=>[$0,$0]","()=>[$0,$0]"]')
+            // a loop's block whose `const`s read the captures in another
+            // order than the source named them uses the scalar helper's
+            // ordered capture aliases, which read back as the same frame
+            assertEq(
+                fjsRoundTrip('export default (b, f) => { let w = 0; while (w < 3) { const u0 = f(b); const u1 = b + u0; const u2 = f?.(u1); w = w + 1; } return 0; };'),
+                'export default ($0,$1)=>{const $2=($3)=>{const $4=$1;const $5=$0;let $6=$3;while((()=>{const $7=$6;return $7<3;})()){const $8=$6;const $9=$5+$4($5);const $10=$4?.($9);const $11=$8+1;$6=$11;}return $6;};const $12=$2(0);return 0;};')
+            // An inlined alias leaves one value use. Removing its redundant
+            // anchor also removes the temporary in both function and module
+            // output, while preserving the computation at that value use.
+            assertEq(compileSource('export default n => { const t = n + 1; const u = (() => t)(); return t * 2; };')('output.f.js'), 'export default ($0)=>($0+1)*2;')
+            assertEq(compileSource('const b = [1]; const t = b[0] + 1; const u = (() => t)(); export default t * 2;')('output.f.js'), 'export default ([1][0]+1)*2;')
+            // A required source initializer stays before later result
+            // operands, including a call written first in that result array.
+            assertEq(fjsRoundTrip('export default (f) => { const y = f.x; return [f(), y, y]; };'), 'export default ($0)=>{const $1=$0.x;return [$0(),$1,$1];};')
+        },
+        // Stage A's operators, with the parentheses JavaScript's own
+        // precedence and associativity ask for and no more, so that the
+        // text reads back as the graph: a group the source wrote that
+        // changed nothing is gone, and one it needed is written again.
+        operators: () => {
+            assertEq(fjsRoundTrip('export default 1 + 2 * 3;'), 'export default 1+2*3;')
+            assertEq(fjsRoundTrip('export default (1 + 2) * 3;'), 'export default (1+2)*3;')
+            assertEq(fjsRoundTrip('export default (1 + 2) + 3;'), 'export default 1+2+3;')
+            assertEq(fjsRoundTrip('export default 1 - (2 - 3);'), 'export default 1-(2-3);')
+            assertEq(fjsRoundTrip('export default 2 ** 3 ** 2;'), 'export default 2**3**2;')
+            assertEq(fjsRoundTrip('export default (2 ** 3) ** 2;'), 'export default (2**3)**2;')
+            assertEq(fjsRoundTrip('export default (-2) ** 2;'), 'export default (-2)**2;')
+            assertEq(fjsRoundTrip('export default -(2 ** 2);'), 'export default -(2**2);')
+            assertEq(fjsRoundTrip('export default 2 ** -2;'), 'export default 2**-2;')
+            assertEq(fjsRoundTrip('export default 1 - -2;'), 'export default 1- -2;')
+            assertEq(fjsRoundTrip('export default 1 << 2 + 3 < 5 === true & 1 ^ 2 | 3;'), 'export default 1<<2+3<5===true&1^2|3;')
+            assertEq(fjsRoundTrip('export default ((1 << 2) + 3 < 5) === (true & (1 ^ (2 | 3)));'), 'export default (1<<2)+3<5===(true&(1^(2|3)));')
+            assertEq(fjsRoundTrip('export default ~1 + -[] * 1n;'), 'export default ~1+-[]*1n;')
+            assertEq(fjsRoundTrip('export default !(1 + 2) === !!-[];'), 'export default !(1+2)===!!-[];')
+            assertEq(fjsRoundTrip('export default typeof (1 + 2) === typeof typeof [];'), 'export default typeof (1+2)===typeof typeof [];')
+            assertEq(fjsRoundTrip('export default Number(" 4 ") + Number(1n) * -Number([7]);'), 'export default Number(" 4 ")+Number(1n)*-Number([7]);')
+            assertEq(compileSource('export default Number("0x10");')('output.json'), '16')
+            assert(compileSource('export default Number("0x10");')('output.rs').includes('(Any::number(string_any("0x10")))?'))
+            assertEq(fjsRoundTrip('export default (1 + 2).x;'), 'export default (1+2).x;')
+            assertEq(fjsRoundTrip('export default (-[1])[0];'), 'export default (-[1])[0];')
+            assertEq(fjsRoundTrip('export default -((...a) => 1);'), 'export default -(()=>1);')
+            assertEq(fjsRoundTrip('const o = []; export default [o + 1, o + 1];'), 'const $0=[];export default [$0+1,$0+1];')
+            assertEq(compileSource('export default 1 + 2 * 3;')('x.edag.data.js'), 'export default ["{}",[[":","default",["+",1,["*",2,3]]]]];')
+            assertEq(compileSource('export default 1 + 2;')('output.data.js'), 'export default 3;')
+        },
+        // An object's members are the graph's here and the value's there, so
+        // the two outputs order them differently and hold a different number
+        // of them: the value output writes the object JavaScript builds from
+        // the literal — array-index keys first, a repeated key keeping its
+        // first position and its last value — and this one writes the
+        // literal's members as the node holds them.
+        //
+        // The last pair is the sharpest: a member a later duplicate shadows
+        // is in the graph and not in the value, so the `[]` is written here
+        // and nowhere else. Dropping it would make a different node, which
+        // is why the round trip holds over all three.
+        members: () => {
+            assertEq(fjsRoundTrip('export default {b:1,"0":2,a:3,b:4};'), 'export default {"b":1,"0":2,"a":3,"b":4};')
+            assertEq(compileSource('export default {b:1,"0":2,a:3,b:4};')('output.data.js'), 'export default {"0":2,"b":4,"a":3};')
+            assertEq(fjsRoundTrip('export default {"2":1,"1":2,a:3};'), 'export default {"2":1,"1":2,"a":3};')
+            assertEq(compileSource('export default {"2":1,"1":2,a:3};')('output.data.js'), 'export default {"1":2,"2":1,"a":3};')
+            assertEq(fjsRoundTrip('const x = []; export default {a: x, a: 1};'), 'export default {"a":[],"a":1};')
+            assertEq(compileSource('const x = []; export default {a: x, a: 1};')('output.data.js'), 'export default {"a":1};')
+        },
+        // the module is not evaluated, so a program whose value the readers
+        // refuse — a read of `null`, which the DataJS output reports against
+        // the input — is written: the failure is the program's to make when
+        // it runs
+        unevaluated: () => {
+            assertEq(fjsRoundTrip('const n = null; const check = n.x; export default 1;'), 'const $0=null.x;export default 1;')
+            assertEq(moduleRefused('const n = null; const check = n.x; export default 1;'), 'input.f.js - error: module initialization failed')
+        },
+        // Imported evaluation sequences use the same ordered declaration
+        // writer needed when a mixed module's default is selected.
+        importedSequence: () => {
+            const root = {
+                'input.f.js': [utf8('import m from "./m.f.js"; export default [m];')],
+                'm.f.js': [utf8('const u = []; export default 1;')],
+            }
+            const [output, outputCode] = virtualAt(root)(compile(nodeProgramOptions(['input.f.js', 'output.f.js'])))
+            assertEq(exitCode(outputCode), 0, output.stderr)
+            assertStructurallySame(evaluate(readOutput(output.root, 'output.f.js')), ['ok', [1]])
+            // the EDAG holds it, the comma being a node like any other
+            const [state, code] = virtualAt(root)(compile(nodeProgramOptions(['input.f.js', 'output.edag.data.js'])))
+            assertEq(exitCode(code), 0, state.stderr)
+            assertEq(readOutput(state.root, 'output.edag.data.js'), 'export default ["{}",[[":","default",["[]",[[",",[["[]",[]],1]]]]]]];')
+        },
+        // the input's own failures stay the input's, this route reading it
+        // through the same linker the EDAG route does
+        input: () => {
+            assertEq(fjsRefused({ 'input.f.js': [utf8('export default @')] }), 'input.f.js:1:16-17 - error: unexpected token')
+            assertEq(fjsRefused({ 'input.f.js': [utf8('import m from "./m.f.js"; export default [m];')] }), 'm.f.js - error: file not found')
+        },
+        // a `.json` input reaches this route too, as it reaches the others
+        jsonInput: () => {
+            const root = { 'a.json': [utf8('{"a":[1]}')] }
+            const [state, code] = virtualAt(root)(compile(nodeProgramOptions(['a.json', 'out.f.js'])))
+            assertEq(exitCode(code), 0, state.stderr)
+            assertEq(readOutput(state.root, 'out.f.js'), 'export default {"a":[1]};')
+        },
+    },
+    // The round trip through the compiler: compile to `.f.js`, compile the
+    // output again, and the two graphs are one — the law the writer's own
+    // proof states over generated graphs, here over the command, file system
+    // and linker included.
+    fjsRoundTrip: fjsCorpus.map(source => () => { fjsRoundTrip(source) }),
+    // Normalized form is a fixed point of the `.f.js` route as well as the
+    // `.data.js` one, over the whole corpus: the two writers agree on every
+    // document DataJS can spell, so a data module compiles to the same bytes
+    // under either name, and they part only where a graph holds what no
+    // value does.
+    fjsFixedPoint: normalizeSet.map(({ id, text }) => () => {
+        assertEq(compileSource(text)('output.f.js'), text, id)
+    }),
+    // The EDAG output: the program linked into one graph and written as a
+    // DataJS document, its shared node hoisted as the DataJS output hoists
+    // one — the README's example, in both forms, side by side.
+    edagOutput: {
+        graph: () => {
+            const root = {
+                'input.f.js': [utf8('import c from "./m.f.js"; const a = 1; export default [a, a, c, { x: c }];')],
+                'm.f.js': [utf8('export default ["text"];')],
+            }
+            const [state, code] = virtualAt(root)(compile(nodeProgramOptions(['input.f.js', 'output.edag.data.js'])))
+            assertEq(exitCode(code), 0, state.stderr)
+            assertEq(readOutput(state.root, 'output.edag.data.js'), 'const $0=["[]",["text"]];export default ["{}",[[":","default",["[]",[1,1,$0,["{}",[[":","x",$0]]]]]]]];')
+            const [moduleState, moduleCode] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['input.f.js', 'output.data.js'])))
+            assertEq(exitCode(moduleCode), 0, moduleState.stderr)
+            assertEq(readOutput(moduleState.root, 'output.data.js'), 'const $0=["text"];export default [1,1,$0,{"x":$0}];')
+        },
+        // `.edag.data.mjs` asks for the same; `.data.mjs` alone is DataJS
+        extension: () => {
+            const root = { 'input.f.js': [utf8('export default { a: undefined };')] }
+            const [state, code] = virtualAt(root)(compile(nodeProgramOptions(['input.f.js', 'output.edag.data.mjs'])))
+            assertEq(exitCode(code), 0, state.stderr)
+            assertEq(readOutput(state.root, 'output.edag.data.mjs'), 'export default ["{}",[[":","default",["{}",[[":","a",["undefined"]]]]]]];')
+            const [moduleState, moduleCode] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['input.f.js', 'output.data.mjs'])))
+            assertEq(exitCode(moduleCode), 0, moduleState.stderr)
+            assertEq(readOutput(moduleState.root, 'output.data.mjs'), 'export default {"a":undefined};')
+        },
+        // a property access compiles to the EDAG as the operation, and to
+        // the value outputs as what it reads
+        access: () => {
+            const root = { 'input.f.js': [utf8('const a = { b: 1 }; export default a.b;')] }
+            const [state, code] = virtualAt(root)(compile(nodeProgramOptions(['input.f.js', 'output.edag.data.js'])))
+            assertEq(exitCode(code), 0, state.stderr)
+            assertEq(readOutput(state.root, 'output.edag.data.js'), 'export default ["{}",[[":","default",[".",["{}",[[":","b",1]]],"b"]]]];')
+            assertEq(compileSource('const a = { b: 1 }; export default a.b;')('output.data.js'), 'export default 1;')
+            assertEq(compileSource('const a = { b: 1 }; export default a.b;')('output.json'), '1')
+        },
+        // what the export does not reach is anchored by the comma operation,
+        // so the graph holds it where the value outputs refuse the module or
+        // drop the value: `n.x` on a `null` fails `run`, and is a node here
+        anchored: () => {
+            assertEq(compileSource('const a = []; export default 1;')('output.edag.data.js'), 'export default [",",[["[]",[]],["{}",[[":","default",1]]]]];')
+            assertEq(compileSource('const n = null; const check = n.x; export default 1;')('output.edag.data.js'), 'export default [",",[[".",null,"x"],["{}",[[":","default",1]]]]];')
+            assertEq(moduleRefused('const n = null; const check = n.x; export default 1;'), 'input.f.js - error: module initialization failed')
+        },
+        // a function is written as its EDAG: its arguments one node, hoisted
+        // where the body reaches them twice, and two functions sharing none;
+        // Data outputs refuse a selected function after interpretation.
+        func: () => {
+            assertEq(compileSource('export default (...a) => a;')('output.edag.data.js'), 'export default ["{}",[[":","default",["=>",0,[],["rest"]]]]];')
+            assertEq(compileSource('export default (...a) => [a, a];')('output.edag.data.js'), 'const $0=["rest"];export default ["{}",[[":","default",["=>",0,[],["[]",[$0,$0]]]]]];')
+            assertEq(compileSource('export default [(...a) => a, (...a) => a];')('output.edag.data.js'), 'export default ["{}",[[":","default",["[]",[["=>",0,[],["rest"]],["=>",0,[],["rest"]]]]]]];')
+            assertEq(compileSource('const f = (...a) => 1; export default 2;')('output.edag.data.js'), 'export default [",",[["=>",0,[],1],["{}",[[":","default",2]]]]];')
+            assertEq(moduleRefused('export default (...a) => a;'), 'output.data.js - error: callable materialization requires a target compile/load boundary')
+            assertEq(compileSource('const f = (...a) => 1; export default 2;')('output.data.js'), 'export default 2;')
+            assertEq(jsonRefused('export default (...a) => a;'), 'output.json - error: callable materialization requires a target compile/load boundary')
+        },
+        // A body `const` compiles: the shared node it names is one node in
+        // the graph, and an entry the returned value does not reach is
+        // anchored by a comma inside the body — the first comma the
+        // compiler emits anywhere but a module's root.
+        bodyConst: () => {
+            assertEq(compileSource('export default (...a) => { const x = [1]; return [x, x]; };')('output.edag.data.js'), 'const $0=["[]",[1]];export default ["{}",[[":","default",["=>",0,[],["[]",[$0,$0]]]]]];')
+            assertEq(compileSource('export default (...a) => { const x = []; return 1; };')('output.edag.data.js'), 'export default ["{}",[[":","default",["=>",0,[],[",",[["[]",[]],1]]]]]];')
+            // the value outputs refuse the module for its function, as ever
+            assertEq(moduleRefused('export default (...a) => { const x = 1; return x; };'), 'output.data.js - error: callable materialization requires a target compile/load boundary')
+            // and the FunctionalScript output writes the body back as a
+            // body, `const`s and all: the round trip is the claim, and the
+            // text is pinned because the names are the writer's to choose
+            assertEq(fjsRoundTrip('export default (...a) => { const x = [1]; return [x, x]; };'), 'export default ()=>{const $0=[1];return [$0,$0];};')
+            assertEq(fjsRoundTrip('export default (...a) => { const x = []; return 1; };'), 'export default ()=>{const $0=[];return 1;};')
+            // a `const` the body does not need is not written: one naming a
+            // value reached once is that value in place, as at the module
+            // level
+            assertEq(fjsRoundTrip('export default (...a) => { const x = 1; return x; };'), 'export default ()=>1;')
+            // One counter spans the module and both bodies, so no two
+            // scopes declare a generated name with the same spelling.
+            assertEq(fjsRoundTrip('const m = [1]; export default [m, m, (...a) => { const x = [2]; return [x, x]; }];'), 'const $0=[1];export default [$0,$0,()=>{const $1=[2];return [$1,$1];}];')
+            assertEq(fjsRoundTrip('export default (...a) => { const f = (...b) => { const y = [1]; return [y, y]; }; return f; };'), 'export default ()=>()=>{const $0=[1];return [$0,$0];};')
+            // a body's `const` may name the arguments, which no module `const` can
+            assertEq(fjsRoundTrip('export default (...a) => { const x = [a]; return [x, x]; };'), 'export default (...$0)=>{const $1=[$0];return [$1,$1];};')
+        },
+        // Calls execute for data outputs and remain code for code outputs.
+        call: () => {
+            assertEq(compileSource('const f = (...a) => 1; export default f(1);')('output.edag.data.js'), 'export default ["{}",[[":","default",["()",["=>",0,[],1],[1]]]]];')
+            assertEq(compileSource('const o = { b: 1 }; export default o.b(2);')('output.edag.data.js'), 'export default ["{}",[[":","default",[".",["{}",[[":","b",1]]],"b",["|()",[2]]]]]];')
+            // a member function `fjs/js/prototype`'s `allowedCalls` names is
+            // a method call like any other, where the same name is refused
+            // as a read; one its `prohibitedCalls` names is refused at the key
+            assertEq(compileSource('export default [1, 2].at(0);')('output.edag.data.js'), 'export default ["{}",[[":","default",[".",["[]",[1,2]],"at",["|()",[0]]]]]];')
+            assertEq(moduleRefused('export default [1, 2].at;'), 'input.f.js:1:23 - error: prohibited property name')
+            assertEq(moduleRefused('export default [1, 2].push(0);'), 'input.f.js:1:23 - error: prohibited member function')
+            // Calling a number fails during initialization.
+            assertEq(moduleRefused('export default [1][0](2);'), 'input.f.js - error: module initialization failed')
+            assertEq(jsonRefused('export default [1][0](2);'), 'input.f.js - error: module initialization failed')
+            // the writer spells both forms: the plain call, and the method
+            // call on its access
+            assertEq(fjsRoundTrip('const f = (...a) => 1; export default f(1);'), 'const $0=()=>1;export default $0(1);')
+            assertEq(fjsRoundTrip('export default [1][0](2);'), 'export default [1][0](2);')
+        },
+        // The optional chains: each spelling reads back as the graph it
+        // was written from, a group kept where it closed a region, and the
+        // value outputs answer as JavaScript does — `undefined` for a
+        // nullish base, the steps after it skipped.
+        chains: () => {
+            const o = 'const a = { b: { c: 1, d: (...x) => x } }; const n = null; '
+            assertEq(compileSource(`${o}export default [a?.b.c, n?.b.c, a?.b?.c, (a?.b).c];`)('output.data.js'), 'export default [1,undefined,1,1];')
+            assertEq(compileSource(`${o}export default [a?.b.d(1, 2), n?.b.d(1), a.b?.d(3), n?.(1), n?.b.d((() => { throw 0; })())];`)('output.data.js'), 'export default [[1,2],undefined,[3],undefined,undefined];')
+            assertEq(compileSource(`${o}export default [(a?.b)?.d?.(1), a?.b.d?.(1).length, (a?.b.d)(2)];`)('output.data.js'), 'export default [[1],1,[2]];')
+            assertEq(compileSource('const a = [1]; export default [a?.at(0), a?.length, a?.[0], a?.["length"]];')('output.data.js'), 'export default [1,1,1,1];')
+            // a group ends the region: `.c` of `undefined` throws
+            assertEq(moduleRefused('const n = null; export default (n?.b).c;'), 'input.f.js - error: module initialization failed')
+            assertEq(compileSource('const n = null; export default n?.b.c;')('output.edag.data.js'), 'export default ["{}",[[":","default",["?.",null,"b",["|.","c"]]]]];')
+            assertEq(compileSource('const f = (...x) => x; export default f?.(1).length;')('output.edag.data.js'), 'export default ["{}",[[":","default",["?.()",["=>",0,[],["rest"]],[1],["|.","length"]]]]];')
+            // Later callees keep their initialization inside their array item.
+            assertEq(fjsRoundTrip(`${o}export default [a?.b.c, (a?.b).c, a?.b?.c, a?.b.d(1).length, (a?.b.d)(1), a?.b?.d?.(1), a.b?.d(1), (a.b?.d(1))(2), n?.(1)?.(2), (n?.(1))(2)];`), 'const $0={"b":{"c":1,"d":(...$1)=>$1}};export default [$0?.b.c,($0?.b).c,$0?.b?.c,$0?.b.d(1).length,($0?.b.d)(1),$0?.b?.d?.(1),$0.b?.d(1),(()=>{const $2=$0.b?.d(1);return $2(2);})(),(()=>{const $3=null?.(1);return $3?.(2);})(),(()=>{const $4=null?.(1);return $4(2);})()];')
+            assertEq(fjsRoundTrip('export default (...x) => [x?.[0], x?.["a b"], x[0]?.y, 1?.x];'), 'export default (...$0)=>[$0?.[0],$0?.["a b"],$0[0]?.y,(1)?.x];')
+            // a key is judged as an access's: refused at the key, through a step too
+            assertEq(moduleRefused('export default [1, 2]?.at;'), 'input.f.js:1:24 - error: prohibited property name')
+            assertEq(moduleRefused('export default [1, 2]?.push(0);'), 'input.f.js:1:24 - error: prohibited member function')
+            assertEq(moduleRefused('export default [[1]]?.at(0).push(0);'), 'input.f.js:1:29 - error: prohibited member function')
+        },
+        // a program the linker refuses is reported against the input, as a
+        // parse error is, and nothing is written: a missing import
+        refused: () => {
+            const missing = { 'input.f.js': [utf8('import m from "./m.f.js"; export default [m];')] }
+            const [missingState, missingCode] = virtualAt(missing)(compile(nodeProgramOptions(['input.f.js', 'output.edag.data.js'])))
+            assertEq(exitCode(missingCode), 1)
+            assertEq(missingState.stderr.trim(), 'm.f.js - error: file not found')
+        },
+    },
+    // The `.rs` output: the linked EDAG printed as a generated Rust module
+    // against the `nanvm-lib` API, by `fjs/compiler/rust/module.f.js`'s shared
+    // printer — see `fjs/edag/rust/module.f.js`.
+    rustOutput: {
+        // Property access on an object literal, the same source the EDAG
+        // and value outputs above compile, to a `pub fn module<A: IVm>(_runtime: Any<A>)`.
+        graph: () => {
+            assertEq(
+                compileSource('const a = { b: 1 }; export default a.b;')('output.rs'),
+                `// @generated by \`fjs compile\`. Do not edit: recompile the source module instead.
+
+use nanvm_lib::vm::unstable::{f64_any, string_any, string_key};
+use nanvm_lib::vm::{Any, IVm, ToAny, ToObject};
+
+#[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
+pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
+    Ok([(string_key("default"), (Any::dot([(string_key("b"), f64_any(0x3ff0000000000000))].to_object().to_any(), string_any("b")).end())?)].to_object().to_any())
+}
+`)
+        },
+        // Indexing an array literal — refused until `nanvm-lib` could read
+        // an array — now prints like any other property access.
+        indexingAnArrayLiteral: () => {
+            assertEq(
+                compileSource('const a = [1]; export default a[0];')('output.rs'),
+                `// @generated by \`fjs compile\`. Do not edit: recompile the source module instead.
+
+use nanvm_lib::vm::unstable::{f64_any, string_key};
+use nanvm_lib::vm::{Any, IVm, ToAny, ToArray, ToObject};
+
+#[rustfmt::skip]
+#[allow(clippy::if_same_then_else)]
+pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
+    Ok([(string_key("default"), (Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), f64_any(0x0000000000000000)).end())?)].to_object().to_any())
+}
+`)
+        },
+        // An output past one `Vec`, 128 KiB, is written whole, in several
+        // chunks, where it once ended the compile with a bare `assertion failed`.
+        largeOutput: () => {
+            const source = `export default [${generate(5000, i => i).join(', ')}];`
+            const root = { 'input.f.js': [utf8(source)] }
+            const [state, code] = virtualAt(root)(compile(nodeProgramOptions(['input.f.js', 'output.rs'])))
+            assertEq(exitCode(code), 0, state.stderr)
+            const file = state.root['output.rs']
+            assert(file instanceof Array, file)
+            assert(file.length > 1, file.length)
+            const text = file.map(utf8ToString).join('')
+            assert(text.length > Number(maxLengthBytes), text.length)
+            assert(text.endsWith('}\n'), text.slice(-20))
+        },
+        // A property read on a nullish base compiles: the `.rs` output is a
+        // program, and the read throws when it runs, as JavaScript throws —
+        // the compiler predicts nothing of a program it writes, where the
+        // data outputs evaluate the module and report the throw as theirs.
+        nullishBase: () => {
+            assert(compileSource('const a = null; export default a.x;')('output.rs')
+                .includes('(Any::dot(Nullish::Null.to_any(), string_any("x")).end())?'))
+        },
+        // A bigint outside `i64` is written as its sign and `u64` words,
+        // which a literal's own text cannot be.
+        wideBigint: () => {
+            assert(compileSource('export default 9223372036854775808n;')('output.rs')
+                .includes('bigint_any_words(false, &[0x8000000000000000])'))
+        },
+        // Single-use operators stay inline, with `?` propagating each failure
+        // through the module's Result. Common placement gives shared values
+        // their own binding. Negated literals remain folded number leaves.
+        operators: () => {
+            /** The lines of the module's body. @type {(source: string) => readonly string[]} */
+            const body = source => compileSource(source)('output.rs').split('\n').filter(line => line.startsWith('    '))
+            /** @type {(source: string, value: string) => void} */
+            const expect = (source, value) => assertStructurallySame(body(source), [
+                `    Ok([(string_key("default"), ${value})].to_object().to_any())`,
+            ])
+            const one = 'f64_any(0x3ff0000000000000)'
+            const two = 'f64_any(0x4000000000000000)'
+            expect('export default 1 + 2;', `(${one} + ${two})?`)
+            expect('export default 1 - 2;', `(${one} - ${two})?`)
+            expect('export default 1 * 2;', `(${one} * ${two})?`)
+            expect('export default 1 / 2;', `(${one} / ${two})?`)
+            expect('export default 1 % 2;', `(${one} % ${two})?`)
+            expect('export default 1 ** 2;', `(Any::pow(${one}, ${two}))?`)
+            expect('export default 1 === 2;', `(strict_eq(${one}, ${two}))?`)
+            expect('export default 1 !== 2;', `(strict_ne(${one}, ${two}))?`)
+            expect('export default 1 < 2;', `(Any::lt(${one}, ${two}))?`)
+            expect('export default 1 <= 2;', `(Any::le(${one}, ${two}))?`)
+            expect('export default 1 > 2;', `(Any::gt(${one}, ${two}))?`)
+            expect('export default 1 >= 2;', `(Any::ge(${one}, ${two}))?`)
+            expect('export default 1 & 2;', `(${one} & ${two})?`)
+            expect('export default 1 | 2;', `(${one} | ${two})?`)
+            expect('export default 1 ^ 2;', `(${one} ^ ${two})?`)
+            expect('export default 1 << 2;', `(${one} << ${two})?`)
+            expect('export default 1 >> 2;', `(${one} >> ${two})?`)
+            expect('export default 1 >>> 2;', `(Any::unsigned_right_shift(${one}, ${two}))?`)
+            expect('export default ~1;', `(Any::bitwise_not(${one}))?`)
+            expect('export default -"a";', '(<Any<A> as core::ops::Neg>::neg(string_any("a")))?')
+            // Nested single-use operands stay inline too; inner failures
+            // still propagate before their enclosing operation finishes.
+            assertStructurallySame(body('export default -[1];'), [
+                `    Ok([(string_key("default"), (<Any<A> as core::ops::Neg>::neg([${one}].to_array().to_any()))?)].to_object().to_any())`,
+            ])
+            assertStructurallySame(body('export default 1 + 2 * 1;'), [
+                `    Ok([(string_key("default"), (${one} + (${two} * ${one})?)?)].to_object().to_any())`,
+            ])
+            // `===` and `!==` import their helpers, as every literal does its own
+            assertEq(
+                compileSource('export default 1 === 2;')('output.rs').split('\n')[2],
+                'use nanvm_lib::vm::unstable::{f64_any, strict_eq, string_key};')
+            // the folded negations print as the leaves they lower to
+            expect(
+                'export default [-1, -1n, - -1, -Infinity, -0];',
+                '[f64_any(0xbff0000000000000), bigint_any(-1), f64_any(0x3ff0000000000000), f64_any(0xfff0000000000000), f64_any(0x8000000000000000)].to_array().to_any()')
+        },
+        // Logical source syntax uses canonical conditional regions in Rust.
+        // A selected failing right operand stays inside its arm; an eagerly
+        // established shared array is reused by both selecting arms.
+        logicalOperators: () => {
+            /** The lines of the module's body. @type {(source: string) => readonly string[]} */
+            const body = source => compileSource(source)('output.rs').split('\n').filter(line => line.startsWith('    '))
+            assertStructurallySame(body('export default 1 && 2;'), [
+                '    Ok([(string_key("default"), if Any::<A>::to_boolean(&f64_any(0x3ff0000000000000)) { f64_any(0x4000000000000000) } else { f64_any(0x3ff0000000000000) })].to_object().to_any())',
+            ])
+            assertStructurallySame(body('export default false || 1n / 0n;'), [
+                '    Ok([(string_key("default"), if Any::<A>::to_boolean(&false.to_any()) { false.to_any() } else { (bigint_any(1) / bigint_any(0))? })].to_object().to_any())',
+            ])
+            assertStructurallySame(body('export default null ?? 1;'), [
+                '    Ok([(string_key("default"), if Any::<A>::to_boolean(&if Any::<A>::to_boolean(&(strict_eq(Nullish::Null.to_any(), Nullish::Null.to_any()))?) { true.to_any() } else { (strict_eq(Nullish::Null.to_any(), Nullish::Undefined.to_any()))? }) { f64_any(0x3ff0000000000000) } else { Nullish::Null.to_any() })].to_object().to_any())',
+            ])
+            assertStructurallySame(body('const c = [1]; export default [false && c, true && c];'), [
+                '    let _b0: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();',
+                '    Ok([(string_key("default"), [if Any::<A>::to_boolean(&false.to_any()) { _b0.clone() } else { false.to_any() }, if Any::<A>::to_boolean(&true.to_any()) { _b0.clone() } else { true.to_any() }].to_array().to_any())].to_object().to_any())',
+            ])
+        },
+        // Conditional source arms remain selected Rust branches; rest reads
+        // keep one invocation value shared by either arm. The lazy corpus
+        // runs each skipped or reached failure against the VM.
+        lazyOperators: () => {
+            /** The lines of the module's body. @type {(source: string) => readonly string[]} */
+            const body = source => compileSource(source)('output.rs').split('\n').filter(line => line.startsWith('    '))
+            const one = 'f64_any(0x3ff0000000000000)'
+            const two = 'f64_any(0x4000000000000000)'
+            assertStructurallySame(body('export default true ? 1 : 2;'), [
+                `    Ok([(string_key("default"), if Any::<A>::to_boolean(&true.to_any()) { ${one} } else { ${two} })].to_object().to_any())`,
+            ])
+            // a function's arguments reached only lazily are no `const`
+            // to anchor and need none: the parameter is bound already, so
+            // the body binds it once and each selected arm clones it
+            assertStructurallySame(body('export default (...a) => true ? a : a;'), [
+                '    Ok([(string_key("default"), A::static_function(|_self, _args| {',
+                '        let _b92: Any<A> = _args.rest(0).to_any();',
+                '        if Any::<A>::to_boolean(&true.to_any()) { Ok(_b92.clone()) } else { Ok(_b92.clone()) }',
+                '    }, 0, Array::default(), Some("(...$0)=>true?$0:$0")).to_any())].to_object().to_any())',
+            ])
+            assertStructurallySame(body('export default (...a) => true ? [a] : [a, a];'), [
+                '    Ok([(string_key("default"), A::static_function(|_self, _args| {',
+                '        let _b174: Any<A> = _args.rest(0).to_any();',
+                '        if Any::<A>::to_boolean(&true.to_any()) { Ok([_b174.clone()].to_array().to_any()) } else { Ok([_b174.clone(), _b174.clone()].to_array().to_any()) }',
+                '    }, 0, Array::default(), Some("(...$0)=>true?[$0]:[$0,$0]")).to_any())].to_object().to_any())',
+            ])
+        },
+        // A shared operation is established once, in its `let`, with the
+        // same `?`; each reference clones the value it produced, while a
+        // value referenced once — the array — stays inline.
+        // A `const` inside an arm — a call inlined by the lowering — is a
+        // shared node the arm alone reaches, bound in the arm's own block
+        // and so established exactly when the arm is taken. Through the
+        // whole of `fjs compile`, as the review of the design asked, so
+        // that the shape's Rust is pinned by the compiler and not by the
+        // corpus.
+        inlinedCall: () => {
+            assert(compileSource('const f = () => [1]; export default (...a) => a[0] ? (() => { const x = f(); return [x, x]; })() : 4;')('output.rs').includes([
+                '        if Any::<A>::to_boolean(&(Any::dot(_b362.clone(), f64_any(0x0000000000000000)).end())?) {',
+                '            let _b5: Any<A> = (Any::call(A::frame(_self)[0].clone(), Array::default().to_any()))?;',
+                '            Ok([_b5.clone(), _b5.clone()].to_array().to_any())',
+                '        } else { Ok(f64_any(0x4010000000000000)) }',
+            ].join('\n')))
+            // and one at an eager position, its anchor floated to the
+            // scope's root, prints as an anchored `const` does
+            assert(compileSource('export default [(() => { const x = null.x; return 1; })()];')('output.rs').includes([
+                '    let _b148: Any<A> = (Any::dot(Nullish::Null.to_any(), string_any("x")).end())?;',
+                '    Ok([(string_key("default"), [f64_any(0x3ff0000000000000)].to_array().to_any())].to_object().to_any())',
+            ].join('\n')))
+        },
+        sharedOperation: () => {
+            // Export-local sharing stays in that export's value block.
+            assertStructurallySame(
+                compileSource('const a = 1 + 2; export default [a, a];')('output.rs').split('\n').filter(line => line.startsWith('    ')),
+                [
+                    '    Ok([(string_key("default"), {',
+                    '        let _b0: Any<A> = (f64_any(0x3ff0000000000000) + f64_any(0x4000000000000000))?;',
+                    '        [_b0.clone(), _b0.clone()].to_array().to_any()',
+                    '    })].to_object().to_any())',
+                ])
+        },
+    },
+    // An error with no token to point at names the file being compiled, not
+    // `undefined:undefined:undefined`. Each language reports its own missing
+    // file: the module reader and the JSON reader read their inputs
+    // separately.
+    fileNotFound: {
+        module: () => {
+            const [state, code] = virtualAt(withRuntime({}))(compile(nodeProgramOptions(['missing.f.js', 'output.data.js'])))
+            assertEq(exitCode(code), 1)
+            assertEq(state.stderr.trim(), 'missing.f.js - error: file not found')
+            assertEq(state.root['output.data.js'], undefined)
+        },
+        json: () => {
+            const [state, code] = virtual(emptyState)(compile(nodeProgramOptions(['missing.json', 'output.data.js'])))
+            assertEq(exitCode(code), 1)
+            assertEq(state.stderr.trim(), 'missing.json - error: file not found')
+            assertEq(state.root['output.data.js'], undefined)
+        },
+        // A file that is there is never reported missing: the read's own
+        // failure is what the error says.
+        directory: () => {
+            const [state, code] = virtualAt(withRuntime({ 'dir.f.js': {} }))(compile(nodeProgramOptions(['dir.f.js', 'output.data.js'])))
+            assertEq(exitCode(code), 1)
+            assertEq(state.stderr.trim(), 'dir.f.js - error: dir.f.js is not a regular file')
+        },
+    },
+    // A source past one `Vec`, 128 KiB, is read whole, in several chunks,
+    // where it was once refused as `file not found`.
+    largeInput: () => {
+        const comment = `// ${'x'.repeat(80000)}\n`
+        const root = { 'input.f.js': [utf8(comment), utf8(`${comment}export default 7;`)] }
+        const [state, code] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['input.f.js', 'output.data.js'])))
+        assertEq(exitCode(code), 0, state.stderr)
+        assertEq(readOutput(state.root, 'output.data.js'), 'export default 7;')
+    },
+    // A parse error prints where it is — and, when the error knows how far the
+    // offending source runs, how far: `path:line:column-column` on one line,
+    // `path:line:column-line:column` across several, the plain point otherwise.
+    // These pin the rendering, so they are the proof that a lexical span
+    // survives the whole trip: tokenizer → parser → `errorLocation`.
+    parseError: {
+        spanOneLine: () => {
+            const root = { 'bad.f.js': [utf8('export default @')] }
+            const [state, code] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['bad.f.js', 'output.data.js'])))
+            assertEq(exitCode(code), 1)
+            assertEq(state.stderr.trim(), 'bad.f.js:1:16-17 - error: unexpected token')
+            assertEq(state.root['output.data.js'], undefined)
+        },
+        spanAcrossLines: () => {
+            // an unterminated string swallowing a newline: the far end names its
+            // own line, because repeating the start's would place it wrongly
+            const root = { 'bad.f.js': [utf8('export default "a\nb"')] }
+            const [state, code] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['bad.f.js', 'output.data.js'])))
+            assertEq(exitCode(code), 1)
+            assertEq(state.stderr.trim(), 'bad.f.js:1:16-2:3 - error: unexpected token')
+            assertEq(state.root['output.data.js'], undefined)
+        },
+        point: () => {
+            // a *grammar* failure points at one token and has no span — see
+            // `ParseError` in fjs/compiler/parser/types.ts for why
+            const root = { 'bad.f.js': [utf8('export default ]')] }
+            const [state, code] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['bad.f.js', 'output.data.js'])))
+            assertEq(exitCode(code), 1)
+            assertEq(state.stderr.trim(), 'bad.f.js:1:16 - error: unexpected token')
+            assertEq(state.root['output.data.js'], undefined)
+        },
+    },
+    // serialize → evaluate → structurally the same, one test per corpus value.
+    // The emitter is only correct if its output is an input denoting the value
+    // it was given, which no assertion on the text alone can state.
+    roundTrip: roundTripCorpus.map(value => () => {
+        const source = moduleText(value)
+        const root = { 'input.f.js': [utf8(source)] }
+        const [, result] = runtime({ ...emptyState, root })(transpile(noRuntime)('input.f.js'))
+        assert(result[0] === 'ok', result[1])
+        assertStructurallySame(result[1], { default: value }, source)
+    }),
+    // The subset law, FunctionalScript's half: every DataJS accept document
+    // is a FunctionalScript module, and the front end reads it to the graph
+    // its vector asserts — sharing and key order included, which is what
+    // `difference` compares. The corpus proves the other half against a
+    // JavaScript engine; this is the one the front end's move was done
+    // for, and it runs over the whole set, the eight documents holding an
+    // unpaired surrogate included, since the front end takes code units and
+    // owes no byte encoding. Two things it found: the parser used to sort
+    // an object's keys, and it used to be fed code points by the proofs
+    // where `transpile` feeds it code units.
+    subsetLaw: acceptSet.map(({ id, document, graph }) => () => {
+        const source = documentText(document)
+        assert(source !== null, `${id}: the document is not UTF-8`)
+        const value = evaluated(id, source)
+        const d = difference(graph)(value)
+        assert(d === null, `${id}: the front end's graph is not the vector's: ${d}`)
+    }),
+    // The normalizer's loop: the document `fjs compile` writes for a module
+    // is read by the DataJS reader to the graph the module denotes, over the
+    // whole accept set. It runs on the compiler's parts as `subsetLaw` does,
+    // since the eight byte-form documents cannot be fed to the file system as
+    // UTF-8 — the output side is a document in every case, the writer
+    // escaping what it cannot encode. `normalizeSet` below runs the file
+    // system route.
+    normalizeLoop: acceptSet.map(({ id, document, graph }) => () => {
+        const source = documentText(document)
+        assert(source !== null, `${id}: the document is not UTF-8`)
+        const value = evaluated(id, source)
+        const normalized = unwrap(tryStringify(value))
+        const d = difference(graph)(unwrap(parseDataJs(normalized)))
+        assert(d === null, `${id}: the normalized document does not denote the vector's graph: ${d}`)
+    }),
+    // Normalized form is a fixed point of the compiler: `fjs compile` on a
+    // normalized document writes the same bytes back, for every text the
+    // corpus pins. This is the whole command, file system included.
+    normalizeFixedPoint: normalizeSet.map(({ id, text }) => () => {
+        assertEq(compileSource(text)('output.data.js'), text, id)
+    }),
+    demo: {
+        examples: () => {
+            /** @type {Readonly<Record<string, string>>} */
+            const expected = {
+                'Overview': 'xxooo',
+                'Primitives': 'xoooo',
+                'String escapes': 'ooooo',
+                'Template literals': 'ooooo',
+                'Comments': 'ooooo',
+                'Whitespace': 'ooooo',
+                'Non-breaking space': 'xxxxx',
+                'Identifiers': 'ooooo',
+                'Non-ASCII identifier': 'xxxxx',
+                'Objects': 'ooooo',
+                'A repeated object key': 'ooooo',
+                'Sharing: a const used twice': 'ooooo',
+                'Sharing: a repeated expression': 'ooooo',
+                'Arithmetic': 'ooooo',
+                'Operator precedence': 'ooooo',
+                'Logical not': 'ooooo',
+                'typeof': 'ooooo',
+                'instanceof': 'ooooo',
+                'in': 'ooooo',
+                'Number conversion': 'ooooo',
+                'Boolean conversion': 'ooooo',
+                'Laziness': 'ooooo',
+                'Laziness: && || ??': 'xxooo',
+                'Laziness: ?:': 'xxooo',
+                'Comma: the assertion form': 'xxooo',
+                'Comma: a detached call': 'ooooo',
+                'Function with a rest parameter': 'xxooo',
+                'Closure': 'xxooo',
+                'Call statements': 'ooooo',
+                'Recursion': 'ooooo',
+                'Recursion: Ackermann': 'ooooo',
+                'Loop': 'xxooo',
+                'Loop over a parameter': 'xxooo',
+                'Loop with two variables': 'xxooo',
+                'Loop with a conditional': 'xxooo',
+                'Loop with alternative branches': 'xxooo',
+                'Nested loops': 'xxooo',
+                'Loop with break and continue': 'xxooo',
+                'Loop with return and throw': 'xxooo',
+                'Loop with switch': 'xxooo',
+                'Loop with no state': 'xxooo',
+                'Sequential loops': 'xxooo',
+                'Loop in a guard': 'xxooo',
+                'Module loop': 'ooooo',
+                'Loop between exports': 'ooooo',
+                'Throw': 'xxooo',
+                'Early return': 'xxooo',
+                'Switch': 'xxooo',
+                'Shorthand members': 'ooooo',
+                'Variables': 'xxooo',
+                'Variables: a snapshot for a closure': 'xxooo',
+                'Destructuring': 'ooooo',
+                'Destructuring: an elision': 'ooooo',
+                'Destructuring: object rest': 'xoooo',
+                'Methods and properties': 'ooooo',
+                'Static functions': 'ooooo',
+                'Object.entries': 'ooooo',
+                'Object.keys': 'ooooo',
+                'Object.values': 'xoooo',
+                'Optional chaining': 'xoooo',
+                'Optional chaining: a long chain': 'xxooo',
+                'The entry helper': 'xoooo',
+                'Named exports': 'ooooo',
+                'A failure at run time': 'xxooo',
+                'An import': 'ooooo',
+                'A named import and a call': 'ooooo',
+                'A module imported twice': 'ooooo',
+                'A cyclic import': 'xxxxx',
+                'Hex escape': 'xxxxx',
+                'Parse error': 'xxxxx',
+            }
+            assertEq(Object.keys(expected).length, examples.length)
+            for (const [name, source, id] of examples) {
+                assertEq(outputs.map(([, file]) => compiledProgram(programOf(source, id))(file)[0] === 'ok' ? 'o' : 'x').join(''), entry(expected, name))
+            }
+            assertEq(textOfResult(compiled('export default 1;')('output.json')), '1')
+            assertEq(textOfResult(compiled('const fact = n => n < 2 ? 1 : n * fact(n - 1);\nexport default fact(5);')('output.json')), '120')
+            assertEq(textOfResult(compiled('export default "\\x41";')('output.json')), 'unexpected token')
+        },
+        // A pane shows what `fjs compile` writes: the whole of `compile` over
+        // the same file system answers the same text, or the same refusal.
+        // And what a pane marks, the tokenizer agrees with, for the languages
+        // it reads; Rust has no oracle, and its markup is proved by its own module.
+        panesAreTheFiles: () => {
+            assertEq(outputText(noRuntime)('output.txt'), null)
+            for (const [name, source, id] of examples) {
+                const program = programOf(source, id)
+                for (const [label, file] of outputs) {
+                    const shown = compiledProgram(program)(file)
+                    const [shownTag, shownValue] = shown
+                    const [writtenTag, writtenValue] = _writtenProgram(program)(file)
+                    const route = assertNotNullish(outputText(noRuntime)(file))
+                    const [, routed] = virtualAt(dirOf(program))(route('input.f.js'))
+                    const [routedTag, routedValue] = routed
+                    if (routedTag === 'ok') {
+                        const [kind, text] = routedValue
+                        assertEq(writtenTag, kind, `${name} ${label} text route`)
+                        assertEq(writtenValue, kind === 'ok' ? text : `${file} - error: ${text}`, `${name} ${label} text route`)
+                    }
+                    assertEq(shownTag, writtenTag, `${name} ${label}`)
+                    // a refusal is the command's line, without its location
+                    // where the main module is refused
+                    assert(shownTag === 'ok' ? textOfResult(shown) === writtenValue
+                        : writtenValue === shownValue || writtenValue.endsWith(` - error: ${shownValue}`), `${name} ${label}`)
+                    if (shownTag === 'ok' && label !== '.rs') {
+                        assertEq(disagreement(shownValue), null, `${name} ${label}`)
+                    }
+                }
+            }
+        },
+        view: () => {
+            const shown = htmlToString(demo.view(demo.init))
+            assert(shown.includes('<h3>.rs</h3>'), shown)
+            assert(shown.includes('aria-label="Copy .js output"'), shown)
+            assert(shown.includes('data-copy='), shown)
+            assert(shown.includes('<div data-code="" data-code-block=""><pre>'), shown)
+            assert(shown.includes('callable materialization requires a target compile/load boundary</pre>'), shown)
+            assert(!shown.includes(' - error:'), shown)
+            const refused = htmlToString(demo.view(nextDemo(demo.init, { kind: 'input', name: 'compiler', value: 'export default {bad' })))
+            assert(refused.includes('Refused:</p><pre data-result="error">unexpected end</pre>'), refused)
+            assert(!refused.includes(' - error:'), refused)
+            const unsupported = htmlToString(demo.view(nextDemo(demo.init, { kind: 'input', name: 'compiler', value: 'export default undefined;' })))
+            assert(unsupported.includes('Refused:</p><pre data-result="error">no JSON spelling for undefined</pre>'), unsupported)
+            assert(!unsupported.includes(' - error:'), unsupported)
+        },
+        caughtFailures: () => {
+            let effect = demo.update(demo.init)({ kind: 'input', name: 'compiler', value: 'export default 1;' })
+            let index = 0
+            while (typeof effect !== 'function') {
+                const { payload: [f], continuation } = effect
+                effect = continuation(index === 0 ? ['ok', ['error', 'host failure']]
+                    : index === 1 ? ['error', ['notImplemented', 'catch']]
+                        : ['ok', ['ok', f()]])
+                index += 1
+            }
+            assertEq(index, outputs.length)
+            const state = unwrap(effect())
+            assertEq(state.main, 'export default 1;')
+            assertEq(textOfResult(state.panes[0]), 'Could not compile this output: host failure')
+            assertEq(textOfResult(state.panes[1]), 'operation not implemented: catch')
+            assertEq(state.panes.slice(2).map(([tag]) => tag).join(), 'ok,ok,ok')
+            const shown = htmlToString(demo.view(state))
+            assert(shown.includes('host failure'), shown)
+            assert(shown.includes('Copy .rs output'), shown)
+            const recovered = nextDemo(state, { kind: 'input', name: 'compiler', value: 'export default 2;' })
+            assertEq(textOfResult(recovered.panes[0]), '2')
+            assertEq(recovered.panes.map(([tag]) => tag).join(), 'ok,ok,ok,ok,ok')
+            const started = nextDemo(demo.init, { kind: 'start' })
+            assertEq(started.main, demo.init.main)
+            const picked = nextDemo(state, { kind: 'input', name: 'example', value: 'Recursion: Ackermann' })
+            assertEq(textOfResult(picked.panes[0]), '9')
+        },
+        // A program of several files: each import opens a box, a file no
+        // import reaches keeps a box marked not imported, and the compiler
+        // links every file it is given.
+        files: () => {
+            /** @type {(state: typeof demo.init) => string} */
+            const html = state => htmlToString(demo.view(state))
+            /** @type {(file: string) => string} */
+            const box = file => `<textarea id="file:${file}" name="file:${file}"`
+            /** @type {(file: string) => string} */
+            const removable = file => `<button type="button" name="remove:${file}">Remove ${file}</button>`
+            const twice = nextDemo(demo.init, { kind: 'input', name: 'example', value: 'A module imported twice' })
+            const shown = html(twice)
+            assert(shown.includes('<option value="A module imported twice" selected=""'), shown)
+            assert(shown.includes('<label for="compiler">input.f.js (main module) </label>'), shown)
+            for (const file of ['a.f.js', 'b.f.js', 'shared.f.js']) { assert(shown.includes(box(file)), file) }
+            assert(!shown.includes('not imported') && !shown.includes('Import cycle'), shown)
+            assertEq(textOfResult(twice.panes[0]), '[{"from":"a","shared":{"name":"shared object"}},{"from":"b","shared":{"name":"shared object"}}]')
+            assertEq(textOfResult(twice.panes[2]), 'const $0={"name":"shared object"};export default [{"from":"a","shared":$0},{"from":"b","shared":$0}];')
+            // removing an import keeps the box, marked, with its button
+            const onlyA = nextDemo(twice, { kind: 'input', name: 'compiler', value: 'import a from "./a.f.js";\nexport default a;' })
+            const marked = html(onlyA)
+            assert(marked.includes('<option selected="" disabled="">Custom</option>'), marked)
+            assert(marked.includes('<div data-not-imported=""><p><label for="file:b.f.js">b.f.js (not imported) </label>'), marked)
+            assert(marked.includes(removable('b.f.js')), marked)
+            assert(marked.includes(box('shared.f.js')) && !marked.includes(removable('shared.f.js')), marked)
+            assertEq(textOfResult(onlyA.panes[0]), '{"from":"a","shared":{"name":"shared object"}}')
+            // importing it again unmarks it; removing it deletes its text
+            assertEq(html(nextDemo(onlyA, { kind: 'input', name: 'compiler', value: twice.main })).includes('not imported'), false)
+            const removed = nextDemo(onlyA, { kind: 'click', name: 'remove:b.f.js' })
+            assertEq(removed.files.map(([n]) => n).join(), 'a.f.js,shared.f.js')
+            assert(!html(removed).includes(box('b.f.js')), html(removed))
+            // a new import, by any path the compiler reads, opens an empty box, refused by name until written
+            const opened = nextDemo(removed, { kind: 'input', name: 'compiler', value: 'import c from "./c";\nimport d from "/lib/d.mjs";\nexport default [c, d];' })
+            assert(html(opened).includes(`${box('c')} rows="4"`) && html(opened).includes(box('lib/d.mjs')), html(opened))
+            // a rooted import reads another file on the command line, and the page says so
+            assert(html(opened).includes(`<p role="note">This page keeps the program in its own folder, so / is the folder and nothing is above it. On the command line, / is the root of the disk and ../ may leave the main module's folder, so these imports read other files there: input.f.js imports /lib/d.mjs.</p>`), html(opened))
+            assert(!html(twice).includes('role="note"'), html(twice))
+            const rooted = nextDemo(demo.init, { kind: 'input', name: 'compiler', value: 'import d from "/lib/d.mjs";\nexport default d;' })
+            assertEq(rooted.panes[0][1], '/lib/d.mjs:1:1 - error: unexpected end')
+            assert(!html(rooted).includes('two modules'), html(rooted))
+            // one file reached both ways is two modules, and the page says so
+            const both = nextDemo(nextDemo(demo.init, { kind: 'input', name: 'compiler', value: 'import a from "./lib/d.mjs";\nimport b from "/lib/d.mjs";\nexport default [a, b];' }),
+                { kind: 'input', name: 'file:lib/d.mjs', value: 'export default {};' })
+            assertEq(both.files.map(([n]) => n).join(), 'lib/d.mjs')
+            assertEq(textOfResult(both.panes[2]), 'export default [{},{}];')
+            assert(html(both).includes('<p role="note">lib/d.mjs is imported both by a / path and by a relative one: the compiler loads it as two modules, so the two are not shared.</p>'), html(both))
+            assertEq(opened.panes[0][1], 'c:1:1 - error: unexpected end')
+            const written = nextDemo(nextDemo(opened, { kind: 'input', name: 'file:c', value: 'export default 3;' }), { kind: 'input', name: 'file:lib/d.mjs', value: 'export default 4;' })
+            assertEq(written.files.map(([n]) => n).join(), 'a.f.js,shared.f.js,c,lib/d.mjs')
+            assertEq(textOfResult(written.panes[0]), '[3,4]')
+            const edited = nextDemo(written, { kind: 'input', name: 'file:c', value: 'export default 5;' })
+            assertEq(textOfResult(edited.panes[0]), '[5,4]')
+            // a file no import reaches changes no output, even one named as a
+            // reached file's directory
+            const inLib = nextDemo(nextDemo(demo.init, { kind: 'input', name: 'compiler', value: 'import a from "./lib/a.f.js";\nexport default a;' }),
+                { kind: 'input', name: 'file:lib/a.f.js', value: 'export default 7;' })
+            assertEq(textOfResult(inLib.panes[0]), '7')
+            assertEq(textOfResult(nextDemo(inLib, { kind: 'input', name: 'file:lib', value: 'x' }).panes[0]), '7')
+            // an output's refusal reads as before, whatever the program's files are named
+            const undefinedOut = nextDemo(demo.init, { kind: 'input', name: 'compiler', value: 'export default undefined;' })
+            assertEq(undefinedOut.panes[0][1], 'no JSON spelling for undefined')
+            assertEq(nextDemo(undefinedOut, { kind: 'input', name: 'file:output.json', value: 'x' }).panes[0][1], 'no JSON spelling for undefined')
+            // a dependency's initialization failure names the file
+            const throwing = nextDemo(nextDemo(demo.init, { kind: 'input', name: 'compiler', value: 'import b from "./b.f.js";\nexport default b;' }),
+                { kind: 'input', name: 'file:b.f.js', value: 'export default 1 + undefined.x;' })
+            assertEq(throwing.panes[0][1], 'b.f.js - error: module initialization failed')
+            // `../` in a file a rooted import reached reads from the root: its box opens
+            const upward = nextDemo(nextDemo(demo.init, { kind: 'input', name: 'compiler', value: 'import a from "/a.f.js";\nexport default a;' }),
+                { kind: 'input', name: 'file:a.f.js', value: 'import x from "../x.f.js";\nexport default x;' })
+            assert(html(upward).includes(box('x.f.js')), html(upward))
+            assertEq(textOfResult(nextDemo(upward, { kind: 'input', name: 'file:x.f.js', value: 'export default 5;' }).panes[0]), '5')
+            const upwardCycle = nextDemo(upward, { kind: 'input', name: 'file:a.f.js', value: 'import x from "../input.f.js";\nexport default x;' })
+            assert(html(upwardCycle).includes('<p role="status">Import cycle: /a.f.js → /input.f.js → /a.f.js</p>'), html(upwardCycle))
+            assertEq(upwardCycle.panes[0][1], '/a.f.js - error: circular dependency')
+            // an empty box goes with its import, a box with text stays, marked
+            const typed = nextDemo(demo.init, { kind: 'input', name: 'compiler', value: 'import e from "./e.f.js";\nexport default e;' })
+            assert(html(typed).includes(box('e.f.js')) && typed.files.length === 0, html(typed))
+            assert(!html(nextDemo(typed, { kind: 'input', name: 'compiler', value: 'export default 1;' })).includes(box('e.f.js')), 'an empty box goes')
+            const kept = nextDemo(nextDemo(typed, { kind: 'input', name: 'file:e.f.js', value: 'export default 2;' }), { kind: 'input', name: 'compiler', value: 'export default 1;' })
+            assert(html(kept).includes('e.f.js (not imported)') && html(kept).includes(removable('e.f.js')), html(kept))
+            // a module that does not parse keeps the boxes it opened
+            const halfTyped = nextDemo(edited, { kind: 'input', name: 'compiler', value: 'import c from "./c";\nexport default c +' })
+            assert(html(halfTyped).includes(box('c')) && !html(halfTyped).includes('c (not imported)'), html(halfTyped))
+            // nothing in a module's text is reserved
+            const markerText = 'export default "// @filename: x.f.js";\n// @filename: y.f.js'
+            assertEq(textOfResult(nextDemo(demo.init, { kind: 'input', name: 'compiler', value: markerText }).panes[0]), '"// @filename: x.f.js"')
+            // a cycle is refused by the compiler and named whole by the page
+            const cyclic = nextDemo(demo.init, { kind: 'input', name: 'example', value: 'A cyclic import' })
+            assert(html(cyclic).includes('<p role="status">Import cycle: input.f.js → a.f.js → input.f.js</p>'), html(cyclic))
+            assertEq(cyclic.panes.map(([, v]) => v).join(), generate(5, () => 'circular dependency').join())
+            // an event no control sends changes nothing
+            assertEq(nextDemo(twice, { kind: 'input', name: 'other', value: 'x' }), twice)
+            assertEq(nextDemo(twice, { kind: 'click', name: 'run' }), twice)
+            assertEq(_writtenProgram([['input.f.js', 'export default {']])('output.json')[1], 'input.f.js:1:17 - error: unexpected end')
+        },
+        sharing: () => {
+            const sharing = assertNotNullish(demo.sharing)
+            const hex = assertNotNullish(examples.find(([name]) => name === 'Hex escape'))[1]
+            assertStructurallySame(encodeQuery(sharing, sharing.read({ main: hex, files: [], panes: [], imports: [] })), ['ok', '?example=hex-escape#demo'])
+            const twice = nextDemo(demo.init, { kind: 'input', name: 'example', value: 'A module imported twice' })
+            assertStructurallySame(encodeQuery(sharing, sharing.read(twice)), ['ok', '?example=a-module-imported-twice#demo'])
+            const own = nextDemo(twice, { kind: 'input', name: 'file:a.f.js', value: 'export default 1;' })
+            assertStructurallySame(sharing.read(own), { compiler: twice.main, files: encode(own.files) })
+            assertEq(assertNotNullish(sharing.validate)({ compiler: '', files: '[["input.f.js", ""]]' }), 'files: input.f.js is not a file name a program can hold')
+            assertEq(assertNotNullish(sharing.validate)({ compiler: '', files: '[]' }), null)
+            const linked = sharing.restore({ compiler: 'import a from "./a.f.js";\nexport default a;', files: '[["a.f.js","export default 7;"]]' })
+            assertEq(textOfResult(nextDemo(linked, { kind: 'start' }).panes[0]), '7')
+            // a box an escaped import opened, filled, survives a link
+            const escaped = nextDemo(nextDemo(demo.init, { kind: 'input', name: 'compiler', value: 'import d from "./dep%3F.f.js";\nexport default d;' }),
+                { kind: 'input', name: 'file:dep?.f.js', value: 'export default 1;' })
+            assertEq(textOfResult(escaped.panes[0]), '1')
+            const escapedLink = encodeQuery(sharing, sharing.read(escaped))
+            assertEq(escapedLink[0], 'ok')
+            const reopened = nextDemo(sharing.restore(sharing.read(escaped)), { kind: 'start' })
+            assertEq(toJson(reopened.files), '[["dep?.f.js","export default 1;"]]')
+            assertEq(textOfResult(reopened.panes[0]), '1')
+            const restored = sharing.restore({ compiler: 'export default 2;', files: '[]' })
+            assertStructurallySame(restored, { main: 'export default 2;', files: [], panes: [], imports: [] })
+            assertEq(nextDemo(restored, { kind: 'click', name: 'run' }), restored)
+            const started = nextDemo(restored, { kind: 'start' })
+            assertEq(started.main, 'export default 2;')
+            assertEq(textOfResult(started.panes[0]), '2')
+            assertEq(started.panes.map(([tag]) => tag).join(), 'ok,ok,ok,ok,ok')
+        },
+    },
+}

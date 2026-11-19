@@ -12,9 +12,9 @@ read the result back. That needs a shell, and the server exists so an agent
 does not need one.
 
 The compiler and interpreter are now connected.
-[`compiler/transpiler.interpret(load)(path)`](../../compiler/transpiler/module.f.mjs)
+[`compiler/transpiler.interpret(load)(path)`](../../compiler/transpiler/module.f.js)
 loads dependencies, lowers each module with `unresolved`, and initializes its
-complete represented export object through [Memo](../../edag/memo/module.f.mjs)
+complete represented export object through [Memo](../../edag/memo/module.f.js)
 under the runtime `load` answers — the package's
 [`fjs/js/runtime`](../../js/runtime/README.md), whose bodies answer the
 member functions the interpreter has no native implementation of, or
@@ -24,15 +24,15 @@ decodes it with `toData` for JSON/DataJS output. Calls, operators and callbacks 
 compute data; `export default 2 + 2;` no longer fails with the historical
 `an operator has no value` refusal. See `callsAndOperators`,
 `projectBeforeMaterializing` and `unusedInitialization` in the
-[transpiler proofs](../../compiler/transpiler/proof.f.mjs), and operator-output
-proofs in [`compiler/proof.f.mjs`](../../compiler/proof.f.mjs).
+[transpiler proofs](../../compiler/transpiler/proof.f.js), and operator-output
+proofs in [`compiler/proof.f.js`](../../compiler/proof.f.js).
 
 The MCP tool remains unimplemented: the
-[server registry](../module.f.mjs) still contains only CAS and Evo tools.
+[server registry](../module.f.js) still contains only CAS and Evo tools.
 `interpret(load)(path)` is an effectful file/dependency loader, not a pure
 source-text API. The compiler already exposes pure
-[`source.parse(path)(text)`](../../compiler/source/module.f.mjs) and
-[`edag.unresolved(module)`](../../compiler/edag/module.f.mjs); the reusable
+[`source.parse(path)(text)`](../../compiler/source/module.f.js) and
+[`edag.unresolved(module)`](../../compiler/edag/module.f.js); the reusable
 text-evaluation entry and its MCP response/error contract are remaining work.
 
 ### Proposal
@@ -48,14 +48,14 @@ that takes a module's text and returns the module's
 For example, `{ "text": "export default 2 + 2;" }` returns `4`.
 
 The tool is a new registry, `fjs/mcp/eval/`, a sibling of
-[`cas`](../cas/module.f.mjs) and [`evo`](../evo/module.f.mjs). That is the
-extension point [`fjs/mcp/module.f.mjs`](../module.f.mjs) documents: the
+[`cas`](../cas/module.f.js) and [`evo`](../evo/module.f.js). That is the
+extension point [`fjs/mcp/module.f.js`](../module.f.js) documents: the
 composition root knows about registries, not about what is in them. The
-registry is one `toolEntry` from [`fjs/protocol/mcp`](../../protocol/mcp/module.f.mjs).
+registry is one `toolEntry` from [`fjs/protocol/mcp`](../../protocol/mcp/module.f.js).
 The tool calls a reusable pure source-text evaluator in `fjs/compiler`, so a
 CLI command or another front end can use it later. Reuse or extract the existing
 per-module initialization stages rather than copying the file loader or adding
-another interpreter. `compiler/proof.f.mjs` already composes pure parsing,
+another interpreter. `compiler/proof.f.js` already composes pure parsing,
 lowering, analysis and Memo in its `evaluate` helper; its `compileSource` helper
 runs the CLI over a virtual filesystem and is not a production source-text API.
 
@@ -113,7 +113,7 @@ the lowering. `parse` handled every depth tried. So the 128 KiB cap below does
 not prevent it. A plain `.f.mjs` function cannot turn a throw into a result,
 and an uncaught throw would end the server, not just the call. So the whole
 proposed text-to-JSON function runs as one thunk under `catch_` from
-[`fjs/effects/common`](../../effects/common/module.f.mjs), not `memo` alone.
+[`fjs/effects/common`](../../effects/common/module.f.js), not `memo` alone.
 That is the host boundary `fjs/emergent_testing` already uses for user code.
 It returns `ok(value)` or `error(thrown)`, and the error becomes an
 `errorResult`. Parse/import refusals, represented initialization failures,
@@ -142,7 +142,7 @@ A value JSON cannot spell is refused rather than approximated. This covers
 applies the same rules as `fjs compile`'s `.json` output, so the two agree on
 what JSON means: after `toData`, the tool's JSON step uses the already exported
 `tryJsonStringify` from
-[`media/datajs/serializer`](../../media/datajs/serializer/module.f.mjs).
+[`media/datajs/serializer`](../../media/datajs/serializer/module.f.js).
 A named-only root projects to `undefined` for value output, as
 `projectBeforeMaterializing` proves, and JSON refuses it for the same reason.
 
@@ -168,9 +168,9 @@ Explicit `toString` and indirect array/coercion paths use that renderer, without
 host arrow factories. The contract is in
 [`edag/function-text.md`](../../edag/function-text.md), with direct/indirect
 conversion proofs in
-[`value/convert/proof.f.mjs`](../../edag/value/convert/proof.f.mjs), explicit
+[`value/convert/proof.f.js`](../../edag/value/convert/proof.f.js), explicit
 method proofs in
-[`value/method/proof.f.mjs`](../../edag/value/method/proof.f.mjs), and Memo's
+[`value/method/proof.f.js`](../../edag/value/method/proof.f.js), and Memo's
 shared corpus in [`nanvm/proof.f.mjs`](../../nanvm/proof.f.mjs).
 The proposed evaluator keeps these conversions represented until it obtains
 the final data value. The three inputs above remain useful MCP integration
@@ -190,12 +190,12 @@ failures, data/JSON refusals and caught host failures become `errorResult`s.
 These tool responses still need implementation and proofs. A parse error needs
 a name for its location because there is no file. Use a fixed pseudo-path such as
 `<eval>`, so the message reads `<eval>:line:column - error: …`, formatted by
-`errorLocation` in [`fjs/compiler/parser`](../../compiler/parser/module.f.mjs).
+`errorLocation` in [`fjs/compiler/parser`](../../compiler/parser/module.f.js).
 
 **A result too large to encode is the transport's failure, not the tool's.**
 The input cap does not bound the output. At `940eff9`, a 420-byte module of
 eighteen `const aN = aM + aM;` doublings evaluated to a string whose JSON text
-is 256 KiB. [`stdioTransport`](../../protocol/mcp/stdio/module.f.mjs) answers
+is 256 KiB. [`stdioTransport`](../../protocol/mcp/stdio/module.f.js) answers
 a response line over its 128 KiB `maxLength` with a JSON-RPC `-32603` that
 keeps the request's `id`. The server stays up, but the client gets a transport
 error, not an `errorResult`. That is the outcome every JSON-returning tool has
@@ -252,7 +252,7 @@ which fixes it in the transport for every tool at once.
       overflows `maxLength` gets the transport's `-32603` with the request's `id`, as
       `cas_get`'s overflow proofs pin.
 - [ ] Add the tool to the tool tables in [`../README.md`](../README.md) and in
-      [`fjs/mcp/module.f.mjs`](../module.f.mjs)'s JSDoc, with the oversize
+      [`fjs/mcp/module.f.js`](../module.f.js)'s JSDoc, with the oversize
       outcome in its error list.
 
 ### Related

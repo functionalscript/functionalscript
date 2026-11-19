@@ -22,14 +22,14 @@ The same recursive `typeof`-dispatch walker over the value tree is written
 three times, and the count is what is left after the old `fjs/djs/serializer`
 was retired:
 
-- [`../serializer/module.f.mjs`](../serializer/module.f.mjs) —
+- [`../serializer/module.f.js`](../serializer/module.f.js) —
   `treeSerialize(leafSerialize)(sort)`, a factory. `fjs/media/json`'s
   `serialize` and the extended codec are two applications of it, not two
   copies.
-- [`fjs/media/datajs/serializer`](../../datajs/serializer/module.f.mjs)
-  — the format's own walk, over own property descriptors, with the ref seam
+- [`fjs/media/datajs/serializer`](../../datajs/serializer/module.f.js)
+  — the format's own walk, over FunctionalScript values, with the ref seam
   and the `__proto__` key seam that walk alone needs now.
-- [`fjs/compiler/module.f.mjs`](../../../compiler/module.f.mjs) — `_stringifyTree`, the
+- [`fjs/compiler/module.f.js`](../../../compiler/module.f.js) — `_stringifyTree`, the
   dump the compiler's proofs pin token streams and syntax trees with: JSON's
   shape, keys sorted, over the compiler's leaves, a member holding `undefined`
   kept. It is what the old serializer's `serializeWithoutConst` was, without
@@ -61,9 +61,9 @@ const f = value => {
    `fjs/media/datajs/serializer`;
 4. **an entry-enumeration seam** — `treeSerialize` reads an object through
    `definedEntries`, which drops a property whose value is `undefined` before
-   any other seam runs; the dump reads `entries`, which keeps it, and DataJS
-   reads descriptors, so that an accessor is never invoked. The dump writes
-   that property today:
+   any other seam runs; the dump and DataJS read own entries, which keep it.
+   DataJS assumes FunctionalScript values rather than validating host property
+   descriptors. The dump writes that property today:
 
    ```
    {a: 1, b: undefined}  ->  {"a":1,"b":undefined}
@@ -83,10 +83,13 @@ for soundness, since `object[key]` may be absent — is exactly what makes
 only the runtime enumerator can tell them apart. Any shared walker has to take
 that choice as a parameter rather than inherit JSON's.
 
-The type is not in the way: the compiler's value model is DataJS's,
-[`fjs/media/datajs/types.ts`](../../datajs/types.ts), which
-instantiates `Tree<P>` at its leaf set, so every walker here is typed over
-the shape `treeSerialize` walks.
+The shared data shape is DataJS's model,
+[`fjs/media/datajs/types.ts`](../../datajs/types.ts), which instantiates
+`Tree<P>` at its leaf set. The DataJS writer's public TypeScript parameter is
+`unknown` and assumes FunctionalScript values, so it can refuse functions
+that the language admits but the format cannot write. That annotation does not
+extend the contract to arbitrary host JavaScript values or require a shared
+walker to validate accessors, prototypes or cycles.
 
 ### Tasks
 
@@ -111,15 +114,15 @@ the shape `treeSerialize` walks.
 - [JSON numeric edge cases](./number-edge-cases.md) — decides
   materialization for exponent overflow, oversized bare integers, and standard
   compatibility.
-- `tryJsonStringify` in [`fjs/media/datajs/serializer`](../../datajs/serializer/module.f.mjs) —
-  once a fourth, fallible JSON walker in `fjs/compiler/module.f.mjs`, now the
+- `tryJsonStringify` in [`fjs/media/datajs/serializer`](../../datajs/serializer/module.f.js) —
+  once a fourth, fallible JSON walker in `fjs/compiler/module.f.js`, now the
   DataJS writer's read under JSON's leaf rule.
 - `i003` (retired; shipped as `fjs/compiler/ast`) — the original DJS design: parse a
   module into a flat list of constants addressed by index. It landed verbatim —
   [`ast/types.ts`](../../../compiler/ast/types.ts) carries the shape and
   [`fjs/compiler/README.md`](../../../compiler/README.md) records why the list is flat, with the
   design's own `['cref', n]` / `['aref', n]` / `['array', …]` spellings visible
-  in [`parser/proof.f.mjs`](../../../compiler/parser/proof.f.mjs).
+  in [`parser/proof.f.js`](../../../compiler/parser/proof.f.js).
 - `i77` (retired) — identifier property names, the DJS object-key delta. It was
   `Support for property accessor`, and its whole body was a pointer to the spec
   section plus a sketch of the operators (`instant_property`, `at`,

@@ -63,11 +63,11 @@ The [named-imports fixture](../nanvm/harness/fixtures/named-imports.mjs)
 compiles this pattern to Rust. Its cargo test has the harness's `run` select
 `main` and call it with no arguments, and checks `42`, matching native
 JavaScript and both JavaScript EDAG evaluators (`namedImports.acceptance` in
-[`fjs/compiler/edag/proof.f.mjs`](../fjs/compiler/edag/proof.f.mjs), on its own copy of
+[`fjs/compiler/edag/proof.f.js`](../fjs/compiler/edag/proof.f.js), on its own copy of
 the sources). The harness has no CLI; its
 [`main`](../nanvm/harness/src/main.rs) says why. The structural FJS serializer
 already writes ordinary/method calls and arithmetic; `calls`, `neg`, `operators`
-and `lazy` in the [serializer proofs](../fjs/compiler/serializer/proof.f.mjs)
+and `lazy` in the [serializer proofs](../fjs/compiler/serializer/proof.f.js)
 cover grouping, bindings and supported source round trips. That profile remains
 partial, unlike total code-only [function text](../fjs/edag/function-text.md);
 [runtime-value compilation](../fjs/edag/values.md#runtime-compilation) has its own
@@ -84,7 +84,7 @@ decoding it as data. Dependencies and unused initializers still run; an
 unselected callable export does not prevent a data output, while a callable
 remaining in the selected result is refused. See `callsAndOperators`,
 `projectBeforeMaterializing` and `unusedInitialization` in the
-[transpiler proofs](../fjs/compiler/transpiler/proof.f.mjs).
+[transpiler proofs](../fjs/compiler/transpiler/proof.f.js).
 FunctionalScript, EDAG and Rust generation preserve the module computation
 without running it during compilation.
 
@@ -93,7 +93,7 @@ without running it during compilation.
 **Blocked by:** nothing. Package support for authored `.f.js` is complete,
 the packed-package check closing the `node` CI job importing a published
 `.f.js` from a clean consumer
-([`fjs/ci/package/module.f.mjs`](../fjs/ci/package/module.f.mjs)).
+([`fjs/ci/package/module.f.js`](../fjs/ci/package/module.f.js)).
 
 Stage 1 — removing authored TypeScript — is complete and is no longer a
 blocker. It was tracked in `todo/migrate-typescript-to-mjs.md`, deleted once
@@ -141,6 +141,171 @@ value-preserving rewrites a module takes on the way, one per construct, are
 
 See [`fjs/compiler/README.md`](../fjs/compiler/README.md) for the authoritative extension
 contract and migration strategy.
+
+#### Leaf indices and captures
+
+#3868 uses `Number(...)` indices and a constant alias for selected prefixes.
+`js/ast/loop/{invariant,plain}` now use `.f.js`.
+
+#### Array rest lowering
+
+#3800 (`29a1645bc`) lowers array rest to a slice of the existing iterable
+copy, preserving binding order, Unicode iteration and fresh tail identity.
+`text/utf8`, `text`, `text/percent`, `effects/common`, `sul/id` and
+`sul/level/hash` now use `.f.js`; references are updated.
+Array rest makes these six compile; [AGENTS.md §3](../AGENTS.md#3-functionalscript-and-typescript-fjs)
+requires these renames and reference updates in the compiler PR.
+The graph has **285 `.f.js`**, **358 `.f.mjs`**, **20 blocked leaves**;
+the final pass accepts none. The other former rest refusals advance to
+`asn.1`'s forward `encode` reference (`284:31`), `ebnf/data`'s `forEach`
+(`199:30`) and `media/nix`'s reserved `indexOf` read (`158:13`).
+
+#### Pure Huffman fixture assignment
+
+#3798 (`085b9917b`) replaces `assign`'s captured updates with folds
+carrying `{ next, codes }` through lengths and symbols. `zlib/testlib`
+now uses `.f.js`; imports and current links are updated.
+The graph has **279 `.f.js`**, **364 `.f.mjs`**, **11 blocked leaves**;
+none accepted and no new leaves exposed.
+
+#### Native minimum and inflater promotion
+
+#3797 (`602e9883b`) adds native `Math.min`, preserving NaN propagation,
+negative-zero ties and conversion after NaN or negative infinity.
+`zlib/inflate` now uses `.f.js`; imports and current links are updated.
+The graph has **278 `.f.js`**, **365 `.f.mjs`**, **12 blocked leaves**;
+none accepted and no new leaves exposed. `testlib` still stops at
+`lengths.forEach` (`148:17`).
+
+#### Demo entry, inflate indexes and noise state
+
+#3797 (`6e05b59ae`) reads curve names with `entry`; `website/demo/secp`
+now uses `.f.js`. Both inflate table indexes use `Number(...)`; its next
+refusal is `Math.min` (`211:42`). `noise` threads its seed through `stateScan`;
+`testlib` next stops at `lengths.forEach` (`148:17`).
+The graph has **277 `.f.js`**, **366 `.f.mjs`**, **13 blocked leaves**;
+none accepted and no new leaves exposed.
+
+#### Native maximum and generators
+
+#3797 (`4b9560e0a`) adds native `Math.max` and replaces seven `Array.from`
+calls in `zlib/testlib` with `generate`. Next refusals: `website/demo/secp`
+reads reserved `c.name` (`160:43`); `zlib/testlib` captures reassigned `seed`
+(`54:9`). Inflate's numeric-index refusal is unchanged.
+Counts remain **276 `.f.js`**, **367 `.f.mjs`**, **14 blocked leaves**;
+none accepted.
+
+#### Native square root, ceiling and multiplication
+
+#3797 (`a108b03b4`) admits `Math.sqrt`, `Math.ceil` and `Math.imul`
+using Rust/core WASM natives. Next refusals: `website/demo/secp` at
+`Math.max` (`123:56`), `zlib/inflate` at `lengthCodes[value - 257]`
+(`126:39`), and `zlib/testlib` at `Array.from` (`39:31`).
+Counts remain **276 `.f.js`**, **367 `.f.mjs`**, **14 blocked leaves**;
+none accepted.
+
+#### Native absolute value
+
+#3796 (`a2a1ad24f`) admits `Math.abs` natively via Rust's `f64::abs` and core
+WASM's `f64.abs`, preserving conversion and returning positive zero for `-0`.
+`e7b33782f` places `u64WordItems` before its caller; `f6507d12b` places
+`words` before `u64WordItems`; `4cc48d007` places `isLower` before its caller.
+`cc3c9814d` makes both string indexes explicit and promotes `media/rust` to
+`.f.js`. The graph has **276 `.f.js` files**, **367 `.f.mjs` files** and
+**14 blocked leaves**; the final pass accepts none and exposes no new leaves.
+
+#### Native floor
+
+#3794 (`0a4270f0a`) admits `Math.floor` natively via Rust's `f64::floor`
+and core WASM's `f64.floor`. `zlib/adler32` and `zlib/stored` now use `.f.js`.
+The graph has **275 `.f.js` files**, **368 `.f.mjs` files** and **15 blocked
+leaves**; the final pass accepts none. `1c9375a5a` places `bitsOf` before
+`f64Bits`; `media/rust` next stops at `Math.abs` (`155:15`). New leaves are `zlib/inflate`, using
+`Math.ceil` (`60:45`), and `zlib/testlib`, using `Math.imul` (`26:22`).
+
+#### Native truncation
+
+#3792 (`c6b59ebc0`) admits `Math.trunc` natively: Rust's `f64::trunc` and
+core WASM's `f64.trunc` provide the numeric operation; existing conversion
+preserves JavaScript semantics. No WASM dependencies are added. `crypto/sha1`
+now uses `.f.js`, with references updated. The graph has **273 `.f.js`
+files**, **370 `.f.mjs` files** and **14 blocked leaves**; the final pass
+accepts none, exposing no new leaves.
+
+#### Memory presence and Git byte fixture
+
+#3791 (`c639e8637`) replaces `Object.hasOwn` with `hasEntry` and the Git
+hole with `undefinedByte`, `[undefined, 0x61]`; `git/testlib` now uses `.f.js`.
+`50746db6f` renames `MemoryState.values` to `slots`, updating its consumers.
+`dd452b8d2` reads slots with `entry`; memory now uses `.f.js`, with references
+updated. The graph has **272 `.f.js` files**, **371 `.f.mjs` files** and
+**15 blocked leaves**; the final pass accepts none, exposing no new leaves.
+
+#### Recursive mock runners
+
+#3791 (`e49e11f76`) makes both `runAll` and `partialRun` define `runner`
+as a function, delaying the self-reference until invocation. `effects/mock`
+now compiles as `.f.js`; references and nested `all` proofs are updated.
+The graph has **270 `.f.js` files**, **373 `.f.mjs` files** and
+**17 blocked leaves**; the final pass accepts none, exposing no new leaves.
+
+#### Mock interpreter order
+
+#3790 (`267f63128`) moves `_loop` before `run` and `partialRun`.
+At that revision, `effects/mock` still stops at `runAll`'s capture of
+`runner` in its own initializer (`71:71`, `const not found`).
+
+#### Effect walker order
+
+#3789 (`3d3b85103`) places `walkStep` before `foldStep`. `effects`,
+`effects/browser` and `effects/list` now use `.f.js`, with references updated.
+The graph has **269 `.f.js` files**, **374 `.f.mjs` files** and
+**18 blocked leaves**; the final pass accepts none.
+
+| New leaf | First refusal | Location |
+| --- | --- | --- |
+| `effects/memory` | `{ hasOwn } = Object` | `32:20` |
+| `effects/mock` | Forward reference to `_loop` | `19:25` |
+| `git/testlib.f.mjs` | Deliberate array hole | `125:68` |
+
+`text/utf8` now exposes seven candidates, adding `media/type`.
+
+#### Result continuation order
+
+#3788 (`db9dcc811`): next `effects` refusal is `foldStep` -> `walkStep` (`791:5`).
+
+#3787 places `resultStep` before `step` and `catchStep`. At `847713442`,
+`effects` next stops at `mapStep`'s forward reference to `resultMapStep`
+(`578:34`, `const not found`).
+
+#### Shared effect matcher
+
+#3785 moves `_matchWith` before `match` and `partialMatch`, preserving
+public export order. At `0aab1558b`, `effects` next stops at `step`'s
+forward reference to `resultStep` (`455:12`, `const not found`) and retains
+`.f.mjs`.
+
+#### RTTI numeric-key callback
+
+The migration in #3784 replaces `rtti/common`'s bare `.map(Number)` callback
+with `.map(v => Number(v))`. Conversion results and the own-key order remain
+unchanged.
+
+At `65cefc61c`, the compiler passes that refusal and stops at
+`new Set(declared)` in `declaredTest` (`301:19`, `new is not admitted`). The
+module retains `.f.mjs`; the graph remains at **266 `.f.js` files**,
+**377 `.f.mjs` files** and **16 blocked leaves**.
+
+#### Prime-field subtraction rename
+
+The migration in #3783 renames `PrimeField.sub` to `subtract`, updating its
+type and all consumers. The curve implementation binds `subtract` directly
+instead of reading `sub` with `entry`. This clears the last refusal in
+`crypto/sign/nonce_reuse`, which now uses `.f.js` with its references updated.
+
+At `19d3b90ed`, the graph has **266 `.f.js` files**, **377 `.f.mjs` files**
+and **16 blocked leaves**. No additional leaf is exposed by this promotion;
+the remaining blockers are unchanged.
 
 #### SHA-1 numeric indexes
 
@@ -270,9 +435,9 @@ historical set below with `types/bit_vec` replacing `types/bigint`;
 
 Measured from base revision `6ff068a3f`, with shared JSON string quoting in
 [#3763](https://github.com/functionalscript/functionalscript/pull/3763).
-[`media/datajs/vectors`](../fjs/media/datajs/vectors/module.f.mjs) replaces
+[`media/datajs/vectors`](../fjs/media/datajs/vectors/module.f.js) replaces
 its native `JSON.stringify` calls with
-[`js/string_escape`'s `stringLiteral`](../fjs/js/string_escape/module.f.mjs),
+[`js/string_escape`'s `stringLiteral`](../fjs/js/string_escape/module.f.js),
 the writer our JSON serializer already uses for strings. All four call sites
 quote strings: diagnostic values, member names and paths. The shared writer
 preserves their JSON spelling, including unpaired surrogates.
@@ -453,20 +618,9 @@ Locations are `line:column`; paths are relative to `fjs/`.
 | `types/map/module.f.mjs` | 10:38 | `new` in `mapSet`, a reserved word (`reserved word`): its line's `Map(...)` reads as a call statement of its own, which the fold refuses after it | `new Map(...)` in `mapDelete`; `Map` is not a language type. Its one importer, `edag/analysis`, keys the map by EDAG nodes, objects compared by identity, so rule 9 does not apply |
 | `zlib/bits/module.f.mjs` | 33:5 | The `for` loop in `read` | Measured with the `for` rewritten as the admitted `while`: `input[first + i]`, a key computed at run time; behind it the two variables the loop steps, `word` and `i`. `let word` on its own is admitted since general bindings ([variables](../spec/bindings/variables/README.md)) |
 
-To recheck the current table without writing generated output, run this from
-the repository root inside `./dev.sh node --input-type=module`:
-
-```js
-import { resolve as absolute } from 'node:path';
-import { resolve } from './fjs/compiler/edag/module.f.mjs';
-import { runNodeEffect } from './fjs/effects/node/module.mjs';
-
-const leaves = ['types/stack_walk', 'types/function/compare', 'types/list', 'types/map', 'zlib/bits'];
-for (const leaf of leaves) {
-  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
-  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
-}
-```
+Recheck this snapshot at its recorded revision with the
+[`resolve` / `runNodeEffect` recipe](#leaf-migration-fixed-point-at-5dcd94b-historical),
+using the leaf paths above.
 
 #### Leaf migration fixed point at `7cee7a5` (historical)
 
@@ -510,20 +664,9 @@ Locations are `line:column`; paths are relative to `fjs/`.
 | `types/map/module.f.mjs` | 10:38 | `new` in `mapSet`, a reserved word (`reserved word`): its line's `Map(...)` reads as a call statement of its own, which the fold refuses after it | `new Map(...)` in `mapDelete`; `Map` is not a language type. Its one importer, `edag/analysis`, keys the map by EDAG nodes, objects compared by identity, so rule 9 does not apply |
 | `zlib/bits/module.f.mjs` | 33:5 | The `for` loop in `read` | `let word`, with no `while` after it |
 
-To recheck the current table without writing generated output, run this from
-the repository root inside `./dev.sh node --input-type=module`:
-
-```js
-import { resolve as absolute } from 'node:path';
-import { resolve } from './fjs/compiler/edag/module.f.mjs';
-import { runNodeEffect } from './fjs/effects/node/module.mjs';
-
-const leaves = ['types/stack_walk', 'types/function/compare', 'types/list', 'types/map', 'zlib/bits'];
-for (const leaf of leaves) {
-  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
-  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
-}
-```
+Recheck this snapshot at its recorded revision with the
+[`resolve` / `runNodeEffect` recipe](#leaf-migration-fixed-point-at-5dcd94b-historical),
+using the leaf paths above.
 
 #### Leaf migration fixed point at `7baae35` (historical)
 
@@ -543,7 +686,7 @@ The four samples are new since the `e9df9df` table below: the programs of
 the NaNVM demo pages ([`todo/wasm-demos.md`](./wasm-demos.md)), each a
 module that imports nothing. The compiler accepts each as written, so only
 its name changes. The demos generator finds a sample by
-[`samplePath`](../fjs/nanvm/demos/page/module.f.mjs), which names
+[`samplePath`](../fjs/nanvm/demos/page/module.f.js), which names
 `sample.f.js` now, and the Rust it compiles each into, in
 `nanvm/demos/gen.samples`, is unchanged. Their references follow, 13 files
 with the proofs, which stay `proof.f.mjs`.
@@ -569,23 +712,9 @@ Locations are `line:column`; paths are relative to `fjs/`.
 | `types/map/module.f.mjs` | 10:38 | `new` in `mapSet`, a reserved word (`reserved word`): its line's `Map(...)` reads as a call statement of its own, which the fold refuses after it | `new Map(...)` in `mapDelete`; `Map` is not a language type. Its one importer, `edag/analysis`, keys the map by EDAG nodes, objects compared by identity, so rule 9 does not apply |
 | `zlib/bits/module.f.mjs` | 33:5 | The `for` loop in `read` | `let word`, with no `while` after it |
 
-To recheck the current table without writing generated output, run this from
-the repository root inside `./dev.sh node --input-type=module`:
-
-```js
-import { resolve as absolute } from 'node:path';
-import { resolve } from './fjs/compiler/edag/module.f.mjs';
-import { runNodeEffect } from './fjs/effects/node/module.mjs';
-
-const leaves = [
-  'git/config', 'types/stack_walk', 'types/function/compare', 'types/list',
-  'types/map', 'zlib/bits',
-];
-for (const leaf of leaves) {
-  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
-  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
-}
-```
+Recheck this snapshot at its recorded revision with the
+[`resolve` / `runNodeEffect` recipe](#leaf-migration-fixed-point-at-5dcd94b-historical),
+and the leaves in its table.
 
 #### Leaf migration fixed point at `e9df9df` (historical)
 
@@ -639,20 +768,9 @@ paths are relative to `fjs/`.
 | `types/map/module.f.mjs` | 10:38 | `new` in `mapSet`, a reserved word (`reserved word`): its line's `Map(...)` reads as a call statement of its own, which the fold refuses after it | `new Map(...)` in `mapDelete`; `Map` is not a language type. Its one importer, `edag/analysis`, keys the map by EDAG nodes, objects compared by identity, so rule 9 does not apply |
 | `zlib/bits/module.f.mjs` | 33:5 | The `for` loop in `read` | `let word`, with no `while` after it |
 
-To recheck the current table without writing generated output, run this from
-the repository root inside `./dev.sh node --input-type=module`:
-
-```js
-import { resolve as absolute } from 'node:path';
-import { resolve } from './fjs/compiler/edag/module.f.mjs';
-import { runNodeEffect } from './fjs/effects/node/module.mjs';
-
-const leaves = ['git/config', 'types/function/compare', 'types/list', 'types/map', 'zlib/bits'];
-for (const leaf of leaves) {
-  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
-  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
-}
-```
+Recheck this snapshot at its recorded revision with the
+[`resolve` / `runNodeEffect` recipe](#leaf-migration-fixed-point-at-5dcd94b-historical),
+and the leaves in its table.
 
 #### Leaf migration fixed point at `2e0462e` (historical)
 
@@ -705,20 +823,9 @@ became convertible. Locations are `line:column`; paths are relative to
 | `types/map/module.f.mjs` | 10:38 | `new` in `mapSet`, a reserved word (`reserved word`): its line's `Map(...)` reads as a call statement of its own, which the fold refuses after it | `new Map(...)` in `mapDelete`; `Map` is not a language type. Its one importer, `edag/analysis`, keys the map by EDAG nodes, objects compared by identity, so rule 9 does not apply |
 | `zlib/bits/module.f.mjs` | 33:5 | The `for` loop in `read` | `let word`, with no `while` after it |
 
-To recheck the current table without writing generated output, run this from
-the repository root inside `./dev.sh node --input-type=module`:
-
-```js
-import { resolve as absolute } from 'node:path';
-import { resolve } from './fjs/compiler/edag/module.f.mjs';
-import { runNodeEffect } from './fjs/effects/node/module.mjs';
-
-const leaves = ['text/ascii', 'types/function/compare', 'types/list', 'types/map', 'zlib/bits'];
-for (const leaf of leaves) {
-  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
-  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
-}
-```
+Recheck this snapshot at its recorded revision with the
+[`resolve` / `runNodeEffect` recipe](#leaf-migration-fixed-point-at-5dcd94b-historical),
+and the leaves in its table.
 
 #### Leaf migration fixed point at `2a5b9c7` (historical)
 
@@ -769,23 +876,9 @@ compiler reported it. Locations are `line:column`; paths are relative to
 | `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `new Map(...)` in `mapDelete`; `Map` is not a language type. Its one importer, `edag/analysis`, keys the map by EDAG nodes, objects compared by identity, so rule 9 does not apply |
 | `zlib/bits/module.f.mjs` | 25:5 | `assert(…)` as a statement in `read`, before its guards | The `for` loop in `read`; `let word`, with no `while` after it |
 
-To recheck the current table without writing generated output, run this from
-the repository root inside `./dev.sh node --input-type=module`:
-
-```js
-import { resolve as absolute } from 'node:path';
-import { resolve } from './fjs/compiler/edag/module.f.mjs';
-import { runNodeEffect } from './fjs/effects/node/module.mjs';
-
-const leaves = [
-  'ebnf/token_symbol', 'text/ascii', 'types/function/compare', 'types/list',
-  'types/map', 'zlib/bits',
-];
-for (const leaf of leaves) {
-  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
-  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
-}
-```
+Recheck this snapshot at its recorded revision with the
+[`resolve` / `runNodeEffect` recipe](#leaf-migration-fixed-point-at-5dcd94b-historical),
+and the leaves in its table.
 
 #### Leaf migration fixed point at `265b4a7` (historical)
 
@@ -843,23 +936,9 @@ Locations are `line:column`; paths are relative to `fjs/`.
 | `types/nullable/module.f.mjs` | 61:5 | `assert(…)` as a statement in `unwrap` | Nothing: the one refusal, which rule 10 rewrites |
 | `zlib/bits/module.f.mjs` | 25:5 | `assert(…)` as a statement in `read`, before its guards | The `for` loop in `read`; `let word`, with no `while` after it |
 
-To recheck the current table without writing generated output, run this from
-the repository root inside `./dev.sh node --input-type=module`:
-
-```js
-import { resolve as absolute } from 'node:path';
-import { resolve } from './fjs/compiler/edag/module.f.mjs';
-import { runNodeEffect } from './fjs/effects/node/module.mjs';
-
-const leaves = [
-  'ebnf/ast', 'text/ascii', 'types/function/compare', 'types/list',
-  'types/map', 'types/nullable', 'zlib/bits',
-];
-for (const leaf of leaves) {
-  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
-  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
-}
-```
+Recheck this snapshot at its recorded revision with the
+[`resolve` / `runNodeEffect` recipe](#leaf-migration-fixed-point-at-5dcd94b-historical),
+and the leaves in its table.
 
 #### Leaf migration fixed point at `122820b` (historical)
 
@@ -909,20 +988,9 @@ copy was accepted. Locations are `line:column`; paths are relative to
 | `types/list/module.f.mjs` | 51:9 | `if … else if` assigning to the parameter `head` inside the loop in `next` | In `next`, the tuple assignments, `continue`, `'head' in head`, two `return` guards inside the loop, the assignment to `head`, not the loop's variable, and no `return` after `while (true)`; `while` over a parameter, with no `let`, in `trampoline`; in `iterable`, the generator, `Symbol` and `yield`, a bare `return` guard inside the loop and no `return` after `while (true)`; in `last`, a `return` guard inside the loop and no `return` after `while (true)`; in `tryFold`, `for…of` and a `return` guard inside it; `'first' in notLazy` in `lengthList`; `const { from } = Array`, `Array` a reserved word there; nine forward references, each `…Step` to the export after it |
 | `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `new Map(...)` in `mapDelete`; `Map` is not a language type. Its one importer, `edag/analysis`, keys the map by EDAG nodes, objects compared by identity, so rule 9 does not apply |
 
-To recheck the current table without writing generated output, run this from
-the repository root inside `./dev.sh node --input-type=module`:
-
-```js
-import { resolve as absolute } from 'node:path';
-import { resolve } from './fjs/compiler/edag/module.f.mjs';
-import { runNodeEffect } from './fjs/effects/node/module.mjs';
-
-const leaves = ['asserts', 'types/list', 'types/map'];
-for (const leaf of leaves) {
-  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
-  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
-}
-```
+Recheck this snapshot at its recorded revision with the
+[`resolve` / `runNodeEffect` recipe](#leaf-migration-fixed-point-at-5dcd94b-historical),
+and the leaves in its table.
 
 #### Leaf migration fixed point at `999164a` (historical)
 
@@ -978,20 +1046,9 @@ corrected below.
 | `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `new Map(...)` in `mapDelete`; `Map` is not a language type |
 | `types/object/structurally_same/module.f.mjs` | 56:20 | `new Map(entries(b))` in `structurallySame` | Nothing: the one refusal. This cell first claimed `const { entries } = Object` was refused too, copied from the `3e1d1a09` row without being measured again; `Object.entries` has been admitted in both spellings since the `0c9ddf8` table ([CONVERTING.md rule 6](../doc/CONVERTING.md#6-objectis-and-objectentries)), and the module converted once its `Map` was replaced |
 
-To recheck the current table without writing generated output, run this from
-the repository root inside `./dev.sh node --input-type=module`:
-
-```js
-import { resolve as absolute } from 'node:path';
-import { resolve } from './fjs/compiler/edag/module.f.mjs';
-import { runNodeEffect } from './fjs/effects/node/module.mjs';
-
-const leaves = ['types/list', 'types/map', 'types/object/structurally_same'];
-for (const leaf of leaves) {
-  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
-  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
-}
-```
+Recheck this snapshot at its recorded revision with the
+[`resolve` / `runNodeEffect` recipe](#leaf-migration-fixed-point-at-5dcd94b-historical),
+and the leaves in its table.
 
 #### Leaf migration fixed point at `3e1d1a09` (historical)
 
@@ -1067,20 +1124,9 @@ relative to `fjs/`.
 | `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `new Map(...)` in `mapDelete`; `Map` is not a language type |
 | `types/object/structurally_same/module.f.mjs` | 56:20 | `new Map(entries(b))` in `structurallySame` | `const { entries } = Object`: `entries` is a prohibited property name, `Array.prototype`'s, and spelled `Object.entries` it is refused at `Object`, whose one admitted member is `is`; the language enumerates no keys |
 
-To recheck the current table without writing generated output, run this from
-the repository root inside `./dev.sh node --input-type=module`:
-
-```js
-import { resolve as absolute } from 'node:path';
-import { resolve } from './fjs/compiler/edag/module.f.mjs';
-import { runNodeEffect } from './fjs/effects/node/module.mjs';
-
-const leaves = ['types/list', 'types/map', 'types/object/structurally_same'];
-for (const leaf of leaves) {
-  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
-  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
-}
-```
+Recheck this snapshot at its recorded revision with the
+[`resolve` / `runNodeEffect` recipe](#leaf-migration-fixed-point-at-5dcd94b-historical),
+and the leaves in its table.
 
 #### Leaf migration fixed point at `0c9ddf8` (historical)
 
@@ -1147,31 +1193,16 @@ relative to `fjs/`.
 
 | Leaf file | Location | First refused construct | Behind it |
 | --- | ---: | --- | --- |
-| `nanvm/methods/module.f.mjs` | 115:20 | `Object.values` in `rows` | Nothing: the one refusal |
+| `nanvm/methods/module.f.js` | 115:20 | `Object.values` in `rows` | Nothing: the one refusal |
 | `types/list/module.f.mjs` | 51:9 | `if … else if` assigning to the parameter `head` inside the loop in `next` | In `next`, the tuple assignments, `continue`, `'head' in head`, two `return` guards inside the loop, the assignment to `head`, not the loop's variable, and no `return` after `while (true)`; `while` over a parameter, with no `let`, in `trampoline`; the generator, `Symbol` and `yield` in `iterable`; a `return` guard inside the loop in `last`; `for…of` in `tryFold`; `'first' in notLazy` in `lengthList`; `const { from } = Array`, `Array` a reserved word there; nine forward references, each `…Step` to the export after it |
 | `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `new Map(...)` in `mapDelete`; `Map` is not a language type |
 | `types/object/structurally_same/module.f.mjs` | 56:20 | `new Map(entries(b))` in `structurallySame` | Nothing: the one refusal, since `Object.entries` is admitted, `const { entries } = Object` with it |
 | `website/browser-source/module.f.mjs` | 63:9 | Guard with `break` inside the loop in `read` | All in `read`: two loop variables and a `let` inside the loop, `continue`, `+=`, nested loops, and an `if` whose body neither returns nor throws |
 | `website/demo/code/module.f.mjs` | 12:48 | Default parameter in `codeBlock` | Nothing: the one refusal |
 
-To recheck the current table without writing generated output, run this from
-the repository root inside `./dev.sh node --input-type=module`:
-
-```js
-import { resolve as absolute } from 'node:path';
-import { resolve } from './fjs/compiler/edag/module.f.mjs';
-import { runNodeEffect } from './fjs/effects/node/module.mjs';
-
-const leaves = [
-  'nanvm/methods', 'types/list', 'types/map',
-  'types/object/structurally_same', 'website/browser-source',
-  'website/demo/code',
-];
-for (const leaf of leaves) {
-  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
-  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
-}
-```
+Recheck this snapshot at its recorded revision with the
+[`resolve` / `runNodeEffect` recipe](#leaf-migration-fixed-point-at-5dcd94b-historical),
+and the leaves in its table.
 
 #### Leaf migration fixed point at `e40fa58` (historical)
 
@@ -1229,35 +1260,20 @@ relative to `fjs/`.
 
 | Leaf file | Location | First refused construct | Behind it |
 | --- | ---: | --- | --- |
-| `ci/package/module.f.mjs` | 114:22 | `JSON.stringify` in `literal` | `JSON` is not admitted; also writes `tsconfig` with it |
+| `ci/package/module.f.js` | 114:22 | `JSON.stringify` in `literal` | `JSON` is not admitted; also writes `tsconfig` with it |
 | `git/config/module.f.mjs` | 563:12 | Elision in `const [, list]` in `tryEntries` | Every read of the `sub` field, `acc.sub` in `subStep` first, a prohibited property name |
 | `media/rust/module.f.mjs` | 62:5 | `switch` in `character` | The loop in `exponentOf`: two `let` variables, an `if … else` assigning inside it, `Math.floor`; `Math.abs`; `Array(…).keys()`, a reserved word and a prohibited call; four forward references, `utf16Literal` to `utf16Units`, `f64Bits` to `bitsOf`, `u64Words` to `u64WordItems`, `u64WordItems` to `words` |
-| `nanvm/methods/module.f.mjs` | 113:20 | `Object.values` in `rows` | Nothing: the one refusal |
+| `nanvm/methods/module.f.js` | 113:20 | `Object.values` in `rows` | Nothing: the one refusal |
 | `types/list/module.f.mjs` | 51:9 | `if … else if` assigning to the parameter `head` inside the loop in `next` | In `next`, the tuple assignment, `continue` and `'head' in head`; `while` over a parameter in `trampoline`; the generator, `Symbol` and `yield` in `iterable`; a `return` guard inside the loop in `last`; `for…of` in `tryFold`; `'first' in notLazy` in `lengthList`; `const { from } = Array`; nine forward references, each `…Step` to the export after it |
 | `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `new Map(...)` in `mapDelete`; `Map` is not a language type |
 | `types/object/structurally_same/module.f.mjs` | 58:20 | `new Map(entries(b))` | `const { entries } = Object`: the `Object` global is a prohibited property name, and the language enumerates no keys |
-| `types/ts/module.f.mjs` | 24:29 | Default parameter in `printer` | `switch` with fallthrough in `primitive`; `JSON.stringify` in `struct` and `primitive` |
+| `types/ts/module.f.js` | 24:29 | Default parameter in `printer` | `switch` with fallthrough in `primitive`; `JSON.stringify` in `struct` and `primitive` |
 | `website/browser-source/module.f.mjs` | 63:9 | Guard with `break` inside the loop in `read` | All in `read`: two loop variables and a `let` inside the loop, `continue`, `+=`, nested loops, and an `if` whose body neither returns nor throws |
 | `website/demo/code/module.f.mjs` | 12:48 | Default parameter in `codeBlock` | Nothing: the one refusal |
 
-To recheck the current table without writing generated output, run this from
-the repository root inside `./dev.sh node --input-type=module`:
-
-```js
-import { resolve as absolute } from 'node:path';
-import { resolve } from './fjs/compiler/edag/module.f.mjs';
-import { runNodeEffect } from './fjs/effects/node/module.mjs';
-
-const leaves = [
-  'ci/package', 'git/config', 'media/rust', 'nanvm/methods', 'types/list',
-  'types/map', 'types/object/structurally_same', 'types/ts',
-  'website/browser-source', 'website/demo/code',
-];
-for (const leaf of leaves) {
-  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
-  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
-}
-```
+Recheck this snapshot at its recorded revision with the
+[`resolve` / `runNodeEffect` recipe](#leaf-migration-fixed-point-at-5dcd94b-historical),
+and the leaves in its table.
 
 #### Leaf migration fixed point at `8d86959` (historical)
 
@@ -1296,38 +1312,22 @@ Locations are `line:column`; paths are relative to `fjs/`.
 
 | Leaf file | Location | First refused construct | Behind it |
 | --- | ---: | --- | --- |
-| `ci/package/module.f.mjs` | 114:22 | `JSON.stringify` in `literal` | `JSON` is not admitted; also writes `tsconfig` with it |
+| `ci/package/module.f.js` | 114:22 | `JSON.stringify` in `literal` | `JSON` is not admitted; also writes `tsconfig` with it |
 | `emergent_testing/node/module.f.mjs` | 25:18 | Destructured parameter in `coverage` | The computed key `file[cwd.length]` in `located`, no `Number(...)`; a destructured parameter in `log` |
 | `git/config/module.f.mjs` | 563:12 | Elision in `const [, list]` in `tryEntries` | Destructured parameters in `lineStep`, `valueAt` and `extensionAt` |
 | `media/rust/module.f.mjs` | 62:5 | `switch` in `character` | `let`/`while` in the exponent search, `Math.floor`, `Math.abs`, four forward references |
-| `nanvm/methods/module.f.mjs` | 102:41 | Destructured callback parameter in `pairs` | `Object.values` in `listed`; destructured callbacks in `absent` and `table` |
+| `nanvm/methods/module.f.js` | 102:41 | Destructured callback parameter in `pairs` | `Object.values` in `listed`; destructured callbacks in `absent` and `table` |
 | `types/list/module.f.mjs` | 51:9 | Assignment to `head`, not the loop's variable, in `next` | `while` over a parameter in `trampoline`, the generator in `iterable`, `const { from } = Array`, `for…of` in `tryFold`, destructured `({ first, tail })` callbacks throughout |
 | `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `Map` is not a language type |
 | `types/object/structurally_same/module.f.mjs` | 58:20 | `new Map(entries(b))` | `const { entries } = Object`: the `Object` global is a prohibited property name, and the language enumerates no keys; the destructured `([k, v])` callback |
-| `types/ts/module.f.mjs` | 24:29 | Default parameter in `printer` | `switch`, a destructured callback, `JSON.stringify` |
+| `types/ts/module.f.js` | 24:29 | Default parameter in `printer` | `switch`, a destructured callback, `JSON.stringify` |
 | `website/browser-source/module.f.mjs` | 63:9 | Guard with `break` inside the loop in `read` | The lexer's two loop variables, nested loops and guards in `read` |
 | `website/demo/code/module.f.mjs` | 12:48 | Default parameter in `codeBlock` | The computed key `[codeMarker]` |
 | `website/prs/load/module.f.mjs` | 106:41 | Destructured parameter in `finishedNote` | Three more destructured parameters |
 
-To recheck the current table without writing generated output, run this from
-the repository root inside `./dev.sh node --input-type=module`:
-
-```js
-import { resolve as absolute } from 'node:path';
-import { resolve } from './fjs/compiler/edag/module.f.mjs';
-import { runNodeEffect } from './fjs/effects/node/module.mjs';
-
-const leaves = [
-  'ci/package', 'emergent_testing/node', 'git/config', 'media/rust',
-  'nanvm/methods', 'types/list', 'types/map',
-  'types/object/structurally_same', 'types/ts', 'website/browser-source',
-  'website/demo/code', 'website/prs/load',
-];
-for (const leaf of leaves) {
-  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
-  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
-}
-```
+Recheck this snapshot at its recorded revision with the
+[`resolve` / `runNodeEffect` recipe](#leaf-migration-fixed-point-at-5dcd94b-historical),
+and the leaves in its table.
 
 #### Leaf migration fixed point on #2858 (historical)
 
@@ -1365,39 +1365,23 @@ Locations are `line:column`; paths are relative to `fjs/`.
 
 | Leaf file | Location | First refused construct | Behind it |
 | --- | ---: | --- | --- |
-| `ci/package/module.f.mjs` | 114:22 | `JSON.stringify` in `literal` | `JSON` is not admitted; also writes `tsconfig` with it |
+| `ci/package/module.f.js` | 114:22 | `JSON.stringify` in `literal` | `JSON` is not admitted; also writes `tsconfig` with it |
 | `emergent_testing/node/module.f.mjs` | 26:11 | Destructuring `const { summary } = data` in `coverage` | A destructured parameter before it, more destructuring after |
 | `git/config/module.f.mjs` | 473:11 | Destructuring `const { sub, after }` in `trySub` | `toLowerCase` at six sites, a prohibited member call; four more destructuring sites |
 | `media/rust/module.f.mjs` | 62:5 | `switch` in `character` | `let`/`while` in the exponent search, `Math.floor`, `Math.abs`, `toLowerCase`, four forward references |
-| `nanvm/methods/module.f.mjs` | 102:41 | Destructured callback parameter in `pairs` | `Object.values` in `listed`; destructured callbacks in `absent` and `table` |
+| `nanvm/methods/module.f.js` | 102:41 | Destructured callback parameter in `pairs` | `Object.values` in `listed`; destructured callbacks in `absent` and `table` |
 | `types/list/module.f.mjs` | 51:9 | Assignment to `head`, not the loop's variable, in `next` | `while` over a parameter in `trampoline`, the generator in `iterable`, `const { from } = Array`, `for…of` in `tryFold`, destructured `({ first, tail })` callbacks throughout |
 | `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `Map` is not a language type |
 | `types/object/structurally_same/module.f.mjs` | 22:7 | Destructuring `const { entries } = Object` | `Object.entries`: the language enumerates no keys; `new Map` with `has` and `get` besides |
-| `types/ts/module.f.mjs` | 24:29 | Default parameter in `printer` | `switch`, a destructured callback, `JSON.stringify` |
+| `types/ts/module.f.js` | 24:29 | Default parameter in `printer` | `switch`, a destructured callback, `JSON.stringify` |
 | `website/browser-source/module.f.mjs` | 63:9 | Guard with `break` inside the loop in `read` | The lexer's two loop variables, nested loops and guards in `read` |
 | `website/cli/search/module.f.mjs` | 4:46 | `toLowerCase` in `matches`, a prohibited member call | Nothing else |
 | `website/demo/code/module.f.mjs` | 12:48 | Default parameter in `codeBlock` | The computed key `[codeMarker]` |
 | `website/prs/load/module.f.mjs` | 106:41 | Destructured parameter in `finishedNote` | Three more destructured parameters |
 
-To recheck the current table without writing generated output, run this from
-the repository root inside `./dev.sh node --input-type=module`:
-
-```js
-import { resolve as absolute } from 'node:path';
-import { resolve } from './fjs/compiler/edag/module.f.mjs';
-import { runNodeEffect } from './fjs/effects/node/module.mjs';
-
-const leaves = [
-  'ci/package', 'emergent_testing/node', 'git/config', 'media/rust',
-  'nanvm/methods', 'types/list', 'types/map',
-  'types/object/structurally_same', 'types/ts', 'website/browser-source',
-  'website/cli/search', 'website/demo/code', 'website/prs/load',
-];
-for (const leaf of leaves) {
-  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
-  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
-}
-```
+Recheck this snapshot at its recorded revision with the
+[`resolve` / `runNodeEffect` recipe](#leaf-migration-fixed-point-at-5dcd94b-historical),
+using the leaf paths above.
 
 #### Leaf migration fixed point at `6e392d4f2` (historical)
 
@@ -1445,14 +1429,14 @@ names what it reached before the compiler refused again. Locations are
 
 | Leaf file | Location | First refused construct | Behind it |
 | --- | ---: | --- | --- |
-| `ci/package/module.f.mjs` | 114:22 | `JSON.stringify` in `literal` | `JSON` is not admitted; also writes `tsconfig` with it |
+| `ci/package/module.f.js` | 114:22 | `JSON.stringify` in `literal` | `JSON` is not admitted; also writes `tsconfig` with it |
 | `git/config/module.f.mjs` | 472:11 | Destructuring `const { sub, after }` | `BigInt(number)` at three sites, `toLowerCase` at six, five more destructuring sites |
 | `media/rust/module.f.mjs` | 59:5 | `switch` in `character` | `BigInt(number)` in `bitsOf`, `Array(n)`, `let`/`while`, `Math`, `Number.isNaN`, `Object.is`, `toLowerCase`, four forward references |
-| `nanvm/methods/module.f.mjs` | 102:41 | Destructured callback parameter in `pairs` | `Object.values` in `rows`; a second destructured callback in `absent` |
+| `nanvm/methods/module.f.js` | 102:41 | Destructured callback parameter in `pairs` | `Object.values` in `rows`; a second destructured callback in `absent` |
 | `types/list/module.f.mjs` | 40:5 | `while` and reassignment in `trampoline` | The generator in `iterable`, `Array.from`, the imperative `next` |
 | `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `Map` is not a language type |
 | `types/object/structurally_same/module.f.mjs` | 20:7 | Destructuring `const { entries, is } = Object` | `Object.entries`: the language enumerates no keys; `Map` besides |
-| `types/ts/module.f.mjs` | 22:29 | Default parameter in `printer` | `switch`, a destructured callback, `JSON.stringify` |
+| `types/ts/module.f.js` | 22:29 | Default parameter in `printer` | `switch`, a destructured callback, `JSON.stringify` |
 | `website/browser-source/module.f.mjs` | 54:5 | `let` in `read` | The `let`/`while` lexer in `read` |
 | `website/demo/code/module.f.mjs` | 12:48 | Default parameter in `codeBlock` | The computed key `[codeMarker]` |
 | `website/prs/load/module.f.mjs` | 103:41 | Destructured parameter in `finishedNote` | Two more destructured parameters, `Number.isFinite`, `Math.min` |
@@ -1471,24 +1455,9 @@ widens the website's `authored` selector to `.f.js`, so the browser suite
 keeps it. The authored `.f.js` population is 30. The eleven implementation
 leaves above are untouched by it, so the loop still stops there.
 
-To recheck the current table without writing generated output, run this from
-the repository root inside `./dev.sh node --input-type=module`:
-
-```js
-import { resolve as absolute } from 'node:path';
-import { resolve } from './fjs/compiler/edag/module.f.mjs';
-import { runNodeEffect } from './fjs/effects/node/module.mjs';
-
-const leaves = [
-  'ci/package', 'git/config', 'media/rust', 'nanvm/methods', 'types/list',
-  'types/map', 'types/object/structurally_same', 'types/ts',
-  'website/browser-source', 'website/demo/code', 'website/prs/load',
-];
-for (const leaf of leaves) {
-  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
-  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
-}
-```
+Recheck this snapshot at its recorded revision with the
+[`resolve` / `runNodeEffect` recipe](#leaf-migration-fixed-point-at-5dcd94b-historical),
+using the leaf paths above.
 
 #### Leaf migration fixed point at `5dcd94b` (historical)
 
@@ -1544,15 +1513,15 @@ large text templates or substantially rewrite the remaining modules.
 
 | Leaf file | Location | First refused construct |
 | --- | ---: | --- |
-| `ci/package/module.f.mjs` | 32:56 | Template literal in `consumerDirectory` |
+| `ci/package/module.f.js` | 32:56 | Template literal in `consumerDirectory` |
 | `git/config/module.f.mjs` | 400:60 | Template literal extending `pending` |
 | `media/rust/module.f.mjs` | 65:44 | Template literal producing a Rust Unicode escape |
 | `nanvm/member/module.f.mjs` | 335:13 | Template literal in a generated test name |
-| `nanvm/methods/module.f.mjs` | 125:21 | Template literal in `path` |
+| `nanvm/methods/module.f.js` | 125:21 | Template literal in `path` |
 | `types/list/module.f.mjs` | 40:5 | `while` and reassignment in `trampoline` |
 | `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` |
 | `types/object/structurally_same/module.f.mjs` | 20:7 | Destructuring `const { entries, is } = Object` |
-| `types/ts/module.f.mjs` | 13:5 | Template literal in `complex` |
+| `types/ts/module.f.js` | 13:5 | Template literal in `complex` |
 | `website/browser-source/module.f.mjs` | 89:35 | Template literal assembling browser source |
 | `website/prs/load/module.f.mjs` | 28:5 | Template literal in `pageRequest` |
 | `website/style/module.f.mjs` | 110:27 | Template literal containing the stylesheet |
@@ -1567,7 +1536,7 @@ the repository root inside `./dev.sh node --input-type=module`:
 
 ```js
 import { resolve as absolute } from 'node:path';
-import { resolve } from './fjs/compiler/edag/module.f.mjs';
+import { resolve } from './fjs/compiler/edag/module.f.js';
 import { runNodeEffect } from './fjs/effects/node/module.mjs';
 
 const leaves = [
@@ -1597,18 +1566,18 @@ the file. Locations are `line:column`; paths are relative to `fjs/`.
 
 | Leaf file | Location | First refused construct |
 | --- | ---: | --- |
-| `ci/package/module.f.mjs` | 32:56 | Template literal in `consumerDirectory` |
+| `ci/package/module.f.js` | 32:56 | Template literal in `consumerDirectory` |
 | `git/bytes/module.f.mjs` | 25:35 | Computed key `b[at]`; it must use `Number(...)` |
 | `git/config/module.f.mjs` | 90:57 | `\v` escape |
 | `js/keywords/module.f.mjs` | 103:24 | `new Set(keywords)` |
 | `nanvm/member/module.f.mjs` | 59:38 | `\u{1F600}` escape |
-| `nanvm/methods/module.f.mjs` | 125:21 | Template literal in `path` |
+| `nanvm/methods/module.f.js` | 125:21 | Template literal in `path` |
 | `types/function/module.f.mjs` | 33:5 | `let v = value` in `iterate` |
 | `types/function/operator/module.f.mjs` | 11:5 | Template literal in `join` |
 | `types/map/module.f.mjs` | 10:42 | `new Map(...)` |
 | `types/object/structurally_same/module.f.mjs` | 20:7 | Destructuring `const { entries, is } = Object` |
 | `types/result/module.f.mjs` | 111:5 | `for (const r of list)` in `okList` |
-| `types/ts/module.f.mjs` | 13:5 | Template literal in `complex` |
+| `types/ts/module.f.js` | 13:5 | Template literal in `complex` |
 | `website/browser-source/module.f.mjs` | 89:35 | Template literal |
 | `website/demo/code/module.f.mjs` | 26:52 | `\0` escape |
 | `website/demo/examples/module.f.mjs` | 54:13 | `new Set(...)` |
@@ -1692,7 +1661,7 @@ records that snapshot's blockers, including the since-migrated `array_index`:
 | Feature | Tracked in | Leaves it held at `08d013b` |
 | --- | --- | --- |
 | Template literals | now implemented ([spec: template literals](../spec/values/template-literals/README.md)) | function/operator, ci/package, ts, nanvm/methods, nanvm/member, style, demo/code, git/config, browser-source |
-| Destructuring | [`spec/todo/2450-destructuring.md`](../spec/todo/2450-destructuring.md) | structurally_same, result, function/operator, map, demo/examples, ts, git/config, nanvm/methods |
+| Destructuring | [`spec/bindings/destructuring`](../spec/bindings/destructuring/README.md) | structurally_same, result, function/operator, map, demo/examples, ts, git/config, nanvm/methods |
 | A runtime key that is a string, `a[k]` | in the language as the `entry` helper ([spec: entry](../spec/property-access/entries/README.md)); the module rewrites `a[k]` as `entry(a, k)`, and `k in a` as `hasEntry(a, k)`, both imported from [`fjs/types/object/entry`](../fjs/types/object/entry/module.f.js) | git/config, nanvm/methods |
 | A runtime key that is a number, `a[i]` | in the language as the conversion `a[Number(i)]` ([spec: property access](../spec/property-access/README.md)), the EDAG's `['.', a, ['Number', i]]`; the module rewrites `a[i]` as `a[Number(i)]`, not `entry` | structurally_same, function/operator, set, git/bytes, git/config, browser-source |
 | Globals and built-ins | [`spec/todo/2365-global-names.md`](../spec/todo/2365-global-names.md), [`2360-built-in.md`](../spec/todo/2360-built-in.md); of `Number`, the call `Number(exp)` is in the language ([spec: number conversion](../spec/conversions/number/README.md)), and so are the four predicates `Number.isInteger`, `Number.isSafeInteger`, `Number.isNaN` and `Number.isFinite`, with `Object.is` ([spec: built-in static functions](../spec/built-ins/static-functions/README.md)), each other member an admission of its own | structurally_same, array_index, ts, git/bytes, nanvm/methods, ci/package, git/config |
@@ -1845,7 +1814,7 @@ done
 ### CLI: an output target, not a command group (decided)
 
 `fjs compile <input> <output>` already dispatches on the output extension
-(`.json` vs. DJS — see [`fjs/compiler/module.f.mjs`](../fjs/compiler/module.f.mjs)). Rust
+(`.json` vs. DJS — see [`fjs/compiler/module.f.js`](../fjs/compiler/module.f.js)). Rust
 code generation is a third branch, selected by the `.rs` extension:
 
 - `fjs compile <module> <output>.rs` — parse + compile into a generated Rust
@@ -1872,7 +1841,7 @@ is on hold and is not part of this completed MVP or a self-hosting prerequisite.
       The original literal/container walking skeleton has grown to include
       operators, calls and capturing functions; current coverage lives in
       the [parser](../fjs/compiler/parser/README.md),
-      [shared Rust printer](../fjs/edag/rust/module.f.mjs) and
+      [shared Rust printer](../fjs/edag/rust/module.f.js) and
       [harness fixtures](../nanvm/harness/fixtures).
 - [x] Create the harness: a crate (`nanvm-harness`) with a thin `main` that
       selects a generated module's `default` property and prints that value
@@ -1892,7 +1861,7 @@ is on hold and is not part of this completed MVP or a self-hosting prerequisite.
       through it. The selection is exposed as the harness API only; a CLI
       waits for a use ([`main.rs`](../nanvm/harness/src/main.rs)).
 - [x] Inline source dependencies into one generated Rust output.
-      `rustText` in the [compiler](../fjs/compiler/module.f.mjs) resolves the complete
+      `rustText` in the [compiler](../fjs/compiler/module.f.js) resolves the complete
       graph before calling `toRust`; source imports do not become separate
       Rust modules. The harness includes each generated fixture via `#[path]`
       as its own embedding choice.
@@ -1909,7 +1878,7 @@ is on hold and is not part of this completed MVP or a self-hosting prerequisite.
       runtime/type tests — the packed-package check imports
       `fjs/js/prototype/module.f.js` from a clean consumer, runs it, and
       type-checks a use of `PrototypeName` with a negative control
-      ([`fjs/ci/package/module.f.mjs`](../fjs/ci/package/module.f.mjs)).
+      ([`fjs/ci/package/module.f.js`](../fjs/ci/package/module.f.js)).
 - [x] Verify `.js` is trackable and authored `.f.js` is a first-class package
       source before the first compiler-compatibility rename — proved first on
       a synthetic package fixture, tracked, type-checked, declared, packed
@@ -1948,7 +1917,7 @@ is on hold and is not part of this completed MVP or a self-hosting prerequisite.
 
 ### Related
 
-- [`fjs/ci/package/module.f.mjs`](../fjs/ci/package/module.f.mjs) — the
+- [`fjs/ci/package/module.f.js`](../fjs/ci/package/module.f.js) — the
   packed-package check closing the `node` CI job, the clean-consumer check
   of a published `.f.js`.
 - [`fjs/compiler/README.md`](../fjs/compiler/README.md) — the extension contract, and the

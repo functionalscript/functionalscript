@@ -17,10 +17,10 @@ import type { StaticId } from '../../edag/types.ts'
 import type { AllowedCall } from '../prototype/types.ts'
 import type { member, runtime, statics } from './module.f.js'
 
-/** The runtime: table lookups `static` and `dot`, and operator bodies `in` and `Boolean`. */
+/** The runtime: table lookups `static` and `dot`, operator bodies `in` and `Boolean`, and the reference map's maker, `refMap`. */
 export type Runtime = typeof runtime
 
-type _Sections = Assert<Equal<keyof Runtime, 'Boolean' | 'dot' | 'in' | 'static'>>
+type _Sections = Assert<Equal<keyof Runtime, 'Boolean' | 'dot' | 'in' | 'refMap' | 'static'>>
 
 /** The Boolean conversion operator's body. */
 export type BooleanConversion = Runtime['Boolean']
@@ -75,7 +75,28 @@ export type StaticBody = (...args: never[]) => unknown
 /** Every entry is a function. */
 type _StaticEntries = Assert<Equal<Statics[StaticId] extends StaticBody ? true : false, true>>
 
+/** The common encoder accepts every FJS value, including an omitted argument. */
+type _EncodeUriComponent = Assert<Equal<Statics['encodeURIComponent'], (value?: unknown) => string>>
+
 /** A native is the built-in itself, never a body beside it, which would be a second implementation. */
 type _NativeIsTheBuiltIn = Assert<Equal<Statics['Object.entries'], typeof Object.entries>>
 
 type _NativeFromCharCode = Assert<Equal<Statics['String.fromCharCode'], typeof String.fromCharCode>>
+
+type _NativeTrunc = Assert<Equal<Statics['Math.trunc'], typeof Math.trunc>>
+
+type _NativeFloor = Assert<Equal<Statics['Math.floor'], typeof Math.floor>>
+
+type _NativeAbs = Assert<Equal<Statics['Math.abs'], typeof Math.abs>>
+
+type _NativeSqrt = Assert<Equal<Statics['Math.sqrt'], typeof Math.sqrt>>
+
+type _NativeCeil = Assert<Equal<Statics['Math.ceil'], typeof Math.ceil>>
+
+type _NativeImul = Assert<Equal<Statics['Math.imul'], typeof Math.imul>>
+
+type _NativeMax = Assert<Equal<Statics['Math.max'], typeof Math.max>>
+
+type _NativeMin = Assert<Equal<Statics['Math.min'], typeof Math.min>>
+
+type _NativeClz32 = Assert<Equal<Statics['Math.clz32'], typeof Math.clz32>>

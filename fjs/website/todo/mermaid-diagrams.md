@@ -6,7 +6,7 @@
 ### Problem
 
 GitHub draws a README's `mermaid` fence as a diagram; the site shows its
-source as a code block ([`readme`](../readme/module.f.mjs)'s `readmeNodes`).
+source as a code block ([`readme`](../readme/module.f.js)'s `readmeNodes`).
 GitHub draws `geojson`, `topojson` and `stl` fences too, but no README uses
 one.
 
@@ -26,7 +26,7 @@ At `92d8e4a1`, two rendered READMEs hold Mermaid fences:
 ### Proposal
 
 **Draw them ourselves, at build time, with the renderer the site already
-has.** [`demo/graph`](../demo/graph/module.f.mjs) lays out and draws a node and
+has.** [`demo/graph`](../demo/graph/module.f.js) lays out and draws a node and
 edge diagram as SVG (`ranked`, `graphSvg`), as Graphviz's `dot` does, and
 [graph-visualizer](../../edag/todo/graph-visualizer.md) already asks for it to
 be reused. A README is rendered when the site is built, so a diagram drawn
@@ -58,7 +58,7 @@ sideways: its picture changes direction, not its content.
       `tryFlowchart`).
 - [x] Mark an edge that closes a cycle as a `back` edge, so the layout ranks
       the rest: `disot`'s document → hash → document drew badly without it
-      ([`mermaid`](../mermaid/module.f.mjs)'s `flowchartGraph`; `ranked` in
+      ([`mermaid`](../mermaid/module.f.js)'s `flowchartGraph`; `ranked` in
       `demo/graph` starts every source at rank 0, so a flowchart with
       several starting points ranks them all).
 - [x] Draw a node's label of several lines: the reader reads Mermaid's
@@ -76,7 +76,7 @@ sideways: its picture changes direction, not its content.
       `runtime::#lt;A#gt;()`, which GitHub shows as written and the site
       draws; as `<A>`, Mermaid read a tag and GitHub dropped it.
 - [x] Draw a README's flowchart fence as its diagram in
-      [`readme`](../readme/module.f.mjs), and keep any other fence as source.
+      [`readme`](../readme/module.f.js), and keep any other fence as source.
 - [ ] Sequence diagrams: a layout of their own, if a second README wants one.
 
 ### Related

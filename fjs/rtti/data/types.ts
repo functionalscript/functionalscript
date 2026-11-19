@@ -69,11 +69,11 @@ export type ObjectSet = {
 /**
  * A set of values as a disjoint union over the six kinds. An absent
  * component is the empty set of that kind, so `{}` is `never` and a union
- * with every component at its maximum (see `unknown` in `./module.f.mjs`)
+ * with every component at its maximum (see `unknown` in `./module.f.js`)
  * is `unknown`.
  *
  * `unit` is a bitset over the four singleton values plus **absence**; bit
- * `1 << i` for `i < 4` stands for `unitList[i]` from `./module.f.mjs`
+ * `1 << i` for `i < 4` stands for `unitList[i]` from `./module.f.js`
  * (`['null', 'undefined', 'false', 'true']`), so `or(true, false)` collapses
  * to the two boolean bits with no special-case rule. Bit `16` is
  * `absentBit`, rtti's nullary `option`: the member that is not there. It
@@ -103,7 +103,7 @@ export type RuleSet = StringMap<UnionSet>
 
 /**
  * A complete serializable schema: the named recursive definitions plus the
- * entry node. Produced by `toData` in `./module.f.mjs`.
+ * entry node. Produced by `toData` in `./module.f.js`.
  */
 export type Data = readonly [RuleSet, Node]
 
@@ -118,7 +118,7 @@ export type KindName = 'number' | 'string' | 'bigint' | 'array' | 'object'
 
 /**
  * What a renderer says about each part of a {@link UnionSet}. `unionFold` in
- * `./module.f.mjs` walks the union and calls these. The renderer only supplies
+ * `./module.f.js` walks the union and calls these. The renderer only supplies
  * the leaves.
  *
  * - `top` is the set of all values.

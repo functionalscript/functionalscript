@@ -1,0 +1,114 @@
+/**
+ * CLI command dispatch table.
+ *
+ * See `./types.ts` for the type-level API.
+ *
+ * @module
+ *
+ * @import { NodeOp, Program, Write } from '../effects/node/types.ts'
+ * @import { Command, Commands, CommandReference, Main } from './types.ts'
+ */
+
+import { errorExit, exitStep, log } from '../effects/node/module.f.js'
+import { fromEntries, isObject } from '../types/object/module.f.js'
+import { entry } from '../types/object/entry/module.f.js'
+import { isArray } from '../types/array/module.f.js'
+import { max } from '../types/number/max/module.f.js'
+
+/** Metadata for the help command implicit in every dispatch table. */
+export const helpMeta = /** @type {const} */ { names: ['help', 'h', '?'], description: 'Print this help message' }
+
+/** Reference for the help command implicit in a canonical command path.
+ * @type {(parent: readonly string[]) => CommandReference}
+ */
+export const helpReference = parent => ({
+    usage: parent.length === 0 ? 'fjs help [command]' : `fjs ${parent.join(' ')} help`,
+    examples: parent.length === 0 ? ['fjs help', 'fjs help cas'] : [`fjs help ${parent.join(' ')}`],
+    note: parent.length === 0
+        ? 'A command table target lists its subcommands. For a program target, help lists the top-level commands; it does not describe positional parameters.'
+        : 'Both invocations list the subcommands and their aliases.',
+    docs: 'fjs/README.md',
+})
+
+/** @type {<O extends NodeOp>(commands: Commands<O>) => string} */
+const renderHelp = commands => {
+    const rows = [...commands, helpMeta]
+    const nameCol = rows.map(({ names }) => names.join(', '))
+    const width = nameCol.reduce((m, { length }) => max(m, length), -Infinity)
+    return [
+        'Available commands:',
+        ...rows.map(({ description }, i) => `  ${nameCol[Number(i)].padEnd(width)}  ${description}`)
+    ].join('\n')
+}
+
+/**
+ * @param {(value: unknown) => boolean} isMain
+ * @param {unknown} value
+ * @returns {value is Command<NodeOp>}
+ */
+const isCommand = (isMain, value) => {
+    if (!isObject(value)) { return false }
+    const { names, description, handler } = value
+    return isArray(names) && names.every(n => typeof n === 'string')
+        && typeof description === 'string'
+        && isMain(handler)
+}
+
+/**
+ * Whether a value from outside the type system — a module's `main`, say — is a
+ * `Main`: a function, or a table whose every command has string `names`, a
+ * string `description` and a `Main` for its `handler`. A function is taken to
+ * be a `Program`; nothing can check that before calling it.
+ *
+ * @param {unknown} value
+ * @returns {value is Main<NodeOp>}
+ */
+export const isMain = value => typeof value === 'function' || (isArray(value) && value.every(command => isCommand(isMain, command)))
+
+/** Spelled-out counts for arity messages; larger counts fall back to digits. */
+const countWords = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine']
+
+/**
+ * Wraps a `Program` that takes exactly `n` positional arguments: any other
+ * count exits with `'<name>' expects <n> parameter(s)` and never runs it, so
+ * the program can destructure `args` as a known-length list.
+ *
+ * @type {(name: string, n: number) => <O extends NodeOp>(program: Program<O>) => Program<O | Write>}
+ */
+export const exactArgs = (name, n) => program => options => {
+    if (options.args.length === n) { return program(options) }
+    const count = n < countWords.length ? countWords[Number(n)] : `${n}`
+    return errorExit(`'${name}' expects ${count} parameter${n === 1 ? '' : 's'}`)
+}
+
+/** @type {<O extends NodeOp>(run: (main: Main<O>) => Program<O | Write>, commands: Commands<O>) => Program<O | Write>} */
+const dispatchCommands = (run, commands) => options => {
+    const [cmd, ...rest] = options.args
+    const map = fromEntries(commands.flatMap(c => c.names.map(n => /** @type {const} */ ([n, c]))))
+    if (cmd === undefined) {
+        return errorExit(`Error: command is required.\n${renderHelp(commands)}`)
+    }
+    if (helpMeta.names.includes(cmd)) {
+        const [target] = rest
+        if (target !== undefined) {
+            const targetCmd = entry(map, target)
+            if (targetCmd !== undefined && typeof targetCmd.handler !== 'function') {
+                return dispatchCommands(run, targetCmd.handler)({ ...options, args: ['help'] })
+            }
+        }
+        return exitStep(log(renderHelp(commands)))
+    }
+    const found = entry(map, cmd)
+    if (found === undefined) {
+        return errorExit(`Error: unknown command "${cmd}".\n${renderHelp(commands)}`)
+    }
+    return run(found.handler)({ ...options, args: rest })
+}
+
+/**
+ * Runs a `Main`: a `Program` as itself, a `Commands` table by routing its first
+ * argument to the command it names.
+ *
+ * @type {<O extends NodeOp>(main: Main<O>) => Program<O | Write>}
+ */
+export const dispatch = main => typeof main === 'function' ? main : dispatchCommands(dispatch, main)

@@ -1,0 +1,250 @@
+/**
+ * @import { Assert } from '../../asserts/types.ts'
+ * @import { List } from '../../types/list/types.ts'
+ * @import { Result } from '../../types/result/types.ts'
+ * @import { Equal } from '../../types/ts/types.ts'
+ * @import { U8 } from '../../text/utf8/types.ts'
+ * @import { DemoEvent } from '../../website/demo/types.ts'
+ * @import { Unknown } from './types.ts'
+ */
+
+import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
+import { fromCodePointList } from '../../text/utf8/module.f.js'
+import { stringToCodePointList } from '../../text/utf16/module.f.js'
+import { unwrap } from '../../types/result/module.f.js'
+import { concat, occurrences } from '../../types/string/module.f.js'
+import { tryJsonSerialize, tryJsonStringify, tryParse, tryParseBytes, trySerialize, tryStringify } from './module.f.js'
+import { _graphOf, demo, examples } from './demo.f.js'
+import { _crossings } from '../../website/demo/graph/module.f.js'
+import { difference } from './vectors/module.f.js'
+import { htmlToString } from '../html/module.f.js'
+import { runPure } from '../../effects/module.f.js'
+import { dedup } from '../../types/array/module.f.js'
+
+/** A document in normalized form: sharing, and the leaves JSON cannot carry. */
+const document = 'const $0=[1n,undefined,NaN,-0];export default {"a":$0,"b":$0,"c":"é€𐀀"};'
+
+/** The document's UTF-8 bytes. @type {(text: string) => List<U8>} */
+const utf8 = text => fromCodePointList(stringToCodePointList(text))
+
+/** The graph the document denotes, read as code units. */
+const graph = unwrap(tryParse(document))
+
+export const proof = {
+    // The surface holds the six signatures the design fixed, and the
+    // deeper proofs are each entry point's own: `parser/proof.f.js` for the
+    // two readers, `serializer/proof.f.js` for the four writers, and the
+    // conformance corpus for the DataJS four. What is proved here is that
+    // they compose as one codec, starting with the round trip: writing what
+    // was read gives the document back, since normalized form is one
+    // spelling per value and the reader keeps the sharing the writer hoists.
+    // The typedefs come before the assertion because a JSDoc typedef binds
+    // to the statement after it, and one ending a block checks nothing.
+    signatures: () => {
+        /** @typedef {Assert<Equal<typeof tryParse, (text: string) => Result<Unknown, string>>>} _TryParse */
+        /** @typedef {Assert<Equal<typeof tryParseBytes, (bytes: List<U8>) => Result<Unknown, string>>>} _TryParseBytes */
+        /** @typedef {Assert<Equal<typeof trySerialize, (value: unknown) => Result<List<string>, string>>>} _TrySerialize */
+        /** @typedef {Assert<Equal<typeof tryStringify, (value: unknown) => Result<string, string>>>} _TryStringify */
+        /** @typedef {Assert<Equal<typeof tryJsonSerialize, (value: unknown) => Result<List<string>, string>>>} _TryJsonSerialize */
+        /** @typedef {Assert<Equal<typeof tryJsonStringify, (value: unknown) => Result<string, string>>>} _TryJsonStringify */
+        assertEq(unwrap(tryStringify(graph)), document)
+    },
+    // The byte path reads the same graph from the document's UTF-8 bytes,
+    // the four-byte scalar in `"c"` crossing the bridge back to a pair.
+    bytes: () => assertEq(difference(graph)(unwrap(tryParseBytes(utf8(document)))), null),
+    // The chunked writer and the string writer are one writer.
+    chunks: () => assertEq(concat(unwrap(trySerialize(graph))), document),
+    // The JSON writers unfold the sharing the reader keeps, and refuse the
+    // leaves JSON cannot carry — `document` holds one, so a document of
+    // JSON's own leaves shows the tree.
+    json: () => {
+        const shared = unwrap(tryParse('const $0=[1];export default {"a":$0,"b":$0};'))
+        assertEq(unwrap(tryJsonStringify(shared)), '{"a":[1],"b":[1]}')
+        assertEq(concat(unwrap(tryJsonSerialize(shared))), '{"a":[1],"b":[1]}')
+        assertEq(tryJsonStringify(graph)[1], 'no JSON spelling for 1n')
+    },
+    // Each side refuses rather than approximating.
+    refused: {
+        text: () => assertEq(tryParse('export default [1,]')[0], 'error'),
+        bytes: () => assertEq(tryParseBytes([0xef, 0xbb, 0xbf])[0], 'error'),
+        // Functions are FJS values but have no DataJS spelling.
+        value: () => assertEq(tryStringify(() => 1)[0], 'error'),
+    },
+    demo: {
+        graph: {
+            // Two keys naming the same array from two different parents is
+            // one node with two incoming edges, each its own label — the
+            // graph's whole reason for being here, and the demo's own
+            // initial document. `"a"` reaches it directly and `"c"` through
+            // `"b"`, the longer route, so the array ranks by `"c"`'s path
+            // and `"a"`'s edge is the one left skipping a rank.
+            sharing: () => {
+                const html = htmlToString(demo.view(demo.init))
+                assertEq(occurrences('data-graph-kind="array"')(html), 1)
+                assert(html.includes('>&quot;a&quot;<'), html)
+                assert(html.includes('>&quot;c&quot;<'), html)
+                // `1` and `2` sit in the array's own ports, not in boxes.
+                assertEq(occurrences('data-graph-kind="leaf"')(html), 0)
+                assertEq(occurrences('data-graph-value=""')(html), 2)
+            },
+            // `typeof null === 'object'` is why `walk` checks `=== null`
+            // first — without it, `null` would reach `instanceof Array` and
+            // `Object.entries` as if it held members.
+            nullIsALeaf: () => {
+                const html = htmlToString(demo.view('export default null;'))
+                assertEq(occurrences('data-graph-kind="leaf"')(html), 1)
+                assert(!html.includes('data-graph-edge'), html)
+                assert(html.includes('>null<'), html)
+            },
+            // An object's own leaf spelling — quoted keys, and the leaves
+            // JSON cannot carry — is `leafSerialize`/`keySerialize`'s, read
+            // through rather than reimplemented.
+            leaves: () => {
+                const html = htmlToString(demo.view('export default {"x":1n,"y":undefined,"z":-0};'))
+                assert(html.includes('>&quot;x&quot;<'), html)
+                assert(html.includes('>1n<'), html)
+                assert(html.includes('>undefined<'), html)
+                assert(html.includes('>-0<'), html)
+            },
+            // An index sits in a port of the array's own box, not on the
+            // line: the row is right of the 33px `[ ]` label column, so the
+            // index is centred at x=55 and the edge leaves the row's right
+            // end at (67,23). The document is a tree, so the outer array is
+            // centred on the inner one, and the edge runs level into the
+            // middle of its left side, at (107,23).
+            edgeLabelPosition: () => {
+                const html = htmlToString(demo.view('export default [[]];'))
+                assert(html.includes('<text x="55" y="23" text-anchor="middle" data-graph-edge-label="">0<'), html)
+                assert(html.includes('d="M67,23 L107,23"'), html)
+            },
+            // A leaf inside a container is no node of its own: its value
+            // sits in the port's row, in a cell right of the index, and no
+            // line leaves for it.
+            inlineLeaf: () => {
+                const html = htmlToString(demo.view('export default [1];'))
+                assert(html.includes('<rect x="10" y="10" width="81" height="20" rx="4" data-graph-node=""'), html)
+                assert(html.includes('<rect x="43" y="10" width="24" height="20" data-graph-port="">'), html)
+                assert(html.includes('<rect x="67" y="10" width="24" height="20" data-graph-value="">'), html)
+                assert(html.includes('<text x="79" y="20" text-anchor="middle" data-graph-value-label="">1<'), html)
+                assert(!html.includes('data-graph-edge=""'), html)
+            },
+            // Two equal numbers are two values, not one shared like a
+            // container would be — "primitive sharing is not [written]".
+            equalLeavesDoNotShare: () => {
+                const html = htmlToString(demo.view('export default [1,1];'))
+                assertEq(occurrences('data-graph-value=""')(html), 2)
+                assertEq(occurrences('data-graph-value-label="">1<')(html), 2)
+            },
+            // Three array elements sharing one value are three ports and
+            // three lines into one node — each index in its own cell, so
+            // none is hidden under another and nothing has to be merged.
+            // The object's `"n"` is a fourth port, holding its `1`.
+            parallelEdgesArePorts: () => {
+                const html = htmlToString(demo.view('const $0={"n":1};\nexport default [$0,$0,$0];'))
+                assertEq(occurrences('data-graph-kind="object"')(html), 1)
+                assertEq(occurrences('data-graph-port=""')(html), 4)
+                assertEq(occurrences('data-graph-edge=""')(html), 3)
+                assert(!html.includes('>0, 1, 2<'), html)
+                // Three different lines, not three drawn on top of each
+                // other: each piece before an edge's marker ends with its
+                // path data.
+                const routes = html.split('" data-graph-edge=""').slice(0, -1)
+                    .map(before => before.slice(before.lastIndexOf('d="') + 'd="'.length))
+                assertEq(dedup(routes).length, 3)
+            },
+            // A shared node reached again from left of an intervening rank
+            // runs across a lane of its own through that rank; the edges
+            // either side of it, one rank apart, are single segments — the
+            // exact routes, since the layout is pure arithmetic over
+            // document order and this document's order is fixed.
+            skipLevelLane: () => {
+                const html = htmlToString(
+                    demo.view('const $0=[9];\nconst $1={"y":$0};\nexport default {"p":$1,"r":$0};'))
+                assert(html.includes('d="M76,40 L116,15 L182,15 L222,20"'), html)
+                assert(html.includes('d="M76,20 L116,44"'), html)
+            },
+            // The one case the first version of this demo got wrong: `$0` is
+            // reached at rank 1 via `"a"`, then again at rank 3 via
+            // `"b"."c"."d"` — the longer route. Rank by longest path moves
+            // it to rank 3, so `"a"` becomes the one that skips ranks and
+            // runs across a lane through every rank it skips, and no edge
+            // is left pointing back to the left the way `"a"` would if
+            // `$0` had kept its first-seen rank of 1.
+            longestPathWins: () => {
+                const html = htmlToString(demo.view(
+                    'const $0=[1];\nexport default {"a":$0,"b":{"c":{"d":$0}}};'))
+                assert(html.includes('d="M76,20 L116,15 L182,15 L222,15 L288,15 L328,20"'), html)
+                assert(html.includes('d="M76,40 L116,44"'), html)
+                assert(html.includes('d="M182,44 L222,44"'), html)
+                assert(html.includes('d="M288,44 L328,20"'), html)
+            },
+            // No edge of the initial document, or of the two skip-level
+            // documents above, passes through a node's box.
+            noEdgeCrossesABox: () => {
+                for (const text of [
+                    demo.init,
+                    'const $0=[9];\nconst $1={"y":$0};\nexport default {"p":$1,"r":$0};',
+                    'const $0=[1];\nexport default {"a":$0,"b":{"c":{"d":$0}}};',
+                ]) {
+                    const g = _graphOf(text)
+                    assert(g.ok, text)
+                    assertEq(_crossings(g), 0)
+                }
+            },
+            // A parse failure is shown, not swallowed, and draws no graph.
+            error: () => {
+                const source = '{"a":1}'
+                assertEq(_graphOf(source).ok, false)
+                const html = htmlToString(demo.view(source))
+                assert(html.includes('Refused:</p><pre data-result="error">unexpected symbol at 0'), html)
+                assert(!html.includes('<svg'), html)
+            },
+        },
+        // Typing replaces the text; every other event leaves it alone, which
+        // is what `start` is for — a first render with nothing typed yet.
+        update: () => {
+            /** @type {(event: DemoEvent) => (state: string) => string} */
+            const step = event => state => unwrap(assertNotNullish(
+                runPure(demo.update(state)(event))[0],
+                'expected the demo to reach a value without asking for an operation'))
+            assertEq(step({ kind: 'input', name: 'datajs', value: '[1]' })(''), '[1]')
+            assertEq(step({ kind: 'start' })('kept'), 'kept')
+            // Picking an example replaces the text with its source.
+            const [name, source] = examples[1]
+            assertEq(step({ kind: 'input', name: 'example', value: name })('kept'), source)
+        },
+        // The fields carry a `name`, so a demo tells them apart without ever
+        // holding a DOM node.
+        view: () => {
+            const html = htmlToString(demo.view(demo.init))
+            assert(html.includes('name="datajs"'), html)
+            assert(html.includes('name="example"'), html)
+        },
+        examples: {
+            // The demo opens on the first, which is its overview.
+            init: () => assertEq(demo.init, examples[0][1]),
+            // A tree draws each container centred beside the ones it holds:
+            // the object under "d", 40px tall, sits halfway down the span
+            // of its two arrays, 132 to 206, at (132 + 206 - 40) / 2 = 149.
+            // Check vertical alignment independently of column gaps, which
+            // widen when steep arrows need separate vertical lanes.
+            nestedTree: () => {
+                const source = assertNotNullish(examples.find(([name]) => name === 'Nested tree'))[1]
+                const html = htmlToString(demo.view(source))
+                assert(html.includes(' y="132" width="81" height="40" rx="4" data-graph-node=""'), html)
+                assert(html.includes(' y="186" width="81" height="20" rx="4" data-graph-node=""'), html)
+                assert(html.includes(' y="149" width="66" height="40" rx="4" data-graph-node=""'), html)
+            },
+            // Every example's view agrees with the graph API. The malformed
+            // source is checked separately above, without depending on labels.
+            draw: () => {
+                for (const [, source] of examples) {
+                    const graph = _graphOf(source)
+                    const html = htmlToString(demo.view(source))
+                    assertEq(html.includes('<svg'), graph.ok)
+                    assertEq(html.includes('<pre data-result="error">'), !graph.ok)
+                }
+            },
+        },
+    },
+}

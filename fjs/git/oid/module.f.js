@@ -1,0 +1,201 @@
+/**
+ * An object id between its two spellings, and from the object it names.
+ * The spellings are the raw bytes a tree entry holds and the hex text a
+ * header holds; neither knows the repository's id width, since a hex of
+ * any even length reads to the id it spells, and the width is a check
+ * `validate` makes on the object, against the width it is given. The id
+ * itself is {@link of}: the hash of the object's bytes at the width the
+ * repository uses, SHA-1 or SHA-256, which is the one place this module
+ * knows the width means a hash.
+ *
+ * @module
+ *
+ * @import { Vec } from '../../types/bit_vec/types.ts'
+ * @import { List } from '../../types/list/types.ts'
+ * @import { Nullable } from '../../types/nullable/types.ts'
+ * @import { Bytes, ObjectType, Oid, OidBytes } from '../types.ts'
+ */
+
+import { assert } from '../../asserts/module.f.js'
+import { decodeCodePoints, encodeCodePoints } from '../../basen/base16/module.f.js'
+import { sha1 } from '../../crypto/sha1/module.f.js'
+import { computeSync, sha256 } from '../../crypto/sha2/module.f.js'
+import { byteArray } from '../../ebnf/byte/module.f.js'
+import { codePointListToString } from '../../text/utf16/module.f.js'
+import { isWholeBytesIn, length, tryU8ListToVecMsb, u8ListToVecChunksMsb, u8ListToVecMsb, u8ArrayMsb } from '../../types/bit_vec/module.f.js'
+import { write } from '../object/module.f.js'
+
+/**
+ * Reads an id from its hex spelling, or refuses it: a byte that is no hex
+ * digit, an odd count of them, none, or more than a `Vec` holds. Either
+ * case of letter is read, as Git reads it, though Git writes the small
+ * one; {@link toHex} writes it.
+ *
+ * @throws If an item of the hex is not a byte.
+ *
+ * @type {(hex: Bytes) => Nullable<Oid>}
+ */
+export const tryFromHex = hex => {
+    const bytes = decodeCodePoints(byteArray(hex))
+    return bytes === null || bytes.length === 0 ? null : tryU8ListToVecMsb(bytes)
+}
+
+/**
+ * The id whose raw spelling is the `width` bytes at `at`: how a binary
+ * format holds one — a pack index's tables and trailer, a `refDelta`'s base.
+ * Bytes short of `at + width` make a narrower id, which a reader that has not
+ * checked the length refuses with {@link isOidOf}.
+ *
+ * @type {(b: readonly number[], at: number, width: number) => Oid}
+ */
+export const oidAt = (b, at, width) => u8ListToVecMsb(b.slice(at, at + width))
+
+/**
+ * Whether an id is as wide as a repository's ids: `oidBytes` whole bytes.
+ * The width is bound once, so a reader that asks of every id it is handed
+ * converts it once.
+ *
+ * Every holder of a width asks this — a reader refusing an id of another
+ * repository, a writer refusing to spell one — so it is spelled here, beside
+ * the id, rather than as `BigInt(oidBytes) * 8n` at each of them.
+ *
+ * @type {(oidBytes: OidBytes) => (id: Vec) => boolean}
+ */
+export const isOidOf = oidBytes => {
+    const bits = BigInt(oidBytes) * 8n
+    return id => length(id) === bits
+}
+
+/**
+ * `f`, on an id of this width only: the precondition every reader that is
+ * handed an id makes, spelled once with its message so the readers cannot
+ * drift apart in what they say.
+ *
+ * The width is bound once, as {@link isOidOf} binds it, and the check runs
+ * when the id is given — before `f`, so a reader whose answer is an effect
+ * refuses now, not when the effect is stepped.
+ *
+ * @throws On an id that is not `oidBytes` wide: a caller that mixes the
+ * widths has a bug, not a missing object.
+ *
+ * @type {(oidBytes: OidBytes) => <R>(f: (id: Oid) => R) => (id: Oid) => R}
+ */
+export const ofWidth = oidBytes => {
+    const isOid = isOidOf(oidBytes)
+    return f => id => {
+        assert(isOid(id), ['not an id of the width', id])
+        return f(id)
+    }
+}
+
+/**
+ * {@link tryFromHex} at the repository's width: an id of any other width
+ * is refused too, which is the check every header that names an object
+ * makes, in a commit's `validate` and a tag's alike.
+ *
+ * @throws If an item of the hex is not a byte.
+ *
+ * @type {(oidBytes: OidBytes) => (hex: Bytes) => Nullable<Oid>}
+ */
+export const tryFromHexOf = oidBytes => {
+    const isOid = isOidOf(oidBytes)
+    return hex => {
+        const id = tryFromHex(hex)
+        return id !== null && isOid(id) ? id : null
+    }
+}
+
+/**
+ * How many bytes of an object go into one `Vec` on the way to the hash:
+ * an object is as long as its author made it and a `Vec` holds 128 KiB,
+ * so the bytes are fed to the hash a piece at a time, each well under the
+ * bound and long enough that the pieces are few.
+ */
+const chunkBytes = /** @type {const} */ (65_536)
+
+/**
+ * An object's bytes as the `Vec`s the hash takes, {@link chunkBytes} at a
+ * time and the last one shorter, made as the hash asks for them: one chunk
+ * is held at a time and never the object as an array, so an object longer
+ * than an array would hold is hashed all the same.
+ *
+ * @type {(bytes: Bytes) => List<Vec>}
+ */
+const chunks = u8ListToVecChunksMsb(chunkBytes)
+
+/**
+ * The hash a repository of this width uses, over plain bytes and with no object
+ * framing: SHA-1 at 20 bytes and SHA-256 at 32.
+ *
+ * {@link of} is this applied to an object's `<type> SP <size> NUL <payload>`,
+ * and it is built on this rather than beside it so that the choice of hash is
+ * made in one place.
+ *
+ * Exported because a reader that is not reading an object needs it. A pack index
+ * ends in a checksum over its own preceding bytes, with no framing at all, and
+ * [`fjs/git/packidx`](../packidx/module.f.js)'s `checksumAgrees` is what asks:
+ * it hashes the file up to the trailing id and compares. A pack ends the same
+ * way. This stayed private while nothing outside the module hashed bytes that
+ * are no object, and it is public here because that reader arrives here.
+ *
+ * @throws If an item of the bytes is not a byte.
+ *
+ * @type {(oidBytes: OidBytes) => (bytes: Bytes) => Oid}
+ */
+export const digestOf = oidBytes => {
+    const hash = oidBytes === 20 ? computeSync(sha1) : computeSync(sha256)
+    return bytes => hash(chunks(bytes))
+}
+
+/**
+ * The id Git gives an object, at the repository's width: the hash of
+ * `<type> SP <size> NUL <payload>`, as [`fjs/git/object`](../object/module.f.js)'s
+ * `write` lays it out — SHA-1 at 20 bytes, the width of every repository
+ * in use today, and SHA-256 at 32. The width is bound once, so a store
+ * that hashes every object it reads chooses the hash once.
+ *
+ * What the id vouches for is the hash's business: in a SHA-1 repository
+ * it is only as strong as SHA-1, and what a trust layer does about that
+ * is [`todo/git-sha1-collisions.md`](../../../todo/git-sha1-collisions.md).
+ *
+ * @throws If an item of the payload is not a byte, as `write` throws.
+ *
+ * @type {(oidBytes: OidBytes) => (type: ObjectType, payload: Bytes) => Oid}
+ */
+export const of = oidBytes => {
+    const hash = digestOf(oidBytes)
+    return (type, payload) => hash(write(type, payload))
+}
+
+/**
+ * An id's hex spelling, two small-letter digits a byte: the inverse of
+ * {@link tryFromHex}, and what Git writes.
+ *
+ * @throws On a `Vec` that is not whole bytes, or is empty: `Oid` is the
+ * type's name for one that is neither, and a caller can build any `Vec`,
+ * so the spelling refuses rather than pad the last byte and spell an id
+ * that reads back wider, or spell nothing, which {@link tryFromHex} does
+ * not read.
+ *
+ * @type {(oid: Oid) => Bytes}
+ */
+export const toHex = oid => {
+    const bits = length(oid)
+    assert(bits !== 0n && isWholeBytesIn(bits), ['not whole bytes', oid])
+    return encodeCodePoints(u8ArrayMsb(oid))
+}
+
+/**
+ * The same spelling as text, which is how an id reaches a message, a log line or
+ * a comparison in a proof.
+ *
+ * Here rather than in each caller, because there were two of it in the modules
+ * that read a repository — `fjs/git/store`'s and `fjs/git/packstore`'s — and a
+ * spelling of an id is this module's subject. `toHex` stays the list, since a
+ * writer of a header or a `packed-refs` line wants bytes and not a string.
+ *
+ * @throws As {@link toHex} does, on a `Vec` that is not whole bytes or is empty.
+ *
+ * @type {(oid: Oid) => string}
+ */
+export const hexText = oid => codePointListToString(toHex(oid))

@@ -115,7 +115,7 @@ export type _RequestBodyCursor = {
      * **A chunk the stream refuses is not dropped**, so the head of this stays
      * the chunk a listener's retry meets again. `readChunks` refuses one that is
      * not whole bytes, and dropping it let the retry read the bytes behind it
-     * instead ([`./module.f.mjs`](./module.f.mjs), `readRequestBytes`).
+     * instead ([`./module.f.js`](./module.f.js), `readRequestBytes`).
      */
     readonly rest: readonly Vec[]
     /** The byte offset the next pull must name. */
@@ -215,6 +215,7 @@ export type State = {
     /** Remaining stdin bytes; each `read` pops the first, `null` at EOF. */
     readonly stdin: readonly number[]
     readonly root: Dir
+    /** Response bytes keyed by enumerable own names; inherited JavaScript names are absent. */
     readonly internet: StringMap<Vec>
     readonly epochNs: number
     /** The slots of `memCreate`, kept by `../../memory`'s interpreter. */

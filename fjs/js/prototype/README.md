@@ -4,7 +4,7 @@ The names JavaScript finds on a built-in prototype, and what a
 FunctionalScript module may do with each. [`module.f.js`](./module.f.js)
 holds the lists — `prototypeNames`, the union of the seven prototypes, and
 its partition into `prohibitedCalls` and `allowedCalls` — and the compiler
-([`fjs/compiler/parser`](../../compiler/parser/module.f.mjs)) applies them; this table
+([`fjs/compiler/parser`](../../compiler/parser/module.f.js)) applies them; this table
 is the same data with the reason for each row.
 
 Two rules, both by name alone, since the receiver's type is unknown at
@@ -147,7 +147,7 @@ native implementation.
 `toLowerCase` and `toUpperCase` are defined over "the latest version of the
 Unicode Standard", so two engines shipping different Unicode versions can
 case a newly assigned character differently. A module must mean one thing
-everywhere, so the language pins the version: **Unicode 17.0.0**, the one the
+everywhere, so the language pins the version: **Unicode 18.0.0**, the one the
 pinned Rust standard library carries
 ([`fjs/ci/config`](../../ci/config/module.f.js)). NaNVM converts through that
 library and asserts the version at compile time
@@ -171,7 +171,7 @@ where the host engine running the source directly does not.
 Memo and Amnesia render represented functions through the shared EDAG-derived
 renderer; the Rust compiler embeds that code-only text in compiled native
 functions. Captures appear as slot names, without their values. The
-[represented conversion proofs](../../edag/value/convert/proof.f.mjs) and
+[represented conversion proofs](../../edag/value/convert/proof.f.js) and
 [native function-text fixture](../../../nanvm/harness/fixtures/function-text.mjs)
 cover direct and indirect conversion. Ordinary JavaScript execution and
 callables produced by [runtime compilation](../../edag/values.md#runtime-compilation)

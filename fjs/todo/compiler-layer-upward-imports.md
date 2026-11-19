@@ -20,7 +20,7 @@ layers import upward. At `c162c3a`:
   `js/ast/serializer/intrinsic`; `rust/serializer` imports them through it,
   so the path runs rust → compiler → js. Its `renderFunction` is used by its
   proof alone and is the last line of `compiler/serializer`'s `functionText`.
-- [`compiler/parser`](../compiler/parser/module.f.mjs)'s `_prohibitedAccess`
+- [`compiler/parser`](../compiler/parser/module.f.js)'s `_prohibitedAccess`
   is a membership test over [`fjs/js/prototype`](../js/prototype/module.f.js)'s
   `prototypeNames` and `prohibitedCalls`, inside the parser, consumed by
   `edag/to_fast/source`. Its JSDoc still says "Exported for the writer in

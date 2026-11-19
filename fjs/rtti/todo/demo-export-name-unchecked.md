@@ -8,16 +8,17 @@
 
 Each project schema in the demo is declared with its export's name as a
 string, beside the schema value itself, through `projectSchema` in
-[`../schema-demo/module.f.mjs`](../schema-demo/module.f.mjs), in each
-`sample.f.mjs` of the guide's
+[`../schema-demo/module.f.js`](../schema-demo/module.f.js), in each
+`sample.f.js` of the guide's
 [`in-the-project`](../guide/in-the-project/README.md) pages:
 
 ```js
-projectSchema('op1Id', 'edag', op1Id)
+projectSchema('op1Id', 'edag/module.f.js', op1Id)
 ```
 
-Nothing ties the string to the value. Writing `projectSchema('op3Id', 'edag',
-op1Id)` makes the page print `import { op3Id } …` while every reader runs
+Nothing ties the string to the value. Writing
+`projectSchema('op3Id', 'edag/module.f.js', op1Id)` makes the page print
+`import { op3Id } …` while every reader runs
 against `op1Id`, and no gate notices: `tsc`, the coverage run and the
 website build all pass. A review of
 [functionalscript/functionalscript#2545](https://github.com/functionalscript/functionalscript/pull/2545)
@@ -32,8 +33,8 @@ module's exports as one object and pass that object with the name, so the
 demo looks the schema up:
 
 ```js
-import * as edag from '../edag/module.f.mjs'
-projectSchema('op1Id', 'edag', edag)  // the schema is edag['op1Id']
+import * as edag from '../edag/module.f.js'
+projectSchema('op1Id', 'edag/module.f.js', edag)  // the schema is edag['op1Id']
 ```
 
 The printed name and the schema run are then one thing. A misspelled name
@@ -49,7 +50,7 @@ the same slip, so it is no fallback.
 
 ### Related
 
-- [`../schema-demo/module.f.mjs`](../schema-demo/module.f.mjs) —
+- [`../schema-demo/module.f.js`](../schema-demo/module.f.js) —
   `projectSchema`; the [`in-the-project`](../guide/in-the-project/README.md)
   pages — the lists.
 - [Link a demo schema to its export](demo-link-to-schema-export.md) — the

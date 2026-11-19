@@ -6,7 +6,7 @@
 ### Problem
 
 `fjs t` always runs every discovered proof. `main`
-(`fjs/emergent_testing/module.f.mjs`) passes `options` straight to
+(`fjs/emergent_testing/module.f.js`) passes `options` straight to
 `testAll(defaultReporter(options))` and never looks at `options.args`, so
 there is no way to say "run only these tests".
 
@@ -25,11 +25,11 @@ directory and lose the failures reported elsewhere.
 Let `fjs t` take positional arguments that select what to run. Two
 independent axes, both derived from the path the walker already builds
 (`fmtImport(moduleKey, testPath)` — module key plus the export path of the
-test case, e.g. `fjs/types/list/proof.f.mjs` → `proof.map.empty`):
+test case, e.g. `fjs/types/list/proof.f.js` → `proof.map.empty`):
 
 - **module selection** — restrict which modules `loadModuleMap` loads, by
   passing a caller-supplied predicate into `allFiles`
-  (`fjs/dev/module.f.mjs` already takes one). Non-matching modules are never
+  (`fjs/dev/module.f.js` already takes one). Non-matching modules are never
   imported, so this is I/O-cheap, not just output filtering.
 - **test-case selection** — restrict which entries of a loaded proof tree
   run, by filtering the `[path, TestEntry]` pairs `collectTests` returns.
@@ -77,8 +77,8 @@ Open design questions to settle before implementing:
 
 - [GitHub issue #401](https://github.com/functionalscript/functionalscript/issues/401)
   — the original report.
-- `fjs/emergent_testing/module.f.mjs` — `main`, `collectTests`, `testAll`.
-- `fjs/dev/module.f.mjs` — `loadModuleMap` / `allFiles`; the predicate hook
+- `fjs/emergent_testing/module.f.js` — `main`, `collectTests`, `testAll`.
+- `fjs/dev/module.f.js` — `loadModuleMap` / `allFiles`; the predicate hook
   this needs.
 - [211](./211-reporter-modes.md) — reporter modes; a filtered run's summary is a reporter
   concern.

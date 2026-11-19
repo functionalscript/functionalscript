@@ -37,7 +37,7 @@ this package already had to put it.
 ### Proposal
 
 **Shipped so far:** `spawn`, `childWait` and `ExitStatus` are in
-`../types.ts`, `../module.f.mjs` and the Node runner. `SpawnOptions` requires
+`../types.ts`, `../module.f.js` and the Node runner. `SpawnOptions` requires
 `stdio: 'inherit' | 'ignore'` and accepts `cwd`. A piped long-lived child still
 has no reader, so its pipe mode is not exposed until `childRead` exists.
 
@@ -193,7 +193,7 @@ Notes on the shape:
 - **`stdio: 'inherit'` on `SpawnOptions` hands the child the terminal.** A
   caller whose child's output is for the reader — `npm run gen` running the
   Nix lock script, in
-  [`fjs/dev/gen`](../../../dev/gen/module.f.mjs) — wants no pipe at
+  [`fjs/dev/gen`](../../../dev/gen/module.f.js) — wants no pipe at
   all: live output, and both streams in the order they were written, which
   no capture-and-replay can keep. On such a child `childRead`, `childReadAny`
   and `childWrite` have no stream to reach and answer `IoError`; `childWait`
@@ -238,7 +238,7 @@ Open for review before code:
 
 - [ ] Settle the signatures above.
 - [x] `spawn`, `childWait`, `Child`, `ExitStatus` and `SpawnOptions` with
-      `stdio: 'inherit'`, in `../types.ts`, `../module.f.mjs` and the Node
+      `stdio: 'inherit'`, in `../types.ts`, `../module.f.js` and the Node
       runner — the brand around the `ChildProcess` itself, `'spawn'` raced
       against `'error'`, the outcome read before `'exit'` is listened for —
       with host proofs for an exit, a signal and a missing command.
@@ -246,7 +246,7 @@ Open for review before code:
       isolated coverage to replay failed child logs.
 - [ ] `../types.ts`: the five remaining operations; `stdio` becomes optional
       once `childRead` can drain a piped child.
-- [ ] `../module.f.mjs`: their `do_` constructors and `nodeCommandSet` keys.
+- [ ] `../module.f.js`: their `do_` constructors and `nodeCommandSet` keys.
 - [ ] `../module.mjs`: the piped child — `writeAll`-style backpressure, the
       reads and their race, `childKill`.
 - [ ] A runner test in the shape of `../memory/proof.mjs` — spawn `node -e`,
@@ -277,7 +277,7 @@ Open for review before code:
 - [x] `deno.json`: `--allow-run` on the tasks that run the suite, unscoped,
       so the missing-command proof surfaces as the host's `ENOENT` rather than
       a Deno permission error.
-- [x] `../virtual/module.f.mjs`: the not-implemented list names `spawn` and
+- [x] `../virtual/module.f.js`: the not-implemented list names `spawn` and
       `childWait`.
 - [ ] `tsc`, `npm test`, `npm start cov node`.
 
@@ -290,5 +290,5 @@ Open for review before code:
   first caller.
 - [requestlistener-stateful](./requestlistener-stateful.md) — the other place a
   long-lived host object needs state threaded through effects.
-- [`fjs/dev/gen`](../../../dev/gen/module.f.mjs) — the first caller: the Nix
+- [`fjs/dev/gen`](../../../dev/gen/module.f.js) — the first caller: the Nix
   lock script on an inherited terminal, through `spawn` and `childWait` alone.

@@ -10,14 +10,14 @@ standard JavaScript engine and against `nanvm-lib`. Adding an operator or a case
 means editing one file.
 
 A case is not only data, though. Joined with its group's operation it denotes a
-*program* — apply that operation to constant operands — and `module.f.mjs`
+*program* — apply that operation to constant operands — and `module.f.js`
 lowers it to exactly that: an [EDAG](../edag/README.md) expression. Both
 consumers read the expression rather than each reading the case its own way.
 
 ```text
                               ┌─> proof.f.mjs ──────────────────────────> a JS engine
-module.f.mjs ──> an EDAG exp ─┤     (amnesia)
- (data + the     per case     └─> rust/module.f.mjs ──> gen.corpus/ ──────> nanvm-lib
+module.f.js ──> an EDAG exp ─┤     (amnesia)
+ (data + the     per case     └─> rust/module.f.js ──> gen.corpus/ ──────> nanvm-lib
   lowering)                          (print)             (generated)
 ```
 
@@ -26,20 +26,20 @@ module.f.mjs ──> an EDAG exp ─┤     (amnesia)
 | File | Role |
 |---|---|
 | [`types.ts`](types.ts) | The shape of the data: `Value`, `Case<N>`, `Group`, `Data`. |
-| [`module.f.mjs`](module.f.mjs) | **The single source of truth** — every operator case as data, plus the format's constructors, eliminators, and lowering. |
+| [`module.f.js`](module.f.js) | **The single source of truth** — every operator case as data, plus the format's constructors, eliminators, and lowering. |
 | [`member/module.f.js`](member/module.f.js) | The member-function cases, one group per method, which `data` appends to the operator groups. A module of its own so that no one file outgrows the repository's 128 KiB file reader. |
-| [`constructors/module.f.js`](constructors/module.f.js) | The format's constructors, re-exported by `module.f.mjs`; apart so that `member/` can use them without an import cycle. |
+| [`constructors/module.f.js`](constructors/module.f.js) | The format's constructors, re-exported by `module.f.js`; apart so that `member/` can use them without an import cycle. |
 | [`proof.f.mjs`](proof.f.mjs) | Evaluates each case's expression on a JavaScript engine. |
-| [`rust/module.f.mjs`](rust/module.f.mjs) | Prints each case's expression as Rust, against the `nanvm-lib` API. |
-| [`methods/module.f.mjs`](methods/module.f.mjs) | The member functions `nanvm-lib` does not answer yet, and the completeness table printed from them and [`fjs/js/prototype`](../js/prototype/module.f.js). |
-| [`runtime/module.f.mjs`](runtime/module.f.mjs) | Where [`fjs/js/runtime`](../js/runtime/module.f.js) is, where `npm run gen` compiles it to — Rust for `nanvm-lib`, EDAG for the proof here — and the runtime loaded from its source for the harness's expectations. |
+| [`rust/module.f.js`](rust/module.f.js) | Prints each case's expression as Rust, against the `nanvm-lib` API. |
+| [`methods/module.f.js`](methods/module.f.js) | The member functions `nanvm-lib` does not answer yet, and the completeness table printed from them and [`fjs/js/prototype`](../js/prototype/module.f.js). |
+| [`runtime/module.f.js`](runtime/module.f.js) | Where [`fjs/js/runtime`](../js/runtime/module.f.js) is, where `npm run gen` compiles it to — Rust for `nanvm-lib`, EDAG for the proof here — and the runtime loaded from its source for the harness's expectations. |
 | [`corpus/module.f.js`](corpus/module.f.js) | The call-contract corpus: the `nanvm-harness` fixtures, every one compared unless an exception names it and says why. Its host proof runs each in Node and through the FJS interpreter. |
-| [`update/module.f.mjs`](update/module.f.mjs) | Writes both printers' output. Run by `npm run gen`. |
+| [`update/module.f.js`](update/module.f.js) | Writes both printers' output. Run by `npm run gen`. |
 | [`demos/`](demos/README.md) | The [WASM demo pages](demos/README.md): FunctionalScript run as JavaScript and compiled to WebAssembly, side by side. |
 
 Rust *literal* syntax — string escaping, `f64`/`i64` spelling, `snake_case`
 identifiers — is not specific to this generator and lives in
-[`fjs/media/rust`](../media/rust/module.f.mjs). Rust *names* for the operations
+[`fjs/media/rust`](../media/rust/module.f.js). Rust *names* for the operations
 are the printer's own explicit map, never `snakeCase` over a canonical id. A
 method group's name is the exception that proves it: a method name is already
 an identifier, so its function is `method_` and the name in snake case.
@@ -80,7 +80,7 @@ establishes a lazy operand only when the operator selects it, and the Rust
 printer prints one as the thunk `nanvm-lib`'s four methods take — an `impl
 FnOnce() -> Result<Any<A>, Any<A>>` they call at most once, here `||
 bigint_any(1) / bigint_any(0)`, the operation's own `Result`
-([`fjs/edag/rust`](../edag/rust/module.f.mjs), `lazy`).
+([`fjs/edag/rust`](../edag/rust/module.f.js), `lazy`).
 
 A **method group** is the one kind that is not an operator: `{ method: 'at',
 cases }` holds the cases of a built-in member function, and each case's `args`
@@ -91,7 +91,7 @@ host's own built-in and the Rust printer prints as `Any::dot(…).end_call(…)`
 the call a compiled module makes. The method name is typed as
 [`fjs/js/prototype`](../js/prototype/README.md)'s `allowedCalls`, so a refused
 name is a type error; which of them `nanvm-lib` answers is pinned separately,
-by the completeness table [`methods/`](methods/module.f.mjs) generates.
+by the completeness table [`methods/`](methods/module.f.js) generates.
 
 A `functionValue` operand is not an exception. It lowers to `() => undefined`,
 the smallest closure — `['=>', 0, [], ['undefined']]` — which
@@ -145,7 +145,7 @@ outcome and not the program, so it is never part of the case's expression.
 
 ## The loop
 
-1. Add the case to `data` in [`module.f.mjs`](module.f.mjs), or, for a
+1. Add the case to `data` in [`module.f.js`](module.f.js), or, for a
    member function, to its group in [`member/module.f.js`](member/module.f.js).
 2. `npm test` — the JavaScript proof now covers it, which is what makes the
    expectation authoritative: it is JavaScript's answer, not a guess.
@@ -160,7 +160,7 @@ request and fails if the committed copy differs (see
 
 ## Interpreted values
 
-[`values/module.f.mjs`](values/module.f.mjs) builds a capture graph, interprets
+[`values/module.f.js`](values/module.f.js) builds a capture graph, interprets
 it with memo, and passes the resulting `EdagValue` to the existing Rust
 compiler. This checks value emission separately from compiling source modules.
 Its pure proofs check primitive, repeated and unused capture slots. The native

@@ -14,8 +14,8 @@
 
 ### Problem
 
-The CAS CLI (`fjs/cas/cli/module.f.mjs` `commands`) and the CAS MCP server
-(`fjs/mcp/cas/module.f.mjs`) both implement the same three operations — add,
+The CAS CLI (`fjs/cas/cli/module.f.js` `commands`) and the CAS MCP server
+(`fjs/mcp/cas/module.f.js`) both implement the same three operations — add,
 get, list — but with duplicated logic:
 
 - Both construct `fileCas(sha256)(home)` independently.
@@ -31,10 +31,10 @@ If a new operation or encoding rule is added, both transports must be updated
 separately, with no compile-time guarantee they stay in sync.
 
 **`cas_get`'s inspection policy is the largest single item of that
-inventory.** The Evo tool entries (`fjs/mcp/evo/module.f.mjs`) and
+inventory.** The Evo tool entries (`fjs/mcp/evo/module.f.js`) and
 `cas_list` are each a name, a description, a schema and one line of
 dispatch — the shape a registry entry should have. The two CAS write/read
-tools are not: `cas_add` (`fjs/mcp/cas/module.f.mjs`) decodes its
+tools are not: `cas_add` (`fjs/mcp/cas/module.f.js`) decodes its
 input, writes the blob, maps the write error, and synchronizes the Evo
 cache inline, and `cas_get` is dozens of lines holding the whole
 blob-inspection policy — the streaming-vs-buffered decision, the
@@ -113,7 +113,7 @@ accepted as-is, the same as `cp`.
       streams and stages under `.cas/_stage`) — no new `KvStore.move` or
       `./cas/stage/` pipeline (both obsolete; see architecture note above).
 - [ ] Define a shared `casOps` (or similar) module/functions in
-      `fjs/cas/ops/module.f.mjs` (or inline in `fjs/cas/module.f.mjs`) that
+      `fjs/cas/ops/module.f.mjs` (or inline in `fjs/cas/module.f.js`) that
       expose typed operations independent of transport. The inline
       (`text`/`base64`) `add` and the hash/store/error plumbing are shared; the
       file-path `add` is a CLI-only entry point, not part of the MCP surface.
@@ -169,8 +169,8 @@ accepted as-is, the same as `cp`.
 - `remove-local-file-urls-mcp` (implemented, todo file deleted) — removed the
   MCP file-path (`url`) source; this issue's shared `add` must keep the
   file-path source CLI-only
-- `fjs/cas/cli/module.f.mjs` — CLI commands; `fjs/cas/module.f.mjs` — the store
+- `fjs/cas/cli/module.f.js` — CLI commands; `fjs/cas/module.f.js` — the store
   and core types
-- `fjs/mcp/cas/module.f.mjs` — MCP tool registry and server
+- `fjs/mcp/cas/module.f.js` — MCP tool registry and server
 - [`fjs/mcp/todo/remote-url.md`](../../mcp/todo/remote-url.md)
   — the resource view that re-shapes the same inspection once it is a value

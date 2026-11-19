@@ -766,7 +766,7 @@ Where the original implementation placed a feature, and its intended owner:
 | A pattern over `Object` or `Number` | The fold: `namespaceOf` | Desugaring, over binding's static read |
 | A module as a function over its imports | The fold's `AstModule`, then `unresolved` and `Unresolved` in `compiler/edag` | Desugaring, with the import metadata beside the function |
 | Module resolution, identity, cycles, the attribute's and the selected export's checks | `_walk` in `compiler/source`, `resolve` in `compiler/edag` | Linking |
-| Dispatch by file type and output name, the authored `.f.js` check | `fjs/compiler/module.f.mjs`, `fjs/cli` | Orchestration |
+| Dispatch by file type and output name, the authored `.f.js` check | `fjs/compiler/module.f.js`, `fjs/cli` | Orchestration |
 | Resolution and JavaScript's early errors | The fold | Binding, before desugaring erases the relevant source evidence |
 | Writes and captures | The fold | Shared binding analysis after pattern expansion; admission applies the source policy before normalization |
 | FunctionalScript's own refusals: a prototype name, a reserved global, `__proto__`, a prohibited call | The fold | Admission, before desugaring |
@@ -774,10 +774,10 @@ Where the original implementation placed a feature, and its intended owner:
 **Destructuring belongs to desugaring.** The syntax tree,
 [`parser/syntax`](../compiler/parser/syntax/types.ts)'s `BindingTarget`,
 retains the source pattern. Binding and admission in
-[`parser`](../compiler/parser/module.f.mjs) check its names and keys and
+[`parser`](../compiler/parser/module.f.js) check its names and keys and
 resolve initializer references while their source evidence remains available.
 The resulting plan retains original binding identities and ordered reads;
-[`js/ast/sugar`](../js/ast/sugar/module.f.mjs) expands it into explicit FAST
+[`js/ast/sugar`](../js/ast/sugar/module.f.js) expands it into explicit FAST
 bindings ([spec: destructuring](../../spec/bindings/destructuring/README.md)).
 
 **Parameter and pattern defaults desugar to a read and a selected value.**
@@ -796,7 +796,7 @@ default form introduces an EDAG operation.
 module is one function over its imports. The fold writes it as `AstModule`,
 `[imports, body]`, the body reading import `i` as `['aref', i]` with the
 import list beside it; `unresolved` in
-[`compiler/edag`](../compiler/edag/module.f.mjs) then spells the read as
+[`compiler/edag`](../compiler/edag/module.f.js) then spells the read as
 `['.', ['.', ['args'], i], name]` and wraps the graph as `Unresolved`,
 `{ imports, edag }`, the specifiers riding beside it for `resolve` to link.
 Under the vocabulary, desugaring makes the module an ordinary FAST function

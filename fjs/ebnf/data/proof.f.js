@@ -1,0 +1,610 @@
+/**
+ * @import { Rule, Thunk } from '../types.ts'
+ * @import { Rule as DataRule, RuleNameMap, RuleSet, RuleVisitor } from './types.ts'
+ */
+
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
+import { one as c } from '../../text/ascii/module.f.js'
+import { define, eof, option, range, reference, remove, repeat, repeatFrom0, set, times, unicodeMax } from '../module.f.js'
+import { dataJs } from '../lib/datajs/module.f.js'
+import { digit, json, string, uint, value, ws, wsSymbol } from '../lib/json/module.f.js'
+import { emptyTagMap, eofSymbol, isSymbol, matchRule, toData, validate } from './module.f.js'
+import { mapGet, size as mapSize } from '../../types/map/module.f.js'
+import { entry as valueAt } from '../../types/object/entry/module.f.js'
+
+const { keys } = Object
+const { MAX_SAFE_INTEGER } = Number
+
+/**
+ * Values as they arrive from outside the type system — a deserialized set, a
+ * hand-written thunk — spelled as what they are and narrowed only at the
+ * call that must refuse them.
+ *
+ * @type {unknown}
+ */
+const typo = ['typo']
+
+/** @type {unknown} */
+const notARule = true
+
+/** @type {unknown} */
+const repeatTrailing = ['repeat', 0, 1, 'digit', 'separator']
+
+/** @type {unknown} */
+const variantTrailing = ['variant', { zero: 'zero' }, 'extra']
+
+/** @type {unknown} */
+const variantNotAnObject = ['variant', ['zero']]
+
+/** @type {unknown} */
+const variantString = ['variant', 'zero']
+
+/** @type {unknown} */
+const constTrailing = ['const', 'x', 'extra']
+
+/** @type {unknown} */
+const referenceTrailing = ['ref', 'extra']
+
+/** @type {unknown} */
+const undefinedBranch = { ok: 'x', missing: undefined }
+
+/** @type {unknown} */
+const constObject = { 0: 'const', 1: 'x', length: 2 }
+
+/** @type {unknown} */
+const numericReference = ['sequence', 1]
+
+/** @type {unknown} */
+const numericItem = ['repeat', 0, 1, 1]
+
+/** @type {unknown} */
+const undefinedDataBranch = ['variant', { zero: 'zero', missing: undefined }]
+
+/** @type {unknown} */
+const arraySet = [['sequence']]
+
+/** @type {(a: string) => readonly ['set', number, number]} */
+const one = a => ['set', c(a), c(a) + 1]
+
+/**
+ * A hand-written grammar over every rule kind: an integer with an optional
+ * minus, plus EOF and the top symbol as terminals of their own.
+ *
+ * @type {RuleSet}
+ */
+const int = {
+    digit: ['set', c('0'), c('9') + 1],
+    digits0: ['repeat', 0, Infinity, 'digit'],
+    digits: ['sequence', 'digit', 'digits0'],
+    zero: one('0'),
+    uint: ['variant', { zero: 'zero', digits: 'digits' }],
+    none: ['sequence'],
+    minus: one('-'),
+    optionalMinus: ['variant', { none: 'none', minus: 'minus' }],
+    int: ['sequence', 'optionalMinus', 'uint'],
+    eof: ['set', -1, 0],
+    top: ['set', MAX_SAFE_INTEGER],
+}
+
+/** @type {RuleVisitor<string>} */
+const show = {
+    set: s => `set ${s.join(' ')}`,
+    sequence: items => `sequence ${items.join(' ')}`,
+    variant: branches => `variant ${keys(branches).join(' ')}`,
+    repeat: (min, max, item) => `repeat ${min} ${max} ${item}`,
+}
+
+const showRule = matchRule(show)
+
+/**
+ * The name a lowering gave a rule the author holds.
+ *
+ * @type {(names: RuleNameMap) => (rule: Rule) => string}
+ */
+const nameOf = names => rule => assertNotNullish(mapGet(names, rule))
+
+/** @type {RuleVisitor<string | undefined>} */
+const stringBranch = {
+    set: () => undefined,
+    sequence: () => undefined,
+    variant: branches => branches.string,
+    repeat: () => undefined,
+}
+
+/**
+ * A grammar that is valid but for one rule, so a refusal names that rule and
+ * nothing else.
+ *
+ * @type {(ruleSet: RuleSet) => void}
+ */
+const refuse = ruleSet => validate({ ...int, ...ruleSet }, 'int')
+
+export const proof = {
+    references: {
+        sameBodyAsConst: () => {
+            for (const body of [null, 'xy', { x: 'x' }, [range('09'), 'x']]) {
+                const ref = reference()
+                const [actual, actualEntry, names] = toData(ref, [define(ref)(body)])
+                const [expected, expectedEntry] = toData(() => ['const', body])
+                assertStructurallySame(actual, expected)
+                assertEq(actualEntry, expectedEntry)
+                assertEq(mapGet(names, ref), actualEntry)
+            }
+        },
+        mutualRecursionSharesReferences: () => {
+            const left = reference()
+            const right = reference()
+            const leftMore = /** @type {const} */ (['(', right, ')'])
+            const rightMore = /** @type {const} */ (['[', left, ']'])
+            const [rules, entry, names] = toData(left, [
+                define(right)({ more: rightMore, end: 'y' }),
+                define(left)({ more: leftMore, end: 'x' }),
+            ])
+            const name = nameOf(names)
+            assertEq(name(left), entry)
+            assert(name(left) !== name(right))
+            assertStructurallySame(valueAt(rules, name(left)), ['variant', { more: name(leftMore), end: name('x') }])
+            assertStructurallySame(valueAt(rules, name(right)), ['variant', { more: name(rightMore), end: name('y') }])
+            assertStructurallySame(valueAt(rules, name(rightMore)), ['sequence', name('['), name(left), name(']')])
+        },
+        unusedBodyIsNotLowered: () => {
+            const unused = reference()
+            assertStructurallySame(toData('x', [define(unused)(-1)])[0], toData('x')[0])
+        },
+        throw: {
+            missing: () => toData(reference()),
+            distinctIdentityIsNotDefined: () => toData(reference(), [define(reference())('x')]),
+            duplicate: () => {
+                const ref = reference()
+                return toData(ref, [define(ref)('x'), define(ref)('y')])
+            },
+            duplicateUnused: () => {
+                const ref = reference()
+                return toData('x', [define(ref)('x'), define(ref)('y')])
+            },
+            trailing: () => toData(() => /** @type {readonly ['ref']} */ (referenceTrailing)),
+        },
+    },
+    // An ordinary symbol is a non-negative safe integer spelled the one way;
+    // EOF's number is below them all, so it is none of them.
+    isSymbol: () => {
+        assert(isSymbol(0))
+        assert(isSymbol(MAX_SAFE_INTEGER))
+        assert(!isSymbol(-0))
+        assert(!isSymbol(eofSymbol))
+        assert(!isSymbol(0.5))
+        assert(!isSymbol(MAX_SAFE_INTEGER + 1))
+        assert(!isSymbol(Infinity))
+        assert(!isSymbol(NaN))
+    },
+    // Each handler receives the payload without its tag.
+    matchRule: {
+        kinds: () => {
+            assertEq(showRule(int.digit), `set ${c('0')} ${c('9') + 1}`)
+            assertEq(showRule(int.digits), 'sequence digit digits0')
+            assertEq(showRule(int.none), 'sequence ')
+            assertEq(showRule(int.uint), 'variant zero digits')
+            assertEq(showRule(int.digits0), 'repeat 0 Infinity digit')
+        },
+        // The carrier is checked where the tag is read: no tuple, a tag
+        // nothing spells, a field past a fixed arity, or branches that are no
+        // object, are refused rather than dispatched with a part dropped.
+        throw: {
+            notATuple: () => showRule(/** @type {DataRule} */ (notARule)),
+            unknownTag: () => showRule(/** @type {DataRule} */ (typo)),
+            repeatTrailing: () => showRule(/** @type {DataRule} */ (repeatTrailing)),
+            variantTrailing: () => showRule(/** @type {DataRule} */ (variantTrailing)),
+            variantNotAnObject: () => showRule(/** @type {DataRule} */ (variantNotAnObject)),
+            variantString: () => showRule(/** @type {DataRule} */ (variantString)),
+        },
+    },
+    emptyTagMap: {
+        // A set never matches empty; a repeat from zero always does, with no
+        // tag; a sequence does iff every item does; a variant does iff a
+        // branch does, and carries that branch's tag.
+        kinds: () => {
+            assertStructurallySame(emptyTagMap(int), {
+                digit: undefined,
+                digits0: true,
+                digits: undefined,
+                zero: undefined,
+                uint: undefined,
+                none: true,
+                minus: undefined,
+                optionalMinus: 'none',
+                int: undefined,
+                eof: undefined,
+                top: undefined,
+            })
+        },
+        // A repeat that must match at least once is nullable exactly when its
+        // item is; a variant's tag is its last nullable branch's.
+        item: () => {
+            /** @type {RuleSet} */
+            const ruleSet = {
+                none: ['sequence'],
+                x: one('x'),
+                once: ['repeat', 1, 2, 'none'],
+                onceX: ['repeat', 1, 2, 'x'],
+                choice: ['variant', { a: 'none', b: 'x', c: 'none' }],
+            }
+            assertStructurallySame(emptyTagMap(ruleSet), {
+                none: true,
+                x: undefined,
+                once: true,
+                onceX: undefined,
+                choice: 'c',
+            })
+        },
+        // A rule may carry a name `{}` inherits — `constructor` — and reads
+        // as its own entry, never as the inherited one.
+        inherited: () => {
+            /** @type {DataRule} */
+            const self = ['sequence', 'constructor']
+            /** @type {RuleSet} */
+            const ruleSet = { constructor: self }
+            assertStructurallySame(emptyTagMap(ruleSet), { constructor: undefined })
+        },
+        // Nullability propagates along a chain one rule per round, so a
+        // rule three references away from the empty sequence needs three
+        // rounds; a rule that reaches only itself never becomes nullable.
+        rounds: () => {
+            /** @type {RuleSet} */
+            const ruleSet = {
+                a: ['sequence', 'b'],
+                b: ['sequence', 'c'],
+                c: ['sequence'],
+                self: ['sequence', 'self'],
+            }
+            assertStructurallySame(emptyTagMap(ruleSet), {
+                a: true,
+                b: true,
+                c: true,
+                self: undefined,
+            })
+        },
+    },
+    validate: {
+        ok: () => {
+            validate(int, 'int')
+        },
+        throw: {
+            unknownEntry: () => validate(int, 'float'),
+            // A rule set is a record; an array would answer for the name
+            // `'0'` and walk as one.
+            arraySet: () => validate(/** @type {RuleSet} */ (arraySet), '0'),
+            unknownInSequence: () => refuse({ int: ['sequence', 'sign', 'uint'] }),
+            unknownInVariant: () => refuse({ uint: ['variant', { zero: 'zero', digits: 'digit1' }] }),
+            unknownInRepeat: () => refuse({ digits0: ['repeat', 0, Infinity, 'digi'] }),
+            // A terminal is a canonical set: strictly increasing boundaries.
+            setNotIncreasing: () => refuse({ digit: ['set', c('9'), c('0')] }),
+            // The empty set is a rule that can never match.
+            setEmpty: () => refuse({ digit: ['set'] }),
+            // `b + 1` is exact for safe integers only, so a boundary above
+            // them would name a different range than the one written.
+            setUnsafe: () => refuse({ digit: ['set', 0, 2 ** 54] }),
+            setBottomless: () => refuse({ digit: ['set', -Infinity, 5] }),
+            // Below `0` there is only EOF, and EOF is a set of its own.
+            setNegative: () => refuse({ digit: ['set', -2, 0] }),
+            setMixesEof: () => refuse({ digit: ['set', -1, 5] }),
+            minNegative: () => refuse({ digits0: ['repeat', -1, 2, 'digit'] }),
+            minFractional: () => refuse({ digits0: ['repeat', 0.5, 2, 'digit'] }),
+            minNegativeZero: () => refuse({ digits0: ['repeat', -0, 2, 'digit'] }),
+            maxNegativeZero: () => refuse({ digits0: ['repeat', 0, -0, 'digit'] }),
+            maxFractional: () => refuse({ digits0: ['repeat', 0, 2.5, 'digit'] }),
+            minAboveMax: () => refuse({ digits0: ['repeat', 3, 2, 'digit'] }),
+            // A round that consumes nothing would repeat forever.
+            nullableUnbounded: () => refuse({ digits0: ['repeat', 0, Infinity, 'none'] }),
+            // Data is validated as data: a tag nothing spells is refused,
+            // not certified, and so is a reference that is no string — a
+            // number would reach the rule `'1'` through key coercion.
+            unknownTag: () => validate({ entry: /** @type {DataRule} */ (typo) }, 'entry'),
+            numericReference: () => validate({
+                entry: /** @type {DataRule} */ (numericReference),
+                1: one('a'),
+            }, 'entry'),
+            numericItem: () => validate({
+                entry: /** @type {DataRule} */ (numericItem),
+                1: one('a'),
+            }, 'entry'),
+            // A tag written with no rule under it is a branch the type calls
+            // absent, and is refused rather than dropped.
+            undefinedBranch: () => refuse({ uint: /** @type {DataRule} */ (undefinedDataBranch) }),
+        },
+        // A nullable item under a bounded repeat is accepted: the bound is
+        // the cardinality, and the item's own ambiguity is a backend's to
+        // resolve as it resolves any variant's.
+        nullableBounded: () => {
+            validate({ ...int, digits0: ['repeat', 0, 3, 'none'] }, 'int')
+            validate({ ...int, digits0: ['repeat', 2, 2, 'none'] }, 'int')
+        },
+    },
+    toData: {
+        // A number is one symbol; the entry of an anonymous rule is `''`.
+        symbol: () => {
+            const [ruleSet, entry, names] = toData(c('a'))
+            assertEq(entry, '')
+            assertStructurallySame(ruleSet, { '': one('a') })
+            assertEq(mapGet(names, c('a')), '')
+        },
+        // EOF is the `null` rule, the one set with a negative boundary.
+        eof: () => {
+            const [ruleSet] = toData(eof)
+            assertStructurallySame(ruleSet, { '': ['set', eofSymbol, 0] })
+        },
+        // The top ordinary symbol is the open tail: the boundary above it is
+        // not a safe integer, so this is its only spelling.
+        top: () => {
+            const [ruleSet] = toData(MAX_SAFE_INTEGER)
+            assertStructurallySame(ruleSet, { '': ['set', MAX_SAFE_INTEGER] })
+        },
+        string: {
+            // One terminal per code point, named by position; a repeated
+            // symbol is one rule, shared by value.
+            codePoints: () => {
+                const [ruleSet] = toData('aba')
+                assertStructurallySame(ruleSet, {
+                    '': ['sequence', '0', '1', '0'],
+                    0: one('a'),
+                    1: one('b'),
+                })
+            },
+            empty: () => {
+                const [ruleSet] = toData('')
+                assertStructurallySame(ruleSet, { '': ['sequence'] })
+            },
+            // An astral code point is one symbol, not its two UTF-16 units.
+            astral: () => {
+                const [ruleSet] = toData(unicodeMax)
+                assertStructurallySame(ruleSet, {
+                    '': ['sequence', '0'],
+                    0: ['set', 0x10_FFFF, 0x11_0000],
+                })
+            },
+        },
+        // Elements are named by index under their sequence, branches by tag
+        // under their variant.
+        tuple: () => {
+            const [ruleSet] = toData([c('a'), 'b'])
+            assertStructurallySame(ruleSet, {
+                '': ['sequence', '0', '1'],
+                0: one('a'),
+                1: ['sequence', '1.0'],
+                '1.0': one('b'),
+            })
+        },
+        variant: () => {
+            const [ruleSet] = toData({ a: c('a'), b: 'b' })
+            assertStructurallySame(ruleSet, {
+                '': ['variant', { a: 'a', b: 'b' }],
+                a: one('a'),
+                b: ['sequence', 'b.0'],
+                'b.0': one('b'),
+            })
+        },
+        // A set thunk is the front end's tuple with the thunk gone, and a
+        // repeat thunk names its item under its own name.
+        set: () => {
+            const [ruleSet] = toData(remove(range(' ~'), set('"\\')))
+            assertStructurallySame(ruleSet, {
+                '': ['set', c(' '), c('"'), c('"') + 1, c('\\'), c('\\') + 1, c('~') + 1],
+            })
+        },
+        repeat: () => {
+            const [ruleSet] = toData(repeat(2, 5)(range('09')))
+            assertStructurallySame(ruleSet, {
+                '': ['repeat', 2, 5, 'item'],
+                item: ['set', c('0'), c('9') + 1],
+            })
+        },
+        // A `const` thunk is the rule its body spells, with no rule for the
+        // indirection; its root name is structural, as for any other rule.
+        constThunk: () => {
+            const digits = () => /** @type {const} */ (['const', [range('09'), 'x']])
+            const [ruleSet, entry] = toData(digits)
+            assertEq(entry, '')
+            assertStructurallySame(ruleSet, {
+                '': ['sequence', '0', '1'],
+                '0': ['set', c('0'), c('9') + 1],
+                '1': ['sequence', '1.0'],
+                '1.0': one('x'),
+            })
+        },
+        inferredNamesDoNotAffectIds: () => {
+            const first = () => /** @type {const} */ (['const', ['x', 'y']])
+            const renamed = () => /** @type {const} */ (['const', ['x', 'y']])
+            const object = /** @type {const} */ ({ property: () => /** @type {const} */ (['const', ['x', 'y']]) })
+            const [expected, expectedEntry] = toData(first)
+            for (const rule of [renamed, object.property]) {
+                const [ruleSet, entry, names] = toData(rule)
+                assertStructurallySame(ruleSet, expected)
+                assertEq(entry, expectedEntry)
+                assertEq(mapGet(names, rule), entry)
+            }
+        },
+        // A rule that names itself is registered before its body is read, so
+        // the body finds it; a repeat whose item reaches the repeat is the
+        // grammar the classical fold could not say.
+        recursive: () => {
+            /** @type {Thunk} */
+            const parens = () => ['const', { pair: ['(', parens, ')'], none: [] }]
+            const [ruleSet, entry] = toData(parens)
+            assertEq(entry, '')
+            assertStructurallySame(ruleSet, {
+                '': ['variant', { pair: 'pair', none: 'none' }],
+                pair: ['sequence', 'pair.0', '', 'pair.2'],
+                'pair.0': ['sequence', 'pair.0.0'],
+                'pair.0.0': one('('),
+                'pair.2': ['sequence', 'pair.2.0'],
+                'pair.2.0': one(')'),
+                none: ['sequence'],
+            })
+        },
+        recursiveRepeat: () => {
+            /** @type {Thunk} */
+            const nest = () => ['repeat', 0, Infinity, ['(', nest, ')']]
+            const [ruleSet] = toData(nest)
+            assertStructurallySame(ruleSet, {
+                '': ['repeat', 0, Infinity, 'item'],
+                item: ['sequence', 'item.0', '', 'item.2'],
+                'item.0': ['sequence', 'item.0.0'],
+                'item.0.0': one('('),
+                'item.2': ['sequence', 'item.2.0'],
+                'item.2.0': one(')'),
+            })
+        },
+        // Sharing is by identity: a rule held twice is one named rule, and
+        // the map names it by the rule the author holds.
+        shared: () => {
+            const digit = range('09')
+            const [ruleSet, , names] = toData([digit, digit])
+            assertStructurallySame(ruleSet, {
+                '': ['sequence', '0', '0'],
+                0: ['set', c('0'), c('9') + 1],
+            })
+            assertEq(mapGet(names, digit), '0')
+            assertEq(mapSize(names), 2)
+        },
+        mixedRuleIdentityKeys: () => {
+            const tuple = /** @type {const} */ ([c('a')])
+            const otherTuple = /** @type {const} */ ([c('a')])
+            const variant = /** @type {const} */ ({ item: c('a') })
+            const otherVariant = /** @type {const} */ ({ item: c('a') })
+            const thunk = () => /** @type {const} */ (['const', c('b')])
+            const source = /** @type {const} */ ([0, '0', '', null, tuple, tuple, otherTuple, variant, variant, otherVariant, thunk, thunk])
+            const [ruleSet, entry, names] = toData(source)
+            const name = nameOf(names)
+            assertEq(name(source), '')
+            assertEq(name(source), entry)
+            assert(name(0) !== name('0'))
+            assert(name('') !== name(null))
+            assert(name(tuple) !== name(otherTuple))
+            assert(name(variant) !== name(otherVariant))
+            assertEq(mapGet(names, [c('a')]), undefined)
+            assertEq(mapGet(names, { item: c('a') }), undefined)
+            assertEq(mapGet(names, 'unseen'), undefined)
+            const sequence = assertNotNullish(valueAt(ruleSet, entry))
+            assert(sequence[0] === 'sequence')
+            const [, ...items] = sequence
+            assertEq(name(0), items[0])
+            assertEq(name('0'), items[1])
+            assertEq(name(''), items[2])
+            assertEq(name(null), items[3])
+            assertEq(name(tuple), items[4])
+            assertEq(items[4], items[5])
+            assertEq(name(variant), items[7])
+            assertEq(items[7], items[8])
+            assertEq(name(thunk), items[10])
+            assertEq(items[10], items[11])
+        },
+        // A branch may be named as `{}`'s prototype names things, and the
+        // rule set and the identity map both read it as their own entry.
+        inheritedName: () => {
+            const constructor = () => /** @type {const} */ (['const', 'x'])
+            const [ruleSet, entry, names] = toData({ constructor })
+            assertEq(entry, '')
+            assertEq(mapGet(names, constructor), 'constructor')
+            assertStructurallySame(ruleSet, {
+                '': ['variant', { constructor: 'constructor' }],
+                constructor: ['sequence', 'constructor.0'],
+                'constructor.0': one('x'),
+            })
+        },
+        // Different structural paths can spell one hint when tags hold dots.
+        // The second rule gets a counter rather than replacing the first.
+        sameName: () => {
+            const [ruleSet] = toData({ a: { b: 'x' }, 'a.b': 'y' })
+            assertStructurallySame(ruleSet, {
+                '': ['variant', { a: 'a', 'a.b': 'a.b1' }],
+                a: ['variant', { b: 'a.b' }],
+                'a.b': ['sequence', 'a.b.0'],
+                'a.b.0': one('x'),
+                'a.b1': ['sequence', 'a.b1.0'],
+                'a.b1.0': one('y'),
+            })
+        },
+        // A hand-written set is clipped to the domain: a generic
+        // complement's `-Infinity` and anything below `0` are dropped.
+        clipped: () => {
+            /** @type {Thunk} */
+            const below = () => ['set', -Infinity, 5]
+            const [ruleSet] = toData(below)
+            assertStructurallySame(ruleSet, { '': ['set', 0, 5] })
+        },
+        throw: {
+            // A symbol is a non-negative safe integer; EOF is `null`, not
+            // `-1`, so `-1` is refused like any negative.
+            symbolNegative: () => toData(-2),
+            symbolMinusOne: () => toData(-1),
+            // `-0` is no spelling of a symbol, alone or after `0`, where the
+            // memo would otherwise hand it `0`'s rule.
+            symbolNegativeZero: () => toData(-0),
+            symbolNegativeZeroAfterZero: () => toData([0, -0]),
+            symbolFractional: () => toData(1.5),
+            symbolUnsafe: () => toData(2 ** 53),
+            malformedUtf16: () => toData('\uD800'),
+            // A hand-written set that is not canonical is refused before the
+            // algebra reads it; one that clips to nothing is refused after.
+            setNotCanonical: () => toData(() => ['set', 5, 3]),
+            setClippedToNothing: () => toData(() => ['set', -1, 0]),
+            setEmpty: () => toData(set('')),
+            boundsReversed: () => toData(repeat(3, 2)('x')),
+            nullableUnbounded: () => toData(repeatFrom0(option('x'))),
+            // A hand-written thunk with a tag nothing spells, and a value
+            // that is no rule at all, are refused rather than lowered.
+            unknownTag: () => toData(() => /** @type {readonly ['const', string]} */ (typo)),
+            notARule: () => toData(/** @type {Rule} */ (notARule)),
+            // A field past a fixed arity in a hand-written info tuple is
+            // refused where the tuple is read, since the data form's arity
+            // check only ever sees what the lowering emitted.
+            constTrailing: () => toData(() => /** @type {readonly ['const', string]} */ (constTrailing)),
+            // An object spelling a tuple has the fields and the length, and
+            // is no info tuple.
+            constObject: () => toData(() => /** @type {readonly ['const', string]} */ (constObject)),
+            // A branch that is explicitly `undefined` is no rule, and is
+            // refused rather than dropped into a grammar with one branch
+            // fewer than the one written.
+            undefinedBranch: () => toData(/** @type {Rule} */ (undefinedBranch)),
+            repeatTrailing: () => toData(() => /** @type {readonly ['repeat', number, number, string]} */ (repeatTrailing)),
+        },
+        // The grammars of `../lib` lower and validate whole. What the contract
+        // fixes is the entry and the identity map, never a generated name, so
+        // the JSON rules are read through the map: the rule an author holds
+        // is the rule a backend finds, with the same name at every reference.
+        json: () => {
+            const [ruleSet, entry, names] = toData(json)
+            assertEq(entry, '')
+            const name = nameOf(names)
+            assertStructurallySame(valueAt(ruleSet, entry), ['sequence', name(ws), name(value), name(ws)])
+            assertStructurallySame(valueAt(ruleSet, name(ws)), ['repeat', 0, Infinity, name(wsSymbol)])
+            assertStructurallySame(valueAt(ruleSet, name(wsSymbol)), ['set', 9, 11, 13, 14, 32, 33])
+            assertStructurallySame(valueAt(ruleSet, name(digit)), ['set', c('0'), c('9') + 1])
+            assertStructurallySame(valueAt(ruleSet, name(uint)), ['variant', {
+                0: name('0'),
+                onenine: name(uint.onenine),
+            }])
+            // The string rule is held by the `string` alternative and by an
+            // object's property, so both name the one rule.
+            assertEq(matchRule(stringBranch)(assertNotNullish(valueAt(ruleSet, name(value)))), name(string))
+            assertEq(keys(ruleSet).length, 81)
+        },
+        dataJs: () => {
+            const [ruleSet, entry] = toData(dataJs)
+            assertEq(entry, '')
+            assert(keys(ruleSet).length > 40)
+        },
+        // The classical option is a bounded repeat, and `times` an exact one.
+        bounds: () => {
+            const [ruleSet] = toData([option('a'), times(4)('b')])
+            assertStructurallySame(ruleSet, {
+                '': ['sequence', '0', '1'],
+                0: ['repeat', 0, 1, '0.item'],
+                '0.item': ['sequence', '0.item.0'],
+                '0.item.0': one('a'),
+                1: ['repeat', 4, 4, '1.item'],
+                '1.item': ['sequence', '1.item.0'],
+                '1.item.0': one('b'),
+            })
+        },
+    },
+}

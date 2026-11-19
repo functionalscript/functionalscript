@@ -1,0 +1,37 @@
+/** @import { Body } from './types.ts' */
+
+import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
+import { callable, factories, isIndex, maxLength } from './module.f.js'
+import { generate } from '../../array/module.f.js'
+
+/** @type {Body} */
+const pair = (fixed, rest) => [fixed, rest]
+
+export const proof = {
+    metadata: () => {
+        for (const n of [0, 1, 32, 1_000]) { assert(isIndex(n)) }
+        for (const n of [-0, -1, 0.5, NaN, Infinity, -Infinity]) { assert(!isIndex(n)) }
+    },
+    factories: () => {
+        assertEq(factories.length, maxLength + 1)
+        for (const [length, factory] of factories.map((factory, length) => /** @type {const} */ ([length, factory]))) {
+            const f = factory(pair)
+            assertEq(f.length, length)
+            assert(f !== factory(pair))
+            for (const n of [0, 1, length, length + 2]) {
+                const args = generate(n, i => i === 0 ? -0 : i === n - 1 ? undefined : i)
+                const expected = [generate(length, i => args[Number(i)]), args.slice(length)]
+                assertStructurallySame(f(...args), expected)
+                assertStructurallySame(callable(length, pair)(...args), expected)
+            }
+        }
+    },
+    throw: {
+        negative: () => callable(-1, pair),
+        negativeZero: () => callable(-0, pair),
+        fractional: () => callable(1.5, pair),
+        infinite: () => callable(Infinity, pair),
+        nan: () => callable(NaN, pair),
+        overLimit: () => callable(maxLength + 1, pair),
+    },
+}

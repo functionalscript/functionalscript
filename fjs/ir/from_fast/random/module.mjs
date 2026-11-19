@@ -1,0 +1,804 @@
+/**
+ * A seeded random comparison of the lowering: it writes FunctionalScript in
+ * the part of the language the slices lower, takes each program through
+ * FAST, the lowering, the [lifetime pass](../../lifetime/module.f.js), the
+ * checker and the emitter, and runs the WASM on the host's engine against
+ * the same body as JavaScript, with every cell of the host as it found it
+ * after each call that answers, or, where the module has string literals
+ * or constants, as its start function and `init` left it. Programs the slices refuse are counted and not run. The
+ * [proof](./proof.mjs) drives it.
+ *
+ * @module
+ *
+ * @import { StringMap } from '../../../types/object/types.ts'
+ * @import { Signature, Type } from '../../types.ts'
+ * @import { _Twin, _Value } from '../../wasm/types.ts'
+ * @import { _Outcome, _Rnd } from './types.ts'
+ */
+
+import { assert } from '../../../asserts/module.f.js'
+import { entry } from '../../../types/object/entry/module.f.js'
+import {
+    ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFINED,
+    asBoolean, asNumber, asString, buildArray, concat, fromUnit, item, kind, length, substring, unit,
+} from '../../../wasm/runtime/l0/module.f.js'
+import { error } from '../../../wasm/runtime/l1/error/module.f.js'
+import { numberRemainder } from '../../../wasm/runtime/l1/native/module.f.js'
+import { any } from '../../l0/module.f.js'
+import { lifetime } from '../../lifetime/module.f.js'
+import { bool, f64, i, only, signature, u } from '../../module.f.js'
+import { edges, held, run } from '../../wasm/testlib.mjs'
+import { lower } from '../module.f.js'
+import { l1Runtime, runtime, sourceOf } from '../testlib.f.js'
+
+/**
+ * A Mulberry32 generator from `seed`. Each call answers a float in `[0, 1)`.
+ *
+ * @type {(seed: number) => _Rnd}
+ */
+export const rng = seed => {
+    let a = seed >>> 0
+    return () => {
+        a = a + 0x6d2b_79f5 | 0
+        let t = Math.imul(a ^ a >>> 15, 1 | a)
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t
+        return ((t ^ t >>> 14) >>> 0) / 0x1_0000_0000
+    }
+}
+
+/** @type {<_T>(rnd: _Rnd, xs: readonly _T[]) => _T} */
+const pick = (rnd, xs) => {
+    assert(xs.length > 0)
+    return xs[Math.floor(rnd() * xs.length)]
+}
+
+/** @type {(rnd: _Rnd, n: number) => number} */
+const below = (rnd, n) => Math.floor(rnd() * n)
+
+/** A float that a twin gets. @type {(v: _Value) => number} */
+const float64 = v => {
+    assert(typeof v === 'number', v)
+    return v
+}
+
+/** The import line that marks the L0 view for the lowering. `%` needs no import: the runtime adds Native. */
+const l0Import = "import { ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFINED, asBoolean, asNumber, asString, concat, fromUnit, item, kind, length, substring, unit } from '../l0/module.f.js'\n"
+
+/** @type {readonly (readonly [string, Type])[]} */
+const floatParams = [['a', f64], ['b', f64]]
+
+/** @type {readonly (readonly [string, Type])[]} */
+const boolParams = [['a', bool], ['b', bool]]
+
+/** @type {readonly (readonly [string, Type])[]} */
+const intParams = [['a', u(16)], ['b', u(16)]]
+
+/** @type {readonly (readonly [string, Type])[]} */
+const signedParams = [['a', i(16)], ['b', i(16)]]
+
+/**
+ * A small float expression of the named parameters, depth-bounded.
+ *
+ * @type {(rnd: _Rnd, names: readonly string[], depth: number) => string}
+ */
+const floatExpr = (rnd, names, depth) => {
+    if (depth <= 0 || rnd() < 0.35) {
+        return rnd() < 0.25 ? pick(rnd, ['0', '1', '2', '-1', '0.5', '-0']) : pick(rnd, names)
+    }
+    const a = floatExpr(rnd, names, depth - 1)
+    const b = floatExpr(rnd, names, depth - 1)
+    // One pick covers binary ops, comparisons wrapped as floats, and the
+    // unary / Math / block forms; each arm is reachable.
+    const op = pick(rnd, [
+        '+', '-', '*', '/', '%',
+        '<', '<=', '>', '>=', '===', '!==',
+        'neg', 'abs', 'sqrt', 'cond', 'sq',
+    ])
+    if (op === '%' || op === '/' || op === '+' || op === '-' || op === '*') {
+        return `(${a} ${op} ${b})`
+    }
+    if (op === '<' || op === '<=' || op === '>' || op === '>=' || op === '===' || op === '!==') {
+        // a comparison is a bool; wrap as a float choice for a float result
+        return `((${a} ${op} ${b}) ? ${a} : ${b})`
+    }
+    if (op === 'neg') { return `(-(${a}))` }
+    if (op === 'abs') { return `Math.abs(${a})` }
+    if (op === 'sqrt') { return `Math.sqrt(Math.abs(${a}))` }
+    if (op === 'cond') { return `(${a} < ${b} ? ${a} : ${b})` }
+    return `(() => { const s = ${a} + ${b}; return s * s })()`
+}
+
+/**
+ * A bool expression of the named parameters.
+ *
+ * @type {(rnd: _Rnd, names: readonly string[], depth: number) => string}
+ */
+const boolExpr = (rnd, names, depth) => {
+    if (depth <= 0 || rnd() < 0.4) {
+        return rnd() < 0.2 ? pick(rnd, ['true', 'false']) : pick(rnd, names)
+    }
+    const a = boolExpr(rnd, names, depth - 1)
+    const b = boolExpr(rnd, names, depth - 1)
+    return pick(rnd, [
+        `(!${a})`,
+        `(${a} ? ${b} : ${a})`,
+        `(${a} ? !${b} : ${b})`,
+        `(${a} === ${b})`,
+        `(${a} !== ${b})`,
+    ])
+}
+
+/**
+ * A bigint expression of the named parameters.
+ *
+ * @type {(rnd: _Rnd, names: readonly string[], depth: number) => string}
+ */
+const intExpr = (rnd, names, depth) => {
+    if (depth <= 0 || rnd() < 0.4) {
+        return rnd() < 0.2 ? pick(rnd, ['0n', '1n', '2n']) : pick(rnd, names)
+    }
+    const a = intExpr(rnd, names, depth - 1)
+    const b = intExpr(rnd, names, depth - 1)
+    return pick(rnd, [
+        `(${a} + ${b})`,
+        `(${a} - ${b})`,
+        `(${a} * ${b})`,
+        `(-${a})`,
+        `(${a} < ${b} ? ${a} : ${b})`,
+        `(${a} === ${b} ? ${a} : ${b})`,
+    ])
+}
+
+/**
+ * Values distinct by `Object.is`, so `0` and `-0` both stay. `Set` would
+ * merge them under SameValueZero.
+ *
+ * @type {(xs: readonly _Value[]) => readonly _Value[]}
+ */
+const distinct = xs => xs.filter((x, i) => xs.findIndex(y => Object.is(y, x)) === i)
+
+/**
+ * Sample inputs for a typed signature: a few edges of each parameter, not
+ * the full product, so a run of hundreds of programs stays short.
+ *
+ * @type {(params: readonly (readonly [string, Type])[], rnd: _Rnd) => readonly (readonly _Value[])[]}
+ */
+const typedInputs = (params, rnd) => {
+    const lists = params.map(([, t]) => {
+        const all = edges(t)
+        if (all.length <= 4) { return all }
+        /** @type {_Value[]} */
+        const chosen = [all[0], all[all.length - 1], all[Math.floor(all.length / 2)]]
+        // edges of a float list both zeros; keep -0 explicitly so a sample is not only +0
+        const neg0 = all.find(v => Object.is(v, -0))
+        if (neg0 !== undefined) { chosen.push(neg0) }
+        while (chosen.length < 4) {
+            chosen.push(pick(rnd, all))
+        }
+        return distinct(chosen)
+    })
+    /** @type {readonly (readonly _Value[])[]} */
+    let rows = [[]]
+    for (const list of lists) {
+        rows = rows.flatMap(xs => list.map(v => /** @type {const} */ ([...xs, v])))
+    }
+    if (rows.length <= 24) { return rows }
+    return Array.from({ length: 24 }, () => pick(rnd, rows))
+}
+
+/**
+ * Module constants of floats, each reading the ones before it, and at times
+ * a `bool` of two of them, which a function of two floats reads: the
+ * constants of slice 6c, which `init` evaluates once.
+ *
+ * @type {(rnd: _Rnd) => {
+ *   readonly lines: readonly string[],
+ *   readonly names: readonly string[],
+ *   readonly flag: boolean,
+ * }}
+ */
+const floatConstants = rnd => {
+    /** @type {string[]} */
+    const names = []
+    /** @type {string[]} */
+    const lines = []
+    const count = 1 + below(rnd, 3)
+    for (let k = 0; k < count; k += 1) {
+        const value = names.length === 0 ? pick(rnd, ['0.5', '-1', '3', '-0', '1e308']) : floatExpr(rnd, names, 1 + below(rnd, 2))
+        lines.push(`const c${k} = ${value}`)
+        names.push(`c${k}`)
+    }
+    const flag = rnd() < 0.5
+    if (flag) { lines.push(`const flag = ${floatExpr(rnd, names, 1)} < ${floatExpr(rnd, names, 1)}`) }
+    return { lines, names, flag }
+}
+
+/**
+ * One typed program: floats, booleans, small integer ranges, an unexported
+ * helper, a short loop, `%`, a record kept inside the function, or since
+ * slice 6c, module constants that the function reads.
+ *
+ * @type {(rnd: _Rnd) => {
+ *   readonly text: string,
+ *   readonly signatures: Readonly<Record<string, Signature>>,
+ *   readonly inputs: StringMap<readonly (readonly _Value[])[]>,
+ *   readonly twin: _Twin,
+ *   readonly runtime: NonNullable<Parameters<typeof lower>[1]> | null,
+ * }}
+ */
+export const typedProgram = rnd => {
+    const kind = below(rnd, 8)
+    if (kind === 7) {
+        const { lines, names, flag } = floatConstants(rnd)
+        const reads = floatExpr(rnd, ['a', 'b', ...names], 2 + below(rnd, 2))
+        const body = flag ? `(flag ? ${reads} : ${pick(rnd, names)})` : reads
+        const text = [...lines, `export const f = (a, b) => ${body}`, ''].join('\n')
+        const fn = new Function('a', 'b', `${lines.join('\n')}\nreturn (${body})`)
+        return {
+            text,
+            signatures: { f: signature(floatParams, f64) },
+            inputs: { f: typedInputs(floatParams, rnd) },
+            twin: xs => fn(...xs),
+            runtime: text.includes('%') ? runtime : null,
+        }
+    }
+    if (kind === 0) {
+        const params = floatParams
+        const names = params.map(([n]) => n)
+        const body = floatExpr(rnd, names, 2 + below(rnd, 2))
+        const needsNative = body.includes('%')
+        const text = `export const f = (${names.join(', ')}) => ${body}\n`
+        const twin = /** @type {_Twin} */ (xs => {
+            const fn = new Function(...names, `return (${body})`)
+            return fn(...xs.map(v => typeof v === 'object' ? held(v) : v))
+        })
+        return {
+            text,
+            signatures: { f: signature(params, f64) },
+            inputs: { f: typedInputs(params, rnd) },
+            twin,
+            runtime: needsNative ? runtime : null,
+        }
+    }
+    if (kind === 1) {
+        const params = boolParams
+        const names = params.map(([n]) => n)
+        const body = boolExpr(rnd, names, 2)
+        const text = `export const f = (${names.join(', ')}) => ${body}\n`
+        const twin = /** @type {_Twin} */ (xs => {
+            const fn = new Function(...names, `return (${body})`)
+            return fn(...xs)
+        })
+        return {
+            text,
+            signatures: { f: signature(params, bool) },
+            inputs: { f: typedInputs(params, rnd) },
+            twin,
+            runtime: null,
+        }
+    }
+    if (kind === 2) {
+        const params = rnd() < 0.5 ? intParams : signedParams
+        const names = params.map(([n]) => n)
+        const body = intExpr(rnd, names, 2)
+        const text = `export const f = (${names.join(', ')}) => ${body}\n`
+        const twin = /** @type {_Twin} */ (xs => {
+            const fn = new Function(...names, `return (${body})`)
+            return fn(...xs)
+        })
+        return {
+            text,
+            signatures: { f: signature(params, params[0][1]) },
+            inputs: { f: typedInputs(params, rnd) },
+            twin,
+            runtime: null,
+        }
+    }
+    if (kind === 3) {
+        // unexported helper, arguments that each do something
+        const text = [
+            'const twice = x => x + x',
+            'const square = x => x * x',
+            'export const f = (a, b) => twice(a + 1) + square(b + 1)',
+            '',
+        ].join('\n')
+        const twin = /** @type {_Twin} */ (xs => {
+            const a = /** @type {number} */ (xs[0])
+            const b = /** @type {number} */ (xs[1])
+            const twice = (/** @type {number} */ x) => x + x
+            const square = (/** @type {number} */ x) => x * x
+            return twice(a + 1) + square(b + 1)
+        })
+        return {
+            text,
+            signatures: { f: signature(floatParams, f64) },
+            inputs: { f: typedInputs(floatParams, rnd) },
+            twin,
+            runtime: null,
+        }
+    }
+    if (kind === 4) {
+        // short loop; keep the bound small so a run finishes
+        const text = [
+            'export const f = a => {',
+            '    const limit = a < 0 ? 0 : a > 8 ? 8 : a',
+            '    let i = 0',
+            '    while (i < limit) { i = i + 1 }',
+            '    return i',
+            '}',
+            '',
+        ].join('\n')
+        const twin = /** @type {_Twin} */ (xs => {
+            const a = /** @type {number} */ (xs[0])
+            const limit = a < 0 ? 0 : a > 8 ? 8 : a
+            let i = 0
+            while (i < limit) { i = i + 1 }
+            return i
+        })
+        return {
+            text,
+            signatures: { f: signature([['a', f64]], f64) },
+            inputs: { f: typedInputs([['a', f64]], rnd) },
+            twin,
+            runtime: null,
+        }
+    }
+    if (kind === 5) {
+        const text = 'export const f = (a, b) => a % b\n'
+        const twin = /** @type {_Twin} */ (xs => numberRemainder(
+            /** @type {number} */ (xs[0]),
+            /** @type {number} */ (xs[1]),
+        ))
+        return {
+            text,
+            signatures: { f: signature(floatParams, f64) },
+            inputs: { f: typedInputs(floatParams, rnd) },
+            twin,
+            runtime,
+        }
+    }
+    // record kept inside the function
+    const text = [
+        'const mid = (p, q) => ({ x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 })',
+        'export const f = (a, b, c, d) => {',
+        '    const m = mid({ x: a, y: b }, { x: c, y: d })',
+        '    return m.x + m.y',
+        '}',
+        '',
+    ].join('\n')
+    const twin = /** @type {_Twin} */ (xs => {
+        const [a, b, c, d] = /** @type {readonly [number, number, number, number]} */ (xs)
+        const mid = (
+            /** @type {{ readonly x: number, readonly y: number }} */ p,
+            /** @type {{ readonly x: number, readonly y: number }} */ q,
+        ) => ({ x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 })
+        const m = mid({ x: a, y: b }, { x: c, y: d })
+        return m.x + m.y
+    })
+    const params = /** @type {const} */ ([['a', f64], ['b', f64], ['c', f64], ['d', f64]])
+    return {
+        text,
+        signatures: { f: signature(params, f64) },
+        inputs: { f: typedInputs(params, rnd) },
+        twin,
+        runtime: null,
+    }
+}
+
+/** Values of every kind for programs over `any`. @type {readonly unknown[]} */
+const anySamples = [
+    undefined, null, false, true, 0, -0, 1, -1.5, NaN, Infinity,
+    '', 'a', 'ab', 0n, 1n, -1n,
+    [], [1], {}, { a: 1 },
+    () => 0,
+]
+
+/** A string of the L0 view, which a program makes and its caller owns. */
+const string = only(any, 'string')
+
+/** Strings of each length up to three, and values of other kinds, which a cast to a string refuses. */
+const stringSamples = ['', 'a', 'ab', 'abc', 1, null, ['a']]
+
+/** Arrays of each length up to three, of strings and of an array, and values of other kinds. */
+const itemSamples = [[], ['x'], ['x', ['y']], [1, 2, 3], { a: 'x' }, 'ab', 1, null]
+
+/** Numbers that an index or a unit may be: integers, and ones that are none or past a range. */
+const indexSamples = [0, 1, 2, 3, -1, 0.5, 0x61, 0xffff, 0x1_0000, NaN]
+
+/** A code unit as the text of a program spells it. @type {(c: number) => string} */
+const hex = c => `0x${c.toString(16)}`
+
+/** String literals as a program spells them: the empty one, ASCII, a unit past ASCII and a pair of surrogates, raw and escaped. */
+const literalSamples = ['""', '"a"', '"ab"', '"x y"', '"é"', '"\\u00e9"', '"😀"', '"\\u{1F600}"']
+
+/**
+ * One program over values of unknown kind, through the L0 view, and since
+ * slice 6b its functions that answer a value that the caller owns:
+ * `concat`, `fromUnit`, `substring` and `item`, whose values the lifetime
+ * pass drops. Since slice 6c, a constant of a string, which `init` makes
+ * and nothing drops, and Any's `undefined` and `null`, which the host
+ * makes, each of which a function answers, and the lifetime pass copies.
+ * Since slice 6d, string literals, which the start function makes once and
+ * nothing drops, at times one written twice and at times through a
+ * definition of the module. Since slice 6e, array literals of values:
+ * parameters, literals, Any's constants, strings that a call makes and
+ * arrays, at times one that `init` builds, in arms, read by `length` and
+ * `item` or answered. Since slice 6f, a read of an array at a number key,
+ * at an index of it, past it, at a fraction, a NaN and `-0`.
+ *
+ * @type {(rnd: _Rnd) => {
+ *   readonly text: string,
+ *   readonly signatures: Readonly<Record<string, Signature>>,
+ *   readonly inputs: StringMap<readonly (readonly _Value[])[]>,
+ *   readonly twin: _Twin,
+ *   readonly runtime: NonNullable<Parameters<typeof lower>[1]>,
+ * }}
+ */
+export const anyProgram = rnd => {
+    const form = below(rnd, 15)
+    const samples = () => Array.from({ length: 8 }, () => /** @type {const} */ ([{ any: pick(rnd, anySamples) }]))
+    /** Pairs of a value from `values` and a number of `indexSamples`. @type {(values: readonly unknown[]) => readonly (readonly _Value[])[]} */
+    const pairs = values => Array.from({ length: 12 }, () => /** @type {const} */ ([{ any: pick(rnd, values) }, pick(rnd, indexSamples)]))
+    if (form === 14) {
+        // buildArray of the L0 view, one loop of the builder, whose arrow callbacks are inlined: at times nested, and at
+        // times in an arm of a `kind` test
+        const step = pick(rnd, ['s => s + 1', 's => s * 2 + 1', 's => s - 0.5', '() => 0'])
+        const at = pick(rnd, ['() => v', '() => "x"', '() => concat(w, w)', '() => [v, w]', 's => buildArray(s, 0, t => t + 1, () => w)'])
+        const built = `buildArray(n, 0, ${step}, ${at})`
+        const body = rnd() < 0.3 ? `kind(w) === STRING ? ${built} : []` : built
+        const fn = new Function('STRING', 'buildArray', 'concat', 'kind', `return (v, w, n) => ${body}`)(STRING, buildArray, concat, kind)
+        return {
+            text: `${l0Import.replace('asString,', 'asString, buildArray,')}export const f = (v, w, n) => ${body}\n`,
+            signatures: { f: signature([['v', any], ['w', any], ['n', f64]], any) },
+            inputs: {
+                f: Array.from({ length: 10 }, () => /** @type {const} */ ([
+                    { any: pick(rnd, anySamples) },
+                    { any: pick(rnd, stringSamples) },
+                    pick(rnd, [0, 1, 2, 3, 0.5, -1, NaN]),
+                ])),
+            },
+            twin: xs => ({ any: fn(held(xs[0]), held(xs[1]), float64(xs[2])) }),
+            runtime,
+        }
+    }
+    if (form === 13) {
+        // a throw where a value is of a kind: of a literal, of the value itself, or of one of L1's errors, which the
+        // lowering reads from the error table
+        const kinds = /** @type {const} */ ([['STRING', STRING], ['NUMBER', NUMBER], ['ARRAY', ARRAY], ['NULL', NULL], ['UNDEFINED', UNDEFINED]])
+        const [name, tag] = pick(rnd, kinds)
+        const key = pick(rnd, Object.keys(error))
+        /** @type {readonly (readonly [string, (v: unknown) => unknown])[]} */
+        const thrown = [['"bad"', () => 'bad'], ['v', v => v], [`error.${key}`, () => entry(error, key)]]
+        const [text, value] = pick(rnd, thrown)
+        const kept = pick(rnd, ['v', '"ok"'])
+        return {
+            text: `import { error } from './error/module.f.js'\n${l0Import}export const f = v => {\n    if (kind(v) === ${name}) { throw ${text} }\n    return ${kept}\n}\n`,
+            signatures: { f: signature([['v', any]], any) },
+            inputs: { f: samples() },
+            twin: xs => {
+                const v = held(xs[0])
+                if (kind(v) === tag) { throw value(v) }
+                return { any: kept === 'v' ? v : 'ok' }
+            },
+            runtime: l1Runtime(Object.entries(error)),
+        }
+    }
+    if (form === 12) {
+        // a read of an array at a number key, by L1's `get`: the item at an index of it, and `undefined` at anything else
+        const fixed = /** @type {const} */ (['undefined', 'null', pick(rnd, literalSamples), 'concat("x", "!")'])
+        /** An array of `atoms`, of up to three items. @type {(atoms: readonly string[]) => string} */
+        const arrayText = atoms => `[${Array.from({ length: below(rnd, 4) }, () => pick(rnd, atoms)).join(', ')}]`
+        const lines = rnd() < 0.3 ? [`const a = ${arrayText(fixed)}`] : []
+        const receiver = lines.length === 0 ? arrayText(['v', '[v]', ...fixed]) : 'a'
+        const key = pick(rnd, ['Number(k)', 'Number(k)', '0', '1', 'Number(-k)'])
+        const body = `${receiver}[${key}]`
+        const fn = new Function('concat', `${lines.join('\n')}\nreturn (v, k) => ${body}`)(concat)
+        return {
+            text: `${l0Import}${lines.join('\n')}\nexport const f = (v, k) => ${body}\n`,
+            signatures: { f: signature([['v', any], ['k', f64]], any) },
+            inputs: { f: Array.from({ length: 12 }, () => /** @type {const} */ ([{ any: pick(rnd, anySamples) }, pick(rnd, [...indexSamples, -0, 1.5, Infinity])])) },
+            twin: xs => ({ any: fn(held(xs[0]), float64(xs[1])) }),
+            runtime,
+        }
+    }
+    if (form === 11) {
+        // array literals of values, each built once its items are values
+        /** An item of `atoms`, or an array of them where `depth` allows. @type {(atoms: readonly string[], depth: number) => string} */
+        const itemText = (atoms, depth) => depth > 0 && rnd() < 0.3 ? arrayText(atoms, depth - 1, 0) : pick(rnd, atoms)
+        /** An array of `atoms` of at least `least` items. @type {(atoms: readonly string[], depth: number, least: number) => string} */
+        const arrayText = (atoms, depth, least) => `[${Array.from({ length: least + below(rnd, 4 - least) }, () => itemText(atoms, depth)).join(', ')}]`
+        // what a definition of the module may hold, and what a function may: its parameters, and a string that a call makes
+        const fixed = /** @type {const} */ (['undefined', 'null', pick(rnd, literalSamples), 'concat("x", "!")'])
+        const lines = rnd() < 0.3 ? [`const a = ${arrayText(fixed, 1, 0)}`] : []
+        const atoms = /** @type {const} */ (['v', 'w', 'concat(w, "!")', ...fixed, ...(lines.length === 0 ? [] : ['a'])])
+        const [body, result] = pick(rnd, /** @type {const} */ ([
+            [arrayText(atoms, 2, 0), any],
+            [`length(${arrayText(atoms, 1, 0)})`, f64],
+            [`item(${arrayText(atoms, 1, 1)}, ${pick(rnd, ['0', '1'])})`, any],
+            [`kind(v) === STRING ? ${arrayText(atoms, 1, 1)} : ${arrayText(atoms, 1, 0)}`, any],
+        ]))
+        const fn = new Function('STRING', 'concat', 'item', 'kind', 'length', `${lines.join('\n')}\nreturn (v, w) => ${body}`)(STRING, concat, item, kind, length)
+        return {
+            text: `${l0Import}${lines.join('\n')}\nexport const f = (v, w) => ${body}\n`,
+            signatures: { f: signature([['v', any], ['w', any]], result) },
+            inputs: { f: Array.from({ length: 8 }, () => /** @type {const} */ ([{ any: pick(rnd, anySamples) }, { any: pick(rnd, stringSamples) }])) },
+            twin: xs => {
+                const r = fn(held(xs[0]), held(xs[1]))
+                return result === f64 ? r : { any: r }
+            },
+            runtime,
+        }
+    }
+    if (form === 10) {
+        // string literals, which the start function makes once and nothing drops
+        const a = pick(rnd, literalSamples)
+        const b = pick(rnd, [a, ...literalSamples])
+        const lines = rnd() < 0.5 ? [`const s = ${a}`] : []
+        const s = lines.length === 0 ? a : 's'
+        const body = `kind(v) === STRING ? ${pick(rnd, [`concat(v, ${s})`, `concat(${b}, v)`, s, `concat(${s}, ${b})`])} : ${pick(rnd, [s, b, 'v'])}`
+        const fn = new Function('STRING', 'concat', 'kind', `${lines.join('\n')}\nreturn v => ${body}`)(STRING, concat, kind)
+        return {
+            text: `${l0Import}${lines.join('\n')}\nexport const f = v => ${body}\n`,
+            signatures: { f: signature([['v', any]], any) },
+            inputs: { f: samples() },
+            twin: xs => ({ any: fn(held(xs[0])) }),
+            runtime,
+        }
+    }
+    if (form === 9) {
+        // a string that `init` makes once, and a constant of Any that the host makes
+        const made = pick(rnd, [
+            `fromUnit(${hex(pick(rnd, [0x2d, 0x2e, 0x61]))})`,
+            `concat(fromUnit(${hex(pick(rnd, [0x2d, 0x61]))}), fromUnit(${hex(pick(rnd, [0x2e, 0x7a]))}))`,
+        ])
+        const lines = [`const c = ${made}`, `const none = ${pick(rnd, ['undefined', 'null'])}`]
+        const body = `kind(v) === STRING ? ${pick(rnd, ['concat(v, c)', 'concat(c, v)', 'c', 'v'])} : ${pick(rnd, ['undefined', 'null', 'none', 'c', 'v'])}`
+        const fn = new Function('STRING', 'concat', 'fromUnit', 'kind', `${lines.join('\n')}\nreturn v => ${body}`)(STRING, concat, fromUnit, kind)
+        return {
+            text: `${l0Import}${lines.join('\n')}\nexport const f = v => ${body}\n`,
+            signatures: { f: signature([['v', any]], any) },
+            inputs: { f: samples() },
+            twin: xs => ({ any: fn(held(xs[0])) }),
+            runtime,
+        }
+    }
+    if (form === 5) {
+        // a string that the program makes and only lends: the pass drops it after `length`
+        return {
+            text: `${l0Import}export const f = (v, c) => kind(v) === STRING ? length(concat(v, fromUnit(c))) : -1\n`,
+            signatures: { f: signature([['v', any], ['c', f64]], f64) },
+            inputs: { f: pairs(stringSamples) },
+            twin: xs => {
+                const v = held(xs[0])
+                return kind(v) === STRING ? length(concat(v, fromUnit(float64(xs[1])))) : -1
+            },
+            runtime,
+        }
+    }
+    if (form === 6) {
+        // a string that each arm makes, which the caller owns
+        return {
+            text: `${l0Import}export const f = (v, i) => kind(v) === STRING ? substring(v, i, length(v)) : fromUnit(0x2d)\n`,
+            signatures: { f: signature([['v', any], ['i', f64]], string) },
+            inputs: { f: pairs(stringSamples) },
+            twin: xs => {
+                const v = held(xs[0])
+                return { any: kind(v) === STRING ? substring(v, float64(xs[1]), length(v)) : fromUnit(0x2d) }
+            },
+            runtime,
+        }
+    }
+    if (form === 7) {
+        // an item, which the caller owns, or the borrowed value, which the pass copies
+        return {
+            text: `${l0Import}export const f = (v, i) => kind(v) === ARRAY ? item(v, i) : v\n`,
+            signatures: { f: signature([['v', any], ['i', f64]], any) },
+            inputs: { f: pairs(itemSamples) },
+            twin: xs => {
+                const v = held(xs[0])
+                return { any: kind(v) === ARRAY ? item(v, float64(xs[1])) : v }
+            },
+            runtime,
+        }
+    }
+    if (form === 8) {
+        // a loop that owns its string, one unit longer each round, whose condition reads it
+        const body = [
+            '{',
+            '    let s = asString(v)',
+            '    while (length(s) < n) {',
+            '        s = concat(s, fromUnit(0x2e))',
+            '    }',
+            '    return s',
+            '}',
+        ].join('\n')
+        return {
+            text: `${l0Import}export const f = (v, n) => ${body}\n`,
+            signatures: { f: signature([['v', any], ['n', f64]], string) },
+            inputs: { f: Array.from({ length: 12 }, () => /** @type {const} */ ([{ any: pick(rnd, stringSamples) }, pick(rnd, [0, 1, 2, 3, 2.5, 5, -1, NaN])])) },
+            twin: xs => {
+                let s = asString(held(xs[0]))
+                const n = float64(xs[1])
+                while (length(s) < n) {
+                    s = concat(s, fromUnit(0x2e))
+                }
+                return { any: s }
+            },
+            runtime,
+        }
+    }
+    if (form === 0) {
+        const body = 'kind(v) !== UNDEFINED && kind(v) !== NULL && asBoolean(v)'
+        return {
+            text: `${l0Import}export const f = v => ${body}\n`,
+            signatures: { f: signature([['v', any]], bool) },
+            inputs: { f: samples() },
+            twin: xs => {
+                const v = held(xs[0])
+                const k = kind(v)
+                return k !== UNDEFINED && k !== NULL && asBoolean(v)
+            },
+            runtime,
+        }
+    }
+    if (form === 1) {
+        const body = 'kind(v) === BOOLEAN ? asBoolean(v) : false'
+        return {
+            text: `${l0Import}export const f = v => ${body}\n`,
+            signatures: { f: signature([['v', any]], bool) },
+            inputs: { f: samples() },
+            twin: xs => {
+                const v = held(xs[0])
+                return kind(v) === BOOLEAN ? asBoolean(v) : false
+            },
+            runtime,
+        }
+    }
+    if (form === 2) {
+        const body = 'kind(v) === NUMBER ? asNumber(v) : 0'
+        return {
+            text: `${l0Import}export const f = v => ${body}\n`,
+            signatures: { f: signature([['v', any]], f64) },
+            inputs: { f: samples() },
+            twin: xs => {
+                const v = held(xs[0])
+                return kind(v) === NUMBER ? asNumber(v) : 0
+            },
+            runtime,
+        }
+    }
+    if (form === 3) {
+        const body = [
+            '{',
+            '    const k = kind(v)',
+            '    return k === STRING || k === ARRAY || k === OBJECT || k === FUNCTION || k === BIGINT ? length(v) : 0',
+            '}',
+        ].join('\n')
+        return {
+            text: `${l0Import}export const f = v => ${body}\n`,
+            signatures: { f: signature([['v', any]], f64) },
+            inputs: { f: samples() },
+            twin: xs => {
+                const v = held(xs[0])
+                const k = kind(v)
+                return k === STRING || k === ARRAY || k === OBJECT || k === FUNCTION || k === BIGINT ? length(v) : 0
+            },
+            runtime,
+        }
+    }
+    // unit of a string at a small index; may throw
+    return {
+        text: `${l0Import}export const f = (v, i) => kind(v) === STRING ? unit(v, i) : -1\n`,
+        signatures: { f: signature([['v', any], ['i', f64]], f64) },
+        inputs: {
+            f: Array.from({ length: 12 }, () => /** @type {const} */ ([
+                { any: pick(rnd, ['', 'a', 'ab', 'abc', 1, null]) },
+                pick(rnd, [0, 1, 2, -1, 0.5, 3]),
+            ])),
+        },
+        twin: xs => {
+            const v = held(xs[0])
+            return kind(v) === STRING ? unit(v, float64(xs[1])) : -1
+        },
+        runtime,
+    }
+}
+
+/**
+ * Whether a refusal is one the generators expect today: an integer-signed
+ * body's range past its signature, which the checker finds by interval
+ * arithmetic. The printer may spell that range as `int(lo, hi)`, `i(n)` or
+ * `u(n)`. The signature's result must be an integer range, so a regression
+ * that gives an integer body where `f64` or `bool` was declared is not
+ * counted as expected.
+ *
+ * @type {(reason: string, result: Type) => boolean}
+ */
+const expectedRefusal = (reason, result) => {
+    if (result[0] !== 'int') { return false }
+    // `f: the body is int(-65535, 0), not u(16)` or `… is i(17), not i(16)`
+    const colon = reason.indexOf(':')
+    if (colon < 0) { return false }
+    const rest = reason.slice(colon + 1).trimStart()
+    if (!rest.startsWith('the body is ')) { return false }
+    const body = rest.slice('the body is '.length)
+    const cut = body.indexOf(', not ')
+    if (cut < 0) { return false }
+    const got = body.slice(0, cut)
+    return got.startsWith('int(') || got.startsWith('i(') || got.startsWith('u(')
+}
+
+/**
+ * Lower one program, write its owned stage, check, emit and run it against
+ * its twin. A known refusal from the checker (an integer range past the
+ * signature) is an outcome, not a failure: the generators still write such
+ * bodies. Any other refusal is reported as wrong, so a regression that
+ * refuses a supported category fails the proof.
+ *
+ * @type {(program: ReturnType<typeof typedProgram>) => _Outcome}
+ */
+export const compareOne = program => {
+    const result = program.signatures.f.result
+    const accept = (/** @type {string} */ reason) => expectedRefusal(reason, result)
+    const parsed = sourceOf(program.text)
+    if (parsed[0] === 'error') { return ['wrong', `parse: ${parsed[1]}`] }
+    const { fast, imports } = parsed[1]
+    const ir = lower(program.signatures, program.runtime)(fast, imports)
+    if (ir[0] === 'error') {
+        return accept(ir[1]) ? ['refused', ir[1]] : ['wrong', `refused: ${ir[1]}`]
+    }
+    // The lifetime pass types the plain stage first, so it refuses what the
+    // checker refuses; `run` then checks the owned stage that it wrote.
+    const owned = lifetime(ir[1])
+    if (owned[0] === 'error') {
+        return accept(owned[1]) ? ['refused', owned[1]] : ['wrong', `refused: ${owned[1]}`]
+    }
+    try {
+        run(owned[1], { f: program.twin }, program.inputs)
+    } catch (e) {
+        return ['wrong', e instanceof Error ? e.message : String(e)]
+    }
+    const calls = Object.values(program.inputs).reduce((n, rows) => {
+        assert(rows !== undefined)
+        return n + rows.length
+    }, 0)
+    return ['ran', calls]
+}
+
+/**
+ * Run `typed` typed programs and `any` programs over values of unknown
+ * kind from `seed`. Answers how many ran, how many calls agreed, how many
+ * were refused, and the first wrong answer if any.
+ *
+ * @type {(seed: number, typed: number, anyCount: number) => {
+ *   readonly seed: number,
+ *   readonly programs: number,
+ *   readonly ran: number,
+ *   readonly refused: number,
+ *   readonly calls: number,
+ *   readonly wrong: string | null,
+ * }}
+ */
+export const compare = (seed, typed, anyCount) => {
+    const rnd = rng(seed)
+    let ran = 0
+    let refused = 0
+    let calls = 0
+    /** @type {string | null} */
+    let wrong = null
+    const step = (/** @type {ReturnType<typeof typedProgram>} */ program) => {
+        if (wrong !== null) { return }
+        const out = compareOne(program)
+        if (out[0] === 'ran') {
+            ran += 1
+            calls += out[1]
+        } else if (out[0] === 'refused') {
+            refused += 1
+        } else {
+            wrong = out[1]
+        }
+    }
+    for (let k = 0; k < typed; k += 1) { step(typedProgram(rnd)) }
+    for (let k = 0; k < anyCount; k += 1) { step(anyProgram(rnd)) }
+    return { seed, programs: typed + anyCount, ran, refused, calls, wrong }
+}

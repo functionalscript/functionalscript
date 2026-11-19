@@ -1,0 +1,563 @@
+/**
+ * @import { Unknown } from '../../media/json/types.ts'
+ * @import { DemoEvent } from '../../website/demo/types.ts'
+ * @import { List } from './types.ts'
+ * @import { Transducer } from '../function/operator/types.ts'
+ */
+
+import { length, concat, countdown, cycle, drop, dropWhile, entries, every, filter, find, flat, flatMap, map, next, reduce, reverse, scan, some, someBy, none, includes, take, takeWhile, zip, first, filterMap, findMap, isEmpty, sameItems, intersperse, mergeAdjacent, tryFold, repeat, transduce, run, fromAccumulator } from './module.f.js'
+import { toArray } from './alt/module.f.js'
+import { stringifySorted } from '../../media/json/module.f.js'
+import { addition, reduceToScan, nextStep, doneStep } from '../function/operator/module.f.js'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
+import { demo, listing, parse } from './demo.f.js'
+import { htmlToString } from '../../media/html/module.f.js'
+import { runPure } from '../../effects/module.f.js'
+import { unwrap } from '../result/module.f.js'
+
+/** @type {(sequence: List<Unknown>) => string} */
+const str = sequence => stringifySorted(toArray(sequence))
+
+const stringifyTest = () => {
+    const s = str([1, 2, 3])
+    assertEq(s, '[1,2,3]')
+}
+
+const cycleTest = [
+    () => {
+        const x = str(toArray(take(10)(cycle([1, 2, 3]))))
+        assertEq(x, '[1,2,3,1,2,3,1,2,3,1]')
+    },
+    () => {
+        const x = str(toArray(cycle([])))
+        assertEq(x, '[]')
+    },
+]
+
+const countdownTest = () => {
+    const result = str(countdown(10))
+    assertEq(result, '[9,8,7,6,5,4,3,2,1,0]')
+}
+
+const flatTest = () => {
+    const result = str(flat([[1, 2, 3], [4, 5], [6], [], [7, 8, 9]]))
+    assertEq(result, '[1,2,3,4,5,6,7,8,9]')
+}
+
+const concatTest = () => {
+    const result = concat([1])([2])
+    const x = assertNotNullish(next(result))
+    assertEq(x.first, 1, x)
+}
+
+const flatMapTest = () => {
+    const result = str(flatMap((/** @type {number} */ x) => [x, x * 2, x * 3])([0, 1, 2, 3]))
+    assertEq(result, '[0,0,0,1,2,3,2,4,6,3,6,9]')
+}
+
+const takeTest = [
+    () => {
+        const result = str(take(3)([1, 2, 3, 4, 5, 6, 7, 8, 9]))
+        assertEq(result, '[1,2,3]')
+    },
+    () => {
+        const result = str(take(20)([1, 2, 3, 4, 5, 6, 7, 8, 9]))
+        assertEq(result, '[1,2,3,4,5,6,7,8,9]')
+    },
+    () => {
+        const result = str(take(0)([1, 2, 3, 4, 5, 6, 7, 8, 9]))
+        assertEq(result, '[]')
+    }
+]
+
+const findTest = [
+    () => {
+        const result = find(null)((/** @type {number} */ x) => x % 2 === 0)([1, 3, 5, 7])
+        assertEq(result, null)
+    },
+    () => {
+        const result = find(null)((/** @type {number} */ x) => x % 2 === 0)([1, 2, 3, 4])
+        assertEq(result, 2)
+    }
+]
+
+const takeWhileTest = [
+    () => {
+        const result = str(takeWhile((/** @type {number} */ x) => x < 10)([1, 2, 3, 4, 5, 10, 11]))
+        assertEq(result, '[1,2,3,4,5]')
+    },
+    () => {
+        const result = str(takeWhile((/** @type {number} */ x) => x < 6)([1, 2, 3, 4, 5, 6, 7, 8, 9]))
+        assertEq(result, '[1,2,3,4,5]')
+    }
+]
+
+const dropWhileTest = () => {
+    const result = str(dropWhile((/** @type {number} */ x) => x < 10)([1, 2, 3, 4, 5, 10, 11]))
+    assertEq(result, '[10,11]')
+}
+
+const dropTest = [
+    () => {
+        const result = str(drop(3)([1, 2, 3, 4, 5, 10, 11]))
+        assertEq(result, '[4,5,10,11]')
+    },
+    () => {
+        const result = str(drop(0)([1, 2, 3, 4, 5, 10, 11]))
+        assertEq(result, '[1,2,3,4,5,10,11]')
+    },
+    () => {
+        const result = str(drop(10)([1, 2, 3, 4, 5, 10, 11]))
+        assertEq(result, '[]')
+    }
+]
+
+const additionTests = [
+    () => {
+        const op = reduceToScan(addition)
+        const result = str(scan(op)([2, 3, 4, 5]))
+        assertEq(result, '[2,5,9,14]')
+    },
+    () => {
+        const result = reduce(addition)(null)([2, 3, 4, 5])
+        assertEq(result, 14)
+    },
+    () => {
+        const result = reduce(addition)(null)([])
+        assertEq(result, null)
+    }
+]
+
+const entriesTest = [
+    () => {
+        const result = str(entries([]))
+        assertEq(result, '[]')
+    },
+    () => {
+        const result = str(entries(['hello', 'world']))
+        assertEq(result, '[[0,"hello"],[1,"world"]]')
+    }
+]
+
+const sumUpTo = (/** @type {number} */ limit) => ({
+    init: 0,
+    update: (/** @type {number} */ i, /** @type {number} */ state) => {
+        const next = state + i
+        return next > limit ? null : next
+    },
+    end: (/** @type {number} */ state) => state * 10,
+})
+
+const tryFoldTest = /** @type {const} */ ([
+    () => {
+        const result = tryFold(sumUpTo(100))([1, 2, 3])
+        assertEq(result, 60)
+    },
+    () => {
+        const result = tryFold(sumUpTo(4))([1, 2, 3])
+        assertEq(result, null)
+    },
+    () => {
+        const result = tryFold(sumUpTo(100))([])
+        assertEq(result, 0)
+    },
+    () => {
+        const result = tryFold({
+            init: 0,
+            update: () => null,
+            end: () => { throw 'must not finalize a rejected fold' },
+        })({ first: 1, tail: () => { throw 'must not evaluate the tail after rejection' } })
+        assertEq(result, null)
+    },
+    () => {
+        const result = tryFold({
+            init: null,
+            update: (/** @type {number} */ i) => i,
+            end: state => state === null ? 'empty' : 'nonempty',
+        })([])
+        assertEq(result, 'empty')
+    },
+])
+
+const transduceTest = /** @type {const} */ ({
+    emptyAndNull: () => {
+        /** @type {Transducer<number, null, number, null>} */
+        const machine = {
+            init: nextStep(null),
+            update: () => { throw 'empty input must not update' },
+            end: () => doneStep(null, [0]),
+        }
+        assertStructurallySame(toArray(transduce(machine)([])), [['done', [0], null]])
+        assertEq(run(machine)([]), null)
+    },
+    initiallyDone: () => {
+        /** @type {Transducer<number, null, number, null>} */
+        const machine = {
+            init: doneStep(null, [9]),
+            update: () => { throw 'initially done must not update' },
+            end: () => { throw 'initially done must not finalize again' },
+        }
+        const input = () => { throw 'initially done must not read input' }
+        assertStructurallySame(toArray(transduce(machine)(input)), [['done', [9], null]])
+        assertEq(run(machine)(input), null)
+    },
+    emitsAndFlushes: () => {
+        /** @type {Transducer<number, number, number, number>} */
+        const machine = {
+            init: nextStep(0, [0]),
+            update: (state, input) => nextStep(state + input, [input]),
+            end: state => doneStep(state, [state]),
+        }
+        assertStructurallySame(toArray(transduce(machine)([1, 2])), [
+            ['next', [0]], ['next', [1]], ['next', [2]], ['done', [3], 3],
+        ])
+        assertEq(run(machine)([1, 2]), 3)
+        assertStructurallySame(first(null)(transduce(machine)(() => { throw 'initial output precedes input' })), ['next', [0]])
+    },
+    stopsOnDone: () => {
+        /** @type {Transducer<number, number, number, number>} */
+        const machine = {
+            init: nextStep(0),
+            update: (state, input) => input === 2 ? doneStep(state + input, [99]) : nextStep(state + input),
+            end: () => { throw 'early completion must not finalize again' },
+        }
+        const input = /** @type {const} */ ({ first: 1, tail: { first: 2, tail: () => { throw 'early completion must not read the suffix' } } })
+        assertStructurallySame(toArray(transduce(machine)(input)), [['done', [99], 3]])
+        assertEq(run(machine)(input), 3)
+    },
+    silentAndResumed: () => {
+        /** @type {Transducer<number, number, never, number>} */
+        const machine = {
+            init: nextStep(0),
+            update: (state, input) => nextStep(state + input),
+            end: state => doneStep(state),
+        }
+        assertEq(run(machine)(repeat(1)(50_000)), 50_000)
+        const suspended = machine.update(0, 2)
+        assertEq(run({ ...machine, init: suspended })([3]), run(machine)([2, 3]))
+        assertEq(run(fromAccumulator(sumUpTo(10)))([1, 2]), 30)
+    },
+    emptyChunksAreInput: () => {
+        /** @type {Transducer<readonly number[], number, number, number>} */
+        const machine = {
+            init: nextStep(0),
+            update: (count, chunk) => nextStep(count + 1, chunk),
+            end: count => doneStep(count),
+        }
+        assertStructurallySame(toArray(transduce(machine)([[], [1, 2], []])), [
+            ['next', [1, 2]], ['done', [], 3],
+        ])
+    },
+})
+
+const reverseTest = [
+    () => {
+        const result = str(reverse([]))
+        assertEq(result, '[]')
+    },
+    () => {
+        const result = str(reverse([1, 2, 3, 4, 5]))
+        assertEq(result, '[5,4,3,2,1]')
+    }
+]
+
+const zipTest = [
+    () => {
+        const result = str(zip([0, 1, 2])(['a', 'b', 'c', 'd']))
+        assertEq(result, '[[0,"a"],[1,"b"],[2,"c"]]')
+    },
+    () => {
+        const result = str(zip([0, 1, 2])(['a', 'b']))
+        assertEq(result, '[[0,"a"],[1,"b"]]')
+    }
+]
+
+const logic = () => {
+    const map5 = map((/** @type {number} */ x) => x > 5)
+
+    return [
+        () => {
+            const result = some(map5([0, 1, 7]))
+            assert(result, result)
+        },
+        () => {
+            const result = some(map5([0, 1, 4]))
+            assert(!(result), result)
+        },
+        () => {
+            const result = some(map5([]))
+            assert(!(result), result)
+        },
+        () => {
+            const result = every(map5([0, 1, 7]))
+            assert(!(result), result)
+        },
+        () => {
+            const result = every(map5([6, 11, 7]))
+            assert(result, result)
+        },
+        () => {
+            const result = every(map5([]))
+            assert(result, result)
+        }
+    ]
+}
+
+const quantifiers = () => {
+    const gt5 = (/** @type {number} */ x) => x > 5
+
+    return {
+        someBy: [
+            () => assertEq(someBy(gt5)([0, 1, 7]), true),
+            () => assertEq(someBy(gt5)([0, 1, 4]), false),
+            () => assertEq(someBy(gt5)([]), false),
+        ],
+        none: [
+            () => assertEq(none(gt5)([0, 1, 7]), false),
+            () => assertEq(none(gt5)([0, 1, 4]), true),
+            () => assertEq(none(gt5)([]), true),
+        ],
+        includes: [
+            () => assertEq(includes(4)([0, 4, 7]), true),
+            () => assertEq(includes(4)([0, 1, 7]), false),
+            () => assertEq(includes(4)([]), false),
+        ],
+    }
+}
+
+// stress tests
+
+const stress = () => ({
+    toArray: () => {
+        // 200_000_000 is too much
+        const n = 100_000_000
+        const result = toArray(countdown(n))
+        assertEq(result.length, n)
+        const len = length(filter((/** @type {number} */ x) => x > n)(result))
+        assertEq(len, 0)
+    },
+    first: () => {
+        // 100_000_000 is too much
+        const n = 50_000_000
+        const result = toArray(countdown(n))
+        assertEq(result.length, n)
+        const f = first(null)(result)
+        assertEq(f, n - 1)
+    },
+    concatBack: () => {
+        /** @type {List<number>} */
+        let sequence = []
+        // 20_000_000 is too much
+        // 10_000_000 is too much for Deno 1
+        for (let i = 0; i < 5_000_000; i += 1) {
+            sequence = concat(sequence)([i])
+        }
+        const r = toArray(sequence)
+    },
+    flatToArray: () => {
+        /** @type {List<number>} */
+        let sequence = []
+        // 4_000_000 is too much
+        for (let i = 0; i < 2_000_000; i += 1) {
+            sequence = flat([sequence, [i]])
+        }
+        const r = toArray(sequence)
+    },
+    flatNext: () => {
+        /** @type {List<number>} */
+        let sequence = []
+        // 4_000_000 is too much
+        for (let i = 0; i < 2_000_000; i += 1) {
+            sequence = flat([sequence, [i]])
+        }
+        const a = next(sequence)
+    },
+    concatFront: () => {
+        /** @type {List<number>} */
+        let sequence = []
+        // 20_000_000 is too much
+        for (let i = 0; i < 10_000_000; i += 1) {
+            sequence = concat([i])(sequence)
+        }
+        const a = next(sequence)
+    },
+    flatFront: () => {
+        /** @type {List<number>} */
+        let sequence = []
+        // 10_000_000 is too much
+        for (let i = 0; i < 5_000_000; i += 1) {
+            sequence = flat([[i], sequence])
+        }
+        const a = next(sequence)
+    },
+    filterMap: () => {
+        // 100_000_000 is too much
+        const n = 50_000_000
+        const result = toArray(countdown(n))
+        assertEq(result.length, n)
+        const len = length(filterMap(() => null)(result))
+        assertEq(len, 0)
+    },
+    dropWhile: () => {
+        // 50_000_000 is too much
+        const n = 20_000_000
+        const result = toArray(countdown(n))
+        assertEq(result.length, n)
+        const len = length(dropWhile(() => true)(result))
+        assertEq(len, 0)
+    },
+    reverse: () => {
+        // 10_000_000 is too much
+        const n = 5_000_000
+        const result = toArray(reverse(countdown(n)))
+        assertEq(result.length, n)
+    }
+
+})
+
+export const proof = {
+    stringifyTest,
+    cycle: cycleTest,
+    countdown: countdownTest,
+    flat: flatTest,
+    concat: concatTest,
+    flatMap: flatMapTest,
+    take: takeTest,
+    find: findTest,
+    findMap: [
+        () => assertEq(findMap((/** @type {number} */ x) => x % 2 === 0 ? x * 10 : null)([1, 3, 4, 6]), 40),
+        () => assertEq(findMap(() => null)([1, 2]), null),
+        () => assertEq(findMap(() => 'x')([]), null),
+        // lazy: nothing after the first answer is asked
+        () => assertEq(findMap((/** @type {number} */ x) => {
+            assert(x <= 2, x)
+            return x === 2 ? 'two' : null
+        })([1, 2, 3]), 'two'),
+    ],
+    takeWhile: takeWhileTest,
+    dropWhile: dropWhileTest,
+    drop: dropTest,
+    additionTests,
+    entries: entriesTest,
+    tryFold: tryFoldTest,
+    transduce: transduceTest,
+    reverse: reverseTest,
+    zip: zipTest,
+    logic,
+    quantifiers,
+    sameItems: [
+        () => {
+            const result = sameItems([1])([2, 3])
+            assert(!(result), result)
+        },
+        () => {
+            const result = sameItems([1, 3])([1])
+            assert(!(result), result)
+        },
+        () => {
+            const result = sameItems([15, 78])([15, 78])
+            assert(result, result)
+        },
+        () => {
+            const result = sameItems([])([])
+            assert(result, result)
+        },
+        // A lazy list is one list of the same items as the array it spells.
+        () => {
+            const result = sameItems(() => [15, 78])([15, 78])
+            assert(result, result)
+        }
+    ],
+    isEmpty: [
+        () => {
+            const result = isEmpty(() => [])
+            assertEq(result, true)
+        },
+        () => {
+            const result = isEmpty(() => [2])
+            assertEq(result, false)
+        }
+    ],
+    repeat: () => {
+        assertEq(str(repeat('x')(3)), '["x","x","x"]')
+        assertEq(str(repeat('x')(0)), '[]')
+    },
+    length: () => {
+        assertEq(length([1, 2, 3]), 3)
+        assertEq(length(null), 0)
+        assertEq(length({ first: 1, tail: { first: 2, tail: null } }), 2)
+        assertEq(length(flat([[1, 3], null, () => [3], concat([12])([4, 89])])), 6)
+    },
+    intersperse: [
+        () => assertEq(str(intersperse(0)([1, 2, 3])), '[1,0,2,0,3]'),
+        () => assertEq(str(intersperse(0)([1])), '[1]'),
+        () => assertEq(str(intersperse(0)([])), '[]'),
+    ],
+    mergeAdjacent: () => {
+        /** @type {(a: number) => (b: number) => number | null} */
+        const sumEven = a => b => a % 2 === 0 && b % 2 === 0 ? a + b : null
+        assertEq(str(mergeAdjacent(sumEven)([2, 4, 1, 6, 8, 10, 3, 2])), '[6,1,24,3,2]')
+        assertEq(str(mergeAdjacent(sumEven)([])), '[]')
+    },
+    filterMap: [
+        () => {
+            const result = str(filterMap((/** @type {number} */ x) => x % 2 === 0 ? x * 10 : null)([1, 2, 3, 4, 5]))
+            assertEq(result, '[20,40]')
+        },
+        () => {
+            const result = str(filterMap((/** @type {number} */ x) => x > 3 ? x : null)([1, 2, 3]))
+            assertEq(result, '[]')
+        },
+    ],
+    demo: {
+        /**
+         * **The answers the demo shows are this module's own.** Pinned so a
+         * change to a combinator, or to how the demo prints it, lands on a
+         * test rather than only on a page.
+         */
+        listing: () => assertEq(listing([3, 1, 4]), [
+            'toArray(map(x => x * 2)(xs))           [6, 2, 8]',
+            'toArray(filter(x => x % 2 === 0)(xs))  [4]',
+            'fold(x => acc => acc + x)(0)(xs)       8',
+            'toArray(foldScan(addition)(0)(xs))     [3, 4, 8]',
+            'toArray(reverse(xs))                   [4, 1, 3]',
+            'toArray(take(3)(xs))                   [3, 1, 4]',
+            'toArray(intersperse(0)(xs))            [3, 0, 1, 0, 4]',
+            'toArray(entries(xs))                   [[0, 3], [1, 1], [2, 4]]',
+            "toArray(zip(xs)(['a', 'b']))           [[3, 'a'], [1, 'b']]",
+            'toArray(take(10)(cycle(xs)))           [3, 1, 4, 3, 1, 4, 3, 1, 4, 3]',
+        ].join('\n')),
+        // Commas, spaces and line breaks all separate; anything that is not a
+        // whole number is named.
+        parse: () => {
+            assertEq(str(unwrap(parse(' 1,2\n 3 '))), '[1,2,3]')
+            assertEq(str(unwrap(parse(''))), '[]')
+            assertEq(str(parse('1, 2.5')), '["error","a whole number of at most six digits, not: 2.5"]')
+            assertEq(str(parse('9007199254740993')), '["error","a whole number of at most six digits, not: 9007199254740993"]')
+            assertEq(str(parse('1000000')), '["error","a whole number of at most six digits, not: 1000000"]')
+            assertEq(str(unwrap(parse('-999999 999999'))), '[-999999,999999]')
+            assertEq(str(parse('1,\t,2')), '["error","a whole number of at most six digits, not: \\t"]')
+            assertEq(str(parse('0x10')), '["error","a whole number of at most six digits, not: 0x10"]')
+            assertEq(str(unwrap(parse('-3 0'))), '[-3,0]')
+        },
+        // Typing replaces the text; every other event leaves it alone.
+        update: () => {
+            /** @type {(event: DemoEvent) => (state: string) => string} */
+            const step = event => state => {
+                const [result] = runPure(demo.update(state)(event))
+                return unwrap(assertNotNullish(result,
+                    'expected the demo to reach a value without asking for an operation'))
+            }
+            assertEq(step({ kind: 'input', name: 'xs', value: '1' })(''), '1')
+            assertEq(step({ kind: 'start' })('kept'), 'kept')
+        },
+        view: () => {
+            const html = htmlToString(demo.view(demo.init))
+            assert(html.includes('name="xs"'), html)
+            assert(html.includes('take(10)(cycle(xs))'), html)
+            const refused = htmlToString(demo.view('1, x'))
+            assert(refused.includes('a whole number of at most six digits, not: x'), refused)
+        },
+    },
+    // stress
+}

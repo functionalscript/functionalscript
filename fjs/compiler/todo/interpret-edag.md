@@ -58,9 +58,9 @@ and static calls. Neither migration approves new language semantics.
 
 ### Proposal
 
-The interpreter is [`fjs/edag/memo`](../../edag/memo/module.f.mjs), using
+The interpreter is [`fjs/edag/memo`](../../edag/memo/module.f.js), using
 represented [`value`](../../edag/value/types.ts) operations and the
-[`analysis`](../../edag/analysis/module.f.mjs) table. The requirements below govern
+[`analysis`](../../edag/analysis/module.f.js) table. The requirements below govern
 its remaining entry-point and integration work, not a second interpreter for an
 older function representation.
 
@@ -157,7 +157,7 @@ all but `length` — since such a graph is not one the compiler emits.
 
 ### Value-producing API integration
 
-[`compiler/transpiler`](../transpiler/module.f.mjs) now exposes
+[`compiler/transpiler`](../transpiler/module.f.js) now exposes
 `interpret(load)(path)`: load each dependency once, compile each parsed module
 with `unresolved`, then run memo with the complete represented dependency
 exports as arguments, under the runtime `load` answers — a `RuntimeLoad`, run
@@ -194,7 +194,7 @@ file, while initialization failures name their source file. The CLI reports
 `module initialization failed`; API callers retain its represented payload.
 FunctionalScript output continues to rewrite the linked EDAG without evaluation.
 
-The shared readers now live in [`source`](../source/module.f.mjs), avoiding an
+The shared readers now live in [`source`](../source/module.f.js), avoiding an
 import cycle between lowering and the transpiler, and so does the one module
 walk both paths load through, `_walk`.
 
@@ -204,7 +204,7 @@ hardening TODO after the baseline interpreter exists.
 
 ### Tasks
 
-- [x] Provide represented memo interpretation in [`../../edag/memo`](../../edag/memo/module.f.mjs).
+- [x] Provide represented memo interpretation in [`../../edag/memo`](../../edag/memo/module.f.js).
 - [x] Replace the captured mutable cache with immutable evaluation state,
       preserving sharing, lazy demand, fresh calls and capture identity.
 - [x] Render every admitted function body through the shared function-text
@@ -228,12 +228,12 @@ hardening TODO after the baseline interpreter exists.
 - [x] Evaluate frames in the enclosing scope and make their captured values available
       through `['frame', i]` in each body invocation. The old null-only restriction is
       historical; capture and fixed/rest identity proofs are in
-      [`../parameters/proof.f.mjs`](../parameters/proof.f.mjs).
+      [`../parameters/proof.f.js`](../parameters/proof.f.js).
 - [x] Memoize results by EDAG node identity within one evaluation context so shared
       constructors preserve reference identity.
 - [x] Start a fresh body-node memoization context for every function invocation; do
       not reuse memoized body results across different argument contexts.
-      Pinned by `body` in [`../../edag/memo/proof.f.mjs`](../../edag/memo/proof.f.mjs).
+      Pinned by `body` in [`../../edag/memo/proof.f.js`](../../edag/memo/proof.f.js).
 - [ ] Carry analysis's rejection of operation nodes shared across function boundaries
       into the public validation entry; keep body graphs disjoint while allowing
       sharing inside one body.
@@ -263,7 +263,7 @@ hardening TODO after the baseline interpreter exists.
 - [x] Add proofs that primitive, array, object, property-access, import-resolved, and
       shared-node EDAGs evaluate to the expected values.
 - [x] Add Stage 2 proofs for non-capturing functions, ordinary calls, and method calls.
-      Done: `agrees` in [`../../edag/memo/proof.f.mjs`](../../edag/memo/proof.f.mjs)
+      Done: `agrees` in [`../../edag/memo/proof.f.js`](../../edag/memo/proof.f.js)
       runs `=>`, an ordinary `()` call and method calls through `|()` and `|?.()`
       beside amnesia.
 - [x] Execute optional nodes per
@@ -274,15 +274,15 @@ hardening TODO after the baseline interpreter exists.
       short-circuit of the rest of the continuation — and its one exception, `|!()`,
       which the parentheses put outside the region and which therefore runs on the
       `undefined` a short-circuit produced. Done: `chains` in
-      [`../../edag/memo/proof.f.mjs`](../../edag/memo/proof.f.mjs) and the chain
-      proofs in [`../../edag/amnesia/proof.f.mjs`](../../edag/amnesia/proof.f.mjs).
+      [`../../edag/memo/proof.f.js`](../../edag/memo/proof.f.js) and the chain
+      proofs in [`../../edag/amnesia/proof.f.js`](../../edag/amnesia/proof.f.js).
 - [x] Add an invocation-scope proof such as calling `x => [x]` with `1` and `2`:
       results contain the corresponding argument and do not reuse the constructed
       array across calls, while repeated references inside one call still share.
-      Done: `body` in [`../../edag/memo/proof.f.mjs`](../../edag/memo/proof.f.mjs).
+      Done: `body` in [`../../edag/memo/proof.f.js`](../../edag/memo/proof.f.js).
 - [x] Add a validation proof that an operation node reused both outside and inside a
       function body is rejected. Done: `throw` in
-      [`../../edag/analysis/proof.f.mjs`](../../edag/analysis/proof.f.mjs)
+      [`../../edag/analysis/proof.f.js`](../../edag/analysis/proof.f.js)
       (`outsideThenInside`, `insideThenOutside`, `siblingBodies`).
 - [x] Add a diamond/shared-node proof showing one shared EDAG node produces one shared
       runtime value within the relevant evaluation context.

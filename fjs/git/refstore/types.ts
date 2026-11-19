@@ -12,7 +12,7 @@ import type { Bytes, Oid } from '../types.ts'
  * Git keeps most refs once for the whole repository and a few per worktree,
  * and the two sets live in different directories whenever a linked worktree is
  * involved. `common` is what
- * [`fjs/git/repo`](../repo/module.f.mjs)'s `tryCommonDir` answers — where
+ * [`fjs/git/repo`](../repo/module.f.js)'s `tryCommonDir` answers — where
  * `refs/` and `packed-refs` are — and `gitdir` is the directory that
  * worktree's `.git` names, which holds its own `HEAD` and nothing shared.
  *

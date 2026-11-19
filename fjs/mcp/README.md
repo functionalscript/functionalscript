@@ -8,14 +8,14 @@ stored — without shelling out to the `cas` CLI — and it exposes Evo's
 subject/head API (`evo_list`/`evo_head`/`evo_revision`/`evo_add`,
 [`fjs/mcp/evo`](evo/)) from the same process.
 
-The store (`fjs/cas/module.f.mjs`) stays transport-agnostic; this adapter is an
+The store (`fjs/cas/module.f.js`) stays transport-agnostic; this adapter is an
 additional front end alongside the CLI `main`.
 
 `casMcpServer(home)` builds one store under `home`, which both tool registries
 share, and scans it once at startup to build the Evo subject/head cache (`initEvo`, [`fjs/cas/evo`](../cas/evo/)), allocates the
 session-state slot, builds the `mcpStep` for the combined `cas_*`/`evo_*`
 tool registry, and drives the stdio read → parse → dispatch → write loop
-([`fjs/protocol/mcp/stdio`](../protocol/mcp/stdio/module.f.mjs)) until stdin EOF. `evo_add` is
+([`fjs/protocol/mcp/stdio`](../protocol/mcp/stdio/module.f.js)) until stdin EOF. `evo_add` is
 the only tool that writes: it updates both the store and the cache in one
 step, so `evo_list`/`evo_head` never rescan.
 
@@ -66,8 +66,8 @@ with your CAS instance, and the `evo_list`, `evo_head`, `evo_revision`, and
 covers `cas_add`/`cas_get`/`cas_list`.
 
 Each tool's argument schema is an rtti struct declared once and used twice:
-[`toJsonSchema`](../media/json/schema/module.f.mjs) derives the `inputSchema`
-advertised in `tools/list`, and [`parse`](../rtti/parse/module.f.mjs)
+[`toJsonSchema`](../media/json/schema/module.f.js) derives the `inputSchema`
+advertised in `tools/list`, and [`parse`](../rtti/parse/module.f.js)
 decodes the `arguments` object in `tools/call`. There is no drift between what we
 advertise and what we accept.
 
@@ -145,7 +145,7 @@ below).
 ### Metadata is size-independent (the default `content: false`)
 
 The metadata-only call **never buffers the blob**. It folds the CAS read stream
-through [`fjs/media/type`](../media/type/module.f.mjs) `detectStream` — a byte-accepting
+through [`fjs/media/type`](../media/type/module.f.js) `detectStream` — a byte-accepting
 state machine (running byte count × magic-byte signature eliminator × UTF-8
 validity DFA) that derives `{ length, mimeType, type }` in O(1) space. The
 detector stops decoding once the verdict is fixed — a magic match settles it
@@ -164,7 +164,7 @@ valid UTF-8 until a trailing invalid byte is correctly classified as `base64`
 ### Content encoding (when `content: true`)
 
 Only the `content: true` path materializes the bytes (bounded by `maxLength`). It
-classifies them with the **same** detector — [`fjs/media/type`](../media/type/module.f.mjs)
+classifies them with the **same** detector — [`fjs/media/type`](../media/type/module.f.js)
 `detectVec`, the single-`Vec` form of the `detectStream` machine above — so the
 three-way verdict is computed in exactly one place, never re-derived from a
 parallel `detect` + UTF-8 check. The `type` then selects whether the inline
@@ -173,7 +173,7 @@ payload lands in `text` or `blob`:
 1. **Magic-byte hit** (PNG/JPEG/GIF/WebP/PDF/ZIP) → `type: 'base64'`, `blob` is
    RFC 4648 base64.
 2. **Whole-blob-valid UTF-8** → `type: 'text'`, `mimeType: 'text/plain'`, and
-   `text` is the decoded string ([`fjs/text/utf8`](../text/utf8/module.f.mjs)
+   `text` is the decoded string ([`fjs/text/utf8`](../text/utf8/module.f.js)
    `fromVec`, used here purely as the decoder).
 3. **Fallback** → `type: 'base64'`, `mimeType: 'application/octet-stream'`,
    `blob` is base64.
@@ -216,7 +216,7 @@ Content encoding is determined at read time as described above.
 MCP draws a line the dispatcher already respects:
 
 - **Protocol failures** — unknown method, malformed JSON-RPC params — are
-  JSON-RPC errors. [`mcpStep`](../protocol/mcp/module.f.mjs) handles those.
+  JSON-RPC errors. [`mcpStep`](../protocol/mcp/module.f.js) handles those.
 - **Tool failures** come back as a normal `tools/call` result with
   `isError: true` and a text explanation. This adapter returns `isError` for:
   - invalid arguments to any tool (`validate` rejects the argument object);

@@ -23,7 +23,7 @@ measured on Node is smaller there.
 
 How much of the stack that corpus leaves, measured after `9789544` on x64
 Node 26.10 with the default stack, each depth in a fresh process: the path
-`subsetLaw` in [`../../compiler/proof.f.mjs`](../../compiler/proof.f.mjs)
+`subsetLaw` in [`../../compiler/proof.f.js`](../../compiler/proof.f.js)
 takes — front end, lowering, analysis, memo interpretation, runtime data
 conversion — evaluates a nested array 1,170 levels deep and overflows at
 1,180, in memo's `operand` → `operation` → `items`, the walk this issue
@@ -63,7 +63,7 @@ identityAnalysis(['=>', 0, [], body]);
 ```
 
 The analysis walk — `walk` and its handlers in
-[`../analysis/module.f.mjs`](../analysis/module.f.mjs) — recurses once per
+[`../analysis/module.f.js`](../analysis/module.f.js) — recurses once per
 operand, so a sufficiently deep EDAG — a long left-associative operator
 chain (`1 + 1 + 1 + …`), or deeply nested containers (`[[[[…]]]]`) —
 overflows the JS call stack. At `36c8d4a`, an 8,000-term `1 + 1 + … + 1`
@@ -99,9 +99,9 @@ reaches it far more easily to write than the pre-existing ones
 
 Two narrower versions of the same shape were already fixed for
 **operator chains** in `fjs/compiler/ast/module.f.js` (`refsOf`'s
-operator/negation/bitwise-not walk) and `fjs/compiler/edag/module.f.mjs`
+operator/negation/bitwise-not walk) and `fjs/compiler/edag/module.f.js`
 (`lower`'s own), each with an explicit heap-allocated stack in place of
-recursion, matching how `evaluate` in `fjs/compiler/parser/module.f.mjs`
+recursion, matching how `evaluate` in `fjs/compiler/parser/module.f.js`
 already resolves a value's own operators. Those two fixes do not reach
 containers or function bodies: a nested container or function still
 recurses in the compiler before this walk is ever reached, which
@@ -110,7 +110,7 @@ This issue is the same fix, one layer further down, in code shared by
 every EDAG consumer rather than one compiler stage — a bigger, more
 central rewrite, out of Stage A's own scope.
 
-Confirmed reachable through the Rust backend (`fjs/compiler/rust/module.f.mjs`'s
+Confirmed reachable through the Rust backend (`fjs/compiler/rust/module.f.js`'s
 `bodyLines`, added by Stage A): at the time it called `analysis(root)` to
 find every operator node *before* it could report the clean refusal Stage
 A's PR description promised, so a chain of a few thousand terms crashed
@@ -133,7 +133,7 @@ parser resolves a body tens of thousands of functions deep — a capture
 through every one of them included — but the lowering recurses once per
 function ([deep-nesting-recursion](../../compiler/todo/deep-nesting-recursion.md)),
 as does the Rust printer (`closure` → `statements` in
-[`../rust/module.f.mjs`](../rust/module.f.mjs)), so at `36c8d4a`
+[`../rust/module.f.js`](../rust/module.f.js)), so at `36c8d4a`
 `export default ${'() => '.repeat(20000)}1;` still overflows, with a
 capture or without one.
 
@@ -161,7 +161,7 @@ first question, not a settled one. The walk here is one of several on
 the way to a graph output: past it, the FunctionalScript writer —
 `operand`, `entry` and, since the writer spells every operator, `binary`
 and its operand helpers in
-[`../../compiler/serializer/module.f.mjs`](../../compiler/serializer/module.f.mjs),
+[`../../compiler/serializer/module.f.js`](../../compiler/serializer/module.f.js),
 one frame set per level of a chain or a container — `fjs/edag/sharing`'s
 `visit` and the Rust printer each descend the same depth, and a
 walk made iterative here only moves the overflow to the next one. The
@@ -177,7 +177,7 @@ discovered one `RangeError` at a time.
       every walk from the front end to the `.js` and `.rs` outputs whose
       depth is the input's, and for each, an explicit stack, the
       trampoline, or the reason neither fits.
-- [ ] Identify every recursive call in `fjs/edag/analysis/module.f.mjs`
+- [ ] Identify every recursive call in `fjs/edag/analysis/module.f.js`
       (and any sibling module with the same shape) whose depth is the
       *input's*, not a bounded constant.
 - [ ] Include `fjs/edag/value/function`'s body copier, preserving its
@@ -188,7 +188,7 @@ discovered one `RangeError` at a time.
       any rewrite has to preserve that, not just avoid crashing).
 - [ ] Proof coverage at the depth the existing `stackSafety` proofs
       elsewhere in the repository use (`stackSafety` in
-      `fjs/compiler/parser/proof.f.mjs`) for a chain of operators, nested
+      `fjs/compiler/parser/proof.f.js`) for a chain of operators, nested
       containers, and whatever other shape reaches this walk.
 - [ ] A proof that compiles `spec/datajs/vectors/accept/data.f.js` to
       `.js`, the crash's reproduction in the repository's own corpus — its
@@ -204,7 +204,7 @@ discovered one `RangeError` at a time.
   this issue is about its recursion depth, not its design.
 - [`../../compiler/ast/module.f.js`](../../compiler/ast/module.f.js) — `refsOf`'s
   own explicit-stack fix, the narrower precedent.
-- [`../../compiler/edag/module.f.mjs`](../../compiler/edag/module.f.mjs) — `lower`'s,
+- [`../../compiler/edag/module.f.js`](../../compiler/edag/module.f.js) — `lower`'s,
   the other one.
 - [deep-nesting-recursion](../../compiler/todo/deep-nesting-recursion.md) — the
   compiler's own container and function recursion, before this walk.
@@ -213,5 +213,5 @@ discovered one `RangeError` at a time.
   issue's.
 - [`spec/datajs/vectors/accept/data.f.js`](../../../spec/datajs/vectors/accept/data.f.js)
   — the DataJS accept vectors, whose deep graphs reach this crash.
-- [`../../compiler/parser/module.f.mjs`](../../compiler/parser/module.f.mjs) —
+- [`../../compiler/parser/module.f.js`](../../compiler/parser/module.f.js) —
   `evaluate`, whose `_Stack` is the same shape again, for the same reason.

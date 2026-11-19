@@ -60,14 +60,14 @@ therefore takes either form the format does: the bindings inline as a map, or
 the cBase32 hash of a [`vnd.fjs.lock`](../../media/lock/) blob holding them —
 recorded as given, never followed. The map half is recursive — a value is a
 hash or a nested scope — which is why it is the one argument whose JSON Schema
-is not inlined whole: the recursion comes out as a named `$defs` rule
-(`lockValue`) reached through a local `$ref`, the JSON Schema spelling of a
+is not inlined whole: the recursion comes out as a `$defs` rule with ordinal
+`0`, reached through the local `$ref` `#/$defs/0`, the JSON Schema spelling of a
 cycle.
 
 Each tool's argument schema is an rtti struct declared once and used twice:
-[`toJsonSchema`](../../media/json/schema/module.f.mjs) derives the
+[`toJsonSchema`](../../media/json/schema/module.f.js) derives the
 `inputSchema` advertised in `tools/list`, and
-[`parse`](../../rtti/parse/module.f.mjs) decodes the
+[`parse`](../../rtti/parse/module.f.js) decodes the
 `arguments` object in `tools/call` — the same pattern as
 [`fjs/mcp`](../).
 
@@ -89,7 +89,7 @@ Each tool's argument schema is an rtti struct declared once and used twice:
   error. `evo_list` and `evo_revision` carry JSON as MCP text content, so the
   JSON-RPC serializer escapes it again and an encoded line can outgrow the cap
   even when the value itself is small (a subject of quote characters is the
-  worst case). [`fjs/protocol/mcp/stdio`](../../protocol/mcp/stdio/module.f.mjs) then retries
+  worst case). [`fjs/protocol/mcp/stdio`](../../protocol/mcp/stdio/module.f.js) then retries
   with a small internal-error body that keeps the request's `id` — the same
   envelope every tool has, `cas_get` included. A tool cannot turn this into a
   descriptive error of its own: whether the encoded response fits is known

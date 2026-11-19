@@ -98,7 +98,7 @@ otherwise no task anyone can pick up to unblock 7b.
     a third answer — *cannot decide* — and **today's API cannot express
     one**: `subset` is
     `(a: Data) => (b: Data) => boolean`
-    ([`data/module.f.mjs`](../../fjs/rtti/data/module.f.mjs)), so a
+    ([`data/module.f.js`](../../fjs/rtti/data/module.f.js)), so a
     `false` conflates a genuine non-inclusion with a documented
     undecidable case such as
     `readonly [number | string] ⊆ readonly [number] | readonly [string]`.

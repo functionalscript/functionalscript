@@ -1,0 +1,330 @@
+/**
+ * @import { Unknown } from '../types.ts'
+ */
+
+import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
+import { errorMask } from '../../../text/code_point/module.f.js'
+import { stringToCodePointList, stringToList } from '../../../text/utf16/module.f.js'
+import { toArray } from '../../../types/list/alt/module.f.js'
+import { take } from '../../../types/list/module.f.js'
+import { invert, unwrap } from '../../../types/result/module.f.js'
+import { concat } from '../../../types/string/module.f.js'
+import { tryParse } from '../parser/module.f.js'
+import { parseFromTokens } from '../../../compiler/parser/module.f.js'
+import { tokenize } from '../../../compiler/tokenizer/module.f.js'
+import { difference } from '../vectors/module.f.js'
+import { _tryJsonSerialize, _trySerialize, _tryUnknownStringify, tryMarked, trySerialize, tryJsonSerialize, tryJsonMarked, tryJsonStringify, tryStringify } from './module.f.js'
+import { generate } from '../../../types/array/module.f.js'
+
+/** The document a value is written as. @type {(value: unknown) => string} */
+const text = value => unwrap(tryStringify(value))
+
+/** Why a value is refused. Throws the document if it is written instead. @type {(value: unknown) => string} */
+const refused = value => unwrap(invert(tryStringify(value)))
+
+/**
+ * Whether every code point of a document is a scalar value — no unpaired
+ * surrogate, which `stringToCodePointList` tags with `errorMask`.
+ *
+ * A document **is UTF-8**, and a lone surrogate has no encoding, so this is
+ * a property of the output that a round trip through the reader cannot
+ * check: the reader takes UTF-16 code units and accepts a raw surrogate, so
+ * a writer emitting one raw would read back as the value it was given and
+ * still not have written a document.
+ *
+ * @type {(text: string) => boolean}
+ */
+const isUtf8 = text => toArray(stringToCodePointList(text)).every(codePoint => (codePoint & errorMask) === 0)
+
+/**
+ * The document a value is written as, read back by
+ * [the reader](../parser/module.f.js) and compared with the value itself —
+ * sharing included, since `difference` compares containers as a bijection.
+ * This is the conformance criterion: a document that denotes the input
+ * graph, and one that is a document at all.
+ *
+ * @type {(value: Unknown) => void}
+ */
+const denotes = value => {
+    const document = text(value)
+    assert(isUtf8(document), document)
+    assertEq(difference(value)(unwrap(tryParse(document))), null)
+}
+
+/** An empty array a `const` may hold, which `[]` alone types as an evolving array. @type {Unknown} */
+const emptyArray = /** @type {readonly Unknown[]} */ ([])
+
+/** The JSON document a value is written as. @type {(value: unknown) => string} */
+const json = value => unwrap(tryJsonStringify(value))
+
+/** Why a value has no JSON document. @type {(value: unknown) => string} */
+const jsonRefused = value => unwrap(invert(tryJsonStringify(value)))
+
+/** A value `levels` doublings above `leaf`: two to the `levels` references to `leaf` in the tree, and `levels + 1` nodes in the graph. @type {(leaf: Unknown, levels: number) => Unknown} */
+const doubled = (leaf, levels) => {
+    /** @type {Unknown} */
+    let value = [leaf]
+    for (let i = 0; i < levels; i += 1) { value = [value, value] }
+    return value
+}
+
+/** An array chain of `depth` containers over one value. @type {(depth: number, bottom: unknown) => unknown} */
+const nested = (depth, bottom) => generate(depth, () => undefined).reduce(v => [v], bottom)
+
+export const proof = {
+    // Every leaf of the model, and `undefined` as a leaf rather than as an
+    // absent member.
+    leaves: () => {
+        assertEq(text(null), 'export default null;')
+        assertEq(text(true), 'export default true;')
+        assertEq(text(false), 'export default false;')
+        assertEq(text(undefined), 'export default undefined;')
+        assertEq(text('a'), 'export default "a";')
+        assertEq(text(1n), 'export default 1n;')
+    },
+    // ECMAScript `ToString`, which is the specification's own algorithm,
+    // with `-0` as its one departure. The thresholds are exact: `1e20` is
+    // digits where `1e21` is an exponent, and `1e-6` is digits where `1e-7`
+    // is an exponent.
+    numbers: () => {
+        assertEq(text(0), 'export default 0;')
+        assertEq(text(-0), 'export default -0;')
+        assertEq(text(-1), 'export default -1;')
+        assertEq(text(1.5), 'export default 1.5;')
+        assertEq(text(0.1), 'export default 0.1;')
+        assertEq(text(NaN), 'export default NaN;')
+        assertEq(text(Infinity), 'export default Infinity;')
+        assertEq(text(-Infinity), 'export default -Infinity;')
+        assertEq(text(1e20), 'export default 100000000000000000000;')
+        assertEq(text(1e21), 'export default 1e+21;')
+        assertEq(text(1e-6), 'export default 0.000001;')
+        assertEq(text(1e-7), 'export default 1e-7;')
+    },
+    // A bigint is its full decimal digits and the suffix, at every
+    // magnitude — an exponent would read back as a number — and zero is
+    // `0n`, which a negative zero cannot reach because `BigInt` has none.
+    bigints: () => {
+        assertEq(text(0n), 'export default 0n;')
+        assertEq(text(-0n), 'export default 0n;')
+        assertEq(text(-5n), 'export default -5n;')
+        assertEq(text(10n ** 30n), 'export default 1000000000000000000000000000000n;')
+    },
+    // `QuoteJSONString`, which is JSON's own spelling, lone surrogates
+    // included.
+    strings: () => {
+        assertEq(text('"\\\n\t'), 'export default "\\"\\\\\\n\\t";')
+        assertEq(text('\u0001'), 'export default "\\u0001";')
+        assertEq(text('\ud800'), 'export default "\\ud800";')
+        assertEq(text('/'), 'export default "/";')
+    },
+    containers: () => {
+        assertEq(text(emptyArray), 'export default [];')
+        assertEq(text([1, 'a', null]), 'export default [1,"a",null];')
+        assertEq(text([undefined]), 'export default [undefined];')
+        assertEq(text([[[1]]]), 'export default [[[1]]];')
+        assertEq(text({}), 'export default {};')
+        assertEq(text({ a: 1, b: [2] }), 'export default {"a":1,"b":[2]};')
+    },
+    // Object.entries keeps a member holding `undefined`, distinct from an
+    // absent member. `definedEntries` would drop it and change the value.
+    undefinedMember: () => {
+        assertEq(text({ a: undefined }), 'export default {"a":undefined};')
+        assertEq(text({}), 'export default {};')
+    },
+    // Observable key order, which is part of the value: array-index keys
+    // first by numeric value, then the rest in first-occurrence order.
+    keyOrder: () => assertEq(text({ 2: 0, 1: 0, b: 1, a: 2 }), 'export default {"1":0,"2":0,"b":1,"a":2};'),
+    // `__proto__` has one spelling, the computed form. The plain string
+    // form is a prototype assignment in JavaScript, and the reader refuses
+    // it, so a document spelling it that way would not read back.
+    //
+    // `{ ['__proto__']: 1 }` is the member, not a prototype: a computed key
+    // defines an own data property, which is why `fjs/AGENTS.md` §3.1 makes
+    // it the spelling to write. `{ __proto__: 1 }` would be the assignment,
+    // and on a number it would be a no-op rather than the member this
+    // writer has to emit.
+    protoKey: () => assertEq(text({ ['__proto__']: 1 }), 'export default {["__proto__"]:1};'),
+    sharing: {
+        // A node two references reach is a `const`; one reference leaves it
+        // inline. The specification's own example: for `root=[p,p]` with
+        // `p=[c]`, `p` is hoisted and `c` is not, even though two paths
+        // reach `c`.
+        occurrencesNotPaths: () => {
+            const c = emptyArray
+            const p = /** @type {const} */ ([c])
+            assertEq(text([p, p]), 'const $0=[[]];export default [$0,$0];')
+        },
+        // Post-order naming, the specification's other example: for
+        // `root = [parent, parent, child]` with `child` inside `parent`,
+        // `child` finishes first, so it is `$0` and `parent` is `$1`.
+        postOrderNames: () => {
+            const child = emptyArray
+            const parent = /** @type {const} */ ([child])
+            assertEq(text([parent, parent, child]), 'const $0=[];const $1=[$0];export default [$1,$1,$0];')
+        },
+        // Sharing is by reference identity, so two equal containers written
+        // apart stay two nodes.
+        equalIsNotShared: () => assertEq(text([[], []]), 'export default [[],[]];'),
+        // An object node is hoisted the same way an array node is.
+        objects: () => {
+            const shared = /** @type {const} */ ({ a: 1 })
+            assertEq(text({ x: shared, y: shared }), 'const $0={"a":1};export default {"x":$0,"y":$0};')
+        },
+    },
+    // JSON: the tree the graph unfolds to, under JSON's leaf rule and key
+    // spelling. A node two references reach is written where each reaches
+    // it, and `__proto__` is a plain key where a DataJS document has to
+    // compute it.
+    json: {
+        // Forty shared doublings are cheap to build; their unfolded JSON
+        // must stay deferred when the consumer only reads its prefix.
+        prefix: () => {
+            const chunks = unwrap(tryJsonSerialize(doubled(0, 40)))
+            assertEq(concat(take(42)(chunks)), `${'['.repeat(41)}0`)
+        },
+        shared: () => {
+            const c = emptyArray
+            const p = /** @type {const} */ ([c])
+            assertEq(json([p, p]), '[[[]],[[]]]')
+            const shared = /** @type {const} */ ({ a: 1 })
+            assertEq(json({ x: shared, y: shared }), '{"x":{"a":1},"y":{"a":1}}')
+            assertEq(json([[], []]), '[[],[]]')
+        },
+        // the leaves JSON spells, `-0` among them, and the member order the
+        // value carries
+        leaves: () => {
+            assertEq(json(1), '1')
+            assertEq(json(null), 'null')
+            assertEq(json([true, 'x', -0]), '[true,"x",-0]')
+            assertEq(json({ b: -0, a: [true, null, 'x'] }), '{"b":-0,"a":[true,null,"x"]}')
+            assertEq(json({ ['__proto__']: 1 }), '{"__proto__":1}')
+        },
+        // a leaf JSON cannot spell, refused by name wherever it sits — at the
+        // root, in an array, in a member — and the first in the reader's
+        // order where two are refused, a leaf before a container before the
+        // container's own
+        refused: () => {
+            assertEq(jsonRefused(undefined), 'no JSON spelling for undefined')
+            assertEq(jsonRefused([1, undefined]), 'no JSON spelling for undefined')
+            assertEq(jsonRefused({ a: undefined }), 'no JSON spelling for undefined')
+            assertEq(jsonRefused(42n), 'no JSON spelling for 42n')
+            assertEq(jsonRefused([NaN]), 'no JSON spelling for NaN')
+            assertEq(jsonRefused({ a: -Infinity }), 'no JSON spelling for -Infinity')
+            assertEq(jsonRefused([undefined, [1n]]), 'no JSON spelling for undefined')
+            assertEq(jsonRefused([[1n], undefined]), 'no JSON spelling for 1n')
+            assertEq(jsonRefused({ a: { b: 1n }, c: undefined }), 'no JSON spelling for 1n')
+            // Functions remain refused through the JSON entry point too.
+            assertEq(jsonRefused(() => 1), 'a function is not a DataJS value')
+            assertEq(jsonRefused({ a: { b: () => 1 } }), 'a function is not a DataJS value')
+            assertEq(jsonRefused([[() => 1]]), 'a function is not a DataJS value')
+        },
+        // The refusal is found over the graph, not the tree it unfolds to:
+        // forty doublings over `[undefined]` are two to the fortieth
+        // references to the leaf and forty-one nodes, and twenty-two valid
+        // doublings before a refused sibling are not unfolded first. Neither
+        // would return within the proof's lifetime over the tree.
+        refusedOverTheGraph: () => {
+            assertEq(jsonRefused(doubled(undefined, 40)), 'no JSON spelling for undefined')
+            assertEq(jsonRefused([doubled(1, 22), undefined]), 'no JSON spelling for undefined')
+            assertEq(jsonRefused({ a: doubled(1, 22), b: 2n, c: undefined }), 'no JSON spelling for 2n')
+        },
+    },
+    // The document denotes the graph it was written from, sharing included.
+    // The comparison is a bijection between containers, so a writer that
+    // inlined a shared node would fail here even though its document parses.
+    roundTrip: () => {
+        const shared = /** @type {const} */ ({ a: [1n, undefined] })
+        denotes(shared)
+        denotes([shared, shared])
+        denotes({ 2: 0, 1: 0, b: emptyArray, ['__proto__']: null })
+        // a lone surrogate is written as its escape, so the document stays
+        // UTF-8 — `isUtf8` above is what makes that an assertion rather than
+        // a reading of the expected string
+        denotes([-0, NaN, Infinity, '\ud800', true])
+        denotes({ ['\ud800']: '\udfff' })
+        denotes(emptyArray)
+        // a `const` holding the computed key, which is the one place the
+        // spelling has to survive a statement rather than the export. The
+        // computed form is an own data property, as `protoKey` above notes.
+        const proto = /** @type {const} */ ({ ['__proto__']: 1 })
+        denotes([proto, proto])
+        // the spellings a number reaches that are not plain digits: both
+        // exponent forms, a denormal, and the largest double. The reader
+        // takes JSON's number grammar, so what the writer emits at these
+        // magnitudes is exactly what has to parse back.
+        denotes([1e21, 1e-7, 5e-324, 1.7976931348623157e308])
+        denotes([1e20, 1e-6])
+        denotes([10n ** 30n, -(10n ** 30n)])
+    },
+    // Functions are FJS values with no DataJS spelling, at the root or
+    // anywhere in an otherwise serializable graph.
+    refusals: {
+        function: () => assertEq(refused(() => 1), 'a function is not a DataJS value'),
+        belowTheRoot: () => {
+            assertEq(refused({ a: { b: () => 1 } }), 'a function is not a DataJS value')
+            assertEq(refused([[() => 1]]), 'a function is not a DataJS value')
+        },
+    },
+    // The chunks are the document; `tryStringify` is their `concat`.
+    chunks: () => {
+        const value = /** @type {const} */ ([1, { a: 2 }])
+        assertEq(concat(unwrap(trySerialize(value))), text(value))
+        assertEq(text(value), 'export default [1,{"a":2}];')
+        assertEq(concat(unwrap(tryJsonSerialize(value))), '[1,{"a":2}]')
+    },
+    unknownModule: () => {
+        const shared = /** @type {const} */ ([1])
+        const document = unwrap(_tryUnknownStringify([shared, shared]))
+        assertEq(document, 'const $0=[1];\n/** @type {unknown} */\nconst $1=[$0,$0];export default $1;')
+        // The annotation is an ordinary-JavaScript boundary. It does not
+        // change the DataJS writer or add comments to DataJS's grammar.
+        unwrap(parseFromTokens(toArray(tokenize(stringToList(document))(''))))
+        assertEq(text([shared, shared]), 'const $0=[1];export default [$0,$0];')
+        assertEq(unwrap(_tryUnknownStringify('export default marker')),
+            '\n/** @type {unknown} */\nconst $0="export default marker";export default $0;')
+        assertEq(unwrap(invert(_tryUnknownStringify(() => 1))), 'a function is not a DataJS value')
+    },
+    // The leaves carry their kinds and nothing else does: punctuation, keys
+    // spelled as names and the writer's keywords stay plain strings.
+    jsonMarked: () => {
+        assertStructurallySame(unwrap(tryJsonMarked({ k: [1.5] })), [
+            ['{'], ['"k"', 'string'], [':'], ['['], ['1.5', 'number'], [']'], ['}'],
+        ])
+    },
+    marked: () => {
+        const value = /** @type {const} */ ([1, 'a', null, undefined, true, 2n, -0])
+        assertStructurallySame(toArray(unwrap(_trySerialize(value))),
+            [['export', 'keyword'], ' ', ['default', 'keyword'], ' ', '[', ['1', 'number'], ',', ['"a"', 'string'], ',', ['null', 'literal'], ',', ['undefined', 'literal'], ',', ['true', 'literal'], ',', ['2n', 'number'], ',', ['-0', 'number'], ']', ';'])
+        // a shared node is a `const`, and its name an identifier wherever it stands
+        const shared = /** @type {const} */ ([1])
+        assertStructurallySame(unwrap(tryMarked([shared, shared])),
+            [['const', 'keyword'], [' '], ['$0', 'identifier'], ['='], ['['], ['1', 'number'], [']'], [';'], ['export', 'keyword'], [' '], ['default', 'keyword'], [' '], ['['], ['$0', 'identifier'], [','], ['$0', 'identifier'], [']'], [';']])
+        // the non-finite numbers are the language's literal words
+        assertStructurallySame(toArray(unwrap(_trySerialize([NaN, Infinity, -Infinity]))).filter(c => typeof c !== 'string' && c[1] === 'literal'),
+            [['NaN', 'literal'], ['Infinity', 'literal'], ['-Infinity', 'literal']])
+        assertStructurallySame(toArray(unwrap(_tryJsonSerialize({ k: [1.5] }))),
+            ['{', ['"k"', 'string'], ':', '[', ['1.5', 'number'], ']', '}'])
+    },
+    // Nesting depth is the input's, not the call stack's: the read walks an
+    // explicit stack and the write reads the linked graph in its post-order,
+    // so both keep the reader's 5,000-level contract and a document the
+    // reader accepts is one the writer writes back. Pinned at four times the
+    // contract, so that a regression costing one call frame per level — which
+    // 5,000 levels would survive — is caught.
+    depth: {
+        writesBack: () => {
+            const n = /** @type {const} */ (20_000)
+            const document = `export default ${'['.repeat(n)}${']'.repeat(n)};`
+            assertEq(text(unwrap(tryParse(document))), document)
+        },
+        // 2,600 nested arrays is the input that used to throw `RangeError`
+        // out of both passes. A refusal below them is an `error`, as a
+        // `try*` promises, and the sharing a deep chain takes part in is
+        // hoisted as any other.
+        below: () => {
+            assertEq(refused(nested(2_600, () => 1)), 'a function is not a DataJS value')
+            const chain = nested(2_600, emptyArray)
+            assertEq(text([chain, chain]).slice(0, 12), 'const $0=[[[')
+        },
+    },
+}

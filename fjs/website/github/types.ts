@@ -7,7 +7,7 @@
 
 import type { Ts } from '../../rtti/ts/types.ts'
 import type { Result } from '../../types/result/types.ts'
-import type { configSchema, exchangeFailureSchema, exchangeSchema, pendingSchema, tokenSchema, userSchema } from './module.f.mjs'
+import type { configSchema, exchangeFailureSchema, exchangeSchema, pendingSchema, tokenSchema, userSchema } from './module.f.js'
 
 /** Public application ID and registered callback. */
 export type Config = Ts<typeof configSchema>
@@ -19,7 +19,7 @@ export type CallbackOrigin = {
     readonly port: string
 }
 
-/** The parsed callback URL's components `validCallback` reads. */
+/** Plain enumerable own-data components the host supplies to `validCallback`. */
 export type CallbackUrl = {
     readonly protocol: string
     readonly hostname: string

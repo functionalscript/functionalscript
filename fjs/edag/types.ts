@@ -244,16 +244,16 @@ export type Comma = readonly[',', Exps]
 // Op0Ids
 
 export type Op0Id =
-    | 'undefined' | 'args' | 'rest' | 'self' | 'entry' | 'hasEntry' | IntrinsicId | StaticId
+    | 'undefined' | 'args' | 'rest' | 'self' | 'entry' | 'hasEntry' | 'refMap' | IntrinsicId | StaticId
 
 /** An intrinsic's tag, the member's name: `'slice'`, `'charCodeAt'`. The list is `intrinsics` in `module.f.js`. */
 export type IntrinsicId = (typeof intrinsics)[number][0]
 
-/** A helper's tag: `'entry'`, `'hasEntry'` or an intrinsic's. The list is `helpers` in `module.f.js`. */
+/** A helper's tag: `'entry'`, `'hasEntry'`, `'refMap'` or an intrinsic's. The list is `helpers` in `module.f.js`. */
 export type HelperId = (typeof helpers)[number][0]
 
 /** A static function's tag, its path's keys joined by `.`: `'Object.is'`, `'Number.isInteger'`. */
-export type StaticId = 'String.fromCharCode' | 'Object.is' | 'Object.entries' | 'Object.keys' | 'Object.fromEntries' | 'Number.isInteger' | 'Number.isSafeInteger' | 'Number.isNaN' | 'Number.isFinite' | 'Math.log2'
+export type StaticId = 'encodeURIComponent' | 'String.fromCharCode' | 'Object.is' | 'Object.entries' | 'Object.keys' | 'Object.values' | 'Object.fromEntries' | 'Number.isInteger' | 'Number.isSafeInteger' | 'Number.isNaN' | 'Number.isFinite' | 'Math.log2' | 'Math.trunc' | 'Math.floor' | 'Math.abs' | 'Math.sqrt' | 'Math.ceil' | 'Math.imul' | 'Math.max' | 'Math.min' | 'Math.fround' | 'Math.clz32' | 'Math.round'
 
 /** A path's keys joined by `.`, the tag a static node carries for it. */
 type Joined<P> = P extends readonly [infer G extends string, infer N extends string] ? `${G}.${N}`
@@ -343,8 +343,8 @@ type Get0<T extends ExpOp, K extends ExpOp[0]> =
  * correlated-union workaround (microsoft/TypeScript#47109). Indexing a
  * table with a non-generic union key still yields the uncallable union, so
  * dispatch must go through such a `K`; `operation` in
- * [`operations`](./operations/module.f.mjs) and the walk in
- * [`analysis`](./analysis/module.f.mjs) both do.
+ * [`operations`](./operations/module.f.js) and the walk in
+ * [`analysis`](./analysis/module.f.js) both do.
  */
 export type TagMap = { readonly[K in ExpOp[0]]: Get0<ExpOp, K> }
 

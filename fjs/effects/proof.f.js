@@ -1,0 +1,762 @@
+/**
+ * @import { Effect, Func, IoChannel, Operation } from './types.ts'
+ * @import { Result } from '../types/result/types.ts'
+ * @import { MemOperationMap } from './mock/types.ts'
+ */
+
+import {
+    attemptStep, catchStep, compensateStep, do_, finallyStep, foldStep, forEachStep, history, historyStep, mapStep, walkStep,
+    match, orElse, partialMatch, pure, pureError, pureOk, refuse, resultMapStep, resultStep,
+    runPure, step, toIoError, unwrapStep, commandsOf, errorMessage, ioError, notImplemented,
+} from './module.f.js'
+import { run as mockRun } from './mock/module.f.js'
+import { error, ok } from '../types/result/module.f.js'
+import { assert, assertEq, assertError, assertOk, todo } from '../asserts/module.f.js'
+import { assertIoMessage } from './testlib.f.js'
+import { demo, runWords } from './demo.f.js'
+import { htmlToString } from '../media/html/module.f.js'
+import { generate } from '../types/array/module.f.js'
+
+/**
+ * Asserts that `e` reaches `expected` without performing a command.
+ *
+ * Not `assertEq(runPure(e), [expected])`: `assertEq` compares with `===`, so a
+ * freshly allocated option or `Result` is never equal to the returned one.
+ * Assert the option's shape first, then compare the value inside it.
+ *
+ * @template {Operation} O
+ * @template T
+ * @template E
+ * @param {Effect<O, T, E>} e
+ * @param {Result<T, E>} expected
+ */
+const assertPure = (e, expected) => {
+    const o = runPure(e)
+    assert(o.length === 1, e)
+    assertEq(o[0][0], expected[0])
+    assertEq(o[0][1], expected[1])
+}
+
+/**
+ * `Operation` requires a `Result` return, so a runner always has somewhere to
+ * answer `error(notImplemented)` — and that requirement is what lets an effect
+ * carry its error channel in the type rather than inside an opaque payload.
+ * @type {(command: 'add') => (a: number, b: number) =>
+ *     Effect<readonly['add', (a: number, b: number) => Result<number, string>], number, string>}
+ */
+const doAdd = do_
+
+const next = match({
+    add: (/** @type {number} */ a, /** @type {number} */ b) => ok(a + b),
+})
+
+/**
+ * An operation set whose command is any `string`, which is what a `Do` node
+ * decoded from external input effectively is: `command` is runtime data, so
+ * nothing stops it naming a member `map` inherits from `Object.prototype`
+ * rather than an own handler. `match` must refuse those, and this type is how a
+ * proof says so without an `as` cast.
+ * @type {(command: string) => (a: number) =>
+ *     Effect<readonly[string, (a: number) => Result<number, string>], number, string>}
+ */
+const doAny = do_
+
+const anyNext = match({ add: (/** @type {number} */ a) => ok(a + 1) })
+
+/**
+ * The same map, reached through the runner that may decline a command. The
+ * handler's return is annotated so it and `onMissing` agree on one `R` — a
+ * runner's answer type is shared by both, which is the whole reason
+ * `partialMatch` takes the injector from its caller.
+ */
+const anyPartial = partialMatch(
+    /** @type {readonly string[]} */ (['add', 'sub']),
+    (/** @type {string} */ command) =>
+        /** @type {Result<number, string>} */ (error(`declined: ${command}`)),
+)({
+    add: (/** @type {number} */ a) => /** @type {Result<number, string>} */ (ok(a + 1)),
+})
+
+// ── Composition ──────────────────────────────────────────────────────────────
+/**
+ * A fallible operation, spelled the way every operation is spelled: the
+ * `Result` is in the command's declared return type, so `do_` already builds an
+ * `Effect` and the runner's handler already answers with `ok` / `error`.
+ * @type {Func<readonly['div', (a: number, b: number) => Result<number, string>]>}
+ */
+const div = do_('div')
+
+/**
+ * A second operation, so a chain can join two of them and the operation sets
+ * union.
+ * @type {Func<readonly['neg', (a: number) => Result<number, string>]>}
+ */
+const neg = do_('neg')
+
+/**
+ * An operation that is only its log line, and fails where the line is `fail`:
+ * what a cleanup is asked to be observed by, since {@link finallyStep} drops
+ * whatever a cleanup answers.
+ * @type {Func<readonly['note', (line: string) => Result<void, string>]>}
+ */
+const note = do_('note')
+
+/** @type {MemOperationMap<readonly['note', (line: string) => Result<void, string>], readonly string[]>} */
+const noted = {
+    note: line => log => [[...log, line], line === 'fail' ? error('cleanup failed') : ok(undefined)],
+}
+
+/** @type {<T, E>(e: Effect<readonly['note', (line: string) => Result<void, string>], T, E>) => readonly [readonly string[], Result<T, E>]} */
+const runNoted = e => mockRun(noted)(/** @type {readonly string[]} */ ([]))(e)
+
+const nextArith = match({
+    div: (/** @type {number} */ a, /** @type {number} */ b) =>
+        b === 0 ? error('div by zero') : ok(a / b),
+    neg: (/** @type {number} */ a) => ok(-a),
+})
+
+/**
+ * Runs an effect to completion against the two operations above — `asyncRun`'s
+ * loop without the `await`, which is all a synchronous runner is.
+ * @type {<T, E>(e: Effect<
+ *     | readonly['div', (a: number, b: number) => Result<number, string>]
+ *     | readonly['neg', (a: number) => Result<number, string>],
+ *     T, E>) => Result<T, E>}
+ */
+const run = e => {
+    let current = e
+    while (true) {
+        const r = nextArith(current)
+        if (r[0] === 'done') { return r[1] }
+        current = r[2](r[1])
+    }
+}
+
+/**
+ * The `Result` an effect reaches without performing a command.
+ * @type {<O extends Operation, T, E>(e: Effect<O, T, E>) => Result<T, E>}
+ */
+const pureResult = e => {
+    const o = runPure(e)
+    assert(o.length === 1, e)
+    return o[0]
+}
+
+/**
+ * The `ok` value an effect reaches without performing a command.
+ * @type {<O extends Operation, T, E>(e: Effect<O, T, E>) => T}
+ */
+const unwrapPure = e => assertOk(pureResult(e))
+
+/** @type {(v: number) => Effect<never, number, string>} */
+const positive = v => v > 0 ? pureOk(v) : pureError('not positive')
+
+/** @type {(v: number) => Effect<never, number, number>} */
+const small = v => v < 10 ? pureOk(v) : pureError(v)
+
+/**
+ * Two adjacent links failing in different ways. The annotation is the claim:
+ * the chain's error channel is the **union** of theirs, so neither link had to
+ * be pre-widened to the other's error type.
+ * @type {(v: number) => Effect<never, number, string | number>}
+ */
+const checked = v => {
+    const x0 = step(pureOk(v), positive)
+    return step(x0, small)
+}
+
+/**
+ * The anything-accepting renderer {@link unwrapStep}'s doc calls an escape
+ * hatch. It is the honest choice *here* — these proofs are about `unwrapStep`
+ * itself, not about any particular channel — and the wrong one almost anywhere
+ * else, since accepting every error is what stops a widened channel from being
+ * a compile error.
+ *
+ * @type {(e: unknown) => string}
+ */
+const show = e => `${e}`
+
+export const proof = {
+    channelErrors: () => {
+        assertEq(errorMessage(ioError({ message: 'disk full', code: 'ENOSPC' })), 'disk full')
+        const missing = notImplemented('readFile')
+        assertEq(missing[0], 'notImplemented')
+        assertEq(missing[1], 'readFile')
+        assertEq(errorMessage(missing), 'operation not implemented: readFile')
+    },
+    // The one boundary where a runner's `catch` becomes effect data: whatever
+    // was thrown is reduced to a code (when the host attached a string one)
+    // and a message. The values here are what the host boundary hands over,
+    // `_readThrown` in `./module.mjs`: a string, or a message and a code.
+    toIoError: {
+        error: () => {
+            assertIoMessage(toIoError({ message: 'boom' }), 'boom')
+        },
+        withCode: () => {
+            const e = toIoError({ message: 'missing', code: 'ENOENT' })
+            assert(e[0] === 'ioError', e)
+            assertEq(e[1].code, 'ENOENT', e)
+            assertEq(e[1].message, 'missing', e)
+        },
+        // A thrown non-`Error` still normalizes: the value's string form is the
+        // message, and there is no code to carry.
+        string: () => {
+            const e = toIoError('plain')
+            assert(e[0] === 'ioError', e)
+            assertEq(e[1].code, undefined, e)
+            assertEq(e[1].message, 'plain', e)
+        },
+        null: () => {
+            assertIoMessage(toIoError(null), 'null')
+        },
+        // An object whose `code` is not a string is not an OS error code, so it
+        // is dropped rather than carried as one.
+        nonStringCode: () => {
+            const e = toIoError({ code: 42 })
+            assert(e[0] === 'ioError', e)
+            assertEq(e[1].code, undefined, e)
+        },
+        noCode: () => {
+            const e = toIoError({})
+            assert(e[0] === 'ioError', e)
+            assertEq(e[1].code, undefined, e)
+        },
+        // The message comes from a `message` property that resolves to a
+        // string, own or inherited, whether or not the value is an `Error`.
+        messageField: () => {
+            const e = toIoError({ message: 'field', code: 'EIO' })
+            assert(e[0] === 'ioError', e)
+            assertEq(e[1].code, 'EIO', e)
+            assertEq(e[1].message, 'field', e)
+        },
+        // A `message` that is not a string is not one to report; the value's
+        // string form is.
+        nonStringMessage: () => {
+            assertIoMessage(toIoError({ message: 42 }), '[object Object]')
+        },
+    },
+    runPure: {
+        ok: () => {
+            assertPure(pure(ok(5)), ok(5))
+        },
+        error: () => {
+            assertPure(pure(error('boom')), error('boom'))
+        },
+        // A pure `null` is `[ok(null)]`, never `[]`. Collapsing the two is what
+        // a bare `T | null` result would do, and why the option is tagged
+        // separately from the `Result` inside it.
+        pureNull: () => {
+            assertPure(pure(ok(null)), ok(null))
+        },
+        do_: () => {
+            assertEq(runPure(doAdd('add')(2, 3)).length, 0)
+        },
+    },
+    // The one place a `Do` node is opened on purpose: `do_` builds the command,
+    // the payload it was called with, and a continuation that resumes with the
+    // command's output. Everything else goes through `match`, `partialMatch`,
+    // or `runPure`.
+    doNode: () => {
+        const e = doAdd('add')(2, 3)
+        assert(typeof e !== 'function', e)
+        const { command, payload, continuation } = e
+        assertEq(command, 'add')
+        const [a, b] = payload
+        assertEq(a, 2, payload)
+        assertEq(b, 3, payload)
+        // The command's output is the whole `Result` — `Operation` requires one
+        // so a runner always has somewhere to answer a refusal — so this
+        // resumes with `ok(5)` rather than a bare `5`.
+        assertPure(continuation(ok(5)), ok(5))
+    },
+    // A runner hands a failed command back through the *ordinary* continuation,
+    // which is what makes `error(notImplemented)` something a program can
+    // recover from. Pinned here because it is the property the whole error
+    // channel rests on: had the representation short-circuited, there would be
+    // nothing for `catchStep` to catch.
+    failedCommandResumes: () => {
+        const e = doAdd('add')(2, 3)
+        assert(typeof e !== 'function', e)
+        assertPure(e.continuation(error('declined')), error('declined'))
+    },
+    match: {
+        done: () => {
+            const r = next(pure(ok(7)))
+            assert(r[0] === 'done', r)
+            assertEq(r[1][1], 7)
+        },
+        cont: () => {
+            const r = next(doAdd('add')(2, 3))
+            assert(r[0] === 'cont', r)
+            assertEq(r[1][1], 5)
+            const r2 = next(r[2](r[1]))
+            assert(r2[0] === 'done', r2)
+            assertEq(r2[1][1], 5)
+        },
+        ownCommand: () => {
+            // The same map the two cases below dispatch against: an own
+            // property still resolves, so what they prove is refusal of
+            // inherited names, not a map that dispatches nothing.
+            const r = anyNext(doAny('add')(41))
+            assert(r[0] === 'cont', r)
+            assertEq(r[1][1], 42)
+        },
+        // A `command` naming an `Object.prototype` member must not dispatch to
+        // the inherited value. `map['constructor']` is `Object` and
+        // `map['toString']` is `Function.prototype.toString` — both callable,
+        // neither a handler — so a plain index read would call one of them with
+        // the node's payload instead of throwing.
+        throw: {
+            constructorCommand: () => {
+                anyNext(doAny('constructor')(1))
+            },
+            toStringCommand: () => {
+                anyNext(doAny('toString')(1))
+            },
+        },
+    },
+    partialMatch: {
+        // A command the runner does implement dispatches as usual.
+        implemented: () => {
+            const r = anyPartial(doAny('add')(41))
+            assert(r[0] === 'cont', r)
+            assertEq(r[1][1], 42)
+        },
+        // A command in the set with no handler is an *outcome*: the answer
+        // travels back through the ordinary continuation, and the program
+        // decides what a runner without that capability means for it.
+        declined: () => {
+            const r = anyPartial(doAny('sub')(1))
+            assert(r[0] === 'cont', r)
+            assert(r[1][0] === 'error' && r[1][1] === 'declined: sub', r)
+            assertPure(r[2](r[1]), error('declined: sub'))
+        },
+        // A command outside the set is a malformed node, not a capability the
+        // runner lacks, and still panics.
+        throw: {
+            unknownCommand: () => {
+                anyPartial(doAny('nope')(1))
+            },
+        },
+    },
+    // The list is the set's keys, in declaration order.
+    commandsOf: () => {
+        const [add, sub, ...rest] = commandsOf({ add: null, sub: null })
+        assertEq(add, 'add')
+        assertEq(sub, 'sub')
+        assertEq(rest.length, 0)
+    },
+    pureOk: () => {
+        assertEq(assertOk(pureResult(pureOk(5))), 5)
+    },
+    pureError: () => {
+        assertEq(assertError(pureResult(pureError('nope'))), 'nope')
+    },
+    refuse: () => {
+        const [tag, { code, message }] = assertError(pureResult(refuse('EBAD')('bad input')))
+        assertEq(tag, 'ioError')
+        assertEq(code, 'EBAD')
+        assertEq(message, 'bad input')
+    },
+    step: {
+        ok: () => {
+            const e = step(pureOk(5), v => pureOk(v * 2))
+            assertEq(assertOk(pureResult(e)), 10)
+        },
+        // The continuation does not run on an `error`: `todo` throws if it
+        // does, so propagation is what keeps this proof passing.
+        propagates: () => {
+            const e = step(pureError('boom'), todo)
+            assertEq(assertError(pureResult(e)), 'boom')
+        },
+        // ...and the error that comes out is the very tuple that went in,
+        // rather than an equal one rebuilt to retag it.
+        errorTupleIsUnchanged: () => {
+            const e = pureError('boom')
+            assertEq(pureResult(step(e, todo)), pureResult(e))
+        },
+        chain: () => {
+            // Flat, one name per link — the chain of `step`s reads in
+            // evaluation order.
+            const x0 = step(pureOk(3), v => pureOk(v + 1))
+            const x1 = step(x0, v => pureOk(v * 2))
+            assertEq(assertOk(pureResult(x1)), 8)
+        },
+        // A `Do` node keeps its command, and the continuation resumes with the
+        // operation's `ok` value rather than with the `Result` around it.
+        overDo: () => {
+            const e = step(div(6, 3), v => pureOk(v * 10))
+            assertEq(assertOk(run(e)), 20)
+        },
+        // The same chain when the operation itself fails: the command was
+        // performed, its error propagates, and the continuation never runs.
+        overFailedDo: () => {
+            // `todo` never returns, so it pins none of the continuation's type
+            // parameters; the annotation supplies the operation set `run` needs.
+            /** @typedef {readonly['div', (a: number, b: number) => Result<number, string>]} _DivOp */
+            /** @type {Effect<_DivOp, never, string>} */
+            const e = step(div(1, 0), todo)
+            assertEq(assertError(run(e)), 'div by zero')
+        },
+        // Adjacent links performing different commands: the operation sets
+        // union, so one runner interprets the whole chain.
+        joinsOperations: () => {
+            /** @typedef {readonly['div', (a: number, b: number) => Result<number, string>]} _DivOp */
+            /** @typedef {readonly['neg', (a: number) => Result<number, string>]} _NegOp */
+            /** @type {Effect<_DivOp | _NegOp, number, string>} */
+            const e = step(div(6, 3), neg)
+            assertEq(assertOk(run(e)), -2)
+        },
+        mixedErrorsOk: () => {
+            assertEq(assertOk(pureResult(checked(5))), 5)
+        },
+        // The first link's error type...
+        mixedErrorsFirst: () => {
+            assertEq(assertError(pureResult(checked(-1))), 'not positive')
+        },
+        // ...and the second's, in the same chain and the same channel.
+        mixedErrorsSecond: () => {
+            assertEq(assertError(pureResult(checked(50))), 50)
+        },
+    },
+    catchStep: {
+        recovers: () => {
+            const e = catchStep(pureError('boom'), m => pureOk(m.length))
+            assertEq(assertOk(pureResult(e)), 4)
+        },
+        // The success passes through untouched — `todo` proves the recovery
+        // does not run — and it is the same tuple, as in `step`'s mirror case.
+        preservesOk: () => {
+            const e = pureOk(5)
+            assertEq(pureResult(catchStep(e, todo)), pureResult(e))
+        },
+        // Recovery after a performed command, which is the shape a runner's
+        // `NotImplemented` takes: the program regains control and chooses what
+        // the failure means for it.
+        overFailedDo: () => {
+            const e = catchStep(div(1, 0), () => pureOk(0))
+            assertEq(assertOk(run(e)), 0)
+        },
+        // The success channel unions `T | R`: a recovery may yield a different
+        // type than the value it stands in for, and the error channel becomes
+        // `f`'s alone — `never` here, since every error is handled.
+        unionsSuccess: () => {
+            /** @type {Effect<never, number | string, never>} */
+            const e = catchStep(pureError('boom'), m => pureOk(m))
+            assertEq(assertOk(pureResult(e)), 'boom')
+        },
+    },
+    orElse: {
+        // A forgiven error is answered with the fallback...
+        forgiven: () => {
+            const e = catchStep(pureError('missing'), orElse(m => m === 'missing', 0))
+            assertEq(assertOk(pureResult(e)), 0)
+        },
+        // ...and any other is re-raised as the very value it arrived as.
+        reraised: () => {
+            const e = catchStep(pureError('denied'), orElse(m => m === 'missing', 0))
+            assertEq(assertError(pureResult(e)), 'denied')
+        },
+    },
+    resultStep: {
+        // Both branches reach `f`, which decides the outcome — including
+        // turning an `error` into an `ok`.
+        ok: () => {
+            const e = resultStep(pureOk(5), ([tag]) => pureOk(tag))
+            assertEq(assertOk(pureResult(e)), 'ok')
+        },
+        error: () => {
+            const e = resultStep(pureError('boom'), ([tag]) => pureOk(tag))
+            assertEq(assertOk(pureResult(e)), 'error')
+        },
+        overDo: () => {
+            const e = resultStep(div(1, 0), ([tag]) => pureOk(tag))
+            assertEq(assertOk(run(e)), 'error')
+        },
+    },
+    historyStep: {
+        // The chain stays flat: the last link reads a value bound two links
+        // back out of the tuple rather than out of an enclosing closure.
+        chain: () => {
+            const h0 = history(pureOk(1))
+            const h1 = historyStep(h0, x => pureOk(x + 1))
+            const h2 = historyStep(h1, (y, x) => pureOk(`${x}${y}`))
+            assertEq(assertOk(pureResult(mapStep(h2, ([z]) => z))), '12')
+        },
+        // The history carries `ok` values, so a later link reads them without
+        // asking whether they are there...
+        carriesValues: () => {
+            const h0 = historyStep(history(pureOk(3)), x => pureOk(x * 2))
+            const [result, param] = unwrapPure(h0)
+            assertEq(param, 3)
+            assertEq(result, 6)
+        },
+        // ...because a failed link short-circuits instead of contributing one.
+        propagates: () => {
+            const h0 = historyStep(history(pureOk(3)), () => pureError('boom'))
+            assertEq(assertError(pureResult(historyStep(h0, todo))), 'boom')
+        },
+        // A failure in the effect the history starts from never reaches `f`.
+        propagatesFromHead: () => {
+            assertEq(assertError(pureResult(historyStep(history(pureError('boom')), todo))), 'boom')
+        },
+        // Over a `Do` node: the captured value survives the command boundary.
+        overDo: () => {
+            const h0 = historyStep(history(div(6, 3)), r => pureOk(r * 10))
+            const [result, param] = run(h0)[1]
+            assertEq(param, 2)
+            assertEq(result, 20)
+        },
+    },
+    foldStep: {
+        empty: () => {
+            assertEq(assertOk(pureResult(foldStep(pureOk([]), 10, x => s => pureOk(s + x)))), 10)
+        },
+        threadsState: () => {
+            assertEq(assertOk(pureResult(foldStep(pureOk([1, 2, 3, 4]), 0, x => s => pureOk(s + x)))), 10)
+        },
+        // The first failure stops the fold: `4` never reaches the accumulator,
+        // and the error is the result.
+        shortCircuits: () => {
+            const e = foldStep(pureOk([1, 2, 4]),
+                0,
+                x => s => x === 2 ? pureError('two') : pureOk(s + x))
+            assertEq(assertError(pureResult(e)), 'two')
+        },
+        // A long fold whose items **perform commands** still completes, and
+        // this is the pair's load-bearing half.
+        //
+        // The defect it guards: written as a `fold` over `step`, the chain
+        // nested to the left, so a runner held one command wrapped in a
+        // continuation per item already folded and walked all of them on every
+        // resumption. 5,000 items cost 1.6 s in that walk and 10,000 died with
+        // `RangeError: Maximum call stack size exceeded`. Both numbers are
+        // engine-specific, so this asserts that a long fold *finishes* rather
+        // than asserting where the old one stopped.
+        //
+        // Each item performs `neg`, because a command is what makes the
+        // continuation survive to be walked — see the pure sibling below for
+        // why an all-`pure` fold cannot show this.
+        aLongCommandFoldCompletes: () => {
+            const items = generate(20_000, i => i)
+            const e = foldStep(pureOk(items), 0, x => s => mapStep(neg(x), n => s - n))
+            assertEq(assertOk(run(e)), 199_990_000)
+        },
+        // The same length with no command in it, which guards the *other*
+        // half: that answering-with-a-value does not recurse either.
+        //
+        // On its own this proves less than it looks. `resultStep` collapses a
+        // `Pure` head as it is built, so the left-nested chain never
+        // accumulated depth on this path — restore the old `foldStep` and this
+        // leaf still passes. What it does pin is the loop that replaced the
+        // naive right-nested fix: drop it, always hand the remainder to the
+        // interpreter, and a fold of values recurses once per item and this is
+        // the leaf that fails.
+        aLongPureFoldCompletes: () => {
+            const items = generate(20_000, i => i)
+            assertEq(assertOk(pureResult(foldStep(pureOk(items), 0, x => s => pureOk(s + x)))),
+                199_990_000)
+        },
+    },
+    walkStep: {
+        // Answering no items is a plain fold, which is the relationship
+        // `foldStep` is built on.
+        addsNothing: () => {
+            assertEq(assertOk(pureResult(walkStep(pureOk([1, 2, 3]), 0, x => s => pureOk([s + x, null])))),
+                6)
+        },
+        // What an item produces runs before what remains: `2` answers `[20,
+        // 21]`, and those land between `2` and `3`.
+        producedItemsRunFirst: () => {
+            const e = walkStep(
+                pureOk([1, 2, 3]),
+                '',
+                x => s => pureOk([`${s}${x} `, x === 2 ? [20, 21] : null]))
+            assertEq(assertOk(pureResult(e)), '1 2 20 21 3 ')
+        },
+        // A **deep** walk completes: 20,000 items each producing one more, so
+        // the walk is a path rather than a list.
+        //
+        // This is the dimension a fold does not cover, and the one the
+        // traversal in `../emergent_testing` got wrong before `walkStep`
+        // existed. Written the obvious way — fold the items, and fold the
+        // children inside the item's own continuation — each ancestor's
+        // continuation stays pending while its subtree runs, so a runner walks
+        // one frame per ancestor and deep enough is `RangeError`. Here a child
+        // is another item in the same loop, so depth costs nothing that
+        // breadth does not.
+        //
+        // Each item performs `neg`, for the reason `aLongCommandFoldCompletes`
+        // gives: a command is what makes a continuation survive to be walked.
+        aDeepWalkCompletes: () => {
+            const e = walkStep(
+                pureOk([20_000]),
+                0,
+                x => s => mapStep(neg(x), n => /** @type {const} */ ([s - n, x === 0 ? null : [x - 1]])))
+            assertEq(assertOk(run(e)), 200_010_000)
+        },
+    },
+    forEachStep: {
+        empty: () => {
+            assertEq(assertOk(pureResult(forEachStep(pureOk([]), todo))), undefined)
+        },
+        runs: () => {
+            assertEq(assertOk(pureResult(forEachStep(pureOk([1, 2, 3]), () => pureOk(undefined)))), undefined)
+        },
+        // Where a `Result`-blind `forEachStep` would run every item regardless,
+        // this one stops — the difference a `void` accumulator hides.
+        stopsAtTheFirstError: () => {
+            const e = forEachStep(pureOk([1, 2, 3]),
+                x => x === 2 ? pureError('two') : pureOk(undefined))
+            assertEq(assertError(pureResult(e)), 'two')
+        },
+    },
+    unwrapStep: {
+        // An `ok` passes through untouched — what the panic empties is the
+        // error channel, so the value is still carried in an `ok`.
+        ok: () => {
+            assertEq(assertOk(pureResult(unwrapStep(pureOk(5), show))), 5)
+        },
+        // An `error` is a panic — the policy the name exists to make greppable.
+        // It throws where the composition is written, since `mapStep` forces a
+        // `Pure` head immediately.
+        throw: {
+            error: () => {
+                unwrapStep(pureError('boom'), show)
+            },
+        },
+    },
+    mapStep: {
+        ok: () => {
+            assertEq(assertOk(pureResult(mapStep(pureOk(3), v => v + 1))), 4)
+        },
+        // An `error` is passed through unchanged — the same tuple, and `f` is
+        // never applied to it.
+        error: () => {
+            const e = pureError('boom')
+            assertEq(pureResult(mapStep(e, todo)), pureResult(e))
+        },
+        // A projection over a `Do` node keeps the command intact and applies
+        // `f` to the operation's `ok` value when the continuation resumes.
+        overDo: () => {
+            assertEq(assertOk(run(mapStep(div(6, 3), v => v * 10))), 20)
+        },
+    },
+    resultMapStep: {
+        // Both branches reach `f`, which is the difference from `mapStep`: the
+        // error is handed over rather than passed around.
+        ok: () => {
+            assertEq(assertOk(pureResult(resultMapStep(pureOk(3), r => ok(r[0])))), 'ok')
+        },
+        error: () => {
+            assertEq(assertOk(pureResult(resultMapStep(pureError('boom'), r => ok(r[0])))), 'error')
+        },
+        // `f` chooses the outgoing channel, so a failure can be turned into a
+        // success — the discard `mapStep` cannot express, written as a function
+        // that says it took both branches.
+        absorbs: () => {
+            assertEq(assertOk(pureResult(resultMapStep(pureError('boom'), () => ok(0)))), 0)
+        },
+        // ...and the reverse: a success can be rejected.
+        rejects: () => {
+            assertEq(assertError(pureResult(resultMapStep(pureOk(3), () => error('no')))), 'no')
+        },
+        // Over a `Do` node the command survives and `f` runs on the operation's
+        // whole answer, including when that answer is the operation's failure.
+        overDo: () => {
+            assertEq(assertOk(run(resultMapStep(div(6, 3), r => ok(r[1])))), 2)
+        },
+        overFailedDo: () => {
+            assertEq(assertOk(run(resultMapStep(div(1, 0), r => ok(r[0])))), 'error')
+        },
+    },
+    // The whole `Result` arrives as the value, and the effect itself never
+    // fails: the chain goes on either way.
+    attemptStep: {
+        ok: () => {
+            const [tag, value] = assertOk(pureResult(attemptStep(pureOk(3))))
+            assertEq(tag, 'ok')
+            assertEq(value, 3)
+        },
+        error: () => {
+            const [tag, value] = assertOk(pureResult(attemptStep(pureError('boom'))))
+            assertEq(tag, 'error')
+            assertEq(value, 'boom')
+        },
+        overFailedDo: () => {
+            assertEq(assertOk(run(attemptStep(div(1, 0))))[0], 'error')
+        },
+    },    finallyStep: {
+        // The cleanup runs after `e`, is handed what `e` answered, and `e`'s
+        // answer is what comes out — on both branches.
+        ok: () => {
+            const e = step(note('e'), () => pureOk(5))
+            const [log, r] = runNoted(finallyStep(e, r => note(`cleanup ${r[0]}`)))
+            assertEq(log.join(','), 'e,cleanup ok')
+            assertEq(assertOk(r), 5)
+        },
+        error: () => {
+            const e = step(note('e'), () => pureError('boom'))
+            const [log, r] = runNoted(finallyStep(e, r => note(`cleanup ${r[0]}`)))
+            assertEq(log.join(','), 'e,cleanup error')
+            assertEq(assertError(r), 'boom')
+        },
+        // The cleanup's own failure is dropped: the answer is still `e`'s.
+        dropsCleanupFailure: () => {
+            const [log, r] = runNoted(finallyStep(pureOk(5), () => note('fail')))
+            assertEq(log.join(','), 'fail')
+            assertEq(assertOk(r), 5)
+        },
+    },
+    compensateStep: {
+        // Where `e` succeeds, the cleanup does not run.
+        ok: () => {
+            const e = step(note('e'), () => pureOk(5))
+            const [log, r] = runNoted(compensateStep(e, note('cleanup')))
+            assertEq(log.join(','), 'e')
+            assertEq(assertOk(r), 5)
+        },
+        // Where it fails, the cleanup runs after it and `e`'s error comes out.
+        error: () => {
+            const e = step(note('e'), () => pureError('boom'))
+            const [log, r] = runNoted(compensateStep(e, note('cleanup')))
+            assertEq(log.join(','), 'e,cleanup')
+            assertEq(assertError(r), 'boom')
+        },
+        // The cleanup's own failure is dropped: the error is still `e`'s.
+        dropsCleanupFailure: () => {
+            const [log, r] = runNoted(compensateStep(pureError('boom'), note('fail')))
+            assertEq(log.join(','), 'fail')
+            assertEq(assertError(r), 'boom')
+        },
+    },
+    demo: {
+        // Every word is asked, in order, and the answers are collected.
+        answers: () => {
+            const [trace, r] = runWords('a\nb')
+            assertEq(trace.join('|'), "ask('a') -> ok 'A'|ask('b') -> ok 'B'")
+            assertEq(assertOk(r).join(','), 'A,B')
+        },
+        // A refusal stops the program: no word after it is asked.
+        stops: () => {
+            const [trace, r] = runWords('read the fail file')
+            assertEq(trace.length, 3)
+            assertEq(trace[2], "ask('fail') -> error 'refused'")
+            assertEq(assertError(r), 'refused')
+        },
+        // Typing replaces the text; every other event leaves it alone.
+        update: () => {
+            const typed = runPure(demo.update('')({ kind: 'input', name: 'words', value: 'x' }))
+            assertEq(typed.length === 1 ? assertOk(typed[0]) : null, 'x')
+            const kept = runPure(demo.update('kept')({ kind: 'start' }))
+            assertEq(kept.length === 1 ? assertOk(kept[0]) : null, 'kept')
+        },
+        view: () => {
+            const html = htmlToString(demo.view(demo.init))
+            assert(html.includes('name="words"'), html)
+            assert(html.includes("error &#39;refused&#39;") || html.includes("error 'refused'"), html)
+            assert(htmlToString(demo.view('')).includes('(none)'), 'an empty program performs nothing')
+            assert(htmlToString(demo.view('a b')).includes("ok ['A', 'B']"), 'successful answers are rendered')
+        },
+    },
+}

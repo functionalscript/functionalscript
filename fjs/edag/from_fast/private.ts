@@ -2,9 +2,11 @@
 
 import type { BindingId, Block, FunctionTarget, Value } from '../../js/ast/types.ts'
 import type { Stack } from '../../common/monoid/types.ts'
+import type { PersistentMap } from '../../types/map/types.ts'
 import type { List } from '../../types/list/types.ts'
 import type { Exp } from '../types.ts'
 import type { Environment, Lowered, Transfer } from './types.ts'
+import type { Task } from '../../js/ast/task/types.ts'
 
 export type Binding = Environment[number]
 
@@ -12,7 +14,7 @@ export type Link<T> = { readonly first: T; readonly tail: Link<T> | null }
 
 /** New lexical chunks override enclosing bindings; entries retain transfer order. */
 export type Scope = {
-    readonly index: Stack<ReadonlyMap<BindingId, Binding>>
+    readonly index: Stack<PersistentMap<BindingId, Binding>>
     readonly entries: List<Binding>
     readonly lazy: List<BindingId>
 }
@@ -45,13 +47,13 @@ export type Ordered = { readonly bindings: readonly BindingId[]; readonly diverg
 
 /** Definition dependencies before failure, and before divergence or an explicit throw. */
 export type OrderScope = {
-    readonly reads: readonly (readonly [BindingId, readonly BindingId[]])[]
+    readonly reads: PersistentMap<BindingId, readonly BindingId[]>
     readonly opaque: readonly BindingId[]
-    readonly demands: readonly (readonly [BindingId, readonly BindingId[]])[]
+    readonly demands: PersistentMap<BindingId, readonly BindingId[]>
     readonly deferred: readonly BindingId[]
 }
 
-export type Summaries = ReadonlyMap<Node[1], Summary>
+export type Summaries = PersistentMap<Node[1], Summary>
 export type Visit = readonly ['enter', Node] | readonly ['finish', Node, readonly Node[]]
 
 export type Context = {
@@ -64,6 +66,10 @@ export type Context = {
     /** External graph substitutions need not already have been evaluated. */
     readonly external: readonly BindingId[]
 }
+
+export type _ValueTask = (value: Value, context: Context) => Task<Lowered>
+export type _BlockTask = (block: Block, context: Context) => Task<Lowered>
+export type _ControlTask = (block: Block, context: Context, expected: number | null) => Task<_Control>
 
 /** Region control keeps normal joins separate from terminal evaluations. */
 export type _Control = { readonly normal: boolean; readonly node: _ControlNode }

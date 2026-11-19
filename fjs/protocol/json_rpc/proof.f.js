@@ -1,0 +1,135 @@
+/**
+ * @import { Handlers } from './types.ts'
+ */
+
+import { assert, assertEq } from '../../asserts/module.f.js'
+import { ok, error } from '../../types/result/module.f.js'
+import { parse } from '../../rtti/parse/module.f.js'
+import { hasEntry } from '../../types/object/entry/module.f.js'
+import {
+    error as errorSchema,
+    decodeRequest,
+    dispatch,
+    rpcError,
+    parseError,
+    invalidRequest,
+    methodNotFound,
+    invalidParams,
+    internalError,
+    response,
+    errorResponseOf,
+    successResponseOf,
+} from './module.f.js'
+
+/** @type {(r: readonly [string, unknown]) => boolean} */
+const isOk = r => r[0] === 'ok'
+
+/** @type {Handlers} */
+const handlers = {
+    ping: () => ok('pong'),
+    echo: params => ok(params ?? null),
+    boom: () => error(invalidParams),
+}
+const d = dispatch(handlers)
+
+/** A handler table that does own the `Object.prototype` name `toString`. */
+const dOwnPrototypeName = dispatch({ toString: () => ok('own') })
+
+export const proof = {
+    schema: {
+        request: {
+            full: () => assert(isOk(decodeRequest({ jsonrpc: '2.0', method: 'm', params: [1], id: 1 }))),
+            notification: () => assert(isOk(decodeRequest({ jsonrpc: '2.0', method: 'm' }))),
+            nullId: () => assert(isOk(decodeRequest({ jsonrpc: '2.0', method: 'm', id: null }))),
+            stringId: () => assert(isOk(decodeRequest({ jsonrpc: '2.0', method: 'm', id: 'abc' }))),
+            badVersion: () => assert(!isOk(decodeRequest({ jsonrpc: '1.0', method: 'm', id: 1 }))),
+            missingMethod: () => assert(!isOk(decodeRequest({ jsonrpc: '2.0', id: 1 }))),
+            badId: () => assert(!isOk(decodeRequest({ jsonrpc: '2.0', method: 'm', id: true }))),
+            notObject: () => assert(!isOk(decodeRequest(42))),
+        },
+        error: {
+            ok: () => assert(isOk(parse(errorSchema)({ code: -1, message: 'x' }))),
+            withData: () => assert(isOk(parse(errorSchema)({ code: -1, message: 'x', data: [1, 2] }))),
+            missingMessage: () => assert(!isOk(parse(errorSchema)({ code: -1 }))),
+        },
+    },
+    errors: {
+        factory: () => {
+            const e = rpcError(-7)('boom')
+            assertEq(e.code, -7)
+            assertEq(e.message, 'boom')
+        },
+        parseError: () => { assertEq(parseError.code, -32_700); assertEq(parseError.message, 'Parse error') },
+        invalidRequest: () => { assertEq(invalidRequest.code, -32_600); assertEq(invalidRequest.message, 'Invalid Request') },
+        methodNotFound: () => { assertEq(methodNotFound.code, -32_601); assertEq(methodNotFound.message, 'Method not found') },
+        invalidParams: () => { assertEq(invalidParams.code, -32_602); assertEq(invalidParams.message, 'Invalid params') },
+        internalError: () => { assertEq(internalError.code, -32_603); assertEq(internalError.message, 'Internal error') },
+    },
+    dispatch: {
+        success: () => {
+            const r = d({ jsonrpc: '2.0', method: 'ping', id: 1 })
+            assert(r !== null && hasEntry(r, 'result') && r.result === 'pong' && r.id === 1)
+        },
+        paramsPassed: () => {
+            const r = d({ jsonrpc: '2.0', method: 'echo', params: 'hi', id: 2 })
+            assert(r !== null && hasEntry(r, 'result') && r.result === 'hi')
+        },
+        handlerError: () => {
+            const r = d({ jsonrpc: '2.0', method: 'boom', id: 3 })
+            assert(r !== null && hasEntry(r, 'error') && r.error.code === -32_602 && r.id === 3)
+        },
+        methodNotFound: () => {
+            const r = d({ jsonrpc: '2.0', method: 'nope', id: 4 })
+            assert(r !== null && hasEntry(r, 'error') && r.error.code === -32_601)
+        },
+        // `method` is untrusted wire data: an inherited `Object.prototype`
+        // name must not resolve to a callable.
+        inheritedToString: () => {
+            const r = d({ jsonrpc: '2.0', method: 'toString', id: 4 })
+            assert(r !== null && hasEntry(r, 'error') && r.error.code === -32_601)
+        },
+        inheritedConstructor: () => {
+            const r = d({ jsonrpc: '2.0', method: 'constructor', id: 4 })
+            assert(r !== null && hasEntry(r, 'error') && r.error.code === -32_601)
+        },
+        // ... while an *own* property of that name is an ordinary method.
+        ownPrototypeName: () => {
+            const r = dOwnPrototypeName({ jsonrpc: '2.0', method: 'toString', id: 4 })
+            assert(r !== null && hasEntry(r, 'result') && r.result === 'own')
+        },
+        invalidRequest: () => {
+            const r = d({ jsonrpc: '1.0', method: 'ping', id: 5 })
+            assert(r !== null && hasEntry(r, 'error') && r.error.code === -32_600 && r.id === null)
+        },
+        notification: () => {
+            const r = d({ jsonrpc: '2.0', method: 'ping' })
+            assertEq(r, null)
+        },
+    },
+
+    // The two envelope constructors are public API, so they are proven
+    // directly rather than only through `dispatch`. Each result is parsed back
+    // with this module's own `response` schema, which is the fact worth
+    // pinning: the constructor and the schema describing the shape it builds
+    // cannot drift apart.
+    responseOf: {
+        success: () => {
+            const r = successResponseOf(1)('pong')
+            assertEq(r.jsonrpc, '2.0')
+            assert(hasEntry(r, 'result') && r.result === 'pong', r)
+            assertEq(r.id, 1)
+            assert(isOk(parse(response)(r)), r)
+        },
+        // A non-`null` id on purpose: an `id` forced to `null` is a mutation
+        // this case would not see if it asked for `null` to begin with, and a
+        // string exercises the other arm of `Id` besides. `errorResponseOf`'s
+        // `null` id is covered by `dispatch.invalidRequest`.
+        error: () => {
+            const r = errorResponseOf('abc')(parseError)
+            assertEq(r.jsonrpc, '2.0')
+            assert(hasEntry(r, 'error') && r.error.code === -32_700, r)
+            assertEq(r.id, 'abc')
+            assert(isOk(parse(response)(r)), r)
+        },
+    },
+}

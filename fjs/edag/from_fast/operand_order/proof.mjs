@@ -11,12 +11,12 @@ import { throws } from 'node:assert/strict'
 import { runInNewContext } from 'node:vm'
 
 import { assertOk } from '../../../asserts/module.f.js'
-import { fromFast } from '../module.f.mjs'
-import { toFast } from '../../to_fast/module.f.mjs'
-import { prepare } from '../../../js/ast/prepare/module.f.mjs'
-import { stringify } from '../../../js/ast/serializer/module.f.mjs'
-import { _id as id, _ref as ref, _result as result, _body as body } from '../proof.f.mjs'
-import { _anchored as anchored, _consumers as consumers, _convert as convert, _graphs as graphs, _invalid as invalid, _loopEntry as loopEntry } from './proof.f.mjs'
+import { fromFast } from '../module.f.js'
+import { toFast } from '../../to_fast/module.f.js'
+import { prepare } from '../../../js/ast/prepare/module.f.js'
+import { stringify } from '../../../js/ast/serializer/module.f.js'
+import { _id as id, _ref as ref, _result as result, _body as body } from '../proof.f.js'
+import { _anchored as anchored, _consumers as consumers, _convert as convert, _graphs as graphs, _invalid as invalid, _loopEntry as loopEntry } from './proof.f.js'
 
 /** @type {(graph: Exp) => string} */
 const text = graph => stringify(prepare(assertOk(toFast(graph))), 'expression', true)

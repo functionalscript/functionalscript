@@ -17,11 +17,9 @@ import type { _Member, _Read, _Value } from './types.ts'
  * the order it finished.
  *
  * `started` is what makes a container met twice a reference to one node
- * rather than two nodes of equal shape, and it holds a container from
- * before its members are read, so the read never re-enters one and
- * terminates on a cyclic value rather than refusing it here — `link` is
- * where a cycle is refused, over the finished graph. It is a persistent
- * set with a logarithmic add, since one is added per container and
+ * rather than two nodes of equal shape. FunctionalScript's containers are
+ * acyclic, and a container is entered before its members are read. The
+ * persistent set has a logarithmic add, since one is added per container and
  * `new Set([...prev, value])` would copy every container so far each time.
  */
 export type _Walk<L> = {
@@ -41,7 +39,7 @@ export type _Step<L> = readonly [_Walk<L>, _Value<object, L>]
 export type _Frame<L> = {
     readonly value: object
     readonly kind: 'array' | 'object'
-    readonly properties: readonly (readonly [string, PropertyDescriptor])[]
+    readonly properties: readonly (readonly [string, unknown])[]
     readonly index: number
     readonly done: List<_Member<object, L>>
 }

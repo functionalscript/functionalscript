@@ -5,7 +5,7 @@
 
 ### Problem
 
-[`../utf8/module.f.mjs`](../utf8/module.f.mjs)'s `utf8ToString` is the slow half of
+[`../utf8/module.f.js`](../utf8/module.f.js)'s `utf8ToString` is the slow half of
 reading text through the effect system, by more than an order of magnitude over
 the read itself. Measured in
 [#1827](https://github.com/functionalscript/functionalscript/pull/1827), at its
@@ -74,7 +74,7 @@ own measurement, not something to fold into a caller.
 - [ ] Make the decoder fast enough that `npm run website` is not dominated by
       it, keeping every existing `text/utf8` proof green.
 - [ ] Re-measure `npm run website` and record the number in
-      [`../../website/module.f.mjs`](../../website/module.f.mjs)'s header, which
+      [`../../website/module.f.js`](../../website/module.f.js)'s header, which
       names this issue today.
 
 ### Related

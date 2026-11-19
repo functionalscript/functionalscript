@@ -29,12 +29,12 @@
 import {
     countsView, failureOf, groupLabel, groupStatus, groupView, loadProofs,
     pendingView, reportDuration, reportOf, reportView, resultView, runProofs, runnerSource, unreported,
-} from './module.f.mjs'
+} from './module.f.js'
 // The fold that counts results is the runners' shared one: a group's label
 // counts as the run does.
-import { addResult, zeroTotals } from '../module.f.mjs'
+import { addResult, zeroTotals } from '../module.f.js'
 // **One markup, two renderers.** What a report looks like is decided once, by
-// the pure views in `./module.f.mjs`: the runner's demo returns them for the
+// the pure views in `./module.f.js`: the runner's demo returns them for the
 // demo runtime to render, and this page turns the same views into nodes as
 // rows land.
 import { fill, macrotask, toDom } from '../../media/html/module.mjs'
@@ -43,7 +43,7 @@ import { commonOperationMap } from '../../effects/common/module.mjs'
 import { concat } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { ok, unwrap } from '../../types/result/module.f.js'
-import { specifierKind } from '../../path/import/module.f.mjs'
+import { specifierKind } from '../../path/import/module.f.js'
 
 /**
  * The shared {@link failureOf}, run.
@@ -190,7 +190,7 @@ export const runBrowserProofs = _runBrowserProofsWith(map => map)
  *
  * **Only a relative or rooted specifier is rebased** — what
  * {@link specifierKind} calls a path. A page names its sources relative
- * to itself (`./proof.f.mjs`, and `./fjs/…` from the root), and a bare
+ * to itself (`./proof.f.js`, and `./fjs/…` from the root), and a bare
  * `import(source)` inside this module would resolve those against *this
  * module's* URL — two directories deep, every load 404.
  *
@@ -237,7 +237,7 @@ const publish = (root, report) => {
  * Loads proof modules after the page has rendered, reporting module-loading
  * progress before proof execution begins.
  *
- * The walk itself is [`./module.f.mjs`](./module.f.mjs)'s `loadProofs`, which
+ * The walk itself is [`./module.f.js`](./module.f.js)'s `loadProofs`, which
  * loads one module after another. What is here is what a page is: the
  * `import()` that resolves a source against this document, the summary line the
  * count is rendered into, and the publication.

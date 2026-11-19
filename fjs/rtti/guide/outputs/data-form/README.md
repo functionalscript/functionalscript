@@ -56,5 +56,5 @@ reports that the first is a subset of the second, and not equal to it. Type
 ## Where it is implemented
 
 `toData`, `equal`, `cmp`, `subset` and `validate` in
-[`data`](../../../data/module.f.mjs), whose
+[`data`](../../../data/module.f.js), whose
 [README](../../../data/README.md) describes the representation.

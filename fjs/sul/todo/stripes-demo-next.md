@@ -5,7 +5,7 @@
 
 ### Problem
 
-The demo ([`../demo.f.mjs`](../demo.f.mjs)) draws every level's words, up to
+The demo ([`../demo.f.js`](../demo.f.js)) draws every level's words, up to
 the root, and which hash-level symbols are hashes. How much each row holds,
 what a symbol is, and how an edit changes the stripes, it does not show.
 

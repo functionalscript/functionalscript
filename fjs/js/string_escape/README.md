@@ -1,7 +1,7 @@
 # String escapes
 
 JavaScript's escape sequences, and the one function that writes a quoted
-string. [`module.f.mjs`](./module.f.mjs) holds them, so the tokenizer that
+string. [`module.f.js`](./module.f.js) holds them, so the tokenizer that
 reads `"\n"` and every printer that writes one agree on what it means.
 
 |Export             |Holds                                                                                            |
@@ -13,14 +13,14 @@ reads `"\n"` and every printer that writes one agree on what it means.
 |`stringLiteral(s)` |`s` as a double-quoted JavaScript (and JSON) string literal                                      |
 
 ```js
-import { stringLiteral } from './module.f.mjs'
+import { stringLiteral } from './module.f.js'
 
 stringLiteral('a"\n') // '"a\\"\\n"', the text "a\"\n" with its quotes
 ```
 
 `\uXXXX` is not a simple escape: its meaning is computed from its digits, so
 the tokenizer decodes it rather than looking it up. `stringLiteral` writes
-JSON-compatible output, which is why [`media/json`](../../media/json/serializer/module.f.mjs)
+JSON-compatible output, which is why [`media/json`](../../media/json/serializer/module.f.js)
 and the generated `package.json` in [`ci`](../../ci/README.md) use it too.
 Single-quoted `\'`, `\v` and `\xHH` are decoded by the JavaScript tokenizer
 above this JSON table, preserving JSON-compatible output.

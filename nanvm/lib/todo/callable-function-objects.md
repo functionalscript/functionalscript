@@ -465,7 +465,7 @@ operation. The [`parameters` harness fixture](../../harness/fixtures/parameters.
 and its [generated Rust](../../harness/gen.fixtures/parameters.rs) cover
 omitted, explicit `undefined` and extra arguments, captured fixed/rest values,
 and repeated versus distinct-call rest identity. The
-[Rust module proofs](../../../fjs/compiler/rust/proof.f.mjs) cover binding refusals,
+[Rust module proofs](../../../fjs/compiler/rust/proof.f.js) cover binding refusals,
 the largest valid length, 16, and the refusal of 17.
 The [`closure-identity` fixture](../../harness/fixtures/closure-identity.mjs)
 pins distinct closures from one function, repeated reads of one binding and
@@ -484,7 +484,7 @@ positive-arity/full-arguments sketches rather than silently normalize them.
 **Default function text — implemented.** The Rust printer's `textExpr` uses
 the shared `tryFunctionText` renderer and passes the result as the fourth
 argument of `A::static_function`, `text: Option<&'static str>`
-([printer](../../../fjs/edag/rust/module.f.mjs),
+([printer](../../../fjs/edag/rust/module.f.js),
 [`IStaticFunction`](../src/vm/internal/istatic_function.rs)). Every instance
 of one function template shares that text. Captures appear as slot names,
 without rendering their values; a body reading `self` has a named function
@@ -627,7 +627,7 @@ interpreter's answer equals Node's, aliasing included. So the interpreter's
 value *is* Node's value as long as that proof passes, and it is the
 cheaper thing to print: it is already a represented graph
 ([`EdagValue`](../../../fjs/edag/values.md)) that keeps sharing by node identity,
-and [`fjs/nanvm/values`](../../../fjs/nanvm/values/module.f.mjs) already prints
+and [`fjs/nanvm/values`](../../../fjs/nanvm/values/module.f.js) already prints
 such a graph as a Rust module through the compiler's backend
 (`generateRust`), the way `gen.values/captures.rs` is made. Printing Node's
 own value instead would need a converter from a host value graph (aliasing
@@ -696,7 +696,7 @@ The program under test reaches Rust by compiling its source
 (`gen.fixtures/<name>.rs`); neither layer runs the program's logic in Rust.
 
 *2a, the generated expectation.* The generator in
-[`fjs/nanvm/harness`](../../../fjs/nanvm/harness/module.f.mjs), which already
+[`fjs/nanvm/harness`](../../../fjs/nanvm/harness/module.f.js), which already
 walks the corpus fixtures, also loads each through the interpreter's loader
 (`interpret`, as `_transpileDefault` does), takes the `default` of the
 represented export object, and writes `nanvm/harness/gen.expected/<name>.rs`:
@@ -824,7 +824,7 @@ level.
    can be deferred — [optimal-nanvm](./optimal-nanvm.md)'s NaN-boxing layer
    is where a genuinely allocation-free static function eventually belongs.
 3. **Generated-module linking (resolved).** The
-   [compiler](../../../fjs/compiler/module.f.mjs) resolves the complete source graph
+   [compiler](../../../fjs/compiler/module.f.js) resolves the complete source graph
    before `toRust` emits one Rust file. Stage 1 therefore needs no per-dependency
    Rust `use` paths or file layout; source imports are already linked within
    that output. The embedding crate chooses where to include the generated
@@ -885,8 +885,8 @@ level.
       validation and not a call: `checked` (`fjs/edag/analysis`) refuses
       a function-owned `['args']` at every arity, and the memo executor,
       the Rust printer and the source writer refuse it through it, at
-      arity 0 and above (`fjs/compiler/parameters/proof.f.mjs`,
-      `fjs/compiler/rust/proof.f.mjs`). A zero-arity graph's complete
+      arity 0 and above (`fjs/compiler/parameters/proof.f.js`,
+      `fjs/compiler/rust/proof.f.js`). A zero-arity graph's complete
       list is `['rest']`, which a module scope refuses. The amnesia
       executor trusts the graph it is given, as its dispatcher does.
       **What stays open** is the migration of old zero-arity graphs and

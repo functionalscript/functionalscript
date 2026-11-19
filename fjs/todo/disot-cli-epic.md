@@ -165,5 +165,5 @@ unsigned ancestors.
   — canonical signing order, projections, DID identity and RFC 3161 semantics.
 - [Git name resolution](../../todo/git-name-resolution.md)
   — metadata schema, single-name scope, authorization, locks and archival.
-- [CLI dispatch](../cli/module.f.mjs) — command integration.
+- [CLI dispatch](../cli/module.f.js) — command integration.
 - [Effects](../effects/README.md) — pure workflows and host adapters.

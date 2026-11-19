@@ -69,7 +69,7 @@ drops the function as `(a.x, () => 1, 2)` does. So
 `['.', A, 'length']` with no comma, `b` being `a`'s node, where
 `const a = []; const b = a.x; export default (b, a.length);` keeps
 `[',', [['.', A, 'x'], ['.', A, 'length']]]`, `b` being a node of its own
-that the result does not reach ([`fjs/compiler/edag`](../../../fjs/compiler/edag/module.f.mjs)).
+that the result does not reach ([`fjs/compiler/edag`](../../../fjs/compiler/edag/module.f.js)).
 The [failure contract](../../principles/README.md#failure-is-one-outcome)
 governs execution: each operand's success is established before the result
 is revealed, in no promised order beyond that.

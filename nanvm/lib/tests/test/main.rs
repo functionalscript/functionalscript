@@ -1,7 +1,7 @@
 //! Tests with no JavaScript counterpart.
 //!
 //! Operator behaviour is *not* tested here. It is described once, as data, in
-//! `fjs/nanvm/module.f.mjs`, and reaches this crate as `gen.corpus/`
+//! `fjs/nanvm/module.f.js`, and reaches this crate as `gen.corpus/`
 //! (see `nanvm/lib/tests/README.md`). What stays hand-written is everything
 //! that has nothing to compare against in a JS engine: conversions out of
 //! `Any`, `Debug` formatting, bigint limb arithmetic, and the
@@ -349,7 +349,7 @@ fn reference_identity_selection<A: IStaticFunction>() {
 /// The unselected operand is never established: each thunk below answers
 /// `Err`, which `unwrap` would panic on, and the value that comes back is
 /// the left operand or the selected arm. The corpus proves the same through
-/// its `unreached` operand (`fjs/nanvm/module.f.mjs`); this is the
+/// its `unreached` operand (`fjs/nanvm/module.f.js`); this is the
 /// hand-written statement of the canonical conditional API's selection contract.
 fn unselected_operand_not_established<A: IVm>() {
     let boom = || -> Result<Any<A>, Any<A>> { Err("not established".into()) };

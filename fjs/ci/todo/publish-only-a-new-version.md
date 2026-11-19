@@ -33,7 +33,7 @@ unpublished. A `concurrency` group does not close it either, because GitHub
 cancels the older pending run of a group when a newer one queues.
 
 It is also the only `continue-on-error` in either generated workflow, which is
-why `fjs/ci/common/module.f.mjs` admits the field as the literal `true` rather
+why `fjs/ci/common/module.f.js` admits the field as the literal `true` rather
 than as a boolean — there is one step it is for.
 
 ### Evidence
@@ -64,7 +64,7 @@ absorbs, so every other failure stays red. Sketch, not a design:
 The comparison wants the tool that parses what it checks rather than a pattern
 over `npm view` output (root [`AGENTS.md`](../../../AGENTS.md) §6) — this
 repository already has a JSON reader and a semantic-version comparison. The
-generator itself reads no `package.json` today — `ci` in `fjs/ci/module.f.mjs`
+generator itself reads no `package.json` today — `ci` in `fjs/ci/module.f.js`
 probes only `Cargo.toml`, and the compiler pin is `typescript` in
 `fjs/ci/config/module.f.js`. What it must not become is a shell pipeline in a
 generated `run:` line.

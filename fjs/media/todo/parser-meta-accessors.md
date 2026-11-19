@@ -12,7 +12,7 @@ reuse the datajs todos call out — but the accessor that reads what those
 shared mappings produce is copied byte-for-byte:
 
 ```js
-// fjs/media/json/parser/module.f.mjs            // fjs/media/datajs/parser/module.f.mjs
+// fjs/media/json/parser/module.f.js            // fjs/media/datajs/parser/module.f.js
 const textAt = node => {                          const textAt = node => {
     const { meta } = symbolAt(node)                   const { meta } = symbolAt(node)
     assert(meta.id === 'text')                        assert(meta.id === 'text')
@@ -26,7 +26,7 @@ two. The same wrap/read pair repeats with only the `id` changed —
 `jsonSymbol`/`jsonAt` in `json/parser/module.f.mjs`,
 `valueSymbol`/`nodeAt` in `datajs/parser/module.f.mjs` — and
 `valueSymbol` is written a third time in
-`fjs/media/datajs/parser/proof.f.mjs`. "Wrap a payload as a symbol under
+`fjs/media/datajs/parser/proof.f.js`. "Wrap a payload as a symbol under
 an `id`, and read it back asserting that `id`" is one idea with several
 hand-written instances across two sibling readers; the `id` tag exists
 only to make the assert possible, so nothing stops another copy with a
@@ -41,7 +41,7 @@ which narrows to the whole member and leaves the field to the caller.
 
 ### Proposal
 
-Export `textAt` from `fjs/media/json/parser/module.f.mjs` beside
+Export `textAt` from `fjs/media/json/parser/module.f.js` beside
 `stringMappings` — it is the reader for a producer that module already
 publishes — and delete `datajs/parser`'s copy. For the tagged pair, one
 small helper **in the same module**, exported beside `textAt`:
@@ -224,7 +224,7 @@ one-line follow-up rather than a design decision.
 
 ### Related
 
-- [`fjs/media/datajs/parser/module.f.mjs`](../datajs/parser/module.f.mjs)
+- [`fjs/media/datajs/parser/module.f.js`](../datajs/parser/module.f.js)
   — imports `stringMappings` from `json/parser`: the rule/mapping reuse
   this issue extends to the accessors, shipped (its issue file,
   `parser-serializer`, is deleted).

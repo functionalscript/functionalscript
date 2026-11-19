@@ -30,7 +30,7 @@ use std::{
 };
 
 /// `NodeOp`'s commands, printed from `nodeCommands` in
-/// `fjs/effects/node/module.f.mjs`: a command outside them is a malformed
+/// `fjs/effects/node/module.f.js`: a command outside them is a malformed
 /// request, not a missing capability.
 #[path = "gen.commands.rs"]
 mod commands;

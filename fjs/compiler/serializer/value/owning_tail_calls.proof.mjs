@@ -11,13 +11,13 @@ import { Buffer } from 'node:buffer'
 import { throws } from 'node:assert/strict'
 
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
-import { identityAnalysis } from '../../../edag/analysis/module.f.mjs'
-import { fromAnalysis } from '../../../edag/to_fast/module.f.mjs'
-import { prepare } from '../../../js/ast/prepare/module.f.mjs'
-import { stringify as javascript } from '../../../js/ast/serializer/module.f.mjs'
-import { _defaultExport, unresolved } from '../../edag/module.f.mjs'
-import { parse } from '../../source/module.f.mjs'
-import { tryStringify } from '../module.f.mjs'
+import { identityAnalysis } from '../../../edag/analysis/module.f.js'
+import { fromAnalysis } from '../../../edag/to_fast/module.f.js'
+import { prepare } from '../../../js/ast/prepare/module.f.js'
+import { stringify as javascript } from '../../../js/ast/serializer/module.f.js'
+import { _defaultExport, unresolved } from '../../edag/module.f.js'
+import { parse } from '../../source/module.f.js'
+import { tryStringify } from '../module.f.js'
 
 /** @type {(source: string) => Exp} */
 const sourceGraph = source => _defaultExport(unresolved(assertOk(parse('/owning-tail.f.mjs')(source))).edag)

@@ -12,9 +12,9 @@ value'`, `'*/ expected'`, `'invalid token'` — each at the exact position
 of the failing character, and it kept tokenizing afterward, so the parser
 still saw whatever valid tokens came later.
 
-[`fjs/js/tokenizer/module.f.mjs`](../../../js/tokenizer/module.f.mjs) reads
+[`fjs/js/tokenizer/module.f.js`](../../../js/tokenizer/module.f.js) reads
 the one-token grammar
-[`fjs/ebnf/lib/js`](../../../ebnf/lib/js/module.f.mjs) through the LL(1)
+[`fjs/ebnf/lib/js`](../../../ebnf/lib/js/module.f.js) through the LL(1)
 backend, resumed once per token, and reports three messages, each
 anchored where the module doc says: `invalid number` for a number cut
 short or directly followed by a word or a number; `*/ expected` for a
@@ -76,9 +76,9 @@ fold change, both local. (2) is likely not worth it unless a real use case
 
 ### Related
 
-- [`fjs/js/tokenizer/module.f.mjs`](../../../js/tokenizer/module.f.mjs) — the
+- [`fjs/js/tokenizer/module.f.js`](../../../js/tokenizer/module.f.js) — the
   fold that names the three errors. This issue lives beside the compiler's
   tokenizer, which reads that stream, because the DX it is about is the
   compiler's; the change it proposes is the grammar's and the JS fold's.
-- [`fjs/ebnf/lib/js`](../../../ebnf/lib/js/module.f.mjs) — the grammar,
+- [`fjs/ebnf/lib/js`](../../../ebnf/lib/js/module.f.js) — the grammar,
   with the `unterminated` branch the proposal extends.

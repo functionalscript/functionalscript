@@ -1,7 +1,7 @@
 /**
  * Rust items spelled over strings.
  *
- * The layer one above the literals of [`fjs/media/rust`](../module.f.mjs)
+ * The layer one above the literals of [`fjs/media/rust`](../module.f.js)
  * and below any printer: an item several generators write — a `const`
  * table, the header that says a file is generated — spelled once, over the
  * text its caller has already spelled. It takes no `Exp`, so a generator of

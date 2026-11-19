@@ -1,5 +1,5 @@
 /**
- * Type-level API for `fjs/cas/evo/module.f.mjs`: the Evo cache shape and the
+ * Type-level API for `fjs/cas/evo/module.f.js`: the Evo cache shape and the
  * `Evo<O>` API surface it builds.
  *
  * @module

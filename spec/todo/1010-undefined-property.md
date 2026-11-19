@@ -30,11 +30,10 @@ Object.entries(a).filter(([, v]) => v !== undefined)
 Object.values(a).filter(v => v !== undefined)
 ```
 
-Bare `Object.entries` is admitted since
-([2360](./2360-built-in.md#objectentries-proposal-and-approval)), and lists
-an `undefined`-valued entry as JavaScript does, so enumeration is one more
-observation any normalization must preserve; `Object.values` is not
-admitted. The important correction is that equal filtered outputs do not
+Bare `Object.entries` and `Object.values` are admitted
+([2360](./2360-built-in.md#objectvalues-proposal-and-approval)) and preserve
+`undefined`-valued entries as JavaScript does, so enumeration is one more
+observation any normalization must preserve. The important correction is that equal filtered outputs do not
 make the inputs universally equivalent. `JSON.stringify`'s omission of a property is likewise an output
 choice, not permission to erase it before arbitrary computation.
 

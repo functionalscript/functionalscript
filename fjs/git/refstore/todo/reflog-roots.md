@@ -5,7 +5,7 @@
 
 ### Problem
 
-[`tryRoots`](../module.f.mjs) answers every ref a repository holds, and a ref is
+[`tryRoots`](../module.f.js) answers every ref a repository holds, and a ref is
 a retention root. It is not the *only* kind: `logs/refs/**` and `logs/HEAD`
 record where a ref has pointed, and Git keeps an object a reflog entry names
 until that entry expires.
@@ -76,7 +76,7 @@ measurement above is the case that breaks that reasoning.
 - Read a reflog file: `logs/HEAD` and `logs/refs/**`, one entry per line,
   `<old> SP <new> SP <ident> TAB <message> LF`, where the message is optional
   and the ident is the same grammar
-  [`fjs/git/ident`](../../ident/module.f.mjs) already reads. A grammar over the
+  [`fjs/git/ident`](../../ident/module.f.js) already reads. A grammar over the
   byte alphabet like the other ref files, in `fjs/git/ref` beside them, since
   nothing about it needs a filesystem.
 - Answer the ids it holds from this module. Both the `old` and the `new` id of
@@ -106,11 +106,11 @@ name for it.
 
 ### Related
 
-- [`fjs/git/refstore`](../module.f.mjs) — `tryRoots`, and the claim this
+- [`fjs/git/refstore`](../module.f.js) — `tryRoots`, and the claim this
   narrows.
 - [ref-writing.md](./ref-writing.md) — the writing half,
   which appends to a reflog, and where the wrong reading of expiry came from.
-- [`fjs/git/ident`](../../ident/module.f.mjs) — the `who` and `when` of an
+- [`fjs/git/ident`](../../ident/module.f.js) — the `who` and `when` of an
   entry, already read for a commit and a tag.
 - [`fjs/git/README.md`](../../README.md) — where the store's own reading is
   listed; the index sits beside it as a file `fjs/git` does not read.

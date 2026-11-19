@@ -27,7 +27,7 @@ text out, no side effects, so it is ordinary FunctionalScript and can
 eventually be part of the self-hosted toolchain.
 
 A layered node-and-edge renderer already exists:
-[`fjs/website/demo/graph`](../../website/demo/graph/module.f.mjs) ranks a
+[`fjs/website/demo/graph`](../../website/demo/graph/module.f.js) ranks a
 graph by longest path, draws a shared node once, and routes rank-skipping
 edges through lanes, as Graphviz's `dot` does. Reuse it — export what this
 needs from it — rather than writing a second layout.
@@ -99,7 +99,7 @@ refused explicitly, not silently omitted or reinterpreted as old tuples.
 - [`../module.f.js`](../module.f.js) — the RTTI schema of the format.
 - [edag-stage1-discussion](../../../todo/edag-stage1-discussion.md) — the format
   being visualized, and where its semantics are worked out.
-- [`fjs/website/demo/graph`](../../website/demo/graph/module.f.mjs) — the
+- [`fjs/website/demo/graph`](../../website/demo/graph/module.f.js) — the
   layered node-and-edge renderer to reuse.
 - `toString(f)` is the *text* counterpart of the same data; the two
   together cover both audiences.

@@ -88,6 +88,6 @@ that prevents those synthetic wrappers from accumulating.
 
 ### Related
 
-- [Block assignment integration proofs](../../../../compiler/serializer/block_assignments.proof.f.mjs) — semantic checks and current explicit output refusals.
-- [Source output admission](../module.f.mjs) — the existing graph-profile boundary.
+- [Block assignment integration proofs](../../../../compiler/serializer/block_assignments.proof.f.js) — semantic checks and current explicit output refusals.
+- [Source output admission](../module.f.js) — the existing graph-profile boundary.
 - [Compiler architecture](../../../../compiler/architecture.md) — placement and source spelling have separate owners.

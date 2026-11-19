@@ -6,7 +6,7 @@
 ### Problem
 
 "This channel error carries code X" is spelled at every site that asks it.
-[`node`](../node/module.f.mjs) exports four such predicates, two by
+[`node`](../node/module.f.js) exports four such predicates, two by
 destructuring and two by index:
 
 ```js
@@ -16,14 +16,14 @@ export const namesNothing = e => leadsNowhere(e) || (e[0] === 'ioError' && e[1].
 export const isDirectory = ([tag, payload]) => tag === 'ioError' && payload.code === 'EISDIR'
 ```
 
-and `madeHere` in [`fjs/git/refstore/write`](../../git/refstore/write/module.f.mjs)
+and `madeHere` in [`fjs/git/refstore/write`](../../git/refstore/write/module.f.js)
 writes a fifth inline, `orElse(e => e[0] === 'ioError' && e[1].code ===
 'EEXIST', false)`. The vocabulary, `ioError` and `IoChannel`, is this
-directory's [`module.f.mjs`](../module.f.mjs), not `node`'s, so the
+directory's [`module.f.js`](../module.f.js), not `node`'s, so the
 predicate's maker belongs here.
 
 Two callers also re-derive `orElse` itself, which exists so that a caller
-does not write the ternary: `configAt` in [`fjs/cas/git`](../../cas/git/module.f.mjs)
+does not write the ternary: `configAt` in [`fjs/cas/git`](../../cas/git/module.f.js)
 has `catchStep(readUtf8File(path), e => isNotFound(e) ? pureOk('') :
 pureError(e))`, and `exists` in `node` has the three-way `resultStep` over
 `access`, while `absent` a few lines below it in `cas/git` shows the

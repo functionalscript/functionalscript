@@ -64,6 +64,6 @@ hold a POSIX name containing a backslash cannot use these functions on it.
 - [`fjs/path`](../module.f.js) — `parts`, the single decode this would
   parameterise; `toPosix`; and the bare-drive limitation
   recorded on `concat` and `under`.
-- [`fjs/git/repo`](../../git/repo/module.f.mjs) — reads a leading `\` in a
+- [`fjs/git/repo`](../../git/repo/module.f.js) — reads a leading `\` in a
   `gitdir:` line as an ordinary POSIX name rather than a root, for the
   neighbouring reason that Git writes `/` separators on every host.

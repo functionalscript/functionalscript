@@ -15,9 +15,10 @@
  * `statics` holds the static functions by id, the path
  * [`../static`](../static/module.f.js) admits joined by `.` as the EDAG
  * spells the node, `Object.is`, each a function of the arguments alone.
- * Each body is a VM's and no module's: a module calls the built-in,
- * `Object.is` or `Number.isInteger`, and every executor answers it from
- * here, so nothing else exports the body. A name without a body is absent
+ * A module calls the built-in, `Object.is` or `Number.isInteger`, and
+ * every executor answers it from here. A body shared with an ordinary
+ * library, such as the URI-component encoder, is imported once rather
+ * than implemented again. A name without a body is absent
  * — a primitive no body can define in terms of the rest, or a name whose
  * body waits on a primitive the language has not admitted yet,
  * [`README.md`](./README.md) says which — and each VM answers it from its
@@ -51,11 +52,13 @@
 import { isNegativeZero } from '../../types/number/is_negative_zero/module.f.js'
 import { entry, hasEntry } from '../../types/object/entry/module.f.js'
 import { charCodeAt, slice } from '../intrinsic/module.f.js'
+import { refMap } from '../ref_map/module.f.js'
 import { map as arrayMap } from '../members/array/map/module.f.js'
 import { concat as arrayConcat } from '../members/array/concat/module.f.js'
 import { concat as stringConcat } from '../members/string/concat/module.f.js'
+import { encodeUriComponent } from '../../text/percent/encode_uri_component/module.f.js'
 
-/** The native enumerator, shared by its own static entry and the keys body. */
+/** The native enumerator, shared by its own static entry and the keys and values bodies. */
 const ownEntries = Object.entries
 
 /** An entry's key. @type {(pair: readonly [string, unknown]) => string} */
@@ -70,6 +73,18 @@ const keyOf = ([key]) => key
  * @param {{}} value
  */
 const keys = value => arrayMap(ownEntries(value), keyOf)
+
+/** An entry's value. @type {(pair: readonly [string, unknown]) => unknown} */
+const valueOfEntry = ([, value]) => value
+
+/**
+ * `Object.values`: enumerate once, then project the values through the shared
+ * array map body. Native entries supplies enumeration order and nullish
+ * failures; projection preserves undefined entries and reference identity.
+ *
+ * @param {{}} value
+ */
+const values = value => arrayMap(ownEntries(value), valueOfEntry)
 
 /**
  * [`Number.isNaN`](https://tc39.es/ecma262/#sec-number.isnan): whether `n`
@@ -170,6 +185,40 @@ const fromEntries = entries => {
  */
 const toNumber = value => /** @type {number} */ (value) - 0
 
+/**
+ * Round to binary32 precision, returning an ordinary number. The spacing
+ * is 2^-149 for subnormals and 2^(exponent-23) for normal values. Scaling
+ * by these powers of two is exact, leaving an integer and its discarded
+ * fraction to round with nearest, ties-to-even. The scaled integer fits
+ * in 24 bits, so `| 0` gives its floor without another runtime function.
+ * Apply the sign last to preserve negative underflow to zero.
+ *
+ * @type {(n: number) => number}
+ */
+const numberFround = n => {
+    if (n * 0 !== 0 || n === 0) { return n }
+    const negative = n < 0
+    const a = negative ? -n : n
+    // The midpoint above the largest finite binary32 value rounds to infinity.
+    if (a >= 2 ** 128 - 2 ** 103) { return negative ? -Infinity : Infinity }
+    let low = -126
+    let high = 128
+    while (high - low > 1) {
+        const mid = (low + high) >> 1
+        if (2 ** mid <= a) { low = mid } else { high = mid }
+    }
+    const step = 2 ** (low - 23)
+    const units = a / step
+    const lower = units | 0
+    const fraction = units - lower
+    const rounded = lower + (fraction > 0.5 || fraction === 0.5 && (lower & 1) !== 0 ? 1 : 0)
+    const magnitude = rounded * step
+    return negative ? -magnitude : magnitude
+}
+
+/** Math.fround: ToNumber once, then the shared numerical kernel. @type {(value?: unknown) => number} */
+const fround = value => numberFround(toNumber(value))
+
 /*
  * The logarithm polynomial and compensated combination follow OpenLibm's
  * src/e_log2.c and src/k_log.h (FreeBSD/fdlibm). Exact power-of-two scaling
@@ -249,6 +298,31 @@ const numberLog2 = n => {
 
 /** Math.log2: ToNumber once, then the shared numerical kernel. @type {(value?: unknown) => number} */
 const log2 = value => numberLog2(toNumber(value))
+
+/** The native floor, bound once for the table and for {@link round}'s body. */
+const nativeFloor = Math.floor
+
+/**
+ * Math.round: ToNumber once, then the nearest integer, a tie toward positive
+ * infinity. Neither Rust's `f64::round`, which rounds a tie away from zero,
+ * nor core WASM's `f64.nearest`, which rounds it to even, is this rule, so
+ * the body is one for every executor: the floor, which is native, and one
+ * comparison. `x - floor` is exact wherever `x` has a fraction, so it decides
+ * the tie as written and is not `floor(x + 0.5)`, which rounds before the
+ * floor is taken. `NaN` and the infinities fail the comparison and are the
+ * floor, the value itself. A value in `[-0.5, 0)` rounds to `-0`.
+ *
+ * The floor is bound once, {@link nativeFloor}, so the body and the table's
+ * `Math.floor` entry are one native binding.
+ *
+ * @type {(value?: unknown) => number}
+ */
+const round = value => {
+    const x = toNumber(value)
+    const floor = nativeFloor(x)
+    const rounded = x - floor >= 0.5 ? floor + 1 : floor
+    return rounded === 0 && x < 0 ? -0 : rounded
+}
 
 /**
  * An argument as `ToIntegerOrInfinity` reads one: `ToNumber`, then `NaN`
@@ -349,9 +423,11 @@ export const member = {
  * that every admitted id holds a value and the table is complete.
  */
 export const statics = {
+    encodeURIComponent: encodeUriComponent,
     'Object.is': is,
     'Object.entries': ownEntries,
     'Object.keys': keys,
+    'Object.values': values,
     'String.fromCharCode': String.fromCharCode,
     'Object.fromEntries': fromEntries,
     'Number.isInteger': isInteger,
@@ -359,9 +435,20 @@ export const statics = {
     'Number.isNaN': isNaN_,
     'Number.isFinite': isFinite_,
     'Math.log2': log2,
+    'Math.fround': fround,
+    'Math.trunc': Math.trunc,
+    'Math.floor': nativeFloor,
+    'Math.abs': Math.abs,
+    'Math.sqrt': Math.sqrt,
+    'Math.ceil': Math.ceil,
+    'Math.imul': Math.imul,
+    'Math.max': Math.max,
+    'Math.min': Math.min,
+    'Math.clz32': Math.clz32,
+    'Math.round': round,
 }
 
-/** The runtime: table lookup and the `in` and `Boolean` operator bodies. */
+/** The runtime: table lookup, the `in` and `Boolean` operator bodies, and the reference map. */
 export const runtime = {
     /**
      * `Boolean(value)`, defined by logical negation twice. It reads no
@@ -435,4 +522,10 @@ export const runtime = {
         if (self === null || typeof self !== 'object' && typeof self !== 'function') { throw 'in: not an object' }
         return hasEntry(self, key) || key === 'length' && (self instanceof Array || typeof self === 'function')
     },
+    /**
+     * A new empty reference map, [`../ref_map`](../ref_map/module.f.js):
+     * what an executor with no map of its own answers the EDAG's
+     * `['refMap']` with, calling this wherever the node is established.
+     */
+    refMap,
 }

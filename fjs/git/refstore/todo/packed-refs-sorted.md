@@ -9,7 +9,7 @@ A `packed-refs` file begins with a trait line — `# pack-refs with: peeled
 fully-peeled sorted` — and `sorted` promises the records are in lexical order of
 ref name. Git uses it: its lookup bisects the file rather than scanning it.
 
-[`refstore`](../module.f.mjs)'s `packedId` scans. That costs a pass over every
+[`refstore`](../module.f.js)'s `packedId` scans. That costs a pass over every
 line per lookup, which the module's own note about 20,000-name files says is the
 size to think about, and it makes one answer differ from Git's on a file whose
 trait is a lie. Measured on Git 2.43.0, with the trait claimed and the records
@@ -38,7 +38,7 @@ What is worth having is the *other* half — the lookup that does not scan.
 
 ### Proposal
 
-- [`fjs/git/ref`](../../ref/module.f.mjs)'s `tryPacked` answers the traits beside
+- [`fjs/git/ref`](../../ref/module.f.js)'s `tryPacked` answers the traits beside
   the records, rather than skipping the header comment. That is a change to what
   it returns, so explain the API change in whichever PR makes it. A breaking
   notice is optional before 1.0.
@@ -56,9 +56,9 @@ What is worth having is the *other* half — the lookup that does not scan.
 
 ### Related
 
-- [`fjs/git/ref`](../../ref/module.f.mjs) — the grammar, and the header comment
+- [`fjs/git/ref`](../../ref/module.f.js) — the grammar, and the header comment
   the traits live in.
-- [`fjs/git/refstore`](../module.f.mjs) — `packedId`, the scan this would
+- [`fjs/git/refstore`](../module.f.js) — `packedId`, the scan this would
   replace, and `tryRoots`, the iteration that must keep seeing every line.
 - [gitformat-packed-refs](https://git-scm.com/docs/gitformat-packed-refs) — the
   trait line and what `sorted` promises.

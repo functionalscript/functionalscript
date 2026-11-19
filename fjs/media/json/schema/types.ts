@@ -8,10 +8,10 @@
 
 import type { Assert } from '../../../asserts/types.ts'
 import type { Check, Ts } from '../../../rtti/ts/types.ts'
-import type { _unknownThunk, unknown as schemaUnknown } from './module.f.mjs'
+import type { _unknownThunk, unknown as schemaUnknown } from './module.f.js'
 
 /**
- * A JSON Schema (draft 2020-12) document, as `./module.f.mjs`'s `unknown`
+ * A JSON Schema (draft 2020-12) document, as `./module.f.js`'s `unknown`
  * schema renders it: what `toJsonSchema` answers with, and what a caller
  * writes a schema of its own against.
  */
@@ -21,7 +21,7 @@ export type JsonSchema = Ts<typeof schemaUnknown>
 // the un-annotated `_unknownThunk`, so a wrong field there is caught instead
 // of silently trusted through the annotation, which `Ts<>` short-circuits to.
 //
-// This was `./proof.f.mjs`'s `consistency` entry, a body of nothing but
+// This was `./proof.f.js`'s `consistency` entry, a body of nothing but
 // typedefs — so neither of its two pins bound to a statement and both were
 // green whatever they claimed (`../../../AGENTS.md` §1.4). This directory had
 // no `types.ts` to move them to, so it has one now, and `JsonSchema` names

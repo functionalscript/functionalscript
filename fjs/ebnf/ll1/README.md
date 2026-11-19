@@ -9,7 +9,7 @@ a bounded repeat is matched — and it is the mapping layer: a mapped rule's
 node is handed to its mapping as it comes into existence, and the mapping's
 result stands in its place.
 
-- `module.f.mjs` — `firstMap`, `parserRuleSet`, `parser`, `mapping`;
+- `module.f.js` — `firstMap`, `parserRuleSet`, `parser`, `mapping`;
 - `types.ts` — `FirstMap`, `MatchResult`, `Parser`, `Mapping`,
   `RewriteSet`, `Mappings`.
 
@@ -23,6 +23,12 @@ rule's node replaced by the `Meta<O>` its mapping returned — and the index
 it stopped at, or the index it failed at. `parserRuleSet(ruleSet, entry)` is
 the same over a set written or read by hand, validated on entry as `../data`
 validates it, with nothing mapped.
+
+For separately defined front-end references, pass their definition list as
+the fourth argument: `parser(rule, set, greedy, definitions)`. The same
+reference identities key `set`; the body adds no AST wrapper, so a mapping
+receives the body's ordinary node. Missing or duplicate definitions are
+refused by `toData` before the parser is built.
 
 ```js
 const digit = range('09')
@@ -156,11 +162,11 @@ the mappings below it. Frames carry their own rule name for that, which is
 the whole change the fold made to the machine.
 
 **Keyed by identity**, through the `RuleNameMap` `toData` returns:
-`parser(rule, set)` translates each `[a, f]` to `[names.get(a), f]` at
+`parser(rule, set)` translates each `[a, f]` to `[mapGet(names, a), f]` at
 build time and refuses, before any input, where the machine refuses
 everything else — a rule the grammar does not hold, and a rule mapped
 twice. The second matters because the set is assembled from several
-sources; a `Map` built naively would let the later entry win, and the
+sources; updating the persistent map naively would let the later entry win, and the
 output would depend on assembly order. Three consequences, all to keep:
 
 - **Identity, not spelling.** The `RuleNameMap` is keyed by `===`, so a
@@ -170,9 +176,9 @@ output would depend on assembly order. Three consequences, all to keep:
   combinator that wants its scaffolding mapped returns the mappings beside
   the rule; one whose scaffolding is only ever read returns a reader of its
   shape instead — `joined` beside `join`, `items` beside `cj` in
-  [`../lib/json`](../lib/json/module.f.mjs). A rule a reader wants to map is
+  [`../lib/json`](../lib/json/module.f.js). A rule a reader wants to map is
   exported from its grammar so that it can be held: JSON's `character` and
-  `escape` are, and [`fjs/media/json/parser`](../../media/json/parser/module.f.mjs)
+  `escape` are, and [`fjs/media/json/parser`](../../media/json/parser/module.f.js)
   keys a mapping by each.
 - **A string's symbol and a bare number are one rule** in the data layer,
   so mapping `97` maps the code point inside `'a'` too. Documented, not
@@ -191,7 +197,7 @@ symbols of the next alphabet; a consumer reads them out of the entry's node
 the next layer's parser as they are, no rename and no re-tagging, since the
 `id` already says which alphabet they are. The proof's `layers` entry is a
 tokenizer over text feeding a list grammar over tokens, and
-[`fjs/media/json/parser`](../../media/json/parser/module.f.mjs) folds a whole
+[`fjs/media/json/parser`](../../media/json/parser/module.f.js) folds a whole
 grammar, JSON's, to a JSON value in one layer — a mapping per rule the
 grammar holds, and a `Result` in the output symbol for the one thing a
 mapping cannot make a value of.

@@ -22,13 +22,13 @@
 import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../asserts/module.f.js'
 import { structurallySame } from '../types/object/structurally_same/module.f.js'
 import { exp } from '../edag/module.f.js'
-import { vm, invoke } from '../edag/amnesia/module.f.mjs'
+import { vm, invoke } from '../edag/amnesia/module.f.js'
 import { call } from '../edag/value/call/module.f.js'
 import { read } from '../edag/value/property/module.f.js'
 import runtimeEdag from '../js/runtime/gen.edag.js'
-import { toData } from '../edag/value/to_unknown/module.f.mjs'
+import { toData } from '../edag/value/to_unknown/module.f.js'
 import { ok } from '../types/result/module.f.js'
-import { validate } from '../rtti/validate/module.f.mjs'
+import { validate } from '../rtti/validate/module.f.js'
 import {
     callback,
     callbackExp,
@@ -49,9 +49,9 @@ import {
     unreachedExp,
     valueExp,
     valuesExp,
-} from './module.f.mjs'
+} from './module.f.js'
 import { conditional } from '../edag/testlib.f.js'
-import { hasEntry } from '../types/object/entry/module.f.js'
+import { hasEntry, entry } from '../types/object/entry/module.f.js'
 
 const { fromEntries, is } = Object
 
@@ -115,23 +115,70 @@ const js = {
 
 /**
  * The JavaScript a method group denotes: the host's own built-in, called on
- * the receiver with the rest as its arguments — `(r, ...a) => r.at(...a)`.
- * One entry for every method rather than one per name in {@link js}: the
- * method is the host's, so there is nothing per name to write, and
- * the represented method dispatcher reached through the chain node is
- * exactly what this checks against.
+ * the receiver with the rest as its arguments. One entry per method name,
+ * each a call written out: a member is called by its name, never by a
+ * computed key. The represented method dispatcher reached through the chain
+ * node is exactly what these check against, and `referenceCoverage` refuses
+ * a method group with no entry here.
  *
- * @type {(method: string) => (...args: readonly any[]) => unknown}
+ * @type {{ readonly [k in string]?: (...args: readonly any[]) => unknown }}
  */
-const methodReference = method => (r, ...a) => r[method](...a)
+const methods = {
+    at: (r, ...a) => r.at(...a),
+    charAt: (r, ...a) => r.charAt(...a),
+    charCodeAt: (r, ...a) => r.charCodeAt(...a),
+    codePointAt: (r, ...a) => r.codePointAt(...a),
+    concat: (r, ...a) => r.concat(...a),
+    endsWith: (r, ...a) => r.endsWith(...a),
+    every: (r, ...a) => r.every(...a),
+    filter: (r, ...a) => r.filter(...a),
+    find: (r, ...a) => r.find(...a),
+    findIndex: (r, ...a) => r.findIndex(...a),
+    findLast: (r, ...a) => r.findLast(...a),
+    findLastIndex: (r, ...a) => r.findLastIndex(...a),
+    flat: (r, ...a) => r.flat(...a),
+    flatMap: (r, ...a) => r.flatMap(...a),
+    includes: (r, ...a) => r.includes(...a),
+    indexOf: (r, ...a) => r.indexOf(...a),
+    isWellFormed: (r, ...a) => r.isWellFormed(...a),
+    join: (r, ...a) => r.join(...a),
+    lastIndexOf: (r, ...a) => r.lastIndexOf(...a),
+    map: (r, ...a) => r.map(...a),
+    padEnd: (r, ...a) => r.padEnd(...a),
+    padStart: (r, ...a) => r.padStart(...a),
+    reduce: (r, ...a) => r.reduce(...a),
+    reduceRight: (r, ...a) => r.reduceRight(...a),
+    repeat: (r, ...a) => r.repeat(...a),
+    replace: (r, ...a) => r.replace(...a),
+    replaceAll: (r, ...a) => r.replaceAll(...a),
+    slice: (r, ...a) => r.slice(...a),
+    some: (r, ...a) => r.some(...a),
+    split: (r, ...a) => r.split(...a),
+    startsWith: (r, ...a) => r.startsWith(...a),
+    substring: (r, ...a) => r.substring(...a),
+    toExponential: (r, ...a) => r.toExponential(...a),
+    toFixed: (r, ...a) => r.toFixed(...a),
+    toLowerCase: (r, ...a) => r.toLowerCase(...a),
+    toPrecision: (r, ...a) => r.toPrecision(...a),
+    toReversed: (r, ...a) => r.toReversed(...a),
+    toSorted: (r, ...a) => r.toSorted(...a),
+    toSpliced: (r, ...a) => r.toSpliced(...a),
+    toString: (/** @type {any} */ r, /** @type {readonly any[]} */ ...a) => r.toString(...a),
+    toUpperCase: (r, ...a) => r.toUpperCase(...a),
+    toWellFormed: (r, ...a) => r.toWellFormed(...a),
+    trim: (r, ...a) => r.trim(...a),
+    trimEnd: (r, ...a) => r.trimEnd(...a),
+    trimStart: (r, ...a) => r.trimStart(...a),
+    with: (r, ...a) => r.with(...a),
+}
 
 /**
  * A group's reference: {@link js}'s entry for an operator, possibly absent,
- * and {@link methodReference} for a method, never absent.
+ * and {@link methods}'s for a method.
  *
  * @type {(g: Group) => ((...args: readonly any[]) => unknown) | undefined}
  */
-const referenceOf = g => hasEntry(g, 'method') ? methodReference(g.method) : js[groupKey(g)]
+const referenceOf = g => hasEntry(g, 'method') ? entry(methods, g.method) : entry(js, groupKey(g))
 
 /**
  * The operation a key names. A key with no entry is a gap in this module, not
@@ -142,7 +189,7 @@ const referenceOf = g => hasEntry(g, 'method') ? methodReference(g.method) : js[
  * @type {(key: string) => (...args: readonly any[]) => unknown}
  */
 const reference = key => {
-    const f = js[key]
+    const f = entry(js, key)
     assert(f !== undefined, ['no JavaScript for', key])
     return f
 }
@@ -248,7 +295,7 @@ const fixture = (shared, v) => {
         switch (info[0]) {
             case 'ref': { return assertNotNullish(shared.find(([name]) => name === info[1]))[1] }
             case 'function': { return () => undefined }
-            case 'callback': { return callbacks[info[1]]() }
+            case 'callback': { return assertNotNullish(entry(callbacks, info[1]))() }
             case 'returns': { return () => fixture([], info[1]) }
             default: { return 1n / 0n }
         }
@@ -452,7 +499,7 @@ const concatRuntime = () => {
  * An `unreached` lowers to an operation that throws when established, and
  * `amnesia` returns an error on it — which makes a lazy-position case
  * holding one a proof: the case answers a value only because the operand was
- * never established. The Rust side's counterpart is `rust/proof.f.mjs`'s
+ * never established. The Rust side's counterpart is `rust/proof.f.js`'s
  * printed thunk, and `nanvm-lib`'s own `bigTenDividedByZero`.
  */
 const unreachedOperand = {
@@ -494,7 +541,7 @@ const unreachedOperand = {
  * lowered nodes is what let both consumers discard the identity while this
  * passed: the lowering shared the node, and each consumer then built the
  * shared value from scratch. So the memo is checked too, and
- * `rust/proof.f.mjs` checks the printed `let` bindings.
+ * `rust/proof.f.js` checks the printed `let` bindings.
  */
 const nestedSharing = () => {
     const own = sharedExp({ base: [], wrapper: [ref('base')] })
@@ -533,7 +580,7 @@ const edagShape = () => {
 
 /**
  * Behaviour that is real JavaScript but has no `nanvm-lib` counterpart to
- * share data with, so it stays here instead of in `module.f.mjs`.
+ * share data with, so it stays here instead of in `module.f.js`.
  */
 const jsOnly = {
     /**

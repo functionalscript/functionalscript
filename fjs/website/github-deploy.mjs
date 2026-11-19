@@ -1,6 +1,6 @@
 /** GitHub Actions process boundary for pinned production and preview uploads. */
 
-import { uploadArgs } from './cloudflare/module.f.mjs'
+import { uploadArgs } from './cloudflare/module.f.js'
 import { runWrangler } from './github-preview.mjs'
 import { uploadPreviewWithComment } from './github-preview-comment.mjs'
 

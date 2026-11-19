@@ -68,11 +68,11 @@ export type _OptionalList = Unmapped<readonly [] | readonly [_Leaf]>
 /**
  * The node of a list rule, `item [ ',' [ items ] ]`, typed by shape as
  * `Unmapped` describes: the item, and optionally the comma and the rest of
- * the list. One reader serves both lists.
+ * the list, with its comma available to the array-pattern cover reader.
  */
 export type _ListNode = readonly [
     _Leaf,
-    Unmapped<readonly [] | readonly [Unmapped<readonly [unknown, _OptionalList]>]>,
+    Unmapped<readonly [] | readonly [Unmapped<readonly [_Leaf, _OptionalList]>]>,
 ]
 
 /**

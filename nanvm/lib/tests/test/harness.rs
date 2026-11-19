@@ -4,7 +4,7 @@
 //! else. The functions a literal becomes, and `===`/`!==` as operator
 //! results, are `nanvm_lib::vm::unstable`'s, the same ones a compiled module
 //! calls; every assertion, and the one value constructor no literal spells,
-//! lives here, so the printer in `fjs/nanvm/rust/module.f.mjs` only has to
+//! lives here, so the printer in `fjs/nanvm/rust/module.f.js` only has to
 //! name them. Re-exports at the top are what a generated file's
 //! `use crate::harness::*;` pulls in, a glob so that no file lists what it
 //! happens to use.

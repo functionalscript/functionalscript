@@ -4,7 +4,7 @@
  * Each `*Ts` type maps a schema (or schema fragment) to its corresponding TypeScript type.
  * The main entry point is `Ts<T>`.
  *
- * The runtime `toTs` function (`printer` in `./module.f.mjs`) mirrors `Ts<T>` at value
+ * The runtime `toTs` function (`printer` in `./module.f.js`) mirrors `Ts<T>` at value
  * level, returning a TypeScript type expression string for a given RTTI schema.
  *
  * @module
@@ -57,7 +57,7 @@ export type AbsentOr<T> = { readonly [absentKey]: T }
 
 /**
  * Whether the schema type admits **absence** — the type-level counterpart of
- * `admitsAbsence` in `../common/module.f.mjs`, and the predicate
+ * `admitsAbsence` in `../common/module.f.js`, and the predicate
  * {@link StructTs} and {@link TupleTs} decide optionality with. Structural
  * over the schema: it recurses through `or` — which does no flattening, so
  * `or(or(option, number), string)` needs the recursion — and reads a
@@ -206,8 +206,8 @@ export type RecordTs<T extends Type> = { readonly[K in string]?: Ts<T> }
  * That is the same rule {@link StructTs} applies per key — a member is
  * required exactly when its set excludes **absence**, decided by
  * {@link _AdmitsAbsence} over the schema — so an array may stop at the last
- * required position, which is what `../parse/module.f.mjs` and
- * `../validate/module.f.mjs` accept. Under `exactOptionalPropertyTypes`
+ * required position, which is what `../parse/module.f.js` and
+ * `../validate/module.f.js` accept. Under `exactOptionalPropertyTypes`
  * (which this repository sets) the optional rendering is *exact*:
  * `readonly [1, number?]` rejects `[1, undefined]`, exactly as the readers
  * reject a present `undefined` under `or(option, number)`. Only the trailing
@@ -336,7 +336,7 @@ type RequiredFields<T extends Struct> = {
  * one set, so one rendering, and `readonly[42, ...undefined[]]` would admit
  * the `[42, undefined]` both readers reject. What counts as empty is a
  * semantic question — a `toData` conversion compared with the bare
- * container's by `equivalent` in `../data/module.f.mjs` — which `types.ts`
+ * container's by `equivalent` in `../data/module.f.js` — which `types.ts`
  * cannot invoke. Nor is
  * `Ts<R> extends never` a substitute — `Ts<readonly[Or<readonly[]>]>` is
  * `readonly[never]`, whose `length` is `1`. So this recognizes the one
@@ -831,7 +831,7 @@ type _phantomAbsentOnlyArray = Assert<Check<
 
 // ── `TupleTs`'s split, mechanism by mechanism ───────────────────────────────
 //
-// These were `./proof.f.mjs`'s `tupleTs`, a function body of nothing but
+// These were `./proof.f.js`'s `tupleTs`, a function body of nothing but
 // typedefs — so none of them bound to a statement and all nine were green
 // whatever they claimed (`../../AGENTS.md` §1.4). The schemas stay spelled as
 // types for the reason that file already gave: these are type-level facts,

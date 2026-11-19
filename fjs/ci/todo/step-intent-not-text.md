@@ -9,14 +9,14 @@ The assembler knows, when it builds a step, which environment the command
 runs in and which check it belongs to. That knowledge is erased into a
 `run` string, and two later layers reconstruct it from the text.
 
-[`environment`](../environment/module.f.mjs) emits a placeholder prefix:
+[`environment`](../environment/module.f.js) emits a placeholder prefix:
 
 ```js
 export const commandPrefix = 'env '
 export const environmentCommand = command => `${commandPrefix}${command}`
 ```
 
-`migratedStep` in [`mise`](../mise/module.f.mjs) recovers the intent by
+`migratedStep` in [`mise`](../mise/module.f.js) recovers the intent by
 matching it:
 
 ```js
@@ -29,10 +29,10 @@ const translated = generated ? run.replaceAll(commandPrefix, prefix)
 if (['cargo ', 'npm ', 'node ', 'fjs ', 'tsc'].some(command => run.startsWith(command))) {
 ```
 
-and `checkId` in [`smart`](../smart/module.f.mjs) parses the result a
+and `checkId` in [`smart`](../smart/module.f.js) parses the result a
 third time, through `shellPrefixes` and a chain of `startsWith` and `===`
 against whole commands, to decide a step's cache rung. `intelMacSteps` in
-[`module.f.mjs`](../module.f.mjs) spells the Node version test by hand in
+[`module.f.js`](../module.f.js) spells the Node version test by hand in
 exactly the form `migratedStep` must recognise, and `mise`'s `action` and
 `smart`'s `isAction` are the same predicate under two names.
 
@@ -47,7 +47,7 @@ Carry the intent on `MetaStep` in [`common/types.ts`](../common/types.ts):
 an `environment` of `mise`, `spidermonkey` or `none`, and the check the
 step belongs to, written once by the builders that know them, with
 `environmentSteps` and `shellSpiderMonkeyCommands` tagging what they make.
-One renderer, beside `toSteps` in [`common`](../common/module.f.mjs),
+One renderer, beside `toSteps` in [`common`](../common/module.f.js),
 turns a tagged step into its `run`, `shell` and prefix; `smart` reads the
 tag instead of the text. `migratedStep`, `replacedSetup`, `shellPrefixes`,
 `command`, `checkId` and one of `action` and `isAction` go, and

@@ -1,0 +1,211 @@
+/**
+ * The `.rs` output branch of `fjs compile`: a linked EDAG printed as a
+ * self-contained Rust module that builds the module's value through the
+ * `nanvm-lib` API —
+ * [mvp-roadmap](../../../nanvm/lib/todo/mvp-roadmap.md),
+ * [fjs-nanvm-integration](../../../todo/fjs-nanvm-integration.md).
+ *
+ * [`fjs/edag/rust`](../../edag/rust/module.f.js) admits the graph, then
+ * the shared EDAG-to-FAST conversion and preparation passes establish its
+ * bindings and regions. [`fjs/rust/serializer`](../../rust/serializer/module.f.js)
+ * spells that prepared program, through the same pipeline used by
+ * [`fjs/nanvm/rust`](../../nanvm/rust/module.f.js) for the operator corpus.
+ * What is specific to this module:
+ * laying a module's scope out as the body of the
+ * `pub fn module<A: IVm>(runtime: Any<A>) -> Result<Any<A>, Any<A>>` a
+ * harness can call with the runtime value it built once
+ * (`fjs/js/runtime/README.md`, "How NaNVM finds it") —
+ * `A: IStaticFunction` once the module holds a function, the capability its
+ * closures bind through — and importing exactly the `nanvm_lib` names the
+ * printer reports its text spells (`scope`'s `uses`, `useLines`) — the
+ * crate is the output's one dependency, so the functions a literal becomes
+ * are `vm::unstable`'s, never copied here.
+ *
+ * **The module says what it wrote.** The printer tags what it spells — a
+ * keyword, `true` and `false`, a string or number literal, the generated
+ * comment — and `toRustMarked` resolves the runs; `toRust` and `generate`
+ * answer the plain text, as they always have. The skeleton here marks its own
+ * words, `pub fn`, `use` and the comment. Why tagged text and not runs all
+ * through the printer, and how it is proved: `fjs/text/marked/README.md`, §4
+ * and §9.
+ *
+ * @module
+ *
+ * @import { Exp } from '../../edag/types.ts'
+ * @import { Scope } from '../../edag/rust/types.ts'
+ * @import { Result } from '../../types/result/types.ts'
+ * @import { Marked } from '../../text/marked/types.ts'
+ */
+
+import { error, mapOk, okThen, unwrap } from '../../types/result/module.f.js'
+import { analysis, checked } from '../../edag/analysis/module.f.js'
+import { holdsFunction, needsRuntime, readsArgs, scopeTagged } from '../../edag/rust/module.f.js'
+import { useLinesTagged } from '../../rust/serializer/module.f.js'
+import { generatedHeader, indent } from '../../media/rust/item/module.f.js'
+import { fromTagged, tagged, untagged, withNames } from '../../text/marked/module.f.js'
+
+/**
+ * The bound on the module's VM parameter: `IVm`, or `IStaticFunction` —
+ * which is `IVm` and the capability to bind a Rust static function — once
+ * the module holds a function, read off the EDAG (`holdsFunction`) and not
+ * the text: the bound is the output's public API, and no data may change it.
+ *
+ * @type {(root: Exp) => string}
+ */
+const vmBound = root => holdsFunction(root) ? 'IStaticFunction' : 'IVm'
+
+/**
+ * The prepared module scope, indented into the module's function, with the
+ * names it spells, or the
+ * refusal. Validate bindings against their owning functions before printing:
+ * a fixed read cannot reach past its owner's length, and a closure's frame
+ * belongs to the enclosing scope. The fragment printer cannot perform that
+ * check without the complete graph. A module has no arguments, so an
+ * `['args']` node in its own scope — a function body's node, which the
+ * lowering never puts here, handed in directly — is refused rather than
+ * printed as a name nothing binds; a module has no frame either, and a
+ * `['frame', i]` in its own scope is `checked`'s refusal.
+ *
+ * `text` is the text a caller gives a function node in place of the
+ * writer's, where it gives one: the runtime's built-ins
+ * ([`./runtime`](./runtime/module.f.js)), each the NativeFunction text of
+ * its path. `runtime` names the runtime value in the scope, a compiled
+ * module's parameter, or is `null` for the runtime module itself, which
+ * has none and may use nothing it defines.
+ *
+ * @type {(root: Exp, text: ((e: Exp) => string | undefined) | undefined, runtime: string | null) => Result<Scope, readonly unknown[]>}
+ */
+const body = (root, text, runtime) => {
+    const [kind, a] = okThen(checked)(analysis(root))
+    if (kind === 'error') { return error([a, root]) }
+    return readsArgs(root)
+    ? error(['no Rust for `args` in a module\'s own scope; a module has no arguments', root])
+    : mapOk((/** @type {Scope} */ { lines, uses }) => ({ lines: lines.map(l => `${indent}${l}`), uses }))(scopeTagged(root, text, runtime))
+}
+
+/**
+ * A module's scope as one Rust function item, tagged, with the names it
+ * spells and the bound on its VM parameter, under `#[rustfmt::skip]`:
+ * {@link generateTagged}'s `module`,
+ * `pub fn module<A: bound>(runtime: Any<A>) -> Result<Any<A>, Any<A>>`,
+ * of the runtime value every compiled module takes — named `_runtime`
+ * where the module reaches no built-in, so the parameter is the same and
+ * `-D warnings` is kept — and the runtime module's own `runtime`
+ * ([`./runtime`](./runtime/module.f.js)), `pub fn runtime<A: bound>()`,
+ * with no parameter, since it is the value, and with the texts `text`
+ * gives its built-ins. `runtime` is the parameter's name, or `null` for
+ * none.
+ *
+ * @type {(name: string, text: ((e: Exp) => string | undefined) | undefined, runtime: string | null) => (root: Exp) => Result<{ readonly lines: readonly string[], readonly uses: Scope['uses'], readonly bound: string }, readonly unknown[]>}
+ */
+export const itemTagged = (name, text, runtime) => root => mapOk((/** @type {Scope} */ { lines, uses }) => {
+    const bound = vmBound(root)
+    const parameter = runtime === null ? '' : `${needsRuntime(root) ? runtime : `_${runtime}`}: Any<A>`
+    return {
+        lines: [
+            '#[rustfmt::skip]',
+            // Preparation preserves the condition even when both results agree.
+            // Folding those arms here would introduce a target-specific pass.
+            '#[allow(clippy::if_same_then_else)]',
+            `${tagged('keyword')('pub')} ${tagged('keyword')('fn')} ${name}<A: ${bound}>(${parameter}) -> Result<Any<A>, Any<A>> {`,
+            ...lines,
+            '}',
+        ],
+        uses,
+        bound,
+    }
+})(body(root, text, runtime))
+
+/**
+ * The EDAG as a generated Rust module, or the refusal: a node shape this
+ * printer has no `nanvm-lib` spelling for, an invalid parameter binding, or
+ * a function length above the language's limit.
+ * Unsupported output is a `Result`, as in `fjs/edag/rust`'s `scope`.
+ * Invalid length metadata or a node shared across invocation scopes is
+ * refused through the same diagnostic channel.
+ *
+ * `pub fn module` carries `#[rustfmt::skip]` — the policy
+ * [`fjs/nanvm/rust`](../../nanvm/rust/module.f.js)'s output gets once, on
+ * its `mod` declaration, which a compiled module has no hand-written
+ * owner to carry: the layout is
+ * the serializer's own — prepared declarations and expression regions,
+ * including each closure's body — and not rustfmt's, which breaks a closure argument
+ * and a method chain its own way, and a line still grows with the items
+ * of one literal. A layout-preserving printer would have to reproduce
+ * rustfmt's own wrapping, which is what the skip avoids paying for.
+ *
+ * @type {(root: Exp) => Result<string, readonly unknown[]>}
+ */
+const generateTagged = root => mapOk((/** @type {{ readonly lines: readonly string[], readonly uses: Scope['uses'], readonly bound: string }} */ { lines, uses, bound }) => [
+    tagged('comment')(generatedHeader('`fjs compile`', 'recompile the source module instead')),
+    '',
+    ...useLinesTagged(uses, bound),
+    '',
+    ...lines,
+    '',
+].join('\n'))(itemTagged('module', undefined, 'runtime')(root))
+
+/**
+ * {@link generateTagged} as plain text, the form every caller before marked
+ * text knows.
+ *
+ * @type {(root: Exp) => Result<string, readonly unknown[]>}
+ */
+const generateResult = root => mapOk(untagged)(generateTagged(root))
+
+/**
+ * {@link generateResult} as a throwing convenience, for direct use and for
+ * this module's own proofs — `unwrap`'s throw is the ordinary FunctionalScript
+ * panic `fjs/AGENTS.md` §1.5 describes, not a caught exception: nothing here
+ * recovers from it, so it propagates uncaught exactly as a thrown value with
+ * no `try`/`catch` does.
+ *
+ * @type {(root: Exp) => string}
+ */
+export const generate = root => unwrap(generateResult(root))
+
+/**
+ * The reason {@link generateResult} refused, as text. Every refusal
+ * `scopeTagged` reports (`fjs/edag/rust/module.f.js`) is a `[reason, detail]`
+ * pair — `lookup`'s convention, kept by every refusal added since — never a
+ * bare value, so joining the pair's own `String` forms is exact rather than
+ * approximate.
+ *
+ * @type {(reason: readonly unknown[]) => string}
+ */
+const reasonText = reason => reason.map(value => String(value)).join(': ')
+
+/**
+ * The Rust module with token kinds still tagged in the text, or its refusal.
+ *
+ * @type {(root: Exp) => Result<string, string>}
+ */
+const toRustTagged = root => {
+    const result = generateTagged(root)
+    return result[0] === 'ok'
+        ? result
+        : error(`no Rust spelling for this module: ${reasonText(result[1])}`)
+}
+
+/**
+ * The EDAG as Rust, or the refusal: a node shape this printer has no
+ * `nanvm-lib` spelling for, reported the same way a `.json` output's refusal
+ * is — against the output rather than the input, since the module compiled
+ * without complaint. Built directly from {@link generateResult}'s own
+ * `Result`, including structural graph diagnostics from analysis.
+ * No `try`/`catch` or host adapter is needed to report unsupported output.
+ *
+ * @type {(root: Exp) => Result<string, string>}
+ */
+export const toRust = root => mapOk(untagged)(toRustTagged(root))
+
+/**
+ * {@link toRust} as marked text: the generated module's comment, keywords,
+ * string and number literals and `true`/`false` carry their kinds, which the
+ * printer says where it spells them, and every word left over is a name, an
+ * `identifier`: all the data the printer writes is inside a string literal,
+ * so what stays plain is its own code. The text is {@link toRust}'s.
+ *
+ * @type {(root: Exp) => Result<Marked, string>}
+ */
+export const toRustMarked = root => mapOk(text => withNames(unwrap(fromTagged(text))))(toRustTagged(root))

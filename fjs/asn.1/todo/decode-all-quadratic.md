@@ -6,7 +6,7 @@
 
 ### Problem
 
-`decodeAll` (`fjs/asn.1/module.f.mjs`) drains a bit vector by repeatedly
+`decodeAll` (`fjs/asn.1/module.f.js`) drains a bit vector by repeatedly
 applying `step` until it's empty. It backs `decodeSequence` / `decodeSet` and
 the arcs after the first byte of `decodeObjectIdentifier`. Two independent
 O(n) costs stacked per iteration:
@@ -54,7 +54,7 @@ expected element counts call for it.
       acceptable given ASN.1 structures in this codebase's actual usage
       (RFC 3161 timestamp requests/responses) are small.
 - [ ] If fixed, add a proof test with a `SEQUENCE OF` containing many
-      elements, timed the same way as `fjs/basen/base64/proof.f.mjs`
+      elements, timed the same way as `fjs/basen/base64/proof.f.js`
       `encodeLargeVecIsSlow` (no timing assertion).
 
 ### Related

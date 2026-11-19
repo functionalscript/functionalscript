@@ -5,7 +5,7 @@
  * under [`fjs/js/runtime`](../../../../js/runtime/module.f.js), or both
  * throw. The interpreter is the executor whose semantics NaNVM's are
  * checked against, so this checks the bodies against the semantics they
- * copy, where `../proof.f.mjs` checks them against JavaScript's.
+ * copy, where `../proof.f.js` checks them against JavaScript's.
  *
  * It is a host proof because it needs what FunctionalScript has not: it
  * builds each host value from its source with `Function`, and it catches
@@ -14,13 +14,13 @@
  */
 
 import { assertEq, assertOk } from '../../../../asserts/module.f.js'
-import { _transpileDefault } from '../../../../compiler/transpiler/module.f.mjs'
-import { pureOk } from '../../../../effects/module.f.mjs'
-import { vm } from '../../../../edag/amnesia/module.f.mjs'
+import { _transpileDefault } from '../../../../compiler/transpiler/module.f.js'
+import { pureOk } from '../../../../effects/module.f.js'
+import { vm } from '../../../../edag/amnesia/module.f.js'
 import { read } from '../../../../edag/value/property/module.f.js'
-import { virtualAt } from '../../../../effects/node/virtual/module.f.mjs'
+import { virtualAt } from '../../../../effects/node/virtual/module.f.js'
 import runtimeEdag from '../../../../js/runtime/gen.edag.js'
-import { utf8 } from '../../../../text/module.f.mjs'
+import { utf8 } from '../../../../text/module.f.js'
 import {
     add, divide, get, greaterThan, greaterThanOrEqual, lessThan, lessThanOrEqual, multiply, negate,
     strictEquals, subtract, toBoolean, toNumber, toString, typeOf,

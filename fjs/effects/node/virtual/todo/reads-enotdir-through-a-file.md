@@ -5,7 +5,7 @@
 
 ### Problem
 
-`resolveFile` in [`../module.f.mjs`](../module.f.mjs) answers `ENOENT` for every
+`resolveFile` in [`../module.f.js`](../module.f.js) answers `ENOENT` for every
 remaining path that is not exactly one segment. Two different situations reach
 that guard, and a host distinguishes them:
 
@@ -161,7 +161,7 @@ served **root** that has itself been replaced by a file is `500`, because `404`
 there would report the operator's mistake as the client's.
 
 `throughFile` and `rootNotDirectory` in
-[`../../../../web/proof.f.mjs`](../../../../web/proof.f.mjs) pin both against
+[`../../../../web/proof.f.js`](../../../../web/proof.f.js) pin both against
 this runner rather than a host, for two *different* reasons. Only
 `rootNotDirectory`'s status differs by platform — `500` where a host says
 `ENOTDIR`, `404` where Windows says `ENOENT`. `throughFile`'s does not: it is
@@ -191,7 +191,7 @@ Whichever option is chosen, then:
   longer-path branch returns, which is exactly the case a length test would
   have broken.
 - The three `*NestedThroughFile` fixtures in
-  [`../proof.f.mjs`](../proof.f.mjs) pin the current codes, so they are the ones
+  [`../proof.f.js`](../proof.f.js) pin the current codes, so they are the ones
   that have to change, deliberately, with it.
 
 ### Tasks
@@ -220,7 +220,7 @@ Whichever option is chosen, then:
 
 ### Related
 
-- `statPath` in [`../module.f.mjs`](../module.f.mjs) — the `ENOTDIR` argument
+- `statPath` in [`../module.f.js`](../module.f.js) — the `ENOTDIR` argument
   this diverges from, made for `stat` and not carried to the reads.
 - [lexical-path-resolution](./lexical-path-resolution.md) — traversal rather
   than kind, and a **precondition** of this issue's `EISDIR` option rather than

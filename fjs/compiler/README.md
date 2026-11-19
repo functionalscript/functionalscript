@@ -6,19 +6,19 @@ boundaries and shared FAST migration contracts. The
 and transfer owners to the existing representations and conformance proofs.
 
 The front end: a grammar-based tokenizer over
-[`fjs/ebnf/lib/js`](../ebnf/lib/js/module.f.mjs), the
+[`fjs/ebnf/lib/js`](../ebnf/lib/js/module.f.js), the
 [parser](./parser/README.md), shared [FAST](../js/ast/README.md), and the
-[transpiler](./transpiler/module.f.mjs) behind `fjs compile`. It moved here
+[transpiler](./transpiler/module.f.js) behind `fjs compile`. It moved here
 from `fjs/djs` when the parsers and serializers were restructured, and its
 issues followed into [`todo/`](./todo/) when the old serializer was retired
 and `fjs/djs` emptied. Module interpretation uses
 [EDAG values](../edag/value/types.ts); data outputs convert explicitly to
 ordinary runtime data before serialization. `fjs compile` writes
 the language its output name declares: a `.data.js` document through
-[`fjs/media/datajs/serializer`](../media/datajs/serializer/module.f.mjs) in
-normalized form, a `.js` module through [`serializer`](./serializer/module.f.mjs)
+[`fjs/media/datajs/serializer`](../media/datajs/serializer/module.f.js) in
+normalized form, a `.js` module through [`serializer`](./serializer/module.f.js)
 from the linked graph, and a `.json` output that refuses what JSON cannot
-spell rather than approximating it — see [`module.f.mjs`](./module.f.mjs).
+spell rather than approximating it — see [`module.f.js`](./module.f.js).
 
 File-module resolution uses the host's module identity and loading path. In the
 Node profile, resolved files are read and diagnosed by their absolute canonical
@@ -90,7 +90,7 @@ source through spread and use the same aggregate loop state and completion
 machinery. `for…in`, assignment-target iteration and update operators remain
 separate features.
 
-[`js/ast/sugar`](../js/ast/sugar/module.f.mjs) owns pattern/default expansion and
+[`js/ast/sugar`](../js/ast/sugar/module.f.js) owns pattern/default expansion and
 normalization into immutable FAST values. It keeps one required initializer,
 creates fresh versions for assignments, and supplies explicit loop inputs and
 results. A const snapshot retains its own source identity even when its current
@@ -106,7 +106,7 @@ same loaded module receive that module's same export object. Empty import lists
 still require module initialization. The graph-construction convenience API
 composes normalization with [`edag/from_fast`](../edag/from_fast/README.md).
 
-`interpret(load)(path)` in [`transpiler`](./transpiler/module.f.mjs) loads
+`interpret(load)(path)` in [`transpiler`](./transpiler/module.f.js) loads
 imports, then evaluates each module's unresolved EDAG with their complete
 represented export objects as arguments. `load` is the runtime the
 initializations run under, a `RuntimeLoad` run once the root is known to be
@@ -141,11 +141,11 @@ default and applying synchronous `toData`. Every required dependency and initial
 refusal from a source failure. This allows
 `export const f = x => x; export default 1;` to produce JSON `1`, while a callable
 in the selected data is refused at the output path. Both APIs keep direct JSON
-documents unwrapped. The [transpiler proofs](./transpiler/proof.f.mjs) cover
+documents unwrapped. The [transpiler proofs](./transpiler/proof.f.js) cover
 calls/operators, projection and unused initialization. The obsolete `Denotation`
 wrapper is removed.
 
-[`serializer/value`](./serializer/value/module.f.mjs) provides the code-generation
+[`serializer/value`](./serializer/value/module.f.js) provides the code-generation
 step for callable runtime compilation: `stringify(value)` emits a JavaScript
 module whose default export constructs a closed `EdagValue` as ordinary runtime
 data and functions. Evaluated captures may be primitive, repeated or unused;
@@ -154,7 +154,7 @@ memo semantics with fresh invocation-local allocations. The emitter trusts
 constructed values and reuses the function-body renderer. Its output promises
 runtime behavior, not a structural FJS source round trip. `factoryStringify`
 emits the same construction inside a default-exported factory, which the
-effectful [`toUnknown`](../edag/value/to_unknown/module.f.mjs) uses for runtime
+effectful [`toUnknown`](../edag/value/to_unknown/module.f.js) uses for runtime
 loading. Supply its [`javascriptOperationMap`](../edag/value/to_unknown/module.mjs)
 alongside read/resolve handlers to run `transpile` with callable exports.
 
@@ -176,7 +176,7 @@ See [examples/input.f.js](./examples/input.f.js).
 ## EDAG
 
 A parsed module also compiles to an [EDAG](../edag/README.md) —
-[edag/module.f.mjs](./edag/module.f.mjs), Stage 1 of
+[edag/module.f.js](./edag/module.f.js), Stage 1 of
 [compile-modules-to-edag](./todo/compile-modules-to-edag.md). `unresolved`
 compiles it over its imports, before any import is read: import `i` is the
 parameter selection `['.', ['.', ['args'], i], 'default']`, a `const` is one node however many references
@@ -188,7 +188,7 @@ binding happens where a reference is lowered, so the graph is built once with
 the imported module's node where its parameter would be — and a module met
 twice in one link is one node, so a diamond of imports joins where it should.
 `resolve` and `interpret` load a program by one walk, `_walk` in
-[`source`](./source/module.f.mjs), and differ only in what a module becomes.
+[`source`](./source/module.f.js), and differ only in what a module becomes.
 A property access, `a.b` or `a[0]`, is the EDAG's `['.', base, key]`, its
 key a constant the parser admitted — `__proto__` and `constructor` refused at
 the key.
@@ -200,7 +200,7 @@ it.
 `.edag.data.js` or `.edag.data.mjs`, as a DataJS document with its shared
 nodes hoisted as the DataJS output's are, and writes it back as source under
 any other `.js` or `.mjs` name, through
-[`serializer`](serializer/module.f.mjs), retaining function code. What
+[`serializer`](serializer/module.f.js), retaining function code. What
 the export does not reach is anchored by the comma operation rather than
 dropped, `[',', [...roots, exported]]`: interpretation reads every dependency and
 establishes every required initializer, so a failure behind an unused one fails
@@ -248,11 +248,11 @@ A `-` before a value is the unary minus, `['-', exp]` — `op12` of one operand
 — and was once the language's only operator. It is no part of the literal
 after it, so `-1` is the negation of `1` in the parser's tree, and the
 lowering folds that one case back into the leaf: negating a numeric literal
-is exact arithmetic, so the graph holds the number and [`rust`](rust/module.f.mjs)
+is exact arithmetic, so the graph holds the number and [`rust`](rust/module.f.js)
 prints it. A negation of anything else stays a node — folding one would mean
 saying what a container converts to. Code outputs retain that operation; value
 outputs interpret it, including container conversion and represented failures
-(`negation` in the [language proofs](./language.proof.f.mjs)). It binds looser than a
+(`negation` in the [language proofs](./language.proof.f.js)). It binds looser than a
 step, as it does in JavaScript, so `-1 .x` is `-(1 .x)` and `-1()` is `-(1())`
 — which is what retired the two refusals the old fold needed, an access and a
 call on a numeric literal alike. What it takes is JavaScript's
@@ -279,7 +279,7 @@ wrapping a shared primary the ladder above negation once tried and
 retired, since `func`'s body is unbounded and a wrapped primary would leak
 the ladder's own follow set into it — `unary`, negation's own narrow
 operand, is every layer's operand instead, `./parser/README.md` has the
-argument. [`rust`](rust/module.f.mjs) already spelled every one of these
+argument. [`rust`](rust/module.f.js) already spelled every one of these
 EDAG nodes but `!==`, which this front end had no path to produce before —
 the front end is what was missing, not the code generator.
 
@@ -305,7 +305,7 @@ tokenizer refused; `typeof` is a keyword the tokenizer hands over as an
 `id`, so the grammar gives it a symbol of its own, as it gives `return` and
 `throw`, and since it opens a value it is the one such keyword `identifier`
 leaves out — a reference cannot be a reserved word anyway, and a key or a
-property name may still be one. [`rust`](rust/module.f.mjs) and both
+property name may still be one. [`rust`](rust/module.f.js) and both
 interpreters already answered both nodes; the front end was what was
 missing, as for `!==` above.
 
@@ -324,12 +324,12 @@ two nodes and a `const` naming one is one — which is what a body's `const`
 keeps. One call lowers to no call at all: a parameterless function written
 at the call and called with no arguments, `(() => { const x = f(); return
 [x, x]; })()`, becomes a normalized value block in
-[`js/ast/sugar`](../js/ast/sugar/module.f.mjs), with the enclosing binding
+[`js/ast/sugar`](../js/ast/sugar/module.f.js), with the enclosing binding
 values and required evaluations retained at that point. No invocation boundary
 is added by this block; [spec: functions](../../spec/functions/README.md)
 states the source rule. The writer
 spells the same idiom back where a lazy operand shares a value nothing else
-reaches. [`serializer`](serializer/module.f.mjs) writes both ordinary and method
+reaches. [`serializer`](serializer/module.f.js) writes both ordinary and method
 calls, including chained calls, spreads and calls shared through a `const`.
 Common graph placement establishes computed callees before the call, as in
 `const f=x+1;export default f();`. A function callee takes a binding so reading
@@ -337,7 +337,7 @@ the output does not inline away the original call node. A negative callee
 needs the same care as an access base: `-1()` is `-(1())`, so a negative numeric
 leaf is grouped, `export default (-1)();`, while a computed negation is
 established by a temporary. The `calls`, `neg` and `operators` groups in the
-[serializer proofs](./serializer/proof.f.mjs) pin these spellings and their
+[serializer proofs](./serializer/proof.f.js) pin these spellings and their
 structural round trips. Calls and arithmetic can therefore reach source, EDAG
 and Rust output, and can compute data for JSON/DataJS output.
 
@@ -376,8 +376,8 @@ value output, which reads the value the constructor built, never sees it.
 
 ## Both grammars use predictive parsing
 
-The tokenizer's grammar, [`fjs/ebnf/lib/js`](../ebnf/lib/js/module.f.mjs),
-and the parser's, [`parser/grammar`](./parser/grammar/module.f.mjs), are read
+The tokenizer's grammar, [`fjs/ebnf/lib/js`](../ebnf/lib/js/module.f.js),
+and the parser's, [`parser/grammar`](./parser/grammar/module.f.js), are read
 by [`fjs/ebnf/ll1`](../ebnf/ll1/README.md), which checks one-symbol choices before any input. Its default policy refuses
 conflicts; the source parser explicitly prefers indexing continuations on `[`
 over a new array-led statement. The classical grammars
@@ -428,7 +428,7 @@ FunctionalScript compiler.
 |---|---|
 | `.f.ts` | Authored FunctionalScript-intent TypeScript implementation/proof source. **No longer used**: stage 1 removed the last one, and new source must not use this extension. It appears below only to describe that completed migration. |
 | `.f.mjs` | Authored FunctionalScript-intent ESM JavaScript with JSDoc types. It may use FunctionalScript features the current parser/compiler does not support yet. |
-| `.f.js` | Authored FunctionalScript that the parser/compiler in the same revision accepts: the stage-2 compatibility marker ([below](#stage-2-mark-compiler-compatible-functionalscript)). Its proof stays `proof.f.mjs`, because a proof's functions end without an explicit `return`, which the compiler refuses — its assertion calls are call statements it does ([spec: call statements](../../spec/functions/call-statements/README.md)); [`fjs/asserts`](../asserts/module.f.js) itself is one. Every repository module the compiler accepts whole is one, [`fjs/js/prototype`](../js/prototype/module.f.js) and [`fjs/types/range`](../types/range/module.f.js) among them, and none of them imports an `.f.mjs`; the packed-package check in the `package` CI job imports one from a clean consumer of the packed package ([`fjs/ci/package`](../ci/package/module.f.mjs)). No build or packaging step produces one: stage 1's TypeScript runtime emission did, and that pass is gone ([#1520](https://github.com/functionalscript/functionalscript/pull/1520)). `fjs compile <input> <output>.f.js` does still write one, to a path the caller names — that is the compiler's output for a user, not repository source. `fjs compile` with no arguments checks every authored one against this compiler, and CI runs it ([spec: checking every `.f.js`](../../spec/command-line/checking.md)). |
+| `.f.js` | Authored FunctionalScript that the parser/compiler in the same revision accepts: the stage-2 compatibility marker ([below](#stage-2-mark-compiler-compatible-functionalscript)). A proof is named by the same rule, on its own: `proof.f.js` once the compiler accepts the proof whole, `proof.f.mjs` while it uses a construct the compiler refuses — its assertion calls are call statements the compiler reads ([spec: call statements](../../spec/functions/call-statements/README.md)); [`fjs/asserts`](../asserts/module.f.js) itself is one. Every repository module the compiler accepts whole is one, [`fjs/js/prototype`](../js/prototype/module.f.js) and [`fjs/types/range`](../types/range/module.f.js) among them, and none of them imports an `.f.mjs`; the packed-package check in the `package` CI job imports one from a clean consumer of the packed package ([`fjs/ci/package`](../ci/package/module.f.js)). No build or packaging step produces one: stage 1's TypeScript runtime emission did, and that pass is gone ([#1520](https://github.com/functionalscript/functionalscript/pull/1520)). `fjs compile <input> <output>.f.js` does still write one, to a path the caller names — that is the compiler's output for a user, not repository source. `fjs compile` with no arguments checks every authored one against this compiler, and CI runs it ([spec: checking every `.f.js`](../../spec/command-line/checking.md)). |
 | `types.ts` | Authored TypeScript source for a type-level API. It may coexist with `.f.mjs` or later `.f.js` and holds no runtime implementation. |
 | `.d.ts`, `.d.mts` | Generated TypeScript declarations. |
 
@@ -651,7 +651,7 @@ type-checked, receives a `.d.ts`, is packed in the clean CI package build and
 is covered, and the packed-package check in the `package` CI job imports
 a published one from a clean consumer, runs it and type-checks a use of its
 declaration with a negative control
-([`fjs/ci/package`](../ci/package/module.f.mjs)); and the first
+([`fjs/ci/package`](../ci/package/module.f.js)); and the first
 renames followed — every module the compiler accepted whole,
 `fjs/js/prototype` and `fjs/types/range` among them. What keeps them honest is
 `fjs compile` with no arguments, which CI runs.
@@ -679,8 +679,8 @@ it does not change the extension contract for repository source.
 
 Decided with the retirement of the hand-written scanner, and not to reopen
 without a reason. The grammar's tokens,
-[`fjs/ebnf/lib/js`](../ebnf/lib/js/module.f.mjs) read by
-[`fjs/js/tokenizer`](../js/tokenizer/module.f.mjs), grow toward the whole
+[`fjs/ebnf/lib/js`](../ebnf/lib/js/module.f.js) read by
+[`fjs/js/tokenizer`](../js/tokenizer/module.f.js), grow toward the whole
 JavaScript lexical surface, because everything that reads a `.f.mjs` — this
 compiler, the website's highlighter, a linter — needs the same tokens, and a
 token that is recognised is not thereby accepted: the compiler's fold and

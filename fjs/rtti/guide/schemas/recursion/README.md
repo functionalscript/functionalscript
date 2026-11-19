@@ -44,6 +44,10 @@ twice and drawn once; the drop-down switches between them. The lessons are
 defined in [`sample.f.js`](./sample.f.js), and the
 [module page's demo](../../../README.md) lists them among all the others.
 
+The demo supplies `names: [[tree, 'tree']]` as display metadata. Labels do
+not depend on JavaScript function names: an unnamed thunk keeps its structural
+label, and two thunks with the same display name remain distinct definitions.
+
 ## Reference
 
 - TypeScript: [recursive type aliases](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-7.html#more-recursive-type-aliases)
@@ -53,5 +57,5 @@ defined in [`sample.f.js`](./sample.f.js), and the
 ## Where it is implemented
 
 `Thunk` and `Info` in [`types.ts`](../../../types.ts); `toData`'s named
-rules in [`data`](../../../data/module.f.mjs); `WithOut` in
+rules in [`data`](../../../data/module.f.js); `WithOut` in
 [`ts/types.ts`](../../../ts/types.ts).

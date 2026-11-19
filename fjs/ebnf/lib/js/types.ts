@@ -16,8 +16,8 @@
 
 import type { Set } from '../../types.ts'
 import type { keywords } from '../../../js/keywords/module.f.js'
-import type { operators } from './module.f.mjs'
-import type { templateEscape } from './module.f.mjs'
+import type { operators } from './module.f.js'
+import type { templateEscape } from './module.f.js'
 
 /**
  * The content of a block comment: a `*` and what follows it, any other

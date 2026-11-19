@@ -2,7 +2,7 @@
  * Host proofs of `fjs web`: what only a real socket and a real file can settle.
  *
  * The response frame is proven against the virtual runner in
- * [`./proof.f.mjs`](./proof.f.mjs) — request in, response out, every status the
+ * [`./proof.f.js`](./proof.f.js) — request in, response out, every status the
  * table promises. What is left here is what a fixture cannot make:
  *
  * - a file far larger than the process should hold, served **correctly** and
@@ -22,7 +22,7 @@ import { join } from 'node:path'
 
 import { assert, assertEq } from '../asserts/module.f.js'
 import { isBun, loopback, within, withServer, withTemporary } from '../effects/node/testlib.mjs'
-import { respond } from './module.f.mjs'
+import { respond } from './module.f.js'
 
 /**
  * The file the two byte-for-byte proofs read: sixteen 131,072-byte chunks and a
@@ -317,7 +317,7 @@ export const proof = {
     // non-regular entry opens: `O_NONBLOCK` opens a FIFO at once, a character
     // device opens, and POSIX opens a directory, so all three are refused from the
     // `fstat` — the branch the virtual file system's non-regular entry covers in
-    // [`./proof.f.mjs`](./proof.f.mjs) (`respond.notRegular`). A socket cannot be
+    // [`./proof.f.js`](./proof.f.js) (`respond.notRegular`). A socket cannot be
     // opened at all, and what it answers is not one code but one *errno* wearing
     // three names: measured on Darwin arm64 against the same socket, `open` failed
     // with errno −102 (`EOPNOTSUPP`) reported as `Unknown system error -102` on

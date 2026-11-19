@@ -71,7 +71,7 @@ arrow parameter lists. The task extends that syntax
 without losing the function's observable `length` when compiling, executing
 or writing its EDAG.
 
-The previous [`=>` operation](../../fjs/edag/operations/module.f.mjs) constructs
+The previous [`=>` operation](../../fjs/edag/operations/module.f.js) constructs
 `(...args) => ...`, whose `length` is zero. Merely lowering named parameters
 to indexed reads of the existing `['args']` would therefore change results.
 
@@ -120,7 +120,7 @@ arguments remain permitted.
    ordered list of fixed bindings and an optional rest binding. Preserve
    source locations, blocks and explicit returns. Names are erased only after
    binding and syntax validation.
-2. Extend the [parameter and parenthesis grammar](../../fjs/compiler/parser/grammar/module.f.mjs).
+2. Extend the [parameter and parenthesis grammar](../../fjs/compiler/parser/grammar/module.f.js).
    Named parameters overlap the identifier/grouped-expression prefix: factor
    that shared prefix and distinguish a parameter list from a group using
    the arrow continuation. Do not add an independent token-pattern parser or
@@ -399,8 +399,8 @@ source rest binding in that future case or silently admit initializers now.
 - [x] Prove represented direct/indirect and built-in-method conversion
       against the EDAG renderer, including captures, nested functions and
       `self`: see the
-      [conversion proofs](../../fjs/edag/value/convert/proof.f.mjs),
-      [function-text proofs](../../fjs/compiler/serializer/function_text/proof.f.mjs)
+      [conversion proofs](../../fjs/edag/value/convert/proof.f.js),
+      [function-text proofs](../../fjs/compiler/serializer/function_text/proof.f.js)
       and [shared corpus](../../fjs/nanvm/proof.f.mjs).
 - [x] Preserve ordinary callable exports, nested returns, arity, callbacks
       and sharing at the reflection-erasing runtime boundary: see
@@ -435,7 +435,9 @@ source rest binding in that future case or silently admit initializers now.
   — canonical positive-zero arity and index metadata.
 - [Statement-aware compilation](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md)
   — preserve JavaScript syntax and bindings before EDAG admission/lowering.
-- [Destructuring](./2450-destructuring.md) — separate binding-pattern work.
+- [Destructuring](../bindings/destructuring/README.md) — binding patterns in
+  fixed parameters; [rest parameter patterns](./rest-parameter-patterns.md)
+  remain separate work.
 - [Function frame](../design/3111-function-frame.md) — capture semantics.
 - [ECMAScript arrow functions](https://tc39.es/ecma262/multipage/ecmascript-language-functions-and-classes.html#sec-arrow-function-definitions)
   — parameter syntax, early errors and function creation.

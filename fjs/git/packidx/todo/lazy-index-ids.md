@@ -5,7 +5,7 @@
 
 ### Problem
 
-[`tryIdx`](../module.f.mjs) answers an [`Idx`](../types.ts) whose `ids` is an
+[`tryIdx`](../module.f.js) answers an [`Idx`](../types.ts) whose `ids` is an
 array of `Oid`, so every id in the file becomes a bit vector — a `bigint` — as
 the file is read. A lookup is a bisection and visits about `log2(n)` of them,
 so every one of the rest was built for nothing.
@@ -58,6 +58,6 @@ settles, and `fjs/git/store` already pays the same price per object.
 
 ### Related
 
-- [`fjs/git/packidx/module.f.mjs`](../module.f.mjs) — the module header states
+- [`fjs/git/packidx/module.f.js`](../module.f.js) — the module header states
   the same cost as a shape, and sends the figures here rather than carrying a
   timing of its own.

@@ -25,6 +25,8 @@ structurallySame({ a: [1] }, { a: [1] }) // true
 |Function                               |Does                                                                           |
 |---------------------------------------|-------------------------------------------------------------------------------|
 |[`entry(object, name)`](./entry/module.f.js)|the enumerable **own** property `name`, or `undefined`                      |
+|[`nameOf(named)`](./name/module.f.js)  |the `name` field of a value, which the language does not read by its name      |
+|[`size(value)`](./size/module.f.js)    |how many nodes a value has as a tree, itself counted                           |
 |`fromEntries(list)`                    |an object from a [`List`](../list/README.md) of `[key, value]` entries         |
 |`sort(list)`                           |the entries in key order; for a repeated key, the last value wins              |
 |`fromMap(map)`                         |an object from an [`ordered_map`](../ordered_map/module.f.js)                 |

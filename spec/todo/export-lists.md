@@ -14,7 +14,7 @@ export { x };
 
 This syntax is separate from implemented [`export const`](../modules/exports/README.md).
 The generic AST and FunctionalScript admission currently refuse export lists.
-The [website demo](../../fjs/website/demo/module.f.mjs) forwards existing control
+The [website demo](../../fjs/website/demo/module.f.js) forwards existing control
 functions using aliased imports and declaration exports instead.
 
 ### Proposal

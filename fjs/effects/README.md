@@ -3,7 +3,7 @@
 `Effect<O, T, E>` ([`./types.ts`](./types.ts)) is a `Pure` thunk yielding
 `Result<T, E>` or a `Do` node: the failure is part of the representation, not a
 wrapper around it. One type, one module —
-[`./module.f.mjs`](./module.f.mjs) holds the representation, its interpreters
+[`./module.f.js`](./module.f.js) holds the representation, its interpreters
 and the combinators alike.
 
 ## Start here
@@ -28,8 +28,8 @@ without a `try`.
  * @import { DemoAsk as Ask, Effect } from './types.ts'
  * @import { MemOperationMap } from './mock/types.ts'
  */
-import { catchStep, do_, pureOk, step } from './module.f.mjs'
-import { run } from './mock/module.f.mjs'
+import { catchStep, do_, pureOk, step } from './module.f.js'
+import { run } from './mock/module.f.js'
 import { error, ok } from '../types/result/module.f.js'
 
 // An operation: a command name, called like a function, returning an Effect.
@@ -81,7 +81,7 @@ be watched happening.
 
 |Module                                  |Holds                                                                       |
 |----------------------------------------|----------------------------------------------------------------------------|
-|[`.`](./module.f.mjs)                   |the `Effect` type, the combinators above, and the matchers runners use      |
+|[`.`](./module.f.js)                   |the `Effect` type, the combinators above, and the matchers runners use      |
 |[`common`](./common/README.md)          |operations any host can have: the console, `sandbox`, `catch`, `import`, `all`|
 |[`node`](./node/README.md)              |Node operations (files, network, processes) and the `NodeProgram` type       |
 |[`browser`](./browser/README.md)        |the browser page's operations: `fetchText`, `instantiate`, `jsHeapSize`      |
@@ -145,7 +145,7 @@ from exceptions or Rust's `?`, without giving it exceptions.
 
 ## The vocabulary
 
-Three branch-aware operations, in [`./module.f.mjs`](./module.f.mjs):
+Three branch-aware operations, in [`./module.f.js`](./module.f.js):
 
 - `step` — continue on `ok`, propagate the error. The normal path.
 - `catchStep` — continue on `error`, preserve the success value. The error path.
@@ -167,7 +167,7 @@ fails there rather than at some future call site.
 
 The composition API and the representation share one module: `pure`, `do_`,
 `match`, `partialMatch` and `runPure` sit beside `step` and the rest in
-[`./module.f.mjs`](./module.f.mjs). They were split while that module also
+[`./module.f.js`](./module.f.js). They were split while that module also
 exported `Result`-blind twins of `step`, `mapStep`, `history`, `historyStep`,
 `foldStep` and `forEachStep`, since the names collided. The twins are gone, and
 so is the split.
@@ -263,7 +263,7 @@ rather than discard it:
   `unwrap` buried in a continuation, so a site that has not chosen a real
   policy is exactly a site this name marks. The library has none left; the
   remaining calls are in test harnesses, where a missing fixture is fatal.
-- `exitStep` / `errorMessage` (`./node/module.f.mjs`) — a `NodeProgram`'s
+- `exitStep` / `errorMessage` (`./node/module.f.js`) — a `NodeProgram`'s
   exit-code policy: report the failure on `stderr` and exit `1`.
 
 Neither is composition, and neither should grow: a consumer that can do

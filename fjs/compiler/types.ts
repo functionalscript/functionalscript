@@ -13,6 +13,7 @@ import type { SourceError } from './transpiler/types.ts'
 import type { Marked } from '../text/marked/types.ts'
 import type { Result } from '../types/result/types.ts'
 import type { Files, Imports } from './demo_files/types.ts'
+import type { _Linked } from './edag/types.ts'
 
 /**
  * The compiler demo's program, its main module and the files it holds besides
@@ -41,10 +42,15 @@ export type RuntimeLoad = Effect<ReadWhole | ResolveFileModule, Runtime | undefi
  */
 export type _CompileOp = All | Mkdir | ReadWhole | Readdir | ResolveFileModule | Rm | WriteBytes | WriteFile | Write
 
-/** What the no-argument check counted: the `.f.js` files it read, and among them the ones the compiler refused. */
+/**
+ * What the no-argument check holds between files: the `.f.js` files it read,
+ * among them the ones the compiler refused, and the modules linked so far,
+ * which the next file is linked over.
+ */
 export type _Checked = {
     readonly checked: number
     readonly refused: number
+    readonly linked: _Linked
 }
 
 /**

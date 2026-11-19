@@ -24,17 +24,17 @@ export const bun = '1.4.4'
 
 export const deno = '2.9.8'
 
-export const node = /** @type {const} */ ('26.13.0')
+export const node = /** @type {const} */ ('26.13.1')
 
 export const typescript = /** @type {const} */({
     version: '7.0.2',
 })
 
-export const rust = '1.99.1'
+export const rust = '1.100.0'
 
 export const jobTimeout = /** @type {const} */ (30)
 
-export const wasmtime = '50.0.1'
+export const wasmtime = '50.0.2'
 
 export const wasmer = '7.5.0'
 

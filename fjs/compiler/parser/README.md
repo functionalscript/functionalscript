@@ -11,14 +11,20 @@ It is the upper layer of a layered parser: the tokenizer turns code points into
 tokens, and this turns tokens into a `ResolvedModule`. Both layers use predictive grammars read by [`fjs/ebnf/ll1`](../../ebnf/ll1/README.md) and a fold over what
 the grammar matched; only the alphabet differs — code points there, token
 symbols here. This layer is two modules along the line its two questions
-draw: [`./syntax`](./syntax/module.f.mjs) holds the rewrite set, which turns
+draw: [`./syntax`](./syntax/module.f.js) holds the rewrite set, which turns
 the grammar's tree into the syntax tree — a node per value, a record per
-statement — and `parseSyntax`, the reader over tokens; `./module.f.mjs` is
+statement — and `parseSyntax`, the reader over tokens; `./module.f.js` is
 the fold, which resolves the tree's names into the AST and refuses what only
 a word or a line can tell, and `parseFromTokens`, the two in sequence. Trivia is in neither alphabet's stream for
 long: the tokenizer reads it and leaves it out, keeping of it the one fact a
 rule of the language asks, whether a newline stood before a token
-([`fjs/compiler/tokenizer`](../tokenizer/module.f.mjs)).
+([`fjs/compiler/tokenizer`](../tokenizer/module.f.js)).
+
+Pattern, parameter and loop continuations use `pattern`, `parameter` and
+`region` steps on the shared resolution worklist. `evaluateState` dispatches
+the next step after its handler returns, keeping helper dependencies acyclic
+and deeply nested source off the host call stack. The frames carry their
+original binding identities, scopes and evaluation order through each step.
 
 ## Resolved source bindings
 
@@ -110,7 +116,7 @@ assigned nowhere is captured as a `const` is
 ([spec: variables](../../../spec/bindings/variables/README.md)). The fold
 records each reference across a function boundary and decides it when the
 function closes; the shared analysis says, at the end, which bindings were
-reassigned. [`fjs/js/ast/sugar`](../../js/ast/sugar/module.f.mjs) owns
+reassigned. [`fjs/js/ast/sugar`](../../js/ast/sugar/module.f.js) owns
 pattern planning, invocation layout, defaults, branch normalization and
 immutable assignment versions. Its pattern planner runs source admission
 callbacks during one ordered walk before shared binding analysis.
@@ -121,7 +127,7 @@ concern and adds no synthetic source reads.
 
 ## The grammar is written down
 
-[`./grammar`](./grammar/module.f.mjs) holds it:
+[`./grammar`](./grammar/module.f.js) holds it:
 
 ```
 module ::= import* moduleStatement* last eof
@@ -459,14 +465,16 @@ the fold's:
   what refuses a value in a binding position (`invalid destructuring
   target`) — a literal, an access, a call, or a group, `[(a)]`, JavaScript's
   early error — a name bound twice in one pattern or across a parameter
-  list, a key a prototype gives a value, and what the language does not
-  read yet, a rest element and a computed key beyond a literal alone in its
-  brackets, each by name — and a module whose exports are all patterns
+  list, a key a prototype gives a value, a misplaced rest element or invalid
+  rest target, and a computed key beyond a literal alone in its brackets,
+  each by name — and a module whose exports are all patterns
   binding no name, which exports nothing where a name was owed (`module
   exports nothing`). The common sugar planner records each expanded read
   and its original identity, with the fold supplying name and key policy
-  callbacks. Executable definitions and parameter layout are chosen by sugar
-  after source binding analysis;
+  callbacks. Array rest records a suffix read; object rest records the source
+  and excluded property keys for copying the remaining entries. A built-in
+  namespace is not a value and cannot supply object rest. Executable definitions
+  and parameter layout are chosen by sugar after source binding analysis;
 - an access naming a property of a built-in prototype, `a.push`,
   `a["toString"]` or `a.__proto__` in either spelling — every name
   [`fjs/js/prototype`](../../js/prototype/module.f.js) lists but `length`,
@@ -499,6 +507,20 @@ the fold's:
   function that is neither helper, by shape or by its names, is resolved
   as every function is, where `Object` is refused as the reserved word it
   is;
+- the empty reference map, matched whole as well
+  ([reference map](../../../spec/built-ins/reference-map/README.md)), by another means, since
+  its body is some thirty lines where a helper's is two statements:
+  [`./ref_map`](./ref_map/module.f.js) holds the canonical body as source,
+  parses it with this grammar, and a function is the map where its syntax
+  tree is the canonical one once names and layout are taken out of both —
+  each name read as the depth of what binds it, so any renaming of the
+  same bindings matches, and nothing else does. It is the AST's
+  `['refMap']`. The body reads its own name, so only the whole initializer
+  of a `const` can be the map; `WeakMap` is no reserved word, so a scope
+  that binds it makes the function an ordinary one, in which `new` is
+  refused as everywhere. A body that is the map is read by no ordinary
+  resolution, so the reader holds its statements to JavaScript's line rules
+  itself. The tree is read no deeper than the map is;
 - an intrinsic's helper, matched whole the same way: a function of as many
   bare, distinct names as the intrinsic's `length` whose expression body
   is the one member call of the intrinsic's name on the first with the
@@ -534,7 +556,7 @@ environment, so what the mappings build is a module of *nodes* — a primitive
 converted from its token, a reference by the identifier token that spells it, a
 container of nodes, a record per statement — and the names are resolved after
 the grammar has matched the whole module, statement by statement, on the
-pattern [`fjs/media/datajs`](../../media/datajs/parser/module.f.mjs) set.
+pattern [`fjs/media/datajs`](../../media/datajs/parser/module.f.js) set.
 
 The syntax reader retains function declarations, plain loop statements,
 terminal guards and switches as source constructs. Resolution preserves them
@@ -657,7 +679,7 @@ natural span. `export default <value>` is a span, not a point. The moment a
 formatter wants to underline a rule rather than a character, every token needs
 an end, and the change belongs in `JsTokenWithMetadata.metadata` rather than in
 more special cases beside `ErrorToken.end`. Nothing wants that yet:
-`errorLocation` in [`./module.f.mjs`](./module.f.mjs) renders the span
+`errorLocation` in [`./module.f.js`](./module.f.js) renders the span
 an error already carries and the point when there is none.
 
 ## What changed at the LL(1) port

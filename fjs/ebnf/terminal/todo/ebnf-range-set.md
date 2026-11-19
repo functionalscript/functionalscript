@@ -115,7 +115,7 @@ Properties, each one a reason to prefer this over a list of ranges:
 
 `fjs/types/range_set` **is** this type — the `RangeMap<boolean>` that used to
 be there is gone, along with its one consumer's use of it
-(`fjs/media/nix/module.f.mjs`, which builds its sets from `[a, b + 1]`), and
+(`fjs/media/nix/module.f.js`, which builds its sets from `[a, b + 1]`), and
 there are not two. The module exports the algebra (`contains`, `union`,
 `intersection`, `complement`, `difference`), the half-open `fromRange`, and
 `rangeSet`, `empty` and `full` with `isRangeSet` for the validation they panic
@@ -175,12 +175,12 @@ would make the algebra partial and every fold need a special case. Whether an
 empty *terminal* is legal in a grammar is the lowering's question, since it
 is the first code that can tell a terminal that matches nothing from one that
 was never meant to match — and the lowering answers it: `validate` in
-[`../../data`](../../data/module.f.mjs) refuses an empty set.
+[`../../data`](../../data/module.f.js) refuses an empty set.
 
 **A set holds ordinary symbols only; `eof` is not a set.** EOF is the `null`
 rule (**Amended**: it was the bare `-1`), with the no-leaf behaviour
 [eof-as-ordinary-symbol](./eof-as-ordinary-symbol.md) records and
-`leafAt` in `fjs/ebnf/ll1/module.f.mjs` implements. "Newline or end of input", the
+`leafAt` in `fjs/ebnf/ll1/module.f.js` implements. "Newline or end of input", the
 terminator of a line comment, is spelled as the variant `{ nl, eof }` it is
 today: a choice with a tag, not a set.
 
@@ -301,7 +301,7 @@ justification is the API and the AST, which is where
       `difference`, the half-open `fromRange`, validation on construction;
       proofs for each, for `[]`, `[-Infinity]`, `[-1, 0]`, `[0.5, 1.5]`, an
       open tail, and every rejected input (`NaN`, `Infinity`, `-0`, a
-      repeat, a decrease). Port `fjs/media/nix/module.f.mjs` to `[a, b + 1]`.
+      repeat, a decrease). Port `fjs/media/nix/module.f.js` to `[a, b + 1]`.
 - [ ] `fjs/ebnf/terminal/`: the integer helpers — `range(a, b)` and
       `one(x)` as `[a, b + 1]` and `[x, x + 1]` over non-negative safe
       integers with `a <= b`, the open tail when the end is
@@ -309,7 +309,7 @@ justification is the API and the AST, which is where
       pair or a larger end; `eof` as `[-1, 0]`; the domain `[0]`;
       and `toRangeMap` (inclusive upper bound `b - 1`; an open tail is
       `Infinity`) once a consumer needs one. The front end's `rangeEncode` and
-      `range` in [`../../module.f.mjs`](../../module.f.mjs) refuse a range
+      `range` in [`../../module.f.js`](../../module.f.js) refuse a range
       ending at the top today; the singleton already lowers to the open
       tail, through `symbolTerminal` in `../../data`. No integer range-set
       module: these arithmetic facts are the whole difference. The symbol predicate `isSymbol` and EOF's
@@ -350,7 +350,7 @@ justification is the API and the AST, which is where
 - [DESIGN.md §11](../../../../doc/DESIGN.md#11-build-the-replacement-beside-the-module-it-replaces) —
   the migration that reserved `ebnf/terminal/`, its worked example.
 - rule-visitor (retired; shipped as `matchRule` in
-  [`../../data`](../../data/module.f.mjs)) — discriminates the data
+  [`../../data`](../../data/module.f.js)) — discriminates the data
   `Rule`, so it waited on the same IR carrier decision and landed with it.
 - [`../../data`](../../data/README.md) — the carrier decision,
   and the lowering that validates a set as this issue requires.

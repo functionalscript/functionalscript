@@ -13,8 +13,8 @@ producer ──writes──▶ Marked ──toText──▶ the file `fjs compil
 ```
 
 The type API is [`types.ts`](./types.ts); the code is
-[`module.f.mjs`](./module.f.mjs); the proofs are
-[`proof.f.mjs`](./proof.f.mjs). Why the design is what it is, with the
+[`module.f.js`](./module.f.js); the proofs are
+[`proof.f.js`](./proof.f.js). Why the design is what it is, with the
 established practice it follows and the alternatives it rejected, is
 [§12](#12-design-record). The rest says what exists and how to use it.
 
@@ -102,7 +102,7 @@ A producer that builds its text from **lists of pieces** returns them as
 chunks. A piece it knows the kind of is a run; the rest are strings:
 
 ```js
-import { keyword, literal } from '../../text/marked/module.f.mjs'
+import { keyword, literal } from '../../text/marked/module.f.js'
 
 // `export default 1;`
 const chunks = [keyword('export'), ' ', keyword('default'), ' ', ['1', 'number'], ';']
@@ -154,7 +154,7 @@ A tag is `U+0001`, one letter for the kind, the text, and `U+0002`:
 | `identifier` | `i` | | | |
 
 ```js
-import { tagged, fromTagged, untagged } from '../../text/marked/module.f.mjs'
+import { tagged, fromTagged, untagged } from '../../text/marked/module.f.js'
 
 const kw = tagged('keyword')
 const text = `${kw('let')} x = ${tagged('number')('0x1')};`
@@ -221,7 +221,7 @@ text of the marked output, by construction.
 
 ## 6. Rendering
 
-[`fjs/website/demo/highlight`](../../website/demo/highlight/module.f.mjs)
+[`fjs/website/demo/highlight`](../../website/demo/highlight/module.f.js)
 renders marked text for the demo pages:
 
 - `render(marked)` draws a run with a kind as
@@ -253,9 +253,9 @@ is a summary rather than code. How a demo's code blocks look is
 
 Some text has no producer behind it: an example a reader typed, or a
 JavaScript or JSON code fence in a `README.md` the site renders
-([`website/readme`](../../website/readme/module.f.mjs)). For that,
-[`fjs/js/marked`](../../js/marked/module.f.mjs) finds the runs by tokenizing,
-with the real tokenizer ([`fjs/js/tokenizer`](../../js/tokenizer/module.f.mjs)),
+([`website/readme`](../../website/readme/module.f.js)). For that,
+[`fjs/js/marked`](../../js/marked/module.f.js) finds the runs by tokenizing,
+with the real tokenizer ([`fjs/js/tokenizer`](../../js/tokenizer/module.f.js)),
 and the website's `highlight(text)` draws them:
 
 - `spansOf(text)`, in `js/marked`, answers the `Span`s the tokenizer finds (`keyword`,
@@ -276,14 +276,14 @@ and the website's `highlight(text)` draws them:
   tokens are the case it is shaped for — so a bad span is bad input, not a
   defect of the program. A caller whose spans are its own, as `highlight`'s
   are, `unwrap`s.
-- `highlight(text)`, in [`website/demo/highlight`](../../website/demo/highlight/module.f.mjs),
+- `highlight(text)`, in [`website/demo/highlight`](../../website/demo/highlight/module.f.js),
   is `render` of `fromSpans` of `spansOf`.
 - `tsSpansOf(text)` and `tsHighlight(text)`, beside them, read TypeScript: the same tokens,
   and TypeScript's own words (`type`, `readonly`, `as`, `keyof`, …) as
   `keyword`s where an operand follows them on their line, so a variable named
   `type` stays an `identifier`. The primitive type names (`string`, `number`,
   `boolean`, `unknown`, …) are `keyword`s where a type stands for certain, as
-  [`js/type_position`](../../js/type_position/module.f.mjs) reads it from the
+  [`js/type_position`](../../js/type_position/module.f.js) reads it from the
   brackets around them: an annotation, an alias, an interface, a return type,
   `as`. Anywhere they may be values they stay `identifier`s, as the `rtti`
   builders `string` and `number` are in `or(option, number)`: a token's
@@ -327,7 +327,7 @@ pins:
   caller sees. For the compiler's outputs, the proof also runs the whole of
   `compile` over an in-memory file system for every shared example and output,
   and holds the page's text to the file written
-  (`fjs/compiler/proof.f.mjs`, `panesAreTheFiles`).
+  (`fjs/compiler/proof.f.js`, `panesAreTheFiles`).
 - **The kinds.** The leaves and words it marks, one case each, and the pieces
   it does not mark (`undefined` in the `.js` writer was a gap this found).
 - **The oracle**, for a language the tokenizer reads: for every example in
@@ -490,7 +490,7 @@ points, as the tokenizer's are).
   Rust. It never overrides a kind, so a refinement can come later. The colour
   is a new stylesheet variable, `--syntax-name`.
 - **The model lives in `fjs/text/marked`, the JavaScript fallback and oracle in
-  `fjs/js/marked`** ([module](../../js/marked/module.f.mjs)), and only the drawing,
+  `fjs/js/marked`** ([module](../../js/marked/module.f.js)), and only the drawing,
   `render` and `highlight`, under the website: the compiler's proofs hold its
   output to the oracle without depending on the website, and this module
   stays language-independent, with no tokenizer behind it.

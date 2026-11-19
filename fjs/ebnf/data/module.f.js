@@ -1,0 +1,460 @@
+/**
+ * The serializable EBNF grammar: the intermediate representation (IR) every
+ * backend consumes, the lowering from the front end in `../module.f.js`
+ * into it, and the checks a grammar passes on the way.
+ *
+ * Every rule is a tagged tuple, and {@link matchRule} is the one place the
+ * tag is read: {@link emptyTagMap}, {@link validate} and every backend
+ * dispatch through it. {@link toData} lowers a front-end rule, naming every
+ * rule it meets and returning the identity map a transformer keys on. See
+ * `./README.md` for the design and `./types.ts` for the type-level API.
+ *
+ * @module
+ *
+ * @import { Entry } from '../../types/object/types.ts'
+ * @import { StringSet } from '../../types/string_set/types.ts'
+ * @import { DataRule, Definition, Rule as FRule, Thunk } from '../types.ts'
+ * @import { EmptyTag, EmptyTagMap, GrammarData, Rule, RuleNameMap, RuleSet, RuleVisitor, Sequence, Terminal, Variant } from './types.ts'
+ * @import { _Definitions, _Lower, _Lowered, _State } from './private.ts'
+ */
+
+import { assert } from '../../asserts/module.f.js'
+import { codePoints } from '../../text/utf16/module.f.js'
+import { fixpoint } from '../../types/function/module.f.js'
+import { definedEntries, isObject, structurallySame } from '../../types/object/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
+import { fromUndefined } from '../../types/nullable/module.f.js'
+import { intersection, isRangeSet, rangeSet } from '../../types/range_set/module.f.js'
+import { contains, empty as noStrings, set as stringSetAdd } from '../../types/string_set/module.f.js'
+import { empty as emptyMap, mapGet, mapHas, mapSet } from '../../types/map/module.f.js'
+
+const { isSafeInteger, MAX_SAFE_INTEGER } = Number
+const { entries, fromEntries, keys, is: sameValue } = Object
+
+/**
+ * The one discriminator over the data {@link Rule}: each handler receives the
+ * rule's payload without its tag.
+ *
+ * A hand-written or deserialized set is data, so the carrier is checked
+ * here, where the tag is read: no tuple, a tag nothing spells, a
+ * fixed-arity tuple with a field past its arity, or a variant whose branches
+ * are no object, is refused rather than dispatched with part of it dropped.
+ * What the payload holds — boundaries, bounds, names — is `validate`'s.
+ *
+ * @type {<R>(v: RuleVisitor<R>) => (rule: Rule) => R}
+ */
+export const matchRule = v => rule => {
+    // The tag is bound by destructuring, which needs an array; anything else
+    // is refused here rather than failing as not iterable.
+    assert(rule instanceof Array, ['not a rule', rule])
+    const [tag] = rule
+    switch (tag) {
+        case 'set': {
+            const [, ...s] = rule
+            return v.set(s)
+        }
+        case 'sequence': {
+            const [, ...items] = rule
+            return v.sequence(items)
+        }
+        case 'variant': {
+            const [, branches] = rule
+            assert(rule.length === 2 && isObject(branches), ['not a variant', rule])
+            return v.variant(branches)
+        }
+        case 'repeat': {
+            const [, min, max, item] = rule
+            assert(rule.length === 4, ['not a repeat', rule])
+            return v.repeat(min, max, item)
+        }
+        default: { throw ['not a rule', rule] }
+    }
+}
+
+/**
+ * Whether the rule named `item` is nullable in `map` — an own entry only: a
+ * rule may be named `constructor`, and `{}` inherits one.
+ *
+ * Exported for `../ll1`, which reads the same map.
+ *
+ * @type {(map: EmptyTagMap) => (item: string) => boolean}
+ */
+export const _nullable = map => item => entry(map, item) !== undefined
+
+/**
+ * The nullability of one rule, given that of the rules it names.
+ *
+ * @type {(nullable: (item: string) => boolean) => RuleVisitor<EmptyTag>}
+ */
+const emptyTagVisitor = nullable => ({
+    set: () => undefined,
+    sequence: items => items.every(nullable) ? true : undefined,
+    // A variant's tag is its last nullable branch's, the one a dispatch
+    // miss selects.
+    variant: branches => definedEntries(branches)
+        .filter(([, item]) => nullable(item))
+        .at(-1)
+        ?.[0],
+    // A repetition is a sequence of items, not a choice, so it carries no
+    // tag of its own; zero rounds match whatever the item does.
+    repeat: (min, _max, item) => min === 0 || nullable(item) ? true : undefined,
+})
+
+/** @type {(map: EmptyTagMap) => (rule: Rule) => EmptyTag} */
+const emptyTagOf = map => matchRule(emptyTagVisitor(_nullable(map)))
+
+/** @type {(ruleSet: RuleSet) => (map: EmptyTagMap) => EmptyTagMap} */
+const emptyTagStep = ruleSet => map => {
+    const of = emptyTagOf(map)
+    return fromEntries(entries(ruleSet).map(([name, rule]) => [name, of(rule)]))
+}
+
+/**
+ * Whether two maps agree on every rule named — each read as an own entry,
+ * and compared by `===`, which an `EmptyTag` is decided by.
+ *
+ * @type {(names: readonly string[]) => (a: EmptyTagMap, b: EmptyTagMap) => boolean}
+ */
+const sameTags = names => (a, b) => names.every(name => entry(a, name) === entry(b, name))
+
+/**
+ * Computes, for every rule in the set, whether it can match empty input, by
+ * the standard nullable-set fixpoint: a sequence is nullable iff all of its
+ * items are, a variant iff at least one branch is (its tag is that
+ * branch's), a repeat iff its `min` is `0` or its item is nullable, and a
+ * set never. Rules may reference each other cyclically, so this starts every
+ * rule as non-nullable and relaxes every rule, one round at a time, until a
+ * full round changes nothing. A round only ever grows the nullable set or
+ * moves a variant's tag to a later nullable branch, both bounded, so this
+ * always terminates.
+ *
+ * @type {(ruleSet: RuleSet) => EmptyTagMap}
+ */
+export const emptyTagMap = ruleSet => fixpoint(emptyTagStep(ruleSet), sameTags(keys(ruleSet)))({})
+
+/**
+ * EOF's number: the one symbol below the domain, so it can be told from
+ * every ordinary symbol however wide the alphabet is. The front end spells
+ * EOF `null`, since a `DataRule` reserves every number for an ordinary
+ * symbol; below the front end it is this.
+ */
+export const eofSymbol = /** @type {const} */ (-1)
+
+/** EOF, the one set with a negative boundary. */
+const eofSet = /** @type {const} */ ([eofSymbol, eofSymbol + 1])
+
+/** @type {Terminal} */
+const eof = ['set', ...eofSet]
+
+/** The symbol domain: every ordinary symbol, open above. */
+const domain = rangeSet([0])
+
+/**
+ * An ordinary symbol: a non-negative safe integer, spelled the one way. `-0`
+ * is refused, since a boundary or a bound written as `-0` is not canonical,
+ * and `range_set` refuses the boundary for the same reason. The ceiling is
+ * arithmetic rather than alphabetic: `n + 1` is exact only for safe
+ * integers — `2 ** 53 + 1` is `2 ** 53` — so a boundary outside that range
+ * would name a different range than the one asked for.
+ *
+ * @type {(n: number) => boolean}
+ */
+export const isSymbol = n => isSafeInteger(n) && n >= 0 && !sameValue(n, -0)
+
+/**
+ * A repetition's bounds: `min` a non-negative integer, `max` one too or
+ * `Infinity`, and `min <= max`. An unbounded `min` is refused — it matches
+ * nothing. The front end's `repeat` refuses the same bounds at the call that
+ * wrote them; this checks the hand-written tuple.
+ *
+ * @type {(min: number, max: number) => boolean}
+ */
+export const isRepeatBounds = (min, max) =>
+    isSymbol(min) && (isSymbol(max) || max === Infinity) && min <= max
+
+/**
+ * A reference is a string naming a rule of the set. The type is checked
+ * because data is untyped: a number would reach the same rule through
+ * property-key coercion, and an explicit `undefined` under a variant's tag
+ * would be a branch the type calls absent, each certifying a value that is
+ * no `Rule`.
+ *
+ * @type {(ruleSet: RuleSet) => (name: string) => (item: unknown) => void}
+ */
+const defined = ruleSet => name => item =>
+    assert(typeof item === 'string' && fromUndefined(entry(ruleSet, item)) !== null, ['unknown rule', name, item])
+
+/**
+ * The checks on one rule, given the name it has, the reference check of its
+ * set, and whether a name is nullable there.
+ *
+ * @type {(name: string, ref: (item: unknown) => void, nullable: (item: string) => boolean) => RuleVisitor<void>}
+ */
+const validateVisitor = (name, ref, nullable) => ({
+    set: s => {
+        assert(isRangeSet(s) && s.length !== 0, ['not a set of symbols', name, s])
+        assert(s.every(isSafeInteger), ['a boundary is not a safe integer', name, s])
+        assert(s[0] >= 0 || structurallySame(s, eofSet), ['a set holds ordinary symbols only, or is EOF', name, s])
+        return undefined
+    },
+    sequence: items => {
+        for (const item of items) { ref(item) }
+        return undefined
+    },
+    // Every own entry, so a tag written with no rule under it is refused
+    // rather than read as absent.
+    variant: branches => {
+        for (const [, item] of entries(branches)) { ref(item) }
+        return undefined
+    },
+    repeat: (min, max, item) => {
+        assert(isRepeatBounds(min, max), ['repeat bounds outside their domain', name, min, max])
+        ref(item)
+        assert(max !== Infinity || !nullable(item), ['a nullable item under an unbounded repeat', name, item])
+        return undefined
+    },
+})
+
+/** @type {(ruleSet: RuleSet, empty: EmptyTagMap) => (name: string) => (rule: Rule) => void} */
+const validateRule = (ruleSet, empty) => name =>
+    matchRule(validateVisitor(name, defined(ruleSet)(name), _nullable(empty)))
+
+/**
+ * Refuses a rule set that is not a grammar, naming the rule: a reference to a
+ * name the set does not define, the entry included; a terminal that is not a
+ * canonical, non-empty set of safe-integer symbols, or that mixes EOF with
+ * ordinary symbols; repeat bounds outside their domain; and a nullable item
+ * under an unbounded repeat, which would repeat forever. Left recursion and
+ * dispatch conflicts are a backend's to report, since another backend may
+ * accept them.
+ *
+ * @type {(ruleSet: RuleSet, entry: string) => void}
+ */
+export const validate = (ruleSet, entry) => {
+    // The set is data too: an array would answer `entry(array, '0')` with its first
+    // element and walk under `entries`, so the carrier is checked first.
+    assert(isObject(ruleSet), ['not a rule set', ruleSet])
+    defined(ruleSet)(entry)(entry)
+    const rule = validateRule(ruleSet, emptyTagMap(ruleSet))
+    for (const [name, r] of entries(ruleSet)) { rule(name)(r) }
+    return undefined
+}
+
+//
+
+/** @type {(taken: StringSet, hint: string) => (i: number) => string} */
+const freshFrom = (taken, hint) => i => {
+    const candidate = i === 0 ? hint : `${hint}${i}`
+    return contains(candidate)(taken) ? freshFrom(taken, hint)(i + 1) : candidate
+}
+
+/**
+ * The hint itself when no rule has it yet, else the hint with a counter.
+ *
+ * @type {(taken: StringSet) => (hint: string) => string}
+ */
+const freshName = taken => hint => freshFrom(taken, hint)(0)
+
+/**
+ * The name hint of a rule reached from `parent` at `key`: an element index,
+ * a branch tag, or `item` under a repeat.
+ *
+ * @type {(parent: string, key: string) => string}
+ */
+const childHint = (parent, key) => parent === '' ? key : `${parent}.${key}`
+
+/** @type {(state: _State, name: string, fr: FRule) => _State} */
+const register = ({ names, taken, ruleSet }, name, fr) => ({
+    names: mapSet(names, fr, name),
+    taken: stringSetAdd(name)(taken),
+    ruleSet,
+})
+
+/** @type {(state: _State, name: string, rule: Rule) => _State} */
+const emit = ({ names, taken, ruleSet }, name, rule) =>
+    ({ names, taken, ruleSet: { ...ruleSet, [name]: rule } })
+
+/**
+ * One symbol, and the top ordinary symbol is the open tail; EOF is `null`,
+ * not a number, so `-1` is refused like any negative.
+ *
+ * @type {(n: number) => Terminal}
+ */
+const symbolTerminal = n => {
+    assert(isSymbol(n), ['not a symbol', n])
+    return n === MAX_SAFE_INTEGER ? ['set', n] : ['set', n, n + 1]
+}
+
+/** @type {(lowerRule: _Lower, parent: string) => (acc: _Lowered<readonly Entry<string>[]>, child: Entry<FRule>) => _Lowered<readonly Entry<string>[]>} */
+const lowerChild = (lowerRule, parent) => ([state, done], [key, child]) => {
+    const [next, name] = lowerRule(state, childHint(parent, key), child)
+    return [next, [...done, [key, name]]]
+}
+
+/** @type {(lowerRule: _Lower, state: _State, parent: string, children: readonly Entry<FRule>[]) => _Lowered<readonly Entry<string>[]>} */
+const lowerChildren = (lowerRule, state, parent, children) => {
+    /** @type {_Lowered<readonly Entry<string>[]>} */
+    const init = [state, []]
+    return children.reduce(lowerChild(lowerRule, parent), init)
+}
+
+/**
+ * The list is spread first because `Array#map` skips the holes of a sparse
+ * array: `[, 'x']` would lower as a one-element sequence. Spreading makes
+ * each hole the `undefined` it is, which is no rule and is refused as one.
+ *
+ * @type {(lowerRule: _Lower, state: _State, name: string, items: readonly FRule[]) => _Lowered<Sequence>}
+ */
+const lowerSequence = (lowerRule, state, name, items) => {
+    const [next, named] = lowerChildren(lowerRule, state, name, [...items].map((item, i) => [`${i}`, item]))
+    return [next, ['sequence', ...named.map(([, n]) => n)]]
+}
+
+/**
+ * Every entry of a front-end variant is a branch: the front end types each
+ * key as a rule, so a branch that is explicitly `undefined` is no rule and
+ * reaches `lowerBody`'s refusal rather than being dropped, which would
+ * lower a different grammar than the one written.
+ *
+ * @type {(lowerRule: _Lower, state: _State, name: string, branches: import('../types.ts').Variant) => _Lowered<Variant>}
+ */
+const lowerVariant = (lowerRule, state, name, branches) => {
+    const [next, named] = lowerChildren(lowerRule, state, name, entries(branches))
+    return [next, ['variant', fromEntries(named)]]
+}
+
+/**
+ * The data rule a name stands for: `null` is EOF, a number one symbol, a
+ * string one symbol per code point in sequence, an array a sequence, an
+ * object a variant.
+ *
+ * @type {(lowerRule: _Lower, state: _State, name: string, dr: DataRule) => _Lowered<Rule>}
+ */
+const lowerBody = (lowerRule, state, name, dr) => {
+    switch (typeof dr) {
+        case 'number': { return [state, symbolTerminal(dr)] }
+        case 'string': { return lowerSequence(lowerRule, state, name, codePoints(dr)) }
+        case 'object': {
+            if (dr === null) { return [state, eof] }
+            if (dr instanceof Array) { return lowerSequence(lowerRule, state, name, dr) }
+            assert(isObject(dr), ['not a rule', dr])
+            return lowerVariant(lowerRule, state, name, dr)
+        }
+        default: { throw ['not a rule', dr] }
+    }
+}
+
+/** @type {(lowerRule: _Lower, state: _State, hint: string, dr: DataRule) => _Lowered<string>} */
+const lowerData = (lowerRule, state, hint, dr) => {
+    const name = freshName(state.taken)(hint)
+    const [next, rule] = lowerBody(lowerRule, register(state, name, dr), name, dr)
+    return [emit(next, name, rule), name]
+}
+
+/**
+ * A thunk is named before its info is read, so a rule that names itself
+ * finds itself. A `const` thunk *is* the rule its body spells, under the
+ * thunk's name, as a `ref` is its separately supplied body; a `set` is
+ * clipped to the domain, which drops a generic
+ * complement's `-Infinity` and anything below `0`; a `repeat` lowers its
+ * item under its own name.
+ *
+ * A hand-written info tuple is data too, and a field past a fixed arity is
+ * refused here rather than dropped: the data form's own arity check never
+ * sees the front-end tuple, only what this emitted from it.
+ *
+ * @type {(lowerRule: _Lower, definitions: _Definitions, state: _State, hint: string, fr: Thunk) => _Lowered<string>}
+ */
+const lowerThunk = (lowerRule, definitions, state, hint, fr) => {
+    const name = freshName(state.taken)(hint)
+    const registered = register(state, name, fr)
+    const info = fr()
+    // An info is a tuple; an object spelling one — `{ 0: 'const', 1: c,
+    // length: 2 }` — would pass every field read below and is refused first.
+    assert(info instanceof Array, ['not a rule', name, info])
+    const [tag, payload] = info
+    switch (tag) {
+        case 'const': {
+            assert(info.length === 2, ['not a const', name, info])
+            const [next, rule] = lowerBody(lowerRule, registered, name, payload)
+            return [emit(next, name, rule), name]
+        }
+        case 'ref': {
+            assert(info.length === 1, ['not a reference', name, info])
+            const body = mapGet(definitions, fr)
+            assert(body !== undefined, ['undefined reference', name])
+            const [next, rule] = lowerBody(lowerRule, registered, name, body)
+            return [emit(next, name, rule), name]
+        }
+        case 'set': {
+            const [, ...s] = info
+            return [emit(registered, name, ['set', ...intersection(domain)(rangeSet(s))]), name]
+        }
+        case 'repeat': {
+            const [, min, max, r] = info
+            assert(info.length === 4, ['not a repeat', name, info])
+            const [next, item] = lowerRule(registered, childHint(name, 'item'), r)
+            return [emit(next, name, ['repeat', min, max, item]), name]
+        }
+        default: { throw ['not a rule', name, info] }
+    }
+}
+
+/**
+ * The name of `fr`, lowering it first when it has not been met: sharing is
+ * by `===`, so a thunk, an array or an object met twice is one named rule,
+ * and a number or a string met twice is one rule by value.
+ *
+ * @type {(definitions: _Definitions) => _Lower}
+ */
+const lower = definitions => {
+    /** @type {_Lower} */
+    const rule = (state, hint, fr) => {
+        // The memo keys by SameValueZero, so `-0` would find `0`'s rule
+        // and inherit it; it is refused before the lookup, as it is everywhere.
+        assert(!sameValue(fr, -0), ['not a symbol', fr])
+        const known = mapGet(state.names, fr)
+        if (known !== undefined) { return [state, known] }
+        return typeof fr === 'function' ? lowerThunk(rule, definitions, state, hint, fr) : lowerData(rule, state, hint, fr)
+    }
+    return rule
+}
+
+/** @type {(definitions: readonly Definition[]) => _Definitions} */
+const definitionsMap = definitions => {
+    /** @type {_Definitions} */
+    const initial = emptyMap
+    return definitions.reduce((map, [reference, body]) => {
+        assert(!mapHas(map, reference), 'duplicate reference definition')
+        return mapSet(map, reference, body)
+    }, initial)
+}
+
+/** @type {RuleNameMap} */
+const noNames = emptyMap
+
+/** @type {_State} */
+const initial = { names: noNames, taken: noStrings, ruleSet: {} }
+
+/**
+ * Lowers a front-end rule into a rule set, validated, with its entry and the
+ * map from every rule identity met to its name.
+ *
+ * A rule is named by the rule it was reached from and the position it was
+ * reached at — `choice.array`, `0.item` — with a counter where a name is
+ * taken. The root's hint is the empty string. Function names play no part:
+ * a consumer matches by the returned entry and reads other rules through
+ * the identity map, never by guessing generated names. Every rule emitted
+ * is reachable from the entry, since the walk from the entry is the emission.
+ *
+ * Definitions supply bodies for reference rules. A reached reference must
+ * have exactly one definition; duplicate definitions are refused even when
+ * unreachable. Unreached bodies are not lowered.
+ *
+ * @type {(fr: FRule, definitions?: readonly Definition[]) => GrammarData}
+ */
+export const toData = (fr, definitions = []) => {
+    const [{ names, ruleSet }, entry] = lower(definitionsMap(definitions))(initial, '', fr)
+    validate(ruleSet, entry)
+    return [ruleSet, entry, names]
+}

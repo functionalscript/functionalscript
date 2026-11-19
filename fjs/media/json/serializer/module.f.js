@@ -1,0 +1,232 @@
+/**
+ * JSON serializer for deterministic string output: the atoms every JSON leaf
+ * is spelled with, and the one recursive walk over JSON's containers.
+ *
+ * `treeSerialize` is that walk. It knows objects and arrays and nothing about
+ * leaves, so a codec supplies its own leaf spelling — standard JSON and
+ * extended JSON differ only there, not in a second object/array walker.
+ * `leafSerialize` builds that spelling from the one arm every dialect varies,
+ * `number`, plus the leaf kinds a dialect adds; `codec` turns it into the
+ * `serialize`/`stringify` pair.
+ *
+ * `stringSerialize` is FunctionalScript, not the host's `JSON.stringify`: it
+ * quotes through `fjs/js/string_escape`'s `stringLiteral`, which reproduces
+ * the ECMAScript `QuoteJSONString` result exactly, lone surrogates included.
+ *
+ * **A leaf says what it is.** A leaf is a `[text, kind]` run, not a bare
+ * string: a string is a `string`, a number a `number`, `null`, `true` and
+ * `false` are `literal`s; punctuation stays a plain string. The pieces are
+ * `Chunk`s, `string | Run`, so that a writer built on them marks what it
+ * knows and leaves the rest. The public `serialize` of a codec still answers
+ * plain strings, `chunkStrings`; the kinds are what a writer of marked text
+ * builds on (`fjs/text/marked/README.md`).
+ *
+ * @module
+ *
+ * @import { List } from '../../../types/list/types.ts'
+ * @import { Reduce } from '../../../types/function/operator/types.ts'
+ * @import { Tree, TreeObject, TreeEntry, TreeEntries, TreeMapEntries } from '../types.ts'
+ * @import { Codec, LeafSerializer, _ExtraLeaves, _Leaves } from './types.ts'
+ * @import { Chunk } from '../../../text/marked/types.ts'
+ */
+
+import { flat, flatMap, map, next, reduce, empty } from '../../../types/list/module.f.js'
+import { chunkStrings, chunksMarked, chunksText } from '../../../text/marked/module.f.js'
+import { definedEntries, isObject } from '../../../types/object/module.f.js'
+import { compose } from '../../../types/function/module.f.js'
+import { stringLiteral } from '../../../js/string_escape/module.f.js'
+import { assertNotNullish } from '../../../asserts/module.f.js'
+
+const { is } = Object
+
+/**
+ * Serializes a string as a JSON string literal: `stringLiteral`'s text, as
+ * one `string` run.
+ *
+ * @type {(_: string) => List<Chunk>}
+ */
+export const stringSerialize
+    = input => [[stringLiteral(input), 'string']]
+
+/**
+ * Shared serialized representation for `null`.
+ */
+/** @type {List<Chunk>} */
+export const nullSerialize = [['null', 'literal']]
+
+/**
+ * Serializes a number as a JSON number literal.
+ *
+ * A finite number is spelled as ECMAScript `ToString` spells it, except that
+ * `-0` is written `-0`: it is valid JSON, the parser reads it back as `-0`,
+ * and `JSON.stringify` alone would write `0` — a different value read back
+ * without a word. This is a deliberate difference from native
+ * `JSON.stringify`. `NaN` and the infinities have no JSON spelling and are
+ * written `null`, as `JSON.stringify` writes them.
+ *
+ * Exported as the one owner of the finite-number spelling: DataJS's
+ * `_numberSerialize` writes a finite number through it and adds only its own
+ * words for the non-finite ones.
+ *
+ * @type {(_: number) => List<Chunk>}
+ */
+export const numberSerialize
+    = input => Number.isFinite(input) ? [[is(input, -0) ? '-0' : String(input), 'number']] : nullSerialize
+
+/** @type {List<Chunk>} */
+const trueSerialize = [['true', 'literal']]
+
+/** @type {List<Chunk>} */
+const falseSerialize = [['false', 'literal']]
+
+/** @type {(_: boolean) => List<Chunk>} */
+export const boolSerialize
+    = value => value ? trueSerialize : falseSerialize
+
+/**
+ * A leaf spelling from the arms that vary: `number`, which every dialect
+ * spells its own way, and the leaf kinds `extra` adds — extended JSON a
+ * `bigint`, DataJS a `bigint` and `undefined`. `boolean`, `string` and `null`
+ * are spelled here, once, for all of them.
+ *
+ * The returned function accepts exactly the kinds the configuration carries a
+ * serializer for (`_Leaves`), so `leafSerialize(numberSerialize)({})(1n)` is a
+ * type error. A `bigint` or `undefined` that reaches a configuration without
+ * its arm anyway — only a cast can deliver one — asserts, rather than being
+ * answered with a plausible `null`.
+ *
+ * @param {LeafSerializer<number>} numberSerialize
+ * @returns {<X extends _ExtraLeaves>(extra: X) => LeafSerializer<_Leaves<X>>}
+ */
+export const leafSerialize = numberSerialize => extra => {
+    const { bigint, undefined: undefinedSerialize } = extra
+    return value => {
+        switch (typeof value) {
+            case 'boolean': { return boolSerialize(value) }
+            case 'number': { return numberSerialize(value) }
+            case 'string': { return stringSerialize(value) }
+            case 'bigint': { return assertNotNullish(bigint, 'no bigint arm')(value) }
+            case 'undefined': { return assertNotNullish(undefinedSerialize, 'no undefined arm')(value) }
+            default: { return nullSerialize }
+        }
+    }
+}
+
+const comma = [',']
+
+/** @type {Reduce<List<Chunk>>} */
+const joinOp
+    = b => prior => flat([prior, comma, b])
+
+/** @type {(input: List<List<Chunk>>) => List<Chunk>} */
+const join
+    = reduce(joinOp)(empty)
+
+/**
+ * Entries joined by commas between an opening and a closing bracket. Shared
+ * with the FunctionalScript writer, which spells a call's arguments this way.
+ *
+ * @type {(open: string) => (close: string) => (input: List<List<Chunk>>) => List<Chunk>}
+ */
+export const wrap
+    = open => close => {
+        const seqOpen = [open]
+        const seqClose = [close]
+        return input => flat([seqOpen, join(input), seqClose])
+    }
+
+/** @type {(input: List<List<Chunk>>) => List<Chunk>} */
+export const objectWrap
+    = wrap('{')('}')
+
+/**
+ * Wraps serialized entries into a JSON array.
+ *
+ * @type {(input: List<List<Chunk>>) => List<Chunk>}
+ */
+export const arrayWrap
+    = wrap('[')(']')
+
+/**
+ * The separator between a serialized property key and its value. Shared with
+ * `fjs/media/datajs/serializer`, which builds the same `key : value` fragment.
+ *
+ * @type {List<Chunk>}
+ */
+export const colon = [':']
+
+/**
+ * The recursive walk over a JSON-shaped tree: objects, arrays, and a leaf
+ * spelling supplied by the codec.
+ *
+ * Every leaf of `Tree<P>` reaches `leafSerialize` — containers are the only
+ * thing this function recognizes — so a codec that adds a leaf type (extended
+ * JSON's `bigint`) or respells one (extended JSON's `3.0` for a whole-valued
+ * `number`) changes `leafSerialize` alone.
+ *
+ * Object entries whose value is `undefined` are dropped: `undefined` is a
+ * missing property, not a leaf of any of these trees.
+ *
+ * `indent` is a literal unit repeated per container level. Empty means compact
+ * output; otherwise nonempty containers put each item on its own line. Empty
+ * containers stay `[]` or `{}`, and no final newline is added.
+ *
+ * @template P
+ * @param {(value: P) => List<Chunk>} leafSerialize
+ * @param {string} [indent]
+ * @returns {(sort: TreeMapEntries<P>) => (value: Tree<P>) => List<Chunk>}
+ */
+export const treeSerialize = (leafSerialize, indent = '') => sort => {
+    // Keep the codec's leaf type through the generic entry enumeration.
+    /** @type {(object: TreeObject<P>) => TreeEntries<P>} */
+    const objectEntries = definedEntries
+    const separator = indent === '' ? colon : [': ']
+    /** @type {(open: string, close: string, pad: string) => (items: List<List<Chunk>>) => List<Chunk>} */
+    const wrapAt = (open, close, pad) => {
+        const line = `\n${pad}${indent}`
+        return items => {
+            if (indent === '') { return wrap(open)(close)(items) }
+            return flat([[open], () => {
+                const item = next(items)
+                if (item === null) { return [close] }
+                return flat([
+                    [line], item.first,
+                    flatMap(rest => flat([[',', line], rest]))(item.tail),
+                    [`\n${pad}`, close],
+                ])
+            }])
+        }
+    }
+    /** @type {(pad: string, value: Tree<P>) => List<Chunk>} */
+    const f = (pad, value) => {
+        const childPad = pad + indent
+        /** @type {(value: Tree<P>) => List<Chunk>} */
+        const child = value => f(childPad, value)
+        if (value instanceof Array) { return wrapAt('[', ']', pad)(map(child)(value)) }
+        if (isObject(value)) {
+            /** @type {(kv: TreeEntry<P>) => List<Chunk>} */
+            const propertySerialize = ([k, v]) => flat([stringSerialize(k), separator, child(v)])
+            return wrapAt('{', '}', pad)(map(propertySerialize)(sort(objectEntries(value))))
+        }
+        return leafSerialize(value)
+    }
+    return value => f('', value)
+}
+
+/**
+ * A codec from a leaf spelling: `treeSerialize` over it, and the same walk
+ * concatenated into text. A dialect is its leaf spelling and nothing else.
+ *
+ * @template P
+ * @param {LeafSerializer<P>} leaf
+ * @param {string} [indent] Literal indentation unit; empty keeps compact output.
+ * @returns {Codec<P>}
+ */
+export const codec = (leaf, indent = '') => {
+    const serialize = treeSerialize(leaf, indent)
+    return {
+        serialize: sort => compose(serialize(sort))(chunkStrings),
+        stringify: sort => compose(serialize(sort))(chunksText),
+        marked: sort => compose(serialize(sort))(chunksMarked),
+    }
+}

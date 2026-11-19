@@ -31,8 +31,8 @@ graphs stack safe does not address this invocation depth.
 contains the demo failure inside its output pane. It does not remove the
 interpreter's dependence on the host call stack. This issue owns that
 remaining defect, including calls through both
-[`memo`](../../../memo/module.f.mjs) and
-[`amnesia`](../../../amnesia/module.f.mjs).
+[`memo`](../../../memo/module.f.js) and
+[`amnesia`](../../../amnesia/module.f.js).
 
 ### Proposal
 

@@ -26,14 +26,14 @@ test commands, runner image, and generated job identifier.
 
 ### Plan
 
-- [ ] In `fjs/ci/module.f.mjs`, read the repository root for `deno.lock` and `bun.lock`
+- [ ] In `fjs/ci/module.f.js`, read the repository root for `deno.lock` and `bun.lock`
       through `access`, analogous to how `Cargo.toml` controls Rust jobs.
 - [ ] Construct the canonical job map so the complete Deno entry is conditionally added
       only when `deno.lock` exists.
 - [ ] Construct the canonical job map so the complete Bun entry is conditionally added
       only when `bun.lock` exists.
 - [ ] Do not call a job builder with `[]` for an absent runtime.
-- [ ] Update `fjs/ci/proof.f.mjs` to assert that each job key is absent without its
+- [ ] Update `fjs/ci/proof.f.js` to assert that each job key is absent without its
       lockfile and present with its lockfile.
 - [ ] Verify the present-job proofs still cover the existing Deno and Bun steps and
       commands.

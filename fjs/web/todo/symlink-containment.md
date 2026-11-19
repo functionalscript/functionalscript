@@ -5,7 +5,7 @@
 
 ### Problem
 
-`resolve` (`fjs/web/module.f.mjs`) rejects a path that climbs above the served
+`resolve` (`fjs/web/module.f.js`) rejects a path that climbs above the served
 root, but it decides that in **segment space**, on the URL alone. A symlink
 inside the root whose target is outside it therefore passes: `leak.txt ->
 /etc/passwd` resolves to `./leak.txt`, which is under the root by every check

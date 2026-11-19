@@ -1,0 +1,127 @@
+/**
+ * JSON utilities: `serialize`, `stringify`, `stringifyIndented`, `parse`, and `setProperty` for
+ * immutable nested updates.
+ *
+ * `parse` is the total, `Result`-returning `text → Unknown` entry point built
+ * on this module's own reader over the JSON grammar.
+ *
+ * The JSON value types (`Unknown`, `Primitive`, `Object`, `Array`) live in
+ * [`./types.ts`](./types.ts), and the rtti schemas they are pinned against in
+ * [`./rtti/module.f.js`](./rtti/module.f.js).
+ *
+ * This is the standard, bigint-free codec: numbers are JavaScript `number`s.
+ * [`./extended/module.f.js`](./extended/module.f.js) is the sibling codec
+ * that keeps JSON's bare integer syntax as `bigint`. Both are numeric policies
+ * over the same grammar and the same reader — see [`./README.md`](./README.md).
+ *
+ * @module
+ *
+ * @import { Result } from '../../types/result/types.ts'
+ * @import { Primitive, Unknown, _MapEntries } from './types.ts'
+ * @import { Codec } from './serializer/types.ts'
+ * @import { NumberPolicy } from './parser/types.ts'
+ * @import { List } from '../../types/list/types.ts'
+ * @import { StringMap } from '../../types/object/types.ts'
+ */
+
+import { identity } from '../../types/function/module.f.js'
+import { next } from '../../types/list/module.f.js'
+import { parse as parseWith } from './parser/module.f.js'
+import { sort } from '../../types/object/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
+import { fromUndefined } from '../../types/nullable/module.f.js'
+import { ok } from '../../types/result/module.f.js'
+import { codec, leafSerialize, numberSerialize } from './serializer/module.f.js'
+
+// ── JSON utilities ────────────────────────────────────────────────────────────
+
+/**
+ * @param {Unknown} value
+ */
+export const setProperty = value => {
+    /** @type {(path: List<string>) => (src: Unknown) => Unknown} */
+    const f = path => src =>{
+        const result = next(path)
+        if (result === null) { return value }
+        /** @type {StringMap<Unknown>} */
+        const srcObject = (src === null || typeof src !== 'object' || src instanceof Array) ? {} : src
+        const { first, tail } = result
+        return { ...srcObject, [first]: f(tail)(fromUndefined(entry(srcObject, first))) }
+    }
+    return f
+}
+
+const standardLeaf = leafSerialize(numberSerialize)({})
+
+/**
+ * The standard codec: its own `number` spelling and no leaf kinds beyond
+ * JSON's. The containers around it are `treeSerialize`'s, shared with every
+ * other JSON codec.
+ *
+ * `marked` is `stringify` as runs: the same text, its strings, numbers and
+ * `null` and booleans marked with their kinds, for a page to colour.
+ *
+ * `stringify` follows the standard `JSON.stringify` rules determined by
+ * https://262.ecma-international.org/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-ownpropertykeys
+ * https://tc39.es/ecma262/#sec-serializejsonproperty
+ * with one deliberate exception: `-0` is written `-0`, not `0`, so it
+ * survives a round trip through `parse`.
+ *
+ * @type {Codec<Primitive>}
+ */
+export const { serialize, stringify, marked } = codec(standardLeaf)
+
+/**
+ * JSON with a literal indentation unit repeated per nesting level. Use spaces
+ * or tabs for JSON whitespace; unlike the native `space` argument, this string
+ * is neither coerced nor truncated. Empty means compact output. Empty containers
+ * stay on one line, and the result has no final newline.
+ *
+ * @type {(indent: string) => (sort: _MapEntries) => (value: Unknown) => string}
+ */
+export const stringifyIndented = indent => codec(standardLeaf, indent).stringify
+
+/**
+ * `stringify` with object keys sorted: the canonical, order-independent
+ * serialization, so two values that differ only in key order serialize to
+ * the same text.
+ *
+ * @type {(value: Unknown) => string}
+ */
+export const stringifySorted = stringify(sort)
+
+/**
+ * `stringify` with object keys in the order the value holds them: the JSON
+ * text of a value as it is, what `JSON.stringify(value)` writes, `-0` aside.
+ *
+ * @type {(value: Unknown) => string}
+ */
+export const toJson = stringify(identity)
+
+/**
+ * The standard codec's numeric policy: every JSON number becomes a
+ * JavaScript `number`, read from its own lexeme.
+ *
+ * It is total — no valid JSON number is rejected — so a magnitude outside the
+ * finite `number` range materializes the way JavaScript itself reads that
+ * text (`1e400` is `Infinity`, `1e-400` is `0`). The bigint-free domain has
+ * nothing more exact to offer; the extended codec keeps such distinctions,
+ * from the same lexeme, without this one having to.
+ *
+ * @type {NumberPolicy<number>}
+ */
+const numberPolicy = lexeme => ok(Number(lexeme))
+
+/**
+ * Parses `text` as JSON with this module's own pure reader over the JSON
+ * grammar, reporting failure as a `Result` rather than throwing: malformed input is
+ * *available* as an `error` to branch on. Whether to branch or to `unwrap` it
+ * back into a panic is the caller's decision — the parser no longer makes it
+ * for them.
+ *
+ * The result is an untyped {@link Unknown}; narrow it to a domain type with an
+ * rtti schema (`fjs/rtti/parse`) rather than with an `as` cast.
+ *
+ * @type {(text: string) => Result<Unknown, string>}
+ */
+export const parse = parseWith(numberPolicy)

@@ -1,0 +1,271 @@
+/**
+ * @import { Oid } from '../types.ts'
+ * @import { Commit } from './types.ts'
+ */
+
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
+import { codePointListToString } from '../../text/utf16/module.f.js'
+import { toArray } from '../../types/list/alt/module.f.js'
+import { encodeScalar } from '../../basen/base16/module.f.js'
+import { toHex } from '../oid/module.f.js'
+import { name, object, tagger, type, write as writeTag } from '../tag/module.f.js'
+import { commitPayload, latin1, mergePayload, sha256Commit, tagPayload } from '../testlib.f.js'
+import { author, committer, encoding, gpgsig, mergetags, parents, tree, tryRead, tryTree, tryTreeAt, validate, write } from './module.f.js'
+import { generate } from '../../types/array/module.f.js'
+import { nameOf } from '../../types/object/name/module.f.js'
+
+/** An id's 40 hex digits, as a `parent` header spells it. */
+const idHex = encodeScalar(40)
+
+/** @type {(input: readonly number[]) => Commit} */
+const read = input => {
+    const c = tryRead(input)
+    assert(c !== null)
+    return c
+}
+
+/** @type {(lines: readonly string[]) => Commit} */
+const commit = lines => read(latin1(lines.join('\n')))
+
+/** @type {(bytes: readonly number[]) => string} */
+const text = codePointListToString
+
+/** @type {(id: Oid) => string} */
+const hex = id => text(toArray(toHex(id)))
+
+const validate20 = validate(20)
+
+const treeId = /** @type {const} */ ('c5711460da9d5ae7158a951d9d924385419b13ca')
+
+const parentId = /** @type {const} */ ('30317689cb0aaba4f927c1980d80e286c69dce85')
+
+const who = /** @type {const} */ ('A <a@b> 1 +0000')
+
+/**
+ * The headers every rule below starts from: a commit `git fsck` accepts.
+ *
+ * @type {readonly string[]}
+ */
+const lines = [`tree ${treeId}`, `parent ${parentId}`, `author ${who}`, `committer ${who}`, '', 'm']
+
+/** @type {(i: number, line: string) => Commit} */
+const replaced = (i, line) => commit(lines.map((l, j) => j === i ? line : l))
+
+/** @type {(i: number) => Commit} */
+const without = i => commit(lines.filter((_, j) => j !== i))
+
+export const proof = {
+    // The real signed merge commit of this repository: tree, two parents,
+    // author, committer, its signature, no encoding and no mergetag;
+    // vouched for, and written back to the same bytes.
+    merge: () => {
+        const c = read(commitPayload)
+        assertEq(hex(tree(c)), treeId)
+        assertStructurallySame(parents(c).map(hex), [parentId, '261b9142dfe024d8e8e009b0e97f6e52ea981c8d'])
+        assertEq(text(toArray(nameOf(author(c)))), 'Sergey Shandar')
+        assertEq(author(c).time, 1_789_011_254n)
+        assertEq(text(toArray(committer(c).email)), 'noreply@github.com')
+        assertEq(committer(c).tz, '+0000')
+        assertEq(encoding(c), null)
+        const sig = gpgsig(c)
+        assert(sig !== null)
+        assertEq(text(toArray(sig)).split('\n').length, 17)
+        assertStructurallySame(mergetags(c), [])
+        assertStructurallySame(validate20(c), ['ok', c])
+        assertStructurallySame(toArray(write(c)), commitPayload)
+    },
+    // A merge of a signed tag, as Git wrote it: the tag comes back whole
+    // out of the `mergetag` header, its own signature in its message, and
+    // names the second parent.
+    mergetag: () => {
+        const c = read(mergePayload)
+        assertEq(hex(tree(c)), '3a3e4ab4cfbdacbc05f5721ad4aa7877a8004de4')
+        const [t] = mergetags(c)
+        assert(t !== undefined)
+        assertEq(mergetags(c).length, 1)
+        assertEq(hex(object(t)), hex(parents(c)[1]))
+        assertEq(type(t), 'commit')
+        assertEq(text(toArray(name(t))), 'vt')
+        const by = tagger(t)
+        assert(by !== null)
+        assertEq(by.time, 1_700_000_100n)
+        assertEq(committer(c).time, 1_700_000_200n)
+        const message = text(toArray(t.message)).split('\n')
+        assertStructurallySame([message[0], message[1], message[6]], ['Topic tag', '-----BEGIN SSH SIGNATURE-----', '-----END SSH SIGNATURE-----'])
+        assert(gpgsig(c) !== null)
+        assertStructurallySame(validate20(c), ['ok', c])
+        assertStructurallySame(toArray(write(c)), mergePayload)
+    },
+    // A tag folded into a `mergetag` header as Git folds it — SP before
+    // each line, so the tag's last LF ends the header — comes back byte
+    // for byte, all 432 of them, and not one short.
+    folded: () => {
+        const folded = `mergetag ${text(tagPayload).slice(0, -1).replaceAll('\n', '\n ')}`
+        const c = commit([...lines.slice(0, 4), folded, ...lines.slice(4)])
+        assertStructurallySame(validate20(c), ['ok', c])
+        const [t] = mergetags(c)
+        assert(t !== undefined)
+        assertStructurallySame(toArray(writeTag(t)), tagPayload)
+        assertEq(tagPayload.length, 432)
+    },
+    // A root commit Git wrote under SHA-256: its tree a 32-byte id, vouched
+    // for at that width and refused at the other, written back byte for byte.
+    sha256Git: () => {
+        const c = read(sha256Commit)
+        assertEq(hex(tree(c)), '2f1e8b790adef60b1b58a9fe37ff415972da0e5abd333e171a4f999484eb42b0')
+        assertStructurallySame(parents(c), [])
+        const by = author(c)
+        assertStructurallySame([text(toArray(nameOf(by))), text(toArray(by.email)), by.time, by.tz], ['Proof', 'proof@example.com', 1_700_000_300n, '+0100'])
+        assertStructurallySame(committer(c), by)
+        assertEq(text(toArray(c.message)), 'sha256\n')
+        assertStructurallySame(validate(32)(c), ['ok', c])
+        assertStructurallySame(validate20(c), ['error', 'not a tree id'])
+        assertStructurallySame(toArray(write(c)), sha256Commit)
+    },
+    // A root commit has no parent; `author` and `committer` sit right after
+    // the tree. An `encoding` is read by key.
+    root: () => {
+        const c = commit([`tree ${treeId}`, `author ${who}`, `committer ${who}`, 'encoding latin1', '', ''])
+        assertStructurallySame(parents(c), [])
+        assertEq(text(toArray(nameOf(author(c)))), 'A')
+        assertEq(text(toArray(nameOf(committer(c)))), 'A')
+        assertStructurallySame(toArray(encoding(c) ?? []), latin1('latin1'))
+        assertEq(gpgsig(c), null)
+        assertStructurallySame(validate20(c), ['ok', c])
+    },
+    // The other id width, and each width refuses the other's id.
+    sha256: () => {
+        const c = commit([`tree ${'ab'.repeat(32)}`, `parent ${'cd'.repeat(32)}`, `author ${who}`, `committer ${who}`, '', ''])
+        assertStructurallySame(validate(32)(c), ['ok', c])
+        assertStructurallySame(validate20(c), ['error', 'not a tree id'])
+        assertStructurallySame(validate(32)(commit(lines)), ['error', 'not a tree id'])
+    },
+    // What `fsck` only notes passes: a header between committer and the
+    // end, a `parent` after author, which is another header, not a parent.
+    noted: () => {
+        const extra = commit([...lines.slice(0, 4), 'note x', ...lines.slice(4)])
+        assertStructurallySame(validate20(extra), ['ok', extra])
+        const late = commit([...lines.slice(0, 4), `parent ${parentId}`, ...lines.slice(4)])
+        assertStructurallySame(validate20(late), ['ok', late])
+        assertEq(parents(late).length, 1)
+        // A header list that ends in its parents: the run reaches the end.
+        const last = commit([...lines.slice(0, 2), '', ''])
+        assertEq(parents(last).length, 1)
+        assertEq(hex(parents(last)[0]), parentId)
+    },
+    // The tree id without the panic, at the repository's width: the id, or
+    // `null` where the first header is not `tree`, its value is no hex id,
+    // or the id is of the other width. For a caller that has not vouched
+    // for the commit, so it refuses where `tree` would panic.
+    tryTree: () => {
+        const c = commit(lines)
+        const id = tryTree(20)(c)
+        assert(id !== null)
+        assertEq(hex(id), treeId)
+        assertEq(tryTree(32)(c), null)
+        assertEq(tryTree(20)(replaced(0, 'tree zz')), null)
+        assertEq(tryTree(20)(without(0)), null)
+    },
+    // The same over bytes rather than a commit, which is the step a caller
+    // holding what a store gave takes: the tree, or `null` where the bytes
+    // are no commit at all as well as where the commit names no tree.
+    tryTreeAt: () => {
+        const at = tryTreeAt(20)
+        const id = at(latin1(lines.join('\n')))
+        assert(id !== null)
+        assertEq(hex(id), treeId)
+        assertEq(at(latin1('junk')), null)
+        // Long enough to get past the floor and still no header block, so
+        // it is the reader that refuses it rather than the length.
+        assertEq(at(latin1('j'.repeat(50))), null)
+        assertEq(at(latin1(['tree zz', ...lines.slice(1)].join('\n'))), null)
+        assertEq(tryTreeAt(32)(latin1(lines.join('\n'))), null)
+        // A `parent` header naming no id of the width refuses it too, since
+        // Git's parse reads the parents as well as the tree.
+        assertEq(at(latin1([lines[0], 'parent zz', ...lines.slice(1)].join('\n'))), null)
+        assert(at(latin1([lines[0], `parent ${parentId}`, ...lines.slice(1)].join('\n'))) !== null)
+        // What the parse does not read is not refused: a commit with no
+        // `author` and no `committer` has a tree all the same.
+        assert(at(latin1([lines[0], '', 'm', ''].join('\n'))) !== null)
+        // The floor Git's parse has before it reads the `tree` header: a
+        // payload of `hexsz + 6` bytes or fewer is refused whatever it
+        // holds, so 47 is the least a SHA-1 commit may be and 71 the least
+        // a SHA-256 one may be. `tree <id>\n` alone is one byte short of
+        // the first, and the empty line that must follow the block is the
+        // byte it is short of.
+        const bare = `tree ${treeId}\n`
+        assertEq(latin1(bare).length, 46)
+        assertEq(at(latin1(bare)), null)
+        assert(at(latin1(`${bare}\n`)) !== null)
+        const wide = `tree ${'a'.repeat(64)}\n`
+        assertEq(latin1(wide).length, 70)
+        assertEq(tryTreeAt(32)(latin1(wide)), null)
+        assert(tryTreeAt(32)(latin1(`${wide}\n`)) !== null)
+        // Git's parent walk wants a byte after the line it is reading, so a
+        // payload ending at the last `parent` line's LF is `bad parents in
+        // commit` however good that id is, and the empty line is the byte
+        // it is short of. Measured on Git 2.43.0: the 94-byte payload is
+        // refused and the 95-byte one peels to its tree.
+        const withParent = `${bare}parent ${parentId}\n`
+        assertEq(latin1(withParent).length, 94)
+        assertEq(at(latin1(withParent)), null)
+        assert(at(latin1(`${withParent}\n`)) !== null)
+        // It is the last parent the walk reached, so two of them end the
+        // same way and one ordinary header after them ends the walk
+        // instead, leaving the payload free to end at its own last LF.
+        assertEq(at(latin1(`${withParent}parent ${parentId}\n`)), null)
+        assert(at(latin1(`${withParent}author ${who}\n`)) !== null)
+        // A parent naming the tree is refused: Git looks both up in one
+        // table and the tree went in first, so the parent's lookup finds a
+        // tree where it wants a commit. Measured on Git 2.43.0, where the
+        // same commit gives `error: object <id> is a tree, not a commit`,
+        // while a parent naming a blob or naming nothing peels.
+        assertEq(at(latin1([lines[0], `parent ${treeId}`, ...lines.slice(1)].join('\n'))), null)
+    },
+    // Each refusal, one per rule, on a commit the reader reads.
+    validate: () => {
+        assertStructurallySame(validate20(without(0)), ['error', 'no tree'])
+        assertStructurallySame(validate20(commit(['', ''])), ['error', 'no tree'])
+        assertStructurallySame(validate20(replaced(0, `tree ${treeId.slice(1)}`)), ['error', 'not a tree id'])
+        assertStructurallySame(validate20(replaced(1, `parent ${parentId}0`)), ['error', 'not a parent id'])
+        assertStructurallySame(validate20(replaced(1, 'parent zz')), ['error', 'not a parent id'])
+        assertStructurallySame(validate20(without(2)), ['error', 'no author'])
+        assertStructurallySame(validate20(commit(lines.slice(0, 2).concat(['', '']))), ['error', 'no author'])
+        assertStructurallySame(validate20(replaced(2, 'author A <a@b> 1')), ['error', 'not an author'])
+        assertStructurallySame(validate20(without(3)), ['error', 'no committer'])
+        assertStructurallySame(validate20(replaced(3, `author ${who}`)), ['error', 'no committer'])
+        assertStructurallySame(validate20(replaced(3, 'committer A <a@b> x +0000')), ['error', 'not a committer'])
+        const bad = commit([...lines.slice(0, 4), 'mergetag object zz', ' type commit', ' tag t', ' ', ' m', ...lines.slice(4)])
+        assertStructurallySame(validate20(bad), ['error', 'not a mergetag'])
+        const notATag = commit([...lines.slice(0, 4), 'mergetag object', ...lines.slice(4)])
+        assertStructurallySame(validate20(notATag), ['error', 'not a mergetag'])
+        // A NUL in any header is refused before anything else is looked at;
+        // one in the message, after everything else.
+        assertStructurallySame(validate20(replaced(3, `committer ${who}\u0000`)), ['error', 'NUL in header'])
+        assertStructurallySame(validate20(commit([...lines.slice(0, 4), 'no\u0000te x', ...lines.slice(4)])), ['error', 'NUL in header'])
+        assertStructurallySame(validate20(commit(['\u0000 x', '', ''])), ['error', 'NUL in header'])
+        assertStructurallySame(validate20(replaced(5, 'm\u0000')), ['error', 'NUL in message'])
+        assertStructurallySame(validate20(commit([...lines.slice(0, 4), 'mergetag x', '', 'm\u0000'])), ['error', 'not a mergetag'])
+    },
+    // Git puts no bound on the parents: a merge of eight thousand is read,
+    // vouched for, and walked without a stack to run out of.
+    octopus: () => {
+        const ps = generate(8_000, i => `parent ${idHex(i)}`)
+        const c = commit([`tree ${treeId}`, ...ps, `author ${who}`, `committer ${who}`, '', 'm'])
+        assertEq(parents(c).length, 8_000)
+        assertEq(hex(parents(c)[7_999]), '1f3f'.padStart(40, '0'))
+        assertEq(text(toArray(nameOf(committer(c)))), 'A')
+        assertStructurallySame(validate20(c), ['ok', c])
+    },
+    // The well-known fields panic on a commit `validate` refuses.
+    throw: {
+        noTree: () => tree(without(0)),
+        notATreeId: () => tree(replaced(0, 'tree zz')),
+        notAParentId: () => parents(replaced(1, 'parent zz')),
+        noAuthor: () => author(without(2)),
+        notAnAuthor: () => author(replaced(2, 'author A')),
+        noCommitter: () => committer(without(3)),
+        notACommitter: () => committer(replaced(3, 'committer A')),
+        notAMergetag: () => mergetags(commit([...lines.slice(0, 4), 'mergetag x', ...lines.slice(4)])),
+    },
+}

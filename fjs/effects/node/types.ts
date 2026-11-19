@@ -309,7 +309,7 @@ export type CreateExclusive = readonly['createExclusive', (path: string) => IoRe
  *
  * `createExclusive` remains for a name claimed now and written later, which is
  * the lock-free upload's staging file. This one is what a file must be when its
- * contents are published by renaming it: [`fjs/git/refstore/write`](../../git/refstore/write/module.f.mjs)'s
+ * contents are published by renaming it: [`fjs/git/refstore/write`](../../git/refstore/write/module.f.js)'s
  * `tryWrite` fills a ref's lock with it, and `tryDelete` the rewritten
  * `packed-refs`, which is what needs more than one chunk.
  *
@@ -427,7 +427,7 @@ export type Stat = readonly['stat', (path: string) => IoResult<FileStat>]
  *
  * Chunks rather than one value for that ceiling's sake: each is a `Vec` and so
  * at most 128 KiB, and the file is however many of them it takes. The reader in
- * `fjs/effects/node/module.f.mjs` joins them into a byte list, which has no
+ * `fjs/effects/node/module.f.js` joins them into a byte list, which has no
  * bound at all.
  *
  * A path that is no regular file — a FIFO, a device — is refused rather than
@@ -496,7 +496,7 @@ export type Handle =
  * as `EOPNOTSUPP` on Bun 1.4.2 and as `UNKNOWN` on Deno 2.8.3, all measured on
  * Darwin arm64 against one socket made by listening on a path. What every host
  * does answer alike is a `stat` of the name, which `fjs/web` asks — see `answer`
- * in [`../../web/module.f.mjs`](../../web/module.f.mjs).
+ * in [`../../web/module.f.js`](../../web/module.f.js).
  */
 export type Open = readonly['open', (path: string) => IoResult<Handle>]
 
@@ -603,7 +603,7 @@ export type RequestBody =
  * worth however many times it is asked for.
  *
  * No bytes means the end, as it does for {@link ReadBytes} read unbounded —
- * `readChunks` in [`./module.f.mjs`](./module.f.mjs) reads both the same way.
+ * `readChunks` in [`./module.f.js`](./module.f.js) reads both the same way.
  *
  * **So a runner never answers no bytes while the body still has some.** A chunk
  * of no bytes is something a source can produce with the stream still running:
@@ -738,7 +738,7 @@ export type RequestListener<O extends Operation> = (_: IncomingMessage) => Effec
  * of the design**, because they overlap: a `HEAD` on a request Node will not
  * chunk, answered with a body whose size the listener does not know, satisfies
  * two of them at once. A runner asks them in the order `responseGate`
- * ([`./module.f.mjs`](./module.f.mjs)) answers in and acts on the first that
+ * ([`./module.f.js`](./module.f.js)) answers in and acts on the first that
  * fires. Both runners read that one function, or they disagree about a request
  * neither of them has any trouble with.
  *
@@ -858,7 +858,7 @@ export type Underrun = readonly['underrun', number]
 
 /**
  * What one pulled cell of a response body does to the pump — see `pumpCell`
- * ([`./module.f.mjs`](./module.f.mjs)).
+ * ([`./module.f.js`](./module.f.js)).
  *
  * @internal
  */

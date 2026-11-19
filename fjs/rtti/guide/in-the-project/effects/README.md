@@ -15,7 +15,7 @@ that set follows [`effects/node/`](../../../../effects/node/) within the
 ## Examples
 
 The demo on this page offers one schema, a directory entry, with a value it
-accepts. It is defined in [`sample.f.mjs`](./sample.f.mjs), and the
+accepts. It is defined in [`sample.f.js`](./sample.f.js), and the
 [module page's demo](../../../README.md) lists it among all the others.
 
 ## Where it is implemented

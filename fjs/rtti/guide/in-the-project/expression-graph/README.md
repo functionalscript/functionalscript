@@ -6,7 +6,7 @@ The compiler's intermediate form is declared as a schema:
 [`edag`](../../../../edag/module.f.js) is its grammar, and
 [`edag/value`](../../../../edag/value/module.f.js) its evaluated values. The
 compiler's output is checked against the grammar, and
-[`nanvm`](../../../../nanvm/module.f.mjs) checks its operator cases against
+[`nanvm`](../../../../nanvm/module.f.js) checks its operator cases against
 `edag`'s `op1Id` and `op3Id` with `validate`.
 
 Every tuple in the grammar is closed, and that is load-bearing: the grammar
@@ -20,7 +20,7 @@ helpers after `edag/value`'s shape check, and declares no schema of its own.
 
 The demo on this page offers two schemas: the unary operators, a union of
 strings, and an evaluated value, which is recursive. They are defined in
-[`sample.f.mjs`](./sample.f.mjs), and the
+[`sample.f.js`](./sample.f.js), and the
 [module page's demo](../../../README.md) lists them among all the others.
 
 ## Where it is implemented

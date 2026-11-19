@@ -2,7 +2,7 @@
  * The corpus format's constructors — the things a literal cannot express.
  *
  * Each is a thunk returning a tagged tuple, so a case can hold one wherever a
- * value goes. [`../module.f.mjs`](../module.f.mjs) re-exports them beside the
+ * value goes. [`../module.f.js`](../module.f.js) re-exports them beside the
  * eliminators that read them back; they live here, apart from the data, so
  * that the case modules can use them without importing the module that
  * imports those cases.

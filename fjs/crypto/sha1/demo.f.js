@@ -1,0 +1,21 @@
+/**
+ * SHA-1 as you type: the padded hex digest of multiline UTF-8 text.
+ * The shared hash output includes a literal OpenSSL command when possible.
+ * @module
+ * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
+ */
+
+import { digestOf, hashOutput, sha1Algorithm } from '../../website/demo/hash/module.f.js'
+import { textDemo } from '../../website/demo/module.f.js'
+
+export const digest = digestOf(sha1Algorithm.hash)
+
+const output = hashOutput(sha1Algorithm)
+
+/** @type {Demo<string, DemoEvent>} */
+export const demo = textDemo({
+    intro: 'SHA-1 hashes UTF-8 text and shows the digest in hexadecimal. SHA-1 collision resistance is broken; do not use it to verify authenticity or protect against tampering.',
+    name: 'text',
+    label: 'Text',
+    init: '',
+})(output)

@@ -37,7 +37,6 @@ export const samples = {
     'decl.generator': 'function* g() { yield 1; }\nexport default g;\n',
     'decl.accessor': 'export default { get a() { return 1; } };\n',
     'decl.method': 'export default { f() { return 1; } };\n',
-    'decl.pattern-object-rest': 'const { a, ...r } = { a: 1, b: 2 };\nexport default r;\n',
     'decl.pattern-computed-key': 'const k = "a";\nconst { [k]: a } = { a: 1 };\nexport default a;\n',
     'mod.export-list': 'const a = 1;\nexport { a };\n',
     'mod.reexport': 'export * from "./a.f.js";\n',

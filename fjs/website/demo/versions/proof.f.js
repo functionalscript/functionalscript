@@ -1,0 +1,491 @@
+/**
+ * @import { DemoEvent } from '../types.ts'
+ * @import { Keys, Layout, Row, State, Structure } from './types.ts'
+ * @import { RandomInt } from '../../../effects/common/types.ts'
+ * @import { RunInstance } from '../../../effects/mock/types.ts'
+ * @import { _Cell, _List } from './private.ts'
+ */
+
+import { binaryKeys, census, decimal, graphOf, sameShape, shuffled, stepLine, versionsDemo } from './module.f.js'
+import { htmlToString } from '../../../media/html/module.f.js'
+import { graphSvg } from '../graph/module.f.js'
+import { commandsOf, runPure } from '../../../effects/module.f.js'
+import { ok } from '../../../types/result/module.f.js'
+import { partialRun, run as mockRun } from '../../../effects/mock/module.f.js'
+import { unwrap } from '../../../types/result/module.f.js'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.js'
+import { occurrences } from '../../../types/string/module.f.js'
+import { generate } from '../../../types/array/module.f.js'
+import { toJson } from '../../../media/json/module.f.js'
+import { entry } from '../../../types/object/entry/module.f.js'
+
+// The smallest persistent structure that shares: a sorted list whose
+// insert and remove copy the cells before the change and share the rest. A
+// step that finds nothing to do answers the same list.
+
+/** @type {(key: number) => (list: _List) => _List} */
+const insert = key => list =>
+    list === null || key < list.key ? { key, next: list }
+    : key === list.key ? list
+    : { key: list.key, next: insert(key)(list.next) }
+
+/** @type {(key: number) => (list: _List) => _List} */
+const remove = key => list => {
+    if (list === null || key < list.key) { return list }
+    if (key === list.key) { return list.next }
+    const next = remove(key)(list.next)
+    return next === list.next ? list : { key: list.key, next }
+}
+
+/** @type {(layout: Layout) => Structure<_List, _Cell>} */
+const chain = layout => ({
+    empty: null,
+    insert,
+    remove,
+    root: list => list,
+    shape: () => ({
+        rows: cell => [{ label: '', inline: String(cell.key), key: cell.key }, ...(cell.next === null ? [] : [/** @type {const} */ ({ to: cell.next, corner: 'bottom' })])],
+        title: cell => cell.key === 1 ? 'first' : '',
+        order: cell => cell.key,
+        layout,
+    }),
+})
+
+/** @type {_List} */
+const nil = null
+
+/** @type {(list: _List, key: number) => _List} */
+const insertInto = (list, key) => insert(key)(list)
+
+/** @type {(keys: readonly number[]) => _List} */
+const listOf = keys => keys.reduce(insertInto, nil)
+
+const ofThree = listOf([1, 2, 3])
+
+/**
+ * Keys typed in binary, up to four digits, and shown in four: a format of
+ * the demo's own, as the Patricia trie's is.
+ *
+ * @type {Keys}
+ */
+const nibble = {
+    ...binaryKeys(4),
+    label: 'Bits',
+    accepts: 'up to four binary digits',
+}
+
+const { demo, load, press, move } = versionsDemo({
+    structure: chain('depth'),
+    name: 'chain',
+    noun: 'list',
+    intro: 'A list.',
+    keys: nibble,
+    presets: [
+        ['Three', [1, 2, 3], 4, 'Press Insert to add 0100.', 'three'],
+        ['Empty', [], 5, 'Press Insert to add 0101.', 'empty'],
+    ],
+})
+
+/**
+ * A host whose `randomInt` answers 0, 1, 2, … in turn, its state the next
+ * answer.
+ *
+ * @type {RunInstance<RandomInt, number>}
+ */
+const counter = mockRun(/** @type {Parameters<typeof mockRun<RandomInt, number>>[0]} */ ({
+    randomInt: () => (/** @type {number} */ n) => [n + 1, ok(n)],
+}))
+
+const random = versionsDemo({
+    structure: chain('depth'),
+    name: 'random',
+    noun: 'list',
+    intro: '',
+    presets: [['One', [1], 2, '', 'one']],
+    random: { max: 5, count: 3, keys: n => generate(n, i => i + 1) },
+})
+
+/**
+ * The random demo's update for an event that asks for nothing.
+ *
+ * @type {(event: DemoEvent) => (state: State<_List>) => State<_List>}
+ */
+const updateRandom = event => state => unwrap(assertNotNullish(runPure(random.demo.update(state)(event))[0]))
+
+/** @type {(state: State<_List>) => string} */
+const html = state => htmlToString(demo.view(state))
+
+/** @type {(event: DemoEvent) => (state: State<_List>) => State<_List>} */
+const update = event => state => unwrap(assertNotNullish(runPure(demo.update(state)(event))[0]))
+
+export const proof = {
+    sharing: () => {
+        const sharing = assertNotNullish(demo.sharing)
+        const inputs = sharing.read(demo.init)
+        assertEq(inputs.example, 'three')
+        const restored = sharing.restore({ ...inputs, key: '1111' })
+        assertEq(restored.key, '1111')
+        assertEq(sharing.read(restored).example, 'three')
+        const custom = sharing.restore({ ...inputs, example: '' })
+        assertEq(sharing.read(custom).example, '')
+        assertEq(custom.versions.after, null)
+    },
+    // The default keys: any safe integer, spelled as `String` spells it.
+    decimal: () => {
+        assertEq(decimal.parse('-12'), -12)
+        assertEq(decimal.parse('07'), null)
+        assertEq(decimal.parse('1e3'), null)
+        assertEq(decimal.parse('NaN'), null)
+        assertEq(decimal.show(12), '12')
+    },
+    // Up to `width` binary digits read, all `width` drawn; an empty text, a
+    // longer one and any other digit are refused.
+    binaryKeys: () => {
+        const { parse, show } = binaryKeys(4)
+        assertEq(parse('101'), 5)
+        assertEq(parse('0000'), 0)
+        assertEq(parse(''), null)
+        assertEq(parse('10101'), null)
+        assertEq(parse('12'), null)
+        assertEq(show(5), '0101')
+    },
+    // a key is a number, so a width past its 53 bits of precision is refused
+    binaryKeysWidth: {
+        widest: () => assertEq(binaryKeys(53).parse('1'.repeat(53)), 2 ** 53 - 1),
+        throw: {
+            wide: () => binaryKeys(54),
+            empty: () => binaryKeys(0),
+        },
+    },
+    graphOf: {
+        // Table ports span every value in the child subtree, recursively.
+        table: () => {
+            const g = graphOf(chain('table'))({ before: null, after: ofThree })
+            assertEq(g.table, true)
+            assertEq(toJson(g.nodes.map(node => node.rank)), '[0,1,2]')
+            assertStructurallySame(g.edges.filter(edge => typeof edge.to === 'number').map(edge => edge.span), [2, 1])
+        },
+        // Inserting 0 in front builds one cell and shares the three after
+        // it. Only the new list is drawn, with one arrow, into its root.
+        sharesTheTail: () => {
+            const after = insert(0)(ofThree)
+            const g = graphOf(chain('depth'))({ before: ofThree, after })
+            assertEq(toJson(g.nodes.map(n => [n.kind, n.label, n.rank])),
+                '[["new","",0],["shared","first",1],["shared","",2],["shared","",3]]')
+            assertStructurallySame(entry(g, 'entries'), [{ to: 0 }])
+            assertEq(toJson(census(chain('depth'))({ before: ofThree, after })), '{"built":1,"shared":3,"replaced":0}')
+        },
+        // Inserting 4 at the end copies every cell. The three old cells are
+        // counted as replaced, but not drawn.
+        copiesThePath: () => {
+            const after = insert(4)(ofThree)
+            const g = graphOf(chain('depth'))({ before: ofThree, after })
+            assertEq(toJson(g.nodes.map(n => n.kind)), '["new","new","new","new"]')
+            assertEq(g.edges.filter(e => typeof e.to !== 'number').length, 4)
+            assertEq(toJson(census(chain('depth'))({ before: ofThree, after })), '{"built":4,"shared":0,"replaced":3}')
+        },
+        // `leaves` puts every leaf in the last column: the root of a list of
+        // four is three columns left of its last cell.
+        leaves: () => {
+            const after = insert(4)(ofThree)
+            const g = graphOf(chain('leaves'))({ before: ofThree, after })
+            assertEq(toJson(g.nodes.map(n => n.rank)), '[0,1,2,3]')
+        },
+        // A node reached by two paths in one version is drawn once, with
+        // an arrow from each path, and counted once.
+        diamond: () => {
+            /** @type {Structure<string | null, string>} */
+            const diamond = {
+                empty: null,
+                insert: () => v => v,
+                remove: () => v => v,
+                root: v => v,
+                shape: () => ({
+                    rows: node =>
+                        node === 'A' ? [{ to: 'B', corner: 'top' }, { to: 'C', corner: 'bottom' }]
+                        : node === 'D' ? [{ label: '', inline: 'D' }]
+                        : [{ to: 'D', corner: 'bottom' }],
+                    title: () => '',
+                    order: node => node.charCodeAt(0),
+                    layout: 'depth',
+                }),
+            }
+            const g = graphOf(diamond)({ before: null, after: 'A' })
+            assertEq(toJson(g.nodes.map(n => [n.rank, n.kind])), '[[0,"new"],[1,"new"],[1,"new"],[2,"new"]]')
+            assertEq(g.edges.filter(e => e.to === 3).length, 2)
+            assertEq(toJson(census(diamond)({ before: null, after: 'A' })), '{"built":4,"shared":0,"replaced":0}')
+        },
+        // Repeated references are drawn once, distinct equal objects stay
+        // distinct, and an equal sort order preserves the first encounter.
+        referenceOrder: () => {
+            /** @type {object} */
+            const root = {}
+            /** @type {object} */
+            const shared = {}
+            /** @type {object} */
+            const distinct = {}
+            /** @type {Structure<object | null, object>} */
+            const structure = {
+                empty: null,
+                insert: () => v => v,
+                remove: () => v => v,
+                root: v => v,
+                shape: () => ({
+                    rows: node => node === root ? [shared, distinct, shared].map(to => ({ to, corner: 'bottom' })) : [],
+                    title: node => node === root ? 'root' : node === shared ? 'shared' : 'distinct',
+                    order: () => 0,
+                    layout: 'depth',
+                }),
+            }
+            const g = graphOf(structure)({ before: shared, after: root })
+            assertEq(toJson(g.nodes.map(node => [node.label, node.kind])), '[["root","new"],["shared","shared"],["distinct","new"]]')
+            assertEq(toJson(g.edges.map(edge => edge.to)), '[1,2,1]')
+            assertEq(toJson(census(structure)({ before: shared, after: root })), '{"built":2,"shared":1,"replaced":0}')
+            assertEq(toJson(census(structure)({ before: root, after: shared })), '{"built":0,"shared":1,"replaced":2}')
+        },
+        // The new version's root has the one arrow; an empty new version
+        // has no node and no arrow, whatever the old one held.
+        roots: () => {
+            assertStructurallySame(entry(graphOf(chain('depth'))({ before: ofThree, after: ofThree }), 'entries'), [{ to: 0 }])
+            assertStructurallySame(entry(graphOf(chain('depth'))({ before: null, after: ofThree }), 'entries'), [{ to: 0 }])
+            const gone = graphOf(chain('depth'))({ before: ofThree, after: null })
+            assertStructurallySame([gone.nodes, entry(gone, 'entries')], [[], []])
+            assertEq(toJson(census(chain('depth'))({ before: ofThree, after: null })), '{"built":0,"shared":0,"replaced":3}')
+        },
+    },
+    // Two versions are drawn the same when their rows are, node by node,
+    // whatever objects hold them.
+    sameShape: {
+        list: () => {
+            const same = sameShape(chain('depth'))
+            assert(same({ before: ofThree, after: ofThree }), '')
+            assert(same({ before: ofThree, after: listOf([1, 2, 3]) }), '')
+            assert(same({ before: nil, after: nil }), '')
+            assert(!same({ before: ofThree, after: listOf([1, 2]) }), '')
+            assert(!same({ before: ofThree, after: listOf([1, 2, 4]) }), '')
+            assert(!same({ before: ofThree, after: nil }), '')
+            assert(!same({ before: nil, after: ofThree }), '')
+        },
+        // A row is an edge in one and a value in the other, edges leave
+        // from different corners, values have different labels or are
+        // drawn in different parts, or nodes have different titles.
+        rows: () => {
+            /** @type {Record<string, readonly Row<string>[]>} */
+            const table = {
+                edge: [{ to: 'leaf', corner: 'top' }],
+                bottom: [{ to: 'leaf', corner: 'bottom' }],
+                value: [{ label: '', inline: 'leaf' }],
+                named: [{ label: 'a', inline: 'leaf' }],
+                split: [{ label: '', inline: 'leaf', parts: [['le', 'prior'], ['af', 'current']] }],
+                resplit: [{ label: '', inline: 'leaf', parts: [['l', 'prior'], ['eaf', 'current']] }],
+                titled: [],
+                leaf: [],
+            }
+            /** @type {Structure<string, string>} */
+            const named = {
+                empty: 'leaf',
+                insert: () => v => v,
+                remove: () => v => v,
+                root: v => v,
+                shape: () => ({ rows: node => assertNotNullish(entry(table, node)), title: node => node === 'titled' ? 'T' : '', order: () => 0, layout: 'depth' }),
+            }
+            /** @type {(before: string, after: string) => boolean} */
+            const same = (before, after) => sameShape(named)({ before, after })
+            assert(!same('edge', 'value'), '')
+            assert(!same('value', 'edge'), '')
+            assert(!same('edge', 'bottom'), '')
+            assert(!same('value', 'named'), '')
+            assert(!same('value', 'split'), '')
+            assert(!same('split', 'resplit'), '')
+            assert(same('split', 'split'), '')
+            assert(!same('leaf', 'titled'), '')
+        },
+    },
+    // A key row is a control that moves its key; any other row is not.
+    clicks: () => {
+        const g = graphOf(chain('depth'))({ before: ofThree, after: ofThree })
+        assertStructurallySame(g.edges.flatMap(e => typeof e.to === 'number' ? [] : [e.to.click]),
+            [{ name: 'move:1', label: 'Remove 1 and insert it again' }, { name: 'move:2', label: 'Remove 2 and insert it again' }, { name: 'move:3', label: 'Remove 3 and insert it again' }])
+        const h = htmlToString(graphSvg(g))
+        assertEq(occurrences('data-demo-click="move:')(h), 3)
+    },
+    stepLine: {
+        counts: () => assertEq(stepLine('list')(key => String(key))({ op: 'insert', key: 4 })({ built: 1, shared: 3, replaced: 0 }),
+            'Last step, insert 4: 1 new (blue), 3 shared with the list before, 0 only in the list before.'),
+        // A step that built nothing and left nothing behind says why.
+        alreadyThere: () => assertEq(stepLine('list')(key => String(key))({ op: 'insert', key: 2 })({ built: 0, shared: 3, replaced: 0 }),
+            'Last step, insert 2: nothing changed, the key is already in the list.'),
+        notThere: () => assertEq(stepLine('list')(key => String(key))({ op: 'remove', key: 7 })({ built: 0, shared: 3, replaced: 0 }),
+            'Last step, remove 7: nothing changed, the key is not in the list.'),
+        wentBack: () => assertEq(stepLine('list')(key => String(key))({ op: 'move', key: 2 })({ built: 0, shared: 3, replaced: 0 }),
+            'Last step, move 2: nothing changed, the key went back where it was.'),
+        moved: () => assertEq(stepLine('list')(key => String(key))({ op: 'move', key: 2 })({ built: 2, shared: 1, replaced: 2 }),
+            'Last step, move 2: 2 new (blue), 1 shared with the list before, 2 only in the list before.'),
+    },
+    demo: {
+        // The first preset, loaded: its keys as both versions, the key in
+        // the field, its hint, and nothing coloured.
+        opening: () => {
+            assertEq(demo.init.key, '0100')
+            assertEq(demo.init.versions.before, demo.init.versions.after)
+            const h = html(demo.init)
+            assert(h.includes('<p>A list.</p>'), h)
+            assert(h.includes('<label for="chain-key">Bits </label>'), h)
+            // The field holds the key as the demo's own format spells it.
+            assert(h.includes('id="chain-key" name="key" value="0100"'), h)
+            assert(h.includes('Press Insert to add 0100.'), h)
+            assert(h.includes('<option value="Three" selected="" data-example-id="three">'), h)
+            assertEq(occurrences('<svg')(h), 1)
+            assertEq(occurrences('data-graph-kind="new"')(h), 0)
+            assert(!h.includes('Error'), h)
+        },
+        // A press makes the new version the old one, and the drop-down
+        // leaves the preset behind.
+        press: () => {
+            const s = press('insert')(demo.init)
+            assertEq(s.versions.before, demo.init.versions.after)
+            assertEq(toJson(s.status), '{"step":{"op":"insert","key":4}}')
+            const h = html(s)
+            // The step line spells the key the same way.
+            assert(h.includes('Last step, insert 0100:'), h)
+            assert(h.includes('Custom'), h)
+        },
+        // A move that rebuilds the same shape answers the version it was
+        // given: the list copies the cells before the key and builds them
+        // again, and the drawing says nothing changed. The field takes the
+        // moved key, as the format spells it.
+        move: () => {
+            const s = move(2)(demo.init)
+            assertEq(s.versions.before, demo.init.versions.after)
+            assertEq(s.versions.after, demo.init.versions.after)
+            assertEq(toJson(s.status), '{"step":{"op":"move","key":2}}')
+            assertEq(s.key, '0010')
+            assert(html(s).includes('Last step, move 0010: nothing changed, the key went back where it was.'), '')
+        },
+        // A move that changes the shape is a step like any other. In a
+        // list that inserts at its front, moving its last key brings it
+        // there, and copies the cells before it on the way out.
+        moveToFront: () => {
+            /** @type {(key: number) => (list: _List) => _List} */
+            const has = key => list => list !== null && (list.key === key || has(key)(list.next) !== null) ? list : null
+            const front = versionsDemo({
+                structure: { ...chain('depth'), insert: key => list => has(key)(list) ?? { key, next: list } },
+                name: 'front', noun: 'list', intro: '', presets: [['Three', [3, 2, 1], 3, '', 'three']],
+            })
+            const s = front.move(3)(front.demo.init)
+            assertEq(toJson(s.versions.after), '{"key":3,"next":{"key":1,"next":{"key":2,"next":null}}}')
+            assert(htmlToString(front.demo.view(s)).includes('Last step, move 3: 3 new (blue), 0 shared with the list before, 3 only in the list before.'), '')
+        },
+        // A field the format cannot read changes nothing, and says what it
+        // takes.
+        refused: () => {
+            const s = press('insert')({ ...demo.init, key: '2' })
+            assertEq(s.versions, demo.init.versions)
+            assertEq(s.status, demo.init.status)
+            assert(html(s).includes('Refused:</p><pre data-result="error">&quot;2&quot; is not a key: type up to four binary digits.</pre>'), '')
+            // The next good press clears it.
+            assertEq(press('insert')({ ...s, key: '101' }).error, null)
+        },
+        // An empty new version has no node: it is said instead, and no
+        // graph is drawn. The old version is never drawn, so its being
+        // empty is not said.
+        empty: () => {
+            const loaded = html(load('Empty'))
+            assertEq(occurrences('<svg')(loaded), 0)
+            assert(loaded.includes('The list is empty.'), loaded)
+            const one = press('insert')(load('Empty'))
+            const h = html(one)
+            assertEq(occurrences('<svg')(h), 1)
+            assert(!h.includes('The list is empty.'), h)
+            const gone = html(press('remove')(one))
+            assertEq(occurrences('<svg')(gone), 0)
+            assert(gone.includes('The list is empty.'), gone)
+        },
+        // Typing changes the field only; a button applies it; picking a
+        // preset loads it; anything else is ignored.
+        update: () => {
+            const typed = update({ kind: 'input', name: 'key', value: '110' })(demo.init)
+            assertEq(typed.key, '110')
+            assertEq(typed.versions, demo.init.versions)
+            assertEq(toJson(update({ kind: 'click', name: 'insert' })(typed).status), '{"step":{"op":"insert","key":6}}')
+            assertEq(toJson(update({ kind: 'click', name: 'remove' })(typed).status), '{"step":{"op":"remove","key":6}}')
+            assertEq(update({ kind: 'input', name: 'example', value: 'Empty' })(typed).key, '0101')
+            assertEq(toJson(update({ kind: 'click', name: 'move:3' })(typed).status), '{"step":{"op":"move","key":3}}')
+            assertEq(update({ kind: 'click', name: 'move:x' })(typed), typed)
+            assertEq(update({ kind: 'click', name: 'other' })(typed), typed)
+            assertEq(update({ kind: 'input', name: 'other', value: '1' })(typed), typed)
+            assertEq(update({ kind: 'start' })(typed), typed)
+        },
+        // Without a format of its own, a demo takes decimal keys.
+        open: () => {
+            const open = versionsDemo({ structure: chain('leaves'), name: 'open', noun: 'list', intro: '', presets: [['One', [1], 2, '', 'one']] })
+            assert(htmlToString(open.demo.view(open.demo.init)).includes('<label for="open-key">Key </label>'), '')
+            assert(htmlToString(open.demo.view(open.press('insert')({ ...open.demo.init, key: 'x' }))).includes('type an integer.'), '')
+            assertEq(open.graphOf(open.demo.init.versions).nodes.length, 1)
+        },
+        // A name no preset has is a bug in whatever sent it. The thunk
+        // answers nothing: a state would put the proof's private list type
+        // in its published declaration, which the package does not ship.
+        throw: () => { load('no such preset') },
+    },
+    // A demo with a Generate button builds a random version from keys in an
+    // order its host picks.
+    random: {
+        // One `randomInt` per key, each picking among the keys still left:
+        // a counter answering 0, 1, 2 picks the first of three, the second
+        // of the two left, and the last.
+        shuffled: () => {
+            assertEq(toJson(counter(0)(shuffled([1, 2, 3]))), '[3,["ok",[1,3,2]]]')
+            assertEq(toJson(counter(0)(shuffled([]))), '[0,["ok",[]]]')
+        },
+        // The count field opens on the demo's count, and Generate builds the
+        // version from that many keys, as both versions, and spells out the
+        // order it inserted them in.
+        generate: () => {
+            const h = htmlToString(random.demo.view(random.demo.init))
+            assert(h.includes('<label for="random-count">Random keys </label><input type="text" id="random-count" name="count" value="3" size="4"> <button type="button" name="generate">Generate</button>'), h)
+            const [, r] = counter(0)(random.demo.update(random.demo.init)({ kind: 'click', name: 'generate' }))
+            assert(r[0] === 'ok', '')
+            const s = r[1]
+            assertEq(toJson(s.status), '{"random":[1,3,2]}')
+            assertEq(s.versions.before, s.versions.after)
+            assertEq(toJson(s.versions.after), toJson(listOf([1, 2, 3])))
+            assert(htmlToString(random.demo.view(s)).includes('3 keys inserted in random order: 1, 3, 2.'), '')
+        },
+        // A count outside 1 to the most, or no number at all, builds nothing
+        // and says what it takes; the field keeps what was typed.
+        refused: () => {
+            for (const value of ['0', '6', 'x']) {
+                const typed = updateRandom({ kind: 'input', name: 'count', value })(random.demo.init)
+                const [n, r] = counter(0)(random.demo.update(typed)({ kind: 'click', name: 'generate' }))
+                assertEq(n, 0)
+                assert(r[0] === 'ok', '')
+                assertEq(r[1].versions, random.demo.init.versions)
+                assertEq(r[1].count, value)
+                assertEq(r[1].error, `"${value}" is not a number of keys: type a whole number from 1 to 5.`)
+            }
+        },
+        // A host without random numbers builds nothing, and says so.
+        notImplemented: () => {
+            /** @type {RunInstance<RandomInt, null>} */
+            const none = partialRun(commandsOf({ randomInt: null }))({})
+            const [, r] = none(null)(random.demo.update(random.demo.init)({ kind: 'click', name: 'generate' }))
+            assert(r[0] === 'ok', '')
+            assertEq(r[1].versions, random.demo.init.versions)
+            assertEq(r[1].error, 'No random tree: operation not implemented: randomInt.')
+        },
+        // Loading a preset keeps the count the reader typed.
+        keepsTheCount: () => {
+            const typed = updateRandom({ kind: 'input', name: 'count', value: '4' })(random.demo.init)
+            assertEq(updateRandom({ kind: 'input', name: 'example', value: 'One' })(typed).count, '4')
+        },
+        // A demo without `random` has no count field, and Generate is
+        // nothing to it.
+        absent: () => {
+            assertEq(demo.init.count, '')
+            assert(!html(demo.init).includes('name="count"'), '')
+            assertEq(update({ kind: 'click', name: 'generate' })(demo.init), demo.init)
+            assertEq(toJson(runPure(versionsDemo({ structure: chain('depth'), name: 'none', noun: 'list', intro: '', presets: [['One', [1], 2, '', 'one']] }).generate(demo.init))), toJson([ok(demo.init)]))
+        },
+    },
+}

@@ -23,7 +23,7 @@ Demo                      ← the page's own heading; the demo never writes it
 ```
 
 **The demo never writes its own `h2`.** The page wraps every demo in a
-section headed `Demo` (`demoSection` in [`../page/module.f.mjs`](../page/module.f.mjs)).
+section headed `Demo` (`demoSection` in [`../page/module.f.js`](../page/module.f.js)).
 Inside it, a demo made of several parallel parts heads each with an `h3`:
 several results side by side, as the compiler's side-by-side page and a
 grammar's railroad diagrams show, or the halves of one workflow, as the VDF
@@ -35,7 +35,7 @@ demo's `Evaluate` and `Verify` are. It uses no other heading level.
 control.** The page shows only the demo's view; the module's `@module` JSDoc
 is not on it. Without a lead, a reader meets a textarea and a block of output
 with nothing to say what either is for — which is how the bigint demo
-explains writing its own (`fjs/types/bigint/demo.f.mjs`).
+explains writing its own (`fjs/types/bigint/demo.f.js`).
 
 The lead says, in this order and as briefly as it can:
 
@@ -95,7 +95,7 @@ remain unchanged.
   regular with it.
 - **The control fits what the reader types.** Text that can span lines — a
   program, a document, a release file — is a textarea, and a demo that is
-  text in, text out uses [`textDemo`](./module.f.mjs), which owns the
+  text in, text out uses [`textDemo`](./module.f.js), which owns the
   textarea, the examples drop-down and their wiring. One short value — a
   message to hash, a key, a number — is a single-line `<input
   type="text">`, as the SHA-2, bigint and versions demos use. A choice from
@@ -104,7 +104,7 @@ remain unchanged.
   graph target and geometric branches do.
 - **A field that holds code is highlighted: `textDemo` takes `highlight`**,
   the function that draws its text as nodes, as the compiler demos pass
-  [`highlight`](./highlight/module.f.mjs). The textarea is laid over a
+  [`highlight`](./highlight/module.f.js). The textarea is laid over a
   coloured copy of its text, with its own text transparent, so the reader types
   into the colours and the caret, selection and undo stay the browser's. The
   runtime keeps the copy where the textarea is scrolled, and makes each
@@ -222,12 +222,12 @@ explicit Run actions. See [navigation and startup edits](./sharing/README.md#nav
   A result a reader will paste somewhere else — a digest, a command to run —
   is marked `data-code-block` too and carries a copy button, as both of the
   SHA-2 demo's blocks do (`codeBlock` in
-  [`crypto/sha2/demo.f.mjs`](../../crypto/sha2/demo.f.mjs)).
+  [`crypto/sha2/demo.f.js`](../../crypto/sha2/demo.f.js)).
 - **A tint is a verdict, and only a verdict.** Where the demo's point is
   whether a reader *accepts* the input, the box is marked
   `data-result="ok"` (green) or `data-result="error"` (red) instead, as the
   rtti demo's parse and validate answers are (`answerView` in
-  [`rtti/demo.f.mjs`](../../rtti/demo.f.mjs)). A result that is simply what
+  [`rtti/demo.f.js`](../../rtti/demo.f.js)). A result that is simply what
   the module computed — a digest, an AST, a generated module — stays
   neutral: green there would claim a check nobody made. **A verdict box that
   holds code** is marked `data-code` as well: it keeps the tint and border,
@@ -238,7 +238,7 @@ explicit Run actions. See [navigation and startup edits](./sharing/README.md#nav
 - **Generated code is coloured by what its producer wrote.** A result the
   repository's own writers produce — JSON, DataJS, the EDAG, a FunctionalScript
   module, Rust — is marked text, and the demo draws it with
-  [`render`](./highlight/module.f.mjs), which wraps each run that has a kind in
+  [`render`](./highlight/module.f.js), which wraps each run that has a kind in
   a `span` marked `data-token` and leaves the text itself unchanged. The demo
   does not read the text again to find the words. Only a text with no producer
   behind it, such as an example a reader typed, goes through `highlight`,

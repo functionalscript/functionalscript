@@ -101,7 +101,7 @@ triggers prove too weak in practice.
 
 ### Implementation
 
-Mirrors the `throws` plumbing in `fjs/emergent_testing/module.f.mjs` plus one
+Mirrors the `throws` plumbing in `fjs/emergent_testing/module.f.js` plus one
 option on the test effect used by the surviving process-based adapters:
 
 - **`TestEntry`** — add `readonly skip: boolean` next to `throws`.
@@ -114,7 +114,7 @@ option on the test effect used by the surviving process-based adapters:
   change, no return-value walk).
 - **`registerModule`** — register skipped leaves with a `skip` flag instead of
   a test body; no subtest registration, no `...` star suffix.
-- **`TestFn` / `Test` effect (`fjs/effects/node/module.f.mjs`)** — extend the
+- **`TestFn` / `Test` effect (`fjs/effects/node/module.f.js`)** — extend the
   options record `{ expectFailure }` with `skip`; the Node implementation
   passes `{ skip: true }` through to `node:test`, and the surviving Bun/Deno
   integrations map it to their framework behavior.
@@ -157,7 +157,7 @@ Playwright execution obtains skip results from the shared browser application.
       browser-side runner, independently of the Playwright Test adapter.
 - [ ] Print `# SKIP` per leaf and `pass / fail / todo / skip` in
       `defaultReporter` (`fjs t`).
-- [ ] Add proofs in `fjs/emergent_testing/proof.f.mjs`: skipped leaf not
+- [ ] Add proofs in `fjs/emergent_testing/proof.f.js`: skipped leaf not
       executed, skipped subtree collected as individual paths, skipped
       generator reported as one leaf, `skip` dominating `throw`/`todo`,
       counters unaffected by skips.
@@ -179,5 +179,5 @@ Playwright execution obtains skip results from the shared browser application.
   Playwright Test integration.
 - `todo/README.md` "Blocked by third parties" — the unskip-trigger convention
   mirrors the **Trigger** requirement of `todo/blocked/` issues.
-- `fjs/effects/node/module.f.mjs` `TestFn` — the options record extended with
+- `fjs/effects/node/module.f.js` `TestFn` — the options record extended with
   `skip` for surviving process-based framework integrations.

@@ -1,5 +1,5 @@
 /**
- * Type-level API for `fjs/media/lock/module.f.mjs`: `Lock` and `LockError`.
+ * Type-level API for `fjs/media/lock/module.f.js`: `Lock` and `LockError`.
  *
  * The map type itself is not restated here — it is `fjs/media/revision`'s
  * `LockMap`; import it from there directly rather than through this module.
@@ -11,7 +11,7 @@ import type { Ts } from '../../rtti/ts/types.ts'
 import type { Rest, Type } from '../../rtti/types.ts'
 import type { Equal } from '../../types/ts/types.ts'
 import type { JsonDialect } from '../types.ts'
-import type { decodeText, encodeText, lockSchema, mediaType, validate } from './module.f.mjs'
+import type { decodeText, encodeText, lockSchema, mediaType, validate } from './module.f.js'
 
 /** The TypeScript type derived from `lockSchema` — the single source of truth. */
 export type Lock = Ts<typeof lockSchema>

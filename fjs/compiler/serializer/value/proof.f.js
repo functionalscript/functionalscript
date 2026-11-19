@@ -1,0 +1,114 @@
+/**
+ * Concrete emitted modules pin value construction, capture positions and
+ * separation of body code. Executing these modules belongs to the host proof.
+ * @import { EdagValue } from '../../../edag/value/types.ts'
+ */
+
+import { assertEq } from '../../../asserts/module.f.js'
+import { factoryStringify, stringify } from './module.f.js'
+
+export const proof = {
+    factoryStringify: () => {
+        assertEq(factoryStringify(7), 'export default()=>{return 7;};')
+        assertEq(factoryStringify(['undefined']), 'export default()=>{return undefined;};')
+        const captured = /** @type {const} */ (['[]', [2]])
+        const fn = /** @type {const} */ (['=>', 0, [captured], ['frame', 0]])
+        assertEq(factoryStringify(['[]', [captured, fn, fn]]),
+            'export default()=>{const $0=[2];const $1=()=>$0;return [$0,$1,$1];};')
+    },
+    primitives: () => {
+        /** @type {readonly (readonly [EdagValue, string])[]} */
+        const cases = [
+            [null, 'null'], [false, 'false'], [true, 'true'],
+            [7, '7'], [-0, '-0'], [NaN, 'NaN'],
+            [Infinity, 'Infinity'], [-Infinity, '-Infinity'],
+            [3n, '3n'], ['a\n"b', '"a\\n\\"b"'],
+        ]
+        for (const [value, text] of cases) {
+            assertEq(stringify(value), `export default ${text};`)
+        }
+        assertEq(stringify(['undefined']), 'export default undefined;')
+    },
+    containers: () => {
+        assertEq(stringify(['[]', []]), 'export default [];')
+        assertEq(stringify(['{}', []]), 'export default {};')
+        assertEq(stringify(['{}', [
+            [':', '0', 3], [':', '__proto__', ['undefined']], [':', 'a"b', 'x'],
+        ]]), 'export default {"0":3,["__proto__"]:undefined,"a\\"b":"x"};')
+        const shared = /** @type {const} */ (['[]', [1]])
+        assertEq(stringify(['[]', [shared, shared, ['[]', [1]]]]),
+            'const $0=[1];export default [$0,$0,[1]];')
+        assertEq(stringify(['{}', [[':', 'a', shared], [':', 'b', shared]]]),
+            'const $0=[1];export default {"a":$0,"b":$0};')
+    },
+    // The `entry` helper is written directly when unshared, and bound once
+    // when several positions hold the same function value.
+    entry: () => {
+        const text = '($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}'
+        assertEq(stringify(['entry']), `export default ${text};`)
+        assertEq(factoryStringify(['entry']), `export default()=>{return ${text};};`)
+        const helper = /** @type {const} */ (['entry'])
+        const sharedText = '($1,$2)=>{const $3=Object.getOwnPropertyDescriptor($1,$2);return $3?.enumerable?$3.value:undefined;}'
+        assertEq(stringify(['[]', [helper, helper]]), `const $0=${sharedText};export default [$0,$0];`)
+        assertEq(stringify(['hasEntry']), 'export default ($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable===true;};')
+        assertEq(stringify(['slice']), 'export default ($0,$1,$2)=>$0.slice($1,$2);')
+        assertEq(stringify(['charCodeAt']), 'export default ($0,$1)=>$0.charCodeAt($1);')
+    },
+    // A static function is the built-in, not its body, so there is none
+    // to write: the module reads the host's own, one function however
+    // often the value holds it.
+    statics: () => {
+        assertEq(stringify(['Object.entries']), 'export default Object.entries;')
+        assertEq(stringify(['Object.keys']), 'export default Object.keys;')
+        assertEq(stringify(['Object.values']), 'export default Object.values;')
+        assertEq(stringify(['[]', [['Object.values'], ['Object.values']]]), 'export default [Object.values,Object.values];')
+        assertEq(factoryStringify(['Object.values']), 'export default()=>{return Object.values;};')
+        assertEq(stringify(['Object.is']), 'export default Object.is;')
+        assertEq(stringify(['Number.isNaN']), 'export default Number.isNaN;')
+        assertEq(stringify(['Math.trunc']), 'export default Math.trunc;')
+        assertEq(stringify(['Math.floor']), 'export default Math.floor;')
+        assertEq(stringify(['Math.abs']), 'export default Math.abs;')
+        for (const id of /** @type {const} */ (['Math.sqrt', 'Math.ceil', 'Math.imul', 'Math.max', 'Math.min'])) {
+            assertEq(stringify([id]), `export default ${id};`)
+            assertEq(stringify(['[]', [[id], [id]]]), `export default [${id},${id}];`)
+        }
+        assertEq(stringify(['[]', [['Object.entries'], ['Object.entries']]]), 'export default [Object.entries,Object.entries];')
+        assertEq(stringify(['[]', [['Math.trunc'], ['Math.trunc']]]), 'export default [Math.trunc,Math.trunc];')
+        assertEq(stringify(['[]', [['Math.floor'], ['Math.floor']]]), 'export default [Math.floor,Math.floor];')
+        assertEq(stringify(['[]', [['Math.abs'], ['Math.abs']]]), 'export default [Math.abs,Math.abs];')
+        assertEq(factoryStringify(['[]', [['Object.is'], ['Number.isFinite']]]), 'export default()=>{return [Object.is,Number.isFinite];};')
+    },
+    functions: () => {
+        assertEq(stringify(['=>', 0, [], 1]), 'export default ()=>1;')
+        assertEq(stringify(['=>', 1, [2], ['+', ['frame', 0], ['arg', 0]]]),
+            'export default (($0)=>(($1)=>$0+$1))(2);')
+        assertEq(stringify(['=>', 0, [7, 7, 9], ['frame', 1]]),
+            'export default (($0,$1,$2)=>(()=>$1))(7,7,9);')
+        const captured = /** @type {const} */ (['[]', [2]])
+        const fn = /** @type {const} */ (['=>', 0, [captured, captured], ['frame', 1]])
+        assertEq(stringify(['[]', [captured, fn, fn]]),
+            'const $0=[2];const $1=(($2,$3)=>(()=>$3))($0,$0);export default [$0,$1,$1];')
+    },
+    // A function that reads itself is named at the start, and what it
+    // captures with it. A value its capture holds, and one operand repeats,
+    // is named there too: one object, written once, wherever it is nested.
+    selfCaptureSharing: () => {
+        const shared = /** @type {const} */ (['{}', [[':', 'name', 'a']]])
+        const captured = /** @type {const} */ (['[]', [shared]])
+        const fn = /** @type {const} */ (['=>', 1, [captured], ['[]', [['frame', 0], ['self']]]])
+        const expected = /** @type {const} */ ('const $0={"name":"a"};const $1=[$0];const $2=(function $3($4){return [$1,$3];});')
+        assertEq(stringify(['[]', [shared, fn]]), `${expected}export default [$0,$2];`)
+        assertEq(stringify(['{}', [[':', 'x', ['[]', [shared, fn]]]]]), `${expected}export default {"x":[$0,$2]};`)
+        assertEq(stringify(['{}', [[':', 'x', ['{}', [[':', 'y', ['[]', [shared, fn]]]]]]]]), `${expected}export default {"x":{"y":[$0,$2]}};`)
+        // with no such function, a value repeated inside one operand stays there
+        assertEq(stringify(['{}', [[':', 'x', ['[]', [shared, shared]]]]]), 'export default {"x":(()=>{const $0={"name":"a"};return [$0,$0];})()};')
+    },
+    bodyScopes: () => {
+        // Body constructors remain in the function, even when their spelling
+        // matches a captured container constructed at module load.
+        assertEq(stringify(['=>', 0, [['[]', []]], ['[]', [['frame', 0], ['[]', []]]]]),
+            'const $0=[];export default ()=>[$0,[]];')
+        assertEq(stringify(['=>', 1, [], ['=>', 0, [['arg', 0]], ['frame', 0]]]),
+            'export default ($0)=>()=>$0;')
+    },
+}

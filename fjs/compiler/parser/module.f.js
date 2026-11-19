@@ -1,0 +1,2282 @@
+/**
+ * Resolve source bindings and control structure for the common sugar pass.
+ *
+ * Explicit work steps keep source depth independent of the host stack.
+ *
+ * @module
+ * @import { Result } from '../../types/result/types.ts'
+ * @import { BindingEvent, BindingId, BindingScope, LoopTarget } from '../../js/ast/types.ts'
+ * @import { ExpansionPlan, SourceValue, SourceStatement, SourceBlock, SourceImport, SourceModule, SourceSwitch, SourceForOf } from '../../js/ast/sugar/source.ts'
+ * @import { List } from '../../types/list/types.ts'
+ * @import { ModuleTokenWithMetadata } from '../tokenizer/types.ts'
+ * @import { AstImport } from '../ast/types.ts'
+ * @import { BindingOrigin, ParseError, ResolvedModule } from './types.ts'
+ * @import { Assignment, BindingTarget, Chain, ComputedKey, ConstantMember, Const, Container, Discard, Element, Entry, For, ForOf, Import, Item, Key, Let, LoopSwitch, Module, Node, ParameterList, Statement, Step, ValueStatement, While, DoWhile, StandaloneLoopBlock } from './syntax/types.ts'
+ * @import { ValueAccess, ValueArray, ValueBinary, ValueIn, ValueInstanceOf, ValueKey, ValueCall, ValueComma, ValueConditional, ValueEntryFunction, ValueHasEntryFunction, ValueRefMap, ValueIntrinsic, ValueEntry, ValueItem, ValueMember, ValueObject, ValueStatic, ValueSpread, ValueStep, ValueUnary, _AccessFrame, _Bound, _CallFrame, _CasePath, _ChainFrame, _ChainPart, _CommaFrame, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _DeclarationKind, _Env, _Self, _Evaluated, _Frame, _ForOfFrame, _LateFrame, _LoopBodyFrame, _LoopSwitchFrame, _PatternFrame, _Plan, _Ref, _Scope, _Stack, _State } from './private.ts'
+ */
+
+import { declarations } from './declarations/module.f.js'
+import { _flattenedStandalone as flattenedStandalone, _hasArmThrow as hasArmThrow, _regionBlock as regionBlock } from './block/module.f.js'
+import { returnedBlock, hasRetainedReturn } from '../../js/ast/sugar/completion/module.f.js'
+import { error, mapOk, ok } from '../../types/result/module.f.js'
+import { concat, reverse } from '../../types/list/module.f.js'
+import { toArray } from '../../types/list/alt/module.f.js'
+import { sort } from '../../types/object/module.f.js'
+import { at, empty, setReplace } from '../../types/ordered_map/module.f.js'
+import { empty as emptyRefMap } from '../../types/ref_map/module.f.js'
+import { assert, assertNotNullish, assertOk } from '../../asserts/module.f.js'
+import { analyzeBindings } from '../../js/ast/module.f.js'
+import { planPattern } from '../../js/ast/sugar/pattern/module.f.js'
+import { maxLength } from '../../types/function/length/module.f.js'
+import { isKeyword, isReservedGlobal } from '../../js/keywords/module.f.js'
+import { prohibitedAccess } from '../../js/prototype/module.f.js'
+import { nameOf, parseSyntax, textOf } from './syntax/module.f.js'
+import { blocks, isRefMap, names as boundNames } from './ref_map/module.f.js'
+import { isBinary, isUnary } from '../ast/module.f.js'
+import { helperLength, intrinsics, staticIds, staticPath } from '../../edag/module.f.js'
+import { entry, hasEntry } from '../../types/object/entry/module.f.js'
+import { _sourceBinding as sourceBinding, _traced as traced, _completedTrace as completedTrace, _planOrigins as planOrigins, _declared as declared, _isVariable as isVariable, _initialized as initialized, _moduleScope as moduleScope, _regionScope as regionScope, _restoredScope as restoredScope } from './scope/module.f.js'
+
+// -- resolving the names ------------------------------------------------------
+
+/**
+ * The key of `{ __proto__: v }` and `{ "__proto__": v }`. JavaScript reads
+ * both as an instruction to replace the object's prototype instead of as a
+ * property, so FunctionalScript rejects them and accepts only the computed
+ * spelling `{ ["__proto__"]: v }` and the shorthand `{ __proto__ }`, which
+ * denote an ordinary property, as they do in JavaScript.
+ * See [spec: the `__proto__` key](../../../spec/values/objects/README.md#the-__proto__-key).
+ */
+const protoKey = '__proto__'
+
+/** @type {(message: string) => (t: ModuleTokenWithMetadata) => ParseError} */
+const foldError = message => ({ metadata }) => ({ message, metadata })
+
+/** A plain `__proto__` key, at the key. */
+const protoKeyError = foldError('__proto__ requires the computed key form')
+
+/** A reference to a name nothing binds, at the reference. */
+const constNotFound = foldError('const not found')
+
+/** A name bound twice, at the second binding. */
+const duplicateId = foldError('duplicate id')
+
+/** A braced switch arm must leave the arm rather than fall into the next one. */
+const unterminatedCase = foldError('switch case does not terminate')
+
+/** Generic construction syntax does not admit constructor execution. */
+const unsupportedNew = foldError('new is not admitted')
+
+/** Explicit throw in the ordinary join profile remains separate admission work. */
+const throwingArm = foldError('ordinary conditional arms do not admit explicit throw')
+const multipleJoinBindings = foldError('ordinary conditional joins at most one outer binding')
+
+/**
+ * An assignment to a name that is no variable's — a `const`'s, an import's,
+ * a function's own — at the name: JavaScript throws on it where this fold
+ * refuses it ([spec: variables](../../../spec/bindings/variables/README.md)).
+ */
+const constAssignment = foldError('assignment to const')
+
+/**
+ * A reference, from a function nested in the one that declares it and held
+ * as a value, to a variable assigned anywhere in that scope, at the
+ * reference: JavaScript's closure sees the variable's last value, where the
+ * function's capture holds the value it had when the function was made, so
+ * the program is refused rather than read another way — whether the
+ * assignment comes before or after the reference. A function called where
+ * it is written reads the value of that moment in both, and is admitted.
+ * Writes across an ordinary function boundary remain refused; a direct
+ * argumentless call normalized as an expression block instead transports
+ * its updated immutable values into the surrounding continuation
+ * ([spec: variables](../../../spec/bindings/variables/README.md)).
+ */
+const reassignedCaptured = foldError('reassigned variable captured')
+
+/**
+ * A parameter list whose first parameter is no binding target — no name
+ * and no pattern — at the `(` that opened it: `(1) => 2`, `(a.b) => 1`,
+ * `((a)) => 1`, JavaScript's own early error, by its own name. The grammar
+ * admits the value there so that one symbol can decide between a list and
+ * a group (`afterValue` in `./grammar/module.f.js`), and this is the
+ * check that decision left. A value that is no target inside the head's
+ * pattern, `([(a)]) => 1`, is {@link invalidTarget} where it stands, as in
+ * a `const`.
+ */
+const malformedParameters = foldError('malformed parameter list')
+
+/**
+ * A value where a binding pattern wants a target, at the token it begins
+ * with — `const [1] = a;`, `const { a: b.c } = o;`, `const [(a)] = x;`,
+ * the last a group, which JavaScript admits in an assignment pattern and
+ * refuses in a binding one — by JavaScript's own name for the error.
+ */
+const invalidTarget = foldError('invalid destructuring target')
+
+/**
+ * A built-in namespace supplies selected members rather than a value whose
+ * enumerable entries an object rest binding could copy.
+ */
+const namespaceRest = foldError('object rest requires a value')
+
+/** A comma after a rest target, including a trailing comma. */
+const restComma = foldError('comma after rest element')
+
+/**
+ * A hole in an array value, `[1, , 2]` or `[,]`, at the comma that makes
+ * it: refused by design, an array of the language having none
+ * ([spec: arrays](../../../spec/values/arrays/README.md)). The grammar admits
+ * the comma for an array pattern's sake, where it is an elision and skips
+ * an element ([spec: destructuring](../../../spec/bindings/destructuring/README.md)),
+ * and the position alone tells the two apart, so the refusal is here.
+ */
+const arrayHole = foldError('array hole')
+
+/**
+ * A computed key in a binding pattern that is no constant, `{ [k]: a }`,
+ * at the token the key begins with. A string or a number literal alone in
+ * the brackets, `{ ["a"]: t }` or `{ [3]: t }`, is the constant key an
+ * access admits in brackets and never reaches here; the rest is not read
+ * yet, the conversion `Number(i)` an access admits included — a body's
+ * statement is resolved as one value, and the key would be a second value
+ * to resolve inside the statement
+ * ([computed binding keys](../../../spec/todo/computed-binding-keys.md)).
+ */
+const computedPatternKey = foldError('computed key in a binding pattern not supported')
+
+/**
+ * A body `const` binding a name the body has already read from a scope
+ * around it, at the binding. JavaScript resolves every reference in the
+ * body to the body's own `const`, the ones before it included — a read
+ * before it is initialized throws, and a function written before it reads
+ * it once called — so the capture already taken would be a different
+ * value, and the program is refused instead. Not a rule of the language,
+ * which leaks nothing here, but a forward reference inside a body not yet
+ * supported: `./todo/body-const-forward-reference.md`.
+ */
+const captureShadowed = foldError('capture shadowed')
+
+/**
+ * A keyword where JavaScript wants an identifier, at the word — or a
+ * reserved global, `Boolean`, `Number`, `String`, or `BigInt`, bound or read anywhere but as the
+ * callee of the conversion, {@link conversion}, or `Object` or `Number`
+ * anywhere but as the namespace of an admitted static member,
+ * {@link staticRead}: never a module's to bind, under
+ * [spec: global names](../../../spec/todo/2365-global-names.md)' rule, and
+ * no value, so `Number.EPSILON`, `Object.assign` and a bare `Number` are
+ * refused at the word as `typeof.x` would be.
+ */
+const reservedWord = foldError('reserved word')
+
+/**
+ * The call of `Boolean`, `Number`, `String`, or `BigInt` with more than one argument, or a spread,
+ * at the word: `Number(a, b)` and `Number(...a)`, refused by design. A
+ * conversion is an operator, whose fixed set of operands the compiler
+ * checks, and an extra or spread argument says more than the conversion
+ * does — `Number(s, 16)` reads as a radix JavaScript ignores
+ * ([spec: operators and functions](../../../spec/principles/README.md#operators-and-functions)).
+ * `Number()` is `0`, and is read as the literal, {@link conversion}, as
+ * `String()` is the empty string. `Boolean()` converts `undefined` through
+ * the runtime body. `BigInt` requires one operand.
+ *
+ * @type {(name: 'Boolean' | 'Number' | 'String' | 'BigInt') => (token: ModuleTokenWithMetadata) => ParseError}
+ */
+const conversionArity = name => foldError(`${name} takes one argument`)
+
+/**
+ * A token on the wrong side of a line break, at that token: the first
+ * token of a statement on the line of the statement before it, written
+ * without its `;` — the error the grammar reported there when the `;` was
+ * required, and the one JavaScript reports, which inserts a `;` before a
+ * token only where a newline does
+ * ([spec: module structure](../../../spec/modules/README.md)) —
+ * and the tokens JavaScript forbids a newline before, an `=>` and the
+ * value after `return` or `throw`
+ * ([spec: line terminators](../../../spec/lexical/whitespace/README.md)).
+ */
+const unexpectedToken = foldError('unexpected token')
+
+/**
+ * A module that neither throws nor exports a name, at its last `export`:
+ * every exported `const` was a pattern binding no name, `export const {} = o;`,
+ * and no `export default` followed. A module that does not throw exports at
+ * least one name ([spec: exports](../../../spec/modules/exports/README.md)),
+ * which the grammar asked of the `export` keyword while a `const` always
+ * bound one.
+ */
+const noExport = foldError('module exports nothing')
+
+
+/**
+ * Whether a `return` or `throw`'s value is refused at its first token:
+ * JavaScript has `[no LineTerminator here]` after both keywords, so a value
+ * beginning a line would end the statement there — `return` returning
+ * `undefined`, `throw` a syntax error — and is refused rather than read
+ * another way.
+ *
+ * @type {(statement: { readonly first: ModuleTokenWithMetadata | null }) => boolean}
+ */
+const brokenLine = statement => statement.first !== null && statement.first.newline
+
+/**
+ * Whether `next` is refused at its first token: `previous` ended without
+ * its `;`, and `next` begins on the same line. Nothing before the first
+ * statement, and a `}` or the end of input after the last, so neither is
+ * asked; nor is a guard or a switch, which ends at its `}` and takes no
+ * `;`, so the statement after one may share its line, as in JavaScript.
+ *
+ * @type {(previous: { readonly start: ModuleTokenWithMetadata } | null, next: { readonly start: ModuleTokenWithMetadata }) => boolean}
+ */
+const unterminated = (previous, next) => previous !== null && hasEntry(previous, 'semicolon') && !hasEntry(previous, 'postTest') && !previous.semicolon && !next.start.newline
+
+/** A fixed parameter past the language's limit on a function's `length`, at the first one past it. */
+const tooManyParameters = foldError(`more than ${maxLength} fixed parameters`)
+
+
+/**
+ * The word an identifier token spells where JavaScript wants an identifier
+ * — a name bound or referenced — refusing every keyword: the tokenizer
+ * demotes them all to `id`, so that a key or the name after `.` may be one,
+ * and here is where the distinction is made. `const if = 1;` is a syntax
+ * error in JavaScript, so it is an error here. A reserved global is refused
+ * the same way, {@link reservedWord}: `Array`, `Number`, `Object` and
+ * `String` name no binding and no value, and the places each stands are
+ * read before the word reaches here — `instanceof`'s right operand, which
+ * the fold checks for the word itself, the conversion's callee,
+ * {@link conversion}, the namespace of a static function,
+ * {@link staticRead}, and that of the `entry` helper, {@link entryFunction}.
+ *
+ * @type {(name: ModuleTokenWithMetadata) => Result<string, ParseError>}
+ */
+const identifierOf = name => {
+    const word = nameOf(name)
+    return isKeyword(word) || isReservedGlobal(word) ? error(reservedWord(name)) : ok(word)
+}
+
+/**
+ * An `instanceof` whose right operand is not a reference to `Array`, at
+ * the operator: the language admits that one constructor, and reads the
+ * word, not a value — so an access, a literal or a parenthesized value
+ * other than the bare reference is refused here, whatever it would be
+ * in JavaScript.
+ */
+const instanceofRight = foldError('the right operand of instanceof must be Array')
+
+/**
+ * An `in` whose left operand is not a string literal, at the operator: the
+ * language admits that one key, written in the source, so that the names
+ * it refuses are refused here, as the key of a read is; a key computed at
+ * run time is the `hasEntry` helper's to test
+ * ([spec: the `in` record](../../../spec/todo/2346-in-operator.md)).
+ */
+const inLeft = foldError('the left operand of in must be a string literal')
+
+/** An attribute key the language does not know, at the key: `type` is the one JavaScript defines. */
+const unknownAttribute = foldError('unknown import attribute')
+
+/** A module type the language does not read, at the value: `json` is the one JavaScript defines. */
+const unknownType = foldError('unknown import type')
+
+/**
+ * An import as the AST records it: its specifier, and whether its attribute
+ * names a JSON module — the one attribute JavaScript defines, `type`, with
+ * the one value it reads, `json`; any other key or value is refused where
+ * it stands.
+ *
+ * @type {(statement: Import) => Result<Omit<AstImport, 'name'>, ParseError>}
+ */
+export const _readImport = ({ module, attribute }) => {
+    if (attribute === null) { return ok({ specifier: module, json: false }) }
+    const [key, value] = attribute
+    if (nameOf(key) !== 'type') { return error(unknownAttribute(key)) }
+    if (textOf(value) !== 'json') { return error(unknownType(value)) }
+    return ok({ specifier: module, json: true })
+}
+
+/**
+ * A key that names a property of a built-in prototype, at the key, in
+ * either spelling. An access reads an own property, and JavaScript reads
+ * the prototype's where the value owns none: `a.push` is a function there
+ * and nothing here, `a.__proto__` and `a.constructor` reach a function's
+ * constructor through any object — so every such name is refused, as
+ * [spec: property accessor](../../../spec/todo/2330-property-accessor.md)
+ * has it, and a module means one thing in both languages.
+ */
+const prohibitedKey = foldError('prohibited property name')
+
+/**
+ * The refusal of a method call's key: a member function a module may not
+ * call, `a.push(1)` or `a.valueOf()` — a mutator, the prototype protocol, a
+ * locale-dependent or regular-expression method, and the rest
+ * `fjs/js/prototype`'s `prohibitedCalls` names, its README saying why for
+ * each. The other prototype names are member functions the VM answers by
+ * the receiver's type, so `a.at(0)` and `a.toString()` are calls like any
+ * other, though `a.at` and `a.toString` stay refused as reads: a detached
+ * built-in is a function that only fails.
+ */
+const prohibitedCall = foldError('prohibited member function')
+
+/** Why a read of the name is refused, or `null`: `in`'s left side is a read. */
+const prohibitedRead = prohibitedAccess(false)
+
+/** What an access's key token names: a name's word, the string's text, or the number. @type {(t: ModuleTokenWithMetadata) => string | number} */
+const keyNamed = t => {
+    const { token } = t
+    switch (token.kind) {
+        case 'string': { return token.value }
+        case 'number': { return Number(token.value.replaceAll('_', '')) }
+        default: { return nameOf(t) }
+    }
+}
+
+/**
+ * A key's name, or its refusal: a name of the prototype chain where the
+ * key is read, and a member function a module may not call where it is
+ * called, `method`, as `fjs/js/prototype`'s `prohibitedAccess` answers.
+ *
+ * @type {(key: ModuleTokenWithMetadata, method: boolean) => Result<string | number, ParseError>}
+ */
+const checkedKey = (key, method) => {
+    const named = keyNamed(key)
+    if (typeof named === 'string') {
+        const why = prohibitedAccess(method)(named)
+        if (why === 'member function') { return error(prohibitedCall(key)) }
+        if (why === 'property name') { return error(prohibitedKey(key)) }
+    }
+    return ok(named)
+}
+
+/**
+ * An access closed over its base and its constant key: the AST's
+ * `['.', base, key]`, or the refusal of its key — a name of the prototype
+ * chain where the access is read, and a member function a module may not
+ * call where it is a call's callee, `method`. The two rules are
+ * `fjs/js/prototype`'s two lists, and the access's shape is the same
+ * either way: the lowering makes the callee access a method call,
+ * `['.', a, 'b', ['|()', args]]`.
+ *
+ * @type {(key: ModuleTokenWithMetadata, method: boolean, base: SourceValue) => Result<SourceValue, ParseError>}
+ */
+const accessClosed = (key, method, base) => mapOk(
+    /** @type {(named: string | number) => SourceValue} */
+    (named => ['.', base, named]),
+)(checkedKey(key, method))
+
+/**
+ * A key computed at run time that is no conversion, at the token it begins
+ * with: `a[i]`, `a[-1]`, `a[NaN]`. An index is a constant — a string or a
+ * number literal — or `Number(i)`, the conversion
+ * ([spec: property access](../../../spec/property-access/README.md)); a key
+ * of any type is read by the `entry` helper, and a negative or a special
+ * number is written as the string it names, `a["-1"]`.
+ */
+const computedKey = foldError('computed key is not Number(...)')
+
+/**
+ * Whether a computed key is numeric-conversion syntax: unary `+`, whose
+ * lowering remains deferred, or a call of the word `Number`,
+ * whatever its arguments, which the conversion itself judges when entered,
+ * {@link conversion} — so `a[Number()]` is `a[0]`, and `a[Number(1, 2)]`
+ * is refused as `Number(1, 2)` is anywhere.
+ *
+ * @type {(node: Node) => boolean}
+ */
+const isConversion = node => node[0] === '+' && node.length === 2
+    || node[0] === '()' && node[1][0] === 'ref' && nameOf(node[1][1]) === 'Number'
+
+/**
+ * A computed key entered under `frame`, which receives its value — the
+ * access whose base it follows, {@link _IndexFrame}, or a chain, which
+ * takes the key among its parts' values — or its refusal, at the token it
+ * begins with, {@link computedKey}. It is entered after the base, and after
+ * every part of a chain written before it, as JavaScript evaluates it.
+ *
+ * @type {(stack: _Stack, scope: _Scope, key: ComputedKey, frame: _IndexFrame | _ChainFrame) => _State}
+ */
+const keyEntered = (stack, scope, [, node, first], frame) => isConversion(node)
+    ? [node[0] === '+' ? { top: { unary: 'Number' }, rest: { top: frame, rest: stack } } : { top: frame, rest: stack }, scope, ['enter', node]]
+    : [stack, scope, error(computedKey(first))]
+
+/** The steps a chain goes on with after `step`, where it has any. @type {(step: Step) => Step | undefined} */
+const stepAfter = ([, , next]) => next
+
+/**
+ * Whether steps end in a call: the last of them a call, `(…)`, a guarded
+ * one, `?.(…)`, or the call a group put outside a region, `(a?.b)(…)` —
+ * and no property. Over an explicit loop, so a chain as long as the input
+ * allows costs no call stack.
+ *
+ * @type {(step: Step) => boolean}
+ */
+const endsInCall = step => {
+    let last = step
+    let next = stepAfter(last)
+    while (next !== undefined) {
+        last = next
+        next = stepAfter(last)
+    }
+    return last[0] !== '|.'
+}
+
+/** Whether a word names a conversion, decided without a scope binding. @type {(name: string) => name is 'Boolean' | 'Number' | 'String' | 'BigInt'} */
+const isConversionWord = name => name === 'Boolean' || name === 'Number' || name === 'String' || name === 'BigInt'
+
+/**
+ * Whether a call statement's value is a call: of any value but the word of
+ * a conversion, `Number(x)` and `String(x)` being operators
+ * ([spec: operators and functions](../../../spec/principles/README.md#operators-and-functions)),
+ * read here as the word alone, as {@link conversion} reads it; a guarded
+ * call, `f?.(x)`; or a chain whose last step is a call, `a?.b(x)`,
+ * {@link endsInCall}. A group is no node, so `(f(x))` is the call it holds.
+ *
+ * @type {(node: Node) => boolean}
+ */
+const isCall = node => {
+    switch (node[0]) {
+        case '()': { return node[1][0] !== 'ref' || !isConversionWord(nameOf(node[1][1])) }
+        case '?.()': { return node[3] === undefined || endsInCall(node[3]) }
+        case '?.': case '.': { return node[3] !== undefined && endsInCall(node[3]) }
+        default: { return false }
+    }
+}
+
+/**
+ * The static member the key `named` names in the namespace `namespaceName`, as
+ * the AST holds it, `['Number.isInteger']`, or `null` where the language
+ * admits none: the functions of `Object`, the predicates of `Number`,
+ * and the constants `Number.MAX_SAFE_INTEGER`, `Number.MIN_SAFE_INTEGER`,
+ * `Number.MAX_VALUE` and `Number.MIN_VALUE`
+ * ([spec: built-in static functions](../../../spec/built-ins/static-functions/README.md)),
+ * each a tag of the EDAG's `staticIds`, where a later name is a row of
+ * its own decision.
+ *
+ * Numeric constants lower directly to their host-defined value, without
+ * introducing an EDAG operation or copying the constant's digits here.
+ *
+ * @type {(namespaceName: string, named: string | number) => ValueStatic | number | null}
+ */
+const staticMember = (namespaceName, named) => {
+    if (namespaceName === 'Number' && named === 'MAX_SAFE_INTEGER') { return Number.MAX_SAFE_INTEGER }
+    if (namespaceName === 'Number' && named === 'MIN_SAFE_INTEGER') { return Number.MIN_SAFE_INTEGER }
+    if (namespaceName === 'Number' && named === 'MAX_VALUE') { return Number.MAX_VALUE }
+    if (namespaceName === 'Number' && named === 'MIN_VALUE') { return Number.MIN_VALUE }
+    const id = staticIds.find(id => id === `${namespaceName}.${named}`)
+    if (id === undefined) { return null }
+    /** @type {ValueStatic} */
+    const member = [id]
+    return member
+}
+
+/** @type {(namespace: ModuleTokenWithMetadata, key: ModuleTokenWithMetadata) => Result<ValueStatic | number, ParseError>} */
+const namespaceMember = (namespace, key) => {
+    const member = staticMember(nameOf(namespace), keyNamed(key))
+    if (member !== null) { return ok(member) }
+    const [tag, named] = checkedKey(key, false)
+    return tag === 'error' ? error(named) : error(reservedWord(namespace))
+}
+
+/** The source admission owner supplies each refused spelling's diagnostic. */
+const patternRefusals = /** @type {const} */ ({ invalid: invalidTarget, namespaceRest, restComma, computed: computedPatternKey, duplicate: duplicateId })
+
+/**
+ * Source declaration and key policy for the sugar-owned structural pattern
+ * planner. Callbacks run during its single source-order walk, preserving the
+ * first diagnostic without assigning normalization decisions to the parser.
+ *
+ * @type {(check: (name: ModuleTokenWithMetadata) => Result<string, ParseError>) => (target: BindingTarget | Discard, namespace: ModuleTokenWithMetadata | null) => Result<_Plan, ParseError>}
+ */
+const planned = check => planPattern({
+    bindingName: check,
+    key: key => checkedKey(key, false),
+    namespaceMember,
+    refused: (reason, token) => assertNotNullish(entry(patternRefusals, reason))(token),
+})
+
+/**
+ * A `const`'s plan, {@link planned}: where it is a call statement, the
+ * `const` that binds nothing, `['discard', name]`, its value has to be a
+ * call, {@link isCall}, and any other is refused at the name — an
+ * operator's result discarded is almost always a mistake, and a conversion
+ * is an operator ([spec: call statements](../../../spec/functions/call-statements/README.md)).
+ * Generic constructor statements retain their source `new`, where they are
+ * refused before applying the named-call policy.
+ *
+ * @type {(check: (name: ModuleTokenWithMetadata) => Result<string, ParseError>) => (target: BindingTarget | Discard, value: Node, namespace: ModuleTokenWithMetadata | null) => Result<_Plan, ParseError>}
+ */
+const constPlan = check => (target, value, namespace) => {
+    if (target[0] === 'discard') {
+        if (target[1].token.kind === 'id' && target[1].token.value === 'new') { return error(unsupportedNew(target[1])) }
+        if (!isCall(value)) { return error(unexpectedToken(target[1])) }
+    }
+    return planned(check)(target, namespace)
+}
+
+/** A plan with no defaults needs no source-value resolution. @type {(plan: _Plan) => ExpansionPlan} */
+const expansion = ({ reads, ids }) => ({ reads: reads.map(({ source, spread }) => ({ source, spread })), ids })
+
+/** @type {(plan: _Plan) => boolean} */
+const hasPatternDefault = plan => plan.reads.some(read => read.default !== undefined)
+
+/** The environment with a word bound to a reference, its two questions already answered. @type {(env: _Env) => (word: string, ref: _Ref) => _Env} */
+const extended = env => (word, ref) => setReplace(word)(ref)(env)
+
+/** @type {(scope: _Scope, plan: _Plan, assignable: boolean) => _Scope} */
+const boundPlan = (scope, plan, assignable) => initialized({ ...scope, names: plan.names.reduce((names, [token, i]) => extended(names)(nameOf(token), { id: plan.ids[Number(i)], kind: 'own', assignable }), scope.names) }, plan)
+
+/**
+ * A counting frame past its operand: the next one's position, and what
+ * the operand made appended to the ones before it — one value, or the
+ * source statements contributed by a declaration.
+ *
+ * @type {<T, F>(frame: F & _Counted<T>, made: readonly NoInfer<T>[]) => F}
+ */
+const advanced = (frame, made) => ({ ...frame, index: frame.index + 1, done: concat(frame.done)(made) })
+
+/** Bind a declaration after its initializer has resolved: a `const`'s names, or a `let`'s, which are variables. @type {(stack: _Stack, scope: _Scope, frame: _LoopBodyFrame, kind: 'const' | 'let', value: SourceValue) => _State} */
+const landed = (stack, scope, frame, kind, value) => {
+    const plan = assertNotNullish(frame.plan, 'a declaration with no plan')
+    const shadowed = plan.names.find(([name]) => at(nameOf(name))(scope.names) !== null)
+    if (shadowed !== undefined) { return [stack, scope, error(captureShadowed(shadowed[0]))] }
+    if (hasPatternDefault(plan)) {
+        /** @type {_LoopBodyFrame} */
+        const source = frame
+        /** @type {_PatternFrame['continuation']} */
+        const continuation = { loop: source, value }
+        return [stack, scope, ['pattern', { pattern: plan, index: 0, reads: [], kind, continuation }]]
+    }
+    return [stack, boundPlan(scope, plan, isVariable(kind)), ['region', advanced(frame, [['initialize', expansion(plan), value]])]]
+}
+
+/**
+ * A selected pattern read becomes available before the next initializer. The
+ * resolver retains each original identity; sugar emits the read and fallback.
+ *
+ * @type {(scope: _Scope, frame: _PatternFrame, fallback: { readonly value: SourceValue } | null) => Result<readonly [_Scope, _PatternFrame], ParseError>}
+ */
+const patternSelected = (scope, frame, fallback) => {
+    const { pattern, index } = frame
+    const named = pattern.names.find(([, position]) => position === index)
+    if (named !== undefined) {
+        const [token] = named
+        const word = nameOf(token)
+        if (at(word)(scope.names) !== null) { return error(captureShadowed(token)) }
+        scope = { ...scope, names: extended(scope.names)(word, { id: pattern.ids[Number(index)], kind: 'own', assignable: isVariable(frame.kind) }),
+            origins: setReplace(word)(pattern.ids[Number(index)])(scope.origins) }
+    }
+    scope = traced(scope, [['initialize', pattern.ids[Number(index)]]])
+    const { source, spread } = pattern.reads[Number(index)]
+    const read = fallback === null ? { source, spread } : { source, spread, default: fallback }
+    return ok([scope, { ...frame, index: index + 1, reads: [...frame.reads, read] }])
+}
+
+/** The body owns a lexical scope inside the per-iteration declaration scope.
+ * @type {(stack: _Stack, scope: _Scope, frame: _ForOfFrame, plan: ExpansionPlan) => _State}
+ */
+const forOfBody = (stack, scope, frame, plan) => [{
+    top: { ...frame, initial: [['initialize', plan, ['ref', frame.item]]] }, rest: stack,
+}, regionScope(scope, empty, null), ['region', {
+    block: frame.forOf.block[1], target: frame.target, breakTarget: frame.target, index: 0, plan: null, assigned: null, done: null,
+}]]
+
+/** Resolve the next default on the shared worklist, keeping source depth off the host stack. @type {(stack: _Stack, scope: _Scope, frame: _PatternFrame) => _State} */
+const patternRound = (stack, scope, frame) => {
+    while (frame.index < frame.pattern.reads.length) {
+        const fallback = frame.pattern.reads[Number(frame.index)].default
+        if (fallback !== undefined) { return [{ top: frame, rest: stack }, scope, ['enter', fallback.value]] }
+        const [tag, selected] = patternSelected(scope, frame, null)
+        if (tag === 'error') { return [stack, scope, error(selected)] }
+        scope = selected[0]
+        frame = selected[1]
+    }
+    /** @type {ExpansionPlan} */
+    const plan = { reads: frame.reads, ids: frame.pattern.ids }
+    const continuation = frame.continuation
+    if ('parameter' in continuation) {
+        /** @type {_Scope} */
+        const next = { ...scope, parameters: [...scope.parameters, { plan, default: continuation.value }] }
+        return [stack, next, ['parameter', { ...continuation.parameter, index: continuation.parameter.index + 1 }]]
+    }
+    if ('forOf' in continuation) { return forOfBody(stack, scope, continuation.forOf, plan) }
+    if ('loop' in continuation) { return [stack, scope, ['region', advanced(continuation.loop, [['initialize', plan, continuation.value]])]] }
+    return [stack, scope, ok(['block', { statements: [['initialize', plan, continuation.module]], exit: ['yield', undefined] }])]
+}
+
+/** A function's declaration is its self only where no parameter/local shadows it. @type {(scope: _Scope, word: string) => _Ref | null} */
+const bound = (scope, word) => at(word)(scope.names) ?? (scope.self === word
+    ? { id: assertNotNullish(scope.selfBinding), kind: 'self', assignable: scope.selfVariable } : null)
+
+/** Retain lexical read evidence for existing capture-shadow admission, without frames. @type {(body: _Scope, word: string, outer: readonly [_Scope, _Ref]) => readonly [_Scope, _Ref]} */
+const captured = (body, word, [outer, ref]) => {
+    const captured = /** @type {_Ref} */ ({ id: ref.id, kind: 'capture', assignable: ref.assignable })
+    return [{ ...body, outer, names: extended(body.names)(word, captured), origins: setReplace(word)(ref.id)(body.origins) }, captured]
+}
+
+/**
+ * Resolve an original declaration identity and remember each intervening read
+ * for the existing capture-shadow rule. No capture frame or value version is
+ * chosen here. The outward search and inward rebuilding use explicit lists,
+ * keeping deeply nested source functions off the host stack. The third
+ * element is whether the search crossed a function boundary — a region's is
+ * none — the reference being a capture then.
+ *
+ * @type {(scope: _Scope, word: string) => readonly [_Scope, _Ref, boolean] | null}
+ */
+const resolve = (scope, word) => {
+    /** The bodies the word is read through, the one just inside the binding scope on top. @type {List<_Scope>} */
+    let through = null
+    let binder = scope
+    let ref = bound(binder, word)
+    while (ref === null) {
+        if (binder.outer === null) { return null }
+        through = { first: binder, tail: through }
+        binder = binder.outer
+        ref = bound(binder, word)
+    }
+    /** @type {readonly [_Scope, _Ref]} */
+    let result = [ref.kind === 'self' ? { ...binder, names: extended(binder.names)(word, ref) } : binder, ref]
+    let crossed = false
+    for (const body of toArray(through)) {
+        result = captured(body, word, result)
+        crossed = crossed || !body.region
+    }
+    return [result[0], result[1], crossed]
+}
+
+/**
+ * The target of an assignment, `name = value`, resolved before the value is
+ * entered: the word, then the binding it names — a name nothing binds is
+ * `const not found` — which is refused unless a variable's, a `let`'s or a
+ * parameter's. A write crossing a function boundary stays pending until
+ * that function closes: only an expression-block call can carry it back to
+ * its enclosing scope. The write itself is traced once
+ * the value has been read, {@link written}, the order the statement runs in.
+ *
+ * @type {(scope: _Scope, name: ModuleTokenWithMetadata) => Result<readonly [_Scope, BindingId], ParseError>}
+ */
+const assigned = (scope, name) => {
+    const [tag, word] = identifierOf(name)
+    if (tag === 'error') { return error(word) }
+    const found = resolve(scope, word)
+    if (found === null) { return error(constNotFound(name)) }
+    const [inner, ref] = found
+    if (!ref.assignable) { return error(constAssignment(name)) }
+    // Resolving a cached capture need not search across its boundary again.
+    // Declaration identity, rather than that search's path, owns the write.
+    let current = inner
+    let crossed = false
+    while (!current.trace.bindings.includes(ref.id)) {
+        if (!current.region) {
+            if (!current.blockCall) { return error(reassignedCaptured(name)) }
+            crossed = true
+        }
+        current = assertNotNullish(current.outer, 'an assignment has no declaring scope')
+    }
+    return ok([crossed ? { ...inner, captures: [...inner.captures, { id: ref.id, refusal: reassignedCaptured(name), escaped: false, written: true }] } : inner, ref.id])
+}
+
+/** Whether the operand and write occur in a conditional source region. @type {(statement: Assignment) => boolean} */
+const logicalAssignment = ({ operator }) => operator !== null && (operator.tag === '&&' || operator.tag === '||' || operator.tag === '??')
+
+/** Record a compound target's read before entering its operand. @type {(scope: _Scope, statement: Assignment, id: BindingId) => _Scope} */
+const assignmentScope = (scope, statement, id) => {
+    const read = statement.operator === null ? scope : traced(scope, [['read', id]])
+    return logicalAssignment(statement) ? regionScope(read, empty, null) : read
+}
+
+/** The operand's events precede its write; a logical assignment restores its conditional region. @type {(scope: _Scope, statement: Assignment, id: BindingId) => _Scope} */
+const written = (scope, statement, id) => {
+    const write = traced(scope, [['write', id]])
+    return logicalAssignment(statement) ? restoredScope(write, false) : write
+}
+
+/** Preserve the source operation until the shared sugar pass. @type {(statement: Assignment, id: BindingId, value: SourceValue) => SourceStatement} */
+const assignmentStatement = (statement, id, value) => statement.operator === null
+    ? ['write', id, value]
+    : ['compound-write', id, statement.operator.tag, value]
+
+/**
+ * A resolved reference, a function's reference to itself counted as crossing
+ * the boundary where the function is a variable's, a `let`'s: JavaScript's
+ * closure reads the variable, and the function's `self` the function, so the
+ * two agree only while the variable is never reassigned — the capture rule's
+ * own condition, which recording the reference as a capture lets it keep.
+ *
+ * @type {(found: readonly [_Scope, _Ref, boolean]) => readonly [_Scope, _Ref, boolean]}
+ */
+const selfReference = ([scope, ref, crossed]) => [scope, ref, crossed || (ref.kind === 'self' && ref.assignable)]
+
+/**
+ * The scope a resolved reference leaves: with the reference noted as a
+ * capture where it crossed a function boundary — the first such reference
+ * to a binding is where the write-based rule refuses the program, once the
+ * whole scope is read, {@link resolvedModule}.
+ *
+ * @type {(found: readonly [_Scope, _Ref, boolean], name: ModuleTokenWithMetadata) => _Scope}
+ */
+const referenced = ([scope, ref, crossed], name) => crossed ? { ...scope, captures: [...scope.captures, { id: ref.id, refusal: reassignedCaptured(name), escaped: false, written: false }] } : scope
+
+/** Whether the step after a key makes the key a call's: any step but a property. @type {(step: Step | undefined) => boolean} */
+const isCallStep = step => step !== undefined && step[0] !== '|.'
+
+/**
+ * The node an item evaluates: a value's own, or a spread's operand — the
+ * spread itself is put back once the operand has its value,
+ * {@link itemValue}.
+ *
+ * @type {(item: Item) => Node}
+ */
+const operandOf = item => item[0] === '...' ? item[1] : item
+
+/**
+ * An item's value from its operand's: the value, or the spread of it where
+ * the item was a spread.
+ *
+ * @type {(item: Item) => (value: SourceValue) => ValueItem}
+ */
+const itemValue = item => value => {
+    if (item[0] !== '...') { return value }
+    /** @type {ValueSpread} */
+    const spread = ['...', value]
+    return spread
+}
+
+/** The parts of a chain's steps, {@link chainParts}: each key with whether a call follows it, and each argument's operand. @type {(step: Step | undefined) => readonly _ChainPart[]} */
+const stepParts = step => {
+    if (step === undefined) { return [] }
+    if (step[0] === '|.') { return [{ key: step[1], method: isCallStep(step[2]) }, ...stepParts(step[2])] }
+    return [...step[1].map(item => ({ value: operandOf(item) })), ...stepParts(step[2])]
+}
+
+/**
+ * The operands of a chain in document order, {@link _ChainPart}: its base
+ * or callee, then each key — with whether a call step follows it, which
+ * is what makes the key a method call's — and each argument's operand,
+ * in the order they are written, which is the order they are evaluated in
+ * and the order their errors are reported in.
+ *
+ * @type {(chain: Chain) => readonly _ChainPart[]}
+ */
+const chainParts = chain => {
+    if (chain[0] === '?.()') { return [{ value: chain[1] }, ...chain[2].map(item => ({ value: operandOf(item) })), ...stepParts(chain[3])] }
+    return [{ value: chain[1] }, { key: chain[2], method: isCallStep(chain[3]) }, ...stepParts(chain[3])]
+}
+
+/**
+ * A chain's steps with their values put back, from `at` in `values`: a
+ * key's name where its token was, each argument's value under its spread.
+ *
+ * @type {(step: Step, values: readonly SourceValue[], at: number) => ValueStep}
+ */
+const stepClosed = (step, values, at) => {
+    const [tag, x, next] = step
+    if (tag === '|.') {
+        const key = /** @type {ValueKey} */ (values[Number(at)])
+        return next === undefined ? ['|.', key] : ['|.', key, stepClosed(next, values, at + 1)]
+    }
+    const args = x.map((item, i) => itemValue(item)(values[Number(at + i)]))
+    return /** @type {ValueStep} */ (next === undefined ? [tag, args] : [tag, args, stepClosed(next, values, at + x.length)])
+}
+
+/**
+ * A chain closed over its parts' values, {@link chainParts}'s order: the
+ * AST's own shape, which is the EDAG's, with each value where its operand
+ * was and each key's name where its token was.
+ *
+ * @type {(chain: Chain, values: readonly SourceValue[]) => SourceValue}
+ */
+const chainClosed = (chain, values) => {
+    if (chain[0] === '?.()') {
+        const [, , items, step] = chain
+        const args = items.map((item, i) => itemValue(item)(values[Number(1 + i)]))
+        return step === undefined ? ['?.()', values[0], args] : ['?.()', values[0], args, stepClosed(step, values, 1 + items.length)]
+    }
+    const [tag, , , step] = chain
+    const key = /** @type {ValueKey} */ (values[1])
+    return /** @type {SourceValue} */ (step === undefined ? [tag, values[0], key] : [tag, values[0], key, stepClosed(step, values, 2)])
+}
+
+/**
+ * The next part of a chain, or the chain closed when none is left: a
+ * value is entered under the frame, and a key is judged here, by the call
+ * rule where a call follows it, and its name kept with the values — in
+ * document order, so that the first error met is the first written.
+ *
+ * @type {(stack: _Stack, scope: _Scope, frame: _ChainFrame) => _State}
+ */
+const chainRound = (stack, scope, frame) => {
+    const { parts, index } = frame
+    if (index === parts.length) { return [stack, scope, ok(chainClosed(frame.chain, toArray(frame.done)))] }
+    const part = parts[Number(index)]
+    if (hasEntry(part, 'value')) { return [{ top: frame, rest: stack }, scope, ['enter', part.value]] }
+    const { key } = part
+    if (key instanceof Array) { return keyEntered(stack, scope, key, frame) }
+    const [tag, named] = checkedKey(key, part.method)
+    if (tag === 'error') { return [stack, scope, error(named)] }
+    return chainRound(stack, scope, advanced(frame, [named]))
+}
+
+/**
+ * Whether the node being entered is a call's callee: the frame on top is
+ * the call's, with no operand done yet. An access entered there is a method
+ * call's, and its key is checked as one — through a group as well, since
+ * `(a.b)(c)` is the node `a.b(c)` is by the time it is entered.
+ *
+ * @type {(stack: _Stack) => boolean}
+ */
+const isCallee = stack => stack !== null && hasEntry(stack.top, 'call') && stack.top.index === 0
+
+/**
+ * The node an entry evaluates: a member's value, or a spread's operand —
+ * a spread is the one entry that is a tuple, a member being a record.
+ *
+ * @type {(entry: Entry) => Node}
+ */
+const entryOperandOf = entry => entry instanceof Array ? entry[1] : entry.value
+
+/**
+ * An array's element as the item it is: an elision never reaches its
+ * value, {@link badKey} refusing it first.
+ *
+ * @type {(element: Element) => Item}
+ */
+const elementItem = element => {
+    assert(element[0] !== 'elision')
+    return element
+}
+
+/** @type {(container: Container, index: number) => Node} */
+const itemAt = ([kind, items], index) =>
+    kind === 'array' ? operandOf(elementItem(items[Number(index)])) : entryOperandOf(items[Number(index)])
+
+/**
+ * The node of a computed or numeric-literal key, or `null` where the item
+ * at `index` has none: an array's item, a spread, or a named constant key.
+ *
+ * @type {(container: Container, index: number) => Node | null}
+ */
+const computedKeyAt = ([kind, items], index) => {
+    if (kind === 'array') { return null }
+    const entry = items[Number(index)]
+    return entry instanceof Array || !hasEntry(entry, 'node') ? null : entry.node
+}
+
+/**
+ * A container's item at `index` as the AST holds it, from its value: an
+ * array's item, its spread put back, {@link itemValue}; an object's spread
+ * likewise, or its member, a property of its name and the value — the
+ * computed key's value, `key`, where the member has one. A member is the
+ * one item that is a record: an array's items and a spread are tuples.
+ *
+ * @type {(container: Container, index: number, key: readonly [SourceValue] | null, value: SourceValue) => ValueItem | ValueMember}
+ */
+const containerValue = ([, items], index, key, value) => {
+    const item = items[Number(index)]
+    if (item instanceof Array) { return itemValue(elementItem(item))(value) }
+    /** @type {ValueMember} */
+    const member = [':', key === null ? assertNotNullish(entry(/** @type {ConstantMember} */ (item), 'name')) : key[0], value]
+    return member
+}
+
+/**
+ * The error a container's item earns before its value is read, or `null`:
+ * a hole in an array, at its comma, {@link arrayHole}, or a plain
+ * `__proto__` key, at the key itself.
+ *
+ * Checked as each member is reached rather than by scanning every key
+ * first, so that an earlier member's failure is reported before a later
+ * key's: `{a: missing, __proto__: 1}` reports the unresolved `missing`.
+ * Errors are first-to-last, and a key is not special enough to jump the
+ * queue.
+ *
+ * @type {(container: Container, index: number) => ParseError | null}
+ */
+const badKey = ([kind, items], index) => {
+    if (kind === 'array') {
+        const element = items[Number(index)]
+        return element[0] === 'elision' ? arrayHole(element[1]) : null
+    }
+    const member = items[Number(index)]
+    // A spread names no key; computed and numeric-literal keys name own properties.
+    if (member instanceof Array || hasEntry(member, 'node')) { return null }
+    const { key, spelling } = member
+    return entry(member, 'name') === protoKey && spelling !== 'shorthand' ? protoKeyError(key) : null
+}
+
+/**
+ * A container of the items its rounds built: an array, or an object of
+ * its members in the order they are written, a repeated key written
+ * twice. The order is not the parser's to change — it is the order the
+ * graph a module denotes has, as JavaScript reads the same literal — and
+ * the duplicates are not its to collapse: `run` builds the object
+ * JavaScript builds, and EDAG's object constructor takes the members as
+ * written, which the syntax alone still has. The items are the
+ * container's kind's, {@link containerValue}, which the list's one type
+ * does not say.
+ *
+ * @type {(container: Container, done: readonly (ValueItem | ValueMember)[]) => SourceValue}
+ */
+const close = ([kind], done) => {
+    if (kind === 'array') {
+        /** @type {ValueArray} */
+        const array = ['array', /** @type {readonly ValueItem[]} */ (done)]
+        return array
+    }
+    /** @type {ValueObject} */
+    const object = ['object', /** @type {readonly ValueEntry[]} */ (done)]
+    return object
+}
+
+/**
+ * The next round of a container: its item's key checked first, then the
+ * key entered where it is computed and not yet evaluated, or the item's
+ * value — or the container closed when no item is left.
+ *
+ * @type {(stack: _Stack, scope: _Scope, frame: _ContainerFrame) => _State}
+ */
+const round = (stack, scope, frame) => {
+    const { container, index, done, key } = frame
+    if (index >= container[1].length) { return [stack, scope, ok(close(container, toArray(done)))] }
+    const rejected = badKey(container, index)
+    if (rejected !== null) { return [stack, scope, error(rejected)] }
+    const computed = computedKeyAt(container, index)
+    return [{ top: frame, rest: stack }, scope, ['enter', computed !== null && key === null ? computed : itemAt(container, index)]]
+}
+
+/**
+ * A container's frame with a value returned to it: the computed key's,
+ * kept for the value's round, or the item's, which the next round follows.
+ *
+ * @type {(stack: _Stack, scope: _Scope, frame: _ContainerFrame, value: SourceValue) => _State}
+ */
+const containerReturned = (stack, scope, frame, value) => {
+    const { container, index, key } = frame
+    return computedKeyAt(container, index) !== null && key === null
+        ? round(stack, scope, { ...frame, key: [value] })
+        : round(stack, scope, { ...advanced(frame, [containerValue(container, index, key, value)]), key: null })
+}
+
+/**
+ * How many operands a call has: its callee and its arguments.
+ *
+ * Counted and indexed rather than built into one list, which is what
+ * `[callee, ...args]` per round would be — a copy of every argument for
+ * each of them, and quadratic in a call's width where the parser is linear
+ * in an array's.
+ *
+ * @type {(call: _CallFrame['call']) => number}
+ */
+const callOperandCount = call => call[2].length + 1
+
+/**
+ * The operand a call evaluates at `index`: the callee first, then each
+ * argument as written — JavaScript's own order, and the order an error
+ * among them is reported in.
+ *
+ * @type {(call: _CallFrame['call'], index: number) => Node}
+ */
+const callOperandAt = (call, index) => index === 0 ? call[1] : operandOf(call[2][Number(index - 1)])
+
+/**
+ * A call's value at `index`, an argument's spread put back: the callee is
+ * never one.
+ *
+ * @type {(call: _CallFrame['call'], index: number, value: SourceValue) => ValueItem}
+ */
+const callValue = (call, index, value) => index === 0 ? value : itemValue(call[2][Number(index - 1)])(value)
+
+/**
+ * The next operand of a call, or the call closed when none is left: the
+ * first value is the callee and the rest its arguments.
+ *
+ * @type {(stack: _Stack, scope: _Scope, frame: _CallFrame) => _State}
+ */
+const callRound = (stack, scope, frame) => {
+    const { index } = frame
+    const call = assertNotNullish(entry(frame, 'call'))
+    if (index < callOperandCount(call)) { return [{ top: frame, rest: stack }, scope, ['enter', callOperandAt(call, index)]] }
+    const [callee, ...args] = toArray(frame.done)
+    /** @type {ValueCall} */
+    const closed = ['()', /** @type {SourceValue} */ (callee), args]
+    return [stack, scope, ok(closed)]
+}
+
+/**
+ * The operand a conditional evaluates at `index`: the condition, then each
+ * arm as written.
+ *
+ * @type {(conditional: _ConditionalFrame['conditional'], index: number) => Node}
+ */
+const conditionalOperandAt = ([, condition, then, otherwise], index) => [condition, then, otherwise][Number(index)]
+
+/**
+ * The next operand of a conditional, or the conditional closed when none
+ * is left: the condition first, then each arm as written — resolved all
+ * three, since a name is checked where it is written whether or not the
+ * program ever establishes the arm, as JavaScript's early errors are.
+ *
+ * @type {(stack: _Stack, scope: _Scope, frame: _ConditionalFrame) => _State}
+ */
+const conditionalRound = (stack, scope, frame) => {
+    const { conditional, index } = frame
+    if (index < 3) { return [{ top: frame, rest: stack }, scope, ['enter', conditionalOperandAt(conditional, index)]] }
+    const [condition, then, otherwise] = toArray(frame.done)
+    /** @type {ValueConditional} */
+    const closed = ['?:', condition, then, otherwise]
+    return [stack, scope, ok(closed)]
+}
+
+/**
+ * The next operand of a comma, or the comma closed when none is left:
+ * each operand as written, resolved all, as a conditional's arms are.
+ * Inside it no operand is a call's callee, the comma's frame standing on
+ * top: `(0, a.b)(c)` reads `a.b` by the read rule, as the plain call over
+ * a detached function JavaScript makes of it, and never as a method.
+ *
+ * @type {(stack: _Stack, scope: _Scope, frame: _CommaFrame) => _State}
+ */
+const commaRound = (stack, scope, frame) => {
+    const { comma, index } = frame
+    if (index < comma.length) { return [{ top: frame, rest: stack }, scope, ['enter', comma[Number(index)]]] }
+    /** @type {ValueComma} */
+    const closed = [',', toArray(frame.done)]
+    return [stack, scope, ok(closed)]
+}
+
+/** @type {(bound: _Bound, plan: _Plan, initialize: boolean) => _Bound} */
+const parameterBindings = (bound, plan, initialize) => ({
+    ...bound,
+    origins: initialize ? plan.names.reduce((origins, [name, index]) => setReplace(nameOf(name))(plan.ids[Number(index)])(origins), bound.origins) : bound.origins,
+    bindings: [...bound.bindings, ...plan.ids],
+    sourceOrigins: [...bound.sourceOrigins, ...planOrigins(plan, 'parameter')],
+    initialized: initialize ? [...bound.initialized, ...plan.ids] : bound.initialized,
+})
+
+
+/**
+ * The word a binding may take: an identifier, refusing a keyword, and one
+ * the environment does not hold — `import` and `const` share the one map,
+ * so a name taken by either is taken for both, `duplicate id`.
+ *
+ * Separate from the binding itself because a `const` asks the two questions
+ * at different moments: its name is refused before its value is read, so
+ * that `const NaN = missing;` answers for the name and not for `missing`,
+ * while the binding lands after, keeping the name out of its own
+ * initializer's scope.
+ *
+ * @type {(env: _Env) => (name: ModuleTokenWithMetadata) => Result<string, ParseError>}
+ */
+const bindable = env => name => {
+    const [tag, word] = identifierOf(name)
+    if (tag === 'error') { return error(word) }
+    return at(word)(env) === null ? ok(word) : error(duplicateId(name))
+}
+
+/**
+ * The word a body `const` may take: {@link bindable}'s question asked of
+ * the body's own names and of the names of the block it continues, the
+ * statements after a guard being JavaScript's one block with the ones
+ * before it. A name any of them binds is `duplicate id`; one none binds
+ * but one has read from outside — bound to a slot of its frame, or to the
+ * function itself, {@link bound} — is `capture shadowed`, and the binding
+ * wins where both hold, as it does in JavaScript, where the read named the
+ * block's own binding. A name the
+ * body's own initializer reads is refused once it has been, in
+ * {@link returned}.
+ *
+ * @type {(scope: _Scope) => (name: ModuleTokenWithMetadata) => Result<string, ParseError>}
+ */
+const bodyBindable = scope => name => {
+    const [tag, word] = identifierOf(name)
+    if (tag === 'error') { return error(word) }
+    const refs = [scope.names, ...toArray(scope.enclosing)].flatMap(env => {
+        const ref = at(word)(env)
+        return ref === null ? [] : [ref]
+    })
+    if (refs.some(ref => ref.kind === 'own')) { return error(duplicateId(name)) }
+    return refs.length === 0 ? ok(word) : error(captureShadowed(name))
+}
+
+/**
+ * Check every parameter declaration before resolving defaults in order. The
+ * admitted fixed prefix preserves JavaScript's function length. Pattern reads
+ * and defaults remain plans for sugar; each original local retains its own ID.
+ *
+ * @type {(list: ParameterList) => Result<_Bound, ParseError>}
+ */
+const functionScope = list => {
+    if (hasEntry(list, 'invalid')) { return error(malformedParameters(list.invalid)) }
+    if (hasEntry(list, 'arrow')) { return error(unexpectedToken(list.arrow)) }
+    const fixed = assertNotNullish(entry(list, 'fixed'))
+    const defaulted = fixed.findIndex(parameter => parameter[0] === '=')
+    const count = defaulted === -1 ? fixed.length : defaulted
+    /** @type {_Bound} */
+    let bound = { names: empty, count, parameters: [], rest: null, late: [], origins: empty, bindings: [], sourceOrigins: [], initialized: [] }
+    /** @type {_Env} */
+    let seen = empty
+    for (let i = 0; i < fixed.length; i += 1) {
+        const parameter = fixed[Number(i)]
+        const target = parameter[0] === '=' ? parameter[1] : parameter
+        if (i === maxLength) { return error(tooManyParameters(target[1])) }
+        const [tag, plan] = planned(bindable(seen))(target, null)
+        if (tag === 'error') { return error(plan) }
+        const deferred = i >= count || bound.late.length !== 0 || hasPatternDefault(plan)
+        bound = parameterBindings(bound, plan, !deferred)
+        seen = plan.names.reduce(/** @type {(env: _Env, name: readonly [ModuleTokenWithMetadata, number]) => _Env} */ ((env, [name, index]) => extended(env)(nameOf(name), { id: plan.ids[Number(index)], kind: 'own', assignable: true })), seen)
+        if (deferred) {
+            bound = { ...bound, late: [...bound.late, { plan, init: parameter[0] === '=' ? parameter[3] : null, rest: false }] }
+        } else {
+            bound = { ...bound, parameters: [...bound.parameters, { plan: expansion(plan), default: null }], names: plan.names.reduce((env, [name, index]) => extended(env)(nameOf(name), { id: plan.ids[Number(index)], kind: 'own', assignable: true }), bound.names) }
+        }
+    }
+    if (list.rest === null) { return ok(bound) }
+    const [tag, plan] = planned(bindable(seen))(['name', list.rest], null)
+    if (tag === 'error') { return error(plan) }
+    bound = parameterBindings(bound, plan, bound.late.length === 0)
+    return ok(bound.late.length === 0
+        ? { ...bound, rest: plan, names: extended(bound.names)(nameOf(list.rest), { id: plan.ids[0], kind: 'own', assignable: true }) }
+        : { ...bound, rest: plan, late: [...bound.late, { plan, init: null, rest: true }] })
+}
+
+/** Source-only transfer scan: nested functions own their transfers; all lexical branches remain visible.
+ * @type {(root: SourceBlock, target: LoopTarget) => boolean}
+ */
+const hasTargetBreak = (root, target) => {
+    /** @type {readonly SourceBlock[]} */
+    let pending = [root]
+    while (pending.length !== 0) {
+        const [block, ...rest] = pending
+        pending = rest
+        for (const statement of block.statements) {
+            if (statement[0] === 'break' && statement[1] === target) { return true }
+            if (statement[0] === 'if') { pending = [...pending, statement[2], statement[3]] }
+            if (statement[0] === 'while' || statement[0] === 'for-of') { pending = [...pending, statement[1].body] }
+            if (statement[0] === 'switch') { pending = [...pending, ...statement[1].cases.map(arm => arm.body), statement[1].otherwise] }
+        }
+    }
+    return false
+}
+
+/** The same lexical loop entry serves a function, enclosing loop, or module continuation. @type {(stack: _Stack, scope: _Scope, loop: While | For, body: _LoopBodyFrame | null) => _State} */
+const enterLoop = (stack, scope, loop, body) =>
+    [{ top: { loop, target: { kind: 'loop', index: scope.trace.count + 1 }, body, condition: null, step: null }, rest: stack }, regionScope(scope, empty, null), ['enter', loop.condition]]
+
+/** Resolve the body before the condition, in a separate lexical region. @type {(stack: _Stack, scope: _Scope, loop: DoWhile, body: _LoopBodyFrame | null) => _State} */
+const enterDoLoop = (stack, scope, loop, body) => {
+    const target = /** @type {const} */ ({ kind: 'loop', index: scope.trace.count + 1 })
+    return [{ top: { doLoop: loop, target, body, resolvedBody: null }, rest: stack }, regionScope(regionScope(scope, empty, null), empty, null), ['region', {
+        block: loop.block[1], target, breakTarget: target, index: 0, plan: null, assigned: null, done: null,
+    }]]
+}
+
+/** Resolve a for initializer in a lexical region that remains open for its loop. @type {(stack: _Stack, scope: _Scope, loop: For, body: _LoopBodyFrame | null) => _State} */
+const enterFor = (stack, scope, loop, body) => {
+    const target = /** @type {const} */ ({ kind: 'loop', index: scope.trace.count + 1 })
+    return [{ top: { for: loop, body, initial: null }, rest: stack }, regionScope(scope, empty, null), ['region', {
+        block: loop.initializer === null ? [] : [loop.initializer], target, breakTarget: target, index: 0, plan: null, assigned: null, done: null, open: true,
+    }]]
+}
+
+/** Resolve the iterable once, before initializing a fresh iteration binding.
+ * @type {(stack: _Stack, scope: _Scope, loop: ForOf, body: _LoopBodyFrame | null) => _State}
+ */
+const enterForOf = (stack, scope, loop, body) => {
+    const inner = regionScope(scope, empty, null)
+    const [kind, plan] = planned(bodyBindable(inner))(loop.target, null)
+    if (kind === 'error') { return [stack, scope, error(plan)] }
+    /** @type {_ForOfFrame} */
+    const frame = { forOf: loop, body, target: { kind: 'loop', index: scope.trace.count + 1 }, item: sourceBinding(0), plan, source: null, initial: [] }
+    return [{ top: frame, rest: stack }, inner, ['enter', loop.iterable]]
+}
+
+/** Keep iterable effects outside iteration events, and retain original transfer owners.
+ * @type {(stack: _Stack, scope: _Scope, frame: _ForOfFrame, value: SourceValue) => _State}
+ */
+const forOfReturned = (stack, scope, frame, value) => {
+    if (frame.source === null) {
+        const shadowed = frame.plan.names.find(([name]) => at(nameOf(name))(scope.names) !== null)
+        if (shadowed !== undefined) { return [stack, scope, error(captureShadowed(shadowed[0]))] }
+        /** @type {_ForOfFrame} */
+        const next = { ...frame, source: [value] }
+        const inner = declared(regionScope(scope, empty, null), frame.plan, frame.forOf.kind)
+        return hasPatternDefault(frame.plan)
+            ? [stack, inner, ['pattern', { pattern: frame.plan, index: 0, reads: [], kind: frame.forOf.kind, continuation: { forOf: next } }]]
+            : forOfBody(stack, boundPlan(inner, frame.plan, isVariable(frame.forOf.kind)), next, expansion(frame.plan))
+    }
+    const body = regionBlock(value)
+    /** @type {SourceForOf} */
+    const loop = { target: frame.target, events: completedTrace(scope).events, source: frame.source[0], item: frame.item,
+        body: { ...body, statements: [...frame.initial, ...body.statements] } }
+    const outer = restoredScope(restoredScope(scope, false), false)
+    /** @type {SourceStatement} */
+    const statement = ['for-of', loop]
+    if (frame.body === null) { return [stack, outer, ok(['block', { statements: [statement], exit: ['yield', undefined] }])] }
+    return [stack, outer, ['region', advanced(frame.body, [statement])]]
+}
+
+/** Enter a standalone lexical region. @type {(stack: _Stack, scope: _Scope, block: StandaloneLoopBlock) => _State} */
+const enterStandalone = (stack, scope, block) => [{ top: { scoped: null }, rest: stack }, regionScope(scope, empty, null), ['region', {
+    block: block.block[1], target: null, breakTarget: null, index: 0, plan: null, assigned: null, done: null,
+}]]
+
+/** An omitted let initializer is the existing primitive undefined at its declaration point. @type {(declaration: Const | Let) => Node} */
+const declarationValue = ({ value }) => value === null ? ['primitive', undefined] : value
+
+/**
+ * What a declaration resolves before its names land: its value — a function
+ * that is the whole value of a `const` or a `let` of one name entered under
+ * that name, its `self`, since a pattern names no function; a `let`'s name
+ * being a variable, the function's reference to itself is a capture,
+ * {@link selfReference} — or, for a pattern over a reserved namespace,
+ * nothing: the checked plan names its static members directly, so sugar
+ * receives an unused `undefined` input.
+ *
+ * @type {(kind: _DeclarationKind, target: BindingTarget | Discard, value: Node, namespace: ModuleTokenWithMetadata | null, plan: _Plan) => _State[2]}
+ */
+const declaredValue = (kind, target, value, namespace, plan) => namespace !== null ? ok(undefined)
+    : target[0] === 'name' ? ['define', value, [nameOf(target[1]), plan.ids[0], isVariable(kind)]] : ['enter', value]
+
+/** Whether a node is the reference `word` spells. @type {(node: Item, word: string) => boolean} */
+const isRef = (node, word) => node[0] === 'ref' && nameOf(node[1]) === word
+
+/**
+ * The conversion `Boolean(x)`, `Number(x)`, `String(x)`, or `BigInt(x)` entered, or `null` where the call
+ * is no conversion: a call whose callee is one of those words — which no scope
+ * binds, since each word is refused at every binding, {@link identifierOf},
+ * so the word alone decides — its one plain argument entered under a frame
+ * holding the tag, {@link _UnaryFrame}. `Number()` is the literal `0`
+ * and `String()` the empty-string literal, as JavaScript has them, folded
+ * here as unary `-` over a literal is
+ * folded, since a node of no operand would be a second spelling of the
+ * leaf; the call of any other shape is refused at the word,
+ * {@link conversionArity}. The word anywhere else is a reference, and
+ * refused as every reserved word is.
+ *
+ * @type {(stack: _Stack, scope: _Scope, node: Extract<Node, readonly ['()', Node, readonly Item[]]>) => _State | null}
+ */
+const conversion = (stack, scope, [, callee, args]) => {
+    if (callee[0] !== 'ref') { return null }
+    const name = nameOf(callee[1])
+    if (!isConversionWord(name)) { return null }
+    if (args.length === 0 && name === 'Boolean') { return [stack, scope, ok(['Boolean', undefined])] }
+    if (args.length === 0 && name !== 'BigInt') { return [stack, scope, ok(name === 'Number' ? 0 : '')] }
+    const operand = args.length === 1 ? args[0] : null
+    if (operand === null || operand[0] === '...') { return [stack, scope, error(conversionArity(name)(callee[1]))] }
+    return [{ top: { unary: name }, rest: stack }, scope, ['enter', operand]]
+}
+
+/**
+ * Whether an access's key is the constant `name`, in either spelling: a
+ * computed key, `[Number(i)]`, names no constant.
+ *
+ * @type {(key: Key, name: string) => boolean}
+ */
+const isKeyNamed = (key, name) => !(key instanceof Array) && keyNamed(key) === name
+
+/**
+ * The static member an access reads, where its base is the bare word
+ * of a namespace and its key a constant naming an admitted member, in
+ * either spelling, {@link staticMember}; `null` for every other access,
+ * which is resolved as any is — so `Object.assign` and `Number.EPSILON`
+ * enter the word and are refused at it. The word is a reserved global,
+ * which no scope binds, so it alone decides.
+ *
+ * @type {(node: Extract<Node, readonly ['.', Node, Key, ...unknown[]]>) => ValueStatic | number | null}
+ */
+const staticOf = ([, base, key]) => base[0] !== 'ref' || key instanceof Array ? null : staticMember(nameOf(base[1]), keyNamed(key))
+
+/**
+ * A read of a static member entered, `member`: a function such as
+ * `Object.is`, or a numeric constant. Unguarded only: a guard asks
+ * whether a value is nullish, and a namespace is no value, so `Object?.is`
+ * is refused at the word, {@link enter}. A guarded call of the read,
+ * `Object.is?.(a, b)`, is the chain over the plain read it is, the read
+ * entered again as its head.
+ *
+ * @type {(stack: _Stack, scope: _Scope, node: Extract<Node, readonly ['.', Node, Key, ...unknown[]]>, member: ValueStatic | number) => _State}
+ */
+const staticRead = (stack, scope, node, member) => {
+    const step = node[3]
+    if (step === undefined) { return [stack, scope, ok(member)] }
+    const [, items, next] = step
+    /** @type {Node} */
+    const read = ['.', node[1], node[2]]
+    return [stack, scope, ['enter', next === undefined ? ['?.()', read, items] : ['?.()', read, items, next]]]
+}
+
+/**
+ * Whether a word is a namespace an admitted static function is a member
+ * of: `Object`, `Number`.
+ *
+ * @type {(word: string) => boolean}
+ */
+const isNamespace = word => staticIds.some(id => {
+    const path = staticPath(id)
+    return path.length > 1 && path[0] === word
+})
+
+/**
+ * The namespace's word where a `const`'s pattern destructures one — an
+ * object pattern whose value is the bare word, `Object` or `Number` — and
+ * `null` otherwise. Destructuring is sugar: the pattern reads each of its
+ * keys as the access does, {@link planned}, so `const { is } = Object` is
+ * `const is = Object.is`, and the namespace, which is no value, is never
+ * entered. Any other pattern over the word, and the word alone, is
+ * entered and refused as every reserved global is.
+ *
+ * @type {(target: BindingTarget | Discard, value: Node) => ModuleTokenWithMetadata | null}
+ */
+const namespaceOf = (target, value) => target[0] === 'object' && value[0] === 'ref' && isNamespace(nameOf(value[1])) ? value[1] : null
+
+/**
+ * Whether a node is `Object.getOwnPropertyDescriptor(a, b)`, the helper's
+ * descriptor, `a` and `b` the words its parameters bind: a plain call of
+ * a plain access, the key in either spelling, as any key is read,
+ * {@link isKeyNamed}.
+ *
+ * @type {(node: Node, a: string, b: string) => boolean}
+ */
+const isDescriptorOf = (node, a, b) => {
+    if (node[0] !== '()' || node[2].length !== 2) { return false }
+    const [, callee, [first, second]] = node
+    return callee[0] === '.' && callee.length === 3 && isRef(callee[1], 'Object') && isKeyNamed(callee[2], 'getOwnPropertyDescriptor')
+        && isRef(first, a) && isRef(second, b)
+}
+
+/**
+ * Whether a node is `x?.enumerable ? x.value : undefined`, the helper's
+ * value, `x` the word its `const` binds: a guarded access ending its
+ * chain there, the one plain access, and the literal `undefined`.
+ *
+ * @type {(node: Node, x: string) => boolean}
+ */
+const isEntryOf = (node, x) => {
+    if (node[0] !== '?:') { return false }
+    const [, condition, value, otherwise] = node
+    return condition[0] === '?.' && condition.length === 3 && isRef(condition[1], x) && isKeyNamed(condition[2], 'enumerable')
+        && value[0] === '.' && value.length === 3 && isRef(value[1], x) && isKeyNamed(value[2], 'value')
+        && otherwise[0] === 'primitive' && otherwise[1] === undefined
+}
+
+/**
+ * Whether a node is `x?.enumerable === true`, the `hasEntry` helper's
+ * presence, `x` the word its `const` binds: the same guarded access the
+ * option tests, compared to `true`.
+ *
+ * @type {(node: Node, x: string) => boolean}
+ */
+const isHasEntryOf = (node, x) => {
+    if (node[0] !== '===') { return false }
+    const [, condition, literal] = node
+    return condition[0] === '?.' && condition.length === 3 && isRef(condition[1], x) && isKeyNamed(condition[2], 'enumerable')
+        && literal[0] === 'primitive' && literal[1] === true
+}
+
+/**
+ * An intrinsic's helper, recognized whole as the `entry` helper is: a
+ * function of as many parameters as the intrinsic's `length`, each a bare
+ * name, whose expression body is the member call of the intrinsic's name
+ * on the first with the rest, in order —
+ *
+ * ```js
+ * (s, a, b) => s.slice(a, b)
+ * ```
+ *
+ * under any distinct names — the AST's `['slice']`, the member's name
+ * ([`fjs/js/intrinsic`](../../js/intrinsic/module.f.js); the list is
+ * `intrinsics` in `fjs/edag`). `null` where the function is not a helper,
+ * by shape or by its names — a keyword or a reserved global among them, a
+ * name repeated, a pattern, a rest parameter, a spread, a block body, the
+ * key in the computed spelling — and the ordinary resolution takes it
+ * from there, as it takes every member call.
+ *
+ * @type {(node: Extract<Node, readonly ['=>', ParameterList, Node]>) => ValueIntrinsic | null}
+ */
+const intrinsicFunction = ([, list, body]) => {
+    if (!hasEntry(list, 'fixed') || list.rest !== null || body[0] !== '()') { return null }
+    const fixed = assertNotNullish(entry(list, 'fixed'))
+    const [, callee, items] = body
+    if (callee[0] !== '.' || callee.length !== 3 || callee[2] instanceof Array) { return null }
+    const key = keyNamed(callee[2])
+    const intrinsic = intrinsics.find(([id]) => id === key)
+    if (intrinsic === undefined || fixed.length !== helperLength(intrinsic[0]) || items.length !== fixed.length - 1) { return null }
+    const tokens = fixed.flatMap(p => p[0] === 'name' ? [p[1]] : [])
+    if (tokens.length !== fixed.length) { return null }
+    const names = tokens.map(nameOf)
+    if (names.some((name, i) => names.indexOf(name) !== i) || names.some(word => isKeyword(word) || isReservedGlobal(word))) { return null }
+    const [receiver, ...rest] = names
+    if (!isRef(callee[1], receiver) || !items.every((item, k) => isRef(item, rest[Number(k)]))) { return null }
+    /** @type {ValueIntrinsic} */
+    const helper = [intrinsic[0]]
+    return helper
+}
+
+/**
+ * Recognize the complete `entry` or `hasEntry` helper
+ * ([spec](../../../spec/property-access/entries/README.md)). Each has two
+ * distinct named parameters, one descriptor declaration, and its matching
+ * return. A grouped declaration can contain extra work and must not match.
+ * Names retain ordinary binding rules, and the statement/return line rules
+ * are checked before replacing the body. Return `null` for ordinary source
+ * resolution when the shape or names differ; reserved `Object` uses are
+ * then refused in the usual way.
+ *
+ * @type {(node: Extract<Node, readonly ['=>', ParameterList, Node]>) => Result<ValueEntryFunction | ValueHasEntryFunction, ParseError> | null}
+ */
+const entryFunction = ([, list, body]) => {
+    if (!hasEntry(list, 'fixed')) { return null }
+    const fixed = assertNotNullish(entry(list, 'fixed'))
+    if (fixed.length !== 2 || list.rest !== null || body[0] !== 'block' || body[1].length !== 2) { return null }
+    const [p, q] = fixed
+    const first = body[1][0]
+    const last = body[1][1]
+    if (first[0] !== 'const' || first[1].following !== undefined || last[0] !== 'return' || last[1].value === null) { return null }
+    const [, declaration] = first
+    const [, returned] = last
+    // the two parameters and the descriptor are each bound to one name: a
+    // pattern is a step away from the helper, so the function is an
+    // ordinary one
+    if (p[0] !== 'name' || q[0] !== 'name' || declaration.target[0] !== 'name') { return null }
+    const a = nameOf(p[1])
+    const b = nameOf(q[1])
+    const x = nameOf(declaration.target[1])
+    const names = [a, b, x]
+    if (names.some((name, i) => names.indexOf(name) !== i) || names.some(word => isKeyword(word) || isReservedGlobal(word))) { return null }
+    if (!isDescriptorOf(declaration.value, a, b)) { return null }
+    const has = isHasEntryOf(assertNotNullish(returned.value), x)
+    if (!has && !isEntryOf(assertNotNullish(returned.value), x)) { return null }
+    if (unterminated(declaration, returned)) { return error(unexpectedToken(returned.start)) }
+    if (brokenLine(returned)) { return error(unexpectedToken(assertNotNullish(returned.first))) }
+    /** @type {ValueEntryFunction | ValueHasEntryFunction} */
+    const helper = has ? ['hasEntry'] : ['entry']
+    return ok(helper)
+}
+
+/**
+ * Recognize the empty reference map
+ * ([reference map](../../../spec/built-ins/reference-map/README.md)): the canonical body of
+ * [`./ref_map`](./ref_map/module.f.js) under any names, as the whole
+ * initializer of a `const`, whose name the body reads as itself.
+ * `WeakMap` is the global only where no scope binds the word. `null` for
+ * ordinary source resolution where the shape or the names differ; `new`
+ * and the rest are then refused in the usual way. A body that is the map
+ * is still held to JavaScript's line rules, statement by statement, since
+ * no ordinary resolution will read it.
+ *
+ * @type {(scope: _Scope, node: Extract<Node, readonly ['=>', ParameterList, Node]>, self: _Self | null) => Result<ValueRefMap, ParseError> | null}
+ */
+const refMapFunction = (scope, node, self) => {
+    if (self === null || self[2] || !isRefMap(node, self[0]) || resolve(scope, 'WeakMap') !== null) { return null }
+    if (boundNames(node).map(nameOf).some(word => isKeyword(word) || isReservedGlobal(word))) { return null }
+    for (const block of blocks(node)) {
+        for (let index = 0; index < block.length; index += 1) {
+            const [tag, statement] = block[Number(index)]
+            // every `return` of the map has a value, so its first token is there
+            const next = /** @type {{ readonly start: ModuleTokenWithMetadata, readonly first: ModuleTokenWithMetadata }} */ (statement)
+            if (unterminated(index === 0 ? null : /** @type {{ readonly start: ModuleTokenWithMetadata }} */ (block[Number(index - 1)][1]), next)) { return error(unexpectedToken(next.start)) }
+            if (tag === 'return' && brokenLine(next)) { return error(unexpectedToken(next.first)) }
+        }
+    }
+    /** @type {ValueRefMap} */
+    const helper = ['refMap']
+    return ok(helper)
+}
+
+/** Resolved reads inside the exact, capture-free helper forms matched above. @type {(node: Node, origins: _Scope['origins']) => readonly BindingEvent[]} */
+const templateReads = (node, origins) => {
+    switch (node[0]) {
+        case 'primitive': case 'template': { return [] }
+        case 'ref': {
+            const id = at(nameOf(node[1]))(origins)
+            return id === null ? [] : [['read', id]]
+        }
+        case '.': case '?.': { return templateReads(node[1], origins) }
+        case '()': { return [...templateReads(node[1], origins), .../** @type {readonly Node[]} */ (node[2]).flatMap(value => templateReads(value, origins))] }
+        case '?:': { return [node[1], node[2], node[3]].flatMap(value => templateReads(value, origins)) }
+        default: {
+            const comparison = /** @type {readonly ['===', Node, Node]} */ (node)
+            return [...templateReads(comparison[1], origins), ...templateReads(comparison[2], origins)]
+        }
+    }
+}
+
+/**
+ * Whole-helper recognition proves its body has no writes or outside names.
+ * Retain its actual parameter/local identities and reads before replacing it
+ * with the intrinsic operation, just as ordinary functions retain theirs.
+ *
+ * @type {(scope: _Scope, node: Extract<Node, readonly ['=>', ParameterList, Node]>) => _Scope}
+ */
+const templateScope = (scope, node) => {
+    const bound = assertOk(functionScope(node[1]))
+    /** @type {Pick<_Bound, 'bindings' | 'sourceOrigins'> & { readonly events: readonly BindingEvent[] }} */
+    let trace = { bindings: bound.bindings, sourceOrigins: bound.sourceOrigins, events: bound.initialized.map(id => ['initialize', id]) }
+    if (node[2][0] === 'block') {
+        const [first, last] = node[2][1]
+        const declaration = /** @type {Const} */ (first[1])
+        const plan = assertOk(planned(bindable(bound.names))(declaration.target, null))
+        const bindings = [...trace.bindings, ...plan.ids]
+        const sourceOrigins = [...trace.sourceOrigins, ...planOrigins(plan, 'const')]
+        const events = [...trace.events, ...templateReads(declaration.value, bound.origins), ...plan.ids.map(id => /** @type {BindingEvent} */ (['initialize', id]))]
+        const origins = plan.names.reduce((origins, [name, i]) => setReplace(nameOf(name))(plan.ids[Number(i)])(origins), bound.origins)
+        trace = { bindings, sourceOrigins, events: [...events, ...templateReads(/** @type {ValueStatement} */ (last[1]).value, origins)] }
+    } else {
+        trace = { ...trace, events: [...trace.events, ...templateReads(node[2], bound.origins)] }
+    }
+    const { bindings, sourceOrigins, events } = trace
+    return traced({ ...scope, sourceOrigins: [...scope.sourceOrigins, ...sourceOrigins] }, [['function', { target: { kind: 'function', index: scope.trace.count + 1 }, bindings, events }]])
+}
+
+/**
+ * The empty reference map's trace: its two parameters and its read of
+ * itself. What the body binds inside is the pattern's own and is not
+ * traced, since the function is one node with no body to resolve.
+ *
+ * @type {(scope: _Scope, node: Extract<Node, readonly ['=>', ParameterList, Node]>, self: _Self) => _Scope}
+ */
+const refMapScope = (scope, node, self) => {
+    const { bindings, initialized, sourceOrigins } = assertOk(functionScope(node[1]))
+    /** @type {readonly BindingEvent[]} */
+    const events = [...initialized.map(id => /** @type {BindingEvent} */ (['initialize', id])), ['read', self[1]]]
+    return traced({ ...scope, sourceOrigins: [...scope.sourceOrigins, ...sourceOrigins] }, [['function', { target: { kind: 'function', index: scope.trace.count + 1 }, bindings, events }]])
+}
+
+/**
+ * Enter an ordinary source function, or recognize an admitted whole-function
+ * intrinsic. A named whole initializer retains the original declaration as
+ * its self binding, unless a parameter or local shadows it.
+ *
+ * @type {(stack: _Stack, scope: _Scope, node: Extract<Node, readonly ['=>', ParameterList, Node]>, self: _Self | null) => _State}
+ */
+const entered = (stack, scope, node, self) => {
+    // the helpers first, whole: a function that is one has no body to
+    // resolve
+    const entryResult = entryFunction(node)
+    if (entryResult !== null) { return [stack, entryResult[0] === 'ok' ? templateScope(scope, node) : scope, entryResult] }
+    const intrinsic = intrinsicFunction(node)
+    if (intrinsic !== null) { return [stack, templateScope(scope, node), ok(intrinsic)] }
+    const refMap = refMapFunction(scope, node, self)
+    if (refMap !== null) { return [stack, refMap[0] === 'ok' ? refMapScope(scope, node, assertNotNullish(self)) : scope, refMap] }
+    const [tag, bound] = functionScope(node[1])
+    if (tag === 'error') { return [stack, scope, error(bound)] }
+    const { names, count, parameters, rest, late } = bound
+    const target = /** @type {const} */ ({ kind: 'function', index: scope.trace.count + 1 })
+    /** @type {_Scope} */
+    const inner = {
+        names, count, parameters, rest, enclosing: null, outer: scope, self: self?.[0] ?? null, selfBinding: self?.[1] ?? null, selfVariable: self?.[2] ?? false, captures: [], region: false, inFunction: true,
+        blockCall: stack !== null && hasEntry(stack.top, 'call') && stack.top.index === 0 && assertNotNullish(entry(stack.top, 'call'))[2].length === 0
+            && count === 0 && late.length === 0 && rest === null,
+        origins: self === null || at(self[0])(bound.origins) !== null ? bound.origins : setReplace(self[0])(self[1])(bound.origins),
+        trace: { target, bindings: bound.bindings, events: bound.initialized.map(id => ['initialize', id]), count: bound.initialized.length }, sourceOrigins: bound.sourceOrigins,
+    }
+    return [stack, inner, ['parameter', { late, index: 0, body: node[2] }]]
+}
+
+/**
+ * Enters a node: a primitive is its value, a reference what `scope`
+ * resolves its name to — a capture, where a function's body names what a
+ * scope around it binds, {@link resolve} — an access its base under a
+ * frame holding the key, a container, a call or a conditional the first
+ * round of a new frame, an operator its left operand under a frame holding
+ * the right, and a function its body, in a scope of its own inside
+ * `scope`. A name no scope binds is `const not found`.
+ *
+ * A block body is entered the same way, under a frame that also holds its
+ * statements: the parameter is the only name bound when the first of them
+ * is resolved — none is, where the list is empty — and each binds its own
+ * as the module's `const`s do.
+ *
+ * @type {(stack: _Stack, scope: _Scope, node: Node) => _State}
+ */
+const enter = (stack, scope, node) => {
+    if (isBinary(node)) { return [{ top: { tag: node[0], right: node[2] }, rest: stack }, scope, ['enter', node[1]]] }
+    if (isUnary(node)) { return [{ top: { unary: node[0] }, rest: stack }, scope, ['enter', node[1]]] }
+    switch (node[0]) {
+        case 'new': { return [stack, scope, error(unsupportedNew(node[3]))] }
+        case 'binding-default': { return [stack, scope, error(unexpectedToken(node[2]))] }
+        // a template without substitutions is its text, as a literal is
+        case 'primitive': case 'template': { return [stack, scope, ok(node[1])] }
+        case 'ref': {
+            const name = nameOf(node[1])
+            const global = staticIds.find(id => id === name)
+            if (global !== undefined) { return [stack, scope, ok([global])] }
+            const [tag, word] = identifierOf(node[1])
+            if (tag === 'error') { return [stack, scope, error(word)] }
+            const found = resolve(scope, word)
+            if (found === null) { return [stack, scope, error(constNotFound(node[1]))] }
+            return [stack, traced(referenced(selfReference(found), node[1]), [['read', found[1].id]]), ok(['ref', found[1].id])]
+        }
+        case '.': {
+            const member = staticOf(node)
+            if (member !== null) { return staticRead(stack, scope, node, member) }
+            return node.length === 3
+                ? [{ top: { key: node[2], method: isCallee(stack) }, rest: stack }, scope, ['enter', node[1]]]
+                : chainRound(stack, scope, { chain: node, parts: chainParts(node), index: 0, done: null })
+        }
+        // a guarded read of a namespace enters the word, which is refused:
+        // a guard asks whether a value is nullish, and a namespace is none
+        case '?.': case '?.()': { return chainRound(stack, scope, { chain: node, parts: chainParts(node), index: 0, done: null }) }
+        case '()': { return conversion(stack, scope, node) ?? callRound(stack, scope, { call: node, index: 0, done: null }) }
+        // the left operand first, as every binary operator's: the right
+        // side is checked when the left returns, so a fault in the left is
+        // the one reported, the first in document order
+        case 'instanceof': { return [{ top: { instanceof: node[2], at: node[3] }, rest: stack }, scope, ['enter', node[1]]] }
+        // the key first, as every operator's left operand is checked first:
+        // a string literal — not a template, even one without substitutions,
+        // which the syntax keeps apart — and no name a built-in prototype gives a value,
+        // the read's rule, `length` allowed as a read allows it, since an
+        // array and a function own it and the operator's body reads it as
+        // the read does — both refused at the operator, the one token every
+        // spelling of the left side shares; then the right operand is entered
+        case 'in': {
+            const [, left, right, at] = node
+            if (left[0] !== 'primitive' || typeof left[1] !== 'string') { return [stack, scope, error(inLeft(at))] }
+            if (prohibitedRead(left[1]) !== null) { return [stack, scope, error(prohibitedKey(at))] }
+            return [{ top: { in: left[1] }, rest: stack }, scope, ['enter', right]]
+        }
+        case '?:': { return conditionalRound(stack, scope, { conditional: node, index: 0, done: null }) }
+        // a comma the parentheses also hold what no comma has in is
+        // refused at the first of it: a default, a rest or a trailing comma
+        case ',': {
+            const refusal = node[2]
+            return refusal === null ? commaRound(stack, scope, { comma: node[1], index: 0, done: null }) : [stack, scope, error(unexpectedToken(refusal))]
+        }
+        case '=>': { return entered(stack, scope, node, null) }
+        // a block stands only as a function's body, which `'=>'` above
+        // enters; the mapping writes one nowhere else
+        default: { return round(stack, scope, { container: /** @type {Container} */ (node), index: 0, done: null, key: null }) }
+    }
+}
+
+/** @type {(stack: _Stack, scope: _Scope, frame: _LateFrame, value: { readonly value: SourceValue } | null) => _State} */
+const lateLanded = (stack, scope, frame, value) => {
+    const { plan, rest } = frame.late[Number(frame.index)]
+    const shadowed = plan.names.find(([name]) => at(nameOf(name))(scope.names) !== null)
+    if (shadowed !== undefined) { return [stack, scope, error(captureShadowed(shadowed[0]))] }
+    if (hasPatternDefault(plan)) {
+        return [stack, scope, ['pattern', { pattern: plan, index: 0, reads: [], kind: 'parameter', continuation: { parameter: frame, value } }]]
+    }
+    const initialized = boundPlan(scope, plan, true)
+    return [stack, rest ? initialized : { ...initialized, parameters: [...initialized.parameters, { plan: expansion(plan), default: value }] }, ['parameter', { ...frame, index: frame.index + 1 }]]
+}
+
+/** Resolve defaults before making the next parameter readable. @type {(stack: _Stack, scope: _Scope, frame: _LateFrame) => _State} */
+const lateRound = (stack, scope, frame) => {
+    const { late, index, body } = frame
+    if (index === late.length) {
+        return body[0] === 'block'
+            ? [stack, scope, ['region', {
+                block: body[1], target: null, breakTarget: null, functionBody: true, index: 0, plan: null, assigned: null, done: null ,
+            }]]
+            : [{ top: { function: true }, rest: stack }, scope, ['enter', body]]
+    }
+    const { init } = late[Number(index)]
+    return init === null ? lateLanded(stack, scope, frame, null) : [{ top: frame, rest: stack }, scope, ['enter', init]]
+}
+
+/** Count only writes in the arms to identities established before arm entry. @type {(scope: _Scope, frame: { readonly firstEvent: number; readonly firstOrigin: number }) => number} */
+const outerArmWrites = (scope, frame) => {
+    const locals = scope.sourceOrigins.slice(frame.firstOrigin).map(origin => origin.id)
+    /** @type {readonly BindingId[]} */
+    let writes = []
+    let pending = completedTrace(scope).events.slice(frame.firstEvent)
+    while (pending.length !== 0) {
+        const [event, ...rest] = pending
+        if (event[0] === 'region') { pending = [...event[1], ...rest]; continue }
+        if (event[0] === 'function') { pending = [...event[1].events, ...rest]; continue }
+        if (event[0] === 'write' && !locals.includes(event[1]) && !writes.includes(event[1])) { writes = [...writes, event[1]] }
+        pending = rest
+    }
+    return writes.length
+}
+
+/**
+ * An arm may not complete normally. Follow possible source paths on an explicit
+ * stack; a nested switch's break resumes after that switch. Shared continuations
+ * are visited once, so successive conditional arms do not multiply the work.
+ * Loop statements retain the existing requirement for an explicit arm exit.
+ *
+ * @type {(body: SourceBlock) => boolean}
+ */
+const caseFallsThrough = body => {
+    /** @type {readonly _CasePath[]} */
+    let pending = [{ statements: body.statements, index: 0, next: null, breaks: [] }]
+    let seen = emptyRefMap
+    while (pending.length !== 0) {
+        const [path, ...rest] = pending
+        pending = rest
+        const [known, nextSeen] = seen(path, true)
+        if (known !== undefined) { continue }
+        seen = nextSeen
+        if (path.index === path.statements.length) {
+            if (path.next === null) { return true }
+            pending = [path.next, ...pending]
+            continue
+        }
+        const statement = path.statements[Number(path.index)]
+        const next = /** @type {_CasePath} */ ({ ...path, index: path.index + 1 })
+        if (statement[0] === 'break') {
+            const owner = path.breaks.find(([target]) => target === statement[1])
+            if (owner !== undefined) { pending = [owner[1], ...pending] }
+            continue
+        }
+        if (statement[0] === 'while' && statement[1].condition === true && !hasTargetBreak(statement[1].body, statement[1].target)) { continue }
+        if (statement[0] === 'continue' || statement[0] === 'return' || statement[0] === 'throw') { continue }
+        if (statement[0] === 'if') {
+            pending = [...[statement[2], statement[3]].map(arm => ({ statements: arm.statements, index: 0, next, breaks: path.breaks })), ...pending]
+            continue
+        }
+        if (statement[0] === 'switch') {
+            const region = statement[1]
+            const breaks = /** @type {_CasePath['breaks']} */ ([[region.target, next], ...path.breaks])
+            pending = [...[...region.cases.map(arm => arm.body), region.otherwise].map(arm => ({ statements: arm.statements, index: 0, next, breaks })), ...pending]
+            continue
+        }
+        pending = [next, ...pending]
+    }
+    return false
+}
+
+/** A completed switch supplies its normal branch to following source statements. @type {(stack: _Stack, scope: _Scope, frame: _LoopSwitchFrame, otherwise: SourceBlock) => _State} */
+const loopSwitchDone = (stack, scope, frame, otherwise) => {
+    const region = /** @type {SourceSwitch} */ ({
+        target: frame.target, events: completedTrace(scope).events,
+        discriminant: assertNotNullish(frame.discriminant, 'a switch without its discriminant')[0], cases: toArray(reverse(frame.arms)), otherwise,
+    })
+    return [stack, restoredScope(scope, false), ['region', advanced(frame.body, [['switch', region]])]]
+}
+
+/** Resolve one loop-switch label or case without changing its enclosing continue owner. @type {(stack: _Stack, scope: _Scope, frame: _LoopSwitchFrame) => _State} */
+const loopSwitchRound = (stack, scope, frame) => {
+    const { cases, default: fallback } = frame.loopSwitch
+    const { index, label } = frame
+    const block = index < cases.length ? cases[Number(index)].block : fallback
+    if (index < cases.length && label < cases[Number(index)].labels.length) { return [{ top: frame, rest: stack }, scope, ['enter', cases[Number(index)].labels[Number(label)]]] }
+    return block === null
+        ? loopSwitchDone(stack, scope, frame, { statements: [], exit: ['yield', undefined] })
+        : [{ top: frame, rest: stack }, regionScope(scope, empty, null), ['region', {
+            block: block[1], target: frame.body.target, breakTarget: frame.target, index: 0, plan: null, assigned: null, done: null,
+        }]]
+}
+
+/** Cases keep fresh lexical names and complete legality checks before fallthrough admission. @type {(stack: _Stack, scope: _Scope, frame: _LoopSwitchFrame, value: SourceValue) => _State} */
+const loopSwitchReturned = (stack, scope, frame, value) => {
+    const { cases } = frame.loopSwitch
+    const { index, label } = frame
+    if (index < cases.length && label < cases[Number(index)].labels.length) {
+        return loopSwitchRound(stack, scope, { ...frame, label: label + 1, labels: [...frame.labels, value] })
+    }
+    const body = regionBlock(value)
+    if (caseFallsThrough(body)) { return [stack, scope, error(unterminatedCase(frame.loopSwitch.start))] }
+    return index < cases.length
+        ? loopSwitchRound(stack, scope, { ...frame, index: index + 1, label: 0, labels: [], arms: { first: { labels: frame.labels, body }, tail: frame.arms } })
+        : loopSwitchDone(stack, scope, frame, body)
+}
+
+/**
+ * Whether the node being closed is called where it is written: the frame on
+ * top is a call's, plain or optional, `(f)()` or `(f)?.()`, with no operand
+ * done yet, so the node is its callee.
+ *
+ * @type {(stack: _Stack) => boolean}
+ */
+const isCalledWhereWritten = stack => {
+    if (stack === null) { return false }
+    const { top } = stack
+    return (hasEntry(top, 'call') && top.index === 0) || (hasEntry(top, 'chain') && top.index === 0 && top.chain[0] === '?.()')
+}
+
+/**
+ * Source functions retain their declarations and lexical body; regions create
+ * no invocation. A function is held as a value unless it closes as a call's
+ * callee, called where it is written, {@link isCalledWhereWritten}.
+ *
+ * @type {(stack: _Stack, scope: _Scope, body: SourceBlock) => _State}
+ */
+const closed = (stack, scope, body) => {
+    // A block-call candidate with a nonterminal owning return must still
+    // keep its invocation. Other invocation boundaries were refused at the
+    // assignment, before its right-hand side was entered.
+    const externalWrite = scope.captures.find(capture => capture.written && !scope.trace.bindings.includes(capture.id))
+    if (!scope.region && externalWrite !== undefined && hasRetainedReturn(returnedBlock(body))) { return [stack, scope, error(externalWrite.refusal)] }
+    /** @type {SourceValue} */
+    const value = scope.region ? ['block', body] : ['function', {
+        target: scope.trace.target, length: scope.count, parameters: scope.parameters, rest: scope.rest === null ? null : expansion(scope.rest), self: scope.selfBinding, body,
+    }]
+    return [stack, restoredScope(scope, !scope.region && !isCalledWhereWritten(stack)), ok(value)]
+}
+
+/**
+ * Retain declarations and assignments in a loop's block, a region of the
+ * body: `const`s and `let`s as the body's, and assignments, each resolved
+ * as an assignment anywhere is, {@link assigned}. Zero or several outer writes
+ * are admitted. Complete resolved read/write events, rather than a selected
+ * state variable, reach sugar, which chooses immutable versions and explicit
+ * iteration transfers after whole-scope analysis.
+ *
+ * @type {(stack: _Stack, scope: _Scope, frame: _LoopBodyFrame) => _State}
+ */
+const loopRound = (stack, scope, frame) => {
+    if (frame.index === 0) { frame = { ...frame, block: frame.block.flatMap(/** @returns {_LoopBodyFrame['block']} */ statement => statement[0] === 'const'
+        ? declarations(statement[1]).map(declaration => /** @type {const} */ (['const', declaration])) : [statement]) } }
+    while (true) {
+        const { block, index } = frame
+        if (index === block.length) {
+            if (frame.open) { return [stack, scope, ok(['block', { statements: toArray(frame.done), exit: ['yield', undefined] }])] }
+            const statements = toArray(frame.done)
+            const last = statements[Number(statements.length - 1)]
+            if (frame.functionBody && last !== undefined && (last[0] === 'return' || last[0] === 'throw')) {
+                return closed(stack, scope, { statements: statements.slice(0, -1), exit: last })
+            }
+            return closed(stack, scope, { statements, exit: ['yield', undefined] })
+        }
+        const [kind, statement] = block[Number(index)]
+        if (unterminated(index === 0 ? null : block[Number(index - 1)][1], statement)) {
+            return [stack, scope, error(unexpectedToken(statement.start))]
+        }
+        if (kind === 'block') {
+            return [{ top: { scoped: frame }, rest: stack }, regionScope(scope, empty, null), ['region', {
+                block: statement.block[1], target: frame.target, breakTarget: frame.breakTarget, index: 0, plan: null, assigned: null, done: null,
+            }]]
+        }
+        if (kind === 'break' || kind === 'continue') {
+            const target = kind === 'break' ? frame.breakTarget : frame.target
+            if (target === null) { return [stack, scope, error(unexpectedToken(statement.start))] }
+            frame = advanced(frame, [[kind, target]])
+            continue
+        }
+        if (kind === 'return' || kind === 'throw') {
+            if (kind === 'return' && !scope.inFunction) { return [stack, scope, error(unexpectedToken(statement.start))] }
+            if (brokenLine(statement)) { return [stack, scope, error(unexpectedToken(assertNotNullish(statement.first)))] }
+            return [{ top: frame, rest: stack }, scope, ['enter', statement.value ?? ['primitive', undefined]]]
+        }
+        if (kind === 'if') { return [{ top: frame, rest: stack }, scope, ['enter', statement.condition]] }
+        if (kind === 'do') { return enterDoLoop(stack, scope, statement, frame) }
+        if (kind === 'while') { return enterLoop(stack, scope, statement, frame) }
+        if (kind === 'for') { return enterFor(stack, scope, statement, frame) }
+        if (kind === 'for-of') { return enterForOf(stack, scope, statement, frame) }
+        if (kind === 'switch') {
+            return [{ top: { loopSwitch: statement, body: frame, target: { kind: 'loop', index: scope.trace.count + 1 }, discriminant: null, index: 0, label: 0, labels: [], arms: null }, rest: stack },
+                regionScope(scope, empty, null), ['enter', statement.discriminant]]
+        }
+        if (kind === 'assign') {
+            const [tag, target] = assigned(scope, assertNotNullish(entry(statement, 'name')))
+            if (tag === 'error') { return [stack, scope, error(target)] }
+            return [{ top: { ...frame, plan: null, assigned: target[1] }, rest: stack }, assignmentScope(target[0], statement, target[1]), ['enter', statement.value]]
+        }
+        const { target } = statement
+        const value = declarationValue(statement)
+        const namespace = namespaceOf(target, value)
+        const [tag, plan] = constPlan(bodyBindable(scope))(target, value, namespace)
+        if (tag === 'error') { return [stack, scope, error(plan)] }
+        return [{ top: { ...frame, plan, assigned: null }, rest: stack }, declared(scope, plan, kind), declaredValue(kind, target, value, namespace, plan)]
+    }
+}
+
+/**
+ * A value handed to the frame on top: the next round of a container with
+ * the value among its items, an access closed over its base, or a function
+ * closed over its body, {@link closed}.
+ *
+ * @type {(stack: _Stack, scope: _Scope, frame: _Frame, value: SourceValue) => _State}
+ */
+const returned = (stack, scope, frame, value) => {
+    if (hasEntry(frame, 'scoped')) {
+        const statements = flattenedStandalone(regionBlock(value))
+        if (frame.scoped === null) { return [stack, scope, ok(['block', { statements, exit: ['yield', undefined] }])] }
+        return [stack, scope, ['region', advanced(frame.scoped, statements)]]
+    }
+    if (hasEntry(frame, 'pattern')) {
+        const [tag, selected] = patternSelected(scope, frame, { value })
+        return tag === 'error' ? [stack, scope, error(selected)] : [stack, selected[0], ['pattern', selected[1]]]
+    }
+    if (hasEntry(frame, 'container')) { return containerReturned(stack, scope, frame, value) }
+    if (hasEntry(frame, 'call')) { return callRound(stack, scope, advanced(frame, [callValue(assertNotNullish(entry(frame, 'call')), frame.index, value)])) }
+    if (hasEntry(frame, 'conditional')) { return conditionalRound(stack, scope, advanced(frame, [value])) }
+    if (hasEntry(frame, 'comma')) { return commaRound(stack, scope, advanced(frame, [value])) }
+    if (hasEntry(frame, 'key')) {
+        const { key, method } = frame
+        return key instanceof Array ? keyEntered(stack, scope, key, { indexed: value }) : [stack, scope, accessClosed(key, method, value)]
+    }
+    if (hasEntry(frame, 'indexed')) {
+        /** @type {ValueAccess} */
+        const access = ['.', frame.indexed, /** @type {ValueKey} */ (value)]
+        return [stack, scope, ok(access)]
+    }
+    if (hasEntry(frame, 'chain')) { return chainRound(stack, scope, advanced(frame, [value])) }
+    if (hasEntry(frame, 'unary')) {
+        /** @type {ValueUnary} */
+        const applied = [frame.unary, value]
+        return [stack, scope, ok(applied)]
+    }
+    if (hasEntry(frame, 'instanceof')) {
+        // the right operand is a name, not a value: the one reference the
+        // language has a meaning for, never resolved in scope — `Array` is
+        // a reserved global, so no scope binds it
+        const right = frame.instanceof
+        if (right[0] !== 'ref' || nameOf(right[1]) !== 'Array') { return [stack, scope, error(instanceofRight(assertNotNullish(entry(frame, 'at'))))] }
+        /** @type {ValueInstanceOf} */
+        const checked = ['instanceof', value, 'Array']
+        return [stack, scope, ok(checked)]
+    }
+    if (hasEntry(frame, 'in')) {
+        /** @type {ValueIn} */
+        const checked = ['in', frame.in, value]
+        return [stack, scope, ok(checked)]
+    }
+    if (hasEntry(frame, 'right')) { return [{ top: { tag: frame.tag, left: value }, rest: stack }, scope, ['enter', frame.right]] }
+    if (hasEntry(frame, 'left')) {
+        /** @type {ValueBinary} */
+        const binary = [frame.tag, frame.left, value]
+        return [stack, scope, ok(binary)]
+    }
+    if (hasEntry(frame, 'forOf')) { return forOfReturned(stack, scope, frame, value) }
+    if (hasEntry(frame, 'for')) {
+        const block = regionBlock(value)
+        if (frame.initial === null) {
+            return enterLoop({ top: { ...frame, initial: block.statements }, rest: stack }, scope, frame.for, null)
+        }
+        const outer = restoredScope(scope, false)
+        const statement = block.statements[0]
+        assert(statement[0] === 'while', 'a for resolves to one loop')
+        const statements = [...frame.initial, ...block.statements]
+        if (frame.body === null) { return [stack, outer, ok(['block', { statements, exit: ['yield', undefined] }])] }
+        return [stack, outer, ['region', advanced(frame.body, statements)]]
+    }
+    if (hasEntry(frame, 'doLoop')) {
+        if (frame.resolvedBody === null) {
+            return [{ top: { ...frame, resolvedBody: regionBlock(value) }, rest: stack }, scope, ['enter', frame.doLoop.condition]]
+        }
+        const loop = /** @type {const} */ ({ target: frame.target, events: completedTrace(scope).events, condition: value, body: frame.resolvedBody, postTest: true })
+        const outer = restoredScope(scope, false)
+        if (frame.body === null) { return [stack, outer, ok(['block', { statements: [['while', loop]], exit: ['yield', undefined] }])] }
+        return [stack, outer, ['region', advanced(frame.body, [['while', loop]])]]
+    }
+    if (hasEntry(frame, 'loop')) {
+        if (frame.condition === null) {
+            if ('initializer' in frame.loop && frame.loop.step !== null) {
+                return [{ top: { ...frame, condition: [value] }, rest: stack }, regionScope(scope, empty, null), ['region', {
+                    block: [frame.loop.step], target: frame.target, breakTarget: frame.target, index: 0, plan: null, assigned: null, done: null ,
+                }]]
+            }
+            return [{ top: { ...frame, condition: [value] }, rest: stack }, regionScope(scope, empty, null), ['region', {
+                block: frame.loop.block[1], target: frame.target, breakTarget: frame.target, index: 0, plan: null, assigned: null, done: null ,
+            }]]
+        }
+        if ('initializer' in frame.loop && frame.loop.step !== null && frame.step === null) {
+            return [{ top: { ...frame, step: regionBlock(value) }, rest: stack }, regionScope(scope, empty, null), ['region', {
+                block: frame.loop.block[1], target: frame.target, breakTarget: frame.target, index: 0, plan: null, assigned: null, done: null ,
+            }]]
+        }
+        const body = regionBlock(value)
+        const outer = restoredScope(scope, false)
+        const loop = /** @type {const} */ ({ target: frame.target, events: completedTrace(scope).events, condition: frame.condition[0], body,
+            ...(frame.step === null ? {} : { step: frame.step }) })
+        if (frame.body === null) { return [stack, outer, ok(['block', { statements: [['while', loop]], exit: ['yield', undefined] }])] }
+        return [stack, outer, ['region', advanced(frame.body, [['while', loop]])]]
+    }
+    if (hasEntry(frame, 'block')) {
+        const [kind, statement] = frame.block[Number(frame.index)]
+        if (kind === 'if') {
+            return [{ top: { loopGuard: frame, condition: value, otherwise: statement.otherwise, then: null, firstEvent: scope.trace.count, firstOrigin: scope.sourceOrigins.length, start: statement.start }, rest: stack }, regionScope(scope, empty, null), ['region', {
+                block: statement.block[1], target: frame.target, breakTarget: frame.breakTarget, index: 0, plan: null, assigned: null, done: null ,
+            }]]
+        }
+        if (kind === 'assign') {
+            const id = assertNotNullish(frame.assigned, 'an assignment with no target')
+            return [stack, written(scope, statement, id), ['region', advanced(frame, [assignmentStatement(statement, id, value)])]]
+        }
+        if (kind === 'return') { return [stack, scope, ['region', advanced(frame, [['return', scope.trace.target, value]])]] }
+        if (kind === 'throw') { return [stack, scope, ['region', advanced(frame, [['throw', value]])]] }
+        assert(kind !== 'block' && kind !== 'do' && kind !== 'while' && kind !== 'for' && kind !== 'for-of' && kind !== 'switch' && kind !== 'break' && kind !== 'continue', 'a loop or transfer completes without a value')
+        return landed(stack, scope, frame, kind, value)
+    }
+    if (hasEntry(frame, 'loopGuard')) {
+        const block = regionBlock(value)
+        if (frame.then === null && frame.otherwise !== null) {
+            return [{ top: { ...frame, then: block }, rest: stack }, regionScope(scope, empty, null), ['region', {
+                block: frame.otherwise[1], target: frame.loopGuard.target, breakTarget: frame.loopGuard.breakTarget, index: 0, plan: null, assigned: null, done: null ,
+            }]]
+        }
+        const then = frame.then ?? block
+        const otherwise = frame.then === null ? { statements: [], exit: /** @type {const} */ (['yield', undefined]) } : block
+        if (frame.loopGuard.target === null) {
+            const thenNormal = caseFallsThrough(then)
+            const otherwiseNormal = caseFallsThrough(otherwise)
+            if (!(frame.otherwise === null && !thenNormal) && (thenNormal || otherwiseNormal)) {
+                if (hasArmThrow([then, otherwise])) { return [stack, scope, error(throwingArm(frame.start))] }
+                if (outerArmWrites(scope, frame) > 1) { return [stack, scope, error(multipleJoinBindings(frame.start))] }
+            }
+        }
+        return [stack, scope, ['region', advanced(frame.loopGuard, [['if', frame.condition, then, otherwise]])]]
+    }
+    if (hasEntry(frame, 'loopSwitch')) {
+        return frame.discriminant === null
+            ? loopSwitchRound(stack, scope, { ...frame, discriminant: [value] })
+            : loopSwitchReturned(stack, scope, frame, value)
+    }
+    if (hasEntry(frame, 'late')) { return lateLanded(stack, scope, frame, { value }) }
+    return closed(stack, scope, { statements: [], exit: ['return', scope.trace.target, value] })
+}
+
+/**
+ * The value a node denotes under `env`, or the first error met in document
+ * order: a reference to a keyword, to a name bound outside the function
+ * being resolved, or to a name nothing binds, a plain `__proto__` key, or
+ * an access naming a built-in prototype's property.
+ *
+ * Over an explicit stack: a frame per container being built, its items
+ * resolved in order, and per function, its body resolved under its own
+ * names, so that a value nested as deep as the input allows costs no call
+ * stack.
+ *
+ * `self` is the word a `const` or a `let` binds the value to, with whether
+ * it is a variable's, or `null` for a value that is no declaration's: a
+ * function that is the whole value is entered with the word bound to itself,
+ * {@link entered}, as a body's is.
+ *
+ * @type {(initial: _State) => Result<_Evaluated, ParseError>}
+ */
+const evaluateState = initial => {
+    let state = initial
+    while (true) {
+        const [stack, scope, step] = state
+        const [tag, payload] = step
+        if (tag === 'pattern') {
+            state = patternRound(stack, scope, payload)
+        } else if (tag === 'parameter') {
+            state = lateRound(stack, scope, payload)
+        } else if (tag === 'region') {
+            state = loopRound(stack, scope, payload)
+        } else if (tag === 'enter') {
+            state = enter(stack, scope, payload)
+        } else if (tag === 'define') {
+            // a `const`'s value: a function is entered under its own name
+            state = payload[0] === '=>' ? entered(stack, scope, payload, step[2]) : enter(stack, scope, payload)
+        } else if (tag === 'error') {
+            return error(payload)
+        } else if (stack === null) {
+            // the root's value, every body closed
+            return ok({ value: payload, scope })
+        } else {
+            state = returned(stack.rest, scope, stack.top, payload)
+        }
+    }
+}
+
+/** A source value enters the shared resolution worklist without a statement continuation. @type {(initial: _Scope, self: _Self | null) => (root: Node) => Result<_Evaluated, ParseError>} */
+const evaluate = (initial, self) => root => evaluateState([null, initial, self === null ? ['enter', root] : ['define', root, self]])
+
+/** An export as the module's result object holds it: a member of its name and node. @type {(e: readonly [string, SourceValue]) => ValueMember} */
+const exportMember = ([name, value]) => [':', name, value]
+
+/**
+ * Run shared analysis only after the complete resolved source scope exists,
+ * and refuse what it finds: a variable assigned anywhere in its scope and
+ * read or assigned by a function nested in that scope and held as a value,
+ * at the first such reference in document order
+ * ([spec: variables](../../../spec/bindings/variables/README.md)).
+ *
+ * @type {(source: SourceModule, scope: _Scope) => Result<ResolvedModule, ParseError>}
+ */
+const resolvedModule = (source, scope) => {
+    const trace = completedTrace(scope)
+    const bindings = analyzeBindings(trace)
+    const reassigned = bindings.filter(fact => fact.isMutable).map(fact => fact.id)
+    const escape = scope.captures.find(capture => capture.escaped && reassigned.includes(capture.id))
+    if (escape !== undefined) { return error(escape.refusal) }
+    return ok({ ...source, scope: trace, bindings, origins: scope.sourceOrigins })
+}
+
+/**
+ * Resolve imports, declarations and assignments in order, preserving one
+ * initialization plan per declaration, one write per assignment and each
+ * original declaration identity. Named exports select those identities; a
+ * terminal throw replaces the export result. A module's `let` is a variable
+ * as a body's is ([spec: variables](../../../spec/bindings/variables/README.md)),
+ * and the module being a function, the capture rule is the same.
+ *
+ * @type {(module: Module) => Result<ResolvedModule, ParseError>}
+ */
+const foldModule = ({ imports, statements: syntaxStatements, exported, thrown: failing }) => {
+    const statements = syntaxStatements.flatMap(/** @returns {Module['statements']} */ statement => statement[0] === 'const'
+        ? declarations(statement[1].declaration).map(declaration => /** @type {const} */ (['const', { declaration, exported: statement[1].exported }])) : [statement])
+    let scope = moduleScope()
+    /** @type {readonly SourceImport[]} */
+    let modules = []
+    /** @type {readonly SourceStatement[]} */
+    let body = []
+    /** @type {readonly (readonly [string, SourceValue])[]} */
+    let exports = []
+    // the statement before the one being read, whose omitted `;` the one
+    // being read has to begin a line for
+    /** @type {Parameters<typeof unterminated>[0]} */
+    let previous = null
+    for (const statement of imports) {
+        if (unterminated(previous, statement)) { return error(unexpectedToken(statement.start)) }
+        previous = statement
+        /** @type {readonly BindingId[]} */
+        let importIds = []
+        for (const { local } of statement.bindings) {
+            const [tag, word] = bindable(scope.names)(local)
+            if (tag === 'error') { return error(word) }
+            const id = sourceBinding(scope.trace.bindings.length)
+            scope = traced({
+                ...scope, names: extended(scope.names)(word, { id, kind: 'own', assignable: false }), origins: setReplace(word)(id)(scope.origins),
+                trace: { ...scope.trace, bindings: [...scope.trace.bindings, id] },
+                sourceOrigins: [...scope.sourceOrigins, { id, name: word, kind: 'import', metadata: local.metadata }],
+            }, [['initialize', id]])
+            importIds = [...importIds, id]
+        }
+        const [read, record] = _readImport(statement)
+        if (read === 'error') { return error(record) }
+        const ids = importIds
+        modules = [
+            ...modules,
+            ...(statement.bindings.length === 0
+                ? [{ ...record, name: null, binding: null }]
+                : statement.bindings.map((binding, i) => ({ ...record, name: assertNotNullish(entry(binding, 'name')), binding: ids[Number(i)] }))),
+        ]
+    }
+    for (const statement of statements) {
+        if (statement[0] === 'block') {
+            if (unterminated(previous, statement[1])) { return error(unexpectedToken(statement[1].start)) }
+            previous = statement[1]
+            const [tag, evaluated] = evaluateState(enterStandalone(null, scope, statement[1]))
+            if (tag === 'error') { return error(evaluated) }
+            scope = evaluated.scope
+            body = [...body, ...regionBlock(evaluated.value).statements]
+            continue
+        }
+        if (statement[0] === 'while' || statement[0] === 'do' || statement[0] === 'for' || statement[0] === 'for-of') {
+            const loop = statement[1]
+            if (unterminated(previous, loop)) { return error(unexpectedToken(loop.start)) }
+            previous = loop
+            const [tag, evaluated] = evaluateState(statement[0] === 'do' ? enterDoLoop(null, scope, statement[1], null) : statement[0] === 'for-of' ? enterForOf(null, scope, statement[1], null) : statement[0] === 'for' ? enterFor(null, scope, statement[1], null) : enterLoop(null, scope, statement[1], null))
+            if (tag === 'error') { return error(evaluated) }
+            scope = evaluated.scope
+            body = [...body, ...regionBlock(evaluated.value).statements]
+            continue
+        }
+        if (statement[0] === 'assign') {
+            const assignment = statement[1]
+            if (unterminated(previous, assignment)) { return error(unexpectedToken(assignment.start)) }
+            previous = assignment
+            const [tag, target] = assigned(scope, assertNotNullish(entry(assignment, 'name')))
+            if (tag === 'error') { return error(target) }
+            const [resolved, evaluated] = evaluate(assignmentScope(target[0], assignment, target[1]), null)(assignment.value)
+            if (resolved === 'error') { return error(evaluated) }
+            scope = written(evaluated.scope, assignment, target[1])
+            body = [...body, assignmentStatement(assignment, target[1], evaluated.value)]
+            continue
+        }
+        const [kind, { declaration, exported: named }] = statement
+        const { target } = declaration
+        const node = declarationValue(declaration)
+        // the statement's beginning first, then the names, then the value: a
+        // statement wrong in more than one answers for what a reader meets
+        // first
+        if (unterminated(previous, declaration)) { return error(unexpectedToken(declaration.start)) }
+        previous = declaration
+        const namespace = namespaceOf(target, node)
+        const [tag, plan] = constPlan(bindable(scope.names))(target, node, namespace)
+        if (tag === 'error') { return error(plan) }
+        const then = named ? plan.names.find(([name]) => nameOf(name) === 'then') : undefined
+        if (then !== undefined) { return error({ message: 'reserved export name then', metadata: then[0].metadata }) }
+        // a function that is the whole value of a declaration of one name is
+        // entered under that name, its `self`, a `let`'s a capture; a pattern
+        // names no function, and a pattern over the `Object` namespace
+        // enters nothing, {@link declaredValue}
+        scope = declared(scope, plan, kind)
+        const [resolved, evaluated] = namespace !== null ? ok({ value: undefined, scope }) : evaluate(scope, target[0] === 'name' ? [nameOf(target[1]), plan.ids[0], isVariable(kind)] : null)(node)
+        if (resolved === 'error') { return error(evaluated) }
+        if (hasPatternDefault(plan)) {
+            const [tag, selected] = evaluateState([null, evaluated.scope, ['pattern', { pattern: plan, index: 0, reads: [], kind, continuation: { module: evaluated.value } }]])
+            if (tag === 'error') { return error(selected) }
+            scope = selected.scope
+            body = [...body, ...regionBlock(selected.value).statements]
+        } else {
+            scope = boundPlan(evaluated.scope, plan, isVariable(kind))
+            body = [...body, ['initialize', expansion(plan), evaluated.value]]
+        }
+        if (named) { exports = [...exports, ...plan.names.map(([token, i]) => /** @type {const} */ ([nameOf(token), ['ref', plan.ids[Number(i)]]]))] }
+    }
+    if (failing !== null) {
+        if (unterminated(previous, failing)) { return error(unexpectedToken(failing.start)) }
+        if (brokenLine(failing)) { return error(unexpectedToken(failing.first)) }
+        const [resolved, evaluated] = evaluate(scope, null)(failing.value)
+        if (resolved === 'error') { return error(evaluated) }
+        /** @type {SourceModule} */
+        const failingModule = { imports: modules, body: { statements: body, exit: ['throw', evaluated.value] } }
+        return resolvedModule(failingModule, evaluated.scope)
+    }
+    let completed = { scope, exports }
+    if (exported !== null) {
+        if (unterminated(previous, exported)) { return error(unexpectedToken(exported.start)) }
+        const [resolved, evaluated] = evaluate(scope, null)(exported.value)
+        if (resolved === 'error') { return error(evaluated) }
+        completed = { scope: evaluated.scope, exports: [...exports, ['default', evaluated.value]] }
+    }
+    // an exported pattern binding no name exports nothing, and the grammar
+    // saw only the `export`: the module is refused where a name was owed
+    if (completed.exports.length === 0) {
+        const last = assertNotNullish(statements.findLast(s => s[0] === 'const' && s[1].exported), ['a module with no export and no throw', statements])
+        assert(last[0] === 'const')
+        return error(noExport(last[1].declaration.start))
+    }
+    /** @type {SourceModule} */
+    const sourceModule = { imports: modules, body: { statements: body, exit: ['yield', ['object', toArray(sort(completed.exports)).map(exportMember)]] } }
+    return resolvedModule(sourceModule, completed.scope)
+}
+
+/**
+ * Reads the token list as a FunctionalScript module: `import` statements, then
+ * `const` and `export const` statements, with an optional final `export default`
+ * — or a final `throw` in its place. At least one export is required of a
+ * module that does not throw; every statement ends with `;`, or where
+ * JavaScript inserts one — before a statement on a new line, before `}`,
+ * and at the end of the input.
+ *
+ * This is the only language the parser reads. A JSON document is data, not a
+ * module, and `fjs/media/json` is its reader
+ * ([spec: JSON input](../../../spec/command-line/json-input.md)).
+ *
+ * The grammar it accepts is written down in `./grammar`, read by
+ * `./syntax`, and what the grammar accepts and this refuses is the fold's:
+ * a name unbound or bound twice, and a plain `__proto__` key.
+ *
+ * @type {(tokenList: List<ModuleTokenWithMetadata>) => Result<ResolvedModule, ParseError>}
+ */
+export const parseFromTokens = tokenList => {
+    const [tag, module] = parseSyntax(tokenList)
+    return tag === 'error' ? error(module) : foldModule(module)
+}
+
+/**
+ * Where a {@link ParseError} happened, as much of it as is known: the token's
+ * `path:line:column` when the reader tracks positions; otherwise the file
+ * the error names, when it names one — a missing import, a cycle, a body
+ * that fails to evaluate, in an imported module as readily as in the input;
+ * and otherwise `inputFileName`, the file being compiled — which no reader
+ * `fjs compile` runs produces any more, every reader naming its file, and
+ * which this parser's one contract failure, a token list with no end,
+ * still can.
+ *
+ * An error that knows how far the offending source runs renders as a span,
+ * `path:line:column-column` within one line and `path:line:column-line:column`
+ * across several. Only lexical errors carry one today; a grammar failure points
+ * at a single token and prints the point form.
+ *
+ * @type {(inputFileName: string) => (parseError: ParseError) => string}
+ */
+export const errorLocation = inputFileName => ({ metadata, end, path }) => {
+    if (metadata === null) { return path ?? inputFileName }
+    const start = `${metadata.path}:${metadata.line}:${metadata.column}`
+    if (end === undefined) { return start }
+    // the path is printed once — a token does not straddle files — and the
+    // line is dropped from the far end when the span stays on one line, so the
+    // common case reads `a.js:1:1-7` rather than repeating `1:`
+    const far = end.line === metadata.line
+        ? `${end.column}`
+        : `${end.line}:${end.column}`
+    return `${start}-${far}`
+}

@@ -5,12 +5,12 @@
 
 ### Problem
 
-`operator` in [`fjs/ebnf/lib/js`](../../../ebnf/lib/js/module.f.mjs) is the
+`operator` in [`fjs/ebnf/lib/js`](../../../ebnf/lib/js/module.f.js) is the
 prefix tree of `operators`: it reads the longest operator its lookahead leads
 to, `?.` included. ECMAScript's `OptionalChainingPunctuator` is `?.` not
 followed by a decimal digit, so JavaScript reads `a?.5:1` as `a ? .5 : 1`, a
 conditional whose middle arm is `.5`. `tokenize` in
-[`../module.f.mjs`](../module.f.mjs) reads the identifier `a`, then `?.`,
+[`../module.f.js`](../module.f.js) reads the identifier `a`, then `?.`,
 then the number `5`.
 
 Nothing is wrong yet. A leading-dot number is not recognized
@@ -35,7 +35,7 @@ numbers reshape the `.` branch of `operator` anyway.
 
 - [ ] With leading-dot numbers, `a?.5:1` tokenizes as `a`, `?`, `.5`, `:`,
       `1` and compiles as `a ? .5 : 1` does, while `a?.b` still tokenizes as
-      `a`, `?.`, `b`; both pinned in [`../proof.f.mjs`](../proof.f.mjs).
+      `a`, `?.`, `b`; both pinned in [`../proof.f.js`](../proof.f.js).
 
 ### Related
 

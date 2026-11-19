@@ -1,0 +1,675 @@
+/**
+ * The objects a pack directory holds: from an id to the `Envelope` a `.pack`
+ * spells, through the `.idx` beside it.
+ *
+ * [`fjs/git/loose`](../loose/module.f.js) is the same boundary for the other
+ * place an object lives, and the two answer alike on purpose — a caller above
+ * [`fjs/git/store`](../store/module.f.js) never learns which file held the
+ * object it asked for. This module is where a pack stops being a format
+ * ([`fjs/git/pack`](../pack/module.f.js), [`fjs/git/packidx`](../packidx/module.f.js),
+ * both pure) and becomes a repository's objects.
+ *
+ * Every claim below was measured against Git 2.43.0, on packs it wrote.
+ *
+ * **Two files answer, in order.** The `.idx` says where in the `.pack` an id's
+ * entry begins; nothing else does, and a pack on its own can only be read from
+ * the front. A directory holds any number of pairs, so the lookup is a walk over
+ * them that stops at the first pack holding the id — the packs a repository
+ * keeps are disjoint in the objects they hold except where a `gc` has not yet
+ * dropped an old one, and two packs holding one id hold the same object under
+ * it, so the first answer is the answer.
+ *
+ * Opening an index is not cheap: it is read whole and its trailing checksum is
+ * hashed, and its ids are built as it is read. That is what makes a packed read
+ * cost more than a loose one here where it costs less in Git, which keeps its
+ * indexes mapped; what remains of it is
+ * [`packidx`'s lazy-index-ids.md](../packidx/todo/lazy-index-ids.md), and that
+ * is not a question about what a read *answers*.
+ *
+ * **An entry is read up to where the index says the next begins, and the
+ * inflater finds where its stream ends.** A pack entry carries no length: its
+ * header says what the object inflates to and says nothing about how many bytes
+ * of the file the zlib stream after it takes. The host's `inflate` refused bytes
+ * after the end of a stream, so the window handed to it had to end exactly there
+ * and the index closed it; the inflater here
+ * ([`fjs/zlib/inflate`](../../zlib/inflate/module.f.js)) knows where a stream
+ * ends, so the window is only an upper bound, and it is read in pieces of a
+ * `Vec` each, however long the entry is. See `after` in
+ * [`fjs/git/packidx`](../packidx/module.f.js); the last entry in a pack ends at
+ * the file's length less its trailing checksum, which is why a read `stat`s the
+ * pack. Bytes between the end of the stream and the next entry are still
+ * refused, as Git does — measured on a pack of six objects, two of them deltas:
+ * every entry's stream ended exactly where the next began.
+ *
+ * **No object is refused for its length, but a delta chain is bounded.** An
+ * object stored whole is read to a list over the chunks it inflated to, a byte
+ * a byte, however long it is. A delta, and the base it is applied to, are dense
+ * arrays, a number a byte, so those are held to
+ * [`maxDeltaBytes`](../pack/module.f.js).
+ *
+ * **A delta chain is walked, not recursed.** Each link reads one entry, and a
+ * delta's base is the next item of the same walk rather than a nested read, for
+ * the reason [`fjs/effects`](../../effects/module.f.js)' `walkStep` loops and
+ * [`fjs/git/walk`](../walk/module.f.js) repeats: a `Read` that answers values
+ * resumes inside the caller, so a recursion costs a frame per link and a long
+ * chain exhausts the stack. `--depth` is 50 by default and takes any number.
+ *
+ * **A `refDelta`'s base must be in the same pack, and may be anywhere in it.**
+ * An `ofsDelta` names its base by a distance back, so its base precedes it; a
+ * `refDelta` names an id, and the id may sit *after* it. Measured: a thin pack
+ * from `git pack-objects --thin`, stored by `git index-pack --fix-thin`, came
+ * out with the delta at offset 470 and the base it names appended at 545. That
+ * is also what makes an out-of-pack base a refusal here rather than a missing
+ * feature: `--fix-thin` appends the bases a fetched pack lacked, so a pack on
+ * disk carries its own.
+ *
+ * **Git refuses such a pack too, with the base in reach.** Measured on 2.43.0
+ * over two hand-built packs, alike but for where the base sits — the same delta
+ * instructions, the same index shape, and the crc32 the index carries computed
+ * over the entry as it lies in the pack:
+ *
+ * | the base | `git cat-file -p <target>` |
+ * | --- | --- |
+ * | the pack's own first entry | exit 0, the object |
+ * | loose, *and* in a second pack beside it | exit 128, `fatal: Not a valid object name` |
+ *
+ * The first row is the control that makes the second mean anything: the same
+ * delta, read. `git fsck` calls the second `failed to validate delta base
+ * reference at offset <n>` — a broken pack, not an object kept somewhere else.
+ * So resolving such a base through the whole store would answer for a pack every
+ * Git refuses, which is the shape [`fjs/git/pack`](../pack/module.f.js)'s delta
+ * floor was added to stop. What is left of the question is a choice about being
+ * deliberately more capable rather than a gap, and
+ * [thin-pack-base.md](./todo/thin-pack-base.md) carries it as an open decision.
+ *
+ * **`null` is absence and an error is corruption.** No pack in the directory
+ * holds the id is `null`, which is what lets
+ * [`fjs/git/store`](../store/module.f.js) try the loose path and the packs in
+ * either order and report a miss once. Everything else — an `.idx` Git would not
+ * read, an entry that does not frame, a stream that does not inflate, a delta
+ * that does not apply, a chain that cycles or leaves the pack — is the channel's.
+ * A pack that holds an id and cannot answer it is not a pack that lacks it, and
+ * a caller told `null` for the second would go looking elsewhere for an object
+ * that is right here and broken.
+ *
+ * **The pack is checked against the index that named it**, which is four things
+ * Git checks when it opens one and none of them a hash: the signature, the
+ * version, the object count against the index's, and the pack's trailing
+ * checksum against the one the index recorded. See {@link framingOf} for what Git
+ * says to each and what an earlier revision of this module got wrong by skipping
+ * them.
+ *
+ * @module
+ *
+ * @import { Dirent, IoChannel, ReadBytes, ReadWhole, Readdir, Stat } from '../../effects/node/types.ts'
+ * @import { Effect } from '../../effects/types.ts'
+ * @import { List } from '../../types/list/types.ts'
+ * @import { Nullable } from '../../types/nullable/types.ts'
+ * @import { Vec } from '../../types/bit_vec/types.ts'
+ * @import { Envelope } from '../object/types.ts'
+ * @import { Entry } from '../pack/types.ts'
+ * @import { Idx } from '../packidx/types.ts'
+ * @import { Oid, OidBytes } from '../types.ts'
+ * @import { Progress, Refusal } from '../inflater/types.ts'
+ * @import { _Chain, _Delta } from './private.ts'
+ * @import { Held } from './types.ts'
+ */
+
+import { assertNotNullish } from '../../asserts/module.f.js'
+import { catchStep, foldStep, history, historyStep, mapStep, orElse, pureOk, refuse, step, walkStep } from '../../effects/module.f.js'
+import { leadsNowhere, namesNothing, notAFileCode, notAFileMessage, readBytes, readWholeBytes, readdir, stat } from '../../effects/node/module.f.js'
+import { byteArray } from '../../ebnf/byte/module.f.js'
+import { under } from '../../path/module.f.js'
+import { maxVecBytes, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.js'
+import { concat } from '../../types/list/module.f.js'
+import { toArray } from '../../types/list/alt/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
+import { bytesOf, feedWithin, inflater, malformed, sizeOf } from '../inflater/module.f.js'
+import { headerBytes, maxDeltaBytes, tryApplyDelta, tryEntry, tryHeader } from '../pack/module.f.js'
+import { after, holdsEntryAt, offsetOf, tryIdx } from '../packidx/module.f.js'
+import { hexText, ofWidth, oidAt } from '../oid/module.f.js'
+
+const { init: [, , initialProgress], end: endInflate } = inflater
+
+/**
+ * The bytes a read hands back, as a dense array to index into.
+ *
+ * @type {(v: Vec) => readonly number[]}
+ */
+const denseBytes = v => byteArray(u8ListMsb(v))
+
+/** What a pack index is called, and so what a listing of the directory looks for. */
+const idxSuffix = /** @type {const} */ ('.idx')
+
+/** What the pack beside it is called. */
+const packSuffix = /** @type {const} */ ('.pack')
+
+/**
+ * Where an object store keeps its packs: `pack/` below the `objects/` directory
+ * itself.
+ *
+ * **The key is the `objects/` directory and not the repository**, because an
+ * `objects/info/alternates` names object directories directly — a borrowed
+ * store is `…/other/.git/objects` with no repository of this one's above it.
+ * Measured on Git 2.43.0: a borrower whose alternates file names the donor's
+ * `objects/` reads the donor's objects, packed ones included, after the donor
+ * was `git repack -adq`'d. [`fjs/git/store`](../store/module.f.js) is what
+ * turns a repository into the object directories to search, this one included.
+ *
+ * Joined with {@link under} rather than by writing a separator, for the reason
+ * [`fjs/git/store`](../store/module.f.js)'s `objectPath` is: the directory is
+ * the caller's and may already end in one.
+ *
+ * @type {(od: string) => string}
+ */
+export const packsIn = od => under(od, 'pack')
+
+/**
+ * The code an `.idx` is refused with when it is not one Git would read at the
+ * repository's width. The file names the objects of the pack beside it, so a
+ * pack whose index does not read holds nothing this can reach, and that is a
+ * failure rather than an absence.
+ */
+export const packIdxCode = /** @type {const} */ ('ERR_PACK_IDX')
+
+/** Refuses with {@link packIdxCode}. */
+const refusePackIdx = refuse(packIdxCode)
+
+/**
+ * The code every refusal inside a pack shares: an entry that does not frame, an
+ * inflated stream that is not the length its header declares, a base outside the
+ * pack, a chain longer than the pack's object count, or a delta that does not
+ * apply. One code, because a caller has one question — can this pack answer for
+ * this id — and each message names the pack and the offset it went wrong at.
+ */
+export const packEntryCode = /** @type {const} */ ('ERR_PACK_ENTRY')
+
+/** Refuses with {@link packEntryCode}. */
+const refusePackEntry = refuse(packEntryCode)
+
+/** @type {(path: string) => string} */
+const idxMessage = path => `${path} is no pack index`
+
+/**
+ * A refusal about the entry at an offset, as the channel error it becomes.
+ *
+ * The pack and the offset come first so the message each case names is all the
+ * case has to write, and so this closes over nothing.
+ *
+ * @type {(path: string, at: number) => (what: string) => Effect<never, never, IoChannel>}
+ */
+const entryRefusal = (path, at) => what => refusePackEntry(`${path}:${at} ${what}`)
+
+/** Refuses with {@link notAFileCode}. */
+const refuseNotAFile = refuse(notAFileCode)
+
+/**
+ * The refusal for a path that is there and is no regular file, in the words
+ * {@link readWhole} uses for the same thing — so the diagnosis is the one
+ * message whichever of the two notices first.
+ *
+ * @type {(path: string) => Effect<never, never, IoChannel>}
+ */
+const notAFile = path => refuseNotAFile(notAFileMessage(path))
+
+/**
+ * One entry of the pack directory that ends in `.idx`, kept where it is a file.
+ *
+ * **A listing cannot classify a symlink, and a pack pair may be one.** Node's
+ * `Dirent` does not follow a link, so a linked `.idx` arrives with both kind
+ * flags false and a filter on `isFile` drops it — and with it every object the
+ * pack holds. Git follows one: measured on Git 2.43.0 with both files of a pair
+ * replaced by links into another directory, `git cat-file -p` answered the blob
+ * and `git count-objects -v` reported `in-pack: 4, packs: 1`.
+ *
+ * So an entry the listing *can* classify costs nothing, and one it cannot costs a
+ * `stat`, which follows the link without opening what it finds. A link that
+ * leads nowhere is skipped, as Git's listing skips one; any other failure is the
+ * channel's, because a pack dropped in silence is every object in it missing.
+ *
+ * **Which is why a `.idx` that is there and is not a regular file is refused
+ * rather than dropped.** An earlier revision dropped it, on no rule — it was
+ * neither a link leading nowhere nor a failure, so it fell through the two
+ * cases into silence, and every object of the pack beside it went missing with
+ * it. Git never answers that way. Measured on Git 2.43.0, a valid `.pack`
+ * beside each:
+ *
+ * | the `.idx` is | `git cat-file -p` of a blob in another pack |
+ * | --- | --- |
+ * | a directory, or a link to one | `fatal: mmap failed: No such device`, exit 128 |
+ * | a FIFO | never returns — the open waits for a writer |
+ * | a link to `/dev/null` | `error: index file … is too small`, exit 0 |
+ * | an empty regular file | `error: index file … is too small`, exit 0 |
+ * | a link leading nowhere | skipped, exit 0 |
+ *
+ * So Git dies, hangs, or names the file; the one thing it never does is take
+ * the pack out of the repository without saying so. Only the last row is a
+ * skip, and that is the row this keeps skipping. A directory the *listing*
+ * classifies takes the same refusal without the `stat`, since the kind is
+ * already known.
+ *
+ * @type {(pd: string) => (e: Dirent) => (names: List<string>) => Effect<Stat, List<string>, IoChannel>}
+ */
+const namedIdx = pd => e => {
+    const name = assertNotNullish(entry(e, 'name'))
+    return names => {
+        if (e.isFile) { return pureOk(concat(names)([name])) }
+        const path = under(pd, name)
+        if (e.isDirectory) { return notAFile(path) }
+        return catchStep(
+            step(stat(path), s => s.isFile ? pureOk(concat(names)([name])) : notAFile(path)),
+            orElse(leadsNowhere, names))
+    }
+}
+
+/**
+ * The `.idx` names a pack directory holds, and nothing else in it: the `.pack`
+ * files themselves, the `.rev` a newer Git writes beside them, a `.keep`, and a
+ * partial file a fetch is still writing are all skipped by the suffix.
+ *
+ * A directory that is not there is no packs rather than a failure. `git init`
+ * makes an empty `objects/pack/`, but a repository is not required to keep one
+ * and a caller asking for an object should not have to know whether it does.
+ *
+ * {@link namesNothing} and not `isNotFound`, so a `pack/` below a path that is a
+ * regular file or a symlink cycle is also no packs. An `objects/info/alternates`
+ * may name either, and Git reads past such a borrowing with a warning at exit 0
+ * — measured on 2.43.0 for both — where refusing here would fail the whole
+ * store. `EACCES` stays a failure: the packs may be there and the host will not
+ * say.
+ *
+ * @type {(pd: string) => Effect<Stat | Readdir, List<string>, IoChannel>}
+ */
+const idxNames = pd => catchStep(
+    step(
+        readdir(pd, {}),
+        es => foldStep(
+            pureOk(es.filter(e => assertNotNullish(entry(e, 'name')).endsWith(idxSuffix))),
+            /** @type {List<string>} */ (null),
+            namedIdx(pd))),
+    orElse(namesNothing, null))
+
+/**
+ * The index at `path`, or a refusal naming it.
+ *
+ * **An index does not fit a `Vec`, which is why this is not a `readFile`.** That
+ * answers one, 128 KiB at most, and a version 2 SHA-1 index outgrows it at 4,643
+ * objects — 28 bytes an object over a 1,072-byte frame. This repository's own
+ * `objects/pack` holds indexes of 161,764 bytes and more, so reading one through
+ * `readFile` failed for the ordinary case rather than an extreme one.
+ * [`readWholeBytes`](../../effects/node/module.f.js) answers the chunks one
+ * open took — each a `Vec` and so each within the cap, the file however many it
+ * takes — joined into a byte list, which has no such bound and is what `tryIdx`
+ * takes.
+ *
+ * **One operation, not a fold over `readBytes`.** That resolves the path per
+ * call, so a file read in windows can straddle two: `git gc` writes a new index
+ * beside the old one and renames it into place, and a window taken after the
+ * rename joins an old prefix to a new suffix. The result parses — the frame is
+ * still a frame — and names objects at offsets no version of the pack pair ever
+ * held. Nothing a caller can ask closes that, so the snapshot has to come from
+ * the host, which is what `readWhole` is.
+ *
+ * The bound that remains is memory and the host's own: an index is as long as
+ * the pack it names has objects, and the whole of it is held while it is decoded.
+ * Reading only the fanout and one bucket is what
+ * [`todo/lazy-index-ids.md`](../packidx/todo/lazy-index-ids.md) is for.
+ *
+ * @type {(path: string, oidBytes: OidBytes) => Effect<ReadWhole, Idx, IoChannel>}
+ */
+const idxAt = (path, oidBytes) => {
+    const read = mapStep(readWholeBytes(path), b => tryIdx(oidBytes)(b))
+    return step(read, i => i === null
+        ? refusePackIdx(idxMessage(path))
+        : pureOk(i))
+}
+
+/**
+ * Where the entry beginning at `at` ends, or `null` where the index leaves it no
+ * room: an offset at or past the point the pack's trailing checksum begins, or
+ * one the index says another entry begins at.
+ *
+ * The pack's length is the caller's because it comes from a `stat` the walk does
+ * once, and the entry after this one is the index's.
+ *
+ * @type {(idx: Idx, oidBytes: OidBytes, packLength: number, at: number) => Nullable<number>}
+ */
+const endOf = (idx, oidBytes, packLength, at) => {
+    const next = after(idx)(at)
+    const end = next === null ? packLength - oidBytes : next
+    return end > at ? end : null
+}
+
+/**
+ * {@link applied}'s fold, which stops at the first delta that does not apply.
+ *
+ * @type {(acc: Nullable<readonly number[]>, d: readonly number[]) => Nullable<readonly number[]>}
+ */
+const applyStep = (acc, d) => acc === null ? null : tryApplyDelta(acc, d)
+
+/**
+ * The object a chain of deltas builds from the base it ends at, or `null` where
+ * one of them does not apply: a size that disagrees with what it was given, or
+ * an instruction that leaves the base.
+ *
+ * The deltas are already in the order they apply — see `_Chain` in
+ * [`./private.ts`](./private.ts) — so this is a fold and not a walk back.
+ *
+ * @type {(deltas: List<readonly number[]>, base: readonly number[]) => Nullable<readonly number[]>}
+ */
+const applied = (deltas, base) =>
+    toArray(deltas).reduce(applyStep, /** @type {Nullable<readonly number[]>} */ (base))
+
+/**
+ * Where the base of a delta entry begins, or `null` where this pack cannot
+ * answer for it: an `ofsDelta` whose distance back overshoots the pack's header,
+ * or a `refDelta` naming an id the index does not hold.
+ *
+ * Only a delta has a base, which is why the type says so rather than the body:
+ * an entry read whole ends the chain, and a `null` for it would be a case with
+ * no caller.
+ *
+ * @type {(idx: Idx, at: number, e: _Delta) => Nullable<number>}
+ */
+const baseAt = (idx, at, e) => {
+    if (e.kind === 'refDelta') { return offsetOf(idx)(e.baseId) }
+    const back = at - e.baseBack
+    // The distance must land where an entry begins, which is the same check the
+    // id gets one line above — `offsetOf` answers an entry's offset or nothing,
+    // and a distance has to be held to that too. Without it a crafted distance
+    // pointing into the middle of another entry is framed to the next indexed
+    // offset and inflated, and bytes planted there that happen to hash to the id
+    // asked for would be answered as the object. Git refuses the same pack with
+    // `bad offset for revindex` — see {@link holdsEntryAt}, which has the
+    // measurement.
+    return back < headerBytes || !holdsEntryAt(idx)(back) ? null : back
+}
+
+/** @type {(e: _Delta, at: number) => string} */
+const missingBase = (e, at) =>
+    e.kind === 'refDelta'
+        ? `names a base ${hexText(e.baseId)} the pack does not hold`
+        : `names a base at ${at - e.baseBack} where no entry begins`
+
+/**
+ * What one link of the chain does with the entry it read: end the walk at an
+ * object, or collect a delta and name the base as the item to read next.
+ *
+ * The declared size is checked against the bytes that came back, which is the
+ * one statement the entry makes about its own stream. A pack whose entry says
+ * one length and holds another is corrupt in a way that costs nothing to catch
+ * here and would otherwise be caught as a delta that does not apply, or not at
+ * all — an object read whole is answered as it is, and the hash check above this
+ * is what would refuse it.
+ *
+ * **An object read whole is a list over the chunks it inflated to**, about a byte
+ * a byte, and has no ceiling. A delta, and the base it is applied to, are dense
+ * arrays, a number a byte, so those are held together to {@link maxDeltaBytes} —
+ * by the sizes their entries declare, before anything is inflated (see
+ * {@link linkOf}).
+ *
+ * @type {(idx: Idx, path: string, at: number, chain: _Chain, e: Entry, data: List<Vec>) => Effect<never, readonly [_Chain, List<number>], IoChannel>}
+ */
+const advance = (idx, path, at, chain, e, data) => {
+    const refused = entryRefusal(path, at)
+    const size = sizeOf(data)
+    if (size !== e.size) {
+        return refused(`inflates to ${size} bytes, not the ${e.size} its header declares`)
+    }
+    if (e.kind === 'object' && chain.deltas === null) {
+        return pureOk(/** @type {const} */ ([{ ...chain, found: { type: e.type, payload: bytesOf(data) } }, null]))
+    }
+    const dense = byteArray(bytesOf(data))
+    if (e.kind === 'object') {
+        const payload = applied(chain.deltas, dense)
+        return payload === null
+            ? refused('holds a delta that does not apply to its base')
+            : pureOk(/** @type {const} */ ([{ ...chain, found: { type: e.type, payload } }, null]))
+    }
+    if (chain.links >= idx.ids.length) {
+        return refused(`begins a chain of more deltas than the pack's ${idx.ids.length} objects`)
+    }
+    const base = baseAt(idx, at, e)
+    return base === null
+        ? refused(missingBase(e, at))
+        : pureOk(/** @type {const} */ ([
+            { deltas: concat([dense])(chain.deltas), links: chain.links + 1, held: chain.held + e.size, found: null },
+            [base],
+        ]))
+}
+
+/**
+ * The offsets of the windows that read `from` up to `end`, one read each. Lazy:
+ * a pack file can be as long as a disk, and the index decides how far an entry
+ * reaches, so no array of the offsets is built before the first read.
+ *
+ * @type {(from: number, end: number) => List<number>}
+ */
+const windowsOf = (from, end) => () => from >= end ? null : { first: from, tail: windowsOf(from + maxVecBytes, end) }
+
+/**
+ * The refusal of a stream that does not inflate, with what the inflater says: the
+ * code of the host's `inflate`, which a caller tells apart by, and its words.
+ * Git keeps both halves too — measured on Git 2.43.0 with a byte flipped inside a
+ * pack entry's zlib stream, it prints `error: inflate: data stream error
+ * (incorrect header check)` and then `fatal: packed object … (stored in …pack) is
+ * corrupt`, the inflater's words and the file's.
+ *
+ * @type {(path: string, at: number) => (r: Refusal) => Effect<never, never, IoChannel>}
+ */
+const inflateRefusal = (path, at) => ({ code, message }) =>
+    entryRefusal(path, at)(`does not inflate: ${code} ${message}`)
+
+/**
+ * One link of the chain: the entry at `at`, read through the windows up to where
+ * the index says the next one begins, framed, inflated, and either the answer or
+ * the base to read next.
+ *
+ * **The window is bounded by the index, and the stream ends where it ends.** The
+ * entry's header says what the stream inflates to and not how long it is, so the
+ * read goes to the next entry's offset and the inflater finds the end; bytes
+ * between the two are refused, as the host's `inflate` refused bytes after a
+ * stream. A stream that has not closed by then is truncated.
+ *
+ * Everything the link needs is a leading parameter, so it closes over nothing
+ * the walk carries.
+ *
+ * @type {(path: string, oidBytes: OidBytes, idx: Idx, packLength: number) => (at: number) => (chain: _Chain) => Effect<ReadBytes, readonly [_Chain, List<number>], IoChannel>}
+ */
+const linkOf = (path, oidBytes, idx, packLength) => at => chain => {
+    const end = endOf(idx, oidBytes, packLength, at)
+    if (end === null) { return entryRefusal(path, at)('is not where an entry begins') }
+    const firstBytes = Math.min(maxVecBytes, end - at)
+    const first = mapStep(readBytes(path, at, firstBytes), denseBytes)
+    const refusal = inflateRefusal(path, at)
+    return step(first, window => {
+        const e = tryEntry(oidBytes)(window)
+        if (e === null) {
+            // An entry's header is read from its first window. Git's own reader
+            // refuses a size that runs past 64 bits, so no entry it wrote has a
+            // header near a window; one that does is refused, and said to be.
+            return entryRefusal(path, at)(firstBytes < end - at ? `has no entry header in its first ${firstBytes} bytes` : 'is no pack entry')
+        }
+        // A delta, and a base it is applied to, are held as dense arrays, and every
+        // delta of the chain is held until its base is reached, so what they declare
+        // together decides before a byte of an entry is inflated.
+        if ((e.kind !== 'object' || chain.deltas !== null) && chain.held + e.size > maxDeltaBytes) {
+            return entryRefusal(path, at)(`declares ${e.size} bytes, more than the ${maxDeltaBytes - chain.held} a delta chain is built from`)
+        }
+        // And a stream that has made more than its header declares is not read on:
+        // one window of a stream can inflate to a thousand times its length.
+        /** @type {(next: Nullable<Progress>) => Effect<never, Progress, IoChannel>} */
+        const checked = next =>
+            next === null ? refusal(malformed)
+            : next.size > e.size ? entryRefusal(path, at)(`inflates to more than the ${e.size} its header declares`)
+            : pureOk(next)
+        const read = step(
+            checked(feedWithin(e.size)(u8ListToVecMsb(window.slice(e.dataAt)))(initialProgress)),
+            opened => foldStep(
+                pureOk(windowsOf(at + firstBytes, end)),
+                opened,
+                offset => progress => step(
+                    readBytes(path, offset, Math.min(maxVecBytes, end - offset)),
+                    v => checked(feedWithin(e.size)(v)(progress)))))
+        return step(read, progress => {
+            const [, , done] = endInflate(progress)
+            return done[0] === 'error' ? refusal(done[1]) : advance(idx, path, at, chain, e, done[1])
+        })
+    })
+}
+
+/** A chain with nothing read yet. */
+const chainStart = /** @type {_Chain} */ ({ deltas: null, links: 0, held: 0, found: null })
+
+/**
+ * The code a `.pack` is refused with when it is not the pack its index belongs
+ * to: a signature that is not `PACK`, a version this does not read, an object
+ * count that is not the index's, a trailing checksum that is not the one the
+ * index recorded, or a file too short to hold a header and a checksum at all.
+ */
+export const packFileCode = /** @type {const} */ ('ERR_PACK_FILE')
+
+/** Refuses with {@link packFileCode}. */
+const refusePackFile = refuse(packFileCode)
+
+/**
+ * Whether the pack's framing agrees with the index that named it, and its
+ * length once it does.
+ *
+ * @type {(path: string, oidBytes: OidBytes, idx: Idx, size: number, front: readonly number[], tail: readonly number[]) => Effect<never, number, IoChannel>}
+ */
+const agrees = (path, oidBytes, idx, size, front, tail) => {
+    /** @type {(what: string) => Effect<never, never, IoChannel>} */
+    const refused = what => refusePackFile(`${path} ${what}`)
+    const h = tryHeader(front)
+    if (h === null) { return refused('is no pack file') }
+    if (h.count !== idx.ids.length) {
+        return refused(`holds ${h.count} objects where its index names ${idx.ids.length}`)
+    }
+    return oidAt(tail, 0, oidBytes) === idx.packChecksum
+        ? pureOk(size)
+        : refused(`does not match the index, whose pack checksum is ${hexText(idx.packChecksum)}`)
+}
+
+/**
+ * The pack's length, once the file has been checked against the index that named
+ * it: its header read, its object count compared, and its trailing checksum
+ * compared with the one the index recorded.
+ *
+ * **Git checks all four when it opens a pack to read an object**, and each costs
+ * a few bytes rather than a hash. Measured on 2.43.0 by damaging one thing at a
+ * time in a pack and asking `git cat-file -p` for an object in it:
+ *
+ * | damage | Git |
+ * | --- | --- |
+ * | the signature | `is not a GIT packfile` |
+ * | the version word | `is version 9 and not supported` |
+ * | the object count | `claims to have 10 objects while index indicates 3 objects` |
+ * | the trailing checksum | `does not match index` |
+ *
+ * An earlier revision of this module skipped all four, arguing that verifying a
+ * pack means hashing it and that `fjs/git/store`'s hash check catches a
+ * mismatched pair anyway. The first half confused two different checks: nothing
+ * here hashes the pack, and the index already carries the checksum the pack ends
+ * with, so comparing them is a read of an id's width at a known offset. The
+ * second half was true and not the point — an object that hashes to the id asked
+ * for is that object, so what was lost was not a wrong answer but the report
+ * that the repository is damaged, which is the one thing a reader of a corrupt
+ * pack must not swallow.
+ *
+ * Three reads a pack rather than three a link: the header and the trailer are the
+ * file's, not an entry's, so a delta chain pays for them once. Git pays once per
+ * *open* and keeps the pack mapped; nothing here caches, so a reader that walks
+ * many objects pays per object — which the index read above already dominates.
+ *
+ * @type {(path: string, oidBytes: OidBytes, idx: Idx) => Effect<Stat | ReadBytes, number, IoChannel>}
+ */
+const framingOf = (path, oidBytes, idx) => {
+    const sized = history(mapStep(stat(path), s => s.size))
+    const front = historyStep(sized, size => size < headerBytes + oidBytes
+        ? refusePackFile(`${path} is ${size} bytes, too short to be a pack file`)
+        : mapStep(readBytes(path, 0, headerBytes), denseBytes))
+    const back = historyStep(front, (_, size) => mapStep(
+        readBytes(path, size - oidBytes, oidBytes),
+        denseBytes))
+    return step(back, ([tail, head, size]) => agrees(path, oidBytes, idx, size, head, tail))
+}
+
+/**
+ * The object whose entry begins at `at` in the pack at `path`: the entry and
+ * every base behind it, walked, and the deltas applied.
+ *
+ * The `stat` is one per object read rather than one per link, and it is what the
+ * last entry's window needs: a pack ends in its own checksum, so the file's
+ * length less an id's width is where the entries stop.
+ *
+ * @type {(path: string, oidBytes: OidBytes, idx: Idx, at: number) => Effect<Stat | ReadBytes, Nullable<Envelope>, IoChannel>}
+ */
+const objectAt = (path, oidBytes, idx, at) => {
+    const checked = framingOf(path, oidBytes, idx)
+    const walked = step(checked, n => walkStep(
+        pureOk(/** @type {List<number>} */ ([at])),
+        chainStart,
+        linkOf(path, oidBytes, idx, n)))
+    return mapStep(walked, c => c.found)
+}
+
+/**
+ * One pack of the directory: its index read, and the object where the index
+ * holds the id.
+ *
+ * A pack after the one that answered is not opened — the walk's state is the
+ * answer, so a link that already has one performs no command. The `.pack` is the
+ * `.idx` under another suffix, which is how Git names the pair and the only way
+ * to find one from the other.
+ *
+ * @type {(pd: string, oidBytes: OidBytes, id: Oid) => (name: string) => (found: Nullable<Held>) => Effect<ReadWhole | Stat | ReadBytes, readonly [Nullable<Held>, List<string>], IoChannel>}
+ */
+const packOf = (pd, oidBytes, id) => name => {
+    // Both paths are the pack pair's and neither depends on what the index says,
+    // so they are built once per pack rather than once per link of the walk
+    // (§3.3).
+    const idxPath = under(pd, name)
+    const packPath = under(pd, `${name.slice(0, -idxSuffix.length)}${packSuffix}`)
+    return found => {
+        if (found !== null) { return pureOk(/** @type {const} */ ([found, null])) }
+        const idx = idxAt(idxPath, oidBytes)
+        const got = step(idx, i => {
+            const at = offsetOf(i)(id)
+            return at === null
+                ? pureOk(/** @type {Nullable<Envelope>} */ (null))
+                : objectAt(packPath, oidBytes, i, at)
+        })
+        return mapStep(got, e => /** @type {const} */ ([
+            e === null ? null : /** @type {Held} */ ({ envelope: e, path: packPath }),
+            null,
+        ]))
+    }
+}
+
+/**
+ * Reads the object an id names from the packs of the object directory `od`, at
+ * the repository's width: `null` where no pack there holds it, a {@link Held}
+ * where one does, and the channel's where one holds it and cannot answer for
+ * it. See the module doc for which failures are which and why.
+ *
+ * **`od` is an `objects/` directory and not a repository**, for the reason
+ * {@link packsIn} gives: an `objects/info/alternates` names object directories,
+ * so a borrowed store has no repository of the borrower's above it.
+ *
+ * The bytes are not hashed here. `fjs/git/store` does that for whichever file
+ * answered, and doing it twice would hash every object read twice — which is
+ * why the answer carries the pack that held it. The caller that finds bytes
+ * hashing to another id is not the one that knows which file they came from,
+ * and a store searching several directories of several packs has no one pack
+ * to blame by default.
+ *
+ * @throws As [`fjs/git/oid`](../oid/module.f.js)'s `ofWidth` does, on an
+ * id that is not `oidBytes` wide.
+ *
+ * @type {(od: string, oidBytes: OidBytes) => (id: Oid) => Effect<Readdir | Stat | ReadWhole | ReadBytes, Nullable<Held>, IoChannel>}
+ */
+export const tryRead = (od, oidBytes) => {
+    const pd = packsIn(od)
+    return ofWidth(oidBytes)(id => walkStep(idxNames(pd), /** @type {Nullable<Held>} */ (null), packOf(pd, oidBytes, id)))
+}

@@ -1,5 +1,5 @@
 /**
- * Type-level API for `fjs/compiler/tokenizer/module.f.mjs`: the module token shapes
+ * Type-level API for `fjs/compiler/tokenizer/module.f.js`: the module token shapes
  * `tokenize` produces.
  *
  * @module
@@ -7,7 +7,7 @@
 
 import type { Assert } from '../../asserts/types.ts'
 import type { Equal } from '../../types/ts/types.ts'
-import type { _moduleTokenKinds } from './module.f.mjs'
+import type { _moduleTokenKinds } from './module.f.js'
 import type {
     StringToken,
     TemplateToken,
@@ -61,7 +61,7 @@ export type ModuleToken = |
   BigIntToken |
   EofToken
 
-// The kinds are listed a second time, as the value `./module.f.mjs` tests
+// The kinds are listed a second time, as the value `./module.f.js` tests
 // membership against; this pin keeps the list and the union agreeing.
 type _KindsAreComplete = Assert<Equal<(typeof _moduleTokenKinds)[number], ModuleToken['kind']>>
 

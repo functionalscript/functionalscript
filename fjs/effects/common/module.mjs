@@ -1,7 +1,7 @@
 /**
  * Host implementations of the operations more than one host implements.
  *
- * The declarations live in [`./module.f.mjs`](./module.f.mjs); these are the
+ * The declarations live in [`./module.f.js`](./module.f.js); these are the
  * handlers a real runner dispatches them to. They need `try`/`catch` and a
  * clock, so they are impure `.mjs` — but nothing in them is any *particular*
  * host's: `performance.now()` and a `try` are what a browser has too. Keeping

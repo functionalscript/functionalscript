@@ -1,0 +1,234 @@
+/**
+ * The packed-package check: steps that install the tarball `npm pack` wrote
+ * and use it the way an outside consumer would, in a directory of their own.
+ *
+ * @module
+ *
+ * @import { Step } from '../common/types.ts'
+ * @import { PackageConsumer } from '../types.ts'
+ */
+
+import { typescript } from '../config/module.f.js'
+import { stringLiteral } from '../../js/string_escape/module.f.js'
+import { shellQuote } from '../../text/shell/module.f.js'
+import { toJson } from '../../media/json/module.f.js'
+
+/**
+ * The runner's temporary directory, which GitHub empties at the start and at
+ * the end of every job — so a directory made in it during the job is one this
+ * job made, and holds what this job put there and nothing else.
+ */
+const runnerTemp = /** @type {const} */ ('${{ runner.temp }}')
+
+/** The consumer project's directory name, under {@link runnerTemp}. */
+const consumerName = /** @type {const} */ ('consumer')
+
+/**
+ * The consumer project, as a `run` step spells it: one shell word, quoted, so
+ * the runner's path reaches the command whole. `RUNNER_TEMP` is the variable
+ * the runner sets to {@link runnerTemp}; the shell expands it, so nothing
+ * GitHub substitutes is read as shell source.
+ *
+ * The producer packs here and uploads its tarball. The consumer job downloads
+ * it into the same relative temporary path on its own runner.
+ */
+export const consumerDirectory = /** @type {const} */ (`"$RUNNER_TEMP/${consumerName}"`)
+
+/**
+ * The same directory as `working-directory` spells it. No shell reads that
+ * field, so the runner's own expression names the path.
+ */
+const consumerWorkingDirectory = /** @type {const} */ (`${runnerTemp}/${consumerName}`)
+
+// A fixed alias, so every later command names the package literally. The
+// artifact's own name would otherwise have to be derived and carried between
+// steps. The narrow case an alias gives up: a package that imports itself by
+// name — legal once `exports` is declared — does not resolve under a different
+// directory name. Nothing here self-references; revisit if that changes.
+const alias = /** @type {const} */ ('packed')
+
+/**
+ * The whole check, as a file `tsc` reads for itself.
+ *
+ * `include` does the enumeration, so no shell walks the tree and no path is
+ * ever serialised: a space or a quote in a directory name is a JSON string
+ * here and a filename to `tsc`, with nothing in between to get it wrong. An
+ * empty match is `TS18003`, which names the pattern that found nothing —
+ * "checked nothing and passed" is the failure this check most needs to be
+ * legible about.
+ *
+ * An earlier revision walked the tree with `find`, guarded the result with
+ * `test -s`, and passed it through `xargs -0`. Do not go back: review found
+ * three defects in that mechanism, one of them silent. `find` omitted
+ * `.d.cts`; the paths needed escaping to survive the shell; and `xargs` fills
+ * a finite command buffer, so a package large enough to overflow it — about
+ * twenty times this one — would have been split across several `tsc`
+ * invocations, each a separate program, losing cross-file diagnostics and
+ * reporting another batch's globals as missing. One `include` has none of
+ * them, and root `AGENTS.md` §6 asks for the tool that parses what it checks
+ * rather than a pattern approximating one.
+ *
+ * `**` rather than a list of declaration extensions, for the same reason:
+ * a list is a thing that can be wrong, and that one already was. It does mean
+ * a package shipping `.ts` sources and no declarations has a nonempty root
+ * set, so `TS18003` would not fire — unreachable here, because root
+ * `package.json` `files` is an allowlist with no pattern matching a source
+ * file. Recorded in `../todo/package-check-unsupported-package-shapes.md`.
+ *
+ * The three patterns are one rule TypeScript and npm disagree about: npm's
+ * `**` walks into a dot-prefixed name and TypeScript's does not. So `files`
+ * publishes `.d/x.d.ts` and a lone `**` would leave it unchecked — silently,
+ * and even when it is the package's `types` entry point. The extra patterns
+ * name a dot segment explicitly, which does match: `**\/.*` for a dot-named
+ * file, `**\/.*\/**\/*` for anything under a dot-named directory at any
+ * depth. Two dot segments in a row (`.a/.b/x.d.ts`) still escape, because the
+ * inner `**` has to cross `.b` — see the todo. Enumerating the names instead
+ * would need a tool walking the tree, which root `AGENTS.md` §6 rules out.
+ *
+ * `exclude` is emptied because the default excludes `node_modules`, which is
+ * the only place the artifact exists. `skipLibCheck` is stated rather than
+ * left at its default: it is the one option whose flip would stop `tsc`
+ * opening these declarations at all, and the check would still pass.
+ */
+const tsconfig = /** @type {const} */ ({
+    include: [
+        `node_modules/${alias}/**/*`,
+        `node_modules/${alias}/**/.*`,
+        `node_modules/${alias}/**/.*/**/*`,
+    ],
+    exclude: [],
+    compilerOptions: {
+        module: 'nodenext',
+        target: 'esnext',
+        strict: true,
+        noEmit: true,
+        skipLibCheck: false,
+    },
+})
+
+/**
+ * The two consumer files, as one `echo` each writes them. `good.mts` imports
+ * the runtime export and a declared type from the installed package and
+ * gives the type a value it accepts; `bad.mts` gives it one it does not.
+ * Every string is a `stringLiteral`, JSON's spelling, which TypeScript
+ * reads. The encoding is what keeps the negative control honest: a value
+ * interpolated raw could make `bad.mts` a syntax error, which the negated
+ * compile would count as the type refusing it. The export and the type are
+ * written bare, as the identifiers they are, and one that is not an identifier
+ * fails `good.mts`, which is not negated. The shell sees none of it raw:
+ * {@link consumerCommands} writes each file as one `shellQuote` word, so a
+ * `value` of `x'; printf PWNED; #` is an import the compiler refuses, not a
+ * command the runner executes. An unsupported consumer fails the check; it
+ * never runs. `.mts` rather than `.ts` because
+ * `npm init` declares no `type`, under which `.ts` would read as CommonJS.
+ *
+ * @type {(consumer: PackageConsumer) => string}
+ */
+const goodConsumer = consumer => [
+    `import { ${consumer.value} } from ${stringLiteral(`${alias}/${consumer.module}`)};`,
+    `import type { ${consumer.type} } from ${stringLiteral(`${alias}/${consumer.types}`)};`,
+    `const accepted: ${consumer.type} = ${stringLiteral(consumer.accepted)};`,
+    `if (${consumer.value} === undefined) { throw new Error(${stringLiteral(`${consumer.value} did not load`)}); }`,
+].join('\n')
+
+/** @type {(consumer: PackageConsumer) => string} */
+const badConsumer = consumer => [
+    `import type { ${consumer.type} } from ${stringLiteral(`${alias}/${consumer.types}`)};`,
+    `const refused: ${consumer.type} = ${stringLiteral(consumer.refused)};`,
+].join('\n')
+
+/**
+ * The compiler over one consumer file: flags rather than the check's
+ * `tsconfig.json`, whose `include` is the package tree. That file is still
+ * in the directory, and TypeScript 7 refuses files on the command line while
+ * one is present (`TS5112`) unless told to ignore it, so `--ignoreConfig`
+ * says so; the first CI run of this check failed on exactly that, where a
+ * dry run in a directory without the file had passed. `nodenext` is the
+ * resolution a Node consumer gets, and `strict` is what makes a declaration
+ * that failed to resolve an error rather than an `any`.
+ */
+const consumerTsc = /** @type {const} */ ('npx tsc --pretty false --ignoreConfig --noEmit --strict --module nodenext --target esnext')
+
+/**
+ * One command per step, so a failure names what failed rather than arriving as
+ * an opaque script.
+ *
+ * The compiler is `../config/module.f.js`'s, installed from npm as a consumer
+ * installs it, rather than taken from the producer's mise environment. The
+ * consumer job has no checkout or repository toolchain. It installs the same
+ * compiler version that the producer used to emit the declarations.
+ *
+ * That version must stay exact for a reason peculiar to this check: the
+ * consumer project has no lockfile, so a range would let a later registry
+ * release change the verdict with nothing here changing. It is a constant
+ * rather than a range by construction now — the earlier design read it out of
+ * the project's `package.json`, where it could be written as one, and
+ * validated it.
+ *
+ * `npm`, `npx` and `tsc` are the only external tools left, and root
+ * `AGENTS.md` §6 is why there are no others: `tsc` is the established tool
+ * that parses what it checks, and `npm` is the subject — a check proving the
+ * package installs for a consumer cannot avoid the consumer's package manager.
+ * `npx` stays here, unlike in every other step: it runs the compiler this
+ * check just installed into a directory it built, which is the point.
+ *
+ * @type {readonly string[]}
+ */
+const declarationCommands = [
+    'npm init -y > /dev/null',
+    // `echo` is the shell's own builtin expanding its own glob; `ls` would be
+    // a second process to learn what the shell already knew.
+    //
+    // No guard against a second `.tgz`: the glob would expand to two names
+    // inside one `file:` spec and npm fails ENOENT naming both, which is
+    // louder than anything a count check would print.
+    `npm install "${alias}@file:$(echo *.tgz)"`,
+    `npm install "typescript@${typescript.version}"`,
+    `echo '${toJson(tsconfig)}' > tsconfig.json`,
+    'npx tsc',
+]
+
+/**
+ * The consumer's half: the declarations above are read as a set, but a
+ * consumer reaches one through an import specifier, and the runtime file
+ * beside it has to load. `good.mts` passes the compiler and runs; then
+ * `bad.mts`, differing only in the value it gives the declared type, must
+ * fail the same compiler — negated, so the step is red when it passes. The
+ * negation is what the check rests on: were the declaration missing, `strict`
+ * would have failed `good.mts` first, so the one way left for `bad.mts` to
+ * fail is the type it names refusing the value.
+ *
+ * It is the caller's to supply, through `Setup`: `fjs ci` generates this
+ * check for any project, and the generator cannot know what another package
+ * publishes, so a project that names no consumer gets the declaration check
+ * alone — what every project got before the consumer half existed — rather
+ * than a `TS2307` for a module its tarball never held.
+ *
+ * @type {(consumer: PackageConsumer) => readonly string[]}
+ */
+const consumerCommands = consumer => [
+    `echo ${shellQuote(goodConsumer(consumer))} > good.mts`,
+    `echo ${shellQuote(badConsumer(consumer))} > bad.mts`,
+    `${consumerTsc} good.mts`,
+    'node good.mts',
+    `! ${consumerTsc} bad.mts`,
+]
+
+/**
+ * Installs the packed tarball as a real dependency, type-checks every
+ * declaration it ships with the compiler the CI configuration names, and,
+ * given a consumer, imports the published module it names from a consumer
+ * file, runs it, and type-checks a use of its declaration with a negative
+ * control that must fail.
+ *
+ * The separate `package` job waits for `node` and downloads its artifact.
+ * Its runner has no checkout or mise setup; `setup-node` supplies Node and
+ * npm, and npm installs the pinned compiler locally. Every command starts
+ * under the runner's temporary directory so package resolution cannot borrow
+ * source files, declarations or dependencies from the producer.
+ *
+ * @type {(consumer: PackageConsumer | undefined) => readonly Step[]}
+ */
+export const packageCheckSteps = consumer =>
+    [...declarationCommands, ...(consumer === undefined ? [] : consumerCommands(consumer))]
+        .map(run => ({ run, 'working-directory': consumerWorkingDirectory }))

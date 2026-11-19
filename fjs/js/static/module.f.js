@@ -35,18 +35,22 @@
  */
 
 /**
- * Every admitted static path: `Object.is`, `Object.entries`, `Object.keys` and
- * `Object.fromEntries`
+ * Every admitted static path: `Object.is`, `Object.entries`, `Object.keys`,
+ * `Object.values` and `Object.fromEntries`
  * ([`2360-built-in.md`](../../../spec/todo/2360-built-in.md#objectfromentries-proposal-and-approval)),
  * `String.fromCharCode` for native UTF-16 construction,
  * the four `Number` predicates, none of which converts its argument
  * ([`2360-built-in.md`](../../../spec/todo/2360-built-in.md#number-predicates-proposal-and-approval)),
- * and the common-runtime logarithm `Math.log2`.
+ * the common-runtime functions `encodeURIComponent`, `Math.log2`, `Math.fround` and
+ * `Math.round`, and native numeric functions `Math.trunc`, `Math.floor`, `Math.abs`,
+ * `Math.sqrt`, `Math.ceil`, `Math.imul`, `Math.max`, `Math.min` and `Math.clz32`.
  */
 export const statics = /** @type {const} */ ([
+    ['encodeURIComponent'],
     ['Object', 'is'],
     ['Object', 'entries'],
     ['Object', 'keys'],
+    ['Object', 'values'],
     ['String', 'fromCharCode'],
     ['Object', 'fromEntries'],
     ['Number', 'isInteger'],
@@ -54,21 +58,46 @@ export const statics = /** @type {const} */ ([
     ['Number', 'isNaN'],
     ['Number', 'isFinite'],
     ['Math', 'log2'],
+    ['Math', 'trunc'],
+    ['Math', 'floor'],
+    ['Math', 'abs'],
+    ['Math', 'sqrt'],
+    ['Math', 'ceil'],
+    ['Math', 'imul'],
+    ['Math', 'max'],
+    ['Math', 'min'],
+    ['Math', 'fround'],
+    ['Math', 'clz32'],
+    ['Math', 'round'],
 ])
 
 /**
- * The admitted paths no body can define, each a primitive every executor
- * binds natively and the runtime lists as the built-in itself, not as a
+ * The admitted paths every executor binds natively and the runtime lists
+ * as the built-in itself, not as a
  * body: `Object.entries`, since
  * enumerating keys is exactly what the language has no other way to do
  * ([`2360-built-in.md`](../../../spec/todo/2360-built-in.md#objectentries-proposal-and-approval)).
  * `String.fromCharCode` is native too: it constructs UTF-16 strings from
  * code units without a large lookup table.
+ * `Math.trunc`, `Math.floor`, `Math.abs`, `Math.sqrt`, `Math.ceil`, `Math.imul`,
+ * `Math.max`, `Math.min` and `Math.clz32` have compatible native numeric operations
+ * in Rust and core WASM. `Math.round` has none — Rust rounds a tie away from zero and
+ * core WASM to even — so its body is the runtime's.
+ * The maximum and minimum bindings correct Rust's NaN and signed-zero differences.
  * Every other path of {@link statics} has its body in the runtime.
  */
 export const natives = /** @type {const} */ ([
     ['Object', 'entries'],
     ['String', 'fromCharCode'],
+    ['Math', 'trunc'],
+    ['Math', 'floor'],
+    ['Math', 'abs'],
+    ['Math', 'sqrt'],
+    ['Math', 'ceil'],
+    ['Math', 'imul'],
+    ['Math', 'max'],
+    ['Math', 'min'],
+    ['Math', 'clz32'],
 ])
 
 /** Whether `path` is `p`, key for key. @type {(path: readonly string[]) => (p: readonly string[]) => boolean} */

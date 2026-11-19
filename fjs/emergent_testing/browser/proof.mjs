@@ -15,13 +15,13 @@ import { runInNewContext } from 'node:vm'
 
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { _runBrowserProofsWith, renderBrowserReport, runBrowserProofs, startBrowserTests, startBrowserTestSources } from './module.mjs'
-import { fmtImport, testResult } from '../module.f.mjs'
-import { groupByModule, runnerSource } from './module.f.mjs'
-import { demo } from './demo.f.mjs'
+import { fmtImport, testResult } from '../module.f.js'
+import { groupByModule, runnerSource } from './module.f.js'
+import { demo } from './demo.f.js'
 import { asyncRun } from '../../effects/module.mjs'
-import { unreadableThrownValue } from '../../effects/module.f.mjs'
+import { unreadableThrownValue } from '../../effects/module.f.js'
 import { commonOperationMap } from '../../effects/common/module.mjs'
-import { htmlToString } from '../../media/html/module.f.mjs'
+import { htmlToString } from '../../media/html/module.f.js'
 import { error, ok, unwrap } from '../../types/result/module.f.js'
 
 /**
@@ -181,21 +181,21 @@ const run = proof => runBrowserProofs([['proof', proof]])
  * loading proofs below import for real, which is closer to what a page does
  * than a hand-supplied loader was. What the *walk* decides — which outcome a
  * failure produces, what is announced — is proven without a DOM in
- * `./proof.f.mjs`.
+ * `./proof.f.js`.
  *
  * @type {(body: string) => string}
  */
 const dataModule = body => `data:text/javascript,${encodeURIComponent(body)}`
 
 export const proof = {
-    namedThrow: async () => {
-        // A named method proves the legacy function-name branch without
-        // relying on an extracted anonymous arrow's inferred name, which Bun
-        // can replace with the variable name.
+    throwExpectationUsesStructuralKeys: async () => {
         const named = /** @type {const} */ ({ throw() { throw 'expected' } })
-        assertEq(named.throw.name, 'throw')
-        const report = await run({ extracted: named.throw })
-        assertEq(report.status, 'passed')
+        const report = await run({ extracted: named.throw, throw: { alias: named.throw } })
+        assertEq(report.status, 'failed')
+        assertEq(report.results[0]?.path, '.extracted')
+        assertEq(report.results[0]?.status, 'failed')
+        assertEq(report.results[1]?.path, '.throw.alias')
+        assertEq(report.results[1]?.status, 'passed')
     },
     path: async () => {
         const report = await run({ 'a.b': () => undefined })
@@ -840,7 +840,7 @@ export const proof = {
     relativeSourcesAreRebasedOnTheDocument: async () => {
         const p = page(true, new URL('../../../', import.meta.url).href)
         const report = await startBrowserTestSources(p.root,
-            ['./fjs/types/nullable/proof.f.mjs'])
+            ['./fjs/types/nullable/proof.f.js'])
         assertEq(report.status, 'passed')
         assert(report.totals.tests > 0, report.totals)
     },

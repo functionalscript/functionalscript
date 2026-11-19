@@ -8,8 +8,8 @@
 
 import { throws } from 'node:assert/strict'
 import { assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
-import { prepare, prepareFunction } from './module.f.mjs'
-import { functionStringify } from '../serializer/module.f.mjs'
+import { prepare, prepareFunction } from './module.f.js'
+import { functionStringify } from '../serializer/module.f.js'
 
 /** @type {(index: number) => BindingId} */
 const id = index => ({ index })

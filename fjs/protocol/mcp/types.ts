@@ -1,5 +1,5 @@
 /**
- * Type-level API for `fjs/protocol/mcp/module.f.mjs`: the MCP message
+ * Type-level API for `fjs/protocol/mcp/module.f.js`: the MCP message
  * schemas' derived types, plus the `McpHandlers`/`ToolEntry`/`Handle`/
  * session-state shapes `mcpStep` is built from.
  *
@@ -25,7 +25,7 @@ import type {
     toolsListResult,
     toolsCallParams,
     toolsCallResult,
-} from './module.f.mjs'
+} from './module.f.js'
 
 export type Implementation = Ts<typeof implementation>
 export type ServerCapabilities = Ts<typeof serverCapabilities>

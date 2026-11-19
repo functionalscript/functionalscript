@@ -20,11 +20,11 @@ fs.readFileSync(`${dir}/�`)              // ENOENT
 Two consumers already meet it and record what they refuse or miss until it is
 fixed here:
 
-- [`fjs/git/refstore`](../../../git/refstore/module.f.mjs) — a loose ref whose
+- [`fjs/git/refstore`](../../../git/refstore/module.f.js) — a loose ref whose
   name is not UTF-8 is unreachable: the lookup refuses it and the listing
   refuses a lossy name
   ([byte-ref-names](../../../git/refstore/todo/byte-ref-names.md)).
-- [`fjs/git/store`](../../../git/store/module.f.mjs) — an
+- [`fjs/git/store`](../../../git/store/module.f.js) — an
   `objects/info/alternates` line naming such a directory is read as a different
   directory, and so a borrowed object is missed
   ([byte-paths](../../../git/todo/byte-paths.md)).

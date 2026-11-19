@@ -194,7 +194,7 @@ semantically identical to the JSON-text parser for fractional-to-bigint checks.
 - [Losslessness starts at the grammar](../README.md#losslessness-starts-at-the-grammar)
   — the reader hands the policy the numeric lexeme, never a derived value, so
   nothing is narrowed before the policy asks.
-- [`fjs/rtti/parse`](../../../rtti/parse/module.f.mjs) — existing strict
+- [`fjs/rtti/parse`](../../../rtti/parse/module.f.js) — existing strict
   runtime-value parser whose structural behavior should be reused where possible,
   not changed to add JSON-specific coercion.
 - [`fjs/rtti/README.md`](../../../rtti/README.md) — `parse` and `validate`

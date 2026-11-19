@@ -18,8 +18,8 @@ explains the module, and its page shows the file name.
 
 ### Why the Markdown reader the site already has does not cover it
 
-[`media/markdown`](../../media/markdown/module.f.mjs), over the grammar
-[`ebnf/lib/markdown`](../../ebnf/lib/markdown/module.f.mjs), reads a
+[`media/markdown`](../../media/markdown/module.f.js), over the grammar
+[`ebnf/lib/markdown`](../../ebnf/lib/markdown/module.f.js), reads a
 **release file**: a flat list of `-` entries whose spans are text, code,
 bold, italic and links. Its types say what it cannot express — headings, code
 fences, numbered lists, nested lists, block quotes, tables, interior blank
@@ -94,7 +94,7 @@ Every README has a heading, so today's reader renders none of them.
 - **A code fence is coloured where the site can read its language.** A
   `js`, `javascript`, `json` or `jsonc` fence, in any case, goes through the
   tokenizer fallback the demos use for a typed example
-  ([`demo/highlight`](../demo/highlight/module.f.mjs)'s `highlight`), so a
+  ([`demo/highlight`](../demo/highlight/module.f.js)'s `highlight`), so a
   README's code and a demo's code look alike and the text is the fence's,
   character for character. A fence in any other language, or one the
   tokenizer refuses, stays a plain `<pre>`: no colour is honest, a guessed
@@ -128,7 +128,7 @@ Every README has a heading, so today's reader renders none of them.
   directory's page on the site. A link to a file — a `.md` without a
   rendered view of its own, a `module.f.mjs`, any other file — goes where
   the same file's link in a directory's catalogue goes: `fileHref` in
-  [`page/module.f.mjs`](../page/module.f.mjs), GitHub at the build's commit,
+  [`page/module.f.js`](../page/module.f.js), GitHub at the build's commit,
   or the raw file in a local build. One rule for both, so a file never opens
   in two places depending on which page linked it; when
   [source-and-doc-view](source-and-doc-view.md) moves `fileHref` to the
@@ -143,14 +143,14 @@ Every README has a heading, so today's reader renders none of them.
       Add the rows it lacks as they are found, starting with GFM's bare-URL
       autolink.
 - [x] A block reader: headings, paragraphs, fenced code and lists
-      (`tryParseBlocks` in [`media/markdown`](../../media/markdown/module.f.mjs)).
+      (`tryParseBlocks` in [`media/markdown`](../../media/markdown/module.f.js)).
       A list item holds blocks of its own, indented by two spaces, so an
       item may hold a fence, a second paragraph or a nested list, and a
       blank line between blocks makes the list loose, as on GitHub.
 - [x] The page generator renders a directory's `README.md` at the top of
       its page, above its demo, when the reader accepts it, and shows the
       refusal with the file link when it does not
-      ([`readme`](../readme/module.f.mjs)). Rendered at build time.
+      ([`readme`](../readme/module.f.js)). Rendered at build time.
 - [x] Relative links resolved as above, and heading ids made as GitHub
       makes them, so a `#fragment` finds its heading.
 - [x] Fenced code blocks.
@@ -185,8 +185,8 @@ Every README has a heading, so today's reader renders none of them.
 
 - [Generate website](generate-website.md) — "Convert `README.md` files into
   HTML and publish them" is this issue.
-- [`media/markdown`](../../media/markdown/module.f.mjs) and
-  [`ebnf/lib/markdown`](../../ebnf/lib/markdown/module.f.mjs) — the reader
+- [`media/markdown`](../../media/markdown/module.f.js) and
+  [`ebnf/lib/markdown`](../../ebnf/lib/markdown/module.f.js) — the reader
   this extends.
 - [commonmark-constructs](../../ebnf/lib/markdown/todo/commonmark-constructs.md)
   — what the subset refuses or reads differently from GitHub.

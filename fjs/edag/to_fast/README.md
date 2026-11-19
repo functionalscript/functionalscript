@@ -12,6 +12,12 @@ AST-to-FAST sugar before graph construction; old tagged graphs are rejected at
 checked admission. Output conversion does not carry a compatibility rewrite or
 a second logical-lowering algorithm.
 
+Conversion runs one work thunk at a time. Each step returns the next thunk;
+the final continuation returns the completed root block directly. This keeps
+deep graphs off the host call stack without a callback assigning an outer
+result binding. Operand order and binding identities stay with their existing
+continuations.
+
 Graph conversion assumes the canonical `Exp` shapes. `checked` admits invocation
 bindings and scopes; it does not replace the EDAG shape schema. In particular,
 a plain `.` continuation starts with a terminal `|()` or an optional `|?.()`.
@@ -60,7 +66,7 @@ Explicit comma roots retain their written order. Required definitions and memo
 declarations follow their dependencies rather than using graph indices as a
 global execution order. Total container and function constructions over already
 established operands can keep their prefix names. The shared
-[`demandsInOrder`](../demand/module.f.mjs) query proves each placement against
+[`demandsInOrder`](../demand/module.f.js) query proves each placement against
 the actual established values. Graph construction uses the same query to remove
 only ordered redundant anchors.
 
@@ -161,7 +167,7 @@ wrapper using shared [normal-result forwarding](../../js/ast/results/README.md).
 Its test and arms retain their scopes and transfer owners. Source coordination
 reuses the same rewrite before checking its existing loop profiles.
 
-After tail-control placement, [`join`](join/module.f.mjs) recovers normal
+After tail-control placement, [`join`](join/module.f.js) recovers normal
 statement results selected by the same established test. A residual value, or
 shared selected recipe first demanded by following work, becomes an explicit
 result of that statement conditional. Terminal arms keep their transfers and
@@ -253,7 +259,7 @@ Reifiable profiles outside the source plans keep recursive spelling; other
 supplied factored profiles return an explicit `Result` error. Their remaining
 work is tracked under [general source profiles](source/loops/todo/general-source-profiles.md).
 
-[`source`](source/module.f.mjs) is a separate source-spelling admission pass.
+[`source`](source/module.f.js) is a separate source-spelling admission pass.
 It retains the parser's representability restrictions and consumes the common
 conversion's chosen definitions. It performs no second placement algorithm.
 Operand-local commas have a value-block/IIFE spelling. Common placement can

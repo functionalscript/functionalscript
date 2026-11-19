@@ -8,7 +8,7 @@
 3. `--fjs` (default behavior): deduplication of the same objects.
 4. `--ca`: content-addressable deduplication.
 
-Until a flag exists, `compile` in [`../module.f.mjs`](../module.f.mjs)
+Until a flag exists, `compile` in [`../module.f.js`](../module.f.js)
 refuses every argument after the output, naming the first
 (`unexpected argument --tree`), so a flag it does not read never succeeds as
 if honored

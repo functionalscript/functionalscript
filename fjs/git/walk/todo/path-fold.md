@@ -5,13 +5,13 @@
 
 ### Problem
 
-`tryEntry` in [`module.f.mjs`](../module.f.mjs) folds a path over trees:
+`tryEntry` in [`module.f.js`](../module.f.js) folds a path over trees:
 items of `{ name, last }`, a `lost` state, a `componentStep` under `foldStep`,
 `mapStep(walked, s => s.found)`, descending only through `isSubtree(found)`.
 At `ad3fb2dc` nothing outside this directory imports the module.
 
 The one consumer that walks a path from a tree wrote its own: `walkTo` in
-[`fjs/cas/git`](../../../cas/git/module.f.mjs) is the same fold again —
+[`fjs/cas/git`](../../../cas/git/module.f.js) is the same fold again —
 `path.map((name, i) => ({ name, last: … }))`, a `lost` of
 `{ at, rel, found }`, a `component` step, `mapStep(foldStep(…), s => s.found)`
 — descending through its own `isDirectory`. The differences are two hooks,

@@ -19,6 +19,6 @@ The internal update script would:
 
 - [ ] Define the `ci-lock.json` schema (tool versions + runner images + action versions).
 - [ ] Implement `fjs update` (or `fjs u`) subcommand that updates `package.json` deps and `ci-lock.json` tool versions.
-- [ ] Update `fjs/ci/module.f.mjs` to read `ci-lock.json` instead of importing `fjs/ci/config/module.f.js`.
+- [ ] Update `fjs/ci/module.f.js` to read `ci-lock.json` instead of importing `fjs/ci/config/module.f.js`.
 - [ ] Bootstrap: generate a default `ci-lock.json` from the current `fjs/ci/config/module.f.js` values.
 - [ ] Wire `fjs u` (or equivalent) into the `lock-update` script so dependency bumps are automated again.

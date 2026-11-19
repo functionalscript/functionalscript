@@ -6,16 +6,16 @@
 
 ### Problem
 
-`lex` runs the [`fjs/ebnf/lib/js`](../../../ebnf/lib/js/module.f.mjs) grammar
+`lex` runs the [`fjs/ebnf/lib/js`](../../../ebnf/lib/js/module.f.js) grammar
 with no mapping set, keeps a token's code points, and `toJsToken` re-scans
 that text to find the cooked value: `stringDecodeScan` and `decodeString` for
 a quoted string, `templateDecodeStep` and `decodeTemplate` for a template,
 with `escape`, `unicode` and `hex` states and four-digit accumulation in
 `fixedHexValue` — a second scanner over text whose `string → escape` nodes
 the parse already isolated.
-[`fjs/media/json/parser`](../../../media/json/parser/module.f.mjs) reads the
+[`fjs/media/json/parser`](../../../media/json/parser/module.f.js) reads the
 same `escape` rule — `lib/js` takes its `u: unicode` sub-rule from
-[`fjs/ebnf/lib/json`](../../../ebnf/lib/json/module.f.mjs) — through a
+[`fjs/ebnf/lib/json`](../../../ebnf/lib/json/module.f.js) — through a
 mapping, `escapeMapping` in `stringMappings`:
 
 ```js
@@ -30,7 +30,7 @@ case 'unicode': {
 ```
 
 so `\uXXXX` is decoded once per reader, and
-[`fjs/compiler/tokenizer`](../../../compiler/tokenizer/module.f.mjs)'s
+[`fjs/compiler/tokenizer`](../../../compiler/tokenizer/module.f.js)'s
 `templateSourceAccepted` scans template text once more. The scanner's
 totality is argued from the grammar it duplicates — "the grammar's `string`
 rule only ever accepts …" — which is the separation the mapping layer exists

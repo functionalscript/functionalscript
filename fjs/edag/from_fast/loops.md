@@ -29,7 +29,7 @@ is established before a continue; the caller binds normal results and resumes
 its following work once. The declared FAST signature determines slot order,
 without the source fixed-parameter limit.
 
-[`loop/invariant`](../../js/ast/loop/invariant/module.f.mjs) can retain the scalar
+[`loop/invariant`](../../js/ast/loop/invariant/module.f.js) can retain the scalar
 helper when extra slots forward established, nondeferred entry values exactly.
 It keeps required entry demands and loop execution anchored even when only an
 invariant result is used. Computed/deferred entries and hidden owning transfers
@@ -82,7 +82,7 @@ Standalone blocks never invent a source-function owner.
 
 ## Canonical root loops
 
-Before extracting loop helpers, [`loop/owning`](./loop/owning/module.f.mjs)
+Before extracting loop helpers, [`loop/owning`](./loop/owning/module.f.js)
 preserves source-function self tail calls as transfers to an outer invocation
 loop. Fresh public inputs feed the original iteration bindings; defaults,
 destructuring, local declarations and capture snapshots run again for each
@@ -134,7 +134,7 @@ joins. The following graph is constructed once and shared across normal exits,
 as it is for noncanonical helper callers. Terminal public results and self calls
 remain direct, without a continuation function or eager completion payload.
 
-The `sharedRootJoinGrowth` [proof](./proof.f.mjs) includes fixed invocation
+The `sharedRootJoinGrowth` [proof](./proof.f.js) includes fixed invocation
 inputs, a captured value, simultaneous next-state updates and a required suffix
 call/allocation. Its normalized FAST size and unique graph-node count have
 bounded linear growth as the number of mixed regions increases.
@@ -189,7 +189,7 @@ Computed keys retain the existing `['Number', ['ref', binding]]` wrapper around
 the established number; a bare binding reference is not an `Index`/`Key`.
 
 One shared resolver derived from
-[`operations.property`](../operations/module.f.mjs) serves the existing call
+[`operations.property`](../operations/module.f.js) serves the existing call
 and the query:
 
 1. Perform [`read`](../value/property/module.f.js) first and propagate its
@@ -198,7 +198,7 @@ and the query:
 2. Retain exact stored-object own-property presence, even for a stored undefined
    value. An own field suppresses native/runtime fallback.
 3. With no stored own field and an admitted built-in name, use the existing
-   [`hasMethod`](../value/method/module.f.mjs) guard. Otherwise answer whether
+   [`hasMethod`](../value/method/module.f.js) guard. Otherwise answer whether
    the read value is nonnullish. Reuse the current method inventory.
 
 | Resolved case | Query outcome |
@@ -362,30 +362,30 @@ promise the old graph identity. The short-circuit schema migration has its own
 
 The construction proofs retain the delivered integration cases:
 
-- [General helper and root proofs](./proof.f.mjs) cover state/result signatures,
+- [General helper and root proofs](./proof.f.js) cover state/result signatures,
   shared normal joins, scoped completion dispatch and bounded join growth.
-- [Root matching](./loop/root/proof.f.mjs) pins positive and negative invocation
+- [Root matching](./loop/root/proof.f.js) pins positive and negative invocation
   forms, retained entry values, simultaneous transitions, rest recipes and arity.
-- [Owning-tail normalization](./loop/owning/proof.f.mjs),
+- [Owning-tail normalization](./loop/owning/proof.f.js),
   [native JavaScript execution](../../compiler/serializer/value/owning_tail_calls.proof.mjs)
   and the [Rust fixture](../../../nanvm/harness/fixtures/owning-self-tail-calls.mjs)
   cover invocation ownership across terminal and ordinary loops, including
   deep execution without recursive stack growth.
-- [Memo integration](./loop/memo/integration/proof.f.mjs),
-  [initializer-owned cells](./initializer_loop_cells/proof.f.mjs),
-  [deferred crossings](./deferred_loop_cells/proof.f.mjs) and
-  [eager operand planning](./eager_operand_memo/proof.f.mjs) pin declaration,
+- [Memo integration](./loop/memo/integration/proof.f.js),
+  [initializer-owned cells](./initializer_loop_cells/proof.f.js),
+  [deferred crossings](./deferred_loop_cells/proof.f.js) and
+  [eager operand planning](./eager_operand_memo/proof.f.js) pin declaration,
   caller, iteration and recipe lifetimes with their shared identities.
-- [Owning returns](./lazy_returns/proof.f.mjs),
-  [capture returns](./capture_returns/proof.f.mjs),
-  [entry returns](./entry_returns/proof.f.mjs) and
-  [transfer returns](./transfer_returns/proof.f.mjs) retain reached payloads,
+- [Owning returns](./lazy_returns/proof.f.js),
+  [capture returns](./capture_returns/proof.f.js),
+  [entry returns](./entry_returns/proof.f.js) and
+  [transfer returns](./transfer_returns/proof.f.js) retain reached payloads,
   exact owners and skipped suffixes.
-- [Member returns](./member_returns/proof.f.mjs),
-  [normal memo members](./normal_memo_members/proof.f.mjs),
-  [spread returns](./spread_returns/proof.f.mjs),
-  [object spreads](./object_spread_returns/proof.f.mjs) and
-  [normal memo spreads](./normal_memo_spreads/proof.f.mjs) distinguish lookup,
+- [Member returns](./member_returns/proof.f.js),
+  [normal memo members](./normal_memo_members/proof.f.js),
+  [spread returns](./spread_returns/proof.f.js),
+  [object spreads](./object_spread_returns/proof.f.js) and
+  [normal memo spreads](./normal_memo_spreads/proof.f.js) distinguish lookup,
   conversion and expansion failure from a later successful return.
 
 Pure callback counts are not semantic observations. Cost examples above are

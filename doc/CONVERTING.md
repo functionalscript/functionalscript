@@ -47,7 +47,8 @@ Three things hold for every rule:
   only once it accepts the whole module, and `fjs compile` with no arguments
   (`npm start compile`) then holds every authored `.f.js` to the compiler of
   its revision. A rename also renames every runtime import, type reference
-  and proof import of the module; the proof stays `proof.f.mjs`
+  and proof import of the module. Its proof is renamed by the same rule, on
+  its own: `proof.f.js` once the compiler accepts the proof whole
   ([`fjs/AGENTS.md`](../fjs/AGENTS.md#12-proof-coverage-is-mandatory)).
 
 A construct with no rule here has no admitted rewrite yet: the module keeps
@@ -78,13 +79,12 @@ JavaScript converts it
 change. A constant string in brackets is the constant key, `{ ["a"]: 1 }` is
 `{ a: 1 }`, and `{ [0]: 1 }` is `{ "0": 1 }`.
 
-The one spelling to change is a **numeric key literal**, `{ 0: 1 }` or
-`{ 3e7: true }`, which the language does not read yet
-([roadmap](../spec/todo/README.md#22-priority-2)). Write it in brackets or as
-the string it names:
+Numeric key literals are accepted too
+([property keys](../spec/values/objects/README.md#property-keys)); they need no
+rewrite. These forms define the same keys:
 
 ```js
-{ 0: 'a', 3e7: 'b' }          // refused
+{ 0: 'a', 3e7: 'b' }          // accepted
 { [0]: 'a', [3e7]: 'b' }      // the same object
 { "0": 'a', "30000000": 'b' } // the same object
 ```
@@ -361,14 +361,11 @@ import { isNegativeZero } from '../types/number/is_negative_zero/module.f.js'
 const sign = v => v < 0 || isNegativeZero(v) ? 1n : 0n       // accepted
 ```
 
-`Object.entries` is admitted as well, and kept as written the same way,
-`const { entries } = Object` included: what a module wrote on the host,
-enumerating an object, compiles. Every other member of the namespace is
-refused at the word (`reserved word`) — `Object.keys`, `Object.values`,
-`Object.fromEntries` — and is a change the conversion makes by hand until
-it is admitted on its own; `Object.keys(o)` is
-`Object.entries(o).map(([k]) => k)`, and `Object.values(o)` the second of
-each pair.
+`Object.entries`, `Object.keys`, `Object.values`, and `Object.fromEntries`
+are admitted as well and kept as written, including namespace destructuring
+such as `const { values } = Object`. Keys and values project native entries
+through the common runtime. Other members, such as `Object.assign`, remain
+refused at the word (`reserved word`) until admitted on their own.
 
 ## 7. A body that ends without `return`
 
@@ -419,15 +416,15 @@ requires; a `.f.js` module's runtime imports must themselves target `.f.js`.
 
 ## 9. A `Map` or a `Set` of strings
 
-`Map` is not a language type, and `new Map(...)` is refused
-(`unexpected token`). A `Map` earns its place only where the keys are not
-strings — a function, an object, a value compared by identity — and stays
-the module's until the language has a type for that; the
-[`edag/analysis`](../fjs/edag/analysis/module.f.mjs) walk's `visited`,
-keyed by EDAG nodes through
-[`types/map`](../fjs/types/map/module.f.mjs), is one. A `Map` whose keys
-are strings is an object the module already has, read through `entry` and
-`hasEntry` (rule 1):
+Native `Map` and `Set` construction is not admitted. Persistent collections
+use [`types/map`](../fjs/types/map/module.f.js) and
+[`types/set`](../fjs/types/set/module.f.js): reference keys are found through
+RefMap, primitive keys through the existing ordered map. Both preserve
+SameValueZero and first-insertion order. The
+[`edag/analysis`](../fjs/edag/analysis/module.f.js) walk's `visited` uses the
+shared map for EDAG nodes compared by identity. When a map merely repeats
+the entries of an object already available, read that object through `entry`
+and `hasEntry` (rule 1):
 
 ```js
 const { entries } = Object
@@ -458,10 +455,8 @@ is an optimization, and the module drops it with the `Map`
 is the worked case.
 
 A `Set` follows the same line: `new Set(...)` is refused as `new Map(...)`
-is, and a `Set` of strings needs no collection at all. Built to ask whether
-a list repeats, it is the question asked of the list itself — each item
-first appears at its own index — and built to ask whether a string is in
-it, `includes`:
+is. Stable deduplication and repeated membership use the shared persistent
+set; a single membership question over an existing array can use `includes`:
 
 ```js
 const unique = names => new Set(names).size === names.length    // refused
@@ -469,14 +464,18 @@ const has = (names, x) => new Set(names).has(x)                 // refused
 ```
 
 ```js
-const unique = names => names.every((n, i) => names.indexOf(n) === i)   // accepted
-const has = (names, x) => names.includes(x)                             // accepted
+import { fromValues, size, values } from '../types/set/module.f.js'
+
+const unique = names => size(fromValues(names)) === names.length // accepted
+const deduplicate = names => values(fromValues(names))           // first encounter order
+const has = (names, x) => names.includes(x)                       // accepted
 ```
 
-The value is preserved for strings, which `===`, `indexOf` and `includes`
-tell apart exactly as a `Set` does: `'1'` and `'01'` are two, `'__proto__'`
-is a string like any other, and `''` is one. `unique` is quadratic where
-the `Set` was linear, the optimization the module drops with it.
+The shared set preserves SameValueZero for primitives and reference identity
+for objects and functions, without repeatedly copying or scanning the whole
+collection. For strings, `'1'` and `'01'` are two, `'__proto__'` is a string
+like any other, and `''` is one. An incremental string-only set may instead
+use [`types/string_set`](../fjs/types/string_set/module.f.js).
 [`fjs/ebnf/token_symbol`](../fjs/ebnf/token_symbol/module.f.js), whose
 `encoding` refuses a repeated name, is the worked case.
 

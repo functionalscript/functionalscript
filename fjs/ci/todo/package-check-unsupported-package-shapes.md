@@ -5,7 +5,7 @@
 
 ### Problem
 
-[`../package/module.f.mjs`](../package/module.f.mjs) generates the `package`
+[`../package/module.f.js`](../package/module.f.js) generates the `package`
 job, which installs the tarball uploaded by `node` and type-checks it. It works
 for a package shaped like this repository's, and three review findings on
 [#1767](https://github.com/functionalscript/functionalscript/pull/1767) named
@@ -55,7 +55,7 @@ empty-check never fires: `tsc` succeeds having checked no declaration.
 Unreachable here — root `package.json` `files` is an allowlist
 (`**/*.js`, `**/*.d.ts`, `**/*.mjs`, `**/*.d.mts`) with no pattern matching a
 source file — and the fix has a real cost, so it is recorded rather than built.
-See the comment on `tsconfig` in [`../package/module.f.mjs`](../package/module.f.mjs).
+See the comment on `tsconfig` in [`../package/module.f.js`](../package/module.f.js).
 
 ### Proposal
 
@@ -98,7 +98,7 @@ What each would cost, so the next person does not re-derive it:
 
 ### Related
 
-- [`../package/module.f.mjs`](../package/module.f.mjs) — the check.
+- [`../package/module.f.js`](../package/module.f.js) — the check.
 - [`../README.md`](../README.md) — the `package.json` contract the job reads.
 - [`ci-generator-audience.md`](./ci-generator-audience.md) — the same "what is
   `fjs ci` for" question, asked of the generator as a whole.

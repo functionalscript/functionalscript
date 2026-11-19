@@ -12,14 +12,14 @@
 import { strict as assert } from 'node:assert'
 import { setImmediate } from 'node:timers'
 
-import { history, historyStep, mapStep, pureOk } from '../../effects/module.f.mjs'
+import { history, historyStep, mapStep, pureOk } from '../../effects/module.f.js'
 import { asyncPartialRun } from '../../effects/module.mjs'
-import { access, nodeCommands } from '../../effects/node/module.f.mjs'
-import { defaultNodeProgramOptions } from '../../effects/node/virtual/module.f.mjs'
+import { access, nodeCommands } from '../../effects/node/module.f.js'
+import { defaultNodeProgramOptions } from '../../effects/node/virtual/module.f.js'
 import { within } from '../../effects/node/testlib.mjs'
-import { utf8ToString } from '../../text/utf8/module.f.mjs'
+import { utf8ToString } from '../../text/utf8/module.f.js'
 import { ok, unwrap } from '../../types/result/module.f.js'
-import { _runPlan, _saveBatch } from './module.f.mjs'
+import { _runPlan, _saveBatch } from './module.f.js'
 
 /** @type {(name: string) => Entry} */
 const entry = name => ({ manifest: { module: name }, key: name, path: `.cas/${name}`, payload: name, byteLength: name.length })

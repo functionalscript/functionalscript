@@ -16,7 +16,7 @@ one-token parser where the last token ended, which is a loop over an array,
 not a fold over a stream.
 
 The machine is not what blocks it. The LL(1) matcher in
-[`../ll1/module.f.mjs`](../ll1/module.f.mjs) is an explicit-stack loop over
+[`../ll1/module.f.js`](../ll1/module.f.js) is an explicit-stack loop over
 one state — the frames suspended and what to do next — reading the input by
 cursor rather than recursing, and a frame holds only rule names, collected
 children and a repetition's rounds. The array is the only thing standing
@@ -107,7 +107,7 @@ this document"). Both hold at once because they are different layers.
 - [ ] Answer the open questions below. Everything else here is mechanical;
       those are not.
 - [ ] Replace the cursor-into-array reads in
-      [`../ll1/module.f.mjs`](../ll1/module.f.mjs) with a state that suspends
+      [`../ll1/module.f.js`](../ll1/module.f.js) with a state that suspends
       when it needs the next symbol. `symbolAt` and `leafAt` are the reads;
       the end-of-input handling around them — `symbolAt`'s end case,
       `accepts`' `pos <= length` guard, `physical` — is

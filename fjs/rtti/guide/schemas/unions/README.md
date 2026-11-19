@@ -43,5 +43,5 @@ same. The lesson is defined in [`sample.f.js`](./sample.f.js), and the
 ## Where it is implemented
 
 `or` and `never` in [`module.f.js`](../../../module.f.js); normalization,
-`equal`, `cmp` and `subset` in [`data`](../../../data/module.f.mjs), which
+`equal`, `cmp` and `subset` in [`data`](../../../data/module.f.js), which
 documents them ([`data/README.md`](../../../data/README.md)).

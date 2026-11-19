@@ -273,9 +273,9 @@ separate contracts: the schema admitted several forms before the compiler
 emitted them. The current compiler and represented interpreters implement
 optional chains and their steps, `Number`, `String`, `typeof`, `throw`, comma
 anchors, fixed/rest functions, captures and `self`. The
-[compiler EDAG proofs](../fjs/compiler/edag/proof.f.mjs),
-[Memo proofs](../fjs/edag/memo/proof.f.mjs) and
-[Amnesia proofs](../fjs/edag/amnesia/proof.f.mjs) cover these paths. The current
+[compiler EDAG proofs](../fjs/compiler/edag/proof.f.js),
+[Memo proofs](../fjs/edag/memo/proof.f.js) and
+[Amnesia proofs](../fjs/edag/amnesia/proof.f.js) cover these paths. The current
 [node inventory](../fjs/edag/README.md#nodes) is the schema reference; source
 limits still apply, including no unary `+`; an authored comma is admitted in
 parentheses ([comma](../spec/operators/comma/README.md)).
@@ -1418,8 +1418,8 @@ Nothing references a name the function did not compute itself:
 in first-use order, while known primitive constants can be embedded in the body.
 Memo and Amnesia evaluate those slots when creating the closure and read them
 as `["frame", i]`; `["self"]` handles direct self-reference. See `captures` in
-the [lowering proofs](../fjs/compiler/edag/proof.f.mjs) and
-[source-serializer proofs](../fjs/compiler/serializer/proof.f.mjs).
+the [lowering proofs](../fjs/compiler/edag/proof.f.js) and
+[source-serializer proofs](../fjs/compiler/serializer/proof.f.js).
 Default function text names slots without expanding their captured values.
 
 **Historical hashing discussion:** the following choices were recorded before
@@ -1520,13 +1520,13 @@ uses a finite named function expression. The trusted
 `functionText(analysis, index): string` renders every admitted body;
 `tryFunctionText` checks separately supplied expressions. The
 [function-text contract](../fjs/edag/function-text.md) and `functionText` / `self`
-groups in the [serializer proofs](../fjs/compiler/serializer/proof.f.mjs)
+groups in the [serializer proofs](../fjs/compiler/serializer/proof.f.js)
 record these implemented answers.
 
 The APIs have distinct contracts. `tryStringify` is a partial structural FJS
 source serializer. The JavaScript
-[value emitter](../fjs/compiler/serializer/value/module.f.mjs) and effectful
-[`toUnknown`](../fjs/edag/value/to_unknown/module.f.mjs) already construct
+[value emitter](../fjs/compiler/serializer/value/module.f.js) and effectful
+[`toUnknown`](../fjs/edag/value/to_unknown/module.f.js) already construct
 ordinary runtime values with captured sharing and EDAG reflection erased.
 Runtime compilation may emit JavaScript outside the current FJS grammar.
 General callable interchange, canonical hashing and exact representation
@@ -1602,7 +1602,7 @@ profile, including captured sharing and `self` where supported. Structural FJS
 source output is checked by parsing and lowering it again. Runtime-value output
 is checked at its target JavaScript compile/load boundary; it promises behavior,
 not a structural FJS source round trip. See the
-[value-emitter proofs](../fjs/compiler/serializer/value/proof.f.mjs) and
+[value-emitter proofs](../fjs/compiler/serializer/value/proof.f.js) and
 [runtime-conversion proofs](../fjs/edag/value/to_unknown/proof.mjs).
 Internal or unsupported operations remain explicit refusals in a partial profile.
 

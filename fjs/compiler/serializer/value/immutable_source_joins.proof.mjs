@@ -12,12 +12,12 @@
 import { throws } from 'node:assert/strict'
 
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
-import { _controlFlowFunctions } from '../../../edag/from_fast/control_flow.proof.f.mjs'
-import { fromFast } from '../../../edag/from_fast/module.f.mjs'
-import { _defaultExport, unresolved } from '../../edag/module.f.mjs'
-import { parse } from '../../source/module.f.mjs'
-import { tryStringify } from '../module.f.mjs'
-import { tokenize } from '../../../js/tokenizer/module.f.mjs'
+import { _controlFlowFunctions } from '../../../edag/from_fast/control_flow/module.f.js'
+import { fromFast } from '../../../edag/from_fast/module.f.js'
+import { _defaultExport, unresolved } from '../../edag/module.f.js'
+import { parse } from '../../source/module.f.js'
+import { tryStringify } from '../module.f.js'
+import { tokenize } from '../../../js/tokenizer/module.f.js'
 import { stringToCodePointList } from '../../../text/utf16/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 

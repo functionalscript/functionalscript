@@ -19,10 +19,10 @@ or differently shaped `Q`.
 **Re-measured at `36c8d4a`, the continuation casts are gone.** None of the
 listed sites — `Evo.add` in `fjs/cas/evo`, the `Rm` continuation in `fjs/cas`,
 `_CompileOp` in `fjs/compiler`, `ParseContext` in `fjs/compiler/transpiler`, and the
-`Result<number, string>` continuation in `fjs/effects/proof.f.mjs` — carries a
+`Result<number, string>` continuation in `fjs/effects/proof.f.js` — carries a
 cast any more. One cast of the listed shape survives, and it is not a
 continuation:
-`registerUsesSuppliedContext` in `fjs/emergent_testing/proof.f.mjs` casts a
+`registerUsesSuppliedContext` in `fjs/emergent_testing/proof.f.js` casts a
 whole `register(…)` effect to
 `Effect<_RegisterMockOps | Readdir | Import, 0, number>`, and
 `reporterWriteFailure` beside it casts `main(…)` to `Effect<_FailOps, 0, number>`.

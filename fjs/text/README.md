@@ -40,7 +40,7 @@ Requirement: no loss for UTF8 => codepoint => UTF8
 |`[d,c,b,]`|`1111_0xxx 10xx_xxxx 10xx_xxxx`|15 bit|`1xxx_xxxx xxxx_xxxx`|`errorLead4Cont2Flag`|
 
 Each code point is also tagged with `errorMask`. The flags are named once, in
-[`utf8/module.f.mjs`](./utf8/module.f.mjs), and both the encoder and the
+[`utf8/module.f.js`](./utf8/module.f.js), and both the encoder and the
 decoder read them from there.
 
 Total error states:
@@ -57,7 +57,7 @@ Total error states:
 < 2^16
 ```
 
-### utf8/module.f.mjs
+### utf8/module.f.js
 
 ```ts
 const toCodePointList: (input: List<u8|null>) => List<CodePoint>

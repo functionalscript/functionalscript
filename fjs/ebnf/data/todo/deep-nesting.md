@@ -20,17 +20,21 @@ toData(nest(880))   // RangeError: Maximum call stack size exceeded
 this. The classical `bnf/data` lowering is recursive too and overflows
 around depth 2000; this one pays about twice the frames per level.
 
-A second recursion is as deep as the names that collide: `freshFrom`
-retries the next counter suffix from within the frame that tried the last,
-so thousands of thunks sharing one `.name` overflow it too, on a flat rule:
+A second recursion is as deep as the structural names that collide:
+`freshFrom` retries the next counter suffix from within the frame that tried
+the last. Tags may contain dots, so different paths can spell the same hint:
 
 ```js
-toData(Array.from({ length: 5000 }, (_, i) => ({ a: () => ['const', i] }).a))
-// RangeError: Maximum call stack size exceeded
+toData({ a: { b: 'x' }, 'a.b': 'y' })
+// The two paths spell `a.b`; the second rule is named `a.b1`.
 ```
 
+A large family of colliding paths makes this suffix search recurse once per
+name already taken. Function names do not contribute: every rule uses its
+structural hint.
+
 A hand-written grammar is nowhere near either — the deepest rule in
-[`../../lib/json`](../../lib/json/module.f.mjs) nests about fifteen levels
+[`../../lib/json`](../../lib/json/module.f.js) nests about fifteen levels
 — which is why this is an issue rather than a blocker: the crash is loud, a
 `RangeError` and never a plausible wrong grammar, and
 [AGENTS.md §5](../../../../AGENTS.md#5-pull-requests-and-releases) lets a
@@ -39,7 +43,7 @@ crash wait behind an issue naming the input that breaks it.
 ### Proposal
 
 Lower with an explicit work stack over the immutable `_State`, the shape
-[`../../ll1/`](../../ll1/module.f.mjs)'s machine uses for the same reason: a frame per rule being
+[`../../ll1/`](../../ll1/module.f.js)'s machine uses for the same reason: a frame per rule being
 lowered holding the children still to lower and the names lowered so far,
 so the JS stack stays O(1) however deep the rule. `freshFrom` takes the
 same treatment, a loop over the counter, or a per-hint counter kept in the
@@ -55,14 +59,14 @@ chain, a cost rather than a crash.
       existing proof passing unchanged, since the output is the same.
 - [ ] Prove a rule nested past the old threshold — `nest(10000)` — lowers,
       and that a rule that names itself still lowers under the new walk.
-- [ ] Prove ten thousand thunks sharing one name lower, each under its own
-      counter suffix.
+- [ ] Prove a structural-hint collision past ten thousand occupied counter
+      suffixes still picks a fresh rule name.
 - [ ] `tsc`, `fjs test`, 100% coverage.
 
 ### Related
 
-- [`../module.f.mjs`](../module.f.mjs) — `lower` and the helpers it
+- [`../module.f.js`](../module.f.js) — `lower` and the helpers it
   recurses through.
 - [`../../../types/stack_walk/module.f.js`](../../../types/stack_walk/module.f.js)
   — the explicit-stack driver, which
-  [`../../ll1/module.f.mjs`](../../ll1/module.f.mjs)'s machine runs on.
+  [`../../ll1/module.f.js`](../../ll1/module.f.js)'s machine runs on.

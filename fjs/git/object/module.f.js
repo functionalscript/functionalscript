@@ -1,0 +1,167 @@
+/**
+ * The loose object envelope: `<type> SP <size> NUL`, ahead of the payload.
+ *
+ * A grammar reads the envelope and stops at the NUL, so no payload ever
+ * reaches a parser — a blob's least of all — and the reader slices what
+ * follows the NUL as the payload. The size is a claim about that payload,
+ * and the reader holds it to the claim: an object whose payload is not as
+ * long as its envelope says is refused, as Git refuses it.
+ *
+ * The object id is the hash of the whole — envelope and payload — which
+ * is why {@link write} exists beside {@link tryRead}: what is hashed or
+ * stored is the envelope's bytes ahead of the payload's.
+ *
+ * @module
+ *
+ * @import { Nullable } from '../../types/nullable/types.ts'
+ * @import { Bytes, ObjectType } from '../types.ts'
+ * @import { Envelope } from './types.ts'
+ */
+
+import { assertNotNullish } from '../../asserts/module.f.js'
+import { ascii, byteLength, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.js'
+import { range, repeatFrom1, set } from '../../ebnf/module.f.js'
+import { decimalValue, isCanonicalDigits } from '../../text/ascii/module.f.js'
+import { concat, drop, sameItems, take } from '../../types/list/module.f.js'
+
+const maxSize = BigInt(Number.MAX_SAFE_INTEGER)
+
+/** The four types, as the envelope spells them. */
+export const objectTypes = /** @type {const} */ (['blob', 'tree', 'commit', 'tag'])
+
+/**
+ * The type as one word up to the space, and not a variant of the four:
+ * `tree` and `tag` share a first byte, so the variant is not LL(1).
+ * `literals` in `../../ebnf` would read the four as a prefix tree, at the
+ * cost of a node nested down the word's branches; the word is read the way
+ * the header block reads a key instead, so its node is flat, and the reader
+ * chooses among the four after the parse.
+ */
+const word = repeatFrom1(not(set(' ')))
+
+const size = repeatFrom1(range('09'))
+
+/**
+ * The envelope rule, up to and including the NUL and with no `eof`: a
+ * match stops at the NUL and reports the index after it, which is where
+ * the payload begins.
+ */
+export const envelope = /** @type {const} */ ([word, ' ', size, '\u0000'])
+
+const parse = byteParser(envelope)
+
+/**
+ * How much of an object the parser is handed. `commit`, SP, sixteen
+ * digits — `2 ** 53` has sixteen — and NUL are 24 bytes; an envelope the
+ * prefix does not hold is refused, since no object it could describe
+ * exists.
+ */
+const prefixLength = /** @type {const} */ (32)
+
+/**
+ * The length of a list a caller means as bytes, walked once and never
+ * held: `Bytes` is a list of numbers, and a number that is no byte is a
+ * caller's mistake the format could not carry, so it is refused rather
+ * than read or written as a plausible object.
+ *
+ * @throws If an item is not a byte.
+ *
+ * @type {(bytes: Bytes) => number}
+ */
+const length = bytes => assertNotNullish(byteLength(bytes), 'not bytes')
+
+/** The four types' names as bytes, each paired with its type. */
+const typeBytes = objectTypes.map(t => /** @type {const} */ ([t, ascii(t)]))
+
+/**
+ * The object type these bytes spell, or `null`. The four are ASCII, so
+ * the bytes are compared with each name's bytes, not converted to text:
+ * an item outside `0x00`–`0xFF` matches no name's byte and is refused by
+ * construction, with no conversion to truncate it into a match.
+ *
+ * The one reader of a type's *name*, for an envelope and a tag's `type`
+ * header alike. A pack entry's header names a type by a three-bit code
+ * instead, so [`fjs/git/pack`](../pack/module.f.js) keeps a table of its
+ * own: going through this would turn a code into `'blob'` and the bytes of
+ * `'blob'` back into a code.
+ *
+ * @type {(w: readonly number[]) => Nullable<ObjectType>}
+ */
+export const tryType = w => typeBytes.find(([, b]) => sameItems(b)(w))?.[0] ?? null
+
+/**
+ * The size a digit string spells, or `null` where the spelling is not the
+ * canonical decimal Git requires — a leading zero ahead of another digit,
+ * `010`, is refused by Git's own reader — or is not a safe integer, since
+ * no object that long exists and its length could not be compared.
+ *
+ * @type {(digits: readonly number[]) => Nullable<number>}
+ */
+const decimal = digits => {
+    const n = isCanonicalDigits(digits) ? decimalValue(digits) : null
+    return n !== null && n <= maxSize ? Number(n) : null
+}
+
+/**
+ * An envelope read from the start of `input`: its type, the size it claims, and
+ * where the payload begins; `null` where the prefix holds none that is valid.
+ *
+ * @type {(input: Bytes) => Nullable<{ readonly type: ObjectType, readonly size: number, readonly end: number }>}
+ */
+const tryEnvelope = input => {
+    const r = parse(symbols(take(prefixLength)(input)))
+    if (r[0] === 'error') { return null }
+    const [[w, , digits], end] = r[1]
+    const type = tryType(symbolsOf(w))
+    const size = decimal(symbolsOf(digits))
+    return type !== null && size !== null ? { type, size, end } : null
+}
+
+/**
+ * How many bytes an object is, envelope and payload, by what its envelope
+ * claims, or `null` where there is no valid envelope. Whoever inflates an object
+ * reads this from its first bytes, and stops at that length: a stream that goes
+ * on is no object, and need not be inflated to be known so.
+ *
+ * @throws If an item of the prefix is not a byte.
+ *
+ * @type {(input: Bytes) => Nullable<number>}
+ */
+export const tryLength = input => {
+    const e = tryEnvelope(input)
+    return e === null ? null : e.end + e.size
+}
+
+/**
+ * Reads an object past its envelope, or refuses it: an envelope the prefix
+ * does not hold, a type that is not one of the four, a size that is not
+ * canonical decimal or not a safe integer, or a payload that is not as
+ * long as the size claims. The payload is the input after the NUL, sliced
+ * and not parsed: walked once to count it, and handed back as the list it
+ * is, never held as an array, so an object as long as a list can be is
+ * read as it is.
+ *
+ * @throws If an item of the input is not a byte, in the envelope or after
+ * it: the input is a boundary's, and a number that is no byte is the
+ * boundary's mistake, as `symbols` treats it.
+ *
+ * @type {(input: Bytes) => Nullable<Envelope>}
+ */
+export const tryRead = input => {
+    const e = tryEnvelope(input)
+    if (e === null) { return null }
+    const payload = drop(e.end)(input)
+    return length(payload) === e.size ? { type: e.type, payload } : null
+}
+
+/**
+ * An object's bytes: the envelope, then the payload. What Git hashes for
+ * the object's id, and what it stores inflated. The payload is counted,
+ * not held: the result is the envelope's bytes ahead of the list given.
+ *
+ * @throws If an item of the payload is not a byte.
+ *
+ * @type {(type: ObjectType, payload: Bytes) => Bytes}
+ */
+export const write = (type, payload) =>
+    concat(ascii(`${type} ${length(payload)}\u0000`))(payload)

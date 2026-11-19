@@ -5,14 +5,14 @@
 
 ### Problem
 
-[`toDiagrams`](../module.f.mjs) labelled a terminal's symbols as code points
+[`toDiagrams`](../module.f.js) labelled a terminal's symbols as code points
 only: `a`, `space`, `U+00E9`. That is right for every grammar with a demo today —
 JSON, DataJS, the JavaScript tokens and Markdown all read code points — and
 wrong for the grammars that read something else:
 
 - [`token_symbol/`](../../token_symbol/README.md) symbols start at `0x110000`,
   past the last code point. The FunctionalScript parser's grammar,
-  [`compiler/parser/grammar`](../../../compiler/parser/grammar/module.f.mjs), is written
+  [`compiler/parser/grammar`](../../../compiler/parser/grammar/module.f.js), is written
   over them, so its terminals are tokens — `id`, `=>`, `import` — that a
   code-point label would show as `U+110005`.
 - [`byte/`](../../byte/README.md) symbols are bytes: `0xE9` is half of a UTF-8
@@ -45,7 +45,7 @@ set: how a set of symbols is labelled, and which symbols join into one literal.
 - [x] `toDiagrams` takes an `Alphabet`; `codePoints` and `tokens`; the
   `category` piece in `website/demo/railroad`.
 - [x] A railroad demo of `compiler/parser/grammar`
-  ([`demo.f.mjs`](../../../compiler/parser/grammar/demo.f.mjs)): a diagram per
+  ([`demo.f.js`](../../../compiler/parser/grammar/demo.f.js)): a diagram per
   exported rule and per `eagerTail` layer, the layers titled by their
   operators' names in `eagerLayers`; `id`, `string`, `number` and `bigint` are
   its categories.

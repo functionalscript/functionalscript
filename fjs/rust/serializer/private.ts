@@ -4,16 +4,17 @@ import type { BindingId, LoopTarget, Step } from '../../js/ast/types.ts'
 import type { Block, Statement, Value } from '../../js/ast/prepare/types.ts'
 import type { Options, Printed } from './types.ts'
 import type { List } from '../../types/list/types.ts'
+import type { PersistentMap } from '../../types/map/types.ts'
 
 export type _Context = Options & {
     readonly bindings: readonly (readonly [BindingId, Printed<string>])[]
     readonly names?: _Names
-    readonly ready?: readonly ReadonlyMap<unknown, _Output>[]
+    readonly ready?: readonly PersistentMap<unknown, _Output>[]
 }
 
 export type _Names = {
-    readonly bindings: ReadonlyMap<BindingId, string>
-    readonly loops: ReadonlyMap<LoopTarget, string>
+    readonly bindings: PersistentMap<BindingId, string>
+    readonly loops: PersistentMap<LoopTarget, string>
 }
 
 /** A suspended spelling operation; each child is completed before its parent. */
