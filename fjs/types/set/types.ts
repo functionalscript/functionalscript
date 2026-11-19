@@ -3,7 +3,7 @@
 import type { PersistentMap } from '../map/types.ts'
 import type { Assert } from '../../asserts/types.ts'
 import type { Equal } from '../ts/types.ts'
-import type { add, empty, fromValues, has, size, values } from './module.f.js'
+import type { add, empty, fromValues, has, remove, size, values } from './module.f.js'
 
 /** A persistent SameValueZero set in first-insertion order. */
 export type PersistentSet<T> = PersistentMap<T, true>
@@ -14,3 +14,4 @@ type _Size = Assert<Equal<ReturnType<typeof size<number>>, number>>
 type _FromValues = Assert<Equal<ReturnType<typeof fromValues<number>>, PersistentSet<number>>>
 type _Add = Assert<Equal<ReturnType<typeof add<number>>, (set: PersistentSet<number>) => PersistentSet<number>>>
 type _Has = Assert<Equal<ReturnType<typeof has<number>>, (set: PersistentSet<number>) => boolean>>
+type _Remove = Assert<Equal<ReturnType<typeof remove<number>>, (set: PersistentSet<number>) => PersistentSet<number>>>
