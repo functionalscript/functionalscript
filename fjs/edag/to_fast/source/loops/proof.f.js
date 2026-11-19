@@ -17,6 +17,7 @@ import { evaluate, failure } from '../../../from_fast/member_returns/proof.f.js'
 import { _tailFunction } from '../../tail_calls/proof.f.js'
 import { _sourceLoops } from './module.f.js'
 import { _valueReturnFunction as valueReturnFunction } from './fixtures.f.js'
+import { generate } from '../../../../types/array/module.f.js'
 
 /** @type {(source: string) => Exp} */
 export const _sourceGraph = source => _defaultExport(unresolved(assertOk(parse('/tail.f.js')(source))).edag)
@@ -221,8 +222,8 @@ export const proof = /** @type {const} */ ({
         assertEq(assertOk(tryStringify(graph(canonical))), canonical)
     },
     sourceFunctionExitsKeepTheirOwnersAndFirstParseFixedPoints: () => {
-        const declarations = Array.from({ length: 18 }, (_, index) => `let x${index}=${index};`).join('')
-        const updates = Array.from({ length: 18 }, (_, index) => `x${index}=x${index}+1;`).join('')
+        const declarations = generate(18, index => `let x${index}=${index};`).join('')
+        const updates = generate(18, index => `x${index}=x${index}+1;`).join('')
         /** @type {readonly (readonly [string, unknown])[]} */
         const cases = [
             ['let i=0;while(i<4){if(i===2){return [i,i+7];}i=i+1;}return [i,0];', [2, 9]],
@@ -330,8 +331,8 @@ export const proof = /** @type {const} */ ({
         }
     },
     sourceLoopTransfersKeepStateAndFirstParseFixedPoints: () => {
-        const locals = Array.from({ length: 18 }, (_, index) => `let x${index}=${index};`).join('')
-        const updates = Array.from({ length: 18 }, (_, index) => `x${index}=x${index}+1;`).join('')
+        const locals = generate(18, index => `let x${index}=${index};`).join('')
+        const updates = generate(18, index => `x${index}=x${index}+1;`).join('')
         /** @type {readonly (readonly [string, unknown])[]} */
         const cases = [
             ['let i=0;while(true){i=i+1;break;}return i;', 1],
@@ -603,7 +604,7 @@ export const proof = /** @type {const} */ ({
         assertEq(assertOk(tryStringify(graph(canonical))), canonical)
     },
     multiInputSourceLoopsKeepFirstParseFixedPoints: () => {
-        const names = Array.from({ length: 15 }, (_, index) => `x${index}`)
+        const names = generate(15, index => `x${index}`)
         const parameters = ['n', ...names].join(',')
         const updates = ['n-1', ...names.map(name => `${name}+1`)].join(',')
         const arguments_ = ['3', ...names.map((_, index) => `${index}`)].join(',')
@@ -639,7 +640,7 @@ export const proof = /** @type {const} */ ({
         }
     },
     multiInputNormalDefinitionsKeepSharingCapturesAndFirstParseFixedPoints: () => {
-        const names = Array.from({ length: 15 }, (_, index) => `x${index}`)
+        const names = generate(15, index => `x${index}`)
         const parameters = ['n', ...names].join(',')
         const updates = ['n-1', ...names.map(name => `${name}+1`)].join(',')
         const arguments_ = ['3', ...names.map((_, index) => `${index}`)].join(',')
@@ -700,7 +701,7 @@ export const proof = /** @type {const} */ ({
         }
     },
     observedRestPlainLoopsKeepArityFreshArraysAndFirstParseFixedPoints: () => {
-        const names = Array.from({ length: 15 }, (_, index) => `x${index}`)
+        const names = generate(15, index => `x${index}`)
         const parameters = ['n', ...names, '...xs'].join(',')
         const updates = ['n-1', ...names.map(name => `${name}+1`), '...xs'].join(',')
         const arguments_ = ['3', ...names.map((_, index) => `${index}`), '99'].join(',')
@@ -738,7 +739,7 @@ export const proof = /** @type {const} */ ({
         }
     },
     fixedPlusRestNormalDefinitionsKeepSharingCapturesAndFirstParseFixedPoints: () => {
-        const names = Array.from({ length: 15 }, (_, index) => `x${index}`)
+        const names = generate(15, index => `x${index}`)
         const parameters = ['n', ...names, '...xs'].join(',')
         const updates = ['n-1', ...names.map(name => `${name}+1`), 'xs[0]+1'].join(',')
         const arguments_ = ['3', ...names.map((_, index) => `${index}`), '99'].join(',')
@@ -1249,7 +1250,7 @@ export const proof = /** @type {const} */ ({
                 for (const baseFirst of /** @type {const} */ ([false, true])) {
                     const source = `const seed=[9];const f=(${parameters})=>${baseFirst ? `!(${test})?${normal}:${next}` : `${test}?${next}:${normal}`};const a=f(${args});const b=f(${args});export default[a[0]===a[1],a[0]===b[0],a[2]()===a[0],a[3]()===a[0][0],a[0]];`
                     const original = graph(source)
-                    const expected = /** @type {const} */ ([true, false, true, true, [[0, expectedState], Math.sign(choice)]])
+                    const expected = /** @type {const} */ ([true, false, true, true, [[0, expectedState], choice < 0 ? -1 : choice > 0 ? 1 : 0]])
                     assertStructurallySame(evaluate(original), expected, source)
                     const first = assertOk(tryStringify(original))
                     assert(first.includes('while('), first)

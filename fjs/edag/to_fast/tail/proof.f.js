@@ -109,8 +109,8 @@ export const proof = /** @type {const} */ ({
         const source = yielded(['()', ref(self), [ref(parameter)]], definitions)
         const result = _tailCalls(source, [parameter], self, target, rest)
         assert(result !== null)
-        for (const [index, original] of definitions.entries()) {
-            const definition = result.statements[index]
+        for (const [index, original] of definitions.map((original, index) => /** @type {const} */ ([index, original]))) {
+            const definition = result.statements[Number(index)]
             assert(original[0] === 'define' && definition[0] === 'define')
             assertEq(definition[1], original[1])
             assertEq(definition[2], original[2])
@@ -139,7 +139,7 @@ export const proof = /** @type {const} */ ({
         ]
         const result = _tailCalls(yielded(['()', ref(self), [ref(parameter)]], definitions), [parameter], self, target)
         assert(result !== null)
-        for (const [index, definition] of definitions.slice(0, -1).entries()) { assertEq(result.statements[index], definition) }
+        for (const [index, definition] of definitions.slice(0, -1).map((definition, index) => /** @type {const} */ ([index, definition]))) { assertEq(result.statements[Number(index)], definition) }
         const promoted = result.statements.at(-1)
         assert(promoted !== undefined && promoted[0] === 'define')
         assertEq(promoted[3], 'required')

@@ -252,5 +252,5 @@ The [control-flow host corpus](../../../../compiler/serializer/value/control_flo
 executes supplied nested joins, parameterized continuations, selected prefixes,
 rest and named exports through both source and code-only output, with deep
 self-tail transfers.
-Common preparation's [proofs](../../../../js/ast/prepare/proof.f.mjs) pin
+Common preparation's [proofs](../../../../js/ast/prepare/proof.f.js) pin
 physical state/result writes separately from logical graph conversion.

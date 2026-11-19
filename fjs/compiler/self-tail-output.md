@@ -55,7 +55,7 @@ complete the invocation before dispatch. Required prefix work and nonexclusive
 shared dependencies keep their common scope; exclusive dependencies remain in
 their selected recipe. The existing single-root continuation keeps its layout.
 
-[Pure planner proofs](../edag/to_fast/tail/proof.f.mjs) verify shared physical
+[Pure planner proofs](../edag/to_fast/tail/proof.f.js) verify shared physical
 regions, required order and dependency scope. The
 [native JavaScript proofs](serializer/value/independent_tail_recipes.proof.mjs)
 execute code-only modules, evaluated-value modules and function text at 100,001

@@ -12,7 +12,7 @@ import { normalizeMemo } from '../../../js/ast/memo/module.f.js'
 import { _id as id, _ref as ref, _result as result, _target as target, _body as body, _afterLoop as afterLoop, _calledFunction as calledFunction, _collectingMemo as collectingMemo, _collectedMemo as collectedMemo } from '../proof.f.js'
 import { requiredFunction, failed, mixed, evaluate, flat } from '../member_returns/proof.f.js'
 import { _ownedLoopValue as ownedLoopValue } from '../operand_owned_demands/proof.f.mjs'
-import { _deferred as deferred } from '../lazy_returns/proof.f.mjs'
+import { _deferred as deferred } from '../lazy_returns/proof.f.js'
 
 /** A reached operand owns its helper and yields its last observation. @type {(value: Value, limit?: Value, selected?: Value) => Value} */
 const loopValue = (value, limit = 2, selected = true) => {
