@@ -37,12 +37,12 @@ for the named profiles, not portable maximums for ordinary recursion.
 
 | Profile | Witness and observable contract |
 | --- | --- |
-| Direct and conditional tails; final sequence work | [Function text](serializer/function_text/proof.mjs), `loops`, `tailArgumentCounts`, `spreadTailArguments`; [graph proofs](../edag/to_fast/tail_calls/proof.f.mjs), `finalCommaPrefixesRunAtTheirOriginalIterations`. Reached arguments and failures finish before simultaneous updates. |
+| Direct and conditional tails; final sequence work | [Function text](serializer/function_text/proof.mjs), `loops`, `tailArgumentCounts`, `spreadTailArguments`; [graph proofs](../edag/to_fast/tail_calls/proof.f.js), `finalCommaPrefixesRunAtTheirOriginalIterations`. Reached arguments and failures finish before simultaneous updates. |
 | Owning returns across real loop helpers | [Native JS](serializer/value/owning_tail_calls.proof.mjs), `terminalLoopTailReturnsSwapOneInvocationSnapshot`, `ordinaryLoopTailReturnsRestartLocalsAndRetainEscapedSnapshots`, `nestedLoopsKeepInnerBreakAndContinueTargets`; [function text](serializer/function_text/proof.mjs), `generatedLoopHelpersKeepDeepFunctionTextExecution`; [Rust owning tests](../../nanvm/harness/tests/owning_self_tail_calls.rs). Local state restarts and exact return/loop owners survive. |
 | Immutable aliases of owning self | [Native JS](serializer/value/owning_tail_calls.proof.mjs), `immutableSelfAliasesRetainTailOwnershipAcrossLoopHelpers`; [deferred JS](serializer/value/deferred_tail_calls.proof.mjs), `owningTailsSurviveDirectNestedAndAliasedDeferredRecipes`; [Rust deferred tests](../../nanvm/harness/tests/deferred_owning_tail_calls.rs), `deferred_owning_returns_run_deeply_through_loops_and_aliases`. |
 | Memo getters and deferred owning tails | [Native JS](serializer/value/deferred_tail_calls.proof.mjs) and [function text](serializer/function_text/proof.mjs), `deferredOwningReturnsKeepTheirFunctionTextTailTransfers`, execute the existing deferred fixtures. Both `nestedRecipe` and `normalPayload` cross public source readback. Completion forwarding keeps the owning transition outside the getter; required/skipped argument work, captures and opaque normal payloads retain their meaning. |
 | Rest, captures and allocation lifetime | [Function text](serializer/function_text/proof.mjs), `restTailInvocations`, `defaultAndDestructuringTailSetup`; [Rust deferred tests](../../nanvm/harness/tests/deferred_owning_tail_calls.rs), `rest_snapshots_stay_shared_within_one_invocation`, `captures_keep_their_creating_invocation`. Repeated reads share one invocation's allocation; new invocations and rest slices remain fresh. |
-| Mixed tail/non-tail uses and self as a value | [Graph proofs](../edag/to_fast/tail_calls/proof.f.mjs), `nonTailSelfValuesAndCallsRetainTheirFunctionBinding`, `restTailLoopsKeepRemainingSelfIdentityAndNonTailCalls`; [function-text corpus](serializer/function_text/proof.mjs), `mixedSelfUsesKeepExternalCapturesAndFollowingOrdinaryWork`; [native Rust](../../nanvm/harness/tests/mixed_self_uses.rs). The shared graph keeps ordinary-call work and public function identity alongside deep tail transfers. |
+| Mixed tail/non-tail uses and self as a value | [Graph proofs](../edag/to_fast/tail_calls/proof.f.js), `nonTailSelfValuesAndCallsRetainTheirFunctionBinding`, `restTailLoopsKeepRemainingSelfIdentityAndNonTailCalls`; [function-text corpus](serializer/function_text/proof.mjs), `mixedSelfUsesKeepExternalCapturesAndFollowingOrdinaryWork`; [native Rust](../../nanvm/harness/tests/mixed_self_uses.rs). The shared graph keeps ordinary-call work and public function identity alongside deep tail transfers. |
 | Immutable continuations | [Source readback](serializer/value/immutable_source_joins.proof.mjs), [graph output](../edag/to_fast/immutable_invocation.proof.mjs). These acyclic helpers preserve owning returns, sharing and captures; they are not recursive-loop witnesses. |
 
 ## Independent shared terminal recipes
@@ -55,7 +55,7 @@ complete the invocation before dispatch. Required prefix work and nonexclusive
 shared dependencies keep their common scope; exclusive dependencies remain in
 their selected recipe. The existing single-root continuation keeps its layout.
 
-[Pure planner proofs](../edag/to_fast/tail/proof.f.mjs) verify shared physical
+[Pure planner proofs](../edag/to_fast/tail/proof.f.js) verify shared physical
 regions, required order and dependency scope. The
 [native JavaScript proofs](serializer/value/independent_tail_recipes.proof.mjs)
 execute code-only modules, evaluated-value modules and function text at 100,001
@@ -117,7 +117,7 @@ execution through two generations. See the
 
 Direct `prepareFunction` is a separate lower-level route: it does not replace
 the graph tail planner. The existing
-[`rawAndGraphPreparationRetainArityCapturesAndSelfOwnership`](../edag/to_fast/tail_calls/proof.f.mjs)
+[`rawAndGraphPreparationRetainArityCapturesAndSelfOwnership`](../edag/to_fast/tail_calls/proof.f.js)
 and
 [`graphRecoveryKeepsItsSeparateBoundaryAndOwningSelfTailLoop`](../js/ast/prepare/immutable_joins.proof.mjs)
 show raw FAST retaining self calls while equivalent graph conversion emits a
@@ -130,7 +130,7 @@ The shared [`_mixedSelfUses()` fixture](../edag/to_fast/tail/fixtures.f.js)
 combines a tail self call above count one, one ordinary `self(0)` call at count
 one, and a base array containing captures and the original public `self`.
 The ordinary call node is shared by both elements of its following result
-array. The [pure proof](../edag/to_fast/tail/mixed_self.proof.f.mjs) checks this
+array. The [pure proof](../edag/to_fast/tail/mixed_self.proof.f.js) checks this
 actual node identity and shallow semantic observations.
 
 JavaScript function text and [native Rust](../../nanvm/harness/tests/mixed_self_uses.rs)

@@ -6,9 +6,9 @@ import { assert, assertEq, assertOk, assertStructurallySame } from '../../assert
 import { fromFast } from './module.f.js'
 import { completeTransfers } from './loop/completions/module.f.js'
 import { identityAnalysis } from '../analysis/module.f.js'
-import { evaluate, failure } from './member_returns/proof.f.mjs'
-import { proof as operandOrder } from './operand_order/proof.f.mjs'
-import { proof as objectSpread } from './object_spread_returns/proof.f.mjs'
+import { evaluate, failure } from './member_returns/proof.f.js'
+import { proof as operandOrder } from './operand_order/proof.f.js'
+import { proof as objectSpread } from './object_spread_returns/proof.f.js'
 import { proof as invocationRoots } from './loop/root/proof.f.js'
 
 /** @type {() => BindingId} */

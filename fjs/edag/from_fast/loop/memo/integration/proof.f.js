@@ -10,7 +10,9 @@ import { normalizeMemo } from '../module.f.js'
 import { identityAnalysis } from '../../../../analysis/module.f.js'
 import { memo } from '../../../../memo/module.f.js'
 import { toFast } from '../../../../to_fast/module.f.js'
-import { _id as id, _ref as ref, _result as result, _target as target, _afterLoop as afterLoop, _body as body, _summing as summing, _calledFunction as calledFunction, _counting as counting, _evaluate as evaluate, _collectingMemo as collectingMemo, _collectedMemo as collectedMemo } from '../../../proof.f.mjs'
+import { _id as id, _ref as ref, _result as result, _target as target, _afterLoop as afterLoop, _body as body, _summing as summing, _calledFunction as calledFunction, _counting as counting, _evaluate as evaluate, _collectingMemo as collectingMemo, _collectedMemo as collectedMemo } from '../../../proof.f.js'
+import { size } from '../../../../../types/object/size/module.f.js'
+import { generate } from '../../../../../types/array/module.f.js'
 
 /** Run a fresh inner entry on each selected outer iteration, retaining its history. @type {(inner: Loop, limit?: Value, selected?: Value, value?: Value, prefix?: (index: Value) => readonly Statement[]) => Loop} */
 const collectingInnerMemo = (inner, limit = 2, selected = true, value = ref(inner.results[0]), prefix = () => []) => {
@@ -31,7 +33,7 @@ const collectingInnerMemo = (inner, limit = 2, selected = true, value = ref(inne
 }
 
 /** Observe two inner demands and the following outer demand for each iteration. @type {(outer: Loop, iterations?: number) => Value} */
-const innerObservations = (outer, iterations = 2) => ['array', Array.from({ length: iterations }, (_, index) => {
+const innerObservations = (outer, iterations = 2) => ['array', generate(iterations, index => {
     const iteration = collectedMemo(ref(outer.results[0]), iterations - index - 1)
     const history = /** @type {Value} */ (['.', iteration, 0])
     return /** @type {Value} */ (['array', [collectedMemo(history, 1), collectedMemo(history), ['.', iteration, 1]]])
@@ -112,7 +114,7 @@ export const proof = /** @type {const} */ ({
     },
     loopMemoOuterContinueSimultaneousState: () => {
         const caller = id(0), dependent = id(0), count = id(0), left = id(0), right = id(0), total = id(0), saved = id(0), dead = id(0)
-        const outputs = Array.from({ length: 5 }, () => id(0))
+        const outputs = generate(5, () => id(0))
         const outerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
         const inner = exitMemoLoop(() => body(['continue', outerTarget, [
             ['+', ref(count), 1], ref(right), ref(left), ['+', ref(total), ref(left)], ['array', [ref(dependent), ref(caller)]],
@@ -183,7 +185,7 @@ export const proof = /** @type {const} */ ({
     loopMemoOuterBreakAritiesAndTags: () => {
         const caller = id(0), dependent = id(0), observed = id(0), allocation = id(0)
         for (const length of /** @type {const} */ ([0, 1, 3])) {
-            const outputs = Array.from({ length }, () => id(0))
+            const outputs = generate(length, () => id(0))
             const values = outputs.map((_, index) => index === 1 ? ref(caller) : ref(dependent))
             const outerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
             const inner = exitMemoLoop(() => body(['break', outerTarget, values], [['define', observed, ref(dependent), 'required']]))
@@ -199,7 +201,7 @@ export const proof = /** @type {const} */ ({
             assert(value instanceof Array && value[0] instanceof Array && value[2] instanceof Array)
             assertEq(value[0], value[1])
             assertEq(value[0].length, length)
-            for (let index = 0; index < length; index += 1) { assertEq(value[0][index], index === 1 ? value[3] : value[2]) }
+            for (let index = 0; index < length; index += 1) { assertEq(value[0][Number(index)], index === 1 ? value[3] : value[2]) }
             assertStructurallySame(value[2], ['break', ['continue', [4]]])
             assertEq(value[2][1], value[3])
         }
@@ -241,7 +243,7 @@ export const proof = /** @type {const} */ ({
         for (const invocation of value) {
             assert(invocation instanceof Array && invocation[0] instanceof Array && invocation[1] instanceof Array)
             for (const index of /** @type {const} */ ([0, 1])) {
-                const iteration = invocation[index]
+                const iteration = invocation[Number(index)]
                 assert(iteration instanceof Array && iteration[0] instanceof Array && iteration[1] instanceof Array && iteration[1][0] instanceof Array)
                 assertEq(iteration[0][0], invocation[2])
                 assertEq(iteration[0][1], index)
@@ -641,7 +643,7 @@ export const proof = /** @type {const} */ ({
         assert(value instanceof Array && value[0] instanceof Array)
         assertEq(value[0].length, 2)
         for (const index of /** @type {const} */ ([0, 1])) {
-            const iteration = value[0][index]
+            const iteration = value[0][Number(index)]
             assert(iteration instanceof Array && iteration[0] instanceof Array && iteration[0][0] instanceof Array)
             assertEq(iteration[0], iteration[1])
             assertEq(iteration[0], iteration[2])
@@ -1134,7 +1136,7 @@ export const proof = /** @type {const} */ ({
     },
     loopMemoNestedSimultaneousOuterState: () => {
         const lazy = id(0), count = id(0), left = id(0), right = id(0), total = id(0), saved = id(0)
-        const outputs = Array.from({ length: 5 }, () => id(0))
+        const outputs = generate(5, () => id(0))
         const inner = collectingMemo(ref(lazy), 2)
         const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
         const outer = /** @type {Loop} */ ({
@@ -1443,7 +1445,7 @@ export const proof = /** @type {const} */ ({
     },
     loopMemoSimultaneousTransitions: () => {
         const lazy = id(0), count = id(0), left = id(0), right = id(0), saved = id(0)
-        const outputs = Array.from({ length: 4 }, () => id(0))
+        const outputs = generate(4, () => id(0))
         const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
         const loop = /** @type {Loop} */ ({
             target: loopTarget, parameters: [count, left, right, saved], initial: [0, 1, 2, null], results: outputs,
@@ -1831,15 +1833,15 @@ export const proof = /** @type {const} */ ({
     loopMemoDependentRecipeGrowth: () => {
         const choice = id(0)
         const sizes = [4, 8, 12].map(length => {
-            const cells = Array.from({ length }, () => id(0))
+            const cells = generate(length, () => id(0))
             const definitions = cells.map((binding, index) => /** @type {Statement} */ (['define', binding,
                 index === 0 ? ['array', [0]] : ['?:', ref(choice),
-                    ['array', [ref(cells[index - 1]), 'left']], ['array', [ref(cells[index - 1]), 'right']],
+                    ['array', [ref(cells[Number(index - 1)]), 'left']], ['array', [ref(cells[Number(index - 1)]), 'right']],
                 ], 'lazy']))
-            const loop = collectingMemo(ref(cells[length - 1]), 1)
+            const loop = collectingMemo(ref(cells[Number(length - 1)]), 1)
             const fn = /** @type {FastFunction} */ ({
                 target, parameters: [choice], rest: null, self: null, captures: [],
-                body: body(['return', target, ['array', [collectedMemo(ref(loop.results[0])), ref(cells[length - 1]), ref(cells[0])]]], [
+                body: body(['return', target, ['array', [collectedMemo(ref(loop.results[0])), ref(cells[Number(length - 1)]), ref(cells[0])]]], [
                     ...definitions, ['loop', loop],
                 ]),
             })
@@ -1864,7 +1866,7 @@ export const proof = /** @type {const} */ ({
                 assertEq(current, value[2])
                 assertStructurallySame(current, [0])
             }
-            return { nodes: analysis.nodes.length, fast: JSON.stringify(normalized).length }
+            return { nodes: analysis.nodes.length, fast: size(normalized) }
         })
         // Copying the full memo vector costs quadratic transport. Shared
         // recipe definitions prevent recursive duplication of the prerequisites.

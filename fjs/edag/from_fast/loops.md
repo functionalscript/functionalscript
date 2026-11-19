@@ -134,7 +134,7 @@ joins. The following graph is constructed once and shared across normal exits,
 as it is for noncanonical helper callers. Terminal public results and self calls
 remain direct, without a continuation function or eager completion payload.
 
-The `sharedRootJoinGrowth` [proof](./proof.f.mjs) includes fixed invocation
+The `sharedRootJoinGrowth` [proof](./proof.f.js) includes fixed invocation
 inputs, a captured value, simultaneous next-state updates and a required suffix
 call/allocation. Its normalized FAST size and unique graph-node count have
 bounded linear growth as the number of mixed regions increases.
@@ -362,7 +362,7 @@ promise the old graph identity. The short-circuit schema migration has its own
 
 The construction proofs retain the delivered integration cases:
 
-- [General helper and root proofs](./proof.f.mjs) cover state/result signatures,
+- [General helper and root proofs](./proof.f.js) cover state/result signatures,
   shared normal joins, scoped completion dispatch and bounded join growth.
 - [Root matching](./loop/root/proof.f.js) pins positive and negative invocation
   forms, retained entry values, simultaneous transitions, rest recipes and arity.
@@ -371,21 +371,21 @@ The construction proofs retain the delivered integration cases:
   and the [Rust fixture](../../../nanvm/harness/fixtures/owning-self-tail-calls.mjs)
   cover invocation ownership across terminal and ordinary loops, including
   deep execution without recursive stack growth.
-- [Memo integration](./loop/memo/integration/proof.f.mjs),
+- [Memo integration](./loop/memo/integration/proof.f.js),
   [initializer-owned cells](./initializer_loop_cells/proof.f.mjs),
   [deferred crossings](./deferred_loop_cells/proof.f.mjs) and
   [eager operand planning](./eager_operand_memo/proof.f.mjs) pin declaration,
   caller, iteration and recipe lifetimes with their shared identities.
-- [Owning returns](./lazy_returns/proof.f.mjs),
-  [capture returns](./capture_returns/proof.f.mjs),
-  [entry returns](./entry_returns/proof.f.mjs) and
-  [transfer returns](./transfer_returns/proof.f.mjs) retain reached payloads,
+- [Owning returns](./lazy_returns/proof.f.js),
+  [capture returns](./capture_returns/proof.f.js),
+  [entry returns](./entry_returns/proof.f.js) and
+  [transfer returns](./transfer_returns/proof.f.js) retain reached payloads,
   exact owners and skipped suffixes.
-- [Member returns](./member_returns/proof.f.mjs),
-  [normal memo members](./normal_memo_members/proof.f.mjs),
-  [spread returns](./spread_returns/proof.f.mjs),
-  [object spreads](./object_spread_returns/proof.f.mjs) and
-  [normal memo spreads](./normal_memo_spreads/proof.f.mjs) distinguish lookup,
+- [Member returns](./member_returns/proof.f.js),
+  [normal memo members](./normal_memo_members/proof.f.js),
+  [spread returns](./spread_returns/proof.f.js),
+  [object spreads](./object_spread_returns/proof.f.js) and
+  [normal memo spreads](./normal_memo_spreads/proof.f.js) distinguish lookup,
   conversion and expansion failure from a later successful return.
 
 Pure callback counts are not semantic observations. Cost examples above are

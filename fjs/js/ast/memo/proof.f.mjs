@@ -9,11 +9,12 @@ import { memo } from '../../../edag/memo/module.f.js'
 import { toData } from '../../../edag/value/to_unknown/module.f.js'
 import { fromFast } from '../../../edag/from_fast/module.f.js'
 import { normalizeLazyReturns, normalizeMemo } from './module.f.js'
-import { proof as deferredReturns } from '../../../edag/from_fast/lazy_returns/proof.f.mjs'
+import { proof as deferredReturns } from '../../../edag/from_fast/lazy_returns/proof.f.js'
 import { proof as initializerLoops } from '../../../edag/from_fast/initializer_loop_cells/proof.f.mjs'
 import { _ownedLoopValue as ownedLoopValue, proof as ownedOperands } from '../../../edag/from_fast/operand_owned_demands/proof.f.mjs'
 import { proof as eagerOperands } from '../../../edag/from_fast/eager_operand_memo/proof.f.mjs'
 import { proof as deferredLoops } from '../../../edag/from_fast/deferred_loop_cells/proof.f.mjs'
+import { size } from '../../../types/object/size/module.f.js'
 
 /** @type {(index: number) => BindingId} */
 const id = index => ({ index })
@@ -417,7 +418,7 @@ export const proof = /** @type {const} */ ({
             const recipes = recipesIn(normalized)
             assertEq(recipes.length, length)
             for (const [, recipe] of recipes) { assertEq(recipe.parameters.length, 1) }
-            return JSON.stringify(normalized).length
+            return size(normalized)
         })
         // Whole-vector updates grow quadratically; duplicated initializer
         // diamonds would multiply the previous recipe at every layer.

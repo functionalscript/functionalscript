@@ -9,11 +9,12 @@
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { fromFast } from '../module.f.js'
 import { toFast } from '../../to_fast/module.f.js'
-import { _id as id, _ref as ref, _result as result, _target as target, _body as body, _collectingMemo as collectingMemo, _collectedMemo as collectedMemo } from '../proof.f.mjs'
-import { requiredFunction, failed, evaluate, failure, flat } from '../member_returns/proof.f.mjs'
-import { _acrossLoop as acrossLoop } from '../normal_memo_members/proof.f.mjs'
-import { _collector as collector } from '../spread_returns/proof.f.mjs'
-import { staticRuntime } from '../native_returns/proof.f.mjs'
+import { _id as id, _ref as ref, _result as result, _target as target, _body as body, _collectingMemo as collectingMemo, _collectedMemo as collectedMemo } from '../proof.f.js'
+import { requiredFunction, failed, evaluate, failure, flat } from '../member_returns/proof.f.js'
+import { _acrossLoop as acrossLoop } from '../normal_memo_members/proof.f.js'
+import { _collector as collector } from '../spread_returns/proof.f.js'
+import { staticRuntime } from '../native_returns/proof.f.js'
+import { entry, hasEntry } from '../../../types/object/entry/module.f.js'
 
 export const proof = /** @type {const} */ ({
     arrayExpansionRetainsSharedPayloadAndFreshConsumers: () => {
@@ -94,8 +95,8 @@ export const proof = /** @type {const} */ ({
         assertEq(first.b, original.b)
         assertEq(first.c, original.b)
         assertEq(second.b, original.b)
-        assertEq(first['__proto__'], original['__proto__'])
-        assert(Object.hasOwn(first, '__proto__'))
+        assertEq(entry(first, '__proto__'), entry(original, '__proto__'))
+        assert(hasEntry(first, '__proto__'))
         assert(first !== second && first !== original)
         assert(first.a !== original.a)
     },
@@ -120,7 +121,7 @@ export const proof = /** @type {const} */ ({
                 assert(value instanceof Array && value[0] !== null && typeof value[0] === 'object')
                 const object = /** @type {StringMap<unknown>} */ (value[0])
                 assertStructurallySame(Object.keys(object), [spelling])
-                assertEq(object[spelling], value[1])
+                assertEq(entry(object, spelling), value[1])
             }
         }
     },

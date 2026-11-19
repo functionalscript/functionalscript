@@ -14,6 +14,7 @@ import { memo } from '../memo/module.f.js'
 import { toFast } from '../to_fast/module.f.js'
 import { toData } from '../value/to_unknown/module.f.js'
 import { generate, dedup } from '../../types/array/module.f.js'
+import { size } from '../../types/object/size/module.f.js'
 
 /** @type {(index: number) => BindingId} */
 const id = index => ({ index })
@@ -1462,7 +1463,7 @@ export const proof = {
             assert(value[0] instanceof Array)
             assertEq(value[0][0], value[2])
             assertStructurallySame(value, [[[4]], [[4]], [4]])
-            return { nodes: analysis.nodes.length, fast: JSON.stringify(normalized).length }
+            return { nodes: analysis.nodes.length, fast: size(normalized) }
         })
         assert(sizes[2].nodes - sizes[1].nodes <= sizes[1].nodes - sizes[0].nodes)
         assert(sizes[2].fast - sizes[1].fast <= sizes[1].fast - sizes[0].fast)
@@ -1668,9 +1669,9 @@ export const proof = {
         const root = analysis.root
         assert(root instanceof Array)
         const calls = analysis.nodes.flatMap((node, index) => node[0] === '()' && node[1] instanceof Array
-            && analysis.nodes[node[1][1]][0] === 'self' && analysis.scope[index] === root[1] ? [index] : [])
+            && analysis.nodes[Number(node[1][1])][0] === 'self' && analysis.scope[Number(index)] === root[1] ? [index] : [])
         assertEq(calls.length, 1)
-        const call = analysis.nodes[calls[0]]
+        const call = analysis.nodes[Number(calls[0])]
         assert(call[0] === '()')
         assertEq(call[2].length, 4)
         assert(analysis.nodes.some(node => node[0] === '?:' && ((node[2] instanceof Array && node[2][1] === calls[0])
@@ -1744,13 +1745,13 @@ export const proof = {
             const root = analysis.root
             assert(root instanceof Array)
             const calls = analysis.nodes.flatMap((node, index) => node[0] === '()' && node[1] instanceof Array
-                && analysis.nodes[node[1][1]][0] === 'arg' && analysis.nodes[node[1][1]][1] === 4
-                && analysis.scope[index] === root[1] ? [index] : [])
+                && analysis.nodes[Number(node[1][1])][0] === 'arg' && analysis.nodes[Number(node[1][1])][1] === 4
+                && analysis.scope[Number(index)] === root[1] ? [index] : [])
             assertEq(calls.length, 1)
             const allocations = analysis.nodes.flatMap((node, index) => node[0] === '[]' && node[1].length === 2
                 && node[1][0] instanceof Array && node[1][0][0] === '#' && node[1][0][1] === calls[0] ? [index] : [])
             assertEq(allocations.length, 1)
-            assertEq(analysis.scope[allocations[0]], root[1])
+            assertEq(analysis.scope[Number(allocations[0])], root[1])
             assert(analysis.shared.includes(allocations[0]))
             const results = analysis.nodes.flatMap((node, index) => node[0] === '[]' && node[1].length === 4
                 && node[1][0] instanceof Array && node[1][0][0] === '#' && node[1][0][1] === allocations[0]
@@ -1765,9 +1766,9 @@ export const proof = {
                 || (node[3] instanceof Array && (node[3][1] === results[0] || requiredResults.includes(node[3][1]))))))
             assert(!analysis.nodes.some(node => node[0] === '[]' && node[1].some(item => item instanceof Array && item[0] === '#' && item[1] === results[0])))
             const selfCalls = analysis.nodes.flatMap((node, index) => node[0] === '()' && node[1] instanceof Array
-                && analysis.nodes[node[1][1]][0] === 'self' && analysis.scope[index] === root[1] ? [index] : [])
+                && analysis.nodes[Number(node[1][1])][0] === 'self' && analysis.scope[Number(index)] === root[1] ? [index] : [])
             assertEq(selfCalls.length, 1)
-            const call = analysis.nodes[selfCalls[0]]
+            const call = analysis.nodes[Number(selfCalls[0])]
             assert(call[0] === '()')
             assertEq(call[2].length, 7)
             assert(analysis.nodes.some(node => node[0] === '?:' && ((node[2] instanceof Array && node[2][1] === selfCalls[0])
@@ -1782,7 +1783,7 @@ export const proof = {
             assertEq(value[0][1], value[3])
             assertEq(value[2][0], value[3])
             assertStructurallySame(value[2], [['capture'], 2, 3])
-            return { nodes: analysis.nodes.length, fast: JSON.stringify(normalized).length }
+            return { nodes: analysis.nodes.length, fast: size(normalized) }
         })
         assert(sizes[2].nodes - sizes[1].nodes <= sizes[1].nodes - sizes[0].nodes)
         assert(sizes[2].fast - sizes[1].fast <= sizes[1].fast - sizes[0].fast)

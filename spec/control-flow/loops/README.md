@@ -393,7 +393,7 @@ fresh locals, nested return ownership, explicit transfer targets, required
 failures and state beyond the function-arity limit.
 
 The source-output proofs in
-[`source/loops/proof.f.mjs`](../../../fjs/edag/to_fast/source/loops/proof.f.mjs)
+[`source/loops/proof.f.js`](../../../fjs/edag/to_fast/source/loops/proof.f.js)
 cover conditional and nested bodies, switch exits, initially skipped and
 failing conditions, continue re-tests, multiple exits and following code.
 They compare execution and the graph/text fixed point from the first source

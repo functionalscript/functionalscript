@@ -11,7 +11,7 @@ import { fromFast } from './module.f.js'
 import { toFast } from '../to_fast/module.f.js'
 import { prepare } from '../../js/ast/prepare/module.f.js'
 import { stringify } from '../../js/ast/serializer/module.f.js'
-import { _id as id, _ref as ref, _result as result, _body as body, _counting as counting } from './proof.f.mjs'
+import { _id as id, _ref as ref, _result as result, _body as body, _counting as counting } from './proof.f.js'
 
 /** @type {() => Loop} */
 const forever = () => {

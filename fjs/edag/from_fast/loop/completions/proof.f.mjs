@@ -4,7 +4,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../../../asserts/module.f.js'
 import { completeBlockTransfers, completeTransfers } from './module.f.js'
-import { proof as terminalLoops } from '../../terminal_loops.proof.f.mjs'
+import { proof as terminalLoops } from '../../terminal_loops.proof.f.js'
 
 const target = /** @type {const} */ ({ kind: 'function', index: 0 })
 const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })

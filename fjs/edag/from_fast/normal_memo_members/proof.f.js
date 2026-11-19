@@ -8,8 +8,8 @@
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { fromFast } from '../module.f.js'
 import { toFast } from '../../to_fast/module.f.js'
-import { _id as id, _ref as ref, _result as result, _target as target, _body as body, _afterLoop as afterLoop, _collectingMemo as collectingMemo, _collectedMemo as collectedMemo } from '../proof.f.mjs'
-import { requiredFunction, failed, evaluate, failure, flat, throwingRuntime } from '../member_returns/proof.f.mjs'
+import { _id as id, _ref as ref, _result as result, _target as target, _body as body, _afterLoop as afterLoop, _collectingMemo as collectingMemo, _collectedMemo as collectedMemo } from '../proof.f.js'
+import { requiredFunction, failed, evaluate, failure, flat, throwingRuntime } from '../member_returns/proof.f.js'
 
 /** Demand one normal recipe through repeated loop operands. @type {(initializer: Value, use: (lazy: BindingId) => Value, observe?: (lazy: BindingId, loop: Loop) => Value, limit?: Value, selected?: Value) => Exp} */
 export const _acrossLoop = (initializer, use, observe = (_, loop) => collectedMemo(ref(loop.results[0])), limit = 2, selected = true) => {

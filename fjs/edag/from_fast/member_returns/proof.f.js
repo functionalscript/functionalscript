@@ -13,7 +13,7 @@ import { identityAnalysis } from '../../analysis/module.f.js'
 import { memo } from '../../memo/module.f.js'
 import { toFast } from '../../to_fast/module.f.js'
 import { toData } from '../../value/to_unknown/module.f.js'
-import { _id as id, _ref as ref, _result as result, _target as target, _body as body, _calledFunction as calledFunction, _collectingMemo as collectingMemo, _collectedMemo as collectedMemo } from '../proof.f.mjs'
+import { _id as id, _ref as ref, _result as result, _target as target, _body as body, _calledFunction as calledFunction, _collectingMemo as collectingMemo, _collectedMemo as collectedMemo } from '../proof.f.js'
 
 /** @type {(value: Value, parameters?: readonly BindingId[]) => FastFunction} */
 export const requiredFunction = (value, parameters = []) => {

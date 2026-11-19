@@ -11,8 +11,8 @@ import { fromFast } from '../module.f.js'
 import { liftReturns } from '../../../js/ast/returns/module.f.js'
 import { staticIds } from '../../module.f.js'
 import { toFast } from '../../to_fast/module.f.js'
-import { _id as id, _ref as ref, _result as result, _target as target, _body as body, _calledFunction as calledFunction } from '../proof.f.mjs'
-import { requiredFunction, escape, failed, mixed, evaluate, failure, flat } from '../member_returns/proof.f.mjs'
+import { _id as id, _ref as ref, _result as result, _target as target, _body as body, _calledFunction as calledFunction } from '../proof.f.js'
+import { requiredFunction, escape, failed, mixed, evaluate, failure, flat } from '../member_returns/proof.f.js'
 
 /** A represented provider; its answer establishes the read without invoking it. @type {(answer: Exp) => Runtime} */
 export const staticRuntime = answer => ['{}', [[':', 'static', ['=>', 1, [], answer]]]]

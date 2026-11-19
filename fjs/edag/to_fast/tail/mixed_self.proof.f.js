@@ -6,7 +6,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
-import { evaluate } from '../../from_fast/member_returns/proof.f.mjs'
+import { evaluate } from '../../from_fast/member_returns/proof.f.js'
 import { _mixedSelfUses } from './fixtures.f.js'
 
 /** @type {(fn: Exp, args: Args) => Exp} */

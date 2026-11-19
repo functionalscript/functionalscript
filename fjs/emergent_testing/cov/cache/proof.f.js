@@ -17,8 +17,10 @@ import { defaultNodeProgramOptions, emptyState, virtual, virtualOperationMap } f
 import { utf8 } from '../../../text/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 import { open } from './module.f.js'
-import { generate } from '../../../types/array/module.f.js'
-import { toJson } from '../../../media/json/module.f.js'
+import { generate, last } from '../../../types/array/module.f.js'
+import { parse, toJson } from '../../../media/json/module.f.js'
+import { array, number, option, or, string } from '../../../rtti/module.f.js'
+import { validate } from '../../../rtti/validate/module.f.js'
 
 /** @type {NodeProgramOptions} */
 const options = { ...defaultNodeProgramOptions, home: '/home' }
@@ -43,6 +45,25 @@ const repository = (config = authorConfig, globalConfig = '') => ({
     home: { '.gitconfig': [utf8(globalConfig)] },
 })
 
+/**
+ * A call the stand-in `execFile` was given, as the log holds it: its
+ * arguments, and its options where it had any.
+ */
+const callSchema = /** @type {const} */ ({ args: array(string), options: or(option, { stdin: or(option, string), maxBuffer: or(option, number) }) })
+
+/** The log's reader: a list of {@link callSchema}. */
+const validCalls = validate(array(callSchema))
+
+/**
+ * The calls so far. The stand-in `execFile` keeps them as JSON in the
+ * state's standard output, which is the one place a virtual run carries
+ * a proof's own data; they are read back by this repository's parser and
+ * narrowed by the schema.
+ *
+ * @type {(state: State) => readonly {readonly args: readonly string[], readonly options?: ExecFileOptions}[]}
+ */
+const calls = state => assertOk(validCalls(assertOk(parse(state.stdout))))
+
 /** @type {<T>(effect: Effect<NodeOp, T, IoChannel>, replies: readonly IoResult<ExecResult>[], state?: State) => readonly [State, import('../../../types/result/types.ts').Result<T, IoChannel>]} */
 const run = (effect, replies, state = { ...emptyState, root: repository() }) => {
     /** @type {PartialMemOperationMap<NodeOp, State>} */
@@ -50,10 +71,10 @@ const run = (effect, replies, state = { ...emptyState, root: repository() }) => 
         ...virtualOperationMap,
         execFile: (command, args, options) => state => {
             assertEq(command, 'git')
-            const calls = JSON.parse(state.stdout)
-            const result = replies[calls.length]
+            const before = calls(state)
+            const result = replies[Number(before.length)]
             assert(result !== undefined, args)
-            return [{ ...state, stdout: toJson([...calls, { args, options }]) }, result]
+            return [{ ...state, stdout: toJson([...before, options === undefined ? { args } : { args, options }]) }, result]
         },
     }
     return partialRun(nodeCommands)(operations)({ ...state, stdout: '[]' })(effect)
@@ -74,8 +95,6 @@ const blob = (entry, oid = tip) => `${oid} blob ${entry.byteLength}\n${entry.pay
 const ref = (id = tip) => reply(`refs/heads/build-cache\u0000${id}\n`)
 /** @type {(state: State, path: string) => string} */
 const read = (state, path) => assertOk(virtual(state)(readUtf8File(path))[1])
-/** @type {(state: State) => readonly {readonly args: readonly string[], readonly options?: ExecFileOptions}[]} */
-const calls = state => JSON.parse(state.stdout)
 
 export const proof = /** @type {const} */ ({
     preparationIsCanonicalAndUnicodeBytesAreCounted: () => {
@@ -182,7 +201,7 @@ export const proof = /** @type {const} */ ({
         const b = entryOf(cache, { message: '雪\n😀' })
         const [after, result] = run(cache.saveMany([a, b, a]), [ref(), reply(), reply(ident), reply()], state)
         assertOk(result)
-        const imported = calls(after).at(-1)
+        const imported = last(calls(after))
         assertStructurallySame(imported?.args, ['--git-dir', '/repo/.git', 'fast-import', '--quiet', '--date-format=raw', '--done'])
         const input = imported?.options?.stdin ?? ''
         assert(input.startsWith('commit refs/heads/build-cache\n'))
@@ -199,7 +218,7 @@ export const proof = /** @type {const} */ ({
         const a = entryOf(cache)
         const [cold, result] = run(cache.saveMany([a]), [reply(), reply(ident), reply()])
         assertOk(result)
-        assert(!(calls(cold).at(-1)?.options?.stdin ?? '').includes('from '))
+        assert(!(last(calls(cold))?.options?.stdin ?? '').includes('from '))
         const [empty, nothing] = run(cache.saveMany([]), [])
         assertOk(nothing)
         assertEq(calls(empty).length, 0)
