@@ -10,7 +10,7 @@ import { identityAnalysis } from '../../../../edag/analysis/module.f.js'
 import { memo } from '../../../../edag/memo/module.f.js'
 import { toFast } from '../../../../edag/to_fast/module.f.js'
 import { evaluate as evaluateWithRuntime } from '../../../../edag/from_fast/member_returns/proof.f.mjs'
-import { _id as id, _ref as ref, _result as result, _target as target, _body as body, _calledFunction as calledFunction, _evaluate as evaluate, _collectingMemo as collectingMemo, _collectedMemo as collectedMemo } from '../../../../edag/from_fast/proof.f.mjs'
+import { _id as id, _ref as ref, _result as result, _target as target, _body as body, _calledFunction as calledFunction, _evaluate as evaluate, _collectingMemo as collectingMemo, _collectedMemo as collectedMemo } from '../../../../edag/from_fast/proof.f.js'
 
 /** @type {(value: Value, parameters?: readonly BindingId[]) => FastFunction} */
 const requiredFunction = (value, parameters = []) => {

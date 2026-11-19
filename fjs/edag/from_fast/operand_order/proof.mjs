@@ -15,7 +15,7 @@ import { fromFast } from '../module.f.js'
 import { toFast } from '../../to_fast/module.f.js'
 import { prepare } from '../../../js/ast/prepare/module.f.js'
 import { stringify } from '../../../js/ast/serializer/module.f.js'
-import { _id as id, _ref as ref, _result as result, _body as body } from '../proof.f.mjs'
+import { _id as id, _ref as ref, _result as result, _body as body } from '../proof.f.js'
 import { _anchored as anchored, _consumers as consumers, _convert as convert, _graphs as graphs, _invalid as invalid, _loopEntry as loopEntry } from './proof.f.mjs'
 
 /** @type {(graph: Exp) => string} */
