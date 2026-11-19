@@ -43,7 +43,7 @@ phase starts.
 | Source-text quoting | done: `fjs/types/ts`, `fjs/emergent_testing` and `fjs/ci/package` | `fjs/js/string_escape`'s `stringLiteral`, which `stringSerialize` also wraps |
 | JSON line framing | done: `fjs/emergent_testing`'s proof (`writeEvent`), `fjs/mcp/proof.f.js` (`runStdio`) and `fjs/ci/package`'s `tsconfig.json` line | `toJson` |
 | Text searched or measured | `fjs/js/runtime`'s proof and three FAST proofs (`fjs/edag/from_fast`, its `loop/memo/integration`, `fjs/js/ast/memo`) search the text for a tag or take its length as a size; `fjs/compiler/parser/func.proof.f.js` did and now walks the value | a walk of the value, as `mentions` there does |
-| Host oracle | the proofs of `fjs/media/json`, `fjs/media/json/parser`, `fjs/media/datajs/serializer` and `fjs/js/string_escape` compare this repository's writers and readers with the host's | none: the host is the subject |
+| Proofs of the writers and readers themselves | done: the proofs of `fjs/media/json` and `fjs/media/datajs/serializer` compared a stringified list of runs with a JSON literal and now compare the list; `fjs/media/json/parser` and `fjs/media/datajs/parser` called `JSON.parse` for an object with an own `__proto__` key and now build it with `Object.fromEntries`. None compared this repository's code with the host's | structural assertions, and `Object.fromEntries` for a key a literal cannot write |
 | Pretty-printed file output | done: `fjs/ci/module.f.js`'s `workflowText` | `stringifyIndented('  ')(identity)` |
 
 Three semantic differences to respect while migrating, none of them blocking:

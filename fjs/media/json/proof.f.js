@@ -44,9 +44,9 @@ export const proof = {
     marked: () => {
         const value = { b: null, a: 'x', c: [1, true] }
         assertEq(toText(marked(sort)(value)), stringifySorted(value))
-        assertEq(
-            JSON.stringify(marked(sort)(value).filter(([, kind]) => kind !== undefined)),
-            '[["\\"a\\"","string"],["\\"x\\"","string"],["\\"b\\"","string"],["null","literal"],["\\"c\\"","string"],["1","number"],["true","literal"]]')
+        assertStructurallySame(
+            marked(sort)(value).filter(([, kind]) => kind !== undefined),
+            [['"a"', 'string'], ['"x"', 'string'], ['"b"', 'string'], ['null', 'literal'], ['"c"', 'string'], ['1', 'number'], ['true', 'literal']])
     },
     stringify: [
         {
