@@ -84,7 +84,7 @@ decoding it as data. Dependencies and unused initializers still run; an
 unselected callable export does not prevent a data output, while a callable
 remaining in the selected result is refused. See `callsAndOperators`,
 `projectBeforeMaterializing` and `unusedInitialization` in the
-[transpiler proofs](../fjs/compiler/transpiler/proof.f.mjs).
+[transpiler proofs](../fjs/compiler/transpiler/proof.f.js).
 FunctionalScript, EDAG and Rust generation preserve the module computation
 without running it during compilation.
 

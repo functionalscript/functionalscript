@@ -11,7 +11,7 @@
 import { exitCode } from '../effects/node/module.f.js'
 import { log } from '../effects/node/module.f.js'
 import { defaultNodeProgramOptions, virtualAt } from '../effects/node/virtual/module.f.js'
-import { assert, assertEq, todo } from '../asserts/module.f.js'
+import { assert, assertEq, todo, assertNotNullish, assertStructurallySame } from '../asserts/module.f.js'
 import { fgGreen, fgRed, reset } from '../text/sgr/module.f.js'
 import {
     testAll, runEntries, zeroState, fmtPath, fmtImport, fmtResult, ghEscape,
@@ -25,6 +25,8 @@ import { number as rttiNumber, or, string as rttiString } from '../rtti/module.f
 import { parse as rttiParse } from '../rtti/parse/module.f.js'
 import { error, ok, unwrap } from '../types/result/module.f.js'
 import { pureError, pureOk, step, unreadableThrownValue } from '../effects/module.f.js'
+import { nameOf } from '../types/object/name/module.f.js'
+import { last } from '../types/array/module.f.js'
 
 /**
  * The mock reporter's stdout lines. A schema rather than a hand-written type:
@@ -188,7 +190,7 @@ export const mixedPassFail = () => {
         'm.proof.f.ts': () => ({ proof: { good: ok0, bad: fail0 } }),
     })
     assertEq(exit, 1)
-    const summary = events[events.length - 1]
+    const summary = assertNotNullish(last(events))
     assert(summary[0] === 'summary')
     const [, pass, fail] = summary
     assertEq(pass, 1)
@@ -253,7 +255,7 @@ export const multipleFiles = () => {
     assertEq(exit, 0)
     const results = events.filter(e => e[0] === 'result')
     assertEq(results.length, 2)
-    const [, pass, fail] = events[events.length - 1]
+    const [, pass, fail] = assertNotNullish(last(events))
     assertEq(pass, 2)
     assertEq(fail, 0)
 }
@@ -273,9 +275,7 @@ export const throwExpectationUsesStructuralKeys = () => {
     assertEq(results.length, 2)
     assertEq(results[0][2], '.here')
     assertEq(results[1][2], '.throw.alias')
-    assertEq(events[events.length - 1][0], 'summary')
-    assertEq(events[events.length - 1][1], 1)
-    assertEq(events[events.length - 1][2], 1)
+    assertStructurallySame(assertNotNullish(last(events)).slice(0, 3), ['summary', 1, 1])
 }
 
 // only the `proof` export is used; other module properties are ignored
@@ -502,7 +502,7 @@ export const startSurvivesARunThatDies = () => {
     const dying = {
         ...reporter,
         test: (file, path, entry) =>
-            path[path.length - 1] === 'y'
+            last(path) === 'y'
                 ? pureError(/** @type {const} */ (['ioError', { message: 'the run died here' }]))
                 : reporter.test(file, path, entry),
     }
@@ -542,7 +542,7 @@ export const failuresSurviveARunThatDies = () => {
     const dying = {
         ...reporter,
         test: (file, path, entry) =>
-            path[path.length - 1] === 'later'
+            last(path) === 'later'
                 ? pureError(/** @type {const} */ (['ioError', { message: 'runner gave up' }]))
                 : reporter.test(file, path, entry),
     }
@@ -611,7 +611,7 @@ export const nothingRunsAfterARunIsAbandoned = () => {
     const dying = {
         ...reporter,
         test: (file, path, entry) =>
-            path[path.length - 1] === 'stop'
+            last(path) === 'stop'
                 ? pureError(/** @type {const} */ (['ioError', { message: 'runner gave up' }]))
                 : reporter.test(file, path, entry),
     }
@@ -705,7 +705,7 @@ const makeRegisterRunner = testOp => {
     /** @typedef {RunInstance<_RegisterMockOps, _RegisterMockState>} _RegisterRunner */
     /** @type {_RegisterRunner} */
     const runner = runAll(/** @type {Parameters<typeof runAll<_RegisterMockOps, _RegisterMockState>>[0]} */ ({
-        test: (ctx, name, xf, fn) => testOp(runner, ctx, name, xf, fn),
+        test: (ctx, name, xf, fn) => (s, run) => testOp(run, ctx, name, xf, fn)(s),
         await: p => s => /** @type {const} */ ([s, ok([p])]),
     }))
     return runner
@@ -742,7 +742,7 @@ const registerBodyPanicsOnUndispatchableEffect = () => {
     /** @typedef {RunInstance<_RegisterMockOps, _RegisterMockState>} _RegisterRunner */
     /** @type {_RegisterRunner} */
     const runner = runAll(/** @type {Parameters<typeof runAll<_RegisterMockOps, _RegisterMockState>>[0]} */ ({
-        test: (ctx, _name, _xf, fn) => s => [runner(s)(fn(ctx))[0], ok(undefined)],
+        test: (ctx, _name, _xf, fn) => (s, run) => [run(s)(fn(ctx))[0], ok(undefined)],
         // The runner has no `await`, which is what the body's channel carries.
         await: _p => s => [s, error(['notImplemented', 'await'])],
     }))
@@ -814,27 +814,38 @@ export const registerEmptyModuleMap = () => {
  */
 const runRegister = (testContext, files, load, invoke, select, single = false) => {
     /** @typedef {Test | All | Await} _RegisterMockOps */
-    /** @type {(readonly [TestContext, string, boolean])[]} */
-    let calls = []
-    /** @type {RunInstance<_RegisterMockOps | Readdir | Import, undefined>} */
-    const runner = runAll(/** @type {Parameters<typeof runAll<_RegisterMockOps | Readdir | Import, undefined>>[0]} */ ({
+    /** The `test` calls made so far, in order. @typedef {readonly (readonly [TestContext, string, boolean])[]} _Calls */
+    /** @type {RunInstance<_RegisterMockOps | Readdir | Import, _Calls>} */
+    const runner = runAll(/** @type {Parameters<typeof runAll<_RegisterMockOps | Readdir | Import, _Calls>>[0]} */ ({
         readdir: (_path, _o) => s => [s, ok(files.map(name => ({ name, parentPath: '.', isFile: true, isDirectory: false })))],
         import: path => s => [s, load(path)],
         await: p => s => [s, ok([p])],
-        test: (ctx, name, xf, fn) => s => {
-            if (invoke) { runner(s)(fn(ctx)) }
-            calls = [...calls, [ctx, name, xf]]
-            return [s, ok(undefined)]
+        test: (ctx, name, xf, fn) => (s, run) => {
+            const after = invoke ? run(s)(fn(ctx))[0] : s
+            return [[...after, [ctx, name, xf]], ok(undefined)]
         },
     }))
     /** @type {NodeProgramOptions} */
     const opts = {
         ...defaultNodeProgramOptions, env: {}, testContext,
     }
-    runner(undefined)(/** @type {Effect<_RegisterMockOps | Readdir | Import, 0, number>} */ (
-        single ? registerOne(opts) : register(opts, select)))
-    return calls
+    return runner([])(/** @type {Effect<_RegisterMockOps | Readdir | Import, 0, number>} */ (
+        single ? registerOne(opts) : register(opts, select)))[0]
 }
+
+/**
+ * A module whose import succeeds, with one passing leaf.
+ *
+ * @type {() => IoResult<Module>}
+ */
+const loadsOk = () => ok({ proof: { ok: () => {} } })
+
+/**
+ * A module whose import fails, as a module-level `assert` makes it fail.
+ *
+ * @type {() => IoResult<Module>}
+ */
+const loadFails = () => error(['ioError', { message: 'load-time failure' }])
 
 /** Single-directory registration includes every authored sibling proof. */
 export const registerOneSiblings = () => {
@@ -870,20 +881,6 @@ export const registerOneLoadFailure = () => {
     assertEq(calls.length, 1)
     assertEq(calls[0][1], 'import("./module.f.js").proof()')
 }
-
-/**
- * A module whose import succeeds, with one passing leaf.
- *
- * @type {() => IoResult<Module>}
- */
-const loadsOk = () => ok({ proof: { ok: () => {} } })
-
-/**
- * A module whose import fails, as a module-level `assert` makes it fail.
- *
- * @type {() => IoResult<Module>}
- */
-const loadFails = () => error(['ioError', { message: 'load-time failure' }])
 
 // Discovery passes the supplied context through unchanged. The synthetic
 // runner records context identity without invoking the virtual `test: todo`.
@@ -1053,8 +1050,8 @@ const testResultProofs = {
     namesTheLeaf: () => {
         const path = ['nested', null, 'a.b']
         const t = testResult('./a.f.mjs', path, { result: ok(undefined), duration: 0 })
-        assertEq(t.name, fmtImport('./a.f.mjs', path))
-        assertEq(t.name, 'import("./a.f.mjs").proof.nested()["a.b"]()')
+        assertEq(nameOf(t), fmtImport('./a.f.mjs', path))
+        assertEq(nameOf(t), 'import("./a.f.mjs").proof.nested()["a.b"]()')
         assertEq(t.path, fmtPath(path))
     },
 }

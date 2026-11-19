@@ -1,7 +1,7 @@
 /** Pattern defaults use ordinary reads and lazy undefined selection across compiler outputs. */
 
 import { assert, assertEq } from '../asserts/module.f.js'
-import { compileSource, fjsRoundTrip, moduleRefused } from './proof.f.mjs'
+import { compileSource, fjsRoundTrip, moduleRefused } from './proof.f.js'
 
 export const proof = {
     undefinedSelection: () => {

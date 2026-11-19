@@ -63,7 +63,7 @@ unchanged, retaining container and callable identities. Module initialization
 preserves that payload alongside its source path; admission and loading
 diagnostics keep their separate channels. The [joint interpreter
 proofs](memo/proof.f.js) exercise actual throwing callbacks through array
-methods and an enclosing operand; [compiler proofs](../compiler/transpiler/proof.f.mjs)
+methods and an enclosing operand; [compiler proofs](../compiler/transpiler/proof.f.js)
 cover direct and imported module initialization.
 
 [`value/semantics`](value/semantics/module.f.js) provides truthiness, `typeof`

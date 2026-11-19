@@ -1,7 +1,7 @@
 /** Numeric object keys preserve computed-key execution and all existing outputs. */
 
 import { assertEq } from '../asserts/module.f.js'
-import { compileSource, fjsRoundTrip, moduleRefused } from './proof.f.mjs'
+import { compileSource, fjsRoundTrip, moduleRefused } from './proof.f.js'
 
 export const proof = /** @type {const} */ ({
     numericLiteralSpellingsUseTheirNumberValue: () => {

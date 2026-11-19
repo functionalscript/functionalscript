@@ -142,7 +142,7 @@ its other files are linked on the side-by-side page.
 - [x] Have the stage pages compile the main module of a multi-file example.
 - [x] Add an example that imports one module through two others, so the
       outputs show it shared.
-- [x] Extend the side-by-side [`../proof.f.mjs`](../proof.f.mjs) table to the
+- [x] Extend the side-by-side [`../proof.f.js`](../proof.f.js) table to the
       import examples.
 
 ### Related

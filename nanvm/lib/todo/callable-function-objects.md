@@ -885,7 +885,7 @@ level.
       validation and not a call: `checked` (`fjs/edag/analysis`) refuses
       a function-owned `['args']` at every arity, and the memo executor,
       the Rust printer and the source writer refuse it through it, at
-      arity 0 and above (`fjs/compiler/parameters/proof.f.mjs`,
+      arity 0 and above (`fjs/compiler/parameters/proof.f.js`,
       `fjs/compiler/rust/proof.f.js`). A zero-arity graph's complete
       list is `['rest']`, which a module scope refuses. The amnesia
       executor trusts the graph it is given, as its dispatcher does.

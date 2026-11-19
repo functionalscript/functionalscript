@@ -12,6 +12,7 @@ import { u8ListToMaxVecChunksMsb, vec8 } from '../../../types/bit_vec/module.f.j
 import { error, ok } from '../../../types/result/module.f.js'
 import { buildGraph, graphManifest, manifest, validateGraph } from './module.f.js'
 import { toJson } from '../../../media/json/module.f.js'
+import { entry } from '../../../types/object/entry/module.f.js'
 
 const digest = computeSync(sha256)
 /** @type {(text: string) => string} */
@@ -376,7 +377,7 @@ export const proof = /** @type {const} */ ({
                         : assertNotNullish(Object.entries(identities).find(([, identity]) => identity === parent))[0]
                     const [next, result] = virtualOperationMap.resolveFileModule(name, actualParent)(state)
                     return [next, result[0] === 'error' ? result : ok({
-                        ...result[1], id: assertNotNullish(identities[result[1].path]),
+                        ...result[1], id: assertNotNullish(entry(identities, result[1].path)),
                     })]
                 },
             })

@@ -23,7 +23,7 @@ measured on Node is smaller there.
 
 How much of the stack that corpus leaves, measured after `9789544` on x64
 Node 26.10 with the default stack, each depth in a fresh process: the path
-`subsetLaw` in [`../../compiler/proof.f.mjs`](../../compiler/proof.f.mjs)
+`subsetLaw` in [`../../compiler/proof.f.js`](../../compiler/proof.f.js)
 takes — front end, lowering, analysis, memo interpretation, runtime data
 conversion — evaluates a nested array 1,170 levels deep and overflows at
 1,180, in memo's `operand` → `operation` → `items`, the walk this issue

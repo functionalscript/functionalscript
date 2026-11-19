@@ -72,7 +72,7 @@ written out again.
       consumer converts to a code point first: it does, as `charIs`.
 - [x] `fjs/js/identifier/module.f.js`: `isIdentifier` over `text/ascii`'s
       classes and `isInteger` over `isCanonicalDigits`, with a co-located proof
-      at 100% (the cases in `fjs/emergent_testing/proof.f.mjs` are the start).
+      at 100% (the cases in `fjs/emergent_testing/proof.f.js` are the start).
       No `deno.json` `exports` entry: the file has no map today, and
       [group-fjs-subdirectories-by-concern](../../../todo/group-fjs-subdirectories-by-concern.md)
       reserves introducing one for the change that enumerates every module.

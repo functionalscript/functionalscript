@@ -22,6 +22,7 @@ import { repository } from './page/module.f.js'
 import { pageUrlMarker } from './cargo-doc/module.f.js'
 import { productionOrigin } from './origin/module.f.js'
 import { hasEntry } from '../types/object/entry/module.f.js'
+import { entry } from '../types/object/entry/module.f.js'
 
 /**
  * A file in the virtual tree, from its text.
@@ -86,7 +87,7 @@ const generateWith = (tree, modules, thrown) => {
     const run = partialRun(nodeCommands)({
         ...virtualOperationMap,
         import: path => state => {
-            const module = modules[path]
+            const module = entry(modules, path)
             return [state, module === undefined ? error(ioError({ message: `no module ${path}` })) : ok({ demo: module })]
         },
         catch: f => state => [state, ok(thrown === undefined ? ok(f()) : error(thrown))],
@@ -107,7 +108,7 @@ const listed = page => page
 
 /** @type {(root: Dir, path: readonly string[]) => string} */
 const pageAt = (root, path) => textOf(
-    path.reduce((at, name) => /** @type {Dir} */ (at[name]), root)['index.html'],
+    path.reduce((at, name) => /** @type {Dir} */ (entry(at, name)), root)['index.html'],
     `the page for ${path.join('/')}`)
 
 export const proof = {

@@ -1,7 +1,7 @@
 /** Named-let omission desugars to explicit undefined across compilation and readback. */
 
 import { assertEq } from '../asserts/module.f.js'
-import { compileSource, fjsRoundTrip } from './proof.f.mjs'
+import { compileSource, fjsRoundTrip } from './proof.f.js'
 
 export const proof = /** @type {const} */ ({
     generatedOutputsShareExplicitUndefinedLowering: () => {

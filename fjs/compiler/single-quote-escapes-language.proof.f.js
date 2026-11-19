@@ -2,7 +2,7 @@
 
 import { assertEq } from '../asserts/module.f.js'
 import { utf8 } from '../text/module.f.js'
-import { compileSource, fjsRoundTrip, jsonOf, moduleRefused } from './proof.f.mjs'
+import { compileSource, fjsRoundTrip, jsonOf, moduleRefused } from './proof.f.js'
 
 export const proof = /** @type {const} */ ({
     outputsAgreeWithUnicodeEscapes: () => {
