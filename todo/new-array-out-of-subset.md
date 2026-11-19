@@ -34,7 +34,7 @@ through; the one place the two differ is noted in it:
 | `fjs/types/range_set/proof.f.js` | 3 |
 | `fjs/media/datajs/serializer/proof.f.mjs` | 1 (since removed under its FunctionalScript input contract) |
 | `fjs/rtti/parse/proof.f.js` | 1 |
-| `fjs/sul/proof.f.mjs` | 1 (since replaced by `Array.from`) |
+| `fjs/sul/proof.f.js` | 1 (since replaced by `Array.from`) |
 | `fjs/git/refname/proof.f.js` | 1 |
 | `fjs/git/ref/proof.f.js` | 1 |
 | **`fjs/rtti/parse/module.f.js`** | **1** |
@@ -106,7 +106,7 @@ module they live in.
   cover the same branches.
 - **Guards that survive.** Leave the code, rewrite the prose to say which
   caller it defends against.
-- **Unrelated subset violations found on the way.** `fjs/sul/proof.f.mjs` had
+- **Unrelated subset violations found on the way.** `fjs/sul/proof.f.js` had
   `new Array(n).fill(0n)`, which breaks two rules on one line, since `fill`
   mutates. `Array.from({ length: n }, () => 0n)` is the repository idiom and is
   already used in `fjs/crypto/sha1`.
@@ -125,9 +125,9 @@ module they live in.
       on the host.
 - [x] **`fjs/sul` hygiene.** Replace `new Array(n).fill(0n)` with
       `Array.from`, and drop the reassigned local in the same helper. No
-      shipped code, no coverage change, unrelated to holes. Its `push` is a
-      recorder's, which [proof-recorders-mutate](../fjs/todo/proof-recorders-mutate.md)
-      decides for every proof that has one.
+      shipped code, no coverage change, unrelated to holes. Its `push` was a
+      recorder's and is gone too: the log rides in the storage the encoder
+      threads through `add`.
 - [ ] **`fjs/edag`.** Delete the four hole entries and trim the two prose
       clauses that describe `fjs/rtti`'s behaviour rather than `edag`'s.
       Confirm in the pull request that the dense siblings still cover the
@@ -148,20 +148,24 @@ module they live in.
 - [x] **`fjs/rtti/parse`'s hole producer.** It needed no exception:
       `tupleRebuild` is gone, `parse` rebuilds every array kind dense, and a
       hole in the input is outside the readers' contract rather than refused.
-- [ ] **`fjs/types/range_set`.** Its guard and the prose explaining it either
-      both go or both stay, depending on whether it defends a FunctionalScript
-      caller or the published package's JavaScript surface. Leaving the proof
-      entry while removing the guard turns it red.
+- [ ] **`fjs/types/range_set`.** Decided for the proof: a hole is no
+      FunctionalScript value, and the proof entries built on `new Array(1)`
+      are gone, with coverage still whole, since the spread that defends
+      against a hole also runs on a dense list. Left: the spread itself and
+      the prose explaining it in `module.f.js`, which now describe a host
+      caller only. Remove them together, or say which caller they are for.
 - [x] **`fjs/media/datajs/serializer`.** Its TypeScript parameter is `unknown`
       under a documented contract for FunctionalScript values
       ([module README](../fjs/media/datajs/README.md#every-entry-point-is-fallible-and-the-names-say-so)).
       Functions are refused because DataJS cannot write them. Holes, extra own
       array properties, accessors and cycles are outside that input contract;
       the host inspection guards and their refusal proofs are removed together.
-- [ ] **`fjs/git/refname` and `fjs/git/ref`.** Decide whether the hole half of
-      `byteArray`'s refusal, which both proofs exercise with `new Array(1)`,
-      defends a FunctionalScript caller or only a host one, and keep or drop
-      the proof entries and the JSDoc sentence together.
+- [ ] **`fjs/git/refname` and `fjs/git/ref`.** Decided: the hole half of
+      `byteArray`'s refusal defends a host caller only. The proof entries
+      built on `new Array(1)` are gone, as are the `[, x]` fixtures in
+      `fjs/ebnf/byte` and `fjs/ebnf/data` and the hole cases of
+      `fjs/rtti/common`. Left: the JSDoc sentence in `fjs/git/refname` about
+      a hole in a sparse array.
 - [ ] **The prose sweep.** About ten sites mention `new Array` in explanation.
       Rewrite each to say which caller it is about, and fix the one in
       `fjs/types/range_set` that reads as though `new Array(1)` were an

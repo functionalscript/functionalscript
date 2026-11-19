@@ -17,15 +17,31 @@ import { run as runMachine } from '../types/list/module.f.js'
 import { generate } from '../types/array/module.f.js'
 import { toJson } from '../media/json/module.f.js'
 
-/** @type {(bits: readonly bigint[]) => readonly [Id, readonly (readonly [Id, Id, Id, boolean])[]]} */
+/**
+ * The merges an encoder reports, kept in the storage it threads through
+ * `add`: each call returns the log with its merge added. Every merge is
+ * checked here as it is reported, the ones `end` adds among them, since
+ * those never reach a log a proof can read.
+ *
+ * @type {Add<readonly (readonly [Id, Id, Id, boolean])[]>}
+ */
+const record = (l, r, m, isSymbol, log) => {
+    assertEq(m, compress(l, r))
+    return [...log, [l, r, m, isSymbol]]
+}
+
+/**
+ * The root of `bits`, and the merges reported while they were fed. `end`
+ * answers the root alone, so the merges its padding adds are not in the log;
+ * the state it is given holds the ones before it.
+ *
+ * @type {(bits: readonly bigint[]) => readonly [Id, readonly (readonly [Id, Id, Id, boolean])[]]}
+ */
 const run = bits => {
-    /** @type {(readonly [Id, Id, Id, boolean])[]} */
-    const log = []
-    /** @type {Add<null>} */
-    const add = (l, r, m, isSymbol) => { log.push([l, r, m, isSymbol]); return null }
-    const enc = encode(add)(null)
-    const [, , root] = enc.end(bits.reduce((state, b) => enc.update(state, b)[2], enc.init[2]))
-    return [root, log]
+    const enc = encode(record)([])
+    const fed = bits.reduce((state, b) => enc.update(state, b)[2], enc.init[2])
+    const [, , root] = enc.end(fed)
+    return [root, fed[1]]
 }
 
 /** @type {(bits: readonly bigint[]) => Id} */
