@@ -12,8 +12,8 @@ import { normalizeLazyReturns, normalizeMemo } from './module.f.js'
 import { proof as deferredReturns } from '../../../edag/from_fast/lazy_returns/proof.f.js'
 import { proof as initializerLoops } from '../../../edag/from_fast/initializer_loop_cells/proof.f.js'
 import { _ownedLoopValue as ownedLoopValue, proof as ownedOperands } from '../../../edag/from_fast/operand_owned_demands/proof.f.js'
-import { proof as eagerOperands } from '../../../edag/from_fast/eager_operand_memo/proof.f.mjs'
-import { proof as deferredLoops } from '../../../edag/from_fast/deferred_loop_cells/proof.f.mjs'
+import { proof as eagerOperands } from '../../../edag/from_fast/eager_operand_memo/proof.f.js'
+import { proof as deferredLoops } from '../../../edag/from_fast/deferred_loop_cells/proof.f.js'
 import { size } from '../../../types/object/size/module.f.js'
 
 /** @type {(index: number) => BindingId} */

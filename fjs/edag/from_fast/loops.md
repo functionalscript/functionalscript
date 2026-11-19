@@ -373,8 +373,8 @@ The construction proofs retain the delivered integration cases:
   deep execution without recursive stack growth.
 - [Memo integration](./loop/memo/integration/proof.f.js),
   [initializer-owned cells](./initializer_loop_cells/proof.f.js),
-  [deferred crossings](./deferred_loop_cells/proof.f.mjs) and
-  [eager operand planning](./eager_operand_memo/proof.f.mjs) pin declaration,
+  [deferred crossings](./deferred_loop_cells/proof.f.js) and
+  [eager operand planning](./eager_operand_memo/proof.f.js) pin declaration,
   caller, iteration and recipe lifetimes with their shared identities.
 - [Owning returns](./lazy_returns/proof.f.js),
   [capture returns](./capture_returns/proof.f.js),
