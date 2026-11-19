@@ -82,11 +82,11 @@ const yielded = (body, value) => body.exit[0] === 'yield' ? {
 /** An existing statement result is available only after both arms finish. @type {(results: readonly BindingId[], left: Block, right: Block) => boolean} */
 const usesResults = (results, left, right) => [...freeBindings(left), ...freeBindings(right)].some(binding => results.includes(binding))
 
+/** The bindings a statement declares for what follows it. @type {(statement: Statement) => readonly BindingId[]} */
+const bound = statement => statement[0] === 'define' ? [statement[1]] : statement[0] === 'loop' ? statement[1].results : statement[1]
+
 /** Deferred captures also retain the scope preceding the statement arm. @type {(body: Block, value: Block, deferred: readonly Definition[]) => boolean} */
-const shadows = (body, value, deferred) => body.statements.some(statement => {
-    const bindings = statement[0] === 'define' ? [statement[1]] : statement[0] === 'loop' ? statement[1].results : statement[1]
-    return bindings.some(binding => references(value, binding, deferred))
-})
+const shadows = (body, value, deferred) => body.statements.some(statement => bound(statement).some(binding => references(value, binding, deferred)))
 
 /** Appending selected values preserves their original dependency scope. @type {(branch: Extract<Statement, readonly ['if', ...unknown[]]>, left: Block, right: Block, deferred: readonly Definition[]) => boolean} */
 const appendScope = (branch, left, right, deferred) => !usesResults(branch[1], left, right)
@@ -114,15 +114,21 @@ const reached = (body, index) => {
 /** Whether a region inside the statement leaves it otherwise than by completing or failing. */
 const leaves = someBlock(({ exit }) => exit[0] !== 'yield' && exit[0] !== 'throw')
 
-/** What the block evaluates in order until a statement leaves it, the exit's values where none does. @type {(body: Block, start: number) => readonly Value[]} */
-const sequence = (body, start) => {
+/**
+ * What the block evaluates in order while a read of the binding is a read of
+ * the one declared outside: until a statement leaves the block or declares
+ * the binding anew, the exit's values where none does.
+ *
+ * @type {(body: Block, start: number, target: BindingId) => readonly Value[]}
+ */
+const sequence = (body, start, target) => {
     /** @type {readonly Value[]} */
     let values = []
     for (let index = start; index <= body.statements.length; index = index + 1) {
         const value = reached(body, index)
         values = value === null ? values : [...values, value]
         const statement = body.statements[Number(index)]
-        if (statement === undefined || leaves({ statements: [statement], exit: ['yield', []] })) { break }
+        if (statement === undefined || bound(statement).includes(target) || leaves({ statements: [statement], exit: ['yield', []] })) { break }
     }
     return values
 }
@@ -134,12 +140,12 @@ const sequence = (body, start) => {
  * continues it; an optional call's arguments, and every step after an
  * optional one, are skipped where the step meets a nullish value.
  *
- * @type {(value: Extract<Value, readonly unknown[]>) => readonly Value[]}
+ * @type {(value: Extract<Value, readonly unknown[]>, target: BindingId) => readonly Value[]}
  */
-const certainOperands = value => value[0] === 'ref' ? []
+const certainOperands = (value, target) => value[0] === 'ref' ? []
     : value[0] === 'function' ? value[1].captures.map(capture => capture.value)
     : value[0] === 'if' || value[0] === '?:' ? [value[1]]
-    : value[0] === 'block' ? sequence(value[1], 0)
+    : value[0] === 'block' ? sequence(value[1], 0, target)
     : value[0] === '?.' || value[0] === '?.()' ? [value[1]]
     : value[0] === '.' ? [value[1], ...keyOperands(value[2]), ...(value.length === 4 && value[3][0] === '|()' ? value[3][1].map(itemOperand) : [])]
     : operatorOperands(value)
@@ -156,13 +162,13 @@ const certainOperands = value => value[0] === 'ref' ? []
 const certain = (body, definition) => {
     /** @type {{ readonly first: Value, readonly tail: unknown } | null} */
     let work = null
-    for (const value of sequence(body, body.statements.indexOf(definition) + 1).toReversed()) { work = { first: value, tail: work } }
+    for (const value of sequence(body, body.statements.indexOf(definition) + 1, definition[1]).toReversed()) { work = { first: value, tail: work } }
     while (work !== null) {
         const { first: value, tail } = work
         work = /** @type {typeof work} */ (tail)
         if (!(value instanceof Array)) { continue }
         if (value[0] === 'ref' && value[1] === definition[1]) { return true }
-        for (const operand of certainOperands(value).toReversed()) { work = { first: operand, tail: work } }
+        for (const operand of certainOperands(value, definition[1]).toReversed()) { work = { first: operand, tail: work } }
     }
     return false
 }
