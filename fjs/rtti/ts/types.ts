@@ -831,7 +831,7 @@ type _phantomAbsentOnlyArray = Assert<Check<
 
 // ── `TupleTs`'s split, mechanism by mechanism ───────────────────────────────
 //
-// These were `./proof.f.mjs`'s `tupleTs`, a function body of nothing but
+// These were `./proof.f.js`'s `tupleTs`, a function body of nothing but
 // typedefs — so none of them bound to a statement and all nine were green
 // whatever they claimed (`../../AGENTS.md` §1.4). The schemas stay spelled as
 // types for the reason that file already gave: these are type-level facts,

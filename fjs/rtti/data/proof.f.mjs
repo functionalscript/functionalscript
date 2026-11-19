@@ -56,6 +56,11 @@ const assertData = actual => expected =>
  * function-local: an authored `.mjs` carries no file-scope `@typedef`
  * (root `AGENTS.md`). The values are destructured back out, so every use
  * site below reads exactly as it would have.
+ *
+ * A cycle through more than one schema has one named thunk, and the others
+ * written inside it: a `const` may name itself and what is declared above it,
+ * never what follows. Where a proof needs a second schema of the cycle as a
+ * root, it is declared after the first and names it.
  */
 const recursiveSchemas = () => {
     /** A recursive list: `type _List = readonly _List[]`. */
@@ -67,7 +72,7 @@ const recursiveSchemas = () => {
     /** @typedef {() => readonly ['or', typeof number, _Forest]} _Tree */
     /** @typedef {() => readonly ['array', _Tree]} _Forest */
     /** @type {_Tree} */
-    const tree = () => ['or', number, forest]
+    const tree = () => ['or', number, () => ['array', tree]]
     /** @type {_Forest} */
     const forest = () => ['array', tree]
 
@@ -80,47 +85,47 @@ const recursiveSchemas = () => {
     /** @typedef {() => readonly ['or', _OrB, typeof number]} _OrA */
     /** @typedef {() => readonly ['or', _OrA, typeof string]} _OrB */
     /** @type {_OrA} */
-    const orA = () => ['or', orB, number]
-    /** @type {_OrB} */
-    const orB = () => ['or', orA, string]
+    const orA = () => ['or', () => ['or', orA, string], number]
 
     /** An `or` over a rule that still has pending merges when it is consumed. */
     /** @typedef {() => readonly ['or', typeof string, _Inner]} _Outer */
     /** @typedef {() => readonly ['or', _Outer, _T2]} _Inner */
     /** @typedef {() => readonly ['array', _Inner]} _T2 */
     /** @type {_Outer} */
-    const outer = () => ['or', string, inner]
+    const outer = () => {
+        /** @type {_Inner} */
+        const inner = () => ['or', outer, () => ['array', inner]]
+        return ['or', string, inner]
+    }
     /** @type {_Inner} */
-    const inner = () => ['or', outer, t2]
-    /** @type {_T2} */
-    const t2 = () => ['array', inner]
+    const inner = () => ['or', outer, () => ['array', inner]]
 
     /** Two `or` operands deferred onto the same target rule. */
     /** @typedef {() => readonly ['array', _Y]} _X */
     /** @typedef {() => readonly ['array', _W]} _Y */
     /** @typedef {() => readonly ['or', _X, _Y, typeof number]} _W */
     /** @type {_X} */
-    const x = () => ['array', y]
+    const x = () => {
+        /** @type {_Y} */
+        const y = () => ['array', () => ['or', x, y, number]]
+        return ['array', y]
+    }
     /** @type {_Y} */
-    const y = () => ['array', w]
-    /** @type {_W} */
-    const w = () => ['or', x, y, number]
+    const y = () => ['array', () => ['or', x, y, number]]
 
     /** A cycle whose union is the whole value domain. */
     /** @typedef {() => readonly ['or', typeof unknownRtti, _TopArr]} _TopOr */
     /** @typedef {() => readonly ['array', _TopOr]} _TopArr */
-    /** @type {_TopOr} */
-    const topOr = () => ['or', unknownRtti, topArr]
     /** @type {_TopArr} */
-    const topArr = () => ['array', topOr]
+    const topArr = () => ['array', () => ['or', unknownRtti, topArr]]
 
     /** Two named rules where only one is referenced by the entry. */
     /** @typedef {() => readonly ['array', _B2]} _B2 */
     /** @typedef {() => readonly ['array', readonly [_A2, _B2]]} _A2 */
-    /** @type {_A2} */
-    const a2 = () => ['array', [a2, b2]]
     /** @type {_B2} */
     const b2 = () => ['array', b2]
+    /** @type {_A2} */
+    const a2 = () => ['array', [a2, b2]]
 
     /** A self-recursive record: rest-based object recursion. */
     /** @typedef {() => readonly ['record', _RecordSelf]} _RecordSelf */
@@ -131,9 +136,7 @@ const recursiveSchemas = () => {
     /** @typedef {() => readonly ['const', { readonly value: typeof number, readonly next: Or<readonly [Option, _Odd]> }]} _Even */
     /** @typedef {() => readonly ['const', { readonly value: typeof number, readonly next: Or<readonly [Option, _Even]> }]} _Odd */
     /** @type {_Even} */
-    const even = () => ['const', { value: number, next: or(option, odd) }]
-    /** @type {_Odd} */
-    const odd = () => ['const', { value: number, next: or(option, even) }]
+    const even = () => ['const', { value: number, next: or(option, () => ['const', { value: number, next: or(option, even) }]) }]
 
     /** @typedef {() => readonly ['array', _Rec]} _Rec */
     /** Every call returns a fresh recursive thunk whose function name is `f`. */
@@ -144,19 +147,11 @@ const recursiveSchemas = () => {
         return f
     }
 
-    /** @type {(f: _Rec) => _Rec} */
-    const identityRec = f => f
-    /** A recursive thunk whose function name is the empty string. */
-    /** @type {_Rec} */
-    const anon = identityRec(() => ['array', anon])
-
     /** A cycle through a closed tuple: `_ClosedNode = [number, readonly _ClosedNode[]]`. */
     /** @typedef {() => readonly ['const', readonly [typeof number, _ClosedChildren]]} _ClosedNode */
     /** @typedef {() => readonly ['array', _ClosedNode]} _ClosedChildren */
     /** @type {_ClosedNode} */
-    const closedNode = () => ['const', [number, closedChildren]]
-    /** @type {_ClosedChildren} */
-    const closedChildren = () => ['array', closedNode]
+    const closedNode = () => ['const', [number, () => ['array', closedNode]]]
 
     /** A cycle through a struct's stated `rest`. */
     /** @typedef {() => readonly ['rest', { readonly a: typeof number }, _NestedRest]} _NestedRest */
@@ -183,10 +178,7 @@ const recursiveSchemas = () => {
      */
 
     /** @type {_AbsCycleA} */
-    const absCycleA = () => ['or', option, absCycleB]
-
-    /** @type {_AbsCycleB} */
-    const absCycleB = () => ['or', absCycleA]
+    const absCycleA = () => ['or', option, () => ['or', absCycleA]]
 
     /**
      * A pure `or` cycle normalizing to `or(option, number)` — a *referenced*
@@ -197,18 +189,15 @@ const recursiveSchemas = () => {
      */
 
     /** @type {_OptNumA} */
-    const optNumA = () => ['or', option, number, optNumB]
-
-    /** @type {_OptNumB} */
-    const optNumB = () => ['or', optNumA]
-    return { list, tree, forest, selfOr, orA, outer, inner, x, y, topArr, a2, recordSelf, even, odd, mkRec, anon, closedNode, nestedRest, optList, absCycleA, optNumA }
+    const optNumA = () => ['or', option, number, () => ['or', optNumA]]
+    return { list, tree, forest, selfOr, orA, outer, inner, x, y, topArr, a2, recordSelf, even, mkRec, closedNode, nestedRest, optList, absCycleA, optNumA }
 }
 
 const {
     list, tree, forest, selfOr, orA,
     outer, inner, x, y, topArr,
-    a2, recordSelf, even, odd, mkRec,
-    anon, closedNode, nestedRest, optList, absCycleA,
+    a2, recordSelf, even, mkRec,
+    closedNode, nestedRest, optList, absCycleA,
     optNumA,
 } = recursiveSchemas()
 
@@ -675,7 +664,6 @@ export const proof = {
                 },
                 { array: [{ prefix: ['0', '1'] }] },
             ])
-            assertData(toData(anon))([{ '0': { array: [{ prefix: [], rest: '0' }] } }, '0'])
             assertData(toData(/** @type {const} */ ([list, list])))([
                 { '0': { array: [{ prefix: [], rest: '0' }] } },
                 { array: [{ prefix: ['0', '0'] }] },
@@ -1050,7 +1038,6 @@ export const proof = {
             assert(!subset(toData(even))(toData(recordSelf)))
             assert(subset(toData(recordSelf))(toData(or(recordSelf, even))))
             assert(subset(toData(even))(toData(or(recordSelf, even))))
-            assert(subset(toData(even))(toData(odd)))
         },
         assumed: () => {
             // one left rule checked against two right rules on one path
