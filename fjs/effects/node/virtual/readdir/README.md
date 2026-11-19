@@ -30,7 +30,7 @@ It neither changes link traversal nor merges names. The separate virtual
 [filename-identity issue](../todo/surrogate-path-identity.md) and
 [filename-length issue](../todo/no-name-length-limit.md) remain out of scope.
 
-`proof.f.mjs` includes deliberately shuffled input, recursive component-prefix
+`proof.f.js` includes deliberately shuffled input, recursive component-prefix
 and Unicode cases, read-root forms, and entry-preservation checks. `proof.mjs`
 compares real Node and virtual effects on the same portable tree on every OS.
 A separate POSIX-only fixture covers literal backslashes alongside actual nested

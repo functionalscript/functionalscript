@@ -13,7 +13,7 @@
 export type Nominal<N extends string, R extends string, B> =
     symbol & { readonly[k in N]: readonly [R, B] }
 
-// Brand carriers for the comparison experiments in `proof.f.mjs`. They live
+// Brand carriers for the comparison experiments in `proof.f.js`. They live
 // here because `declare const` / `unique symbol` have no JavaScript form; the
 // proof imports the two types below and keeps the expressions that demonstrate
 // what TypeScript does or does not reject. `_`-prefixed: private by contract.

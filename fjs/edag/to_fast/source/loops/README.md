@@ -228,11 +228,11 @@ duplicate calls written in source do not establish the same graph-sharing case.
 
 ## Evidence
 
-The [fallback boundary proofs](fallback.proof.f.mjs) share
+The [fallback boundary proofs](fallback.proof.f.js) share
 [fixture constructors](fixtures.f.js) with native public-source readback. They
 cover explicit backedge refusal and retained one-pass self behavior.
 
-The [source-loop proofs](proof.f.mjs) retain exact first-parse graph/text checks,
+The [source-loop proofs](proof.f.js) retain exact first-parse graph/text checks,
 source exits, nested and 18-state loops, required failures, rest and capture
 lifetimes. `lazyTerminalPrefixesRetainTheirInvocationLoops` and the
 [shared-continuation proofs](./shared_continuations.proof.f.js), including

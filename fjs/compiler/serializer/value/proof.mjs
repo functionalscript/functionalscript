@@ -1,7 +1,7 @@
 /**
  * Compile complete generated modules at the JavaScript host boundary. Module
  * loading and ordinary callable execution are effects that FunctionalScript
- * proofs cannot perform; the sibling proof.f.mjs checks the generated text.
+ * proofs cannot perform; the sibling proof.f.js checks the generated text.
  * Inputs here are immutable EDAG values, including real interpreter output.
  *
  * @import { EdagValue, Function as FunctionValue } from '../../../edag/value/types.ts'

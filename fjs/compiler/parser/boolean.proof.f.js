@@ -1,6 +1,6 @@
 /**
  * Boolean conversion syntax, reserved names and operand admission, split from
- * `proof.f.mjs` so the website can read each proof within its whole-file limit.
+ * `proof.f.js` so the website can read each proof within its whole-file limit.
  *
  * @import { Exp } from '../../edag/types.ts'
  */
