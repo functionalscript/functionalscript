@@ -18,7 +18,8 @@ pub fn module<A: IStaticFunction>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let _b19: Any<A> = (static_read(&runtime, "Object.values"))?;
     let _b21: Any<A> = (static_read(&runtime, "Object.values"))?;
     let _b29: Any<A> = A::static_function(|_self, _args| { static_read(&A::frame(_self)[0], "Object.values") }, 0, [runtime.clone()].to_array(), Some("()=>Object.values")).to_any();
-    let _b17: Any<A> = (Any::dot(_b12.clone(), string_any("map")).end_call(&runtime, || Ok([A::static_function(|_self, _args| { Any::call(A::frame(_self)[0].clone(), [_args.argument(0)].to_array().to_any()) }, 1, [_b0.clone(), runtime.clone()].to_array(), Some("($1)=>$0($1)")).to_any()].to_array().to_any())))?;
+    let _b16: Any<A> = A::static_function(|_self, _args| { Any::call(A::frame(_self)[0].clone(), [_args.argument(0)].to_array().to_any()) }, 1, [_b0.clone(), runtime.clone()].to_array(), Some("($1)=>$0($1)")).to_any();
+    let _b17: Any<A> = (Any::dot(_b12.clone(), string_any("map")).end_call(&runtime, || Ok([_b16.clone()].to_array().to_any())))?;
     let _b18: Any<A> = (Any::dot(_b12.clone(), string_any("map")).end_call(&runtime, || Ok([_b0.clone()].to_array().to_any())))?;
     let _b20: Any<A> = (Any::call(_b19.clone(), [_b7.clone()].to_array().to_any()))?;
     let _b22: Any<A> = (Any::option_call(_b21.clone(), || Ok([_b7.clone()].to_array().to_any())).end())?;

@@ -15,9 +15,8 @@ pub fn module<A: IStaticFunction>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         let _b15: Any<A> = (Any::dot(_b14.clone(), f64_any(0x0000000000000000)).end())?;
         let _b16: Any<A> = (Any::dot(_b14.clone(), f64_any(0x3ff0000000000000)).end())?;
         let _b19: Any<A> = (spread_array([spread_item((Any::call(Function::new(_self.clone()).to_any(), [(_args.argument(0) - _b12.clone())?, _b16.clone()].to_array().to_any()))?)?]))?;
-        let _b20: Any<A> = (Any::dot(_b19.clone(), f64_any(0x0000000000000000)).end())?;
-        Ok([(spread_array([spread_item(_b15.clone())?, spread_item(_b20.clone())?]))?, (Any::dot(_b19.clone(), f64_any(0x3ff0000000000000)).end())?].to_array().to_any())
-    } }, 2, [_b3.clone(), runtime.clone()].to_array(), Some("(function $1($2,$3){return $2===1?[[$3],$0($3)]:(()=>{const $4=$2>>1;const $5=[...$1($4,$3)];const $6=$5[0];const $7=$5[1];const $8=[...$1($2-$4,$7)];const $9=$8[0];return [[...$6,...$9],$8[1]];})();})")).to_any();
+        Ok([(spread_array([spread_item(_b15.clone())?, spread_item((Any::dot(_b19.clone(), f64_any(0x0000000000000000)).end())?)?]))?, (Any::dot(_b19.clone(), f64_any(0x3ff0000000000000)).end())?].to_array().to_any())
+    } }, 2, [_b3.clone(), runtime.clone()].to_array(), Some("(function $1($2,$3){return $2===1?[[$3],$0($3)]:(()=>{const $4=$2>>1;const $5=[...$1($4,$3)];const $6=$5[0];const $7=$5[1];const $8=[...$1($2-$4,$7)];return [[...$6,...$8[0]],$8[1]];})();})")).to_any();
     let _b55: Any<A> = A::static_function(|_self, _args| {
         let _b50: Any<A> = A::static_function(|_self, _args| {
             let mut _b23294: Any<A> = _args.argument(0);
