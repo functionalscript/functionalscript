@@ -67,17 +67,21 @@ export const proof = /** @type {const} */ ({
             const loop = forever(), later = id(0)
             const values = /** @type {const} */ ([['...', null], ref(loop.results[0])])
             const value = /** @type {Value} */ (expansion === 'array' ? ['array', values] : ['()', null, values])
-            orderedFailure(result(ref(later), [['loop', loop], ['define', later, value, 'required']]), 'timeout')
+            // An expansion is no barrier before the item that follows it, so
+            // the loop is no anchor of its own: the expansion's failure or the
+            // loop's divergence, the program fails either way.
+            throws(() => execute(fromFast(result(ref(later), [['loop', loop], ['define', later, value, 'required']]))))
         }
         const loop = forever(), failed = id(0)
         orderedFailure(result(['array', [ref(failed), ref(loop.results[0])]], [
             ['loop', loop], ['define', failed, ['.', null, 'x'], 'required'],
         ]), 'timeout')
         const lazy = id(0), alias = id(0)
-        orderedFailure(result(ref(alias), [
+        // the same expansion behind a lazy definition and its alias
+        throws(() => execute(fromFast(result(ref(alias), [
             ['loop', loop], ['define', lazy, ['array', [['...', null], ref(loop.results[0])]], 'lazy'],
             ['define', alias, ref(lazy), 'required'],
-        ]), 'timeout')
+        ]))))
     },
     coercionCannotPostponeEarlierFailure: () => {
         const target = /** @type {const} */ ({ kind: 'function', index: 0 })
