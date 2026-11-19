@@ -5,7 +5,7 @@
  * rethrowing — `try`/`catch` that FunctionalScript cannot express.
  *
  * Prefer `node --test` for this file
- * ([fjs/AGENTS.md §1.6](../../../../AGENTS.md#16-use-host-proofs-only-for-documented-host-contracts)).
+ * ([fjs/AGENTS.md §1.6](../../../../AGENTS.md#16-a-host-proof-is-for-an-effect-and-for-nothing-else)).
  */
 
 import { assert, assertEq } from '../../../asserts/module.f.js'

@@ -4,7 +4,7 @@ This repository is a monorepo with two code bases:
 
 | Directory    | Language                                | Notes                                       |
 | ------------ | --------------------------------------- | ------------------------------------------- |
-| `fjs/`       | FunctionalScript (`.f.mjs`, `.f.js`) / TypeScript (`types.ts`) | The language, its standard modules, and the `fjs` CLI |
+| `fjs/`       | FunctionalScript (`.f.js`) / TypeScript (`types.ts`) | The language, its standard modules, and the `fjs` CLI |
 | `nanvm/lib/` | Rust                                    | NaNVM, the native FunctionalScript VM       |
 
 Issues live in `todo/` directories, **not** on GitHub. Check them for existing
@@ -197,30 +197,37 @@ keep untrusted review code sandboxed.
 
 ## 3. FunctionalScript and TypeScript (`fjs/`)
 
-Business logic under `fjs/` belongs in FunctionalScript: write it in `.f.mjs`,
-or `.f.js` once the current compiler accepts it. Use plain `.mjs` only where code
-must perform effects or depend on host JavaScript behavior; effect
-implementations, platform adapters, runners, test harnesses, and host-specific
-proofs are examples, not a closed list of exceptions. Keep such `.mjs` files
-thin: isolate the impure or host-specific boundary there and move business logic
-into FunctionalScript. Existing `.mjs` files that violate this rule are
-migration debt, not precedent: find or file a co-located `todo/` to extract the
-business logic as soon as possible.
+Business logic under `fjs/` belongs in FunctionalScript: write it in `.f.js`.
+Use plain `.mjs` only where code must perform effects or depend on host
+JavaScript behavior; effect implementations, platform adapters, runners and
+test harnesses are examples, not a closed list of exceptions. Keep such `.mjs`
+files thin: isolate the impure or host-specific boundary there and move
+business logic into FunctionalScript. Existing `.mjs` files that violate this
+rule are migration debt, not precedent: find or file a co-located `todo/` to
+extract the business logic as soon as possible.
 
-**Name a module by what the compiler accepts.** A module the current
-FunctionalScript compiler accepts whole is `.f.js`, never `.f.mjs`: write it as
-`.f.js` from the start when it compiles, and `git mv` an existing `.f.mjs` to
-`.f.js` in the same pull request that makes it compile — the change that removes
-the last construct the compiler refused, or the compiler change that starts
-accepting it. Update its importers, runtime and type references in that pull
-request, and run `npm start compile` from the repository root to confirm. A
-proof follows the same rule, on its own: `proof.f.js` once the compiler accepts
-the proof, `proof.f.mjs` until then
-([fjs/AGENTS.md §1.2](./fjs/AGENTS.md#12-proof-coverage-is-mandatory)).
-Do not leave a compilable module as `.f.mjs` for a later pull request.
+**`.f.mjs` is banned.** Authored FunctionalScript is `.f.js`: a module, a
+proof or a demo that the compiler of the same revision accepts whole. No
+`.f.mjs` file exists in the repository and none may be added, as a new file
+or by renaming one back. `npm start compile` from the repository root holds
+every `.f.js` to that. Where the compiler refuses what you wrote, rewrite it
+until it is accepted ([CONVERTING.md](./doc/CONVERTING.md)); where the
+language lacks what the task needs, that is a `todo/` proposal for the
+language ([DESIGN.md §12](./doc/DESIGN.md#12-preserve-harmless-javascript-conventions)),
+never a file under another name.
 
-Every new `.f.mjs` or `.f.js` module ships a co-located proof, `proof.f.js` or
-`proof.f.mjs`, with
+**A host proof is for an effect, and for nothing else.** A `proof.mjs` proves
+code that performs effects: its sibling `module.mjs`, or an effect program
+observed through real files, sockets or a DOM. It is not where a case goes
+because the compiler refused it in `proof.f.js`. A host built-in used as the
+reference, a method read as a value, a counter a closure mutates, a value no
+FunctionalScript expression builds: none of these is an effect, and a case
+that needs one is rewritten in FunctionalScript or removed
+([fjs/AGENTS.md §1.6](./fjs/AGENTS.md#16-a-host-proof-is-for-an-effect-and-for-nothing-else)).
+Existing `proof.mjs` files that prove no effect are migration debt, not
+precedent ([host proofs for effects only](./todo/host-proofs-for-effects-only.md)).
+
+Every new `.f.js` module ships a co-located `proof.f.js`, with
 **100% proof coverage** — every export called, every line executed, every branch
 taken.
 Values are immutable (no in-place mutation, no `.push`/`Map#set`/index

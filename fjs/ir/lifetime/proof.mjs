@@ -7,7 +7,7 @@
  * cells that its imports count.
  *
  * Prefer `node --test` for this file
- * ([fjs/AGENTS.md §1.6](../../AGENTS.md#16-use-host-proofs-only-for-documented-host-contracts)).
+ * ([fjs/AGENTS.md §1.6](../../AGENTS.md#16-a-host-proof-is-for-an-effect-and-for-nothing-else)).
  *
  * @import { Checked, Module, Param, Term, Type } from '../types.ts'
  * @import { StringMap } from '../../types/object/types.ts'

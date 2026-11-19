@@ -427,9 +427,9 @@ FunctionalScript compiler.
 | Extension | Meaning |
 |---|---|
 | `.f.ts` | Authored FunctionalScript-intent TypeScript implementation/proof source. **No longer used**: stage 1 removed the last one, and new source must not use this extension. It appears below only to describe that completed migration. |
-| `.f.mjs` | Authored FunctionalScript-intent ESM JavaScript with JSDoc types. It may use FunctionalScript features the current parser/compiler does not support yet. |
-| `.f.js` | Authored FunctionalScript that the parser/compiler in the same revision accepts: the stage-2 compatibility marker ([below](#stage-2-mark-compiler-compatible-functionalscript)). A proof is named by the same rule, on its own: `proof.f.js` once the compiler accepts the proof whole, `proof.f.mjs` while it uses a construct the compiler refuses — its assertion calls are call statements the compiler reads ([spec: call statements](../../spec/functions/call-statements/README.md)); [`fjs/asserts`](../asserts/module.f.js) itself is one. Every repository module the compiler accepts whole is one, [`fjs/js/prototype`](../js/prototype/module.f.js) and [`fjs/types/range`](../types/range/module.f.js) among them, and none of them imports an `.f.mjs`; the packed-package check in the `package` CI job imports one from a clean consumer of the packed package ([`fjs/ci/package`](../ci/package/module.f.js)). No build or packaging step produces one: stage 1's TypeScript runtime emission did, and that pass is gone ([#1520](https://github.com/functionalscript/functionalscript/pull/1520)). `fjs compile <input> <output>.f.js` does still write one, to a path the caller names — that is the compiler's output for a user, not repository source. `fjs compile` with no arguments checks every authored one against this compiler, and CI runs it ([spec: checking every `.f.js`](../../spec/command-line/checking.md)). |
-| `types.ts` | Authored TypeScript source for a type-level API. It may coexist with `.f.mjs` or later `.f.js` and holds no runtime implementation. |
+| `.f.mjs` | Authored FunctionalScript-intent ESM JavaScript the compiler did not yet accept. **Banned**: stage 2 renamed or removed the last one, and no source may use this extension ([AGENTS.md §3](../../AGENTS.md#3-functionalscript-and-typescript-fjs)). It appears below only to describe that completed migration. |
+| `.f.js` | Authored FunctionalScript that the parser/compiler in the same revision accepts: the stage-2 compatibility marker ([below](#stage-2-mark-compiler-compatible-functionalscript)). A proof is one too, `proof.f.js`, which the compiler accepts whole — its assertion calls are call statements the compiler reads ([spec: call statements](../../spec/functions/call-statements/README.md)); [`fjs/asserts`](../asserts/module.f.js) itself is one. Every authored FunctionalScript module and proof in the repository is one, [`fjs/js/prototype`](../js/prototype/module.f.js) and [`fjs/types/range`](../types/range/module.f.js) among them; the packed-package check in the `package` CI job imports one from a clean consumer of the packed package ([`fjs/ci/package`](../ci/package/module.f.js)). No build or packaging step produces one: stage 1's TypeScript runtime emission did, and that pass is gone ([#1520](https://github.com/functionalscript/functionalscript/pull/1520)). `fjs compile <input> <output>.f.js` does still write one, to a path the caller names — that is the compiler's output for a user, not repository source. `fjs compile` with no arguments checks every authored one against this compiler, and CI runs it ([spec: checking every `.f.js`](../../spec/command-line/checking.md)). |
+| `types.ts` | Authored TypeScript source for a type-level API. It may coexist with `.f.js` and holds no runtime implementation. |
 | `.d.ts`, `.d.mts` | Generated TypeScript declarations. |
 
 The migration is deliberately split into two implementation stages, both
@@ -442,7 +442,7 @@ and its issue deleted. The package conventions are documented in
 **Stage 1 source conversion is complete** — no authored implementation or proof
 `.f.ts` remains, so every rename described in this section has already happened.
 It is kept as the record of what the extensions mean and why; write new source as
-`.f.mjs` plus, where a type-level API is separately useful, `types.ts`.
+`.f.js` plus, where a type-level API is separately useful, `types.ts`.
 
 Two prerequisites were written to gate the first real conversion. Neither was
 met as written; both were de-scoped, and what replaced them is the record:
@@ -656,7 +656,7 @@ renames followed — every module the compiler accepted whole,
 `fjs/js/prototype` and `fjs/types/range` among them. What keeps them honest is
 `fjs compile` with no arguments, which CI runs.
 
-Compiler-supported dependency-closed groups migrate incrementally:
+Compiler-supported dependency-closed groups migrated incrementally:
 
 ```text
 module.f.mjs -> module.f.js
@@ -666,9 +666,13 @@ An authored `.f.js` is a compatibility commitment: the FunctionalScript parser
 and compiler in the same repository revision must accept the complete module,
 and its runtime and declaration dependencies must satisfy the compiler migration
 rules. `fjs compile` with no arguments is what holds every `.f.js` to it, and CI
-runs that check once per revision. Unsupported modules remain `.f.mjs` until
-the required compiler features land. A sibling authored `types.ts` remains
-unchanged across this rename. The rewrites that bring a module to what the
+runs that check once per revision. **Stage 2 is complete as well**: every
+module and proof has made this rename or been removed, no `.f.mjs` is left,
+and the extension is banned
+([AGENTS.md §3](../../AGENTS.md#3-functionalscript-and-typescript-fjs)). Code
+the compiler refuses does not wait under that name for a feature to land: it
+is rewritten, or the feature is proposed. A sibling authored `types.ts` remained
+unchanged across the rename. The rewrites that bring a module to what the
 compiler accepts, one per construct, are
 [`doc/CONVERTING.md`](../../doc/CONVERTING.md).
 
@@ -681,7 +685,7 @@ Decided with the retirement of the hand-written scanner, and not to reopen
 without a reason. The grammar's tokens,
 [`fjs/ebnf/lib/js`](../ebnf/lib/js/module.f.js) read by
 [`fjs/js/tokenizer`](../js/tokenizer/module.f.js), grow toward the whole
-JavaScript lexical surface, because everything that reads a `.f.mjs` — this
+JavaScript lexical surface, because everything that reads a `.f.js` — this
 compiler, the website's highlighter, a linter — needs the same tokens, and a
 token that is recognised is not thereby accepted: the compiler's fold and
 grammar refuse what the language does not admit, at the token, as they refuse

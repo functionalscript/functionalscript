@@ -1,8 +1,8 @@
 # Converting JavaScript to FunctionalScript
 
-How to take a module written in JavaScript — an authored `.f.mjs`, or any
-`.mjs` whose logic belongs in the language — and bring it to what the compiler
-accepts, so it can be renamed `.f.js`
+How to take a module written in JavaScript — any `.mjs` whose logic belongs
+in the language — and bring it to what the compiler accepts, so it can be
+`.f.js`
 ([`fjs/compiler/README.md`](../fjs/compiler/README.md#stage-2-mark-compiler-compatible-functionalscript)).
 The [specification](../spec/README.md) says what the compiler accepts; this
 document says what to write instead of what it refuses, one rule per
@@ -51,10 +51,11 @@ Three things hold for every rule:
   its own: `proof.f.js` once the compiler accepts the proof whole
   ([`fjs/AGENTS.md`](../fjs/AGENTS.md#12-proof-coverage-is-mandatory)).
 
-A construct with no rule here has no admitted rewrite yet: the module keeps
-`.f.mjs` until the [roadmap](../spec/todo/README.md) lands the feature, and
-the standing measurement of what holds each remaining module is in
-[`todo/fjs-nanvm-integration.md`](../todo/fjs-nanvm-integration.md#current-leaf-migration-fixed-point).
+A construct with no rule here has no admitted rewrite yet. The code does not
+wait under another name: `.f.mjs` is banned
+([`AGENTS.md` §3](../AGENTS.md#3-functionalscript-and-typescript-fjs)). Write
+it another way, or propose the feature on the
+[roadmap](../spec/todo/README.md).
 
 Compound assignments to mutable identifiers need no rewrite: `n >>= 1n`,
 `count += 1`, `value &&= next`, `value ||= fallback` and `value ??= fallback`

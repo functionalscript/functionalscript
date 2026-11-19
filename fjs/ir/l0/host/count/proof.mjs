@@ -6,7 +6,7 @@
  * instantiate a module nor hold the cells that the imports count.
  *
  * Prefer `node --test` for this file
- * ([fjs/AGENTS.md §1.6](../../../../AGENTS.md#16-use-host-proofs-only-for-documented-host-contracts)).
+ * ([fjs/AGENTS.md §1.6](../../../../AGENTS.md#16-a-host-proof-is-for-an-effect-and-for-nothing-else)).
  *
  * @import { Param, Term, Type } from '../../../types.ts'
  * @import { Counting } from '../types.ts'

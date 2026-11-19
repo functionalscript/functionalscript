@@ -246,14 +246,13 @@ consumers — for example after changing `prepack`, `files`, or anything that
 affects emitted declarations — follow
 [`fjs/ci/packed-consumer-validation.md`](./fjs/ci/packed-consumer-validation.md).
 
-New `.f.mjs` and `.f.js` modules need a co-located proof with 100% proof
+New `.f.js` modules need a co-located `proof.f.js` with 100% proof
 coverage — see [fjs/AGENTS.md §1](./fjs/AGENTS.md#1-testing-and-proof-coverage).
 Authored FunctionalScript is JavaScript with JSDoc: a module is
 accompanied by a proof, and a separately useful type-level API may live
-in a sibling `types.ts`. Compiler support is not required of a `.f.mjs`;
-a module the current compiler accepts whole is renamed `module.f.js` in the same
-pull request, which promises it. A proof is named by the same rule, on its own:
-`proof.f.js` once the compiler accepts the proof, `proof.f.mjs` until then.
+in a sibling `types.ts`. Both are `.f.js`, which the current compiler accepts
+whole; `.f.mjs` is banned, and a host proof (`proof.mjs`) is for an effect
+alone ([AGENTS.md §3](./AGENTS.md#3-functionalscript-and-typescript-fjs)).
 
 `types.ts` and an optional sibling `private.ts` are the only authored
 TypeScript in the repository, and both are permanent rather than migration debt
@@ -324,7 +323,7 @@ are handwritten.
 
 - The prefix leaves the suffix alone (`gen.matrix.md`, `gen.methods.rs`), so
   every tool that picks files by suffix works unchanged. A generated
-  FunctionalScript module is `gen.{name}/module.f.mjs`, held to the same proof
+  FunctionalScript module is `gen.{name}/module.f.js`, held to the same proof
   coverage as any other.
 - A `gen.` name is never a Rust identifier: load a generated file or directory
   with one `#[path]`, as `nanvm/harness/src/lib.rs` does for
