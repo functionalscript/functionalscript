@@ -14,7 +14,7 @@ import { fromAnalysis, toFast } from '../../module.f.js'
 import { fromFast } from '../../../from_fast/module.f.js'
 import { identityAnalysis } from '../../../analysis/module.f.js'
 import { evaluate, failure } from '../../../from_fast/member_returns/proof.f.js'
-import { _tailFunction } from '../../tail_calls/proof.f.mjs'
+import { _tailFunction } from '../../tail_calls/proof.f.js'
 import { _sourceLoops } from './module.f.js'
 import { _valueReturnFunction as valueReturnFunction } from './fixtures.f.js'
 

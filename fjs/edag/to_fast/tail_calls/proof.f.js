@@ -13,6 +13,7 @@ import { fromFast } from '../../from_fast/module.f.js'
 import { prepareFunction } from '../../../js/ast/prepare/module.f.js'
 import { evaluate, failure, flat } from '../../from_fast/member_returns/proof.f.js'
 import { _id as id, _ref as ref, _result as result, _target as target, _body as body } from '../../from_fast/proof.f.js'
+import { generate } from '../../../types/array/module.f.js'
 
 /** @type {(index: number) => Exp} */
 const arg = index => ['arg', index]
@@ -400,7 +401,7 @@ export const proof = /** @type {const} */ ({
         assertEq(evaluate(['.', stable(zero), 'length']), 0)
         assertStructurallySame(run(zero, [3, 7, 8]), [0, 7, 8])
         const many = /** @type {Exp} */ (['=>', 16, [], ['?:', ['>', arg(0), 0],
-            recur([['-', arg(0), 1], ...Array.from({ length: 15 }, (_, index) => arg(index + 1)), ['...', ['rest']]]),
+            recur([['-', arg(0), 1], ...generate(15, index => arg(index + 1)), ['...', ['rest']]]),
             ['[]', [arg(15), ['rest']]]]])
         const normalized = _tailFunction(many)
         assert(loops(normalized))
@@ -410,7 +411,7 @@ export const proof = /** @type {const} */ ({
         assert(loop[0] === 'loop')
         assertEq(loop[1].parameters.length, 17)
         assertEq(evaluate(['.', stable(many), 'length']), 16)
-        assertStructurallySame(run(many, [3, ...Array.from({ length: 15 }, (_, index) => index + 1), 99]), [15, [99]])
+        assertStructurallySame(run(many, [3, ...generate(15, index => index + 1), 99]), [15, [99]])
     },
     restTailLoopsKeepRemainingSelfIdentityAndNonTailCalls: () => {
         const mixed = /** @type {Exp} */ (['=>', 1, [], ['?:', ['>', arg(0), 1],

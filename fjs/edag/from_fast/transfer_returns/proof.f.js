@@ -11,6 +11,7 @@ import { liftReturns } from '../../../js/ast/returns/module.f.js'
 import { toFast } from '../../to_fast/module.f.js'
 import { _id as id, _ref as ref, _result as result, _target as target, _body as body, _calledFunction as calledFunction, _collectingMemo as collectingMemo } from '../proof.f.js'
 import { escape, failed, mixed, evaluate, failure, flat } from '../member_returns/proof.f.js'
+import { generate } from '../../../types/array/module.f.js'
 
 /** Terminal fixtures never execute a normal continue. @type {(kind: 'break' | 'continue', values: readonly Value[]) => FastFunction} */
 const terminalTransfer = (kind, values) => {
@@ -28,7 +29,7 @@ export const proof = /** @type {const} */ ({
         for (const kind of /** @type {const} */ (['break', 'continue'])) {
             for (const position of /** @type {const} */ ([0, 1, 2])) {
                 const payload = /** @type {Value} */ (['array', [kind, position]])
-                const values = Array.from({ length: 3 }, (_, index) => index < position ? index
+                const values = generate(3, index => index < position ? index
                     : index === position ? escape(payload) : failed('skipped transfer payload'))
                 assertStructurallySame(evaluate(calledFunction(terminalTransfer(kind, values))), [kind, position])
             }
@@ -46,7 +47,7 @@ export const proof = /** @type {const} */ ({
     normalBreakResultArity: () => {
         const stop = id(0)
         for (const width of /** @type {const} */ ([0, 1, 3])) {
-            const outputs = Array.from({ length: width }, () => id(0))
+            const outputs = generate(width, () => id(0))
             const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
             const values = outputs.map((_, index) => index === 0 ? mixed(ref(stop), index + 1) : index + 1)
             const loop = /** @type {Loop} */ ({ target: loopTarget, parameters: [], initial: [], results: outputs,

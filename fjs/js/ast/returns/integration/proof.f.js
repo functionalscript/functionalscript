@@ -11,6 +11,8 @@ import { memo } from '../../../../edag/memo/module.f.js'
 import { toFast } from '../../../../edag/to_fast/module.f.js'
 import { evaluate as evaluateWithRuntime } from '../../../../edag/from_fast/member_returns/proof.f.js'
 import { _id as id, _ref as ref, _result as result, _target as target, _body as body, _calledFunction as calledFunction, _evaluate as evaluate, _collectingMemo as collectingMemo, _collectedMemo as collectedMemo } from '../../../../edag/from_fast/proof.f.js'
+import { generate } from '../../../../types/array/module.f.js'
+import { hasEntry, entry } from '../../../../types/object/entry/module.f.js'
 
 /** @type {(value: Value, parameters?: readonly BindingId[]) => FastFunction} */
 const requiredFunction = (value, parameters = []) => {
@@ -113,7 +115,7 @@ export const proof = /** @type {const} */ ({
         const stop = id(0), choice = id(0), allocation = id(0)
         for (const kind of /** @type {const} */ (['block', 'if'])) {
             for (const length of /** @type {const} */ ([0, 1, 3])) {
-                const bindings = Array.from({ length }, () => id(0))
+                const bindings = generate(length, () => id(0))
                 const returned = /** @type {Value} */ (['array', ['returned', ref(allocation)]])
                 const values = bindings.map((_, index) => index === length - 1
                     ? returningValue('if', ref(stop), [ref(allocation)], returned) : ref(allocation))
@@ -130,7 +132,7 @@ export const proof = /** @type {const} */ ({
                 for (const selected of /** @type {const} */ ([false, true])) {
                     const normal = evaluate(calledFunction(fn, [false, selected]))
                     assert(normal instanceof Array)
-                    assertStructurallySame(normal, Array.from({ length }, () => [4]))
+                    assertStructurallySame(normal, generate(length, () => [4]))
                     for (const value of normal) { assertEq(value, normal[0]) }
                     assertStructurallySame(evaluate(calledFunction(fn, [true, selected])), ['returned', [4]])
                 }
@@ -521,8 +523,8 @@ export const proof = /** @type {const} */ ({
         assertEq(object.a, value[3])
         assertEq(object.b, value[2])
         assertEq(object.c, value[3])
-        assert(Object.hasOwn(object, '__proto__'))
-        assertEq(object['__proto__'], value[2])
+        assert(hasEntry(object, '__proto__'))
+        assertEq(entry(object, '__proto__'), value[2])
         assertStructurallySame(Object.keys(object), ['1', '2', 'a', 'b', '__proto__', 'c'])
         assertStructurallySame(value[4].map(entry => {
             assert(entry instanceof Array)
@@ -537,7 +539,7 @@ export const proof = /** @type {const} */ ({
             ['object', [[':', ref(selected), returningValue('if', ref(stop), [ref(selected)], payload)], [':', 'alias', ref(selected)]]],
             ['object', [[':', 'first', ref(selected)], [':', returningValue('if', ref(stop), ['tail'], payload), ref(selected)]]],
         ])
-        for (const [index, initializer] of initializers.entries()) {
+        for (const [index, initializer] of initializers.map((initializer, index) => /** @type {const} */ ([index, initializer]))) {
             const fn = /** @type {FastFunction} */ ({
                 target, parameters: [stop], rest: null, self: null, captures: [],
                 body: body(['return', target, ['array', [ref(initialized), ref(selected), ref(caller), 'normal']]], [
@@ -551,8 +553,8 @@ export const proof = /** @type {const} */ ({
             assert(normal instanceof Array && normal[0] !== null && typeof normal[0] === 'object'
                 && normal[1] instanceof Array && normal[1][0] instanceof Array)
             const object = /** @type {Readonly<Record<string, unknown>>} */ (normal[0])
-            assertEq(object[index === 0 ? '4,4' : 'first'], normal[1])
-            assertEq(object[index === 0 ? 'alias' : 'tail'], normal[1])
+            assertEq(entry(object, index === 0 ? '4,4' : 'first'), normal[1])
+            assertEq(entry(object, index === 0 ? 'alias' : 'tail'), normal[1])
             assertEq(normal[1][0], normal[1][1])
             assertEq(normal[1][0][0], normal[2])
             assertEq(normal[3], 'normal')
@@ -659,7 +661,7 @@ export const proof = /** @type {const} */ ({
     arrayConstructionIdentityAndCallees: () => {
         const stop = id(0), allocation = id(0), output = id(0)
         for (const length of /** @type {const} */ ([0, 1, 3])) {
-            const elements = Array.from({ length }, (_, index) => index === length - 1
+            const elements = generate(length, index => index === length - 1
                 ? returningValue('if', ref(stop), [ref(allocation)], ref(allocation)) : ref(allocation))
             const initializer = length === 0 ? returningValue('if', ref(stop), [['array', []]], ref(allocation))
                 : /** @type {Value} */ (['array', elements])
@@ -735,7 +737,7 @@ export const proof = /** @type {const} */ ({
             target: loopTarget, parameters: [], initial: [], results: [loopOutput], body: body(['break', loopTarget, [ref(allocation)]]),
         })
         for (const length of /** @type {const} */ ([0, 1, 3])) {
-            const values = Array.from({ length }, (_, index) => index === length - 1
+            const values = generate(length, index => index === length - 1
                 ? returningValue('if', ref(stop), [ref(loopOutput)], ref(allocation)) : ref(loopOutput))
             const region = body(['yield', values], [
                 ['loop', loop], ['if', [], length === 0 ? ref(stop) : false, body(['return', target, ref(allocation)]), body(['yield', []])],
