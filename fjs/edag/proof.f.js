@@ -882,8 +882,114 @@ export const proof = {
             assertNoMatch(v(['xyz', 1, 2, 3]))
         },
     },
-    // The JS these nodes have to agree with, run on the host engine, is in
-    // `./chains_js.proof.f.mjs`.
+    // The JS these nodes have to agree with, run on the host engine — the
+    // `ownJs` pattern one level up: what the vocabulary denotes, not what the
+    // schema accepts. Every spelling here is one `chains` pins the shape of,
+    // and each is why that shape is what it is. `todo()` always throws, so it
+    // doubles as an evaluation probe: reaching it is observable without any
+    // mutation, and a case that returns instead proves the operand was
+    // skipped.
+    chainsJs: {
+        // Receiver: a property reference carries its base into the call as
+        // `this`, and parentheses around the reference do not break that —
+        // only detaching the value does (`./chains_js.proof.f.mjs`). It holds
+        // across an optional link too, which is why `(a?.b)(d)` is a `?.`
+        // node with a `|!()` continuation, `['?.', a, 'b', ['|!()', d]]`,
+        // rather than a `()` over a complete `['?.', a, 'b']`: the
+        // latter would produce an ordinary value and lose the receiver.
+        receiver: () => {
+            const a = [42]
+            assertEq(a.at(0), 42)
+            assertEq((a.at)(0), 42)
+            assertEq((a?.at)(0), 42) // ['?.', a, 'at', ['|!()', …]]
+            assertEq((a?.at)?.(0), 42) // ['?.', a, 'at', ['|?.()', …]]
+            assertEq(a.at?.(0), 42) // ['.', a, 'at', ['|?.()', …]]
+            assertEq(a?.at?.(0), 42) // ['?.', a, 'at', ['|?.()', …]]
+        },
+        // Short-circuit: a nullish link skips the rest of its chain, and
+        // grouping is what ends that chain — `u?.x.y` is `undefined`
+        // where `(u?.x).y` throws (`throw.groupedOptional`), one
+        // continuation against two nodes.
+        shortCircuit: () => {
+            /** @type {any} */
+            const u = undefined
+            assertEq(u?.x, undefined)
+            assertEq(u?.x.y, undefined) // ['?.', u, 'x', ['|.', 'y']]
+            assertEq(u?.at?.(0), undefined)
+            // The operands on the skipped branch are never evaluated: an
+            // optional property's index, and an optional call's arguments.
+            assertEq(u?.[Number(todo())], undefined)
+            assertEq(u?.(todo()), undefined)
+        },
+        // The quiet half of `throw.groupedOptional`: a group ends the chain,
+        // but when what follows is itself guarded the ending is unobservable.
+        // That is the parenthesis law's own escape clause, and the reason
+        // `null` is the right spelling of a bare `(a?.b)`.
+        grouping: () => {
+            /** @type {any} */
+            const u = undefined
+            assertEq((u?.x)?.y, undefined)
+            assertEq((u?.at)?.(0), undefined)
+        },
+        // The two spellings that differ *only* in whether the arguments ran —
+        // `a.b(...c)` throws at the access with `c` untouched, `(a?.b)(...c)`
+        // short-circuits, evaluates `c`, and throws at the call — cannot be
+        // pinned here, nor by the node either: both readings throw, and a
+        // `throw` case is pass/fail rather than payload-inspecting. What
+        // carries that order is the shape of `callProperty` in
+        // `./amnesia/module.f.js`; "Where the host engines disagree" in
+        // `./README.md` states the gap. Nor can `(u?.at)(0)` be pinned: both are
+        // `|!()` terms, JavaScriptCore (so `bun test`) carries the
+        // short-circuit through the parentheses and answers `undefined` where
+        // V8 throws, so asserting either answer would redden a runner. The
+        // node is unaffected — `['?.', u, 'at', ['|!()', …]]` means the
+        // throwing reading — and `optionRegion.throw.closeStepOnUndefined` in
+        // `./amnesia/proof.f.js` pins it by evaluating the node, which is
+        // the only oracle that works on every runner. See "Chains" in
+        // `./README.md`. `throw.groupedOptional` below pins the same boundary
+        // through a property access, where every engine agrees.
+        throw: {
+            // `(u?.x).y` — the parens ended the optional chain, so
+            // `.y` runs on `undefined` instead of being skipped.
+            groupedOptional: () => {
+                /** @type {any} */
+                const u = undefined
+                return (u?.x).y
+            },
+            // The mirror of `shortCircuit`'s last two: on a non-nullish
+            // input those same operands *are* evaluated.
+            evaluatedIndex: () => [42]?.[Number(todo())],
+            evaluatedArgument: () => [42].at?.(todo()),
+            // `(u?.(0))(1)` — the inner call already cleared the receiver, so
+            // the group's boundary carries nothing and every runner agrees.
+            // That is also why the grammar has no `|!()` in `optionLambda`:
+            // this is a plain `()` over a complete `?.()` node.
+            groupedOptionalCallOfCall: () => {
+                /** @type {any} */
+                const u = undefined
+                return (u?.(0))(1)
+            },
+            // Two shapes bun answers differently, so neither can be
+            // asserted. Both throw everywhere else; see "Chains" in
+            // `./README.md` for which is the engine and which is the
+            // transpiler, and
+            // `../../todo/blocked/bun-optional-chain-parentheses.md` for what
+            // unblocks them. The second must stay commented rather than merely
+            // fail: bun rejects it at parse, taking the file down.
+            //
+            // groupedOptionalCall: () => {
+            //     /** @type {any} */
+            //     const u = undefined
+            //     return (u?.at)(0)
+            // },
+            //
+            // groupedOptionalTag: () => {
+            //     /** @type {any} */
+            //     const u = undefined
+            //     return (u?.at)`tag`
+            // },
+        },
+    },
     // `f(...args)[k](obj.a)` in AST form — exercises the mutual recursion
     // through `exp` rather than any one node kind in isolation.
     nested: () => {
