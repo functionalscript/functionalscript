@@ -524,7 +524,7 @@ export const proof = {
     //
     // The plain call over an access is the *detached* receiver,
     // `(0, a.b)(c)` — parentheses alone keep it, which
-    // `chainsJs.receiver` in `fjs/edag/proof.f.mjs` pins against JavaScript
+    // `chainsJs.receiver` in `fjs/edag/chains_js.proof.f.mjs` pins against JavaScript
     // — so the comma operator is what writes one.
     call: () => {
         expectEdag(compile('const f = (...a) => 1; export default f();').edag, ['()', ['=>', 0, [], 1], []])

@@ -374,7 +374,7 @@ export const proof = {
             expect('const a = [1]; export default [(a), a];', "[\"{}\",[[\":\",\"default\",[\"[]\",[[\"[]\",[1]],[\"[]\",[1]]]]]]]")
             // and parentheses keep a property reference, as JavaScript's do
             // — `(a.at)(0) === 42` there, pinned by `chainsJs.receiver` in
-            // `fjs/edag/proof.f.mjs` — so a call on a grouped access is the
+            // `fjs/edag/chains_js.proof.f.mjs` — so a call on a grouped access is the
             // method call, the very node `o.b(1)` is and not a detached one
             const grouped = "[\"{}\",[[\":\",\"default\",[\".\",[\"{}\",[[\":\",\"b\",1]]],\"b\",[\"|()\",[1]]]]]]"
             expect('const o = { b: 1 }; export default (o.b)(1);', grouped)

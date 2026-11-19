@@ -256,10 +256,11 @@ two cannot drift. Every tuple in the schema is closed — none of them says
 `open`, which is what an rtti tuple needs to admit more than it declares — so
 the static tuples and the runtime ones agree exactly, an exact-length
 [TupleTs](../rtti/ts/types.ts) rendering over an exact-length set.
-[proof.f.mjs](proof.f.mjs) pins what the schema accepts and rejects, node
+[proof.f.js](proof.f.js) pins what the schema accepts and rejects, node
 kind by node kind — validation behavior, not execution semantics — with
-`comma` pinned by the compiler that emits it, `fjs/compiler/edag`. Its `ownJs` and
-`chainsJs` sections are the exception that proves the rule: they run the JS
+`comma` pinned by the compiler that emits it, `fjs/compiler/edag`. Its `ownJs`
+section and the `chainsJs` section of
+[chains_js.proof.f.mjs](chains_js.proof.f.mjs) are the exception that proves the rule: they run the JS
 whose behavior the nodes are built around, which is how those semantics were
 pinned before anything executed an EDAG. [amnesia](amnesia/README.md) now
 does — a tree-walking evaluator for testing the semantics, and deliberately
@@ -609,15 +610,16 @@ its item list: `f(a, b)` has `c = [a, b]`, and `f(...xs)` has
 | `a?.(...c).d` | `['?.()', a, c, ['\|.', 'd']]` |
 | `(a?.(...c))(...d)` | `['()', ['?.()', a, c], d]` |
 
-The `chains` section of [proof.f.mjs](proof.f.mjs) pins the shape of every
-spelling above, `chainsJs` next to it runs them as JS on the host engine, and
+The `chains` section of [proof.f.js](proof.f.js) pins the shape of every
+spelling above, `chainsJs` in [chains_js.proof.f.mjs](chains_js.proof.f.mjs)
+runs them as JS on the host engine, and
 [amnesia/proof.f.js](amnesia/proof.f.js) evaluates them as nodes.
 
 ### What cannot be written
 
 The uniqueness is structural: the duplicate families a flat array of steps
 admitted are not forbidden, they are unspellable, and the `unspellable`
-section of [proof.f.mjs](proof.f.mjs) is one case per family.
+section of [proof.f.js](proof.f.js) is one case per family.
 
 | family | why |
 |---|---|

@@ -5,7 +5,7 @@
  * under [`fjs/js/runtime`](../../../../js/runtime/module.f.js), or both
  * throw. The interpreter is the executor whose semantics NaNVM's are
  * checked against, so this checks the bodies against the semantics they
- * copy, where `../proof.f.mjs` checks them against JavaScript's.
+ * copy, where `../proof.f.js` checks them against JavaScript's.
  *
  * It is a host proof because it needs what FunctionalScript has not: it
  * builds each host value from its source with `Function`, and it catches
