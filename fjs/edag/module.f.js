@@ -901,7 +901,7 @@ export const isFunctionNode = node => node instanceof Array && (node[0] === '=>'
  * `length` or anything of a function — the key converted as
  * `Object.getOwnPropertyDescriptor` converts it, `0` and `"0"` naming one
  * entry, once a `null` or `undefined` receiver has failed (`entryJs` in
- * `./proof.f.mjs`). The compiler emits the node
+ * `./proof.f.js`). The compiler emits the node
  * for the helper written in source, and the writer spells it back as the
  * helper and no other way: the source has no other spelling of a key
  * computed at run time.

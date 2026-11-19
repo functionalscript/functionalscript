@@ -28,7 +28,7 @@ through; the one place the two differ is noted in it:
 | where | uses |
 | - | - |
 | `fjs/rtti/validate/proof.f.js` | 11 (12 expressions: one line carries two; since removed) |
-| `fjs/edag/proof.f.mjs` | 4 (since removed) |
+| `fjs/edag/proof.f.js` | 4 (since removed) |
 | `fjs/rtti/common/proof.f.js` | 3 |
 | `fjs/rtti/data/proof.f.js` | 3 (since removed, with its three hole literals) |
 | `fjs/types/range_set/proof.f.js` | 3 |

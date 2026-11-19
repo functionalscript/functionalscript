@@ -46,7 +46,7 @@ One root cause seen at two layers: the parenthesis ceases to end the chain, so
 what holds inside it leaks past.
 
 The cost is that no JavaScript oracle can pin `(u?.b)(...c)` on every supported
-runner. `chainsJs.throw` in [`fjs/edag/proof.f.mjs`](../../fjs/edag/proof.f.mjs)
+runner. `chainsJs.throw` in [`fjs/edag/chains_js.proof.f.mjs`](../../fjs/edag/chains_js.proof.f.mjs)
 carries two commented-out cases for it, and the tagged-template one must stay
 commented rather than merely fail, because a parse error takes the whole file
 down. Nothing about the specification is in doubt, and the EDAG is unaffected:
@@ -74,7 +74,7 @@ parse half, filed for the `new` sibling.
 - [ ] Find or file an upstream WebKit report for the engine half — #31812 is
       bun's parser, and nothing linked here covers JavaScriptCore's evaluation.
 - [ ] Once fixed: uncomment `chainsJs.throw.groupedOptionalCall` and
-      `groupedOptionalTag` in `fjs/edag/proof.f.mjs` and drop the commentary
+      `groupedOptionalTag` in `fjs/edag/proof.f.js` and drop the commentary
       that explains why they are out.
 - [ ] Once fixed: restore the commented escaping-call assertion in
       `optionalRegions` in

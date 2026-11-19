@@ -671,7 +671,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [x] Whenever optional chaining enters the source subset, lower chain boundaries per
       "Chains" in [`../../edag/README.md`](../../edag/README.md), with proofs over the
       spellings the `chains` section of
-      [`../../edag/proof.f.mjs`](../../edag/proof.f.mjs) pins — among them `a?.b.c`
+      [`../../edag/proof.f.js`](../../edag/proof.f.js) pins — among them `a?.b.c`
       against `(a?.b).c`, `a?.b(d)` against `(a?.b)(d)`, and `(a?.b.c)(d)` against
       `(a?.b).c(d)`. Done: the syntax reader folds the steps after a `?.` into the
       chain node and a group closes the region, `access.optional` in

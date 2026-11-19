@@ -137,7 +137,7 @@ the last thing in a function body compiles. Put any statement after it and the
 same line is TS2344.
 
 So a proof entry that *ends* with its typedefs checks nothing from there on.
-`fjs/edag/proof.f.mjs`'s `consistency` and `fjs/effects/proof.f.js`'s
+`fjs/edag/proof.f.js`'s `consistency` and `fjs/effects/proof.f.js`'s
 `signatures` were the worked cases, a body of nothing but typedefs each: all
 28 `Assert<Check<…>>` pins of the one and all eight `Assert<Equal<…>>` of the
 other were green whatever they claimed. Both entries are gone, and their
