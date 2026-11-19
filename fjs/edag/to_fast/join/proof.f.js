@@ -622,6 +622,27 @@ export const proof = /** @type {const} */ ({
         for (const block of [armsRebind, armsAfter]) {
             assertStructurallySame(assertOk(toData(assertOk(evaluate(block, condition, false)))), [0, 7])
         }
+        // An operand that can return from the function ends what is certain:
+        // a read after it is not met where the return is taken.
+        const owner = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const returning = /** @type {Value} */ (['if', ref(condition), { statements: [], exit: ['return', owner, 7] }, result(0)])
+        const transfers = /** @type {readonly Block[]} */ ([
+            result(['array', [returning, ref(cell)]], [['define', cell, fail('outer'), 'lazy'], ['define', other, selected(ref(condition), 0, ref(cell)), 'required']]),
+            result(['array', [['array', [returning, 1]], ref(cell)]], [['define', cell, fail('outer'), 'lazy'], ['define', other, selected(ref(condition), 0, ref(cell)), 'required']]),
+            // a selection whose test can leave: its arms are not reached where it does
+            result(['if', returning, result(ref(cell)), result(ref(cell))], [['define', cell, fail('outer'), 'lazy'], ['define', other, selected(ref(condition), 0, ref(cell)), 'required']]),
+        ])
+        for (const before of transfers) {
+            const after = _joinResults(before)
+            assertEq(after.statements[0], before.statements[0])
+            // the function the operand returns from, called where it does
+            for (const block of [before, after]) {
+                const fn = /** @type {FastFunction} */ ({ target: owner, parameters: [condition], rest: null, self: null, captures: [],
+                    body: { statements: block.statements, exit: ['return', owner, block.exit[0] === 'yield' ? block.exit[1][0] : undefined] } })
+                const called = /** @type {import('../../types.ts').Exp} */ (['()', fromFast(result(['function', fn])), [true]])
+                assertEq(assertOk(toData(assertOk(memo(assertOk(identityAnalysis(called)))({ args: [] })))), 7)
+            }
+        }
         // The path an optional call skips completes: a recipe that fails is
         // not met where neither the skipped argument nor the other arm runs.
         const skipped = result(['array', [['.', ['object', []], 'm', ['|?.()', [ref(cell)]]], selected(ref(condition), ref(cell), 0)]],

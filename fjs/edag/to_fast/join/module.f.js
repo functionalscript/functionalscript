@@ -153,20 +153,25 @@ const certainOperands = (value, target) => value[0] === 'function' ? value[1].ca
  * Whether one of the values reads the binding whenever it completes. A
  * selection does in its test, or in both of its arms.
  *
- * @type {(values: readonly Value[], target: BindingId) => Task<boolean>}
+ * A value that can leave, a block in it that returns or breaks, may not
+ * complete: nothing evaluated after it is certain, its own later operands
+ * and the values that follow alike. `guarded` says some value can leave at
+ * all, so that each is asked only then.
+ *
+ * @type {(values: readonly Value[], target: BindingId, guarded: boolean) => Task<boolean>}
  */
-const certainTask = (values, target) => {
+const certainTask = (values, target, guarded) => {
     /** @type {(value: Value) => Task<boolean>} */
     const one = value => call(() => {
         if (!(value instanceof Array)) { return done(false) }
         if (value[0] === 'ref') { return done(value[1] === target) }
-        if (value[0] !== 'if') { return certainTask(certainOperands(value, target), target) }
-        return bind(certainTask([value[1]], target), test => test ? done(true)
-            : bind(certainTask(sequence(value[2], 0, target), target), then => then ? certainTask(sequence(value[3], 0, target), target) : done(false)))
+        if (value[0] !== 'if') { return certainTask(certainOperands(value, target), target, guarded) }
+        return bind(certainTask([value[1]], target, guarded), test => test ? done(true) : guarded && leaves(value[1]) ? done(false)
+            : bind(certainTask(sequence(value[2], 0, target), target, guarded), then => then ? certainTask(sequence(value[3], 0, target), target, guarded) : done(false)))
     })
     /** @type {(index: number) => Task<boolean>} */
     const each = index => call(() => index === values.length ? done(false)
-        : bind(one(values[Number(index)]), found => found ? done(true) : each(index + 1)))
+        : bind(one(values[Number(index)]), found => found ? done(true) : guarded && leaves(values[Number(index)]) ? done(false) : each(index + 1)))
     return each(0)
 }
 
@@ -174,13 +179,17 @@ const certainTask = (values, target) => {
  * Whether the block reads the recipe on every path that completes: what it
  * evaluates after the declaration, until a statement leaves it, reaches the
  * binding through operands that are always evaluated, a selection's test or
- * both of its arms. The recipe may then be required where it stands. A path
- * that fails before the read fails either way
+ * both of its arms, with no value before the read that can leave. The recipe
+ * may then be required where it stands. A path that fails before the read
+ * fails either way
  * ([spec](../../../../spec/principles/README.md#failure-is-one-outcome)).
  *
  * @type {(body: Block, definition: Definition) => boolean}
  */
-const certain = (body, definition) => run(certainTask(sequence(body, body.statements.indexOf(definition) + 1, definition[1]), definition[1]))
+const certain = (body, definition) => {
+    const values = sequence(body, body.statements.indexOf(definition) + 1, definition[1])
+    return run(certainTask(values, definition[1], values.some(leaves)))
+}
 
 /** Only move a recipe to its first reached demand without crossing a dependency's shadow. @type {(body: Block, definition: Definition, deferred: readonly Definition[], start?: number) => Block | null} */
 const localized = (body, definition, deferred, start = 0) => {
