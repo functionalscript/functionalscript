@@ -522,6 +522,33 @@ export const proof = /** @type {const} */ ({
             assert(_joinResults(before).statements.some(statement => statement === phi))
         }
     },
+    followingTestsConsumeTheSelectedResult: () => {
+        const condition = id(0), chosen = id(1)
+        const phi = /** @type {Statement} */ (['define', chosen, selected(ref(condition), 7), 'lazy'])
+        const base = source(ref(condition), 0, normal(), normal(), [phi])
+        const after = _joinResults({ ...base, statements: [...base.statements, ['if', [], ['===', ref(chosen), 7], normal(), normal()]] })
+        assertEq(after.statements.length, 2)
+        const branch = after.statements[0]
+        assert(branch[0] === 'if')
+        assertEq(branch[1][0], chosen)
+    },
+    loopBranchesShareTheirSelectedResultInSource: () => {
+        const text = /** @type {const} */ ('export default head=>{let tail=null;while(true){if(head instanceof Array){head=[head];}else if(head!==null&&head.head!==undefined){tail=[head.tail,tail];head=head.head;continue;}if(head!==null){return [head,tail];}if(tail===null){return null;}head=tail;tail=null;}};')
+        /** @type {readonly (readonly [import('../../types.ts').Exp, unknown])[]} */
+        const cases = [[null, null], [['{}', [[':', 'head', ['[]', [5]]], [':', 'tail', 6]]], [[[5]], [6, null]]]]
+        let graph = moduleGraph(text)
+        let canonical = ''
+        for (let round = 0; round < 3; round = round + 1) {
+            for (const [argument, expected] of cases) {
+                const invoked = /** @type {import('../../types.ts').Exp} */ (['()', _defaultExport(graph), [argument]])
+                assertStructurallySame(assertOk(toData(assertOk(memo(assertOk(identityAnalysis(invoked)))({ args: [] })))), expected)
+            }
+            const source = assertOk(tryModuleStringify(graph))
+            graph = moduleGraph(source)
+            if (round === 1) { canonical = source }
+            if (round === 2) { assertEq(source, canonical) }
+        }
+    },
     admittedHelperControlKeepsCanonicalSource: () => {
         const text = /** @type {const} */ ('const step=(i,sum)=>i%2===0?["normal",sum+i]:["continue"];export default n=>{let i=0;let sum=0;while(i<n){i=i+1;if(i>1){const c=step(i,sum);if(c[0]==="continue"){continue;}sum=c[1]+10;}else{sum=1;}}return [i,sum];};')
         let graph = moduleGraph(text)
