@@ -516,9 +516,10 @@ export const proof = /** @type {const} */ ({
         const base = source(ref(condition), ref(chosen), normal(), normal(), [phi])
         const afterEffect = /** @type {Block} */ ({ ...base, statements: [...base.statements, ['define', used, ['()', ref(other), []], 'required']] })
         const afterControl = /** @type {Block} */ ({ ...base, statements: [...base.statements, ['if', [], ref(other), normal(), normal()]] })
+        const afterRegion = /** @type {Block} */ ({ ...base, statements: [...base.statements, ['block', [], normal()]] })
         const beforeUse = source(ref(condition), ref(chosen), normal(), normal(), [phi, ['define', used, ref(chosen), 'required']])
         const branchUse = source(ref(condition), ref(chosen), normal([['define', used, ref(chosen), 'required']]), normal(), [phi])
-        for (const before of [afterEffect, afterControl, beforeUse, branchUse]) {
+        for (const before of [afterEffect, afterControl, afterRegion, beforeUse, branchUse]) {
             assert(_joinResults(before).statements.some(statement => statement === phi))
         }
     },
