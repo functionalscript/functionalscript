@@ -40,7 +40,11 @@ pub fn module<A: IStaticFunction>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     }, 1, [_b51.clone(), _b52.clone(), _b61.clone(), runtime.clone()].to_array(), Some("($3)=>{const $4=$0(\"fstat\",[$3],($5)=>{const $6=$5.size===2;return $6?$5.isFile:$6;});return $4((()=>{const $7=$0(\"pread\",[$3,0,2],($8)=>$8===-59497n);return $7((()=>{const $9=$0(\"close\",[$3],$1);return $9((()=>{const $10=$0(\"close\",[$3],$1);return $10((()=>{const $11=$0(\"fstat\",[$3],$1);return $11((()=>{const $12=$0(\"pread\",[$3,0,1],$1);return $12($2);})());})());})());})());})());}")).to_any();
     let _b598: Any<A> = A::static_function(|_self, _args| { Err(string_any("boom")) }, 0, [runtime.clone()].to_array(), Some("()=>{throw \"boom\";}")).to_any();
     Ok([(string_key("directory"), [(string_key("run"), {
-        let _b56: Any<A> = (Any::dot([(string_key("entry"), A::static_function(|_self, _args| Any::entry(_args.argument(0), _args.argument(1)), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}")).to_any()), (string_key("hasEntry"), A::static_function(|_self, _args| Any::has_entry(_args.argument(0), _args.argument(1)).map(|v| v.to_any()), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable===true;}")).to_any())].to_object().to_any(), string_any("entry")).end())?;
+        let _b56: Any<A> = {
+            let _b53: Any<A> = A::static_function(|_self, _args| Any::entry(_args.argument(0), _args.argument(1)), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}")).to_any();
+            let _b669670: Any<A> = [(string_key("entry"), _b53.clone()), (string_key("hasEntry"), A::static_function(|_self, _args| Any::has_entry(_args.argument(0), _args.argument(1)).map(|v| v.to_any()), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable===true;}")).to_any())].to_object().to_any();
+            _b53.clone()
+        };
         A::static_function(|_self, _args| {
             let _b68: Any<A> = (Any::call(A::frame(_self)[0].clone(), [string_any("mkdir"), [(_args.argument(0) + string_any("/b"))?, Nullish::Undefined.to_any()].to_array().to_any(), A::frame(_self)[1].clone()].to_array().to_any()))?;
             let _b119: Any<A> = (Any::call(_b68.clone(), [{
