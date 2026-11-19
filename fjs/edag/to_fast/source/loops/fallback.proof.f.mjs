@@ -6,7 +6,7 @@
 
 import { assert, assertEq, assertError, assertOk } from '../../../../asserts/module.f.js'
 import { fromFast } from '../../../from_fast/module.f.js'
-import { evaluate } from '../../../from_fast/member_returns/proof.f.mjs'
+import { evaluate } from '../../../from_fast/member_returns/proof.f.js'
 import { _sourceLoops } from './module.f.js'
 import { _fallbackFunction, _valueReturnFunction as valueReturnFunction } from './fixtures.f.js'
 

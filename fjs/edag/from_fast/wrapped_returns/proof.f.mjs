@@ -13,7 +13,7 @@ import { validate } from '../../../rtti/validate/module.f.js'
 import { liftReturns } from '../../../js/ast/returns/module.f.js'
 import { toFast } from '../../to_fast/module.f.js'
 import { _id as id, _ref as ref, _result as result, _target as target, _body as body, _calledFunction as calledFunction } from '../proof.f.js'
-import { requiredFunction, escape, failed, mixed, evaluate, failure, flat, runtimeReturning, throwingRuntime } from '../member_returns/proof.f.mjs'
+import { requiredFunction, escape, failed, mixed, evaluate, failure, flat, runtimeReturning, throwingRuntime } from '../member_returns/proof.f.js'
 import { wrappers } from '../native_returns/proof.f.mjs'
 
 /** @type {(value: Value) => readonly Value[]} */
