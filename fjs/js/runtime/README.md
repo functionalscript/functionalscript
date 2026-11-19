@@ -76,7 +76,7 @@ Which names a module may call stays
 `prohibitedCalls` for the parser, `allowedCalls` for every executor.
 [`types.ts`](./types.ts) pins every key of `member` to that set, and
 every entry to a body of the receiver alone, so a body for a name the
-language does not admit fails `tsc`, and [`proof.f.mjs`](./proof.f.mjs)
+language does not admit fails `tsc`, and [`proof.f.js`](./proof.f.js)
 checks the same at run time. Which types a name is a member of is the
 body's own first step, `typeof self === 'string'`, not a key of the
 table: one function per name, for every receiver. The keys are not the

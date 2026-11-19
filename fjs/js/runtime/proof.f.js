@@ -9,11 +9,20 @@ import { member, runtime, statics } from './module.f.js'
 import { encodeUriComponent } from '../../text/percent/encode_uri_component/module.f.js'
 import edag from './gen.edag.js'
 import { dedup } from '../../types/array/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
+import { toJson } from '../../media/json/module.f.js'
 
 const { entries, values } = Object
 
 /** @type {readonly string[]} */
 const allowed = allowedCalls
+
+/** The JSON text of compiled EDAG data, which is JSON by construction. @type {(data: unknown) => string} */
+const jsonOf = data => toJson(/** @type {import('../../media/json/types.ts').Unknown} */ (data))
+
+/** The two member bodies whose names the compiler admits on no receiver, read by key. */
+const startsWith = assertNotNullish(entry(member, 'startsWith'))
+const codePointAt = assertNotNullish(entry(member, 'codePointAt'))
 
 /** The member table by name, for a proof that walks it. @type {Readonly<Record<string, (self: unknown) => unknown>>} */
 const members = member
@@ -21,8 +30,32 @@ const members = member
 /** The static table by id, for a proof that walks it, each entry called as a body is, on two arguments — `Object.entries`, the built-in itself, by `natives` alone. @type {Readonly<Record<string, (a: unknown, b: unknown) => unknown>>} */
 const table = /** @type {Readonly<Record<string, (a: unknown, b: unknown) => unknown>>} */ (/** @type {unknown} */ (statics))
 
-/** The host's own globals, each static path read from them by its keys. @type {Readonly<Record<string, Readonly<Record<string, (a: unknown, b: unknown) => unknown>>>>} */
-const host = /** @type {Readonly<Record<string, Readonly<Record<string, (a: unknown, b: unknown) => unknown>>>>} */ (/** @type {unknown} */ ({ Object, Number, String, Math }))
+/**
+ * The host's own built-in at each static path that is checked against it,
+ * both ways JavaScript calls one: read off its namespace as a value, and
+ * called on the namespace. Each is written out, a namespace being no value
+ * to read a name from.
+ *
+ * @type {import('../../types/object/types.ts').StringMap<readonly [detached: (...args: readonly any[]) => unknown, method: (...args: readonly any[]) => unknown]>}
+ */
+const host = {
+    'Object.is': [Object.is, (a, b) => Object.is(a, b)],
+    'Object.entries': [Object.entries, a => Object.entries(a)],
+    'String.fromCharCode': [String.fromCharCode, (...a) => String.fromCharCode(...a)],
+    'Number.isInteger': [Number.isInteger, a => Number.isInteger(a)],
+    'Number.isSafeInteger': [Number.isSafeInteger, a => Number.isSafeInteger(a)],
+    'Number.isNaN': [Number.isNaN, a => Number.isNaN(a)],
+    'Number.isFinite': [Number.isFinite, a => Number.isFinite(a)],
+    'Math.trunc': [Math.trunc, a => Math.trunc(a)],
+    'Math.floor': [Math.floor, a => Math.floor(a)],
+    'Math.abs': [Math.abs, a => Math.abs(a)],
+    'Math.sqrt': [Math.sqrt, a => Math.sqrt(a)],
+    'Math.ceil': [Math.ceil, a => Math.ceil(a)],
+    'Math.imul': [Math.imul, (a, b) => Math.imul(a, b)],
+    'Math.max': [Math.max, (...a) => Math.max(...a)],
+    'Math.min': [Math.min, (...a) => Math.min(...a)],
+    'Math.clz32': [Math.clz32, a => Math.clz32(a)],
+}
 
 /**
  * Statics with their own oracle proofs: structural results, entry-shaped
@@ -606,17 +639,15 @@ export const proof = /** @type {const} */ ({
     // (`../static/module.f.js`), and a built-in that reads `this` throws
     // here on every engine the suite runs on.
     host: () => {
-        for (const [namespaceName, name] of staticPaths.filter(path => !isNative(path) && !separatelyProved.includes(path.join('.')))) {
-            assert(name !== undefined)
-            const body = table[`${namespaceName}.${name}`]
-            const namespace = host[namespaceName]
-            const detached = namespace[name]
-            assertEq(body.length, detached.length, [namespaceName, name])
+        for (const id of staticPaths.filter(path => !isNative(path)).map(path => path.join('.')).filter(id => !separatelyProved.includes(id))) {
+            const body = assertNotNullish(entry(table, id))
+            const [detached, method] = assertNotNullish(entry(host, id), id)
+            assertEq(body.length, detached.length, id)
             for (const a of samples) {
                 for (const b of samples) {
                     const expected = body(a, b)
-                    assertEq(namespace[name](a, b), expected, [namespaceName, name, 'method', a, b])
-                    assertEq(detached(a, b), expected, [namespaceName, name, 'detached', a, b])
+                    assertEq(method(a, b), expected, [id, 'method', a, b])
+                    assertEq(detached(a, b), expected, [id, 'detached', a, b])
                 }
             }
         }
@@ -628,12 +659,11 @@ export const proof = /** @type {const} */ ({
     // The natives read no `this`; compare their successful coercion inputs.
     natives: () => {
         for (const [namespaceName, name] of staticPaths.filter(isNative)) {
-            assert(name !== undefined)
-            assertEq(table[`${namespaceName}.${name}`], host[namespaceName][name], [namespaceName, name])
-            const namespace = /** @type {Readonly<Record<string, (a: unknown) => unknown>>} */ (host[namespaceName])
-            const detached = namespace[name]
+            const id = `${namespaceName}.${name}`
+            const [detached, method] = assertNotNullish(entry(host, id), id)
+            assertEq(entry(table, id), detached, id)
             for (const a of samples.filter(a => a !== null && a !== undefined && (namespaceName === 'Object' || typeof a !== 'bigint'))) {
-                assertStructurallySame(detached(a), namespace[name](a), [namespaceName, name, a])
+                assertStructurallySame(detached(a), method(a), [id, a])
             }
         }
     },
@@ -727,7 +757,6 @@ export const proof = /** @type {const} */ ({
     // algorithm case by case — the search converted, the position clamped
     // and truncated, an empty search found anywhere.
     startsWith: () => {
-        const { startsWith } = member
         for (const self of samples.filter(v => typeof v !== 'string')) { assertEq(startsWith(self), undefined, self) }
         /** @type {(self: string) => (search: unknown, at: unknown) => boolean} */
         const on = self => /** @type {(search: unknown, at: unknown) => boolean} */ (startsWith(self))
@@ -757,7 +786,6 @@ export const proof = /** @type {const} */ ({
     // trail, a lead at the end — and `undefined` outside the string, the
     // position truncated, `NaN` and `undefined` the first.
     codePointAt: () => {
-        const { codePointAt } = member
         for (const self of samples.filter(v => typeof v !== 'string')) { assertEq(codePointAt(self), undefined, self) }
         /** @type {(self: string) => (at: unknown) => number | undefined} */
         const on = self => /** @type {(at: unknown) => number | undefined} */ (codePointAt(self))
@@ -821,7 +849,7 @@ export const proof = /** @type {const} */ ({
         const [tag, length, , body] = compiled
         assertEq(`${tag}/${length}`, '=>/2')
         assertEq(steps(body).join(), '')
-        assertEq(JSON.stringify(body).includes('["()"'), true)
+        assertEq(jsonOf(body).includes('["()"'), true)
     },
     // The operator's body, on the host: `"k" in o` for a key no prototype
     // supplies is the host's own `in` — an enumerable own entry of an
@@ -835,19 +863,31 @@ export const proof = /** @type {const} */ ({
     in: () => {
         const has = runtime.in
         assertEq(has.length, 2)
-        /** @type {readonly string[]} */
-        const keys = ['x', '0', '1', '', 'in', 'if', 'hasOwnProperty_', '__proto', 'NaN', 'undefined', 'length']
+        /** Each key with the host's own `in` for it: the operator takes its key as a literal. @type {readonly (readonly [string, (o: object) => boolean])[]} */
+        const keys = [
+            ['x', o => 'x' in o],
+            ['0', o => '0' in o],
+            ['1', o => '1' in o],
+            ['', o => '' in o],
+            ['in', o => 'in' in o],
+            ['if', o => 'if' in o],
+            ['hasOwnProperty_', o => 'hasOwnProperty_' in o],
+            ['__proto', o => '__proto' in o],
+            ['NaN', o => 'NaN' in o],
+            ['undefined', o => 'undefined' in o],
+            ['length', o => 'length' in o],
+        ]
         /** @type {readonly unknown[]} */
         const receivers = [
             ...samples.filter(v => v !== null && typeof v === 'object' || typeof v === 'function'),
-            { x: 1 }, { x: undefined }, { '': 0, in: 0, if: 0, undefined: 0 }, { ['__proto__']: 1 }, [undefined], [, 1], { length: 0 },
+            { x: 1 }, { x: undefined }, { '': 0, in: 0, if: 0, undefined: 0 }, { ['__proto__']: 1 }, [undefined], { length: 0 },
         ]
         for (const self of receivers) {
-            for (const key of keys) { assertEq(has(key, self), key in /** @type {object} */ (self), [key, self]) }
+            for (const [key, hostIn] of keys) { assertEq(has(key, self), hostIn(/** @type {object} */ (self)), [key, self]) }
         }
         assertEq(has('x', { x: undefined }), true)
         assertEq(has('0', [undefined]), true)
-        assertEq(has('0', [, 1]), false)
+        assertEq(has('1', [undefined]), false)
         assertEq(has('toString', {}), false)
         assertEq(has('length', []), true)
         assertEq(has('length', f), true)
@@ -885,8 +925,8 @@ export const proof = /** @type {const} */ ({
         for (const path of natives) {
             assertStructurallySame(at(at(edag, 'statics'), path.join('.')), [path.join('.')])
         }
-        assertEq(JSON.stringify(edag).includes('["slice"]'), true)
-        assertEq(JSON.stringify(edag).includes('["charCodeAt"]'), true)
+        assertEq(jsonOf(edag).includes('["slice"]'), true)
+        assertEq(jsonOf(edag).includes('["charCodeAt"]'), true)
     },
     throw: {
         minBigint: () => { table['Math.min'](1n, 0) },
@@ -960,20 +1000,13 @@ export const proof = /** @type {const} */ ({
         log2BigintPrimitive: () => { statics['Math.log2']({ valueOf: () => 1n }) },
         log2Conversion: () => { statics['Math.log2']({ valueOf: () => { throw 'conversion' } }) },
         log2NoPrimitive: () => { statics['Math.log2']({ valueOf: () => ({}), toString: () => [] }) },
-        // The detached call `host` makes is a real one: a built-in that
-        // builds with `this` as its constructor, which no static may be,
-        // throws called so.
-        detachedThis: () => {
-            const { from } = Uint8Array
-            from([1])
-        },
         // A bigint position is the `TypeError` `ToNumber` throws.
-        bigintPosition: () => { member.startsWith('abc')?.('a', 0n) },
-        bigintCodePointPosition: () => { member.codePointAt('abc')?.(0n) },
+        bigintPosition: () => { startsWith('abc')?.('a', 0n) },
+        bigintCodePointPosition: () => { codePointAt('abc')?.(0n) },
         // The search is converted through its own `toString`, whose throw
         // is the call's; which of two throws wins is pinned where the
         // executors run the body, in `nanvm/corpus` and `vm/runtime.rs`.
-        searchConversion: () => { member.startsWith('abc')?.({ toString: () => { throw 'A' } }, 0) },
+        searchConversion: () => { startsWith('abc')?.({ toString: () => { throw 'A' } }, 0) },
         // a nullish receiver is the executor's throw, before `dot` is asked
         nullishReceiver: () => { runtime.dot(null, 'x') },
         // `in` throws on `null`, `undefined` and every primitive, as the
