@@ -15,6 +15,7 @@ import { _ownedLoopValue as ownedLoopValue, proof as ownedOperands } from '../..
 import { proof as eagerOperands } from '../../../edag/from_fast/eager_operand_memo/proof.f.js'
 import { proof as deferredLoops } from '../../../edag/from_fast/deferred_loop_cells/proof.f.js'
 import { size } from '../../../types/object/size/module.f.js'
+import { generate } from '../../../types/array/module.f.js'
 
 /** @type {(index: number) => BindingId} */
 const id = index => ({ index })
@@ -102,8 +103,8 @@ const loopPacket = (exit, kind, target, values, memo) => {
     const packet = exit[2][0]
     assert(packet instanceof Array && packet[0] === 'array')
     assertEq(packet[1].length, values.length)
-    for (const [index, binding] of values.entries()) {
-        const value = packet[1][index]
+    for (const [index, binding] of values.map((binding, index) => /** @type {const} */ ([index, binding]))) {
+        const value = packet[1][Number(index)]
         assert(value instanceof Array && value[0] === 'ref')
         assertEq(value[1], binding)
     }
@@ -410,10 +411,10 @@ export const proof = /** @type {const} */ ({
     },
     conditionalDiamondGrowth: () => {
         const sizes = [4, 8, 12].map(length => {
-            const cells = Array.from({ length }, () => id(0))
+            const cells = generate(length, () => id(0))
             const definitions = cells.map((binding, index) => /** @type {Statement} */ (['define', binding,
-                index === 0 ? ['array', [0]] : ['?:', true, ['array', [ref(cells[index - 1])]], ['array', [ref(cells[index - 1])]]], 'lazy']))
-            const source = yielded(ref(output), [...definitions, ['loop', counting(ref(cells[length - 1]))]])
+                index === 0 ? ['array', [0]] : ['?:', true, ['array', [ref(cells[Number(index - 1)])]], ['array', [ref(cells[Number(index - 1)])]]], 'lazy']))
+            const source = yielded(ref(output), [...definitions, ['loop', counting(ref(cells[Number(length - 1)]))]])
             const normalized = normalizeMemo(source)
             const recipes = recipesIn(normalized)
             assertEq(recipes.length, length)
@@ -500,7 +501,7 @@ export const proof = /** @type {const} */ ({
         assertEq(extended[1].length, 3)
         assertStructurallySame(extended[1][2], ['array', [false, undefined]])
         for (const slot of /** @type {const} */ ([0, 1])) {
-            const retained = extended[1][slot]
+            const retained = extended[1][Number(slot)]
             assert(retained instanceof Array && retained[0] === '.')
             assertEq(retained[2], slot)
             const memo = retained[1]
@@ -589,7 +590,7 @@ export const proof = /** @type {const} */ ({
         assert(prefix instanceof Array && prefix[0] === 'array')
         assertEq(prefix[1].length, 3)
         for (const slot of /** @type {const} */ ([0, 1, 2])) {
-            const retained = prefix[1][slot]
+            const retained = prefix[1][Number(slot)]
             assert(retained instanceof Array && retained[0] === '.')
             assertEq(retained[2], slot)
             const memo = retained[1]
@@ -602,7 +603,7 @@ export const proof = /** @type {const} */ ({
         assert(merged instanceof Array && merged[0] === 'array')
         assertEq(merged[1].length, 4)
         for (const slot of /** @type {const} */ ([0, 1, 2])) {
-            const retained = merged[1][slot]
+            const retained = merged[1][Number(slot)]
             assert(retained instanceof Array && retained[0] === '.')
             assertEq(retained[2], slot)
             const returned = retained[1]
@@ -750,18 +751,18 @@ export const proof = /** @type {const} */ ({
         assertEq(loops.length, 2)
         assert(loops[0].target !== loops[1].target)
         for (let index = 0; index < loops.length; index += 1) {
-            const conditional = loops[index].body.statements[1]
+            const conditional = loops[Number(index)].body.statements[1]
             assert(conditional[0] === 'if')
             const demand = conditional[4].statements[0]
             assert(demand[0] === 'if')
-            assertStructurallySame(demand[2], ['.', ['.', ref(loops[index].parameters[1]), index], 0])
+            assertStructurallySame(demand[2], ['.', ['.', ref(loops[Number(index)].parameters[1]), index], 0])
             const invocation = demand[4].statements[0]
             assert(invocation[0] === 'define')
             const call = invocation[2]
             assert(call instanceof Array && call[0] === '()')
             const callee = call[1]
             assert(callee instanceof Array && callee[0] === 'ref')
-            assertEq(callee[1], recipes[index][0])
+            assertEq(callee[1], recipes[Number(index)][0])
         }
         assertEq(source.statements[1], definition)
         assertEq(source.statements[5], definition)
@@ -1188,7 +1189,7 @@ export const proof = /** @type {const} */ ({
         const updated = packet[1][1]
         assert(updated instanceof Array && updated[0] === 'array')
         for (const slot of /** @type {const} */ ([0, 1])) {
-            const retained = updated[1][slot]
+            const retained = updated[1][Number(slot)]
             assert(retained instanceof Array && retained[0] === '.')
             assertEq(retained[2], slot)
             const memo = retained[1]
@@ -1270,8 +1271,8 @@ export const proof = /** @type {const} */ ({
     },
     ancestorTransferSignatures: () => {
         for (const arity of /** @type {const} */ ([0, 2])) {
-            const parameters = Array.from({ length: arity }, () => id(0))
-            const results = Array.from({ length: arity }, () => id(0))
+            const parameters = generate(arity, () => id(0))
+            const results = generate(arity, () => id(0))
             const demanded = id(0)
             const innerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
             const inner = /** @type {Loop} */ ({
@@ -1295,7 +1296,7 @@ export const proof = /** @type {const} */ ({
             const statePacket = carriedOuter.initial[0]
             assert(statePacket instanceof Array && statePacket[0] === 'array')
             assertEq(statePacket[1].length, arity)
-            const nested = carriedOuter.body.statements[arity]
+            const nested = carriedOuter.body.statements[Number(arity)]
             assert(nested[0] === 'loop')
             const carriedInner = nested[1]
             const demand = carriedInner.body.statements[0]
@@ -1479,7 +1480,7 @@ export const proof = /** @type {const} */ ({
         assert(resetLocal instanceof Array && resetLocal[0] === 'array')
         assertStructurallySame(resetLocal[1][1], ['array', [false, undefined]])
         for (const slot of /** @type {const} */ ([0, 2])) {
-            const retained = resetLocal[1][slot]
+            const retained = resetLocal[1][Number(slot)]
             assert(retained instanceof Array && retained[0] === '.')
             assertEq(retained[2], slot)
             const memo = retained[1]
@@ -1500,7 +1501,7 @@ export const proof = /** @type {const} */ ({
         assert(resetDependent instanceof Array && resetDependent[0] === 'array')
         assertStructurallySame(resetDependent[1][2], ['array', [false, undefined]])
         for (const slot of /** @type {const} */ ([0, 1])) {
-            const retained = resetDependent[1][slot]
+            const retained = resetDependent[1][Number(slot)]
             assert(retained instanceof Array && retained[0] === '.')
             assertEq(retained[2], slot)
             const memo = retained[1]
@@ -1511,7 +1512,7 @@ export const proof = /** @type {const} */ ({
         assert(dependentGetter[0] === 'define')
         assertEq(dependentGetter[1], localRecipes[1][0])
         for (const index of /** @type {const} */ ([0, 1])) {
-            const getter = localRecipes[index][1]
+            const getter = localRecipes[Number(index)][1]
             assertEq(getter.parameters.length, 1)
             assertEq(getter.captures.length, 2)
             const established = getter.captures.find(capture => capture.binding === state)
@@ -1539,7 +1540,7 @@ export const proof = /** @type {const} */ ({
             const memo = retained[1]
             assert(memo instanceof Array && memo[0] === 'ref')
             assertEq(memo[1], dependency[1][1])
-            assertStructurallySame(ready[1][index + 1], ['array', [true, packet[1][0]]])
+            assertStructurallySame(ready[1][Number(index + 1)], ['array', [true, packet[1][0]]])
         }
         const nested = carriedOuter.body.statements[9]
         assert(nested[0] === 'loop')
@@ -1621,7 +1622,7 @@ export const proof = /** @type {const} */ ({
         const demanded = id(0)
         const prefix = /** @type {readonly Statement[]} */ ([['define', demanded, ref(lazy), 'required']])
         for (const length of [0, 1, 2, 3]) {
-            const values = Array.from({ length }, () => ref(demanded))
+            const values = generate(length, () => ref(demanded))
             const result = evaluate(crossing(['block', body(['yield', values], prefix)], ['array', [9]]))
             assert(result instanceof Array)
             if (length === 1) { assertEq(result[0], result[1]) }
