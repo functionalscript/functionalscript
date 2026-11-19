@@ -165,7 +165,7 @@ nothing. Two rows have since moved: the `fjs/cas/evo/module.f.js` cast went
 with the flattening of `Evo.add`'s nested `Result`, and the
 `fjs/cas/module.f.js` one now reads `Effect<Rm, Vec, IoChannel>` — the same
 type, spelled through the three-parameter `Effect`. And the
-`fjs/compiler/proof.f.mjs` row names a file that has since been replaced: the
+`fjs/compiler/proof.f.js` row names a file that has since been replaced: the
 range-map lexer stub it audited was deleted when the front end moved into
 `fjs/compiler`, and the `proof.f.mjs` at that path today is the compiler's,
 moved from `fjs/djs`, whose casts this table never recorded. The three
@@ -198,12 +198,12 @@ is the way to refresh this file, not a partial edit.
 | `fjs/effects/node/virtual/module.f.js` | 409 | `SandboxResult<unknown>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/effects/proof.f.js` | 85 | `(value: number) => Effect<never, import('../types/result/t…` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/emergent_testing/module.f.js` | 64 | `TestFn` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/emergent_testing/proof.f.mjs` | 333 | `Parameters<typeof mockRun<_RegisterMockOps, _RegisterMockS…` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/emergent_testing/proof.f.mjs` | 341 | `readonly [_RegisterMockState, readonly unknown[]]` | no overlap without going through `unknown` — a deliberately wrong value, or a nominal brand |
-| `fjs/emergent_testing/proof.f.mjs` | 434 | `Parameters<typeof mockRun<_RegisterMockOps \| Readdir \| Imp…` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/emergent_testing/proof.f.mjs` | 443 | `readonly [undefined, readonly unknown[]]` | no overlap without going through `unknown` — a deliberately wrong value, or a nominal brand |
-| `fjs/emergent_testing/proof.f.mjs` | 448 | `Effect<_RegisterMockOps \| Readdir \| Import, number>` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/compiler/proof.f.mjs` | 21 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/emergent_testing/proof.f.js` | 333 | `Parameters<typeof mockRun<_RegisterMockOps, _RegisterMockS…` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/emergent_testing/proof.f.js` | 341 | `readonly [_RegisterMockState, readonly unknown[]]` | no overlap without going through `unknown` — a deliberately wrong value, or a nominal brand |
+| `fjs/emergent_testing/proof.f.js` | 434 | `Parameters<typeof mockRun<_RegisterMockOps \| Readdir \| Imp…` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/emergent_testing/proof.f.js` | 443 | `readonly [undefined, readonly unknown[]]` | no overlap without going through `unknown` — a deliberately wrong value, or a nominal brand |
+| `fjs/emergent_testing/proof.f.js` | 448 | `Effect<_RegisterMockOps \| Readdir \| Import, number>` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/compiler/proof.f.js` | 21 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
 | `fjs/js/tokenizer/module.f.js` | 262 | `JsToken` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/js/tokenizer/module.f.js` | 689 | `List<List<number \| null>>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/mcp/cas/proof.f.js` | 33 | `readonly unknown[]` | arrived on `main` after the audit — not measured here |

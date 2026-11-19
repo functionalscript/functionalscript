@@ -13,7 +13,9 @@ import { vec8 } from '../types/bit_vec/module.f.js'
 import { error } from '../types/result/module.f.js'
 import { readSource } from '../compiler/source/module.f.js'
 import { dependencies, dependenciesFromSource, dependencyImports, resolveDependencies, main, _relativeGraph } from './module.f.js'
-import { toJson } from '../media/json/module.f.js'
+import { parse, toJson } from '../media/json/module.f.js'
+import { isObject } from '../types/object/module.f.js'
+import { entry } from '../types/object/entry/module.f.js'
 
 /**
  * @param {Dir} root
@@ -132,7 +134,7 @@ export const proof = /** @type {const} */ ({
         const [state, result] = execute(files)
         assertEq(exitCode(result), 0, state.stderr)
         const [, written] = virtual(state)(readSource('_deps.json'))
-        assertStructurallySame(JSON.parse(assertOk(written)), { 'module.f.mjs': [] })
+        assertStructurallySame(assertOk(parse(assertOk(written))), { 'module.f.mjs': [] })
     },
     relativeGraphPaths: () => {
         assertEq(toJson(_relativeGraph('/repo/pkg', {
@@ -161,10 +163,15 @@ export const proof = /** @type {const} */ ({
         } })(main({ ...defaultNodeProgramOptions, env: { INIT_CWD: 'repo' } }))
         assertEq(exitCode(result), 0, state.stderr)
         const [, written] = virtual(state)(readSource('repo/_deps.json'))
-        assertEq(assertOk(written), `${JSON.stringify({
-            'module.f.js': ['../repo-other/helper.f.js'],
-            '../repo-other/helper.f.js': [],
-        }, null, 2)}\n`)
+        assertEq(assertOk(written), [
+            '{',
+            '  "module.f.js": [',
+            '    "../repo-other/helper.f.js"',
+            '  ],',
+            '  "../repo-other/helper.f.js": []',
+            '}',
+            '',
+        ].join('\n'))
     },
     graphOutput: () => {
         const [state, result] = execute({
@@ -176,7 +183,7 @@ export const proof = /** @type {const} */ ({
         })
         assertEq(exitCode(result), 0, state.stderr)
         const [, written] = virtual(state)(readSource('_deps.json'))
-        assertStructurallySame(JSON.parse(assertOk(written)), {
+        assertStructurallySame(assertOk(parse(assertOk(written))), {
             'module.f.js': ['shared.f.mjs', 'branch.f.mjs'],
             'shared.f.mjs': ['module.f.js'],
             'branch.f.mjs': ['shared.f.mjs', 'data.json'],
@@ -191,10 +198,15 @@ export const proof = /** @type {const} */ ({
         }, { env: { INIT_CWD: 'inside' } })
         assertEq(exitCode(result), 0, state.stderr)
         const [, written] = virtual(state)(readSource('inside/_deps.json'))
-        assertEq(assertOk(written), `${JSON.stringify({
-            'module.f.mjs': ['../outside.f.mjs'],
-            '../outside.f.mjs': [],
-        }, null, 2)}\n`)
+        assertEq(assertOk(written), [
+            '{',
+            '  "module.f.mjs": [',
+            '    "../outside.f.mjs"',
+            '  ],',
+            '  "../outside.f.mjs": []',
+            '}',
+            '',
+        ].join('\n'))
     },
     importFailuresDoNotPublishPartialGraphs: () => {
         for (const source of [
@@ -231,11 +243,12 @@ export const proof = /** @type {const} */ ({
         assertEq(state.stdout, 'AST: 9 parsed, 0 failed, 9 total\n')
         assertEq(state.stderr, '')
         const [, written] = virtual(state)(readSource('_deps.json'))
-        const graph = JSON.parse(assertOk(written))
-        assertEq(toJson(graph['proof.f.mjs']), '["module.f.js"]')
-        assertEq(toJson(graph['nested/proof.f.js']), '["nested/helper.f.js"]')
-        assertEq(toJson(graph['nested/demo.f.mjs']), '[]')
-        assertEq(toJson(graph['nested/notmodule.f.js']), '[]')
+        const graph = assertOk(parse(assertOk(written)))
+        assert(isObject(graph))
+        assertStructurallySame(entry(graph, 'proof.f.mjs'), ['module.f.js'])
+        assertStructurallySame(entry(graph, 'nested/proof.f.js'), ['nested/helper.f.js'])
+        assertStructurallySame(entry(graph, 'nested/demo.f.mjs'), [])
+        assertStructurallySame(entry(graph, 'nested/notmodule.f.js'), [])
     },
     invocationDirectory: () => {
         const [state, result] = execute(sources, { env: { INIT_CWD: 'nested' } })
@@ -311,7 +324,7 @@ export const proof = /** @type {const} */ ({
         })
         assertEq(exitCode(result), 0, state.stderr)
         const [, written] = virtual(state)(readSource('_deps.json'))
-        assertStructurallySame(JSON.parse(assertOk(written)), {
+        assertStructurallySame(assertOk(parse(assertOk(written))), {
             'module.f.js': [],
             'proof.f.mjs': ['module.f.js'],
         })

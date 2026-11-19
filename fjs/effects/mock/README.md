@@ -36,8 +36,8 @@ Neither `runAll` nor `partialRun`, where `commands` includes `all`, takes a
 handler for `all`: they run its effects in turn through the runner itself,
 threading the state, so a mock never writes that fold.
 
-`partialRun` also accepts transitions written as `(state, run) => …`: the second
-argument is the same runner `partialRun` returned, for performing nested effects.
+`partialRun` and `runAll` also accept transitions written as `(state, run) => …`:
+the second argument is the same runner they returned, for performing nested effects.
 State-only handlers still work. The operation map, matcher, and runner are built
 once and reused by later calls, including nested `all` and handler calls.
 

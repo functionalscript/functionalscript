@@ -327,7 +327,7 @@ pins:
   caller sees. For the compiler's outputs, the proof also runs the whole of
   `compile` over an in-memory file system for every shared example and output,
   and holds the page's text to the file written
-  (`fjs/compiler/proof.f.mjs`, `panesAreTheFiles`).
+  (`fjs/compiler/proof.f.js`, `panesAreTheFiles`).
 - **The kinds.** The leaves and words it marks, one case each, and the pieces
   it does not mark (`undefined` in the `.js` writer was a gap this found).
 - **The oracle**, for a language the tokenizer reads: for every example in

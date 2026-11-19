@@ -66,19 +66,30 @@ export const proof = {
     },
     summaries: {
         none: () => assertEq(checkSummary([], []), 'No checks'),
-        successfulConclusions: () => ['success', 'neutral', 'skipped'].forEach(conclusion =>
-            assertEq(checkSummary([{ status: 'completed', conclusion }], []), 'Passing')),
-        failedConclusions: () => [
-            'failure', 'timed_out', 'cancelled', 'action_required', 'stale', 'startup_failure',
-        ].forEach(conclusion => assertEq(checkSummary([{ status: 'completed', conclusion }], []), 'Failing')),
-        pendingChecks: () => ['queued', 'in_progress', 'requested', 'waiting', 'pending'].forEach(status =>
-            assertEq(checkSummary([{ status, conclusion: null }], []), 'Pending')),
+        successfulConclusions: () => {
+            for (const conclusion of ['success', 'neutral', 'skipped']) {
+                assertEq(checkSummary([{ status: 'completed', conclusion }], []), 'Passing')
+            }
+        },
+        failedConclusions: () => {
+            for (const conclusion of ['failure', 'timed_out', 'cancelled', 'action_required', 'stale', 'startup_failure']) {
+                assertEq(checkSummary([{ status: 'completed', conclusion }], []), 'Failing')
+            }
+        },
+        pendingChecks: () => {
+            for (const status of ['queued', 'in_progress', 'requested', 'waiting', 'pending']) {
+                assertEq(checkSummary([{ status, conclusion: null }], []), 'Pending')
+            }
+        },
         unfamiliarCheckStatus: () => assertEq(checkSummary([{ status: 'future', conclusion: 'success' }], []), 'Unknown'),
         unfamiliarConclusion: () => assertEq(checkSummary([{ status: 'completed', conclusion: 'future' }], []), 'Unknown'),
         missingConclusion: () => assertEq(checkSummary([{ status: 'completed', conclusion: null }], []), 'Unknown'),
         successfulStatus: () => assertEq(checkSummary([], [{ state: 'success' }]), 'Passing'),
-        failedStatuses: () => ['failure', 'error'].forEach(state =>
-            assertEq(checkSummary([], [{ state }]), 'Failing')),
+        failedStatuses: () => {
+            for (const state of ['failure', 'error']) {
+                assertEq(checkSummary([], [{ state }]), 'Failing')
+            }
+        },
         pendingStatus: () => assertEq(checkSummary([], [{ state: 'pending' }]), 'Pending'),
         unfamiliarStatus: () => assertEq(checkSummary([], [{ state: 'future' }]), 'Unknown'),
         failureTakesPriority: () => {
@@ -115,12 +126,14 @@ export const proof = {
             assert(html.includes('data-pr-state="draft">Draft</span>'), html)
             assert(html.includes('data-pr-check="Pending">Pending</span>'), html)
         },
-        hostStates: () => ['Loading', 'Unavailable'].forEach(checks => {
-            // The two values are pinned by separate calls below; here the
-            // rendered words are checked without a type assertion.
-            const node = checks === 'Loading' ? row(pull, 'Loading') : row(pull, 'Unavailable')
-            assert(concat(element(node)).includes(`>${checks}</span>`), checks)
-        }),
+        hostStates: () => {
+            for (const checks of ['Loading', 'Unavailable']) {
+                // The two values are pinned by separate calls below; here the
+                // rendered words are checked without a type assertion.
+                const node = checks === 'Loading' ? row(pull, 'Loading') : row(pull, 'Unavailable')
+                assert(concat(element(node)).includes(`>${checks}</span>`), checks)
+            }
+        },
         safeAuthor: () => {
             const login = 'a/b?<script>"&'
             const html = concat(element(row({ ...pull, user: { login } }, 'Unknown')))

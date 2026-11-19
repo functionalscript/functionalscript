@@ -44,6 +44,8 @@ import normalize from '../../spec/datajs/vectors/normalize/data.f.js'
 import { dirOf, encode } from './demo_files/module.f.js'
 import { dependenciesOf } from './examples/module.f.js'
 import { toJson } from '../media/json/module.f.js'
+import { entry } from '../types/object/entry/module.f.js'
+import { generate } from '../types/array/module.f.js'
 
 /** An example's program: its main module, then the files it imports. @type {(source: string, id: string) => import('./demo_files/types.ts').Files} */
 const programOf = (source, id) => [['input.f.js', source], ...dependenciesOf(id)]
@@ -136,8 +138,8 @@ export const defaultValue = value => {
 
 /** @type {(root: typeof emptyState.root, path: string) => string} */
 export const readOutput = (root, path) => {
-    const file = root[path]
-    assert(Array.isArray(file) && file.length !== 0, `${path} is not a file`)
+    const file = entry(root, path)
+    assert(file instanceof Array && file.length !== 0, `${path} is not a file`)
     return utf8ToString(file[0])
 }
 
@@ -359,7 +361,7 @@ export const proof = {
         const written = compileSource(source)('parameters.f.mjs')
         assertEq(parse('parameters.f.mjs')(written)[0], 'ok')
         /** @type {(length: number) => string} */
-        const large = length => `export default (${Array.from({ length }, (_, i) => `a${i},`).join('')}...x)=>x;`
+        const large = length => `export default (${generate(length, i => `a${i},`).join('')}...x)=>x;`
         assert(compileSource(large(16))('large.edag.data.mjs').includes('["=>",16,[],'))
         assertEq(parse('large.f.mjs')(compileSource(large(16))('large.f.mjs'))[0], 'ok')
         assert(moduleRefused(large(17)).includes('more than 16 fixed parameters'))
@@ -665,7 +667,7 @@ export const proof = {
                 const root = { 'input.f.js': [utf8('export default 1;')] }
                 const [state, code] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['input.f.js', outputFileName])))
                 assertEq(exitCode(code), 1)
-                assertEq(state.root[outputFileName], undefined)
+                assertEq(entry(state.root, outputFileName), undefined)
                 return state.stderr.trim()
             }
             assertEq(refused('out.txt'), `out.txt - error: ${expected}`)
@@ -1219,12 +1221,12 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         // An output past one `Vec`, 128 KiB, is written whole, in several
         // chunks, where it once ended the compile with a bare `assertion failed`.
         largeOutput: () => {
-            const source = `export default [${Array.from({ length: 5000 }, (_, i) => i).join(', ')}];`
+            const source = `export default [${generate(5000, i => i).join(', ')}];`
             const root = { 'input.f.js': [utf8(source)] }
             const [state, code] = virtualAt(root)(compile(nodeProgramOptions(['input.f.js', 'output.rs'])))
             assertEq(exitCode(code), 0, state.stderr)
             const file = state.root['output.rs']
-            assert(Array.isArray(file), file)
+            assert(file instanceof Array, file)
             assert(file.length > 1, file.length)
             const text = file.map(utf8ToString).join('')
             assert(text.length > Number(maxLengthBytes), text.length)
@@ -1566,7 +1568,7 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             }
             assertEq(Object.keys(expected).length, examples.length)
             for (const [name, source, id] of examples) {
-                assertEq(outputs.map(([, file]) => compiledProgram(programOf(source, id))(file)[0] === 'ok' ? 'o' : 'x').join(''), expected[name])
+                assertEq(outputs.map(([, file]) => compiledProgram(programOf(source, id))(file)[0] === 'ok' ? 'o' : 'x').join(''), entry(expected, name))
             }
             assertEq(textOfResult(compiled('export default 1;')('output.json')), '1')
             assertEq(textOfResult(compiled('const fact = n => n < 2 ? 1 : n * fact(n - 1);\nexport default fact(5);')('output.json')), '120')
@@ -1734,7 +1736,7 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             // a cycle is refused by the compiler and named whole by the page
             const cyclic = nextDemo(demo.init, { kind: 'input', name: 'example', value: 'A cyclic import' })
             assert(html(cyclic).includes('<p role="status">Import cycle: input.f.js → a.f.js → input.f.js</p>'), html(cyclic))
-            assertEq(cyclic.panes.map(([, v]) => v).join(), Array(5).fill('circular dependency').join())
+            assertEq(cyclic.panes.map(([, v]) => v).join(), generate(5, () => 'circular dependency').join())
             // an event no control sends changes nothing
             assertEq(nextDemo(twice, { kind: 'input', name: 'other', value: 'x' }), twice)
             assertEq(nextDemo(twice, { kind: 'click', name: 'run' }), twice)

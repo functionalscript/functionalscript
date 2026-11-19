@@ -34,7 +34,7 @@ import { partialRun } from '../../effects/mock/module.f.js'
 import { utf8 } from '../../text/module.f.js'
 import { utf8ToString } from '../../text/utf8/module.f.js'
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { hasEntry } from '../../types/object/entry/module.f.js'
+import { entry, hasEntry } from '../../types/object/entry/module.f.js'
 
 /**
  * The package's runtime at its path beside a root's files: `fjs compile` interprets a data output under it, and the virtual root is the package.
@@ -226,8 +226,8 @@ export const proof = {
             for (const output of ['output.json', 'output.data.js']) {
                 const [state, code] = runner(compile(nodeProgramOptions(['main', output])))
                 assertEq(exitCode(code), 0, state.stderr)
-                const bytes = state.root[output]
-                assert(Array.isArray(bytes) && bytes.length === 1)
+                const bytes = entry(state.root, output)
+                assert(bytes instanceof Array && bytes.length === 1)
                 assertEq(utf8ToString(bytes[0]), output.endsWith('.json') ? '42' : 'export default 42;')
             }
             const named = { main: [utf8('export const callback=x=>x;')] }
@@ -276,7 +276,7 @@ export const proof = {
                     const [state, code] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['main', output])))
                     assertEq(exitCode(code), 1)
                     assertEq(state.stderr.trim(), `${output} - error: ${diagnostic}`)
-                    assertEq(state.root[output], undefined)
+                    assertEq(entry(state.root, output), undefined)
                 }
             }
         },
@@ -309,7 +309,7 @@ export const proof = {
                     const [state, code] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['main', output])))
                     assertEq(exitCode(code), 1)
                     assertEq(state.stderr.trim(), `one - error: module has no ${name} export`)
-                    assertEq(state.root[output], undefined)
+                    assertEq(entry(state.root, output), undefined)
                 }
             }
         },
@@ -342,7 +342,7 @@ export const proof = {
             const [state, code] = virtualAt(withRuntime(overlap))(compile(nodeProgramOptions(['main', 'output.json'])))
             assertEq(exitCode(code), 0, state.stderr)
             const written = state.root['output.json']
-            assert(Array.isArray(written) && written.length === 1)
+            assert(written instanceof Array && written.length === 1)
             assertEq(utf8ToString(written[0]), '[[],[]]')
             // An unused leaf import does not change the reached export's value.
             const dep = [utf8('const x=[]; export const shared=[x,x]; export const leaf=1;')]
@@ -622,7 +622,7 @@ export const proof = {
             }
             const [state, code] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['input.f.js', output])))
             assertEq(exitCode(code), 1, state.stderr)
-            assertEq(state.root[output], undefined)
+            assertEq(entry(state.root, output), undefined)
             assertEq(state.stderr.trim(), 'input.f.js - error: unsupported import specifier "pkg": expected ./, ../, or /')
         }
     },
@@ -750,7 +750,7 @@ export const proof = {
                 const root = withRuntime({ 'input.f.js': [utf8(`import value from "${specifier}"; export default value;`)] })
                 const [state, code] = virtualAt(root)(compile(nodeProgramOptions(['input.f.js', output])))
                 assertEq(exitCode(code), 1, state.stderr)
-                assertEq(state.root[output], undefined)
+                assertEq(entry(state.root, output), undefined)
                 assertEq(state.stderr.trim(), `input.f.js - error: invalid module specifier: ${specifier}`)
             }
         }

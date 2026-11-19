@@ -11,7 +11,7 @@ import { invoke, memo } from '../../edag/memo/module.f.js'
 import { call } from '../../edag/value/call/module.f.js'
 import { read } from '../../edag/value/property/module.f.js'
 import { toData } from '../../edag/value/to_unknown/module.f.js'
-import { isArray } from '../../types/array/module.f.js'
+import { isArray, generate } from '../../types/array/module.f.js'
 import { maxLength } from '../../types/function/length/module.f.js'
 import { virtualAt } from '../../effects/node/virtual/module.f.js'
 import { utf8 } from '../../text/module.f.js'
@@ -115,15 +115,15 @@ const forInterpreter = (interpret, invoke) => {
             const callback = interpret(graph('export default (fixed, rest) => [fixed, rest];'))
             const factories = elements(assertOk(read(ok(interpret(table)), 'factories')))
             assertEq(factories.length, 3)
-            for (const [length, factory] of factories.entries()) {
+            for (const [length, factory] of factories.map((factory, length) => /** @type {const} */ ([length, factory]))) {
                 const f = apply(factory, [callback])
                 assertEq(assertOk(read(ok(f), 'length')), length)
-                assertStructurallySame(assertOk(toData(apply(f, [1,2,3]))), [Array.from({ length }, (_, i) => [1,2,3][i]), [1,2,3].slice(length)])
+                assertStructurallySame(assertOk(toData(apply(f, [1,2,3]))), [[1,2,3].slice(0, length), [1,2,3].slice(length)])
             }
         },
         lengthLimit: () => {
             /** @type {(length: number) => string} */
-            const source = length => `export default (${Array.from({ length }, (_, i) => `a${i},`).join('')}...x)=>x;`
+            const source = length => `export default (${generate(length, i => `a${i},`).join('')}...x)=>x;`
             const e = roundTrip(source(maxLength))
             assert(e instanceof Array && e[0] === '=>')
             assertEq(e[1], maxLength)

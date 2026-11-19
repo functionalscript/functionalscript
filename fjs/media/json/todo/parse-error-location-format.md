@@ -34,7 +34,7 @@ module does.
       `circular dependency`: its `path` field in `fjs/compiler/parser/types.ts`.
 - [ ] Positions in `fjs/media/json`'s parse errors, carried by `_parseJson`.
 - [ ] Assert the exact `stderr`, next to the cases
-      [`fjs/compiler/proof.f.mjs`](../../../compiler/proof.f.mjs) already pins.
+      [`fjs/compiler/proof.f.js`](../../../compiler/proof.f.js) already pins.
 
 ### Related
 

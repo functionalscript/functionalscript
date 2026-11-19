@@ -141,7 +141,7 @@ default and applying synchronous `toData`. Every required dependency and initial
 refusal from a source failure. This allows
 `export const f = x => x; export default 1;` to produce JSON `1`, while a callable
 in the selected data is refused at the output path. Both APIs keep direct JSON
-documents unwrapped. The [transpiler proofs](./transpiler/proof.f.mjs) cover
+documents unwrapped. The [transpiler proofs](./transpiler/proof.f.js) cover
 calls/operators, projection and unused initialization. The obsolete `Denotation`
 wrapper is removed.
 

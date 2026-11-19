@@ -24,8 +24,8 @@ decodes it with `toData` for JSON/DataJS output. Calls, operators and callbacks 
 compute data; `export default 2 + 2;` no longer fails with the historical
 `an operator has no value` refusal. See `callsAndOperators`,
 `projectBeforeMaterializing` and `unusedInitialization` in the
-[transpiler proofs](../../compiler/transpiler/proof.f.mjs), and operator-output
-proofs in [`compiler/proof.f.mjs`](../../compiler/proof.f.mjs).
+[transpiler proofs](../../compiler/transpiler/proof.f.js), and operator-output
+proofs in [`compiler/proof.f.js`](../../compiler/proof.f.js).
 
 The MCP tool remains unimplemented: the
 [server registry](../module.f.js) still contains only CAS and Evo tools.
@@ -55,7 +55,7 @@ registry is one `toolEntry` from [`fjs/protocol/mcp`](../../protocol/mcp/module.
 The tool calls a reusable pure source-text evaluator in `fjs/compiler`, so a
 CLI command or another front end can use it later. Reuse or extract the existing
 per-module initialization stages rather than copying the file loader or adding
-another interpreter. `compiler/proof.f.mjs` already composes pure parsing,
+another interpreter. `compiler/proof.f.js` already composes pure parsing,
 lowering, analysis and Memo in its `evaluate` helper; its `compileSource` helper
 runs the CLI over a virtual filesystem and is not a production source-text API.
 
