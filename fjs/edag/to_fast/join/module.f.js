@@ -164,10 +164,9 @@ const localizedTask = (source, definition, deferred, origin) => call(() => {
     }))
 })
 
-/** Selected arms and the following normal continuation retain one first-demand owner. @type {(block: Block, selected: Extract<Statement, readonly ['if', ...unknown[]]>, inherited: readonly Definition[], result: BindingId) => Block} */
-const localRecipes = (block, selected, inherited, result) => {
-    const visible = /** @type {readonly Definition[]} */ ([...inherited, ...block.statements.flatMap(statement => statement[0] === 'define' && statement[3] === 'lazy' ? [statement] : [])])
-    let statements = followingRecipes(block, selected, visible, result)
+/** Each recipe moves to its first reached demand where one is proved. @type {(block: Block, inherited: readonly Definition[]) => Block} */
+const placed = (block, inherited) => {
+    let statements = block.statements
     for (const definition of statements.toReversed()) {
         if (definition[0] !== 'define' || definition[3] !== 'lazy') { continue }
         const deferred = /** @type {readonly Definition[]} */ ([...inherited, ...statements.flatMap(statement => statement[0] === 'define' && statement[3] === 'lazy' ? [statement] : [])])
@@ -175,6 +174,12 @@ const localRecipes = (block, selected, inherited, result) => {
         if (following !== null) { statements = following.statements }
     }
     return { ...block, statements }
+}
+
+/** Selected arms and the following normal continuation retain one first-demand owner. @type {(block: Block, selected: Extract<Statement, readonly ['if', ...unknown[]]>, inherited: readonly Definition[], result: BindingId) => Block} */
+const localRecipes = (block, selected, inherited, result) => {
+    const visible = /** @type {readonly Definition[]} */ ([...inherited, ...block.statements.flatMap(statement => statement[0] === 'define' && statement[3] === 'lazy' ? [statement] : [])])
+    return placed({ ...block, statements: followingRecipes(block, selected, visible, result) }, inherited)
 }
 
 /**
@@ -238,11 +243,11 @@ const joinTask = (block, inherited) => call(() => {
         const recipe = recipeJoin(block, deferred, inherited)
         if (recipe !== null) { return joinTask(recipe, inherited) }
         const branch = block.statements.at(-1)
-        if (branch === undefined || branch[0] !== 'if') { return done(block) }
+        if (branch === undefined || branch[0] !== 'if') { return done(placed(block, inherited)) }
         const result = /** @type {BindingId} */ ({ index: 0 })
         const values = exitValues(block.exit)
         return bind(selectedTask(['array', values], branch[2], result), selected => {
-            if (selected === null || !sameScope(branch, selected, deferred) || !firstDemand(selected.value, result, deferred)) { return done(block) }
+            if (selected === null || !sameScope(branch, selected, deferred) || !firstDemand(selected.value, result, deferred)) { return done(placed(block, inherited)) }
             const joined = /** @type {Statement} */ (['if', [...branch[1], result], branch[2], yielded(branch[3], selected.then), yielded(branch[4], selected.otherwise)])
             const replacement = /** @type {Extract<Value, readonly ['array', unknown]>} */ (selected.value)[1]
             const exit = block.exit

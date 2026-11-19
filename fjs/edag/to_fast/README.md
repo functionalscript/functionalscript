@@ -184,8 +184,9 @@ branch results in place; a decision that rebinds its own test cannot establish
 the later condition's value. Moved arms and recipes retain their original
 lexical dependencies, including deferred captures. Each normal arm yields an
 immutable joined value.
-A deferred recipe used only within one resulting arm becomes required at its
-first proven demand; the shared graph demand query checks calls, coercions
+A deferred recipe used only within one arm, or only after a statement, becomes
+required at its first proven demand, in a block that joins nothing as in one
+that does; the shared graph demand query checks calls, coercions
 and lazy barriers.
 Earlier work and recipes with other uses keep their original evaluation owner.
 Demand checks expand visible deferred initializer graphs without evaluating them,

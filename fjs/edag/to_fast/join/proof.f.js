@@ -31,6 +31,8 @@ const source = (test, value, left = normal(), right = normal(), prefix = [], exi
 })
 /** @type {(block: Block) => Extract<Statement, readonly ['if', ...unknown[]]>} */
 const branchOf = block => /** @type {Extract<Statement, readonly ['if', ...unknown[]]>} */ (block.statements.at(-1))
+/** How many results each `if` statement of the block joins: unchanged where no arm gains a value. @type {(block: Block) => readonly number[]} */
+const joinedCounts = block => block.statements.flatMap(statement => statement[0] === 'if' ? [statement[1].length] : [])
 const parseModule = parse('/join.f.js')
 /** @type {(text: string) => import('../../types.ts').Exp} */
 const moduleGraph = text => unresolved(assertOk(parseModule(text))).edag
@@ -268,7 +270,9 @@ export const proof = /** @type {const} */ ({
                     const deferredChoice = result(ref(chosen), [...prefix, ['define', chosen, choice, 'lazy'], branch])
                     for (const before of [terminal, initializer, deferredChoice]) {
                         const after = _joinResults(before)
-                        assertStructurallySame(after, before)
+                        // no arm gains the selected value; a recipe may still
+                        // move to its first demand, past the statement
+                        assertStructurallySame(joinedCounts(after), joinedCounts(before))
                         const expected = deferred ? [9] : 9
                         assertStructurallySame(assertOk(toData(assertOk(evaluate(before, condition, left)))), expected)
                         assertStructurallySame(assertOk(toData(assertOk(evaluate(after, condition, left)))), expected)
@@ -523,9 +527,13 @@ export const proof = /** @type {const} */ ({
         const afterRegion = /** @type {Block} */ ({ ...base, statements: [...base.statements, ['block', [], normal()]] })
         const beforeUse = source(ref(condition), ref(chosen), normal(), normal(), [phi, ['define', used, ref(chosen), 'required']])
         const branchUse = source(ref(condition), ref(chosen), normal([['define', used, ref(chosen), 'required']]), normal(), [phi])
+        // The statement's arms gain no result. Where every use follows the
+        // earlier work, the recipe itself moves to its first demand.
         for (const before of [afterEffect, afterControl, afterRegion, beforeUse, branchUse]) {
-            assert(_joinResults(before).statements.some(statement => statement === phi))
+            assertStructurallySame(joinedCounts(_joinResults(before)), joinedCounts(before))
         }
+        // read in one arm and again after the statement, it keeps its owner
+        assert(_joinResults(branchUse).statements.includes(phi))
     },
     followingTestsConsumeTheSelectedResult: () => {
         const condition = id(0), chosen = id(1)
@@ -546,6 +554,27 @@ export const proof = /** @type {const} */ ({
         for (let round = 0; round < 3; round = round + 1) {
             for (const [argument, expected] of cases) {
                 const invoked = /** @type {import('../../types.ts').Exp} */ (['()', _defaultExport(graph), [argument]])
+                assertStructurallySame(assertOk(toData(assertOk(memo(assertOk(identityAnalysis(invoked)))({ args: [] })))), expected)
+            }
+            const source = assertOk(tryModuleStringify(graph))
+            graph = moduleGraph(source)
+            if (round === 1) { canonical = source }
+            if (round === 2) { assertEq(source, canonical) }
+        }
+    },
+    // A recipe read only inside a later statement's arm has no join to move
+    // it: it is placed at its first demand all the same.
+    recipesMoveToTheirFirstDemandWithoutAJoin: () => {
+        const text = /** @type {const} */ ('export default (f,a,b)=>{if(a===1){if(f(a)||b){return "a";}}if(a===2){if(f(a)||a){return "b";}}return null;};')
+        /** @type {import('../../types.ts').Exp} */
+        const isTwo = ['=>', 1, [], ['===', ['arg', 0], 2]]
+        /** @type {readonly (readonly [number, number, unknown])[]} */
+        const cases = [[1, 0, null], [1, 5, 'a'], [2, 0, 'b'], [3, 0, null]]
+        let graph = moduleGraph(text)
+        let canonical = ''
+        for (let round = 0; round < 3; round = round + 1) {
+            for (const [a, b, expected] of cases) {
+                const invoked = /** @type {import('../../types.ts').Exp} */ (['()', _defaultExport(graph), [isTwo, a, b]])
                 assertStructurallySame(assertOk(toData(assertOk(memo(assertOk(identityAnalysis(invoked)))({ args: [] })))), expected)
             }
             const source = assertOk(tryModuleStringify(graph))
@@ -680,7 +709,7 @@ export const proof = /** @type {const} */ ({
         const shared = result(ref(later), [branch, ['define', later, value, 'lazy']])
         for (const before of [direct, shared]) {
             const after = _joinResults(before)
-            assertStructurallySame(after, before)
+            assertStructurallySame(joinedCounts(after), joinedCounts(before))
             for (const block of [before, after]) {
                 assertEq(assertOk(toData(assertOk(evaluate(block, condition, true)))), 2)
                 assertEq(assertOk(toData(assertOk(evaluate(block, condition, false)))), 4)
