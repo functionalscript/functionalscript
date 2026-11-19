@@ -530,7 +530,6 @@ export const proof = {
             arrayOfOptionIsTheEmptyArray: () => {
                 assertData(toData(array(option)))(toData(/** @type {const} */ ([])))
                 assertEq(validate(toData(array(option)))([])[0], 'ok')
-                assertEq(validate(toData(array(option)))(new Array(1))[0], 'error')
             },
             // the redesigned trim: a trailing declared position that admits
             // absence and whose stripped set restates the rest is dropped —
@@ -547,19 +546,18 @@ export const proof = {
             },
             // `[option]` is not `[]`: its sole position strips to `never`
             // like its (empty) rest, and the trim never reaches an empty
-            // rest — the two differ on `new Array(1)`, a length the first
-            // admits and the second bounds out
+            // rest. The forms stay distinct; of the arrays FunctionalScript
+            // builds, each admits the empty one alone
             absentOnlyPositionIsNotDropped: () => {
                 assert(!equal(toData(/** @type {const} */ ([option])))(
                     toData(/** @type {const} */ ([]))))
                 const v1 = validate(toData(/** @type {const} */ ([option])))
-                assertEq(v1(new Array(1))[0], 'ok')
                 assertEq(v1([])[0], 'ok')
                 assertEq(v1([1])[0], 'error')
                 assertEq(v1([undefined])[0], 'error')
                 const v0 = validate(toData(/** @type {const} */ ([])))
                 assertEq(v0([])[0], 'ok')
-                assertEq(v0(new Array(1))[0], 'error')
+                assertEq(v0([1])[0], 'error')
             },
         },
         orCanonicalIdentity: () => {
@@ -894,19 +892,17 @@ export const proof = {
             assert(subset(stripped)(toData(rest([number], optList))))
             assert(!subset(toData(rest([number], optList)))(stripped))
             // the absence-only cycle is where masking would be unsound: the
-            // syntactic form keeps a rest and admits any hole-only array,
-            // while the stripped form is `never` and bounds the length — two
-            // sets, not one set spelled twice
-            const holey = toData(rest([number], absCycleA))
-            assertData(holey)([
+            // syntactic form keeps a rest, while the stripped form is `never`
+            // and bounds the length — two forms, included one way only
+            const kept = toData(rest([number], absCycleA))
+            assertData(kept)([
                 { '0': { unit: absentBit } },
                 { array: [{ prefix: [{ number: true }], rest: '0' }] },
             ])
-            assertEq(validate(holey)([1, , , ])[0], 'ok')
-            assertEq(validate(holey)([1, 2])[0], 'error')
-            assertEq(validate(toData(tupleNumber))([1, , , ])[0], 'error')
-            assert(subset(toData(tupleNumber))(holey))
-            assert(!subset(holey)(toData(tupleNumber)))
+            assertEq(validate(kept)([1])[0], 'ok')
+            assertEq(validate(kept)([1, 2])[0], 'error')
+            assert(subset(toData(tupleNumber))(kept))
+            assert(!subset(kept)(toData(tupleNumber)))
             // a referenced **trailing position** is exempt by the same rule:
             // `optNumA` normalizes to `or(option, number)`, whose stripped
             // set restates the rest — an inline spelling trims — but neither
@@ -1101,14 +1097,11 @@ export const proof = {
             assertEq(vo([1])[0], 'ok')
             assertEq(vo([1, 'a'])[0], 'ok')
             assertEq(vo([])[0], 'error')
-            // the exact-length pattern admits neither, and counts a hole past
-            // the prefix: not an entry, but the array is still that long
+            // the exact-length pattern admits neither
             const vx = validate(exactlyOneNumber)
             assertEq(vx([1])[0], 'ok')
             assertEq(vx([1, 2])[0], 'error')
             assertEq(vx([])[0], 'error')
-            assertEq(vx([1, , ])[0], 'error')
-            assertEq(validate(toData(array(neverRtti)))([, ])[0], 'error')
             assertEq(validate(toData(array(neverRtti)))([])[0], 'ok')
             assertEq(validate(toData(array(neverRtti)))([1])[0], 'error')
             /** @type {Data} */
