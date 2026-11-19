@@ -311,7 +311,7 @@ export type AnyCase = Case<1> | Case<2> | Case<3> | MethodCase
 // An operand count is a type error rather than a case that runs: a group's
 // count is which EDAG vocabulary its id is in, and `Case<N>` carries it.
 //
-// These are here and not in `proof.f.mjs` because a `@typedef` there is
+// These are here and not in `proof.f.js` because a `@typedef` there is
 // checked only where a statement follows it in the same block: a JSDoc
 // comment binds to the next statement, and one with nothing after it is
 // never bound at all. Written as the tail of a proof entry, the same six
