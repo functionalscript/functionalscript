@@ -27,10 +27,10 @@ through; the one place the two differ is noted in it:
 
 | where | uses |
 | - | - |
-| `fjs/rtti/validate/proof.f.mjs` | 11 (12 expressions: one line carries two) |
-| `fjs/edag/proof.f.mjs` | 4 |
+| `fjs/rtti/validate/proof.f.mjs` | 11 (12 expressions: one line carries two; since removed) |
+| `fjs/edag/proof.f.mjs` | 4 (since removed) |
 | `fjs/rtti/common/proof.f.js` | 3 |
-| `fjs/rtti/data/proof.f.mjs` | 3 |
+| `fjs/rtti/data/proof.f.js` | 3 (since removed, with its three hole literals) |
 | `fjs/types/range_set/proof.f.js` | 3 |
 | `fjs/media/datajs/serializer/proof.f.js` | 1 (since removed under its FunctionalScript input contract) |
 | `fjs/rtti/parse/proof.f.js` | 1 |
@@ -128,15 +128,15 @@ module they live in.
       shipped code, no coverage change, unrelated to holes. Its `push` was a
       recorder's and is gone too: the log rides in the storage the encoder
       threads through `add`.
-- [ ] **`fjs/edag`.** Delete the four hole entries and trim the two prose
-      clauses that describe `fjs/rtti`'s behaviour rather than `edag`'s.
-      Confirm in the pull request that the dense siblings still cover the
-      length gate and the absence pass.
-- [ ] **The schema side**, if a sparse schema is agreed to be unauthorable. A
+- [x] **`fjs/edag`.** The four hole entries are gone, with the prose that
+      introduced them; the dense siblings still cover the length gate and the
+      absence pass.
+- [x] **The schema side.** Decided: a sparse schema is unauthorable. A
       schema is an ordinary FunctionalScript value, so the three-way
       distinction between a hole, an empty array and an explicit `undefined`
-      has no inhabitant. Delete whole arrow functions rather than lines, so
-      function coverage stays clean. `tupleSchemaEntries` itself stays: it
+      has no inhabitant. The `sparseTuple` proofs and the hole rows of the
+      acceptance table in `fjs/rtti/validate` are gone, and so are the hole
+      values in `fjs/rtti/data`'s proof. `tupleSchemaEntries` itself stays: it
       keeps its justification from the non-index-own-property half of its
       argument.
 - [x] **The container and rest length checks, all three readers in one pull

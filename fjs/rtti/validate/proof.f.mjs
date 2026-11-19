@@ -142,16 +142,6 @@ const rows = () => {
         [[number, bigint, or(option, string), or(option, null)], [2, 4n, 5]],
         [{ a: number, b: or(option, string) }, { a: 1 }],
         [{ a: number }, { a: 'one' }],
-        // a hole in a tuple schema is a declared position whose schema is
-        // `undefined`, so the schema's length is what it declares — the reading
-        // the data form has always had, and the one `Object.entries` lost
-        [new Array(1), [1, 2, 3]],
-        [new Array(1), new Array(1)],
-        [new Array(1), [undefined]],
-        [new Array(1), [1]],
-        [new Array(1), []],
-        [[, number], [9, 5]],
-        [[, number], [undefined, 5]],
         // a stated rest: what an undeclared member must be
         [rest([number], string), [1, 'x', 'y']],
         [rest([number], string), [1, 2]],
@@ -357,20 +347,6 @@ export const proof = {
             assertErrorPath(['constructor'])(validate(s)({}))
             assertErrorPath(['constructor'])(parse(s)({}))
             assertErrorPath(['constructor'])(d(s)({}))
-        },
-    },
-    sparseTuple: {
-        holeIsDeclaredUndefined: () => {
-            assertError(validate([, number])([9, 5]))
-            assertOk(validate([, number])([undefined, 5]))
-            assertError(validate(new Array(1))([1, 2, 3]))
-            assertOk(validate(new Array(1))([undefined]))
-        },
-        // A hole is a position, so a sparse schema is as long as it looks:
-        // `declared.length` is the schema's length, not its key count.
-        arityIsTheSchemaLength: () => {
-            assertOk(validate(new Array(1))([undefined]))
-            assertError(validate(new Array(1))([1]))
         },
     },
     boolean: {
@@ -670,7 +646,7 @@ export const proof = {
         // The visited set is what terminates this: the cycle reaches itself
         // before it reaches `option`. Only the absent path is asked — a pure
         // `or` cycle never terminates on a *present* value in the thunk
-        // readers, the standing limitation `../data/proof.f.mjs` records.
+        // readers, the standing limitation `../data/proof.f.js` records.
         /** @typedef {() => readonly ['or', _Cycle, typeof option]} _Cycle */
         /** @type {_Cycle} */
         const cycle = () => ['or', cycle, option]
