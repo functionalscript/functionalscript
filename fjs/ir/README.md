@@ -446,8 +446,9 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   module, `toPropertyKey` the last to join, as `toString` of its value.
 - **The parity table**: each export runs against L1's own on the values
   and keys of
-  [`l1/parity/proof.mjs`](../wasm/runtime/l1/parity/proof.mjs), written
-  out, a function among them: every pair for the binary operators and
+  [`l1/parity/proof.mjs`](../wasm/runtime/l1/parity/proof.mjs), from
+  its [`testlib.mjs`](../wasm/runtime/l1/parity/testlib.mjs), a function
+  among them: every pair for the binary operators and
   `strictEquals`, every value with each key for `get`. `divide` alone may
   abandon what it holds, where `Native.bigintDivide` throws.
 

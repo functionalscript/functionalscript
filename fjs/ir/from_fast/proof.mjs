@@ -60,6 +60,7 @@ import { lifetime } from '../lifetime/module.f.js'
 import { native } from '../native/module.f.js'
 import { print } from '../print/module.f.js'
 import { edges, held, product, run, spellings } from '../wasm/testlib.mjs'
+import { keySources, value, withFunction } from '../../wasm/runtime/l1/parity/testlib.mjs'
 import * as helpers from './helpers.f.js'
 import { errorTable, lower } from './module.f.js'
 import * as sample from './sample.f.js'
@@ -1643,19 +1644,13 @@ export const proof = {
             toIterable: boxed(toIterable),
             objectSpread: boxed(objectSpread),
         }
-        /** @type {(x: unknown) => unknown} */
-        const f = x => x
-        // The values of `sources` and `withFunction` in
-        // `../../wasm/runtime/l1/parity/proof.mjs`, written out, and its keys.
-        // The twin is L1's own on the same host, so a function's text agrees
-        // and joins every table.
-        /** @type {readonly unknown[]} */
-        const values = [
-            undefined, null, true, false, 0, -0, 1, -1.5, NaN, Infinity,
-            '', 'a', 'ab', '1', '\u{1F600}', 0n, 1n, -2n,
-            [], [1], [1, 2], {}, { a: 1 }, { valueOf: () => 2 }, { toString: () => 'x' }, f,
-        ]
-        const keys = [0, 1, -0, 1.5, '0', '01', 'a', 'length']
+        // The values and keys of the parity table, which
+        // `../../wasm/runtime/l1/parity/proof.mjs` runs against the
+        // interpreter. The twin is L1's own on the same host, so a function's
+        // text agrees and joins every table.
+        const values = withFunction.map(value)
+        const keys = keySources.map(value)
+        const f = values[values.length - 1]
         const strings = values.filter(v => typeof v === 'string')
         /** @type {(vs: readonly unknown[]) => readonly (readonly _Value[])[]} */
         const one = vs => vs.map(any => [{ any }])
