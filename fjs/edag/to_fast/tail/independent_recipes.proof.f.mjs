@@ -4,7 +4,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
-import { evaluate, failure } from '../../from_fast/member_returns/proof.f.mjs'
+import { evaluate, failure } from '../../from_fast/member_returns/proof.f.js'
 import { _independentTailRecipes } from './fixtures.f.js'
 
 /** @type {(fn: Exp, args: Args) => Exp} */

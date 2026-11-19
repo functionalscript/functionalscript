@@ -8,7 +8,7 @@ import { _tailCalls } from './module.f.js'
 import { proof as semantic, _tailFunction } from '../tail_calls/proof.f.mjs'
 import { toFast } from '../module.f.js'
 import { fromFast } from '../../from_fast/module.f.js'
-import { evaluate, failure } from '../../from_fast/member_returns/proof.f.mjs'
+import { evaluate, failure } from '../../from_fast/member_returns/proof.f.js'
 
 /** @type {(index?: number) => BindingId} */
 const id = (index = 0) => ({ index })

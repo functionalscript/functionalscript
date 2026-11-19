@@ -371,7 +371,7 @@ The construction proofs retain the delivered integration cases:
   and the [Rust fixture](../../../nanvm/harness/fixtures/owning-self-tail-calls.mjs)
   cover invocation ownership across terminal and ordinary loops, including
   deep execution without recursive stack growth.
-- [Memo integration](./loop/memo/integration/proof.f.mjs),
+- [Memo integration](./loop/memo/integration/proof.f.js),
   [initializer-owned cells](./initializer_loop_cells/proof.f.mjs),
   [deferred crossings](./deferred_loop_cells/proof.f.mjs) and
   [eager operand planning](./eager_operand_memo/proof.f.mjs) pin declaration,
@@ -381,7 +381,7 @@ The construction proofs retain the delivered integration cases:
   [entry returns](./entry_returns/proof.f.mjs) and
   [transfer returns](./transfer_returns/proof.f.mjs) retain reached payloads,
   exact owners and skipped suffixes.
-- [Member returns](./member_returns/proof.f.mjs),
+- [Member returns](./member_returns/proof.f.js),
   [normal memo members](./normal_memo_members/proof.f.mjs),
   [spread returns](./spread_returns/proof.f.mjs),
   [object spreads](./object_spread_returns/proof.f.mjs) and
