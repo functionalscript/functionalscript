@@ -16,9 +16,9 @@
  * @type {(value: unknown) => number}
  */
 export const size = value => {
-    /** @type {(sum: number, item: unknown) => number} */
-    const add = (sum, item) => sum + size(item)
-    return value instanceof Array ? value.reduce(add, 1)
-        : typeof value === 'object' && value !== null ? Object.values(value).reduce(add, 1)
-        : 1
+    /** @type {readonly unknown[]} */
+    const items = value instanceof Array ? value
+        : typeof value === 'object' && value !== null ? Object.values(value)
+        : []
+    return items.reduce((/** @type {number} */ sum, item) => sum + size(item), 1)
 }
