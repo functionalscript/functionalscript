@@ -22,7 +22,7 @@
  *
  * The two agree on **acceptance**: every value one accepts the other accepts,
  * with the same error `path` and `message`. They differ only in what a success
- * carries. `./proof.f.mjs` pins that agreement as a table rather than leaving
+ * carries. `./proof.f.js` pins that agreement as a table rather than leaving
  * it to convention. Which reader a caller wants, and why both exist, is in
  * `../guide/readers/parse-and-validate/README.md`.
  *

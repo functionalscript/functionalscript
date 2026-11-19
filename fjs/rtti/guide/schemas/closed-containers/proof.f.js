@@ -24,7 +24,7 @@ export const proof = {
     },
     // The sparse arrays the page talks about (a hole past the prefix, the
     // table under "A hole is a declared position") are host-made, so they are
-    // pinned in `../../../validate/proof.f.mjs`'s agreement table, not here.
+    // pinned in `../../../validate/proof.f.js`'s agreement table, not here.
     // The demo opens on the page's first lesson and draws it.
     demo: drawsFirst(lessons, demo),
 }
