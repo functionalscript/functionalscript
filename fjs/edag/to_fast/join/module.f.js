@@ -153,21 +153,28 @@ const certainOperands = (value, target) => value[0] === 'ref' ? []
 /**
  * Whether the block reads the recipe on every path that completes: what it
  * evaluates after the declaration, until a statement leaves it, reaches the
- * binding through operands that are always evaluated. The recipe may then be
- * required where it stands. A path that fails before the read fails either
+ * binding through operands that are always evaluated, with no value before
+ * the read that can leave. The recipe may then be required where it stands. A path that fails before the read fails either
  * way ([spec](../../../../spec/principles/README.md#failure-is-one-outcome)).
  *
  * @type {(body: Block, definition: Definition) => boolean}
  */
 const certain = (body, definition) => {
+    const values = sequence(body, body.statements.indexOf(definition) + 1, definition[1])
+    // A value that can leave, a block in it that returns or breaks, may not
+    // complete: nothing evaluated after it is certain, its own later
+    // operands and the values that follow alike. Asked of each value only
+    // where some value can leave at all.
+    const guarded = values.some(leaves)
     /** @type {{ readonly first: Value, readonly tail: unknown } | null} */
     let work = null
-    for (const value of sequence(body, body.statements.indexOf(definition) + 1, definition[1]).toReversed()) { work = { first: value, tail: work } }
+    for (const value of values.toReversed()) { work = { first: value, tail: work } }
     while (work !== null) {
         const { first: value, tail } = work
         work = /** @type {typeof work} */ (tail)
         if (!(value instanceof Array)) { continue }
         if (value[0] === 'ref' && value[1] === definition[1]) { return true }
+        if (guarded && leaves(value)) { work = null }
         for (const operand of certainOperands(value, definition[1]).toReversed()) { work = { first: operand, tail: work } }
     }
     return false
