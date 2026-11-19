@@ -5,7 +5,7 @@
  * result written as ordinary JavaScript values. Two consumers read it, so a
  * new case is written once and checked twice:
  *
- * - [`proof.f.mjs`](./proof.f.mjs) evaluates each case through represented
+ * - [`proof.f.js`](./proof.f.js) evaluates each case through represented
  *   EDAG interpretation and cross-checks independent native JavaScript
  *   operations, excluding canonical function text only from that cross-check.
  * - [`rust/module.f.js`](./rust/module.f.js) prints each case as Rust,
@@ -1266,7 +1266,7 @@ const inIndexCases = [
  * `String(x)`.
  *
  * A function's string form is its source text, which no two engines have to
- * agree on, so it is not shared data — [`proof.f.mjs`](./proof.f.mjs) checks
+ * agree on, so it is not shared data — [`proof.f.js`](./proof.f.js) checks
  * the JavaScript side separately.
  *
  * @type {readonly Case<1>[]}

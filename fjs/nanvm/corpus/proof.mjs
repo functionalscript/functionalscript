@@ -33,7 +33,7 @@ const reference = async name => {
 /**
  * The runtime the interpreter answers `startsWith` from: `fjs/js/runtime`'s
  * EDAG, which `npm run gen` writes beside its source, evaluated to its
- * export object and read for `runtime`, as `../proof.f.mjs` does.
+ * export object and read for `runtime`, as `../proof.f.js` does.
  *
  * @type {import('../../edag/value/types.ts').Runtime}
  */

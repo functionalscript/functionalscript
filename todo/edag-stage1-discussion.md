@@ -277,7 +277,7 @@ anchors, fixed/rest functions, captures and `self`. The
 [Memo proofs](../fjs/edag/memo/proof.f.js) and
 [Amnesia proofs](../fjs/edag/amnesia/proof.f.js) cover these paths. The current
 [node inventory](../fjs/edag/README.md#nodes) is the schema reference; source
-limits still apply, including no unary `+`; an authored comma is admitted in
+limits still apply; an authored comma is admitted in
 parentheses ([comma](../spec/operators/comma/README.md)).
 
 |Form|JS|Rollout history|Notes|
@@ -354,10 +354,10 @@ the EDAG at all.
 
 The EDAG spells unary `+` as `["+", node]` — JS's own, which does the same
 coercion job as `Number(x)` for every type except **bigint**, where it throws
-instead of converting. FunctionalScript does not parse it: `["Number", node]`
-is the language's one numeric-coercion form, spelled by its JS built-in, and
-which EDAG operations the language admits as syntax is
-the language's decision ([operators](../spec/operators/README.md)), not the EDAG's. The
+instead of converting. FunctionalScript has both: `["Number", node]`, spelled
+by its JS built-in, and unary `+`; which EDAG operations the language admits
+as syntax is the language's decision
+([operators](../spec/operators/README.md)), not the EDAG's. The
 EDAG admits an operation when it is pure — its result a function of its
 operands and nothing else — and unary `+` is.
 
@@ -413,7 +413,7 @@ arity by membership alone.
 
 |Symbols|Arity|JS|Lazy|Notes|
 |-------|-----|--|----|-----|
-|`+` `-`|1|`+a`, `-a`|no|unary plus and negation — the arithmetic tags below at one operand (see above); unary `+` is not FunctionalScript syntax ([operators](../spec/operators/README.md)), and [property-accessor](../spec/todo/2330-property-accessor.md)'s run-time-index coercion is `"Number"`, not an operator|
+|`+` `-`|1|`+a`, `-a`|no|unary plus and negation — the arithmetic tags below at one operand (see above); unary `+` is FunctionalScript syntax too ([operators](../spec/operators/README.md)); a run-time index wraps it in `"Number"`, the key's own coercion|
 |`!` `~`|1|`!a`, `~a`|no|unary only|
 |`typeof`|1|`typeof a`|no|implemented FunctionalScript syntax; returns the value's JavaScript type string ([spec: operators](../spec/operators/README.md))|
 |`+` `-` `*` `/` `%` `**`|2|`a + b`|no|arithmetic|
@@ -424,7 +424,7 @@ arity by membership alone.
 
 These operators were scheduled after the original Stage 1, which had none.
 All are implemented by the represented interpreters. The current compiler
-accepts their source spellings except unary `+`, which remains EDAG-only.
+accepts their source spellings, unary `+` among them.
 
 #### Other operations
 

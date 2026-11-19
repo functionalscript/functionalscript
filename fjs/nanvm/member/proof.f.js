@@ -1,6 +1,6 @@
 /**
  * Proofs for the member-function groups. What each case answers is proven
- * through `data`, in [`../proof.f.mjs`](../proof.f.mjs); here, only what
+ * through `data`, in [`../proof.f.js`](../proof.f.js); here, only what
  * this module owns: its groups.
  */
 

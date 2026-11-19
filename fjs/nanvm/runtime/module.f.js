@@ -40,7 +40,7 @@ export const rustPath = 'nanvm/lib/src/vm/gen.runtime.rs'
 
 /**
  * Where its EDAG goes as ordinary JavaScript, beside its source, for the corpus proof
- * [`../proof.f.mjs`](../proof.f.mjs) and the compiler's demo: the consumers
+ * [`../proof.f.js`](../proof.f.js) and the compiler's demo: the consumers
  * that need the runtime as data without a file system. Nothing the compiler
  * imports reads it — `npm run gen` deletes every `gen.*` first, and a
  * generator whose own imports needed one could not start.

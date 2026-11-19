@@ -213,12 +213,9 @@ canonical EDAG contain no logical or nullish operation tags.
 
 `tryNormalize(resolved, imports)` reports unsupported source constructs as a
 Result before producing FAST. `normalize` retains its strict convenience API
-and throws that refusal. Unary `+` is currently admitted in source AST only:
-conversion refuses every occurrence, including unreachable source, with
-`unary + AST-to-FAST conversion is not implemented`. The existing source-write
-index identifies actual value nodes, so literal `"+"` data and binary addition
-are unaffected. Compiler linking and interpretation propagate this as a normal
-file diagnostic. See the [remaining lowering work](../../../../spec/todo/unary-plus.md).
+and throws that refusal. Unary `+` normalizes as any prefix operator does, to
+the FAST and EDAG `['+', operand]`, distinct from addition by its length; a
+numeric index `a[+x]` keeps the numeric-index wrapper around it.
 
 Loose equality `==` and inequality `!=` are accepted in source AST and refused by
 `tryNormalize` before FAST construction, including unreachable occurrences.

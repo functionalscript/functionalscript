@@ -21,8 +21,8 @@ JavaScript calls them, and `"[object Object]"` otherwise, so `Number({})` is
 `valueOf` or a `toString` throws, so does the conversion
 ([failure is one outcome](../../principles/README.md#failure-is-one-outcome)).
 
-It is the language's conversion to a number: unary `+` is not FunctionalScript
-syntax, and where the EDAG has it the two differ, `+` throwing on a `bigint`
+It is the language's conversion to a number that accepts a `bigint`: unary
+`+` converts as it does and throws on one
 ([operators](../../operators/README.md)). It is the EDAG's own
 `['Number', exp]`, which graph outputs preserve and every executor answers; the
 front end folds nothing, `Number("1")` reaching the graph as a node, as `~1`
