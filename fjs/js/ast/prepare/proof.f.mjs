@@ -9,7 +9,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { prepare, prepareFunction } from './module.f.js'
-import { _tailFunction } from '../../../edag/to_fast/tail_calls/proof.f.mjs'
+import { _tailFunction } from '../../../edag/to_fast/tail_calls/proof.f.js'
 
 /** @type {(index: number) => BindingId} */
 const id = index => ({ index })

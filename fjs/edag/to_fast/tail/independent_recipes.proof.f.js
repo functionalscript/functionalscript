@@ -3,9 +3,10 @@
  * @import { Args, Exp } from '../../types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.js'
 import { evaluate, failure } from '../../from_fast/member_returns/proof.f.js'
 import { _independentTailRecipes } from './fixtures.f.js'
+import { entry } from '../../../types/object/entry/module.f.js'
 
 /** @type {(fn: Exp, args: Args) => Exp} */
 const call = (fn, args) => ['()', fn, args]
@@ -35,9 +36,9 @@ export const proof = /** @type {const} */ ({
         const first = _independentTailRecipes()
         const second = _independentTailRecipes()
         for (const name of /** @type {const} */ (['scalar', 'vectors', 'selectedFailure', 'snapshots'])) {
-            assert(first[name] !== second[name])
-            const current = recipes(first[name])
-            const fresh = recipes(second[name])
+            assert(entry(first, name) !== entry(second, name))
+            const current = recipes(assertNotNullish(entry(first, name)))
+            const fresh = recipes(assertNotNullish(entry(second, name)))
             assert(current.left !== current.right)
             assert(current.left !== fresh.left)
             assert(current.right !== fresh.right)

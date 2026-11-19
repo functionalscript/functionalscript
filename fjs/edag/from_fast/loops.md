@@ -377,14 +377,14 @@ The construction proofs retain the delivered integration cases:
   [eager operand planning](./eager_operand_memo/proof.f.mjs) pin declaration,
   caller, iteration and recipe lifetimes with their shared identities.
 - [Owning returns](./lazy_returns/proof.f.mjs),
-  [capture returns](./capture_returns/proof.f.mjs),
-  [entry returns](./entry_returns/proof.f.mjs) and
-  [transfer returns](./transfer_returns/proof.f.mjs) retain reached payloads,
+  [capture returns](./capture_returns/proof.f.js),
+  [entry returns](./entry_returns/proof.f.js) and
+  [transfer returns](./transfer_returns/proof.f.js) retain reached payloads,
   exact owners and skipped suffixes.
 - [Member returns](./member_returns/proof.f.js),
-  [normal memo members](./normal_memo_members/proof.f.mjs),
-  [spread returns](./spread_returns/proof.f.mjs),
-  [object spreads](./object_spread_returns/proof.f.mjs) and
+  [normal memo members](./normal_memo_members/proof.f.js),
+  [spread returns](./spread_returns/proof.f.js),
+  [object spreads](./object_spread_returns/proof.f.js) and
   [normal memo spreads](./normal_memo_spreads/proof.f.mjs) distinguish lookup,
   conversion and expansion failure from a later successful return.
 

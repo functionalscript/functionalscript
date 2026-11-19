@@ -466,7 +466,7 @@ After retaining the established loop plans, the
 refuses a possible `continue` to the invocation's exact loop target before
 inverse reconstruction. Break-only and other one-pass wrappers can still become
 terminal values, preserving ordinary self calls and returned self identity.
-The [fallback proofs](../edag/to_fast/source/loops/fallback.proof.f.mjs) and
+The [fallback proofs](../edag/to_fast/source/loops/fallback.proof.f.js) and
 [transfer-query proofs](../js/ast/control/proof.f.js) pin this boundary. The
 query traverses nested regions and evaluated captures, skipping ordinary
 function bodies. It is structural and can conservatively refuse
@@ -550,7 +550,7 @@ helpers.
 | [Normalized FAST](../edag/from_fast/control_flow/module.f.js) | Nine groups cover nested joins/returns, allocation sharing, parameterized continuations, current multi-state transfers, iteration snapshots, owning loop returns, switch fall-through edges/owners and conditional-loop iterations. They construct FAST independently of source admission. |
 | [JavaScript host](serializer/value/control_flow.proof.mjs) | Executes admitted reference cases, immediate writes, expression joins and deep self-tail/helper loops through code-only and FJS source outputs. Supplied nested joins, parameterized continuations, shared-tail prefixes, rest and named exports also execute through both writers; deep shared-tail transfers use `while`. |
 | [Deferred owning tails](../edag/from_fast/deferred_tail_calls.proof.f.js) | Directly constructed FAST covers lazy completion ownership, nested recipes, aliases, argument snapshots and memo lifetimes. [Native JavaScript](serializer/value/deferred_tail_calls.proof.mjs) and [native Rust](../../nanvm/harness/tests/deferred_owning_tail_calls.rs) execute deep transfers without recursive stack growth. JavaScript also checks `nestedRecipe` and `normalPayload` through two public source generations. |
-| [Source fallback](../edag/to_fast/source/loops/fallback.proof.f.mjs) | Retained loop plans precede the structural owning-backedge refusal. One-pass inversion preserves ordinary self calls and identity; the [native public route](serializer/value/control_flow.proof.mjs) separately preserves parser readback and deep `while` execution. |
+| [Source fallback](../edag/to_fast/source/loops/fallback.proof.f.js) | Retained loop plans precede the structural owning-backedge refusal. One-pass inversion preserves ordinary self calls and identity; the [native public route](serializer/value/control_flow.proof.mjs) separately preserves parser readback and deep `while` execution. |
 
 Result equality does not establish graph identity. Source parsing, graph/source
 reconstruction and native target execution remain separate gates; Rust text is

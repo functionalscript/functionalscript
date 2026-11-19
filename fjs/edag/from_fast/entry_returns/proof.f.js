@@ -12,6 +12,7 @@ import { invocationRootOf } from '../loop/root/module.f.js'
 import { toFast } from '../../to_fast/module.f.js'
 import { _id as id, _ref as ref, _result as result, _target as target, _body as body, _calledFunction as calledFunction } from '../proof.f.js'
 import { escape, failed, mixed, evaluate, failure, flat } from '../member_returns/proof.f.js'
+import { generate } from '../../../types/array/module.f.js'
 
 /** @type {(initial: readonly Value[]) => FastFunction} */
 const terminalEntry = initial => {
@@ -25,7 +26,7 @@ const terminalEntry = initial => {
 export const proof = /** @type {const} */ ({
     returningEntryPositionsSkipRemainingSetup: () => {
         for (const position of /** @type {const} */ ([0, 1, 2])) {
-            const initial = Array.from({ length: 3 }, (_, index) => index < position ? index
+            const initial = generate(3, index => index < position ? index
                 : index === position ? escape(['array', ['entry', position]]) : failed('skipped entry value'))
             assertStructurallySame(evaluate(calledFunction(terminalEntry(initial))), ['entry', position])
         }
@@ -38,7 +39,7 @@ export const proof = /** @type {const} */ ({
     normalEntrySignaturesAndStateOrder: () => {
         const stop = id(0)
         for (const width of /** @type {const} */ ([0, 1, 3])) {
-            const parameters = Array.from({ length: width }, () => id(0))
+            const parameters = generate(width, () => id(0))
             const outputs = parameters.map(() => id(0))
             const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
             const loop = /** @type {Loop} */ ({ target: loopTarget, parameters,
