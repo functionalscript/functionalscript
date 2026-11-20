@@ -16,6 +16,7 @@ import { bind, call, done, run } from '../../../js/ast/task/module.f.js'
 import { _forwardResult } from '../../../js/ast/results/module.f.js'
 import { anchored, lowerValue } from '../../from_fast/module.f.js'
 import { demandsInOrder } from '../../demand/module.f.js'
+import { isNegativeZero } from '../../../types/number/is_negative_zero/module.f.js'
 
 /**
  * Whether two tests decide alike: the same value, or the same operation over
@@ -32,7 +33,8 @@ const sameTest = (a, b) => {
     while (pending.length !== 0) {
         const [[x, y], ...rest] = pending
         pending = rest
-        if (x === y) { continue }
+        // `===` holds for `0` and `-0`, which a test can tell apart
+        if (x === y && (typeof x !== 'number' || isNegativeZero(x) === isNegativeZero(/** @type {number} */ (y)))) { continue }
         if (!(x instanceof Array) || !(y instanceof Array) || x.length !== y.length || ['function', 'block', 'if'].includes(x[0])) { return false }
         pending = [...x.map((item, index) => /** @type {const} */ ([item, y[Number(index)]])), ...pending]
     }

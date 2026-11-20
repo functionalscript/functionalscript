@@ -461,6 +461,9 @@ export const proof = /** @type {const} */ ({
         assertEq(joined(['===', ref(condition), 1], ['===', ref(other), 1]), 0)
         assertEq(joined(['===', ref(condition), 1], ['!', ref(condition)]), 0)
         assertEq(joined(['===', ref(condition), 1], 1), 0)
+        // signed zeros are different literals: `1 / 0 > 0` and `1 / -0 > 0` decide differently
+        assertEq(joined(['>', ['/', 1, 0], 0], ['>', ['/', 1, -0], 0]), 0)
+        assertEq(joined(['>', ['/', 1, -0], 0], ['>', ['/', 1, -0], 0]), 1)
         assertEq(joined(selected(ref(condition), 1, 2), selected(ref(condition), 1, 2)), 0)
         // a statement that declares a binding its test reads: the later test reads the new one
         const rebinding = /** @type {Block} */ ({ statements: [['if', [condition], ['===', ref(condition), 1], result(3), result(4)]], exit: ['yield', [selected(['===', ref(condition), 1], 7)]] })
