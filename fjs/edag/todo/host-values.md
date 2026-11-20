@@ -50,15 +50,19 @@ A value is the host's own value, except a function.
   along the lines of
 
   ```js
-  () => ({ length, edag, compiled })
+  () => ({ length, edag })
   ```
 
-  `edag` is what the function is as EDAG, so it can still be written out.
-  `compiled` is a host function that runs it: built once where the function
-  value is made, it takes the arguments and answers the result, so a call
-  does not walk the body again. The description is behind a call so that a
-  function value is told from data by `typeof`, and is one reference, which
-  is its identity.
+  `edag` is what the function is as EDAG: a call evaluates it, as a call
+  does today, and it can still be written out. The description is behind a
+  call so that a function value is told from data by `typeof`, and is one
+  reference, which is its identity.
+
+  The description may later hold a third field, `compiled`: a host function
+  built once where the function value is made, which takes the arguments and
+  answers the result, so that a call does not walk the body. It is not part
+  of this proposal. Without it the third cost above stays, and the first two
+  go.
 
 This is the model NaNVM already has, real values and functions
 (`Any<A>` in `nanvm/lib`), so the interpreters and the VM would agree on what
@@ -73,7 +77,8 @@ a value is.
   (`EntryFunction`, `Intrinsic`, `Static`) answer as descriptions.
 - **A reference map is a host function too.** `typeof` alone no longer tells
   a description from a map. Either a map is wrapped in a description whose
-  `compiled` is the map, or the two are told apart another way.
+  `edag` is the `['refMap']` node and which the interpreter calls as the
+  host's map, or the two are told apart another way.
 - **`undefined`.** It is tagged today so that an absent value and an
   `undefined` one are never confused inside the interpreter
   ([`../value/README.md`](../value/README.md)). With the host's `undefined`
@@ -89,12 +94,6 @@ a value is.
   used holds what cannot be enumerated: it is refused, or the fold over the
   empty map is kept beside it
   ([the store's third question](./reference-map-store.md)).
-- **What `compiled` is built from, and by whom.** The interpreters are
-  FunctionalScript, so it is a closure over the body, not generated text.
-  How tail calls keep constant host stack through it
-  ([values.md](../values.md#operations-and-failures)), and whether
-  [`amnesia`](../amnesia/README.md), whose point is to evaluate every edge
-  again, uses it at all.
 - **Types.** `EdagValue` is checked to be a subset of `Exp`
   (`_Subset`), and the value serializer and the function-text renderer rely
   on it. Values become `unknown` narrowed at each operation; what replaces
@@ -114,9 +113,10 @@ value to a host one, becomes the identity on data.
 
 - [ ] Settle the description's fields and how a map is told from a function.
 - [ ] Settle `undefined` and the object rules.
-- [ ] Decide what `compiled` is and measure it on one interpreter before
-  moving the rest: the reference-map program above, and the whole compiler
-  evaluated (`fjs/module.f.js`), which took 19 min 25 s at `9a14b1d`.
+- [ ] Measure on one interpreter before moving the rest: the reference-map
+  program above, and the whole compiler evaluated (`fjs/module.f.js`), which
+  took 19 min 25 s at `9a14b1d`. What a call still costs there says whether
+  `compiled` is worth an issue of its own.
 - [ ] Move the operations, then the interpreters, then the consumers.
 - [ ] Write a host value out as EDAG, with sharing kept.
 - [ ] Delete [the store issue](./reference-map-store.md) with the pull
