@@ -369,6 +369,20 @@ export const proof = {
             '        else',
             '            s',
         ]),
+        // A counted parameter whose first value is copy owns it, so a later iteration may give it a counted value.
+        copyFirst: () => golden(module_([['a', string], ['k', f64]], any, loop('L', [['x', any, constant('Any', 'null')], ['i', f64, one]], (x, i) =>
+            if_(lt(i, k), next('L', [['x', concat(a, a)], ['i', add(i, one)]]), x))), [
+            'fn f(a: any.only(string), k: f64) -> any =',
+            '    loop L (x: any = Any.null, i: f64 = 1.0 as f64)',
+            '        if lt(i, k)',
+            '        then',
+            '            let $0 = String.concat(a, a)',
+            '            let $1 = add(i, 1.0 as f64)',
+            '            let $2 = Any.drop(x)',
+            '            br L { x: $0, i: $1 }',
+            '        else',
+            '            x',
+        ]),
         // A path that leaves the function early drops what it owns first, after its value.
         early: () => golden(module_([['a', string], ['b', bool]], f64, let_('t', concat(a, a), t =>
             let_('x', if_(b, return_(zero), one), x => add(x, float(length(t)))))), [

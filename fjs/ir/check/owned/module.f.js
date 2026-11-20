@@ -351,7 +351,11 @@ const loopTerm = (walk, env, alive, mode, label, params, body) => {
     const gone = results.flatMap(v => minus(rootsOf(v), start))
     if (gone.length > 0) { return no(env, `a parameter of loop ${label} borrows ${gone[0]}, which another's first value consumes`) }
     /** @type {readonly (readonly [string, _Local])[]} */
-    const locals = params.map(([k], j) => [k, localOf(results[Number(j)])])
+    const locals = params.map(([k, x], j) => {
+        const v = results[Number(j)]
+        // a copy first value of a counted parameter is owned by no one, so the loop may own it, and drop it as it would any
+        return [k, v[0] === 'plain' && holds(env.imports)(x) ? ['own'] : localOf(v)]
+    })
     const mine = locals.flatMap(([k, l]) => l[0] === 'own' ? [k] : [])
     const inner = labelled({ ...env, locals: locals.reduce((ls, [k, l]) => setReplace(k)(l)(ls), env.locals) }, label, ['loop', start, locals])
     const b = walk(inner, [...start, ...mine], body, mode)
