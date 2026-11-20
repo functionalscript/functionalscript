@@ -71,8 +71,8 @@ export const proof = {
     visit: () => {
         /** @type {Exp} */
         const root = ['[]', [c, c]]
-        assertStructurallySame(visit(operandsOf)([])(root), [[c, 2], [root, 1]])
-        assertStructurallySame(visit(operandsOf)([])(1), [])
+        assertStructurallySame(visit(operandsOf)(root), [[c, 2], [root, 1]])
+        assertStructurallySame(visit(operandsOf)(1), [])
     },
     sharedNodesOf: {
         /** A node reached from only one place is never a binding candidate. */

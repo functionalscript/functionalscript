@@ -470,11 +470,11 @@ export const proof = {
     scopeHolds: () => {
         const a = an(['=>', 0, [], ['[]', [['rest'], ['=>', 0, [], ['self']]]]])
         assertStructurallySame(a.scope, [4, 2, 4, 4, -1])
-        assert(scopeHolds(a, 4, 'rest'))
-        assert(!scopeHolds(a, 4, 'self'))
-        assert(scopeHolds(a, 2, 'self'))
-        assert(!scopeHolds(a, 2, 'rest'))
-        assert(!scopeHolds(a, 4, 'arg'))
+        assert(scopeHolds(a, 'rest')(4))
+        assert(!scopeHolds(a, 'self')(4))
+        assert(scopeHolds(a, 'self')(2))
+        assert(!scopeHolds(a, 'rest')(2))
+        assert(!scopeHolds(a, 'arg')(4))
     },
     // Every node kind and every step, walked in written order — the shapes
     // `order`, `access`, `calls` and `scope` do not reach.

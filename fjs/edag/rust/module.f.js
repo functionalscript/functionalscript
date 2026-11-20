@@ -51,7 +51,7 @@ const withBodies = node => node[0] === '=>' ? [...operandsOf(node), node[3]] : o
 const memberCall = (step, member) => step === undefined ? false : step[0] === '|.' ? memberCall(step[2], true) : member || memberCall(step[2], false)
 
 /** Whether the graph's operation spelling uses the runtime argument. @type {(root: Exp) => boolean} */
-export const needsRuntime = root => visit(withBodies)([])(root).some(([node]) => {
+export const needsRuntime = root => visit(withBodies)(root).some(([node]) => {
     if (isStatic(node)) { return true }
     const operation = /** @type {ExpOp} */ (node)
     switch (operation[0]) {
@@ -126,10 +126,10 @@ export const statementsOf = (shared, runtime = null) => root => okThen(({ block,
 export const bindingLine = (shared, name, runtime = null) => root => okThen(({ block, external, options }) => mapOk(([text]) => untagged(text))(bindingTagged(name, ['block', block], options, external)))(converted(root, shared, noText, runtime))
 
 /** A graph's own-scope read metadata. @type {(tag: string) => (root: Exp) => boolean} */
-const reads = tag => root => visit(operandsOf)([])(root).some(([node]) => node instanceof Array && node[0] === tag)
+const reads = tag => root => visit(operandsOf)(root).some(([node]) => node instanceof Array && node[0] === tag)
 
 /** Whether a fragment reads invocation inputs. @type {(root: Exp) => boolean} */
 export const readsArgs = root => reads('args')(root) || reads('arg')(root) || reads('rest')(root)
 
 /** The public Rust VM capability required by a graph. @type {(root: Exp) => boolean} */
-export const holdsFunction = root => visit(withBodies)([])(root).some(([node]) => isFunctionNode(node))
+export const holdsFunction = root => visit(withBodies)(root).some(([node]) => isFunctionNode(node))

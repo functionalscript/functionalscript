@@ -72,7 +72,7 @@ const reads = e => {
 const allOperands = node => node[0] === '=>' ? [...operandsOf(node), node[3]] : operandsOf(node)
 
 /** The nodes a root reaches through its operands, a function's body aside. @type {(root: unknown) => readonly unknown[]} */
-const reached = root => visit(operandsOf)([])(root).map(([n]) => n)
+const reached = root => visit(operandsOf)(root).map(([n]) => n)
 
 /**
  * Whether a comma in a graph anchors a node another of its operands
@@ -84,7 +84,7 @@ const reached = root => visit(operandsOf)([])(root).map(([n]) => n)
  * @type {(e: Exp) => boolean}
  */
 const redundantAnchor = e => {
-    return visit(allOperands)([])(e).some(([n]) => {
+    return visit(allOperands)(e).some(([n]) => {
         if (!(n instanceof Array) || n[0] !== ',') { return false }
         /** @type {readonly unknown[]} */
         const all = n[1]
@@ -107,7 +107,7 @@ const redundantAnchor = e => {
  */
 const generatedOperandPrefix = (e, sharedOnly = false) => {
     /** @type {readonly Exp[]} */
-    const shared = sharedOnly ? visit(allOperands)([])(e).filter(([, count]) => count > 1).map(([node]) => node) : []
+    const shared = sharedOnly ? visit(allOperands)(e).filter(([, count]) => count > 1).map(([node]) => node) : []
     /** @type {readonly { readonly value: unknown; readonly region: boolean }[]} */
     let pending = [{ value: e, region: true }]
     while (pending.length !== 0) {
@@ -132,7 +132,7 @@ const generatedOperandPrefix = (e, sharedOnly = false) => {
  * @type {(e: Exp) => boolean}
  */
 const sharedByBothArms = e => {
-    return visit(allOperands)([])(e).some(([n]) => {
+    return visit(allOperands)(e).some(([n]) => {
         if (!(n instanceof Array) || n[0] !== '?:') { return false }
         const otherwise = reached(n[3])
         return reached(n[2]).some(x => x instanceof Array && otherwise.includes(x))
@@ -140,7 +140,7 @@ const sharedByBothArms = e => {
 }
 
 /** Newly admitted primitive captures retain semantic readback rather than raw graph identity. @type {(e: Exp) => boolean} */
-const generatedPrimitiveCapture = e => visit(allOperands)([])(e).some(([node]) => node instanceof Array && node[0] === '=>'
+const generatedPrimitiveCapture = e => visit(allOperands)(e).some(([node]) => node instanceof Array && node[0] === '=>'
     && node[2].some(slot => !(slot instanceof Array) || slot[0] === 'undefined'))
 
 /**

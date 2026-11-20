@@ -152,6 +152,6 @@ export const reaches = (a, shared) => v => reached(a)(v).some(i => shared.includ
 export const keepsRecursion = (a, i, { before, condition, arm }) => {
     const fromCondition = reached(a)(condition)
     const fromArm = reached(a)(arm)
-    return before.length !== 0 || scopeHolds(a, i, 'rest')
+    return before.length !== 0 || scopeHolds(a, 'rest')(i)
         || a.nodes.some((n, j) => a.scope[Number(j)] === i && !mergeable(n) && fromCondition.includes(j) && fromArm.includes(j))
 }
