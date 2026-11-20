@@ -50,15 +50,18 @@ A value is the host's own value, except a function.
   along the lines of
 
   ```js
-  () => ({ length, edag })
+  () => ({ length, frame, edag })
   ```
 
-  `edag` is what the function is as EDAG: a call evaluates it, as a call
-  does today, and it can still be written out. The description is behind a
-  call so that a function value is told from data by `typeof`, and is one
+  the three parts a closure has today
+  (`['=>', length, captures, body]`). `frame` is its evaluated captures,
+  which are values and so host values; `edag` is its body, unevaluated. A
+  call evaluates `edag` over `frame` and the arguments, as a call does
+  today, and the function can still be written out from the three. The
+  description is behind a call so that a function value is told from data by `typeof`, and is one
   reference, which is its identity.
 
-  The description may later hold a third field, `compiled`: a host function
+  The description may later hold a fourth field, `compiled`: a host function
   built once where the function value is made, which takes the arguments and
   answers the result, so that a call does not walk the body. It is not part
   of this proposal. Without it the third cost above stays, and the first two
@@ -70,11 +73,10 @@ a value is.
 
 ### What a design has to settle
 
-- **The description's fields.** A closure has evaluated captures as well as a
-  body; the captures are values, so host values, and writing the function
-  out needs them. Whether they live inside `edag` or beside it, and what the
-  entry helpers, intrinsics and static functions
-  (`EntryFunction`, `Intrinsic`, `Static`) answer as descriptions.
+- **Functions that are no closure.** What the entry helpers, intrinsics and
+  static functions (`EntryFunction`, `Intrinsic`, `Static`) answer as
+  descriptions: they have no captures and no body, only the node that names
+  them.
 - **A reference map is a host function too.** `typeof` alone no longer tells
   a description from a map. Either a map is wrapped in a description whose
   `edag` is the `['refMap']` node and which the interpreter calls as the
@@ -111,7 +113,7 @@ value to a host one, becomes the identity on data.
 
 ### Tasks
 
-- [ ] Settle the description's fields and how a map is told from a function.
+- [ ] Settle the descriptions of functions that are no closure, and how a map is told from a function.
 - [ ] Settle `undefined` and the object rules.
 - [ ] Measure on one interpreter before moving the rest: the reference-map
   program above, and the whole compiler evaluated (`fjs/module.f.js`), which
