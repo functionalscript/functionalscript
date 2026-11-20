@@ -328,7 +328,7 @@ export const proof = {
             'export f',
             '',
         ].join('\n'))
-        assertEq(why(fa, calling({ ...g, rest: id(4) })), 'f: a rest parameter is not in this slice')
+        assertEq(why(fa, calling({ ...g, rest: id(4) })), 'f: a rest parameter is an array that Containers builds, which a module lowered without the runtime does not import')
         assertEq(why(fa, module([['define', x, ['()', ['function', g], [['ref', a]]], 'required']], ['ref', x])), 'f: a call of a value uses Functions.call, which a module lowered without the runtime does not import')
         assertEq(why(fa, calling({ ...g, self: id(4) })), 'f: a function that calls itself is not in this slice')
         assertEq(why(fa, calling({ ...g, captures: [{ binding: id(4), value: 1 }] })), 'f: a capture that is no binding of the function is not in this slice')

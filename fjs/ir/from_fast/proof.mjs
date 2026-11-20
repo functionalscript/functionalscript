@@ -76,6 +76,7 @@ import * as reads from './reads.f.js'
 import * as throws from './throws.f.js'
 import * as builds from './builds.f.js'
 import * as closures from './closures.f.js'
+import * as spreads from './spreads.f.js'
 import * as programs from './programs.f.js'
 import {
     arrays as arraySignatures, builds as buildSignatures, constants as constantSignatures, helpers as helperSignatures,
@@ -154,6 +155,9 @@ const fromPrograms = () => assertOk(lifetime(fromText(new URL('./programs.f.js',
 
 /** The closures of slice 11b, lowered as the programs are. @type {() => Module} */
 const fromClosures = () => assertOk(lifetime(fromText(new URL('./closures.f.js', import.meta.url), {}, { ...l1Runtime(errors), l1: plainL1() })))
+
+/** The spreads and rest parameters of slice 11c, lowered as the programs are. @type {() => Module} */
+const fromSpreads = () => assertOk(lifetime(fromText(new URL('./spreads.f.js', import.meta.url), {}, { ...l1Runtime(errors), l1: plainL1() })))
 
 /** Each function of a module, taking its arguments as a list. @type {(m: object) => StringMap<_Twin>} */
 const twinsOf = m => Object.fromEntries(Object.entries(m).map(([name, f]) => {
@@ -1818,4 +1822,10 @@ export const proof = {
     // JavaScript's on probes of its own; `given` passes one to a function of
     // JavaScript, which calls it.
     closuresRun: () => runPrograms(fromClosures(), closures, ['applied', 'callTwice', 'given', 'sameLocal', 'viaCallback']),
+    // Slice 11c: every export of the spreads, each against JavaScript.
+    spreads: () => {
+        const m = fromSpreads()
+        assertEq([...m.exports].toSorted().join(' '), Object.keys(spreads).toSorted().join(' '))
+    },
+    spreadsRun: () => runPrograms(fromSpreads(), spreads, ['around', 'spreadCall', 'spreadMixed']),
 }
