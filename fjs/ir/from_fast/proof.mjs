@@ -1801,7 +1801,7 @@ export const proof = {
     // function of two arguments, and throws L1's value of the error that
     // JavaScript throws. A throw of L1 leaves what the caller made for it
     // behind, a boxed key or number, which the host recovers.
-    programsRun: () => runPrograms(fromPrograms(), programs, ['apply', 'first', 'method', 'mixed', 'pair', 'sum3', 'twice']),
+    programsRun: () => runPrograms(fromPrograms(), programs, ['apply', 'called', 'first', 'method', 'mixed', 'pair', 'sum3', 'twice']),
     // Slice 11b: every export of the closures, and the lifted code of each
     // function that they make as a value, `(#self, #args) -> any`, which reads
     // its frame through `#self`.
