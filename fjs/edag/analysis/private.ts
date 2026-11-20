@@ -8,6 +8,7 @@
 import type { Exp, ExpOp, TagMap } from '../types.ts'
 import type { Node, Operand } from './types.ts'
 import type { PersistentMap } from '../../types/map/types.ts'
+import type { List } from '../../types/list/types.ts'
 
 /** The `=>` node whose body is being walked, or `null` at the module level. */
 export type _Scope = ExpOp | null
@@ -15,15 +16,24 @@ export type _Scope = ExpOp | null
 /** An entry as the walk holds it: its scope by the `=>` object, since that node's index is not known until its body is walked. */
 export type _Entry = { readonly scope: _Scope, readonly node: Node }
 
+/** What the walk knows of a node it has added: its entry's index and the scope it was added in. */
+export type _Seen = readonly [index: number, scope: _Scope]
+
+/** The entries of one scope that may merge, by spelling, to their index. */
+export type _Twins = PersistentMap<string, number>
+
 /**
- * The walk so far. `visited` is every node added, by identity, to its index
- * — a merged node to the index of the entry it merged into — which is the
- * one structure keyed by identity, and it lives here and nowhere
- * downstream.
+ * The walk so far. `visited` is every node added, by identity, to its
+ * entry — a merged node to the entry it merged into — which is the one
+ * structure keyed by identity, and it lives here and nowhere downstream.
+ * `added` is the table last entry first, and `count` its length, so
+ * adding one shares all before it.
  */
 export type _State = {
-    readonly visited: PersistentMap<ExpOp, number>
-    readonly entries: readonly _Entry[]
+    readonly visited: PersistentMap<ExpOp, _Seen>
+    readonly added: List<_Entry>
+    readonly count: number
+    readonly twins: PersistentMap<_Scope, _Twins>
     /** First structural failure; an errored walk never yields a public table. */
     readonly problem: string | null
     /** Whether an entry that may merge does so with its twin, or every node is its own entry. */
@@ -38,3 +48,6 @@ export type _Handler<E, R> = (walk: _Walk<Exp, Operand>) => _Walk<E, R>
 
 /** One walker per node tag, each seeing its own tuple type. */
 export type _Handlers = { readonly [K in ExpOp[0]]: _Handler<TagMap[K], Node> }
+
+/** The expression each entry so far stands for, by index. */
+export type _Exps = PersistentMap<number, ExpOp>

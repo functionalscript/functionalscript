@@ -147,6 +147,8 @@ const gather = (items, visit, done, index = 0, values = []) => () => index === i
  */
 export const fromAnalysis = (a, external = [], invocation = {}) => {
     const count = a.nodes.length
+    const holdsRest = scopeHolds(a, 'rest')
+    const holdsSelf = scopeHolds(a, 'self')
     const ids = a.nodes.map((_, index) => external.find(([node]) => node === index)?.[1] ?? ({ index }))
     const width = count + 32
     const contexts = a.nodes.map((node, index) => {
@@ -376,7 +378,7 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
         }
         return region(context, empty, [node[3]], raw => {
             const body = terminal(raw)
-            const rest = scopeHolds(a, i, 'rest') ? context.rest : null
+            const rest = holdsRest(i) ? context.rest : null
             const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: i })
             const rawTail = _tailCalls(body, context.parameters, context.self, target, rest)
             const tail = rawTail === null ? null : _joinResults(rawTail)
@@ -401,8 +403,8 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
             const placedBody = _joinResults(body)
             const exit = /** @type {Extract<Block['exit'], readonly ['yield', readonly Value[]]>} */ (placedBody.exit)
             return deliver(done, {
-                parameters: context.parameters, rest, named: scopeHolds(a, i, 'self'),
-                self: scopeHolds(a, i, 'self') ? context.self : null,
+                parameters: context.parameters, rest, named: holdsSelf(i),
+                self: holdsSelf(i) ? context.self : null,
                 body: placedBody.exit[0] === 'throw' ? placedBody : { statements: placedBody.statements, exit: ['return', context.target, exit[1][0]] },
             })
         })
