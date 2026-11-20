@@ -85,9 +85,34 @@ and the same data is a data segment in WebAssembly.
   `Index<u32> for Array<A>` does, and an item wrapped on request is a new
   value with nothing to refer to. The read has to answer the item itself,
   and every reader of `array[i]` as a place changes with it.
-- **Functions.** A function's code is `StaticCode<A>`, which names the VM,
-  so a `static` without `A` cannot hold the pointer. An id the generic
-  module answers with its code is one way.
+- **Functions.** A compiled function is generic over its VM, since its
+  body calls the VM's operations, and its code is `StaticCode<A>`. A
+  `static` cannot name `A`, so it cannot hold a reference to that code.
+  Ways through, none chosen:
+  - **An id and a table.** The static holds the function's number in its
+    module. The module's code is a table that is generic over the VM,
+    which a `static` cannot be and an associated constant can:
+
+    ```rust
+    trait Codes<A: IVm> { const TABLE: &'static [StaticCode<A>]; }
+    impl<A: IVm> Codes<A> for Module {
+        const TABLE: &'static [StaticCode<A>] = &[f0::<A>, f1::<A>];
+    }
+    ```
+
+    A small program of this shape compiles and runs: neutral statics, one
+    of them a function by id, called through the table for a VM chosen at
+    the call. What it leaves is how a value made from a static finds its
+    module's table: an item wrapped on request is wrapped inside the VM,
+    which then needs the table with the reference, or the modules
+    registered with it.
+  - **One VM for the generated code.** The module is written for the VM
+    its program uses, and a static names that VM's code directly. The
+    simplest, and a compiled module is then no longer usable by another VM
+    without being generated again.
+  - **Code that does not name the VM.** A function takes the VM as a
+    value it calls through. The body is written once for all of them, and
+    every operation is an indirect call.
 - **Identity.** A value's identity is its address
   (`IComplex::address`). Two different constants must not share one, which
   zero-sized statics, two empty arrays, may.
