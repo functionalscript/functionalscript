@@ -54,10 +54,11 @@ A value is the host's own value, except a function.
   ```
 
   the three parts a closure has today
-  (`['=>', length, captures, body]`). `frame` is its evaluated captures,
-  which are values and so host values; `edag` is its body, unevaluated. A
-  call evaluates `edag` over `frame` and the arguments, as a call does
-  today, and the function can still be written out from the three. The
+  (`['=>', length, captures, body]`). `frame` is the array of its captured values,
+  host values each, ready as it stands for the body's `['frame', index]`
+  nodes to read by index; `edag` is its body, unevaluated. A call evaluates
+  `edag` over `frame` and the arguments, as a call does today, with nothing
+  converted on the way in, and the function can still be written out from the three. The
   description is behind a call so that a function value is told from data by `typeof`, and is one
   reference, which is its identity.
 
