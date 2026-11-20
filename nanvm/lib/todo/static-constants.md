@@ -54,9 +54,15 @@ Write a constant as a Rust `static`, and let a value be a reference to one.
   one keeps the reference and never frees it. A VM can be moved from the
   first to the second one container at a time.
 
-  A string and a big integer are the easy ones: their items, `u16` and
-  `u64`, name no VM, so a VM's container can lend a static's slice as it
-  lends its own, and neither has an identity to keep.
+  A string and a big integer have items, `u16` and `u64`, that name no VM,
+  so a VM's container can lend a static's slice as it lends its own, and
+  neither has an identity to keep.
+
+  An array and an object need no contiguous run of values either. An item
+  of a static container is wrapped into an `Any<A>` when it is asked for,
+  and what is wrapped is still a reference to its own static. An operation
+  that answers a new container, `slice` or `substring`, may answer a
+  dynamic one; answering a part of the static is an optimization for later.
 
 An earlier form of the proposal put the static reference into `Any<A>` and
 `Unpacked<A>` themselves, an array being the VM's container or a static.
@@ -73,11 +79,12 @@ and the same data is a data segment in WebAssembly.
   identity. A static converted twice has to answer values that are `===`,
   so a VM that copies has to answer the same copy, or count the static's
   address as the identity. The trait's contract has to say it.
-- **Lending slices.** `IContainer::items()` answers `&[Any<A>]`. A static
-  array holds `StaticAny`, so a VM that keeps the reference cannot lend
-  that slice from it: it converts the array's items when it is first read,
-  each still a reference to its own static, or the read becomes one by
-  index that answers a value.
+- **An item by value.** A container's items are already behind an
+  abstraction, `IContainer::Items: SizedIndex<usize, Output = Item>`, and
+  not a slice by contract. What it answers is a reference, `&Item`, as
+  `Index<u32> for Array<A>` does, and an item wrapped on request is a new
+  value with nothing to refer to. The read has to answer the item itself,
+  and every reader of `array[i]` as a place changes with it.
 - **Functions.** A function's code is `StaticCode<A>`, which names the VM,
   so a `static` without `A` cannot hold the pointer. An id the generic
   module answers with its code is one way.
