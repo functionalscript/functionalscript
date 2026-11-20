@@ -318,11 +318,11 @@ const exitArm = (exit, target, deferred) => {
     })))
 }
 
-/** A binding nothing reads: what ends unread of it is every way a region ends. */
-const unreadable = /** @type {BindingId} */ ({ index: -1 })
+/** The ways a region ends at all: what ends unread of a binding nothing reads. */
+const ends = unread(/** @type {BindingId} */ ({ index: -1 }))
 
 /** Whether the block can complete, and what follows it run. @type {(block: Block) => boolean} */
-const completes = block => run(unread(unreadable)(['block', block, 0])).includes('normal')
+const completes = block => run(ends(['block', block, 0])).includes('normal')
 
 /**
  * Where one arm of a statement cannot complete, what follows the statement
