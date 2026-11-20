@@ -35,7 +35,7 @@
  *   table does not name of `any` alone, and an operator, a member read,
  *   `?.` and a call of operands that the IR does not take, values of
  *   `any` among them, is a call of L1's body, each float or boolean boxed
- *   as `any`. [`link`](#link) merges the bodies that the program reaches
+ *   as `any`. [`link`](./link/module.f.js#link) merges the bodies that the program reaches
  *   into the module, by their `l1.` names.
  * - **An import of the L0 view is L0, and one of L1's native rows is
  *   `Native`.** The caller names the runtime, the specifiers of the view
@@ -168,6 +168,7 @@ import {
     make, match, mul, n, ne, neg, next, not, only, product, return_, signature, sub, terms, throw_, trap, true_, u,
 } from '../module.f.js'
 import { native } from '../native/module.f.js'
+import { link, linkedName, uses } from './link/module.f.js'
 import { show } from '../print/module.f.js'
 
 /** A count in a message: `one parameter`, `2 values`. @type {(k: number, noun: string) => string} */
@@ -205,7 +206,7 @@ const refuse = scope => {
 
 /**
  * The name of L1's function `name` in a program that links L1
- * ([`link`](#link)), `l1.add` say, or `null` in a module that links none,
+ * ([`link`](./link/module.f.js#link)), `l1.add` say, or `null` in a module that links none,
  * which lowers the operators of the IR alone.
  *
  * @type {(scope: _Scope, name: string) => string | null}
@@ -215,7 +216,7 @@ const l1Of = (scope, name) => {
     return scope.ir.functions.some(([k]) => k === linked) ? linked : null
 }
 
-/** Whether the module being lowered is a program that links L1 ([`link`](#link)). @type {(scope: _Scope) => boolean} */
+/** Whether the module being lowered is a program that links L1 ([`link`](./link/module.f.js#link)). @type {(scope: _Scope) => boolean} */
 const linking = scope => scope.ir.functions.some(([k]) => k.startsWith('l1.'))
 
 /**
@@ -2187,40 +2188,6 @@ const closuresOf = (tops, shared, root) => {
  */
 const untyped = f => signature(f.parameters.map((_, k) => /** @type {const} */ ([`p${k}`, any])), any)
 
-/** The name of a function or a constant of L1 in a program that links it: `l1.add`, `l1.#c0`. @type {(name: string) => string} */
-const linkedName = name => `l1.${name}`
-
-/**
- * A term of L1 as a program that links L1 holds it: each function and
- * constant of L1's own that it calls or reads by its linked name.
- *
- * @type {(t: Term) => Term}
- */
-const linkedTerm = t => {
-    switch (t[0]) {
-        case 'let': { return ['let', t[1], linkedTerm(t[2]), linkedTerm(t[3])] }
-        case 'op': { return t[3] === undefined ? ['op', t[1], t[2].map(linkedTerm)] : ['op', t[1], t[2].map(linkedTerm), t[3]] }
-        case 'call': { return ['call', t[1], t[1] === 'self' ? linkedName(t[2]) : t[2], t[3].map(linkedTerm)] }
-        case 'code': { return ['code', linkedName(t[1])] }
-        case 'call_ref': { return ['call_ref', linkedTerm(t[1]), t[2].map(linkedTerm)] }
-        case 'make': { return ['make', t[1].map(([k, x]) => /** @type {const} */ ([k, linkedTerm(x)]))] }
-        case 'field': { return ['field', linkedTerm(t[1]), t[2]] }
-        case 'variant': { return ['variant', t[1], t[2], linkedTerm(t[3])] }
-        case 'match': { return ['match', linkedTerm(t[1]), t[2].map(([vs, b, x]) => /** @type {const} */ ([vs, b, linkedTerm(x)]))] }
-        case 'block': { return ['block', t[1], t[2], linkedTerm(t[3])] }
-        case 'loop': { return ['loop', t[1], t[2].map(([k, type, x]) => /** @type {const} */ ([k, type, linkedTerm(x)])), linkedTerm(t[3])] }
-        case 'br': { return ['br', t[1], linkedTerm(t[2])] }
-        case 'constant': { return t[1] === 'self' ? ['constant', 'self', linkedName(t[2])] : t }
-        default: { return t }
-    }
-}
-
-/** The functions and constants of the module's own that a term calls or reads, by their names. @type {(t: Term) => readonly string[]} */
-const uses = t => [
-    ...(t[0] === 'call' && t[1] === 'self' ? [t[2]] : t[0] === 'code' ? [t[1]] : t[0] === 'constant' && t[1] === 'self' ? [t[2]] : []),
-    ...terms(t).flatMap(uses),
-]
-
 /**
  * The lifted code of each closure that the terms of a program reach, by
  * the names in `todo`, themselves or through the code of others, in the
@@ -2247,82 +2214,13 @@ const madeClosures = (lowerClosure, closures, todo) => {
 }
 
 /**
- * A program that links L1, as one module
- * ([slice 11](../todo/slices.md)): the program's functions and constants,
- * and those of L1 that they call or read, themselves or through others of
- * L1, each by its linked name, `l1.add`, L1's constants first, since a
- * constant of the program may call L1. The program exports what it
- * exports, and L1 nothing. Both import the runtime's interfaces, and a
- * program that imports others than L1 does is refused.
- *
- * @type {(l1: Module) => (program: Module) => Result<Module, string>}
- */
-export const link = l1 => program => {
-    const names = program.imports.map(([k]) => k).join(' ')
-    if (l1.imports.map(([k]) => k).join(' ') !== names) { return error(`L1 imports ${l1.imports.map(([k]) => k).join(' ')}, and the program ${names}`) }
-    /** @type {readonly (readonly [string, Fn])[]} */
-    const functions = l1.functions.map(([k, f]) => [linkedName(k), { ...f, body: linkedTerm(f.body) }])
-    /** @type {readonly (readonly [string, ConstantOf<Term>])[]} */
-    const constants = (l1.constants ?? []).map(([k, c]) => [linkedName(k), { type: c.type, value: linkedTerm(c.value) }])
-    /** @type {(name: string) => readonly string[]} */
-    const usesOf = name => {
-        const f = functions.find(([k]) => k === name)
-        const c = constants.find(([k]) => k === name)
-        return f !== undefined ? uses(f[1].body) : c !== undefined ? uses(c[1].value) : []
-    }
-    const own = program.constants ?? []
-    let todo = [...program.functions.flatMap(([, f]) => uses(f.body)), ...own.flatMap(([, c]) => uses(c.value))]
-    /** @type {readonly string[]} */
-    let reached = []
-    let k = 0
-    while (k < todo.length) {
-        const x = todo[Number(k)]
-        k = k + 1
-        if (!reached.includes(x)) {
-            reached = [...reached, x]
-            todo = [...todo, ...usesOf(x)]
-        }
-    }
-    const kept = reached
-    return ok({
-        imports: program.imports,
-        constants: [...constants.filter(([x]) => kept.includes(x)), ...own],
-        functions: [...program.functions, ...functions.filter(([x]) => kept.includes(x))],
-        exports: program.exports,
-    })
-}
-
-/**
- * L1's error table, from the normalized FAST of its module's text
- * ([`l1/error`](../../wasm/runtime/l1/error/module.f.js)): the export
- * `error`, an object literal of the text of each error, by its name, in
- * their order. The module exports nothing else, and no name twice. The runtime gives it to [`lower`](#lower), which writes a
- * read of one, `error.k`, as the string literal of its text.
- *
- * @type {(fast: Block) => Result<readonly (readonly [string, string])[], string>}
- */
-export const errorTable = ({ exit }) => {
-    const exports = exit[0] === 'yield' && exit[1].length === 1 ? exit[1][0] : null
-    if (!(exports instanceof Array) || exports[0] !== 'object') { return error('a module that yields no object of exports has no error table') }
-    if (exports[1].length !== 1) { return error('an error module exports error and nothing else') }
-    const [only] = exports[1]
-    const table = only[0] === ':' && only[1] === 'error' ? only[2] : null
-    if (!(table instanceof Array) || table[0] !== 'object') { return error('the module exports no object literal error') }
-    const entries = table[1].flatMap(x => x[0] === ':' && typeof x[1] === 'string' && typeof x[2] === 'string' ? [/** @type {const} */ ([x[1], x[2]])] : [])
-    return entries.length !== table[1].length ? error('an error that is not a string of a name is not in this slice')
-        // JavaScript reads the last of two entries of one name, and a lowering that read the first would throw another text.
-        : entries.some(([k], i) => entries.findIndex(([j]) => j === k) !== i) ? error('the error table names an error twice')
-        : ok(entries)
-}
-
-/**
  * The lowering of a module: the signatures of the exported functions to
  * lower, by their names, and the runtime, where the module is lowered over
  * it: the specifiers by which it imports the L0 view and L1's native rows,
  * whose interfaces it then imports, and, where the module reads L1's error
- * table, its specifier and the table, which [`errorTable`](#errortable)
+ * table, its specifier and the table, which [`errorTable`](./link/module.f.js#errortable)
  * reads from its text, and, for a program, L1's plain stage, which
- * [`link`](#link) merges into it; then the normalized FAST of the
+ * [`link`](./link/module.f.js#link) merges into it; then the normalized FAST of the
  * module's text and its imports. The functions keep the order of the
  * exports. Each other definition of the module is a constant, named for
  * its place among them, `#c0` first, whose term reads the constants before

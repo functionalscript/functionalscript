@@ -20,7 +20,8 @@ import {
 } from '../module.f.js'
 import { native } from '../native/module.f.js'
 import { print } from '../print/module.f.js'
-import { link, lower } from './module.f.js'
+import { link } from './link/module.f.js'
+import { lower } from './module.f.js'
 import {
     apply as applyP, both as bothP, called as calledP, differ as differP, either as eitherP, first as firstP, kind as kindP, maybe as maybeP, method as methodP, mixed as mixedP, nested as nestedP, not as notP, opposite as oppositeP, order as orderP, otherwise as otherwiseP, pair as pairP, record as recordP, sign as signP, size as sizeP, sum3 as sum3P, twice as twiceP,
 } from './programs.f.js'

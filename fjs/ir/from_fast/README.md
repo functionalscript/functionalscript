@@ -383,7 +383,7 @@ const program = unwrap(lower({}, { ...l1Runtime(errors), l1 })(fast, imports))
 | `f(x)` of a value that may be no function | `l1.call(f, args)`, which throws where JavaScript throws; of a function, `Functions.call` |
 | a value that a function answers, arms of two other types, an argument of an untyped export | boxed as `any` |
 
-[`link`](./module.f.js) merges the program with the bodies of L1 that it
+[`link`](./link/module.f.js) merges the program with the bodies of L1 that it
 reaches, itself or through others of L1, under `l1.` names, L1's
 constants first, so that the program is one module and one WASM module.
 L1 exports nothing there. `+x` of one operand, `%` of `any`, `?.()` and a
