@@ -147,7 +147,7 @@ export const proof = {
                 [',', [['[]', [0]], 1]])
             // in the order the module evaluates them: the selection where it
             // stands among them, and not repeated where it is the last
-            const ordered = { main: file('import {map} from "./dep"; export default map;'), dep: file('export const map=[1]; export const two=[2]; export const three=3;') }
+            const ordered = /** @type {const} */ ({ main: file('import {map} from "./dep"; export default map;'), dep: file('export const map=[1]; export const two=[2]; export const three=3;') })
             const first = program(ordered)('main')
             expectEdag(first, [',', [['[]', [1]], ['[]', [2]], ['[]', [1]]]])
             const [, [anchor, , selected]] = /** @type {readonly ['', readonly Exp[]]} */ (/** @type {unknown} */ (first))
