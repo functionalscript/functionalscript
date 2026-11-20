@@ -4,13 +4,13 @@
  * joined values. Required first demands retain their original execution order.
  *
  * @module
- * @import { BindingId, Block, Definition, Statement, Value } from '../../../js/ast/types.ts'
+ * @import { BindingId, Block, Definition, Loop, Statement, Value } from '../../../js/ast/types.ts'
  * @import { Exp } from '../../types.ts'
  * @import { Task } from '../../../js/ast/task/types.ts'
- * @import { _Arm, _Selected } from './private.ts'
+ * @import { _Arm, _Region, _Selected, _Way } from './private.ts'
  */
 
-import { itemOperand, keyOperands, operatorOperands, mapOperator } from '../../../js/ast/module.f.js'
+import { operatorOperands, mapOperator, unskipped } from '../../../js/ast/module.f.js'
 import { exitValues, freeBindings, someBlock } from '../../../js/ast/control/module.f.js'
 import { bind, call, done, run } from '../../../js/ast/task/module.f.js'
 import { _forwardResult } from '../../../js/ast/results/module.f.js'
@@ -41,19 +41,6 @@ const sameTest = (a, b) => {
     return true
 }
 
-/** Expand deferred recipes without evaluating them; established reads alone are inert placeholders. @type {(value: Value, target: BindingId, deferred: readonly Definition[]) => boolean} */
-const firstDemand = (value, target, deferred) => {
-    const definitions = deferred.filter(definition => definition[1] !== target)
-    const bindings = freeBindings({ statements: definitions, exit: ['yield', [value]] })
-    const wanted = /** @type {Exp} */ (['()', ['arg', bindings.length], []])
-    /** @type {import('../../from_fast/types.ts').Environment} */
-    let environment = bindings.map((binding, index) => [binding, binding === target ? wanted : ['arg', index]])
-    for (const definition of definitions) {
-        environment = [...environment, [definition[1], anchored(lowerValue(definition[2], environment))]]
-    }
-    return demandsInOrder(anchored(lowerValue(value, environment)), [wanted])
-}
-
 /** Deferred declarations run only at a read; dependency checks follow those reads through recipes. @type {(block: Block, target: BindingId, deferred: readonly Definition[]) => boolean} */
 const references = (block, target, deferred) => {
     let pending = freeBindings(block)
@@ -69,6 +56,25 @@ const references = (block, target, deferred) => {
         if (definition !== undefined) { pending = [...freeBindings({ statements: [], exit: ['yield', [definition[2]]] }), ...pending] }
     }
     return false
+}
+
+/** The loops a block runs: its statements', and the one it ends in. @type {(block: Block) => readonly Loop[]} */
+const loopsOf = block => [...block.statements.flatMap(statement => statement[0] === 'loop' ? [statement[1]] : []), ...(block.exit[0] === 'loop' ? [block.exit[1]] : [])]
+
+/** Expand deferred recipes without evaluating them; established reads alone are inert placeholders. @type {(value: Value, target: BindingId, deferred: readonly Definition[]) => boolean} */
+const firstDemand = (value, target, deferred) => {
+    const definitions = deferred.filter(definition => definition[1] !== target)
+    // The lowering hands a loop the values its body reads before the first
+    // pass, so a read inside a body would count as a demand it is not.
+    if (someBlock(block => loopsOf(block).some(loop => references(loop.body, target, definitions)))(value)) { return false }
+    const bindings = freeBindings({ statements: definitions, exit: ['yield', [value]] })
+    const wanted = /** @type {Exp} */ (['()', ['arg', bindings.length], []])
+    /** @type {import('../../from_fast/types.ts').Environment} */
+    let environment = bindings.map((binding, index) => [binding, binding === target ? wanted : ['arg', index]])
+    for (const definition of definitions) {
+        environment = [...environment, [definition[1], anchored(lowerValue(definition[2], environment))]]
+    }
+    return demandsInOrder(anchored(lowerValue(value, environment)), [wanted])
 }
 
 /** Values remain in their operand region until the complete prefix proves a move. @type {(value: Value, test: Value, result: BindingId) => Task<_Selected | null>} */
@@ -136,82 +142,89 @@ const reached = (body, index) => {
 /** Whether a region inside the statement leaves it otherwise than by completing or failing. */
 const leaves = someBlock(({ exit }) => exit[0] !== 'yield' && exit[0] !== 'throw')
 
-/**
- * What the block evaluates in order while a read of the binding is a read of
- * the one declared outside: until a statement leaves the block or declares
- * the binding anew, the exit's values where none does.
- *
- * @type {(body: Block, start: number, target: BindingId) => readonly Value[]}
- */
-const sequence = (body, start, target) => {
-    /** @type {readonly Value[]} */
-    let values = []
-    for (let index = start; index <= body.statements.length; index = index + 1) {
-        const value = reached(body, index)
-        values = value === null ? values : [...values, value]
-        const statement = body.statements[Number(index)]
-        if (statement === undefined || bound(statement).includes(target) || leaves({ statements: [statement], exit: ['yield', []] })) { break }
-    }
-    return values
-}
+/** What follows where the first part completes without the read; where it cannot, nothing after it is reached unread. @type {(first: readonly _Way[], rest: () => Task<readonly _Way[]>) => Task<readonly _Way[]>} */
+const andThen = (first, rest) => !first.includes('normal') ? done(first)
+    : bind(rest(), ways => done([...first.filter(way => way !== 'normal' && !ways.includes(way)), ...ways]))
+
+/** Completing unread becomes the transfer, or nothing where the region fails. @type {(ways: readonly _Way[], to: readonly _Way[]) => readonly _Way[]} */
+const instead = (ways, to) => ways.flatMap(way => way !== 'normal' ? [way] : to.filter(other => !ways.includes(other)))
 
 /**
- * The operands a value other than a selection evaluates whenever it
- * completes: no function body, and nothing an optional step can skip. A
- * member read evaluates its base and key, and the arguments of a plain call
- * that continues it; an optional call's arguments, and every step after an
- * optional one, are skipped where the step meets a nullish value.
+ * The ways a region ends without having read the binding declared outside
+ * it. A failure is not one: a path that fails before the read fails either
+ * way ([spec](../../../../spec/principles/README.md#failure-is-one-outcome)).
  *
- * @type {(value: Exclude<Extract<Value, readonly unknown[]>, readonly ['ref' | 'if', ...unknown[]]>, target: BindingId) => readonly Value[]}
+ * A read leaves none. Parts evaluated in order add up until one cannot
+ * complete unread; a selection is its test, then either arm; an operand that
+ * can be skipped keeps `normal` and adds its own ways. A function evaluates
+ * its captures and no body, a deferred recipe nothing. A transfer turns
+ * `normal` into itself, and a loop turns a `break` to it back into `normal`.
+ * A `continue` stays `away`: the path that never reads may never end, and
+ * requiring the recipe would fail it.
+ *
+ * Past a statement that declares the binding anew, reads are of another
+ * binding, and the rest of its block ends any way it can.
+ *
+ * The value, the values from an index on, in order or as operands that can
+ * be skipped, and the block from a statement on are one function over a
+ * tagged region: they call each other, and a module's `const`s cannot.
+ *
+ * @type {(target: BindingId) => (region: _Region) => Task<readonly _Way[]>}
  */
-const certainOperands = (value, target) => value[0] === 'function' ? value[1].captures.map(capture => capture.value)
-    : value[0] === '?:' ? [value[1]]
-    : value[0] === 'block' ? sequence(value[1], 0, target)
-    : value[0] === '?.' || value[0] === '?.()' ? [value[1]]
-    : value[0] === '.' ? [value[1], ...keyOperands(value[2]), ...(value.length === 4 && value[3][0] === '|()' ? value[3][1].map(itemOperand) : [])]
-    : operatorOperands(value)
-
-/**
- * Whether one of the values reads the binding whenever it completes. A
- * selection does in its test, or in both of its arms.
- *
- * A value that can leave, a block in it that returns or breaks, may not
- * complete: nothing evaluated after it is certain, its own later operands
- * and the values that follow alike. `guarded` says some value can leave at
- * all, so that each is asked only then.
- *
- * @type {(values: readonly Value[], target: BindingId, guarded: boolean) => Task<boolean>}
- */
-const certainTask = (values, target, guarded) => {
-    /** @type {(value: Value) => Task<boolean>} */
-    const one = value => call(() => {
-        if (!(value instanceof Array)) { return done(false) }
-        if (value[0] === 'ref') { return done(value[1] === target) }
-        if (value[0] !== 'if') { return certainTask(certainOperands(value, target), target, guarded) }
-        return bind(certainTask([value[1]], target, guarded), test => test ? done(true) : guarded && leaves(value[1]) ? done(false)
-            : bind(certainTask(sequence(value[2], 0, target), target, guarded), then => then ? certainTask(sequence(value[3], 0, target), target, guarded) : done(false)))
+const unread = target => {
+    /** @type {(region: _Region) => Task<readonly _Way[]>} */
+    const of = region => call(() => {
+        /** @type {(test: Value, then: Block, otherwise: Block) => Task<readonly _Way[]>} */
+        const selection = (test, then, otherwise) => bind(of(['value', test]), ways => andThen(ways, () =>
+            bind(of(['block', then, 0]), left => bind(of(['block', otherwise, 0]), right => done([...left, ...right.filter(way => !left.includes(way))])))))
+        /** @type {(loop: Loop) => Task<readonly _Way[]>} */
+        const ofLoop = loop => loop.parameters.includes(target) ? done(['normal', 'away'])
+            : bind(of(['values', loop.initial, 0]), ways => bind(andThen(ways, () => of(['block', loop.body, 0])),
+                all => done(all.flatMap(way => way !== loop.target ? [way] : all.includes('normal') ? [] : ['normal']))))
+        if (region[0] === 'values' || region[0] === 'skipped') {
+            const [kind, values, index] = region
+            if (index === values.length) { return done(['normal']) }
+            return bind(of(['value', values[Number(index)]]), ways => andThen(kind === 'values' ? ways : ['normal', ...ways.filter(way => way !== 'normal')], () => of([kind, values, index + 1])))
+        }
+        if (region[0] === 'block') {
+            const [, block, index] = region
+            const statement = block.statements[Number(index)]
+            if (statement === undefined) {
+                const { exit } = block
+                return exit[0] === 'loop' ? ofLoop(exit[1])
+                    : bind(of(['values', exitValues(exit), 0]), ways => done(exit[0] === 'yield' ? ways
+                        : instead(ways, exit[0] === 'throw' ? [] : [exit[0] === 'break' ? exit[1] : 'away'])))
+            }
+            /** @type {readonly _Way[]} */
+            const none = ['normal']
+            return bind(statement[0] === 'loop' ? ofLoop(statement[1])
+                : statement[0] === 'block' ? of(['block', statement[2], 0])
+                : statement[0] === 'if' ? selection(statement[2], statement[3], statement[4])
+                : statement[3] === 'lazy' ? done(none) : of(['value', statement[2]]),
+            ways => andThen(ways, () => !bound(statement).includes(target) ? of(['block', block, index + 1])
+                : done(leaves({ ...block, statements: block.statements.slice(index + 1) }) ? [...none, 'away'] : none)))
+        }
+        const value = region[1]
+        if (!(value instanceof Array)) { return done(['normal']) }
+        if (value[0] === 'ref') { return done(value[1] === target ? [] : ['normal']) }
+        if (value[0] === 'function') { return of(['values', value[1].captures.map(capture => capture.value), 0]) }
+        if (value[0] === 'block') { return of(['block', value[1], 0]) }
+        if (value[0] === 'if') { return selection(value[1], value[2], value[3]) }
+        const operands = operatorOperands(value)
+        const count = unskipped(value)
+        return bind(of(['values', operands.slice(0, count), 0]), ways => andThen(ways, () => of(['skipped', operands.slice(count), 0])))
     })
-    /** @type {(index: number) => Task<boolean>} */
-    const each = index => call(() => index === values.length ? done(false)
-        : bind(one(values[Number(index)]), found => found ? done(true) : guarded && leaves(values[Number(index)]) ? done(false) : each(index + 1)))
-    return each(0)
+    return of
 }
 
 /**
- * Whether the block reads the recipe on every path that completes: what it
- * evaluates after the declaration, until a statement leaves it, reaches the
- * binding through operands that are always evaluated, a selection's test or
- * both of its arms, with no value before the read that can leave. The recipe
- * may then be required where it stands. A path that fails before the read
- * fails either way
- * ([spec](../../../../spec/principles/README.md#failure-is-one-outcome)).
+ * Whether the block reads the recipe on every path that completes it or
+ * leaves it: nothing after the declaration ends unread. The recipe may then
+ * be required where it stands.
  *
  * @type {(body: Block, definition: Definition) => boolean}
  */
-const certain = (body, definition) => {
-    const values = sequence(body, body.statements.indexOf(definition) + 1, definition[1])
-    return run(certainTask(values, definition[1], values.some(leaves)))
-}
+const certain = (body, definition) => run(unread(definition[1])(['block', body, body.statements.indexOf(definition) + 1])).length === 0
 
 /** Only move a recipe to its first reached demand without crossing a dependency's shadow. @type {(body: Block, definition: Definition, deferred: readonly Definition[], start?: number) => Block | null} */
 const localized = (body, definition, deferred, start = 0) => {

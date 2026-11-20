@@ -121,7 +121,9 @@ export const proof = /** @type {const} */ ({
             ['define', chosen, selected(ref(condition), 7, 0), 'required'],
         ])
         const after = _joinResults(before)
-        assertEq(after.statements[0], deferred)
+        // every path through the loop reads the cell, so it is required before the
+        // loop, where one evaluation still serves every iteration
+        assertStructurallySame(after.statements[0], ['define', cell, ['array', [7]], 'required'])
         for (const block of [before, after]) {
             assertStructurallySame(assertOk(toData(assertOk(evaluate(block, condition, true)))), [7, true])
         }
@@ -547,10 +549,10 @@ export const proof = /** @type {const} */ ({
         for (const arm of [reads, scoped, guarded, inLoop]) {
             // The joined arm yields the value, so the arm reads it on every
             // path however it first reaches it: required at the arm's head,
-            // and no memo storage left at the top. A loop can leave the arm
-            // before that read, and keeps the recipe deferred.
+            // and no memo storage left at the top. A loop that reads it on
+            // the way to its `break` is one of those paths.
             const after = _joinResults(source(ref(condition), selected(ref(condition), 0, ref(value)), normal(), arm, [recipe]))
-            assertEq(after.statements.includes(recipe), arm === inLoop)
+            assertEq(after.statements.includes(recipe), false)
         }
     },
     recipesRetainOneIdentityAtTheirFirstDemand: () => {
@@ -700,6 +702,80 @@ export const proof = /** @type {const} */ ({
         for (const block of [skipped, _joinResults(skipped)]) {
             assertStructurallySame(assertOk(toData(assertOk(evaluate(block, condition, false)))), [undefined, 0])
             assertError(evaluate(block, condition, true))
+        }
+    },
+    // Every path that completes the block or leaves it reads the recipe: it
+    // is required where it stands. A path that ends unread keeps it deferred.
+    recipesReadOnEveryPathThatLeavesAreRequired: () => {
+        const condition = id(0), cell = id(1), callee = id(2), other = id(3), step = id(4), out = id(5)
+        const outer = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const target = /** @type {const} */ ({ kind: 'loop', index: 1 })
+        const owner = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const recipe = /** @type {Statement} */ (['define', cell, ['()', ref(callee), []], 'lazy'])
+        /** @type {(exit: Block['exit'], statements?: readonly Statement[]) => Block} */
+        const ending = (exit, statements = []) => ({ statements, exit })
+        /** @type {(body: Block, parameters?: readonly BindingId[]) => Statement} */
+        const loop = (body, parameters = [step]) => ['loop', { target, parameters, initial: [0], results: [out], body }]
+        const again = ending(['continue', target, [['+', ref(step), 1]]])
+        const returning = /** @type {Value} */ (['if', ref(condition), ending(['return', owner, 7]), result(0)])
+        // read after a selection that may read it first: no one first demand
+        const twice = /** @type {Value} */ (['array', [selected(ref(condition), ref(cell), 0), ref(cell)]])
+        /** @type {readonly (readonly [Block, 'required' | 'lazy'])[]} */
+        const cases = [
+            // the path that leaves read the recipe in the test before it left
+            [result(ref(cell), [recipe, ['if', [], ref(condition), normal([['if', [], ['===', ref(cell), 1], ending(['break', outer, []]), normal()]]), normal()]]), 'required'],
+            // one that leaves unread, by a transfer or inside the values of one
+            [result(twice, [recipe, ['if', [], ref(other), ending(['break', outer, []]), normal()]]), 'lazy'],
+            [result(twice, [recipe, ['if', [], ref(other), ending(['break', outer, [returning]]), normal()]]), 'lazy'],
+            // a path that fails is no path that completes
+            [result(twice, [recipe, ['if', [], ref(other), ending(['throw', 'refused']), normal()]]), 'required'],
+            // a `break` completes its loop: the read after the loop is on that path
+            [result(twice, [recipe, loop(ending(['break', target, [1]], [['if', [], ref(other), ending(['break', target, [0]]), normal()]]))]), 'required'],
+            // a read on the way to every `break`, a `continue` after it
+            [result(ref(out), [recipe, loop(ending(['break', target, [0]], [['define', other, ref(cell), 'required'], ['if', [], ['<', ref(step), 1], again, normal()]]))]), 'required'],
+            // a `continue` before the read: the path that never reads may never end
+            [result(ref(out), [recipe, loop(ending(['break', target, [ref(cell)]], [['if', [], ['<', ref(step), 1], again, normal()]]))]), 'lazy'],
+            // a loop that names its parameter as the recipe reads the parameter
+            [result(ref(out), [recipe, loop(ending(['break', target, [ref(cell)]]), [cell])]), 'lazy'],
+            // a loop no `break` leaves, failing on every pass: no path completes unread
+            [result(['block', ending(['loop', { target, parameters: [step], initial: [0], results: [], body: ending(['throw', ref(cell)]) }])], [recipe]), 'required'],
+            // a member read's computed step is evaluated whenever the read completes
+            [result(['array', [selected(ref(condition), ref(cell), 0), ['.', ref(callee), 'm', ['|.', ['Number', ref(cell)]]]]], [recipe]), 'required'],
+        ]
+        for (const [before, mode] of cases) {
+            const modes = _joinResults(before).statements.flatMap(statement => statement[0] === 'define' && statement[1] === cell ? [statement[3]] : [])
+            assertStructurallySame(modes, [mode])
+        }
+        // Past a statement that declares the binding anew the rest ends any
+        // way it can, with the reads in it of the other binding.
+        const anew = /** @type {Statement} */ (['define', cell, 3, 'required'])
+        for (const before of [
+            ending(['throw', ref(cell)], [recipe, anew]),
+            result(twice, [recipe, anew, ['if', [], ref(other), ending(['break', outer, []]), normal()]]),
+            result(twice, [recipe, loop(ending(['break', target, [0]], [['if', [], ref(other), ending(['break', target, [1]]), normal()], anew]))]),
+        ]) {
+            assert(_joinResults(before).statements.includes(recipe))
+        }
+    },
+    // A loop's body runs after its first pass is entered, so a read inside
+    // one is no first demand of the value that holds the loop: a recipe
+    // that fails is not met where no pass reads it.
+    readsInsideLoopBodiesAreNoFirstDemand: () => {
+        const condition = id(0), cell = id(1), step = id(2), out = id(3), kept = id(4)
+        const target = /** @type {const} */ ({ kind: 'loop', index: 1 })
+        const recipe = /** @type {Statement} */ (['define', cell, fail('unread'), 'lazy'])
+        const body = /** @type {Block} */ ({
+            statements: [
+                ['define', kept, selected(ref(condition), 1, ref(cell)), 'required'],
+                ['if', [], ['<', ref(step), 1], { statements: [], exit: ['continue', target, [['+', ref(step), 1]]] }, normal()],
+            ],
+            exit: ['break', target, [ref(kept)]],
+        })
+        const before = result(['block', result(ref(out), [['loop', { target, parameters: [step], initial: [0], results: [out], body }]])], [recipe])
+        const after = _joinResults(before)
+        assertEq(after.statements[0], recipe)
+        for (const block of [before, after]) {
+            assertEq(assertOk(toData(assertOk(evaluate(block, condition, true)))), 1)
         }
     },
     // A recipe every read of which sits in one selected arm is carried into

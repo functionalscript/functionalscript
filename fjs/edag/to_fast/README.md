@@ -188,11 +188,14 @@ A deferred recipe used only within one arm, or only after a statement, becomes
 required at its first proven demand, in a block that joins nothing as in one
 that does; the shared graph demand query checks calls, coercions
 and lazy barriers.
-A recipe with no such first demand, but which its block reads on every path
-that completes, is required where it stands: a later statement or the exit
-reaches it through operands that are always evaluated, and no statement
-between can leave the block. A path that fails before the read fails either
-way. An ordinary function body is placed this way too; it has no joins to
+A recipe with no such first demand is required where it stands when nothing
+after its declaration ends without having read it: not by completing, and not
+by a `return`, a `break` or a `continue`. Parts evaluated in order add up
+until one cannot complete unread; a selection is its test, then either arm;
+an operand that can be skipped counts for nothing; a `break` completes its
+loop, and a `continue` reached unread is never answered, since that path may
+never end. A path that fails before the read fails either way. A read inside
+a loop's body is no first demand of the value that holds the loop. An ordinary function body is placed this way too; it has no joins to
 recover.
 A recipe every read of which sits in one selected arm is carried into that
 arm, wherever the selection is: a statement, a required initializer or an
