@@ -19,6 +19,11 @@ the language its output name declares: a `.data.js` document through
 normalized form, a `.js` module through [`serializer`](./serializer/module.f.js)
 from the linked graph, and a `.json` output that refuses what JSON cannot
 spell rather than approximating it — see [`module.f.js`](./module.f.js).
+Where the writer has no source spelling for a module that was accepted, the
+refusal names the file whose module made the node it has none for, an
+imported file where the node is an import's: `…, in m.f.js`. The linked graph
+holds no position, so the file is all it can name
+([source maps](./todo/investigate-edag-source-maps.md)).
 
 File-module resolution uses the host's module identity and loading path. In the
 Node profile, resolved files are read and diagnosed by their absolute canonical

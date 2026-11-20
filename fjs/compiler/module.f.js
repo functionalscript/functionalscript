@@ -32,10 +32,10 @@
 
 import { _transpileDefault, noRuntime as transpilerNoRuntime, runtimeAt } from './transpiler/module.f.js'
 import { errorLocation } from './parser/module.f.js'
-import { resolve, resolveOver } from './edag/module.f.js'
+import { _owner, resolve, resolveOver } from './edag/module.f.js'
 import { toRustMarked } from './rust/module.f.js'
 import { _numberSerialize, tryJsonMarked, tryMarked } from '../media/datajs/serializer/module.f.js'
-import { tryMarked as fjsMarked, tryModuleMarked } from './serializer/module.f.js'
+import { tryMarked as fjsMarked, tryModuleLocated, unlocated } from './serializer/module.f.js'
 import { arrayWrap, boolSerialize, colon, nullSerialize, objectWrap, stringSerialize } from '../media/json/serializer/module.f.js'
 import { flat, map } from '../types/list/module.f.js'
 import { error, mapOk, ok, okThen } from '../types/result/module.f.js'
@@ -134,9 +134,12 @@ const rustText = path => mapStep(resolve(path), toRustMarked)
  *
  * @type {(path: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, ParseError>}
  */
-const fjsText = path => mapStep(resolve(path), graph => {
-    const [tag, value] = path.endsWith('.json') ? fjsMarked(graph) : tryModuleMarked(graph)
-    return tag === 'error' ? error(`cannot write as FunctionalScript: ${value}`) : ok(value)
+const fjsText = path => mapStep(resolveOver(path, null), ([linked, graph]) => {
+    const written = path.endsWith('.json') ? unlocated(fjsMarked(graph)) : tryModuleLocated(graph)
+    if (written[0] === 'ok') { return written }
+    const [reason, node] = written[1]
+    const file = node === null ? null : _owner(linked, node)
+    return error(`cannot write as FunctionalScript: ${reason}${file === null ? '' : `, in ${file}`}`)
 })
 
 /**

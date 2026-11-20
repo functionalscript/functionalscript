@@ -17,7 +17,7 @@ import { toData } from '../../edag/value/to_unknown/module.f.js'
 import { isArray } from '../../types/array/module.f.js'
 import { tryModuleStringify } from '../serializer/module.f.js'
 import { analysis } from '../../edag/analysis/module.f.js'
-import { _defaultExport, _moduleExports, _moduleThrows, resolve, resolveOver, unresolved } from './module.f.js'
+import { _defaultExport, _moduleExports, _moduleThrows, _owner, resolve, resolveOver, unresolved } from './module.f.js'
 import { parse } from '../transpiler/module.f.js'
 import { exp } from '../../edag/module.f.js'
 import { validate } from '../../rtti/validate/module.f.js'
@@ -1119,6 +1119,24 @@ export const proof = {
     // Linked over the modules an earlier link completed, a program binds
     // the module the two share as the same EDAG node, and does not read
     // its file again: here it is empty the second time.
+    // A node of a linked graph is its module's: the one that reaches it
+    // without passing what its own imports selected. A JSON document has no
+    // file to name, and a node no module made has no owner.
+    owner: () => {
+        const [modules, program] = assertOk(virtualAt({
+            'a.f.js': file('import s, { t } from "./s.f.js"; import one from "./one.f.js"; import j from "./j.json" with { type: "json" }; const own = [s, s, one]; export default [own, () => own, t, j];'),
+            's.f.js': file('const shared = [42]; export const t = { shared }; export default shared;'),
+            'one.f.js': file('export default 1;'),
+            'j.json': file('[7]'),
+        })(resolveOver('a.f.js', null))[1])
+        const [own, held, t, j] = /** @type {readonly Exp[]} */ (/** @type {readonly unknown[]} */ (_defaultExport(program))[1])
+        assertEq(_owner(modules, own), 'a.f.js')
+        assertEq(_owner(modules, held), 'a.f.js')
+        assertEq(_owner(modules, /** @type {Exp} */ (/** @type {readonly (readonly unknown[])[]} */ (own)[1][0])), 's.f.js')
+        assertEq(_owner(modules, t), 's.f.js')
+        assertEq(_owner(modules, j), null)
+        assertEq(_owner(modules, ['[]', []]), null)
+    },
     resolveOver: () => {
         const [linkedModules, a] = assertOk(virtualAt({
             'a.f.js': file('import s from "./s.f.js"; export default [s];'),

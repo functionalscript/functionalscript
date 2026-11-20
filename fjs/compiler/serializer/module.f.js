@@ -7,6 +7,11 @@
  * @import { Analysis, Ref } from '../../edag/analysis/types.ts'
  * @import { Exp } from '../../edag/types.ts'
  * @import { Document } from './types.ts'
+ * @import { Refusal } from '../../edag/to_fast/source/types.ts'
+ * @import { Result } from '../../types/result/types.ts'
+ * @import { List } from '../../types/list/types.ts'
+ * @import { Chunk, Marked } from '../../text/marked/types.ts'
+ * @import { Block } from '../../js/ast/types.ts'
  */
 
 import { _defaultExport, _moduleExports, _moduleThrows } from '../edag/module.f.js'
@@ -14,7 +19,7 @@ import { keywords, literalWords, reservedGlobals } from '../../js/keywords/modul
 import { checked, identityAnalysis } from '../../edag/analysis/module.f.js'
 import { isFunctionNode, isHelper } from '../../edag/module.f.js'
 import { fromAnalysis, functionFromAnalysis } from '../../edag/to_fast/module.f.js'
-import { sourceReason } from '../../edag/to_fast/source/module.f.js'
+import { sourceRefusal } from '../../edag/to_fast/source/module.f.js'
 import { _sourceLoops } from '../../edag/to_fast/source/loops/module.f.js'
 import { prepare, prepareFunction } from '../../js/ast/prepare/module.f.js'
 import { functionStringify, render, renderModule } from '../../js/ast/serializer/module.f.js'
@@ -30,13 +35,27 @@ const reservedExports = [...keywords, ...literalWords, ...reservedGlobals, 'then
 /** Tagged lexical output as the established chunk API. @type {(text: string) => Document} */
 const chunks = text => mapOk((/** @type {import('../../text/marked/types.ts').Marked} */ runs) => runs.map(run => run[1] === undefined ? run[0] : run))(fromTagged(text))
 
-/** Source admission and graph placement, each exactly once. @type {(e: Exp, module?: boolean) => Document} */
-const source = (e, module = false) => okThen(a => {
-    return okThen(fast => {
-        const why = sourceReason(a, fast, module)
-        return why === null ? chunks(module ? renderModule(prepare(fast, { sourceLoops: true })) : render(prepare(fast, { sourceLoops: true }))) : error(why)
-    })(_sourceLoops(fromAnalysis(a)))
-})(okThen(checked)(identityAnalysis(e)))
+/** A refusal of no one node. @type {<T>(result: Result<T, string>) => Result<T, Refusal>} */
+export const unlocated = result => result[0] === 'ok' ? result : error([result[1], null])
+
+/** The reason alone. @type {<T>(result: Result<T, Refusal>) => Result<T, string>} */
+const reasonOf = result => result[0] === 'ok' ? result : error(result[1][0])
+
+/**
+ * Source admission and graph placement, each exactly once. A refusal names
+ * the graph's node it is of, where it is of one.
+ *
+ * @type {(e: Exp, module?: boolean) => Result<List<Chunk>, Refusal>}
+ */
+const located = (e, module = false) => okThen((/** @type {Analysis} */ a) => {
+    return okThen((/** @type {Block} */ fast) => {
+        const why = sourceRefusal(a, fast, module)
+        return why === null ? unlocated(chunks(module ? renderModule(prepare(fast, { sourceLoops: true })) : render(prepare(fast, { sourceLoops: true })))) : error(why)
+    })(unlocated(_sourceLoops(fromAnalysis(a))))
+})(unlocated(okThen(checked)(identityAnalysis(e))))
+
+/** @type {(e: Exp, module?: boolean) => Document} */
+const source = (e, module = false) => reasonOf(located(e, module))
 
 /** A value graph as a FunctionalScript default-export module. @type {(e: Exp) => Document} */
 export const _trySerialize = e => source(e)
@@ -71,21 +90,33 @@ export const tryFunctionText = e => {
     })(identityAnalysis(e))
 }
 
-/** A graph namespace as source preserving every exported name. @type {(e: Exp) => Document} */
-export const _tryModuleSerialize = e => {
-    if (_moduleThrows(e)) { return _trySerialize(e) }
+/** A graph namespace as source preserving every exported name, a refusal with its node. @type {(e: Exp) => Result<List<Chunk>, Refusal>} */
+const locatedModule = e => {
+    if (_moduleThrows(e)) { return located(e) }
     const members = _moduleExports(e)
-    if (members.length === 0) { return error('a module without exports') }
+    if (members.length === 0) { return error(['a module without exports', null]) }
     const keys = members.map(([, key]) => key)
     const sorted = keys.toSorted()
-    if (sorted.some((key, index) => index > 0 && key === sorted[Number(index - 1)])) { return error('duplicate export names') }
-    if (keys.some(key => key !== 'default' && (!isIdentifier(key) || reservedExports.includes(key)))) { return error('an unsupported export name') }
+    if (sorted.some((key, index) => index > 0 && key === sorted[Number(index - 1)])) { return error(['duplicate export names', null]) }
+    if (keys.some(key => key !== 'default' && (!isIdentifier(key) || reservedExports.includes(key)))) { return error(['an unsupported export name', null]) }
     if (keys.length === 1 && keys[0] === 'default') {
-        const compact = _trySerialize(_defaultExport(e))
+        const compact = located(_defaultExport(e))
         if (compact[0] === 'ok') { return compact }
     }
-    return source(e, true)
+    return located(e, true)
 }
+
+/** A graph namespace as source preserving every exported name. @type {(e: Exp) => Document} */
+export const _tryModuleSerialize = e => reasonOf(locatedModule(e))
+
+/**
+ * The named-export module's token marks, or why it has no spelling and the
+ * node of the graph that is refused, where the refusal is of one node. A
+ * caller that linked the graph can say which file that node came from.
+ *
+ * @type {(e: Exp) => Result<Marked, Refusal>}
+ */
+export const tryModuleLocated = e => mapOk((/** @type {List<Chunk>} */ value) => withNames(chunksMarked(value)))(locatedModule(e))
 
 /** Plain chunks of a named-export module. @type {(e: Exp) => import('../../types/result/types.ts').Result<import('../../types/list/types.ts').List<string>, string>} */
 export const tryModuleSerialize = e => mapOk(chunkStrings)(_tryModuleSerialize(e))
