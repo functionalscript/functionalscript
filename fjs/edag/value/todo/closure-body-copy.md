@@ -15,13 +15,13 @@ number of steps that grows with the square of the body's size.
 A function that makes a closure at each step, a callback written inline or
 a loop written as a function calling itself, pays it at each step.
 Interpreting `fjs/ci/module.f.js` with [`memo`](../../memo/README.md) at
-`9a14b1d`, about 48 s: 760,195 bodies copied for 493 different functions,
+`2ae0f18`, about 48 s: 760,195 bodies copied for 493 different functions,
 `func` taking 21% of the time, and garbage collection, which the copies
 feed, another 17%.
 
 ### What a fix has to settle
 
-- **Who needs the copy.** Since `9a14b1d` `memo` keeps a call's values by
+- **Who needs the copy.** Since `2ae0f18` `memo` keeps a call's values by
   node for the length of that call and no longer, so two calls of two
   functions that share a body do not meet there. Whether anything else
   reads a body's nodes as that function's own: the serializers, which find

@@ -19,7 +19,7 @@ three costs follow from it.
   reference map, and the analysis and sharing passes are built on that map,
   so the compiler run through an interpreter pays it everywhere. A program
   that sets `n` distinct keys and reads each back, interpreted by
-  [`memo`](../memo/README.md) at `9a14b1d`
+  [`memo`](../memo/README.md) at `2ae0f18`
   (`fjs compile` to a `.data.js`, start-up of about 2 s included):
 
   | `n` | time |
@@ -38,7 +38,7 @@ three costs follow from it.
 ### Where the time goes
 
 One evaluation, profiled: `fjs/ci/module.f.js` interpreted whole by
-[`memo`](../memo/README.md) at `9a14b1d`, about 48 s, with Node's CPU
+[`memo`](../memo/README.md) at `2ae0f18`, about 48 s, with Node's CPU
 profiler and with a count of each interpreted function's calls and time.
 It ran 2,501,232 calls of 493 different functions.
 
@@ -188,7 +188,7 @@ value to a host one, becomes the identity on data.
 - [ ] Settle `undefined` and the object rules.
 - [ ] Measure on one interpreter before moving the rest: the reference-map
   program above, and the whole compiler evaluated (`fjs/module.f.js`), which
-  took 19 min 25 s at `9a14b1d`. What a call still costs there says whether
+  took 19 min 25 s at `2ae0f18`. What a call still costs there says whether
   `compiled` is worth an issue of its own.
 - [ ] Move the operations, then the interpreters, then the consumers.
 - [ ] Write a host value out as EDAG, with sharing kept.
