@@ -19,8 +19,6 @@
  * transfer in a value region by throwing, and a proof cannot catch. The
  * single cases in [`proof.f.js`](./proof.f.js) hold that shape.
  *
- * @module
- *
  * @import { BindingId, Block, Function as FastFunction, FunctionTarget, LoopTarget, Statement, Value } from '../../../js/ast/types.ts'
  */
 
