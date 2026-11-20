@@ -41,7 +41,11 @@
  * `get`, on receivers and keys of every kind: each answers what L1's own
  * answers, and throws what it throws. So do L1's arithmetic and relational
  * operators, on numbers, bigints and strings: each answers what L1's own
- * answers, and throws what it throws.
+ * answers, and throws what it throws. So do the untyped programs of
+ * [`programs.f.js`](./programs.f.js), lowered with no table and linked with
+ * the bodies of L1 that they reach into one module, on values of every
+ * kind: each answers what JavaScript answers, and where JavaScript throws a
+ * `TypeError`, throws L1's value of that error.
  *
  * @import { StringMap } from '../../types/object/types.ts'
  * @import { Module } from '../types.ts'
@@ -71,6 +75,7 @@ import * as arrays from './arrays.f.js'
 import * as reads from './reads.f.js'
 import * as throws from './throws.f.js'
 import * as builds from './builds.f.js'
+import * as programs from './programs.f.js'
 import {
     arrays as arraySignatures, builds as buildSignatures, constants as constantSignatures, helpers as helperSignatures,
     l1, l1Arith, l1Builders, l1Coerce, l1Get, l1Iterable, l1Runtime, l1Throws, l1Whole, literals as literalSignatures,
@@ -139,6 +144,12 @@ const fromL1Get = () => assertOk(lifetime(fromText(new URL('../../wasm/runtime/l
 const fromL1Arith = () => assertOk(lifetime(fromText(new URL('../../wasm/runtime/l1/module.f.js', import.meta.url), l1Arith, l1Runtime(errors))))
 
 const fromL1Whole = () => assertOk(lifetime(fromText(new URL('../../wasm/runtime/l1/module.f.js', import.meta.url), l1Whole, l1Runtime(errors))))
+
+/** The plain stage of every export of L1, which a program links. @type {() => Module} */
+const plainL1 = () => fromText(new URL('../../wasm/runtime/l1/module.f.js', import.meta.url), l1Whole, l1Runtime(errors))
+
+/** The owned stage of the programs, which no table types, with the bodies of L1 that they reach linked in. @type {() => Module} */
+const fromPrograms = () => assertOk(lifetime(fromText(new URL('./programs.f.js', import.meta.url), {}, { ...l1Runtime(errors), l1: plainL1() })))
 
 /** Each function of a module, taking its arguments as a list. @type {(m: object) => StringMap<_Twin>} */
 const twinsOf = m => Object.fromEntries(Object.entries(m).map(([name, f]) => {
@@ -1741,5 +1752,39 @@ export const proof = {
             toIterable: one(values),
             objectSpread: one(values),
         }, ['divide'])
+    },
+    // Slice 11a: every export of the programs, of `any` alone, and the
+    // bodies of L1 that they reach, by their linked names, and no others.
+    programs: () => {
+        const m = fromPrograms()
+        assertEq([...m.exports].toSorted().join(' '), Object.keys(programs).toSorted().join(' '))
+        const names = m.functions.map(([k]) => k)
+        assert(names.includes('l1.add') && names.includes('l1.toPrimitive'))
+        assert(!names.includes('l1.toIterable') && !names.includes('l1.objectSpread'))
+        const text = print({ ...m, imports: [] })
+        assert(text.includes('fn sum3(p0: any, p1: any, p2: any) -> any ='))
+    },
+    // Each program answers what JavaScript answers on the values of the
+    // parity table, an object of a nested object, one of a function and a
+    // function of two arguments, and throws L1's value of the error that
+    // JavaScript throws. A throw of L1 leaves what the caller made for it
+    // behind, a boxed key or number, which the host recovers.
+    programsRun: () => {
+        /** @type {(f: (...xs: readonly unknown[]) => unknown) => _Twin} */
+        const boxed = f => xs => ({ any: f(...xs.map(held)) })
+        const values = [
+            ...withFunction.map(value),
+            { a: { b: 1 } },
+            { f: (/** @type {unknown} */ x) => x },
+            (/** @type {unknown} */ a, /** @type {unknown} */ b) => [a, b],
+        ]
+        const few = values.filter((_, k) => k % 4 === 0)
+        /** @type {StringMap<_Twin>} */
+        const twins = Object.fromEntries(Object.entries(programs).map(([k, f]) => [k, boxed(/** @type {(...xs: readonly unknown[]) => unknown} */ (f))]))
+        /** @type {(f: Function) => readonly (readonly _Value[])[]} */
+        const rows = f => f.length === 1 ? values.map(any => [{ any }])
+            : f.length === 2 ? values.flatMap(a => values.map(b => [{ any: a }, { any: b }]))
+            : values.flatMap(a => few.flatMap(b => few.map(c => [{ any: a }, { any: b }, { any: c }])))
+        run(fromPrograms(), twins, Object.fromEntries(Object.entries(programs).map(([k, f]) => [k, rows(f)])), ['apply', 'called', 'first', 'method', 'mixed', 'pair', 'sum3', 'twice'])
     },
 }

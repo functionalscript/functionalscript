@@ -28,8 +28,10 @@ import { any } from '../../l0/module.f.js'
 import { lifetime } from '../../lifetime/module.f.js'
 import { bool, f64, i, only, signature, u } from '../../module.f.js'
 import { edges, held, run } from '../../wasm/testlib.mjs'
+import { assertOk } from '../../../asserts/module.f.js'
 import { lower } from '../module.f.js'
-import { l1Runtime, runtime, sourceOf } from '../testlib.f.js'
+import { l1Runtime, l1Whole, runtime, sourceOf } from '../testlib.f.js'
+import { readFileSync } from 'node:fs'
 
 /**
  * A Mulberry32 generator from `seed`. Each call answers a float in `[0, 1)`.
@@ -795,6 +797,84 @@ export const anyForm = (rnd, form) => {
 }
 
 /**
+ * The plain stage of every export of L1, which a program links, lowered
+ * once from L1's text over its error table.
+ *
+ * @type {() => import('../../types.ts').Module}
+ */
+const linkedL1 = (() => {
+    /** @type {import('../../types.ts').Module | null} */
+    let made = null
+    return () => {
+        if (made === null) {
+            const { fast, imports } = assertOk(sourceOf(readFileSync(new URL('../../../wasm/runtime/l1/module.f.js', import.meta.url), 'utf8')))
+            made = assertOk(lower(l1Whole, l1Runtime(Object.entries(error)))(fast, imports))
+        }
+        return made
+    }
+})()
+
+/**
+ * Values of every kind but functions that an untyped program takes, and an
+ * object with a `length` and one with a `k`. A function's text is the
+ * runtime's, so `+` of one, which reads it, differs by design.
+ *
+ * @type {readonly unknown[]}
+ */
+const programSamples = [...anySamples.filter(v => typeof v !== 'function'), 'abc', [1, 2], { length: 2 }, { k: 'x' }]
+
+/** Atoms of an untyped program: its parameters and literals of every kind that a program spells. */
+const programAtoms = ['a', 'b', 'a', 'b', '0', '1', '2.5', "''", "'x'", 'true', 'false', 'null', 'undefined']
+
+/**
+ * An expression of an untyped program over `a` and `b`, of depth at most
+ * `depth`: operators of two operands and of one, `?:`, `&&`, `||` and `??`,
+ * a member read, a read at an index, `?.`, an array literal and a field of
+ * an object literal, each operand in parentheses.
+ *
+ * @type {(rnd: _Rnd, depth: number) => string}
+ */
+const programExpr = (rnd, depth) => {
+    if (depth === 0 || rnd() < 0.2) { return pick(rnd, programAtoms) }
+    const x = () => programExpr(rnd, depth - 1)
+    switch (below(rnd, 11)) {
+        case 0: { return `(${x()} ${pick(rnd, ['+', '-', '*', '/'])} ${x()})` }
+        case 1: { return `(${x()} ${pick(rnd, ['<', '<=', '>', '>='])} ${x()})` }
+        case 2: { return `(${x()} ${pick(rnd, ['===', '!=='])} ${x()})` }
+        case 3: { return `(${pick(rnd, ['!', '-', 'typeof '])}${x()})` }
+        case 4: { return `(${x()} ? ${x()} : ${x()})` }
+        case 5: { return `(${x()} ${pick(rnd, ['&&', '||', '??'])} ${x()})` }
+        case 6: { return `(${x()}).${pick(rnd, ['length', 'k'])}` }
+        case 7: { return `(${x()})[${pick(rnd, ['0', '1'])}]` }
+        case 8: { return `(${x()})?.${pick(rnd, ['length', 'k'])}` }
+        case 9: { return `[${x()}, ${x()}]` }
+        default: { return `({ k: ${x()} }).k` }
+    }
+}
+
+/**
+ * An untyped program of slice 11a: one export `f` of two parameters that
+ * no table types, of an expression over them, which the lowering lowers
+ * with L1 linked in, and its twin, the same expression as JavaScript runs
+ * it, on pairs of values of every kind. L1's throw may leave behind what
+ * the caller made for it, which the host recovers.
+ *
+ * @type {(rnd: _Rnd) => ReturnType<typeof anyProgram>}
+ */
+export const untypedProgram = rnd => {
+    const body = programExpr(rnd, 1 + below(rnd, 3))
+    const fn = new Function(`return (a, b) => ${body}`)()
+    return {
+        text: `export const f = (a, b) => ${body}\n`,
+        signatures: {},
+        inputs: { f: Array.from({ length: 16 }, () => [{ any: pick(rnd, programSamples) }, { any: pick(rnd, programSamples) }]) },
+        twin: xs => ({ any: fn(held(xs[0]), held(xs[1])) }),
+        runtime: { ...l1Runtime(Object.entries(error)), l1: linkedL1() },
+        abandons: ['f'],
+    }
+}
+
+/**
  * Whether a refusal is one the generators expect today: an integer-signed
  * body's range past its signature, which the checker finds by interval
  * arithmetic. The printer may spell that range as `int(lo, hi)`, `i(n)` or
@@ -828,8 +908,8 @@ const expectedRefusal = (reason, result) => {
  * @type {(program: ReturnType<typeof typedProgram> & { readonly abandons?: readonly string[] }) => _Outcome}
  */
 export const compareOne = program => {
-    const result = program.signatures.f.result
-    const accept = (/** @type {string} */ reason) => expectedRefusal(reason, result)
+    const typed = entry(program.signatures, 'f')
+    const accept = (/** @type {string} */ reason) => typed !== undefined && expectedRefusal(reason, typed.result)
     const parsed = sourceOf(program.text)
     if (parsed[0] === 'error') { return ['wrong', `parse: ${parsed[1]}`] }
     const { fast, imports } = parsed[1]
@@ -856,11 +936,12 @@ export const compareOne = program => {
 }
 
 /**
- * Run `typed` typed programs and `any` programs over values of unknown
- * kind from `seed`. Answers how many ran, how many calls agreed, how many
- * were refused, and the first wrong answer if any.
+ * Run `typed` typed programs, `any` programs over values of unknown
+ * kind and, since slice 11a, `untyped` programs that no table types, from
+ * `seed`. Answers how many ran, how many calls agreed, how many were
+ * refused, and the first wrong answer if any.
  *
- * @type {(seed: number, typed: number, anyCount: number) => {
+ * @type {(seed: number, typed: number, anyCount: number, untyped?: number) => {
  *   readonly seed: number,
  *   readonly programs: number,
  *   readonly ran: number,
@@ -869,7 +950,7 @@ export const compareOne = program => {
  *   readonly wrong: string | null,
  * }}
  */
-export const compare = (seed, typed, anyCount) => {
+export const compare = (seed, typed, anyCount, untyped = 0) => {
     const rnd = rng(seed)
     let ran = 0
     let refused = 0
@@ -890,5 +971,6 @@ export const compare = (seed, typed, anyCount) => {
     }
     for (let k = 0; k < typed; k += 1) { step(typedProgram(rnd)) }
     for (let k = 0; k < anyCount; k += 1) { step(anyProgram(rnd)) }
-    return { seed, programs: typed + anyCount, ran, refused, calls, wrong }
+    for (let k = 0; k < untyped; k += 1) { step(untypedProgram(rnd)) }
+    return { seed, programs: typed + anyCount + untyped, ran, refused, calls, wrong }
 }

@@ -10,7 +10,8 @@ functions that the module does not export, the records and L1's native
 rows that the fifth adds, for the module constants that slice 6c adds, the
 string literals that 6d adds, the array literals that 6e adds, the
 reads of an array at a number key that 6f adds, the `throw` and L1's
-error table that 7b adds, and the L0 view's `buildArray` that 8b adds.
+error table that 7b adds, the L0 view's `buildArray` that 8b adds, and
+the untyped programs that 11a adds, linked with L1.
 It reads FAST before
 [preparation](../../js/ast/prepare/README.md) adds mutable slots, as
 definition.md's
@@ -356,6 +357,39 @@ or `??`: they reach it as conditionals.
 something, it is bound to a local first, so that it is still done before
 `b`: either may trap, as a cast does, and a loop may never end.
 
+## Programs
+
+A program is a module that no table types
+([slice 11a](../todo/slices.md)): the runtime gives the plain stage of
+L1, lowered from its text, as `l1`, and the lowering then lowers every
+export, one that the table does not name of `any` alone, its parameters
+`p0`, `p1`, and so on.
+
+```js
+const l1 = unwrap(lower(l1Whole, l1Runtime(errors))(l1Fast, l1Imports))
+const program = unwrap(lower({}, { ...l1Runtime(errors), l1 })(fast, imports))
+```
+
+| In a program | The IR |
+| --- | --- |
+| `a + b`, `a - b`, `a * b`, `a / b` of operands that the IR's operators do not take, a value of `any` or a float and a boolean | `l1.add`, `l1.subtract`, `l1.multiply`, `l1.divide` of them, each float or boolean boxed by `from_f64` or `from_bool` |
+| `a < b`, `a <= b`, `a > b`, `a >= b` of such operands | `l1.lessThan`, `l1.lessThanOrEqual`, `l1.greaterThan`, `l1.greaterThanOrEqual`, `a` still first |
+| `a === b`, `a !== b` | `l1.strictEquals`, and its `not` |
+| `-x`, `!x`, `typeof x` | `l1.negate`, `not` of `l1.toBoolean`, `l1.typeOf` |
+| a condition, of `?:`, `if`, `&&`, `\|\|` and `??`, that is not a `bool` | `l1.toBoolean` of it |
+| `o.k`, `o[0]`, of `any`, a float or a boolean | `l1.get` |
+| `o?.k` and the steps after it | a `match` of `o`: `undefined` where it is `undefined` or `null`, which short-circuits the whole chain, and the read and the steps of `o.value` else |
+| `o.f(x)` | `(o.f)(x)`: FunctionalScript has no `this` |
+| `f(x)` of a value that may be no function | `l1.call(f, args)`, which throws where JavaScript throws; of a function, `Functions.call` |
+| a value that a function answers, arms of two other types, an argument of an untyped export | boxed as `any` |
+
+[`link`](./module.f.js) merges the program with the bodies of L1 that it
+reaches, itself or through others of L1, under `l1.` names, L1's
+constants first, so that the program is one module and one WASM module.
+L1 exports nothing there. A spread argument, `+x` of one operand, `%` of
+`any`, `?.()` and a guarded step after `?.` are refused in a program, and
+so is an export that is not a function.
+
 ## What it refuses
 
 Everything else, with the function's name and the reason
@@ -368,8 +402,8 @@ integer range, in a record too, an item of it that is not a value of
 `any`, a `throw` inside one of its callbacks, which would leave the
 builder behind, a native row other than `bigintEquals` and
 `numberRemainder`, a constant of a record, a read of a constant before its
-definition, an exported function that the table does not name, which a
-lowered function or constant calls, a function as a value but a callback of
+definition, outside a program, an exported function that the table does not
+name, which a lowered function or constant calls, a function as a value but a callback of
 `buildArray`, a function that calls itself or whose call
 gives another number of arguments than it takes, a loop of more than one
 variable, a loop parameter of an integer range, in a record too, a `break`
@@ -377,8 +411,8 @@ that does not end its loop's body, a `return` inside a loop or before the
 end of a function that is inlined, an entry of an object that is not a name
 and its value, such as a spread, a member read of anything but a name,
 an array's at a number, or sealed `any` where the table names `get`, a
-member read that goes on to a call,
-`?.`, a `lazy` definition, a string, an array, `null`, `undefined` and
+member read that goes on to a call, `?.` and `typeof`, all three outside a
+program, a `lazy` definition, a string, an array, `null`, `undefined` and
 `throw` in a module lowered without the runtime, a read of L1's error
 table as a value or at a computed key, another export of its module, an item of an array
 that is a number or a boolean, a spread in an array, a rest parameter, a
@@ -398,6 +432,9 @@ that leaves its function.
   makes today: a statement of one result, a `return` in an arm, `?:`, a
   loop's body that ends otherwise, and two functions that call each other.
   It holds every refusal too.
+- [`program.proof.f.js`](./program.proof.f.js) holds the same for slice
+  11a's programs, over a stand-in for L1, with `link` and the originals
+  of [`programs.f.js`](./programs.f.js).
 - [`proof.mjs`](./proof.mjs) is a host proof. It reads
   [`sample.f.js`](./sample.f.js), 26 FunctionalScript functions of floats,
   booleans and `bigint`s, lowers them from their own text with the
@@ -443,6 +480,11 @@ that leaves its function.
   functions that throw, which shows the view's order, an item before the
   next state; L1's `toIterable` runs against L1's own on values of every
   kind and on strings of code points.
+  And [`programs.f.js`](./programs.f.js), twenty-one untyped programs of
+  slice 11a, lowered with no table and linked with L1, run against
+  JavaScript on the values of L1's parity table: where JavaScript throws a
+  `TypeError`, each throws L1's value of that error.
 - [`random/`](./random/README.md) is a seeded host proof: a few hundred
-  random programs in what the slices lower, each against JavaScript. Prefer
+  random programs in what the slices lower, each against JavaScript, and
+  since 11a untyped programs linked with L1. Prefer
   `node --test` for it.
