@@ -876,7 +876,7 @@
           "continue-on-error": true
         },
         {
-          "run": "test \"$(mise exec -- bun --version)\" = \"1.4.4\"",
+          "run": "test \"$(mise exec -- bun --version)\" = \"1.4.5\"",
           "shell": "bash",
           "if": "steps.init.outputs.hit-suite != 'true'"
         },

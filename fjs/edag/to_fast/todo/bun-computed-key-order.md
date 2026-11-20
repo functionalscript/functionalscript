@@ -3,7 +3,7 @@
 **Priority:** P3
 **Status:** open
 
-Pinned Bun 1.4.4 evaluates the value before coercing the computed key in
+Pinned Bun 1.4.5 evaluates the value before coercing the computed key in
 `{ [key]: value() }`. Node 26.13.1 and Deno 2.9.8 coerce the key first.
 This host JavaScript reproduction prints `["value","key"]` in Bun and
 `["key","value"]` in Node:
