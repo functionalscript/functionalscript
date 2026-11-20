@@ -757,6 +757,66 @@ export const proof = /** @type {const} */ ({
             assert(_joinResults(before).statements.includes(recipe))
         }
     },
+    // One arm of a statement leaves, so what follows runs only after the
+    // other: a recipe that arm and what follows always read is required at
+    // its head and handed out as a result. The path that leaves never meets it.
+    recipesAreRequiredInTheArmThatGoesOn: () => {
+        const condition = id(0), cell = id(1), other = id(2), step = id(3), out = id(4), kept = id(5)
+        const target = /** @type {const} */ ({ kind: 'loop', index: 1 })
+        /** @type {(exit: Block['exit'], statements?: readonly Statement[]) => Block} */
+        const ending = (exit, statements = []) => ({ statements, exit })
+        const leaving = ending(['break', target, [5]])
+        const reading = normal([['define', kept, ['array', [ref(cell)]], 'required']])
+        /** @type {(recipe: Statement, statement: Statement, last?: Value) => Block} */
+        const body = (recipe, statement, last = ref(cell)) => ending(['break', target, [last]], [recipe, statement])
+        /** @type {(body: Block) => Block} */
+        const looped = body => result(ref(out), [['loop', { target, parameters: [step], initial: [0], results: [out], body }]])
+        const recipe = /** @type {Statement} */ (['define', cell, ['array', [7]], 'lazy'])
+        const failing = /** @type {Statement} */ (['define', cell, fail('unread'), 'lazy'])
+        for (const [then, otherwise, leaves] of /** @type {const} */ ([[leaving, reading, true], [reading, leaving, false]])) {
+            const after = _joinResults(body(recipe, ['if', [], ref(condition), then, otherwise]))
+            const arm = /** @type {Block} */ ({ statements: [['define', cell, ['array', [7]], 'required'], ...reading.statements], exit: ['yield', [ref(cell)]] })
+            assertStructurallySame(after.statements, [['if', [cell], ref(condition), leaves ? leaving : arm, leaves ? arm : leaving]])
+            for (const definition of [recipe, failing]) {
+                const before = looped(body(definition, ['if', [], ref(condition), then, otherwise]))
+                for (const block of [before, _joinResults(before)]) {
+                    assertEq(assertOk(toData(assertOk(evaluate(block, condition, leaves)))), 5)
+                    if (definition === recipe) { assertStructurallySame(assertOk(toData(assertOk(evaluate(block, condition, !leaves)))), [7]) }
+                }
+            }
+        }
+        // Two statements that leave, one inside the arm the other goes on in:
+        // the recipe is required where the inner arm reads it, and handed out
+        // through both. A path that leaves at either never meets it.
+        const inner = /** @type {Statement} */ (['if', [], ref(other), leaving, reading])
+        const nested = _joinResults(body(recipe, ['if', [], ref(condition), leaving, normal([inner])]))
+        const innerArm = /** @type {Block} */ ({ statements: [['define', cell, ['array', [7]], 'required'], ...reading.statements], exit: ['yield', [ref(cell)]] })
+        assertStructurallySame(nested.statements, [['if', [cell], ref(condition), leaving, { statements: [['if', [cell], ref(other), leaving, innerArm]], exit: ['yield', [ref(cell)]] }]])
+        const twoLeaves = looped(ending(['break', target, [ref(cell)]], [['define', other, ref(condition), 'required'], failing, ['if', [], ref(condition), leaving, normal([inner])]]))
+        for (const block of [twoLeaves, _joinResults(twoLeaves)]) {
+            assertEq(assertOk(toData(assertOk(evaluate(block, condition, true)))), 5)
+        }
+        // What follows need not read it where every path completing the arm did.
+        const once = _joinResults(body(recipe, ['if', [], ref(condition), leaving, reading], selected(ref(other), 0, ref(cell))))
+        assertEq(deferredCount(once), 0)
+        // statements around the one that leaves stay where they are
+        const first = /** @type {Statement} */ (['define', other, 1, 'required'])
+        const around = _joinResults(ending(['break', target, [ref(cell)]], [first, recipe, ['if', [], ref(condition), leaving, reading]]))
+        assertEq(around.statements[0], first)
+        assertEq(around.statements.length, 2)
+        // Not where the statement already yields the binding, where the arm
+        // that leaves reads the recipe, where the arm that goes on declares
+        // the binding anew, or where a path through it and what follows ends unread.
+        const maybe = /** @type {Value} */ (selected(ref(other), ref(cell), 0))
+        for (const before of [
+            body(recipe, ['if', [cell], ref(condition), ending(['break', target, [ref(cell)]]), result(1)]),
+            body(recipe, ['if', [], ref(condition), ending(['break', target, [maybe]]), reading]),
+            body(recipe, ['if', [], ref(condition), leaving, normal([...reading.statements, ['define', cell, 3, 'required']])]),
+            body(recipe, ['if', [], ref(condition), leaving, normal([['define', kept, maybe, 'required']])], selected(ref(other), 0, ref(cell))),
+        ]) {
+            assert(_joinResults(before).statements.includes(recipe))
+        }
+    },
     // A loop's body runs after its first pass is entered, so a read inside
     // one is no first demand of the value that holds the loop: a recipe
     // that fails is not met where no pass reads it.
