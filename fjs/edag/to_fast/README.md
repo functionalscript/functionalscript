@@ -75,6 +75,11 @@ established operands can keep their prefix names. The shared
 [`demandsInOrder`](../demand/module.f.js) query proves each placement against
 the actual established values. Graph construction uses the same query to remove
 only ordered redundant anchors.
+A comma root before the last that is a node already bound required is not read
+again: the read does nothing, and a named import, its module's computations
+followed by the export it selects, is then the export alone. A node bound
+deferred is evaluated by that read and stays, as does a literal, kept as
+written. A graph read back from such a region has no comma there.
 
 A value shared across otherwise separate lazy regions may instead be repeated
 when every operation reachable from it is `mergeable` and none is a comma.
