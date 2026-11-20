@@ -200,6 +200,11 @@ operand of one, the exit's value, or a region inside a value. In the arm it
 stands at its first proven demand, or at the arm's head where the arm reads it
 on every path. A selection reads on every path what its test reads, or what
 both of its arms read.
+Two tests that are the same expression over the same bindings are one test:
+the language is pure, so they decide alike, and a selection on one joins a
+statement on the other. Placing a recipe can put a selection where a join
+reads it, and a join can put one inside an arm, so a block is joined again
+after placement changes it, and a statement's arms after a join.
 Other earlier work and recipes keep their original evaluation owner.
 Demand checks expand visible deferred initializer graphs without evaluating them,
 so transitive closure captures retain their first-read order. Ordinary function
