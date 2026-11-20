@@ -111,8 +111,19 @@ and the same data is a data segment in WebAssembly.
     simplest, and a compiled module is then no longer usable by another VM
     without being generated again.
   - **Code that does not name the VM.** A function takes the VM as a
-    value it calls through. The body is written once for all of them, and
-    every operation is an indirect call.
+    trait object, `&dyn Vm`, and each operation is a virtual call through
+    its table. The body is written once for all VMs. It gives up what the
+    generic form has: a function is compiled for its VM, so an addition or
+    a property read can be inlined, and through a table it cannot. Values
+    need a form that names no VM as well, since `Any<A>` does, and `IVm`
+    is not usable as a trait object as it is written, with its associated
+    types and `Sized` bound: the change is to the trait, not only to what
+    is generated.
+
+  **To decide:** which of the three. The first keeps a module generic and
+  costs a table read where a function value is made; the second is the
+  least work and ties a compiled module to one VM; the third costs a
+  virtual call at every operation.
 - **Identity.** A value's identity is its address
   (`IComplex::address`). Two different constants must not share one, which
   zero-sized statics, two empty arrays, may.
@@ -131,6 +142,8 @@ and the same data is a data segment in WebAssembly.
 - [ ] Measure first: build time, binary size and start of one module with
   its constants as statics, written by hand, against the same module as
   generated today.
+- [ ] Decide how a static refers to a function's code: an id and a
+  table, one VM for the generated code, or virtual calls.
 - [ ] Settle the static types, the conversions in the VM's trait and what
   they promise about identity.
 - [ ] Strings first: `StaticString` to `String<A>`, the naive VM keeping
