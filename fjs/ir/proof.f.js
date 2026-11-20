@@ -5,7 +5,7 @@
 import { assert, assertEq } from '../asserts/module.f.js'
 import {
     abs, add, block, bool, br, call, call_ref, cast, code, codeOf, compareIn, constant, div, eq, equal, exact, f64, f64c, false_, field, fits, float, fn,
-    get, i, if_, inside, int, isOwn, le, leaves, let_, lit, loop, lt, make, mayFail, match, mul, n, ne, neg, never, next, not, only, own, return_,
+    get, i, if_, inside, int, isCopy, isOwn, le, leaves, let_, lit, loop, lt, make, mayFail, match, mul, n, ne, neg, never, next, not, only, own, return_,
     sealed, signature, sqrt, sub, terms, throw_, trap, true_, trunc_sat, u, unit, variant,
 } from './module.f.js'
 
@@ -143,6 +143,12 @@ export const proof = {
         assert(equal(cast(only(any, 'number'), get('v'), 'x', x => x), match(get('v'), [[['number'], 'x', get('x')], [null, null, trap('not number')]])))
         assert(equal(cast(only(any, 'null', 'undefined'), get('v'), 'x', n(1n)), match(get('v'), [[['null', 'undefined'], 'x', n(1n)], [null, null, trap('not null or undefined')]])))
         assert(equal(cast(any, get('v'), 'x', get('x')), let_('x', get('v'), get('x'))))
+        // A sealed type is copy when its interface names each of its variants as copy: a subset may be, the whole type not.
+        const def = { variants: ['a', 'b', 'c'], carrier: /** @type {const} */ ('i64'), dup: 'dup', drop: 'drop', copy: ['a', 'b'] }
+        assert(isCopy(def, only(any, 'b', 'a')))
+        assert(!isCopy(def, only(any, 'a', 'c')))
+        assert(!isCopy(def, any))
+        assert(!isCopy({ variants: ['a'], carrier: /** @type {const} */ ('i64') }, only(any, 'a')))
     },
     let_: () => {
         // The body is a term, or a function of the local.

@@ -118,6 +118,11 @@ export const proof = {
         // A loop owns its string: each repeat drops the old one and passes the new one on.
         loopOwns: () => fine(overL0([['c', u(16)], ['k', f64]], string, loop('L', [['s', string, fromUnit(c)], ['i', f64, zero]], (s, i) =>
             if_(lt(i, k), let_('t', concat(s, s), t => let_('d', drop(s), () => next('L', [['s', t], ['i', add(i, one)]]))), s)))),
+        // A counted parameter whose first value is copy owns it, so the next value may be owned.
+        loopCopyFirst: () => fine(overL0([['a', string], ['k', f64]], any, loop('L', [['x', any, constant('Any', 'null')], ['i', f64, zero]], (x, i) =>
+            if_(lt(i, k), let_('t', concat(a, a), t => let_('d', drop(x), () => next('L', [['x', t], ['i', add(i, one)]]))), x)))),
+        // The name of an arm that narrows its operand to copy variants is plain, so a parameter that owns its argument takes it.
+        matchCopy: () => fine(overL0([['v', any]], unit, match(get('v'), [[['boolean', 'null'], 'b', drop(get('b'))], [null, null, none]]))),
         // A loop borrows a parameter that its first value borrows, and passes the borrow on.
         loopBorrows: () => fine(overL0([['a', string], ['k', f64]], f64, loop('L', [['s', string, a], ['i', f64, zero]], (s, i) =>
             if_(lt(i, k), next('L', [['s', s], ['i', add(i, one)]]), float(length(s)))))),
