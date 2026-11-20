@@ -33,14 +33,18 @@ from one.
 
 ### Tasks
 
-- [ ] Measure a program that needs it before designing: the interpreters run
-  the compiler's own tools, and none of them uses a reference map yet.
+- [x] Measure a program that needs it before designing:
+  [`fjs/types/map`](../../types/map/module.f.js) is built on the reference
+  map, and the compiler's analysis on that map. The figures are in
+  [host values](./host-values.md), which proposes a wider answer: with
+  values the host's own, the map is the real one and there is no store.
 - [ ] Propose the store and where it is threaded.
 - [ ] Implement it, and prove the same answers as the runtime's map with the
   bound kept on older and newer maps alike.
 
 ### Related
 
+- [Host values](./host-values.md) — values as the host's own, which makes this store unnecessary.
 - [Reference map](../../../spec/built-ins/reference-map/README.md) — the page, and its [design record](../../../spec/design/object-identity.md#reference-map).
 - [`fjs/js/ref_map`](../../js/ref_map/module.f.js) — the map the interpreters
   use today.

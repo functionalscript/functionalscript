@@ -1,0 +1,133 @@
+## Evaluate to host values, a function to its description
+
+**Priority:** P2
+**Status:** open — a design proposed by the language designer; details below are to be settled
+
+### Problem
+
+An evaluated value is an EDAG node ([`../value/types.ts`](../value/types.ts),
+`EdagValue`): an array is `['[]', items]`, an object `['{}', properties]`,
+`undefined` is `['undefined']`, and a function is `['=>', length, captures,
+body]`. Everything the interpreters do is done on that representation, and
+three costs follow from it.
+
+- **A reference map is a list.** The interpreters answer the EDAG's
+  `['refMap']` with [`fjs/js/ref_map`](../../js/ref_map/module.f.js), pairs
+  searched with `===`, where the
+  [contract](../../../spec/built-ins/reference-map/README.md) asks
+  `O(log n)`. [`fjs/types/map`](../../types/map/module.f.js) is built on the
+  reference map, and the analysis and sharing passes are built on that map,
+  so the compiler run through an interpreter pays it everywhere. A program
+  that sets `n` distinct keys and reads each back, interpreted by
+  [`memo`](../memo/README.md) at `9a14b1d`
+  (`fjs compile` to a `.data.js`, start-up of about 2 s included):
+
+  | `n` | time |
+  | --- | --- |
+  | 1,000 | 8.6 s |
+  | 2,000 | 31.4 s |
+  | 4,000 | 122.5 s |
+  | 8,000 | 477.1 s |
+  | 4,000, the same loops without the map | 1.8 s |
+
+- **Every operation is an emulation.** A property read, a spread and an
+  addition each take a tagged tuple apart and build another.
+- **A call walks a graph.** A function's body is an expression evaluated node
+  by node at each call.
+
+[A store for reference maps](./reference-map-store.md) answers the first cost
+alone, with a table threaded through every invocation of both interpreters.
+
+### Proposal
+
+A value is the host's own value, except a function.
+
+- A primitive, an array and an object are what they are in the host. Their
+  identity is the host's, so a reference map is
+  [`fjs/types/ref_map`](../../types/ref_map/module.f.js) itself, with its
+  bound, and no store is threaded anywhere.
+- A function is a host function of no arguments that answers its description,
+  along the lines of
+
+  ```js
+  () => ({ length, edag, compiled })
+  ```
+
+  `edag` is what the function is as EDAG, so it can still be written out.
+  `compiled` is a host function that runs it: built once where the function
+  value is made, it takes the arguments and answers the result, so a call
+  does not walk the body again. The description is behind a call so that a
+  function value is told from data by `typeof`, and is one reference, which
+  is its identity.
+
+This is the model NaNVM already has, real values and functions
+(`Any<A>` in `nanvm/lib`), so the interpreters and the VM would agree on what
+a value is.
+
+### What a design has to settle
+
+- **The description's fields.** A closure has evaluated captures as well as a
+  body; the captures are values, so host values, and writing the function
+  out needs them. Whether they live inside `edag` or beside it, and what the
+  entry helpers, intrinsics and static functions
+  (`EntryFunction`, `Intrinsic`, `Static`) answer as descriptions.
+- **A reference map is a host function too.** `typeof` alone no longer tells
+  a description from a map. Either a map is wrapped in a description whose
+  `compiled` is the map, or the two are told apart another way.
+- **`undefined`.** It is tagged today so that an absent value and an
+  `undefined` one are never confused inside the interpreter
+  ([`../value/README.md`](../value/README.md)). With the host's `undefined`
+  as the value, every place that relies on the tag needs another way to say
+  "absent".
+- **Objects.** An evaluated object is a list of properties with no
+  prototype to read through. A host object has one, and `__proto__` is a key
+  a program may write; the operations have to read own enumerable
+  properties only, as they do now.
+- **Writing a value out.** `.data.js`, `.f.js` and `.rs` outputs of an
+  evaluated module need the walk from host values back to EDAG, with shared
+  values found by identity, which the reference map gives. A map that was
+  used holds what cannot be enumerated: it is refused, or the fold over the
+  empty map is kept beside it
+  ([the store's third question](./reference-map-store.md)).
+- **What `compiled` is built from, and by whom.** The interpreters are
+  FunctionalScript, so it is a closure over the body, not generated text.
+  How tail calls keep constant host stack through it
+  ([values.md](../values.md#operations-and-failures)), and whether
+  [`amnesia`](../amnesia/README.md), whose point is to evaluate every edge
+  again, uses it at all.
+- **Types.** `EdagValue` is checked to be a subset of `Exp`
+  (`_Subset`), and the value serializer and the function-text renderer rely
+  on it. Values become `unknown` narrowed at each operation; what replaces
+  the check.
+- **Failure.** An operation answers `Result<EdagValue, EdagValue>`; a thrown
+  value is any value, which stays true.
+
+### Scope
+
+`EdagValue` is named in about thirty modules: all of `fjs/edag/value`,
+`fjs/edag/operations`, both interpreters, `fjs/compiler/transpiler`,
+`fjs/compiler/source`, `fjs/compiler/serializer/value` and `fjs/nanvm`.
+[`to_unknown`](../value/to_unknown/module.f.js), which converts an evaluated
+value to a host one, becomes the identity on data.
+
+### Tasks
+
+- [ ] Settle the description's fields and how a map is told from a function.
+- [ ] Settle `undefined` and the object rules.
+- [ ] Decide what `compiled` is and measure it on one interpreter before
+  moving the rest: the reference-map program above, and the whole compiler
+  evaluated (`fjs/module.f.js`), which took 19 min 25 s at `9a14b1d`.
+- [ ] Move the operations, then the interpreters, then the consumers.
+- [ ] Write a host value out as EDAG, with sharing kept.
+- [ ] Delete [the store issue](./reference-map-store.md) with the pull
+  request that makes the map the real one.
+
+### Related
+
+- [A store for reference maps](./reference-map-store.md) — the narrower
+  answer to the first cost.
+- [Reference map](../../../spec/built-ins/reference-map/README.md) and its
+  [design record](../../../spec/design/object-identity.md#reference-map).
+- [`../values.md`](../values.md) — the contracts values keep today.
+- [`fjs/types/ref_map`](../../types/ref_map/module.f.js) — the map with the
+  bound, which the host gives.
