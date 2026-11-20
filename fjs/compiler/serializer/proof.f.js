@@ -797,15 +797,16 @@ export const proof = {
         writes(['[]', [f, f]], 'const $0=[1];const $1=(...$2)=>[$0,$2[0]];export default [$1,$1];')
         // a slot read is a base like any name
         writes(['=>', 0, [c], ['.', slot(0), 0]], 'const $0=[1];export default ()=>$0[0];')
-        // one slot read twice is one name, and two slots are two
+        // one slot read twice is one name, and two slots are two: read in
+        // slot order, they are read as the names they capture
         /** @type {Exp} */
         const d = ['{}', []]
-        writes(['=>', 0, [c, d], ['[]', [slot(0), slot(1), slot(0)]]], 'const $0=[1];const $1={};export default ()=>{const $2=$0;const $3=$1;return [$2,$3,$2];};')
+        writes(['=>', 0, [c, d], ['[]', [slot(0), slot(1), slot(0)]]], 'const $0=[1];const $1={};export default ()=>[$0,$1,$0];')
         // inside a body: a parameter is a name already, and a nested
         // function captures through its parent
         writes(
             ['=>', 0, [], ['=>', 0, [['rest']], ['=>', 0, [slot(0), ['rest']], ['[]', [slot(0), slot(1), slot(0)]]]]],
-            'export default (...$0)=>(...$1)=>()=>{const $2=$0;const $3=$1;return [$2,$3,$2];};')
+            'export default (...$0)=>(...$1)=>()=>[$0,$1,$0];')
         writes(
             ['=>', 0, [], ['=>', 0, [['.', ['rest'], 0]], ['[]', [slot(0), slot(0)]]]],
             'export default (...$0)=>{const $1=$0[0];return ()=>[$1,$1];};')
@@ -813,11 +814,12 @@ export const proof = {
         // value among it: two nodes, which the lowering gives a slot each
         assertEq(
             reads(_defaultExport(moduleGraph('const o=[1]; const x=o[0]; const y=o[0]; export default (...a)=>[x,y];'))),
-            'const $0=[1];const $1=$0[0];const $2=$0[0];export default ()=>{const $3=$1;const $4=$2;return [$3,$4];};')
+            'const $0=[1];const $1=$0[0];const $2=$0[0];export default ()=>[$1,$2];')
         // where the writer's own order would read the slots in another —
         // here the body's text is the frame's order backwards, and a shared
         // function hoisted above the `return` reads the later slot first —
-        // the body names its slots in order before anything else
+        // the body names its slots in order before anything else, so that
+        // the reader, which orders slots by first reference, gives them back
         writes(['=>', 0, [c, d], ['[]', [slot(1), slot(0)]]], 'const $0=[1];const $1={};export default ()=>{const $2=$0;const $3=$1;return [$3,$2];};')
         assertEq(
             reads(_defaultExport(moduleGraph('const x=[1]; const y=[2]; export default (...a)=>{const z=x; const f=(...b)=>y; return [z,f,f];};'))),

@@ -259,6 +259,19 @@ export const proof = {
         }
         const reversed = stringify({ statements: [['define', outer, ['array', [1]]], ['define', second, ['array', [2]]]], exit: ['yield', [['function', reordered]]] }, 'expression')
         assert(reversed.includes('const $2=$0;const $3=$1;'))
+        // read in slot order, the captures are read as the names they
+        // capture: the reader orders slots by first reference, so the text
+        // says the same without a name for each. A body that is a block, and
+        // one that reads a slot twice, are no different
+        /** @type {Block['statements']} */
+        const defined = [['define', outer, ['array', [1]]], ['define', second, ['array', [2]]]]
+        /** @type {(body: Block) => string} */
+        const written = body => stringify({ statements: defined, exit: ['yield', [['function', { ...reordered, body }]]] }, 'expression')
+        assertEq(written({ statements: [], exit: ['return', target, ['array', [['ref', captured], ['ref', secondCapture], ['ref', captured]]]] }),
+            '(()=>{const $0=[1];const $1=[2];return ()=>[$0,$1,$0];})()')
+        const local = id(9)
+        assertEq(written({ statements: [['define', local, ['array', [['ref', captured]]]]], exit: ['return', target, ['array', [['ref', local], ['ref', secondCapture]]]] }),
+            '(()=>{const $0=[1];const $1=[2];return ()=>{const $2=[$0];return [$2,$1];};})()')
         assertEq(functionStringify(reordered), '()=>[$1,$0]')
         assertEq(expression(['function', { ...plain, parameters: [], body: { statements: [['define', id(8), 0]], exit: ['return', target, ['block', yielding(3)]] } }]), '()=>{const $0=0;return 3;}')
     },
