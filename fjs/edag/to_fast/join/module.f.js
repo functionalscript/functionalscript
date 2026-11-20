@@ -318,12 +318,48 @@ const exitArm = (exit, target, deferred) => {
     })))
 }
 
+/** The ways a region ends at all: what ends unread of a binding nothing reads. */
+const ends = unread(/** @type {BindingId} */ ({ index: -1 }))
+
+/** Whether the block can complete, and what follows it run. @type {(block: Block) => boolean} */
+const completes = block => run(ends(['block', block, 0])).includes('normal')
+
+/**
+ * Where one arm of a statement cannot complete, what follows the statement
+ * runs only after the other. A recipe the test and the arm that leaves never
+ * read belongs in the arm that goes on, which hands it out as one more
+ * result of the statement: the arm found here ends by yielding it, and the
+ * recipe is placed in that arm as in any block.
+ *
+ * The yield is a read the arm did not have. It stands for the reads after
+ * the statement, so either every path that completes the arm has read the
+ * recipe already, or nothing after the statement ends unread.
+ *
+ * @type {(source: Block, branch: Statement | undefined, definition: Definition, deferred: readonly Definition[]) => _Arm<Statement> | null}
+ */
+const onward = (source, branch, definition, deferred) => {
+    const target = definition[1]
+    if (branch === undefined || branch[0] !== 'if' || branch[1].includes(target) || reads(branch[2], target, deferred)) { return null }
+    const [, results, test, then, otherwise] = branch
+    const left = completes(then)
+    if (left === completes(otherwise)) { return null }
+    const [going, gone] = left ? [then, otherwise] : [otherwise, then]
+    if (references(gone, target, deferred) || going.statements.some(statement => bound(statement).includes(target))) { return null }
+    const after = source.statements.slice(source.statements.indexOf(branch) + 1)
+    if (run(unread(target)(['block', going, 0])).includes('normal') && !certain({ statements: [definition, ...after], exit: source.exit }, definition)) { return null }
+    return {
+        arm: { statements: going.statements, exit: ['yield', [...exitValues(going.exit), ['ref', target]]] },
+        rebuilt: arm => ['if', [...results, target], test, left ? arm : then, left ? otherwise : arm],
+    }
+}
+
 /**
  * Place a recipe in its block. It moves to its first demand, descending the
  * one selected arm that holds every read of it; dependents move first, so a
- * prerequisite never passes their declarations. Failing that it is required
- * where it stands, at the head of an arm it was carried into, when the block
- * reads it on every path that completes.
+ * prerequisite never passes their declarations, or into the arm that goes on
+ * where the statement's other arm leaves. Failing that it is required where
+ * it stands, at the head of an arm it was carried into, when the block reads
+ * it on every path that completes.
  *
  * @type {(source: Block, definition: Definition, deferred: readonly Definition[], origin: number) => Task<Block | null>}
  */
@@ -335,14 +371,17 @@ const localizedTask = (source, definition, deferred, origin) => bind(/** @type {
     if (branch !== undefined && origin >= index) { return done(null) }
     const outside = /** @type {Block} */ ({ statements: source.statements.filter(statement => statement !== definition && statement !== branch), exit: branch === undefined ? ['yield', []] : source.exit })
     const crossed = source.statements.slice(origin + 1, branch === undefined ? source.statements.length : index)
-    if (references(outside, definition[1], deferred) || shadows({ statements: crossed, exit: ['yield', []] }, recipeScope(definition), deferred)) { return done(null) }
+    if (shadows({ statements: crossed, exit: ['yield', []] }, recipeScope(definition), deferred)) { return done(null) }
     const kept = source.statements.filter(statement => statement !== definition)
     /** @type {<T>(found: _Arm<T> | null, over: (placed: T) => Block) => Task<Block | null>} */
     const within = (found, over) => found === null ? done(null)
         : bind(localizedTask(found.arm, definition, deferred, -1), body => done(body === null ? null : over(found.rebuilt(body))))
+    /** @type {(placed: Statement) => Block} */
+    const replaced = placed => ({ ...source, statements: kept.map(statement => statement === branch ? placed : statement) })
+    if (references(outside, definition[1], deferred)) { return within(onward(source, branch, definition, deferred), replaced) }
     return branch === undefined
         ? bind(exitArm(source.exit, definition[1], deferred), found => within(found, exit => ({ statements: kept, exit })))
-        : bind(statementArm(branch, definition[1], deferred), found => within(found, placed => ({ ...source, statements: kept.map(statement => statement === branch ? placed : statement) })))
+        : bind(statementArm(branch, definition[1], deferred), found => within(found, replaced))
 })), moved => {
     if (moved !== null) { return done(moved) }
     const standing = origin === -1 ? [definition, ...source.statements] : source.statements

@@ -195,7 +195,12 @@ until one cannot complete unread; a selection is its test, then either arm;
 an operand that can be skipped counts for nothing; a `break` completes its
 loop, and a `continue` reached unread is never answered, since that path may
 never end. A path that fails before the read fails either way. A read inside
-a loop's body is no first demand of the value that holds the loop. An ordinary function body is placed this way too; it has no joins to
+a loop's body is no first demand of the value that holds the loop.
+Where one arm of a statement cannot complete, what follows the statement runs
+only after the other, and a recipe the test and the leaving arm never read is
+placed in the arm that goes on, which hands it out as one more result of the
+statement. That holds through statements nested in the arm: each hands the
+recipe out in turn. An ordinary function body is placed this way too; it has no joins to
 recover.
 A recipe every read of which sits in one selected arm is carried into that
 arm, wherever the selection is: a statement, a required initializer or an
