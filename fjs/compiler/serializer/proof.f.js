@@ -71,6 +71,9 @@ const reads = e => {
 /** Include nested function bodies when classifying generated fixtures. @type {(node: readonly unknown[]) => readonly unknown[]} */
 const allOperands = node => node[0] === '=>' ? [...operandsOf(node), node[3]] : operandsOf(node)
 
+/** The nodes a root reaches through its operands, a function's body aside. @type {(root: unknown) => readonly unknown[]} */
+const reached = root => visit(operandsOf)([])(root).map(([n]) => n)
+
 /**
  * Whether a comma in a graph anchors a node another of its operands
  * reaches, or the total, identity-free literal `undefined`: an anchor the
@@ -81,8 +84,6 @@ const allOperands = node => node[0] === '=>' ? [...operandsOf(node), node[3]] : 
  * @type {(e: Exp) => boolean}
  */
 const redundantAnchor = e => {
-    /** @type {(root: unknown) => readonly unknown[]} */
-    const reached = root => visit(operandsOf)([])(root).map(([n]) => n)
     return visit(allOperands)([])(e).some(([n]) => {
         if (!(n instanceof Array) || n[0] !== ',') { return false }
         /** @type {readonly unknown[]} */
@@ -119,6 +120,23 @@ const generatedOperandPrefix = (e, sharedOnly = false) => {
         pending = [...children, ...rest]
     }
     return false
+}
+
+/**
+ * `true` for a graph in which both arms of one selection reach the same
+ * node. The function then reads that node on every path, so the writer
+ * requires it before the selection, and the text reads back with the node
+ * as an anchor the graph did not hold: its first parse establishes the graph
+ * the law holds for ({@link rewrites}).
+ *
+ * @type {(e: Exp) => boolean}
+ */
+const sharedByBothArms = e => {
+    return visit(allOperands)([])(e).some(([n]) => {
+        if (!(n instanceof Array) || n[0] !== '?:') { return false }
+        const otherwise = reached(n[3])
+        return reached(n[2]).some(x => x instanceof Array && otherwise.includes(x))
+    })
 }
 
 /** Newly admitted primitive captures retain semantic readback rather than raw graph identity. @type {(e: Exp) => boolean} */
@@ -1823,7 +1841,7 @@ export const proof = {
                 assertEq(imports.length, 0, written[1])
                 continue
             }
-            if (redundantAnchor(e) || generatedOperandPrefix(e)) { rewrites(e) } else { reads(e) }
+            if (redundantAnchor(e) || generatedOperandPrefix(e) || sharedByBothArms(e)) { rewrites(e) } else { reads(e) }
         } },
     ])),
     /**

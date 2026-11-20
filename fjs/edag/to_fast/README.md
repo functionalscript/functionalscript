@@ -194,6 +194,12 @@ reaches it through operands that are always evaluated, and no statement
 between can leave the block. A path that fails before the read fails either
 way. An ordinary function body is placed this way too; it has no joins to
 recover.
+A recipe every read of which sits in one selected arm is carried into that
+arm, wherever the selection is: a statement, a required initializer or an
+operand of one, the exit's value, or a region inside a value. In the arm it
+stands at its first proven demand, or at the arm's head where the arm reads it
+on every path. A selection reads on every path what its test reads, or what
+both of its arms read.
 Other earlier work and recipes keep their original evaluation owner.
 Demand checks expand visible deferred initializer graphs without evaluating them,
 so transitive closure captures retain their first-read order. Ordinary function

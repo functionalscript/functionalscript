@@ -29,32 +29,10 @@ failures and successful results. The [failure policy](../../../../../spec/princi
 does not require preserving which failure wins or its diagnostic payload.
 Optional calls must skip argument writes and retain the previous binding values.
 
-Stacked switch-label state can establish a shared node inside one selected
-region and read it later outside. The existing source profile refuses
-`a shared node reached from outside the lazy operand that establishes it`:
-
-```js
-export default (() => {
-    let n = 0;
-    let k = 0;
-    while (k < 1) {
-        k = k + 1;
-        switch (3) {
-            case (() => { n = n + 1; return 1; })():
-            case (() => { n = n + 1; return 2; })(): { n = n + 10; break; }
-            default: { n = n + 100; break; }
-        }
-    }
-    return [n, k];
-})();
-```
-
-The value is `[102, 1]`. Its selected shared value needs one evaluation and
-identity, without moving evaluation into an unreached region.
-
-The spread forms this section used to list are written now: an expansion is
-no barrier before the items that follow it
-([`edag/demand`](../../../demand/module.f.js)).
+The spread and stacked switch-label forms this issue used to list are written
+now: an expansion is no barrier before the items that follow it
+([`edag/demand`](../../../demand/module.f.js)), and a recipe is carried into
+the one selected arm that reads it ([`join`](../../join/module.f.js)).
 
 ### Proposal
 
@@ -76,8 +54,6 @@ that prevents those synthetic wrappers from accumulating.
 
 - [ ] Recover required member lookup and optional-call argument regions while
   preserving lookup failures, skipped writes, receiver identity, and argument order.
-- [ ] Spell shared selected-region state with one evaluation and the original
-  invocation lifetime, including stacked switch labels.
 - [ ] Prove repeated source conversion reaches a stable spelling and graph
   normalization for the admitted profile, with explicit refusal elsewhere.
 
