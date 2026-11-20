@@ -136,12 +136,22 @@ export const proof = {
             const printed = ['()', ['.', unresolved(unwrap(parse('')(unwrap(tryModuleStringify(graph))))).edag, 'main'], []]
             assertEq(execute(printed), 42)
         },
-        // an export is selected as its value under the module's computation,
-        // with no property read: a name a read refuses is written as source
+        // an export is selected as its value under the module's computations,
+        // with no property read: a name a read refuses is written as source.
+        // The object that holds the exports is no computation, and neither
+        // is a literal: what stays is the sequence before the object and
+        // every other export that is a node
         prototypeNames: () => {
             expectEdag(
                 program({ main: file('import {map} from "./dep"; export default map;'), dep: file('const z=[0]; export const map=1; export const two=2;') })('main'),
-                [',', [['[]', [0]], ['{}', [[':', 'map', 1], [':', 'two', 2]]], 1]])
+                [',', [['[]', [0]], 1]])
+            expectEdag(
+                program({ main: file('import {map} from "./dep"; export default map;'), dep: file('export const map=[1]; export const two=[2]; export const three=3;') })('main'),
+                [',', [['[]', [2]], ['[]', [1]]]])
+            // a module that computes nothing but the value is the value
+            expectEdag(
+                program({ main: file('import {map} from "./dep"; export default map;'), dep: file('export const map=[1]; export const two=2;') })('main'),
+                ['[]', [1]])
             const graph = unwrap(linked({
                 main: file('import {map,entries} from "./dep"; export const main=()=>map(entries);'),
                 dep: file('export const map=(...args)=>args[0]+1; export const entries=41;'),
