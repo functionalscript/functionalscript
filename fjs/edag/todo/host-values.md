@@ -77,6 +77,15 @@ A value is the host's own value, except a function.
   of this proposal. Without it the third cost above stays, and the first two
   go.
 
+- An interpreter answers `Result<Value, unknown>`, where `Value` is the new
+  type, replacing `EdagValue`: host data and function descriptions. What is
+  thrown is `unknown`.
+- A value the interpreter made is serialized back to EDAG. The interpreter's
+  answer is not where the work ends: the linker and every output are
+  written over EDAG, so the walk from a value to the graph it is, with a
+  value shared by identity written once, is part of the proposal and not an
+  option.
+
 This is the model NaNVM already has, real values and functions
 (`Any<A>` in `nanvm/lib`), so the interpreters and the VM would agree on what
 a value is.
@@ -105,18 +114,20 @@ a value is.
   prototype to read through. A host object has one, and `__proto__` is a key
   a program may write; the operations have to read own enumerable
   properties only, as they do now.
-- **Writing a value out.** `.data.js`, `.f.js` and `.rs` outputs of an
-  evaluated module need the walk from host values back to EDAG, with shared
-  values found by identity, which the reference map gives. A map that was
+- **Serializing back to EDAG.** Shared values are found by identity, which
+  the reference map gives. Whether the answer is the old `EdagValue` form,
+  so that what reads one today is unchanged, or another. A map that was
   used holds what cannot be enumerated: it is refused, or the fold over the
   empty map is kept beside it
   ([the store's third question](./reference-map-store.md)).
 - **Types.** `EdagValue` is checked to be a subset of `Exp`
   (`_Subset`), and the value serializer and the function-text renderer rely
-  on it. Values become `unknown` narrowed at each operation; what replaces
-  the check.
-- **Failure.** An operation answers `Result<EdagValue, EdagValue>`; a thrown
-  value is any value, which stays true.
+  on it. What `Value` is as a type, when a function in it is a host function
+  told from a reference map only by what it answers, and what replaces the
+  check.
+- **Failure.** An operation answers `Result<EdagValue, EdagValue>` today.
+  The error side becomes `unknown`: whether that is every value a program
+  can throw and nothing else, or also the interpreter's own failures.
 
 ### Scope
 
