@@ -16,9 +16,30 @@ import { bind, call, done, run } from '../../../js/ast/task/module.f.js'
 import { _forwardResult } from '../../../js/ast/results/module.f.js'
 import { anchored, lowerValue } from '../../from_fast/module.f.js'
 import { demandsInOrder } from '../../demand/module.f.js'
+import { isNegativeZero } from '../../../types/number/is_negative_zero/module.f.js'
 
-/** Exact binding reads name an established test, independently of syntax identity. @type {(a: Value, b: Value) => boolean} */
-const sameTest = (a, b) => a instanceof Array && b instanceof Array && a[0] === 'ref' && b[0] === 'ref' && a[1] === b[1]
+/**
+ * Whether two tests decide alike: the same value, or the same operation over
+ * the same bindings and literals. The language is pure, so equal expressions
+ * over the same bindings have one truth, and the second need not be asked. A
+ * test that holds a region, a function, a block or a selection, is compared
+ * by identity alone.
+ *
+ * @type {(a: Value, b: Value) => boolean}
+ */
+const sameTest = (a, b) => {
+    /** @type {readonly (readonly [unknown, unknown])[]} */
+    let pending = [[a, b]]
+    while (pending.length !== 0) {
+        const [[x, y], ...rest] = pending
+        pending = rest
+        // `===` holds for `0` and `-0`, which a test can tell apart
+        if (x === y && (typeof x !== 'number' || isNegativeZero(x) === isNegativeZero(/** @type {number} */ (y)))) { continue }
+        if (!(x instanceof Array) || !(y instanceof Array) || x.length !== y.length || ['function', 'block', 'if'].includes(x[0])) { return false }
+        pending = [...x.map((item, index) => /** @type {const} */ ([item, y[Number(index)]])), ...pending]
+    }
+    return true
+}
 
 /** Expand deferred recipes without evaluating them; established reads alone are inert placeholders. @type {(value: Value, target: BindingId, deferred: readonly Definition[]) => boolean} */
 const firstDemand = (value, target, deferred) => {
@@ -93,11 +114,12 @@ const appendScope = (branch, left, right, deferred) => !usesResults(branch[1], l
     && !shadows(branch[3], left, deferred) && !shadows(branch[4], right, deferred)
 
 /**
- * A selected match proves a reference test. Following tests and selected arms
- * must still read the bindings available before the statement decision.
+ * A selected match proves the statement's test. Following tests and selected
+ * arms must still read the bindings available before the statement decision,
+ * so the statement declares none of the bindings its test reads.
  * @type {(branch: Extract<Statement, readonly ['if', ...unknown[]]>, selected: _Selected, deferred: readonly Definition[]) => boolean}
  */
-const sameScope = (branch, selected, deferred) => !branch[1].includes(/** @type {readonly ['ref', BindingId]} */ (branch[2])[1])
+const sameScope = (branch, selected, deferred) => !freeBindings({ statements: [], exit: ['yield', [branch[2]]] }).some(binding => branch[1].includes(binding))
     && appendScope(branch, selected.then, selected.otherwise, deferred)
 
 /** Moving a recipe must preserve both its inputs and which declaration later reads name. @type {(definition: Definition) => Block} */
@@ -389,22 +411,45 @@ const requiredJoin = (block, deferred, inherited) => {
 
 /** Rejoin a residual selected value without copying its following computation. @type {(block: Block, inherited: readonly Definition[]) => Task<Block>} */
 const joinTask = (block, inherited) => call(() => {
+    // Placing a recipe can put a selection where a join reads it, a required
+    // initializer after the statement that tests the same binding: the
+    // block is joined again until placing changes nothing.
+    /** @type {() => Task<Block>} */
+    const settled = () => {
+        const next = placed(block, inherited)
+        return next === block ? done(next) : joinTask(next, inherited)
+    }
     const deferred = /** @type {readonly Definition[]} */ ([...inherited, ...block.statements.flatMap(statement => statement[0] === 'define' && statement[3] === 'lazy' ? [statement] : [])])
+    // A join carries a selection's arms into a statement's arms, which were
+    // joined before they held them: the arms are joined again, then the block.
+    /** @type {(joined: Block) => Task<Block>} */
+    const rejoined = joined => {
+        const visible = /** @type {readonly Definition[]} */ ([...inherited, ...joined.statements.flatMap(statement => statement[0] === 'define' && statement[3] === 'lazy' ? [statement] : [])])
+        /** @type {(index: number, statements: readonly Statement[]) => Task<Block>} */
+        const each = (index, statements) => call(() => {
+            if (index === joined.statements.length) { return joinTask({ ...joined, statements }, inherited) }
+            const statement = joined.statements[Number(index)]
+            return statement[0] !== 'if' ? each(index + 1, [...statements, statement])
+                : bind(joinTask(statement[3], visible), then => bind(joinTask(statement[4], visible), otherwise =>
+                    each(index + 1, [...statements, ['if', statement[1], statement[2], then, otherwise]])))
+        })
+        return each(0, [])
+    }
     return bind(requiredJoin(block, deferred, inherited), required => {
-        if (required !== null) { return joinTask(required, inherited) }
+        if (required !== null) { return rejoined(required) }
         const recipe = recipeJoin(block, deferred, inherited)
-        if (recipe !== null) { return joinTask(recipe, inherited) }
+        if (recipe !== null) { return rejoined(recipe) }
         const branch = block.statements.at(-1)
-        if (branch === undefined || branch[0] !== 'if') { return done(placed(block, inherited)) }
+        if (branch === undefined || branch[0] !== 'if') { return settled() }
         const result = /** @type {BindingId} */ ({ index: 0 })
         const values = exitValues(block.exit)
         return bind(selectedTask(['array', values], branch[2], result), selected => {
-            if (selected === null || !sameScope(branch, selected, deferred) || !firstDemand(selected.value, result, deferred)) { return done(placed(block, inherited)) }
+            if (selected === null || !sameScope(branch, selected, deferred) || !firstDemand(selected.value, result, deferred)) { return settled() }
             const joined = /** @type {Statement} */ (['if', [...branch[1], result], branch[2], yielded(branch[3], selected.then), yielded(branch[4], selected.otherwise)])
             const replacement = /** @type {Extract<Value, readonly ['array', unknown]>} */ (selected.value)[1]
             const exit = block.exit
             const mapped = exitOver(/** @type {Exclude<Block['exit'], readonly ['loop', unknown]>} */ (exit), /** @type {readonly Value[]} */ (replacement))
-            return bind(joinTask(localRecipes({ statements: [...block.statements.slice(0, -1), joined], exit: mapped }, /** @type {Extract<Statement, readonly ['if', ...unknown[]]>} */ (joined), inherited, result), inherited), done)
+            return rejoined(localRecipes({ statements: [...block.statements.slice(0, -1), joined], exit: mapped }, /** @type {Extract<Statement, readonly ['if', ...unknown[]]>} */ (joined), inherited, result))
         })
     })
 })
