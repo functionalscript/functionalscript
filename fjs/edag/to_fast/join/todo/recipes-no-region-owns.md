@@ -83,7 +83,7 @@ follows its declaration is empty.
 | exit `['throw', v]` | `unread(v)` without `normal` |
 | a loop `L` (statement or exit) | `unread` of its initial values then its body, with `continue L` dropped and `break L` replaced by `normal` |
 | a statement that declares `t` anew, and all after it | every way the rest can end: reads past it are of another binding |
-| a lazy definition | nothing: it evaluates nothing where it stands. A read of *its* binding is another `ref` |
+| a lazy definition | `{normal}`: it evaluates nothing where it stands, so it completes unread. A read of *its* binding is another `ref` |
 
 Notes on the rows that are not obvious:
 
