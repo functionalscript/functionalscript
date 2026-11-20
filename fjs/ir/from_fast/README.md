@@ -59,7 +59,7 @@ far more, gives only the functions that the slices name as subjects so far
 | `continue` | `next(label, fields)`: a `br` to the loop, anywhere in its body |
 | `break`, where it ends the loop's body | the loop's value |
 | a call of a function that the function defines, or that the module does not export | its body, inlined where the call stands |
-| an object literal of names and values, `{ i: 0, value: 0 }` | a record: a `make` of its keys in their order, `{ i: 0.0, value: 0.0 }` |
+| an object literal of names and values, `{ i: 0, value: 0 }` | a record: a `make` of its keys in their order, `{ i: 0.0, value: 0.0 }`; where every value is of `any` and the module imports Containers (a runtime is given), `{ a, b }`, `Containers.seal` of a `Containers.push_property` of each onto `Containers.begin_object` of their count, cast to `object` (since 8c) |
 | `r.k` | `field(r, 'k')`, printed `r.k`; the field's own term where `r` is a record made there whose other fields do nothing |
 | any other definition of the module | a constant, `#c0`, `#c1`, … by its place among them, which a term reads as `self.#c0` |
 | `undefined`, `null` | `Any.undefined`, `Any.null`: constants of the L0 interface `Any` |
@@ -99,7 +99,9 @@ to agree on their types, and no note settles how.
 
 ## Records
 
-An object literal whose entries are names and values is a record: a
+An object literal whose entries are names and values, and not all of
+`any`, is a record (where all are and a runtime is given, so the module
+imports Containers, 8c makes a Containers object): a
 product of its keys in their order, `make` in the IR, and `r.k` is a
 `field` of it. A record stays in its function, as a local, a loop's
 parameter or the value of a branch: the checker refuses a product in a
