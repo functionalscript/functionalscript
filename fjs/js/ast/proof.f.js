@@ -5,13 +5,34 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { analyzeBindings, isSpread, mapOperator, operatorOperands } from './module.f.js'
+import { analyzeBindings, isSpread, mapOperator, operatorOperands, unskipped } from './module.f.js'
 import { generate } from '../../types/array/module.f.js'
 
 export const proof = {
     bigintOperands: () => {
         assertStructurallySame(operatorOperands(['BigInt', 7]), [7])
         assertStructurallySame(mapOperator(value => value + 1)(['BigInt', 7]), ['BigInt', 8])
+    },
+    // The operands evaluated whenever the operator completes lead the
+    // others: a conditional's arms, what follows an optional base, and an
+    // optional step of a chain with all after it can be skipped.
+    unskippedOperands: () => {
+        /** @type {readonly (readonly [Operator<number>, number])[]} */
+        const cases = [
+            [['entry'], 0],
+            [['+', 1, 2], 2],
+            [['array', [1, ['...', 2]]], 2],
+            [['()', 1, [2, 3]], 3],
+            [['?:', 1, 2, 3], 1],
+            [['?.', 1, ['Number', 2]], 1],
+            [['?.()', 1, [2]], 1],
+            [['.', 1, ['Number', 2]], 2],
+            [['.', 1, 'm', ['|()', [2, 3]]], 3],
+            [['.', 1, 'm', ['|()', [2], ['|.', ['Number', 3], ['|.', 'x', ['|?.()', [4], ['|.', ['Number', 5]]]]]]], 3],
+            [['.', 1, 'm', ['|?.()', [2]]], 1],
+            [['.', 1, 'm', ['|!()', [2]]], 1],
+        ]
+        for (const [operator, count] of cases) { assertEq(unskipped(operator), count) }
     },
     spreadItems: () => {
         const spread = /** @type {typeof isSpread<Value>} */ (isSpread)
