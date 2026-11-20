@@ -432,6 +432,9 @@ that leaves its function.
   makes today: a statement of one result, a `return` in an arm, `?:`, a
   loop's body that ends otherwise, and two functions that call each other.
   It holds every refusal too.
+- [`program.proof.f.js`](./program.proof.f.js) holds the same for slice
+  11a's programs, over a stand-in for L1, with `link` and the originals
+  of [`programs.f.js`](./programs.f.js).
 - [`proof.mjs`](./proof.mjs) is a host proof. It reads
   [`sample.f.js`](./sample.f.js), 26 FunctionalScript functions of floats,
   booleans and `bigint`s, lowers them from their own text with the
