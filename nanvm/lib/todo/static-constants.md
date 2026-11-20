@@ -42,9 +42,26 @@ Write a constant as a Rust `static`, and let a value be a reference to one.
   VM (`fn module<A: IStaticFunction>`); a type without `A` can be a
   `static` in it. It holds no `Rc`, so it is `Sync`, which a `static` has to
   be, with no `unsafe`.
-- `Any<A>` and `Unpacked<A>` hold a static reference as well as the VM's
-  container: an array, object, string or function is one or the other. Each
-  VM packs a static reference its own way and never frees one.
+- Turning a static into a value is the VM's. The VM's trait converts each
+  static container into its own: a `StaticString` to a `String<A>`, and the
+  same for a big integer, an array, an object and a function, as
+  `static_function` already makes a function out of static code. `Any<A>`
+  and `Unpacked<A>` stay as they are, and so does every operation written
+  over them.
+
+  A VM chooses what the conversion does. The simplest copies the static
+  into a container of its own, which is right and gains nothing; a better
+  one keeps the reference and never frees it. A VM can be moved from the
+  first to the second one container at a time.
+
+  A string and a big integer are the easy ones: their items, `u16` and
+  `u64`, name no VM, so a VM's container can lend a static's slice as it
+  lends its own, and neither has an identity to keep.
+
+An earlier form of the proposal put the static reference into `Any<A>` and
+`Unpacked<A>` themselves, an array being the VM's container or a static.
+Every operation then meets both forms, which the conversion above keeps
+inside the VM.
 
 A program then starts without building its constants, a clone of a constant
 is a copy with no count ([reduce `Rc` clones](./087-reduce-rc-clone.md)),
@@ -52,10 +69,15 @@ and the same data is a data segment in WebAssembly.
 
 ### What a design has to settle
 
-- **Lending slices.** `IContainer::items()` answers `&[Any<A>]`, and an
-  array is indexed as a slice of `Any<A>`. A static array holds `StaticAny`
-  and cannot lend that slice: such reads become reads by index that answer
-  a value, or the static form is made the one both hold.
+- **One static, one value.** An array, an object and a function have an
+  identity. A static converted twice has to answer values that are `===`,
+  so a VM that copies has to answer the same copy, or count the static's
+  address as the identity. The trait's contract has to say it.
+- **Lending slices.** `IContainer::items()` answers `&[Any<A>]`. A static
+  array holds `StaticAny`, so a VM that keeps the reference cannot lend
+  that slice from it: it converts the array's items when it is first read,
+  each still a reference to its own static, or the read becomes one by
+  index that answers a value.
 - **Functions.** A function's code is `StaticCode<A>`, which names the VM,
   so a `static` without `A` cannot hold the pointer. An id the generic
   module answers with its code is one way.
@@ -77,8 +99,12 @@ and the same data is a data segment in WebAssembly.
 - [ ] Measure first: build time, binary size and start of one module with
   its constants as statics, written by hand, against the same module as
   generated today.
-- [ ] Settle the static type, the function id and the slice reads.
-- [ ] Add the static forms to `Unpacked` and to the naive VM.
+- [ ] Settle the static types, the conversions in the VM's trait and what
+  they promise about identity.
+- [ ] Strings first: `StaticString` to `String<A>`, the naive VM keeping
+  the reference, and the Rust serializer writing string constants as
+  statics.
+- [ ] Then big integers, then arrays, objects and functions.
 - [ ] Have the Rust serializer write constants as statics.
 
 ### Related
