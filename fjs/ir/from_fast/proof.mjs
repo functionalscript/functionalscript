@@ -75,6 +75,7 @@ import * as arrays from './arrays.f.js'
 import * as reads from './reads.f.js'
 import * as throws from './throws.f.js'
 import * as builds from './builds.f.js'
+import * as closures from './closures.f.js'
 import * as programs from './programs.f.js'
 import {
     arrays as arraySignatures, builds as buildSignatures, constants as constantSignatures, helpers as helperSignatures,
@@ -150,6 +151,9 @@ const plainL1 = () => fromText(new URL('../../wasm/runtime/l1/module.f.js', impo
 
 /** The owned stage of the programs, which no table types, with the bodies of L1 that they reach linked in. @type {() => Module} */
 const fromPrograms = () => assertOk(lifetime(fromText(new URL('./programs.f.js', import.meta.url), {}, { ...l1Runtime(errors), l1: plainL1() })))
+
+/** The closures of slice 11b, lowered as the programs are. @type {() => Module} */
+const fromClosures = () => assertOk(lifetime(fromText(new URL('./closures.f.js', import.meta.url), {}, { ...l1Runtime(errors), l1: plainL1() })))
 
 /** Each function of a module, taking its arguments as a list. @type {(m: object) => StringMap<_Twin>} */
 const twinsOf = m => Object.fromEntries(Object.entries(m).map(([name, f]) => {
@@ -309,6 +313,33 @@ const stringInputs = (() => {
     }
 })()
 
+/**
+ * Runs a program's exports against their originals on the values of the
+ * parity table, an object of a nested object, one of a function and a
+ * function of two arguments; `abandons` names the exports that may leave
+ * what they made for a throw of L1 behind.
+ *
+ * @type {(m: Module, originals: object, abandons: readonly string[]) => void}
+ */
+const runPrograms = (m, originals, abandons) => {
+    /** @type {(f: (...xs: readonly unknown[]) => unknown) => _Twin} */
+    const boxed = f => xs => ({ any: f(...xs.map(held)) })
+    const values = [
+        ...withFunction.map(value),
+        { a: { b: 1 } },
+        { f: (/** @type {unknown} */ x) => x },
+        (/** @type {unknown} */ a, /** @type {unknown} */ b) => [a, b],
+    ]
+    const few = values.filter((_, k) => k % 4 === 0)
+    /** @type {StringMap<_Twin>} */
+    const twins = Object.fromEntries(Object.entries(originals).map(([k, f]) => [k, boxed(/** @type {(...xs: readonly unknown[]) => unknown} */ (f))]))
+    /** @type {(f: Function) => readonly (readonly _Value[])[]} */
+    const rows = f => f.length === 0 ? [[]] : f.length === 1 ? values.map(any => [{ any }])
+        : f.length === 2 ? values.flatMap(a => values.map(b => [{ any: a }, { any: b }]))
+        : values.flatMap(a => few.flatMap(b => few.map(c => [{ any: a }, { any: b }, { any: c }])))
+    run(m, twins, Object.fromEntries(Object.entries(originals).map(([k, f]) => [k, rows(f)])), abandons)
+}
+
 export const proof = {
     ir: () => assertEq(print(lowered()), [
         'fn atLeast(a: f64, b: f64) -> bool =',
@@ -456,6 +487,7 @@ export const proof = {
         "    fn call(f: any.only(function), args: any.only(array)) -> any may fail",
         "    fn text(f: any.only(function)) -> any.only(string, undefined)",
         "    fn throw(own v: any) -> never may fail",
+        "    fn frame(self: any.only(function), i: u(31)) -> any may fail",
         "",
         "import Native from fjs:l1-native",
         "    fn bigintEquals(a: any.only(bigint), b: any.only(bigint)) -> bool",
@@ -1769,22 +1801,21 @@ export const proof = {
     // function of two arguments, and throws L1's value of the error that
     // JavaScript throws. A throw of L1 leaves what the caller made for it
     // behind, a boxed key or number, which the host recovers.
-    programsRun: () => {
-        /** @type {(f: (...xs: readonly unknown[]) => unknown) => _Twin} */
-        const boxed = f => xs => ({ any: f(...xs.map(held)) })
-        const values = [
-            ...withFunction.map(value),
-            { a: { b: 1 } },
-            { f: (/** @type {unknown} */ x) => x },
-            (/** @type {unknown} */ a, /** @type {unknown} */ b) => [a, b],
-        ]
-        const few = values.filter((_, k) => k % 4 === 0)
-        /** @type {StringMap<_Twin>} */
-        const twins = Object.fromEntries(Object.entries(programs).map(([k, f]) => [k, boxed(/** @type {(...xs: readonly unknown[]) => unknown} */ (f))]))
-        /** @type {(f: Function) => readonly (readonly _Value[])[]} */
-        const rows = f => f.length === 1 ? values.map(any => [{ any }])
-            : f.length === 2 ? values.flatMap(a => values.map(b => [{ any: a }, { any: b }]))
-            : values.flatMap(a => few.flatMap(b => few.map(c => [{ any: a }, { any: b }, { any: c }])))
-        run(fromPrograms(), twins, Object.fromEntries(Object.entries(programs).map(([k, f]) => [k, rows(f)])), ['apply', 'called', 'first', 'method', 'mixed', 'pair', 'sum3', 'twice'])
+    programsRun: () => runPrograms(fromPrograms(), programs, ['apply', 'called', 'first', 'method', 'mixed', 'pair', 'sum3', 'twice']),
+    // Slice 11b: every export of the closures, and the lifted code of each
+    // function that they make as a value, `(#self, #args) -> any`, which reads
+    // its frame through `#self`.
+    closures: () => {
+        const m = fromClosures()
+        assertEq([...m.exports].toSorted().join(' '), Object.keys(closures).toSorted().join(' '))
+        const text = print({ ...m, imports: [] })
+        assert(text.includes('fn #f1(#self: any.only(function), #args: any.only(array)) -> any ='))
+        assert(text.includes('Functions.make_function('))
+        assert(text.includes('Functions.frame(#self, 0)'))
     },
+    // Each export of the closures answers what JavaScript answers, as the
+    // programs do, and each function that it answers agrees with
+    // JavaScript's on probes of its own; `given` passes one to a function of
+    // JavaScript, which calls it.
+    closuresRun: () => runPrograms(fromClosures(), closures, ['applied', 'callTwice', 'given', 'sameLocal', 'viaCallback']),
 }

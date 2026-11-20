@@ -7,7 +7,7 @@
  */
 
 import { assert, assertEq } from '../../../asserts/module.f.js'
-import { anyForm, anyForms, compare, compareOne, rng, typedProgram, untypedProgram } from './module.mjs'
+import { anyForm, anyForms, closureProgram, compare, compareOne, rng, typedProgram, untypedProgram } from './module.mjs'
 
 /** Typed programs and programs over `any` in one proof run. */
 const typedCount = 120
@@ -88,6 +88,20 @@ export const proof = {
         const rnd = rng(seed + 11)
         for (let k = 0; k < 100; k += 1) {
             const program = untypedProgram(rnd)
+            const out = compareOne(program)
+            assertEq(out[0], 'ran', `${program.text}: ${String(out[1])}`)
+        }
+    },
+
+    /**
+     * Since 11b, closures of `x` over `a` and `b`: returned, which the judge
+     * calls on probes, or passed to a function that a value call calls.
+     * Each agrees with JavaScript.
+     */
+    closures: () => {
+        const rnd = rng(seed + 12)
+        for (let k = 0; k < 100; k += 1) {
+            const program = closureProgram(rnd)
             const out = compareOne(program)
             assertEq(out[0], 'ran', `${program.text}: ${String(out[1])}`)
         }

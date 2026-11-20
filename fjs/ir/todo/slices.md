@@ -333,10 +333,26 @@ Owner chose option A on each of four choices.
     JavaScript throws a `TypeError`, the program throws L1's value of
     that error. A spread argument in a program, `+x` of one operand,
     `%` of `any`, `?.()` and a guarded step after `?.` are refused.
-  - [ ] **11b. Closures.** A function value that captures: lifted code
-    `(self, args) -> any`, `make_function(code, frame, length, text)` and
-    a new L0 `frame(self, i)`; a function that is only called stays
-    inlined.
+  - [x] **11b. Closures.** In a program, a function as a value is
+    `make_function(code(#fK), frame, n, undefined)` of its lifted code
+    `#fK(#self, #args) -> any`, which borrows both. The frame is an array
+    of the captures that read values of the function around it, boxed;
+    the code reads each by L0's new `frame(self, i)`, each parameter as an
+    item of `#args`, `undefined` past its length, and each other capture
+    as what it stands for in the module. A function that is only called
+    stays inlined. A function read as a value is one value at each read,
+    as JavaScript's `===` tells: one that a function defines is made where
+    it is defined, and one of the module that it does not export is a
+    constant of the module that `init` makes. The emitter exports the table as `table`, and the
+    checker refuses an export of that name. The counting host's
+    `make_function` makes a JavaScript function that calls the code
+    through that table, and its `frame` reads the frame. Proved by the
+    closures of [`closures.f.js`](../from_fast/closures.f.js) against
+    JavaScript, by random closure programs, and by the judge, which calls
+    a function that a call answers on probes beside its twin. A function
+    value has no text yet; a rest parameter of one waits for 11c, and one
+    that calls itself, other than as a loop, and an export as a value are
+    refused.
   - [ ] **11c. Spread.** Spread in array and object literals and in
     arguments, and rest parameters.
 - [ ] **NaNVM's `.wasm`** (12) in place of the JavaScript host.

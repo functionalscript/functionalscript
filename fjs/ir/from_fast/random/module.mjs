@@ -832,11 +832,11 @@ const programAtoms = ['a', 'b', 'a', 'b', '0', '1', '2.5', "''", "'x'", 'true', 
  * a member read, a read at an index, `?.`, an array literal and a field of
  * an object literal, each operand in parentheses.
  *
- * @type {(rnd: _Rnd, depth: number) => string}
+ * @type {(rnd: _Rnd, depth: number, atoms?: readonly string[]) => string}
  */
-const programExpr = (rnd, depth) => {
-    if (depth === 0 || rnd() < 0.2) { return pick(rnd, programAtoms) }
-    const x = () => programExpr(rnd, depth - 1)
+const programExpr = (rnd, depth, atoms = programAtoms) => {
+    if (depth === 0 || rnd() < 0.2) { return pick(rnd, atoms) }
+    const x = () => programExpr(rnd, depth - 1, atoms)
     switch (below(rnd, 11)) {
         case 0: { return `(${x()} ${pick(rnd, ['+', '-', '*', '/'])} ${x()})` }
         case 1: { return `(${x()} ${pick(rnd, ['<', '<=', '>', '>='])} ${x()})` }
@@ -866,6 +866,31 @@ export const untypedProgram = rnd => {
     const fn = new Function(`return (a, b) => ${body}`)()
     return {
         text: `export const f = (a, b) => ${body}\n`,
+        signatures: {},
+        inputs: { f: Array.from({ length: 16 }, () => [{ any: pick(rnd, programSamples) }, { any: pick(rnd, programSamples) }]) },
+        twin: xs => ({ any: fn(held(xs[0]), held(xs[1])) }),
+        runtime: { ...l1Runtime(Object.entries(error)), l1: linkedL1() },
+        abandons: ['f'],
+    }
+}
+
+/** The atoms of a closure's body: its parameter `x` beside those of the program around it. */
+const closureAtoms = [...programAtoms, 'x', 'x']
+
+/**
+ * An untyped program of slice 11b that makes a function as a value, a
+ * closure of `x` over `a` and `b`: one that `f` returns, which the judge
+ * calls on probes of its own, or one that `f` passes to a function that it
+ * calls through a value, as JavaScript's `(g => g(c))(x => e)` does.
+ *
+ * @type {(rnd: _Rnd) => ReturnType<typeof anyProgram>}
+ */
+export const closureProgram = rnd => {
+    const body = programExpr(rnd, 1 + below(rnd, 3), closureAtoms)
+    const text = rnd() < 0.5 ? `(a, b) => x => ${body}` : `(a, b) => (g => g(${pick(rnd, programAtoms)}))(x => ${body})`
+    const fn = new Function(`return ${text}`)()
+    return {
+        text: `export const f = ${text}\n`,
         signatures: {},
         inputs: { f: Array.from({ length: 16 }, () => [{ any: pick(rnd, programSamples) }, { any: pick(rnd, programSamples) }]) },
         twin: xs => ({ any: fn(held(xs[0]), held(xs[1])) }),

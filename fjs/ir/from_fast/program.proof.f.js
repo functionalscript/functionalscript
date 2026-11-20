@@ -25,6 +25,9 @@ import {
     apply as applyP, both as bothP, called as calledP, differ as differP, either as eitherP, first as firstP, kind as kindP, maybe as maybeP, method as methodP, mixed as mixedP, nested as nestedP, not as notP, opposite as oppositeP, order as orderP, otherwise as otherwiseP, pair as pairP, record as recordP, sign as signP, size as sizeP, sum3 as sum3P, twice as twiceP,
 } from './programs.f.js'
 import { runtime, sourceOf } from './testlib.f.js'
+import {
+    adder as adderC, applied as appliedC, callTwice as callTwiceC, viaCallback as viaCallbackC, given as givenC, constant as constantC, pair as pairC, methods as methodsC, nested as nestedC, usesModule as usesModuleC, local as localC, returned as returnedC, compose as composeC, doubler as doublerC, sameModule as sameModuleC, sameLocal as sameLocalC, listed as listedC,
+} from './closures.f.js'
 
 /** The signatures of a module of one function, `f`. @type {(params: readonly Param[], result: Type) => Readonly<Record<string, Signature>>} */
 const only = (params, result) => ({ f: signature(params, result) })
@@ -603,6 +606,213 @@ export const proof = {
     // A boolean is no function: JavaScript throws a TypeError, as L1's `call` does.
     calledOriginal: { throw: () => calledP(1, 2) },
     // `link` names what it links `l1.`, and keeps what the program reaches.
+    // Slice 11b: a function that a program makes as a value is `make_function` of its lifted code, `(#self, #args) -> any`,
+    // whose frame holds its captures that read values of the function around it, each boxed, and whose parameters are
+    // the items of `#args`, `undefined` past its length. A capture of the module stands for what it does in the module.
+    closures: () => {
+        assertEq(program('export const f = a => b => a'), [
+            'fn f(p0: any) -> any =',
+            '    Functions.make_function(',
+            '        code(#f1),',
+            '        match Containers.seal(Containers.push(Containers.begin_array(1), p0))',
+            '          array as array =>',
+            '            array',
+            '          else =>',
+            '            trap(\'not array\'),',
+            '        1,',
+            '        Any.undefined',
+            '    )',
+            '',
+            'fn #f1(#self: any.only(function), #args: any.only(array)) -> any =',
+            '    let #0 = Functions.frame(#self, 0)',
+            '    let #1 = if lt(0, Containers.length(#args)) then Containers.item(#args, 0) else Any.undefined',
+            '    #0',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(program('const k = 3\nexport const f = a => () => () => [a, k]'), [
+            'fn f(p0: any) -> any =',
+            '    Functions.make_function(',
+            '        code(#f1),',
+            '        match Containers.seal(Containers.push(Containers.begin_array(1), p0))',
+            '          array as array =>',
+            '            array',
+            '          else =>',
+            '            trap(\'not array\'),',
+            '        0,',
+            '        Any.undefined',
+            '    )',
+            '',
+            'fn #f1(#self: any.only(function), #args: any.only(array)) -> any =',
+            '    let #0 = Functions.frame(#self, 0)',
+            '    Functions.make_function(',
+            '        code(#f2),',
+            '        match Containers.seal(Containers.push(Containers.begin_array(1), #0))',
+            '          array as array =>',
+            '            array',
+            '          else =>',
+            '            trap(\'not array\'),',
+            '        0,',
+            '        Any.undefined',
+            '    )',
+            '',
+            'fn #f2(#self: any.only(function), #args: any.only(array)) -> any =',
+            '    let #0 = Functions.frame(#self, 0)',
+            '    match Containers.seal(Containers.push(Containers.push(Containers.begin_array(2), #0), Any.from_f64(3.0)))',
+            '      array as array =>',
+            '        array',
+            '      else =>',
+            '        trap(\'not array\')',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // A capture of a capture of the module's function stands for that function, so the frame holds nothing.
+        assertEq(program('const double = x => x * 2\nexport const f = a => b => double(b)'), [
+            'fn f(p0: any) -> any =',
+            '    Functions.make_function(',
+            '        code(#f2),',
+            '        match Containers.seal(Containers.begin_array(0))',
+            '          array as array =>',
+            '            array',
+            '          else =>',
+            '            trap(\'not array\'),',
+            '        1,',
+            '        Any.undefined',
+            '    )',
+            '',
+            'fn #f2(#self: any.only(function), #args: any.only(array)) -> any =',
+            '    let #0 = if lt(0, Containers.length(#args)) then Containers.item(#args, 0) else Any.undefined',
+            '    l1.multiply(#0, Any.from_f64(2.0))',
+            '',
+            'fn l1.multiply(a: any, b: any) -> any =',
+            '    a',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // A function read as a value is one value at each read, as JavaScript's `===` tells: a function of the module that it
+        // does not export is a constant that `init` makes, and one that a function defines is made where it is defined.
+        assertEq(program('const g = () => 0\nexport const f = () => g === g'), [
+            'const #v0: any.only(function) =',
+            '    Functions.make_function(',
+            '        code(#f0),',
+            '        match Containers.seal(Containers.begin_array(0))',
+            '          array as array =>',
+            '            array',
+            '          else =>',
+            '            trap(\'not array\'),',
+            '        0,',
+            '        Any.undefined',
+            '    )',
+            '',
+            'fn f() -> any =',
+            '    Any.from_bool(l1.strictEquals(self.#v0, self.#v0))',
+            '',
+            'fn #f0(#self: any.only(function), #args: any.only(array)) -> any =',
+            '    Any.from_f64(0.0)',
+            '',
+            'fn l1.strictEquals(a: any, b: any) -> bool =',
+            '    false',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(program('export const f = a => {\n    const g = x => x + a\n    return [g, g]\n}'), [
+            'fn f(p0: any) -> any =',
+            '    let #0 =',
+            '        Functions.make_function(',
+            '            code(#f1),',
+            '            match Containers.seal(Containers.push(Containers.begin_array(1), p0))',
+            '              array as array =>',
+            '                array',
+            '              else =>',
+            '                trap(\'not array\'),',
+            '            1,',
+            '            Any.undefined',
+            '        )',
+            '    match Containers.seal(Containers.push(Containers.push(Containers.begin_array(2), #0), #0))',
+            '      array as array =>',
+            '        array',
+            '      else =>',
+            '        trap(\'not array\')',
+            '',
+            'fn #f1(#self: any.only(function), #args: any.only(array)) -> any =',
+            '    let #0 = Functions.frame(#self, 0)',
+            '    let #1 = if lt(0, Containers.length(#args)) then Containers.item(#args, 0) else Any.undefined',
+            '    l1.add(#1, #0)',
+            '',
+            'fn l1.add(a: any, b: any) -> any =',
+            '    a',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // A capture of a constant of the module reads the constant, once `init` makes it.
+        assertEq(program('const a = [1]\nexport const f = () => () => a'), [
+            'const #c0: any.only(array) =',
+            '    match Containers.seal(Containers.push(Containers.begin_array(1), Any.from_f64(1.0)))',
+            '      array as array =>',
+            '        array',
+            '      else =>',
+            '        trap(\'not array\')',
+            '',
+            'fn f() -> any =',
+            '    Functions.make_function(',
+            '        code(#f1),',
+            '        match Containers.seal(Containers.begin_array(0))',
+            '          array as array =>',
+            '            array',
+            '          else =>',
+            '            trap(\'not array\'),',
+            '        0,',
+            '        Any.undefined',
+            '    )',
+            '',
+            'fn #f1(#self: any.only(function), #args: any.only(array)) -> any =',
+            '    self.#c0',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // A function that only a call reads stays inlined.
+        assertEq(program('export const f = a => {\n    const g = x => x\n    return g(a)\n}'), 'fn f(p0: any) -> any =\n    p0\n\nexport f\n')
+        // A rest parameter waits for slice 11c, and a function that calls itself, not in a loop, is refused.
+        assertEq(assertError(over({}, 'export const f = a => (...xs) => xs', programRuntime)), 'f: a rest parameter is not in this slice')
+        assertEq(assertError(over({}, 'export const f = a => {\n    const g = x => 1 + g(x)\n    return g\n}', programRuntime)), 'f: a function that calls itself is not in this slice')
+        // A capture of a function that calls itself, a refusal in the lifted code, which names the code, and a capture of an
+        // import that the module refuses.
+        assertEq(assertError(over({}, 'export const f = a => {\n    const g = x => 1 + g(x)\n    return () => g\n}', programRuntime)), 'f: a function that calls itself is not in this slice')
+        assertEq(assertError(over({}, 'export const f = a => b => b % a', programRuntime)), '#f1: % of any and any is not in this slice')
+        assertEq(assertError(over({}, 'export const f = a => {\n    const g = x => x\n    return g % g\n}', programRuntime)), 'f: % of any.only(function) and any.only(function) is not in this slice')
+        assertEq(assertError(over({}, "import { x } from './y.f.js'\nexport const f = a => b => x", programRuntime)), 'f: an import of ./y.f.js is not in this slice')
+        assertEq(assertError(over({}, "import { x } from './y.f.js'\nconst g = () => x\nexport const f = () => g", programRuntime)), '#f0: an import of ./y.f.js is not in this slice')
+        // An export as a value is refused: its signature is not the code of a function value.
+        assertEq(assertError(over({}, 'export const g = a => a\nexport const f = a => g', programRuntime)), 'f: a function as a value is not in this slice')
+    },
+    // The originals of slice 11b, which the host proof runs against what the lowering makes of them.
+    closureOriginals: () => {
+        assertEq(adderC(1)(2), 3)
+        assertEq(appliedC(1), 2)
+        assertEq(callTwiceC(/** @type {(x: any) => any} */ (x => x + 1)), 3)
+        assertEq(viaCallbackC(2), 5)
+        assertStructurallySame(givenC(/** @type {(g: any, x: any) => any} */ ((g, x) => g(x))), [1, 3])
+        assertEq(constantC()(), 42)
+        const [a, b] = pairC(1, 2)
+        assertEq(a() + b(), 3)
+        const o = methodsC(1)
+        assertEq(o.get() + o.add(2), 4)
+        assertEq(nestedC(1)(2)(3), 6)
+        assertEq(usesModuleC(1)(2), 15)
+        assertEq(localC(1)(1), 3)
+        assertEq(returnedC(1)(1), 2)
+        assertEq(composeC(/** @type {(x: any) => any} */ (x => x * 3))(1), 9)
+        assertEq(doublerC()(4), 8)
+        assertEq(sameModuleC(), true)
+        assertStructurallySame(sameLocalC(1), [true, 2])
+        assertStructurallySame(listedC()(), [1, 2])
+    },
     link: () => {
         assertEq(assertError(link(standIn)({ imports: [], functions: [], exports: [] })), 'L1 imports Any String BigInt Containers Functions Native, and the program ')
         /** @type {Module} */

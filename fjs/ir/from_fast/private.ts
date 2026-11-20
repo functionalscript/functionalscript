@@ -5,7 +5,7 @@
  */
 
 import type { Result } from '../../types/result/types.ts'
-import type { BindingId, Block, Function as FastFunction, Item, LoopTarget, Statement, Value } from '../../js/ast/types.ts'
+import type { BindingId, Block, Capture, Function as FastFunction, Item, LoopTarget, Statement, Value } from '../../js/ast/types.ts'
 import type { ConstantOf, OpName, Scope, Term, Type } from '../types.ts'
 
 /**
@@ -23,6 +23,7 @@ export type _Meaning =
     | readonly ['term', Term]
     | readonly ['function', name: string]
     | readonly ['inline', FastFunction]
+    | readonly ['closure', FastFunction, name: string]
     | readonly ['module', FastFunction]
     | readonly ['op', OpName]
     | readonly ['l0', name: string]
@@ -61,6 +62,21 @@ export type _Context = {
     readonly functions: Scope['functions']
     readonly imports: Scope['imports']
     readonly constants: readonly (readonly [name: string, Type])[]
+    readonly closureOf: (f: FastFunction) => _Closure | null
+}
+
+/**
+ * A function of FAST that a program makes as a value: the name of its
+ * lifted code, the module's constant that holds its one value where it is
+ * a function of the module, the value of the module that each of its
+ * captures that reads no value of the function around it reads, and the
+ * captures that do, in the order of its frame.
+ */
+export type _Closure = {
+    readonly code: string
+    readonly shared: string | null
+    readonly statics: readonly (readonly [BindingId, Value])[]
+    readonly frame: readonly Capture[]
 }
 
 /** A loop whose body holds a term: its target in FAST, its label and the locals of its parameters. */
@@ -98,6 +114,7 @@ export type _Scope = {
     readonly inlining: readonly FastFunction[]
     readonly building: readonly string[]
     readonly module: (v: Value) => Result<_Meaning, string>
+    readonly closureOf: (f: FastFunction) => _Closure | null
 }
 
 /** The cast that a value does before anything else. */

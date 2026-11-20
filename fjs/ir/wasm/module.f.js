@@ -38,7 +38,13 @@
  * - **A `code` value is an `i32` table index.** `code(f)` is the index of
  *   `f` in the module's one `funcref` table, filled by an active element
  *   segment of the functions that any `code` term names. `call_ref` is
- *   `call_indirect` of that table, with the code value as the index.
+ *   `call_indirect` of that table, with the code value as the index. The
+ *   module exports the table as `table` where a `code` term fills it, so
+ *   that a host's `make_function` calls the code at its index
+ *   ([slice 11b](../todo/slices.md#decisions-for-slice-11-2026-11-20));
+ *   [L0 design §5](../../../doc/sasha-gil/wasm/l0-design.md#5-memory-and-table-made-by-the-loader-imported-by-both-modules)'s
+ *   table that the loader makes and both modules import waits for a
+ *   runtime that is a module of its own.
  * - **A function that gives back a parameter is an import that answers
  *   nothing** ([definition.md's binding rule 3](../../../doc/sasha-gil/ir/definition.md#bindings)):
  *   the call keeps the parameter's value in a local named for the
@@ -798,6 +804,7 @@ export const emit = m => {
         exports: [
             ...m.exports.map(name => funcExport(name, own + m.functions.findIndex(([k]) => k === name))),
             ...(init.length === 0 ? [] : [funcExport('init', initIndex)]),
+            ...(referenced.length === 0 ? [] : [{ name: 'table', kind: /** @type {const} */ ('table'), index: 0 }]),
         ],
         start: start.length === 0 ? null : startIndex,
         elements: referenced.length === 0 ? [] : [{

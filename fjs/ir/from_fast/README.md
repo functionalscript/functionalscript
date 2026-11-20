@@ -390,6 +390,29 @@ L1 exports nothing there. A spread argument, `+x` of one operand, `%` of
 `any`, `?.()` and a guarded step after `?.` are refused in a program, and
 so is an export that is not a function.
 
+### Closures
+
+In a program, a function that is a value, not only called, is a closure
+([slice 11b](../todo/slices.md)): an arrow that a function returns, passes
+or keeps in an array or an object, a function that it defines and names,
+or one of the module that it does not export. A function that is only
+called stays inlined.
+
+| In a program | The IR |
+| --- | --- |
+| a function as a value | `Functions.make_function(code(#fK), frame, n, Any.undefined)`: the code that the lowering lifts of it, an array of its captures that read values of the function around it, each lowered where the function stands and boxed as an array's items are, and its count of parameters |
+| the lifted code `#fK` | `fn #fK(#self: any.only(function), #args: any.only(array)) -> any`, both borrowed as L0's code is; `K` is the function's place among the functions of the program's text |
+| a capture that reads a value of the function around it | `Functions.frame(#self, k)`, in a local first |
+| a parameter | `Containers.item(#args, j)`, `Any.undefined` past the length of `#args`, in a local first |
+| a capture of something of the module, or of a capture that stands for one | what it stands for in the module: a function that it inlines or a constant |
+| a function that a function defines, read as a value | the value made once where it is defined, in a local, left out where nothing reads it, so that `g === g` holds |
+| a function of the module that it does not export, read as a value | the module's constant `#vK` of its value, which `init` makes |
+
+A function value has no text yet: L0's `text` of one answers `undefined`.
+A function as a value with a rest parameter waits for
+slice 11c, and one that calls itself, other than as a loop, is refused, as
+an export as a value is: its signature is not the code of a function value.
+
 ## What it refuses
 
 Everything else, with the function's name and the reason
@@ -434,7 +457,8 @@ that leaves its function.
   It holds every refusal too.
 - [`program.proof.f.js`](./program.proof.f.js) holds the same for slice
   11a's programs, over a stand-in for L1, with `link` and the originals
-  of [`programs.f.js`](./programs.f.js).
+  of [`programs.f.js`](./programs.f.js), and for 11b's closures, with the
+  originals of [`closures.f.js`](./closures.f.js).
 - [`proof.mjs`](./proof.mjs) is a host proof. It reads
   [`sample.f.js`](./sample.f.js), 26 FunctionalScript functions of floats,
   booleans and `bigint`s, lowers them from their own text with the
@@ -483,8 +507,14 @@ that leaves its function.
   And [`programs.f.js`](./programs.f.js), twenty-one untyped programs of
   slice 11a, lowered with no table and linked with L1, run against
   JavaScript on the values of L1's parity table: where JavaScript throws a
-  `TypeError`, each throws L1's value of that error.
+  `TypeError`, each throws L1's value of that error. And
+  [`closures.f.js`](./closures.f.js), seventeen programs of slice 11b that
+  make closures, returned, kept in an array or an object, called through a
+  value or passed to a function of JavaScript, which calls one; each
+  function that a call answers agrees with JavaScript's on probes of the
+  judge's own.
 - [`random/`](./random/README.md) is a seeded host proof: a few hundred
   random programs in what the slices lower, each against JavaScript, and
-  since 11a untyped programs linked with L1. Prefer
+  since 11a untyped programs linked with L1, since 11b closures among
+  them. Prefer
   `node --test` for it.
