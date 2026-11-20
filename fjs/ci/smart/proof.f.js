@@ -9,6 +9,7 @@ import { uses } from '../common/module.f.js'
 import { installNode } from '../node/module.f.js'
 import { jobTimeout } from '../config/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
+import { compare as selfCompare, prepare as selfPrepare, writes as selfWrites } from '../self_compile/module.f.js'
 
 /** @type {(steps: readonly Step[], image?: string) => Job} */
 const job = (steps, image = 'ubuntu-26.04-arm') => ({
@@ -204,6 +205,20 @@ export const proof = /** @type {const} */ ({
         assertEq(stepWith(source, install.run).if, "steps.init.outputs.hit-suite != 'true'")
         assertEq(stepWith(source, 'node --test ./fjs/emergent_testing/js-only.mjs').if, "steps.init.outputs.hit-suite != 'true'")
         assertEq(source.steps.filter(step => step.run === 'mise exec -- npm start ci report suite').length, 1)
+    },
+    // The self-compile check is its own check, named by its terminal
+    // comparison: the directory and the two writes run only for it, over the
+    // inputs a compile reads, and it is reported once.
+    selfCompile: () => {
+        const steps = [selfPrepare, ...selfWrites.map(write => `mise exec -- ${write}`), selfCompare]
+        const source = cached([mise, nodeVersion, install, compile, ...steps.map(run => ({ run }))])
+        for (const run of steps) {
+            assertEq(stepWith(source, run).if, "steps.init.outputs.hit-self-compile != 'true'")
+        }
+        assertEq(stepWith(source, compile.run).if, "steps.init.outputs.hit-compile != 'true'")
+        assertEq(stepWith(source, install.run).if, "steps.init.outputs.hit-compile != 'true' || steps.init.outputs.hit-self-compile != 'true'")
+        assertEq(source.steps.filter(step => step.run === 'mise exec -- npm start ci report self-compile').length, 1)
+        assertStructurallySame(checks('node', job([mise, ...steps.map(run => ({ run }))])).map(({ id, rung }) => [id, rung]), [['self-compile', 'fjs']])
     },
     /** Each alternative engine groups its install, pin verification and tests. */
     engines: () => {
