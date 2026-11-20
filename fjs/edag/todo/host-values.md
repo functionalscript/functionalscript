@@ -1,7 +1,7 @@
 ## Evaluate to host values, a function to its description
 
 **Priority:** P2
-**Status:** open — a design proposed by the language designer; details below are to be settled
+**Status:** open — one of three options, all proposed by the language designer; none is chosen
 
 ### Problem
 
@@ -35,8 +35,22 @@ three costs follow from it.
 - **A call walks a graph.** A function's body is an expression evaluated node
   by node at each call.
 
-[A store for reference maps](./reference-map-store.md) answers the first cost
-alone, with a table threaded through every invocation of both interpreters.
+### Options
+
+Three are open, and none is chosen.
+
+| | what a value is | reference map | the other two costs |
+| --- | --- | --- | --- |
+| Host values, this issue | the host's own; a function is its description | the host's map itself | emulation goes; a call still walks a graph |
+| [A map as a value of its own](./reference-map-value.md) | `EdagValue`, with one form more | the host's map inside the value, with its pairs beside it | stay |
+| [A store beside the values](./reference-map-store.md) | `EdagValue`, unchanged | the pairs in the value, an index outside it | stay |
+
+The last two keep `EdagValue` and answer the first cost alone. They differ
+in where the index is: in the value, which then is no EDAG until it is
+normalized, or outside it, where it has to last across invocations and be
+found again for an older map. Only the first cost is measured, so the
+smaller options also say, once one is timed, how much the other two costs
+are.
 
 ### Proposal
 
@@ -152,8 +166,9 @@ value to a host one, becomes the identity on data.
 
 ### Related
 
-- [A store for reference maps](./reference-map-store.md) — the narrower
-  answer to the first cost.
+- [A map as a value of its own](./reference-map-value.md) and
+  [a store for reference maps](./reference-map-store.md) — the two options
+  that keep `EdagValue`.
 - [Reference map](../../../spec/built-ins/reference-map/README.md) and its
   [design record](../../../spec/design/object-identity.md#reference-map).
 - [`../values.md`](../values.md) — the contracts values keep today.

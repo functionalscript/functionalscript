@@ -21,6 +21,19 @@ value alone ([`../memo/module.f.js`](../memo/module.f.js), `invokeWith`), so
 a table kept there is lost whenever a map is passed to a function or returned
 from one.
 
+### The index outside the value
+
+One of three options, none chosen ([the options](./host-values.md#options)).
+The map's value stays what it is, the runtime's function with its pairs, and
+a host [reference map](../../types/ref_map/module.f.js) kept outside it
+finds a key's pair quickly.
+
+- The pairs have to be a linked list, as they are today. Kept as an array,
+  each write copies it, and `n` writes take `O(n^2)` steps whatever the
+  index does.
+- A map is persistent, so an older map needs the index as it was: one index
+  for each map, not one for all.
+
 ### What a design has to settle
 
 - A store that lasts across invocations, passed through every call of both
@@ -44,7 +57,8 @@ from one.
 
 ### Related
 
-- [Host values](./host-values.md) — values as the host's own, which makes this store unnecessary.
+- [Host values](./host-values.md) — the options side by side; values as the host's own make this store unnecessary.
+- [A map as a value of its own](./reference-map-value.md) — the index kept inside the value.
 - [Reference map](../../../spec/built-ins/reference-map/README.md) — the page, and its [design record](../../../spec/design/object-identity.md#reference-map).
 - [`fjs/js/ref_map`](../../js/ref_map/module.f.js) — the map the interpreters
   use today.
