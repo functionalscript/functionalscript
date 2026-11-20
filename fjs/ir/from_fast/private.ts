@@ -68,14 +68,14 @@ export type _Context = {
 /**
  * A function of FAST that a program makes as a value: the name of its
  * lifted code, the module's constant that holds its one value where it is
- * a function of the module, what each of its captures that reads no value of the
- * function around it stands for, and the captures that do, in the order of
- * its frame.
+ * a function of the module, the value of the module that each of its
+ * captures that reads no value of the function around it reads, and the
+ * captures that do, in the order of its frame.
  */
 export type _Closure = {
     readonly code: string
     readonly shared: string | null
-    readonly statics: readonly (readonly [BindingId, _Meaning])[]
+    readonly statics: readonly (readonly [BindingId, Value])[]
     readonly frame: readonly Capture[]
 }
 

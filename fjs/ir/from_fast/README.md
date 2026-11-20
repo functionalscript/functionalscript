@@ -508,7 +508,7 @@ that leaves its function.
   slice 11a, lowered with no table and linked with L1, run against
   JavaScript on the values of L1's parity table: where JavaScript throws a
   `TypeError`, each throws L1's value of that error. And
-  [`closures.f.js`](./closures.f.js), fourteen programs of slice 11b that
+  [`closures.f.js`](./closures.f.js), seventeen programs of slice 11b that
   make closures, returned, kept in an array or an object, called through a
   value or passed to a function of JavaScript, which calls one; each
   function that a call answers agrees with JavaScript's on probes of the

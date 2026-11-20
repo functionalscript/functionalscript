@@ -1737,7 +1737,10 @@ const lowerClosure = ({ functions, imports, constants, closureOf }, module) => (
     const params = [['#self', func], ['#args', array]]
     /** @type {readonly (readonly [BindingId, _Meaning])[]} */
     const bindings = [
-        ...c.statics,
+        ...c.statics.map(([b, v]) => {
+            const m = module(v)
+            return /** @type {const} */ ([b, m[0] === 'error' ? /** @type {const} */ (['refused', m[1]]) : m[1]])
+        }),
         ...c.frame.map(({ binding }, k) => /** @type {const} */ ([binding, ['local', names[Number(k)]]])),
         ...f.parameters.map((b, j) => /** @type {const} */ ([b, ['local', names[Number(c.frame.length + j)]]])),
     ]
@@ -1922,23 +1925,21 @@ const functionsIn = x => {
  * ([slice 11b](../todo/slices.md#decisions-for-slice-11-2026-11-20)):
  * each function of FAST in its text, once, with the name of its lifted
  * code, `#f` and its place among them, and its captures, split. A capture
- * of a function of the module stands for what `module` makes of it. A
- * capture of a function inside one stands for what the capture that it
- * reads stands for, where that one stands for something of the module;
- * any other capture reads a value of the function around it, so it is an
- * item of the frame. A function of the module in `shared` has a constant
+ * of a function of the module reads a value of the module, which its
+ * lifted code reads once the module's constants are made. A capture of a
+ * function inside one reads what the capture that it reads reads, where
+ * that one reads a value of the module; any other capture reads a value of
+ * the function around it, so it is an item of the frame. A function of the module in `shared` has a constant
  * of the module, `#v` and its place, that holds its one value.
  *
- * @type {(module: (v: Value) => Result<_Meaning, string>, tops: readonly FastFunction[], shared: readonly FastFunction[], root: unknown) => readonly (readonly [FastFunction, _Closure])[]}
+ * @type {(tops: readonly FastFunction[], shared: readonly FastFunction[], root: unknown) => readonly (readonly [FastFunction, _Closure])[]}
  */
-const closuresOf = (module, tops, shared, root) => {
+const closuresOf = (tops, shared, root) => {
     const all = functionsIn(root)
     const fns = all.filter((f, k) => all.indexOf(f) === k)
-    /** @type {(done: readonly (readonly [BindingId, _Meaning])[], f: FastFunction) => readonly (readonly [BindingId, _Meaning])[]} */
+    /** @type {(done: readonly (readonly [BindingId, Value])[], f: FastFunction) => readonly (readonly [BindingId, Value])[]} */
     const add = (done, f) => [...done, ...f.captures.flatMap(({ binding, value: v }) => {
-        /** @type {(m: Result<_Meaning, string>) => readonly (readonly [BindingId, _Meaning])[]} */
-        const of = m => [/** @type {const} */ ([binding, m[0] === 'error' ? /** @type {const} */ (['refused', m[1]]) : m[1]])]
-        if (tops.includes(f)) { return of(module(v)) }
+        if (tops.includes(f)) { return [/** @type {const} */ ([binding, v])] }
         const m = done.find(([b]) => v instanceof Array && v[0] === 'ref' && b === v[1])
         return m === undefined ? [] : [/** @type {const} */ ([binding, m[1]])]
     })]
@@ -2179,7 +2180,7 @@ export const lower = (signatures, runtime = null) => ({ statements, exit }, impo
     /** @type {(done: readonly _Lowered[]) => (v: Value) => Result<_Meaning, string>} */
     const moduleIn = done => ofModule(interfaces, captureIn(done))
     // A program makes its functions of FAST as values, each of its lifted code.
-    const closures = l1 === null ? [] : closuresOf(moduleIn([]), tops, unexported, [statements, entries[1]])
+    const closures = l1 === null ? [] : closuresOf(tops, unexported, [statements, entries[1]])
     /** @type {(f: FastFunction) => _Closure | null} */
     const closureOf = f => closures.find(([g]) => g === f)?.[1] ?? null
     const ir = {

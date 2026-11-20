@@ -26,7 +26,7 @@ import {
 } from './programs.f.js'
 import { runtime, sourceOf } from './testlib.f.js'
 import {
-    adder as adderC, applied as appliedC, callTwice as callTwiceC, viaCallback as viaCallbackC, given as givenC, constant as constantC, pair as pairC, methods as methodsC, nested as nestedC, usesModule as usesModuleC, local as localC, returned as returnedC, compose as composeC, doubler as doublerC, sameModule as sameModuleC, sameLocal as sameLocalC,
+    adder as adderC, applied as appliedC, callTwice as callTwiceC, viaCallback as viaCallbackC, given as givenC, constant as constantC, pair as pairC, methods as methodsC, nested as nestedC, usesModule as usesModuleC, local as localC, returned as returnedC, compose as composeC, doubler as doublerC, sameModule as sameModuleC, sameLocal as sameLocalC, listed as listedC,
 } from './closures.f.js'
 
 /** The signatures of a module of one function, `f`. @type {(params: readonly Param[], result: Type) => Readonly<Record<string, Signature>>} */
@@ -749,6 +749,33 @@ export const proof = {
             'export f',
             '',
         ].join('\n'))
+        // A capture of a constant of the module reads the constant, once `init` makes it.
+        assertEq(program('const a = [1]\nexport const f = () => () => a'), [
+            'const #c0: any.only(array) =',
+            '    match Containers.seal(Containers.push(Containers.begin_array(1), Any.from_f64(1.0)))',
+            '      array as array =>',
+            '        array',
+            '      else =>',
+            '        trap(\'not array\')',
+            '',
+            'fn f() -> any =',
+            '    Functions.make_function(',
+            '        code(#f1),',
+            '        match Containers.seal(Containers.begin_array(0))',
+            '          array as array =>',
+            '            array',
+            '          else =>',
+            '            trap(\'not array\'),',
+            '        0,',
+            '        Any.undefined',
+            '    )',
+            '',
+            'fn #f1(#self: any.only(function), #args: any.only(array)) -> any =',
+            '    self.#c0',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
         // A function that only a call reads stays inlined.
         assertEq(program('export const f = a => {\n    const g = x => x\n    return g(a)\n}'), 'fn f(p0: any) -> any =\n    p0\n\nexport f\n')
         // A rest parameter waits for slice 11c, and a function that calls itself, not in a loop, is refused.
@@ -760,6 +787,7 @@ export const proof = {
         assertEq(assertError(over({}, 'export const f = a => b => b % a', programRuntime)), '#f1: % of any and any is not in this slice')
         assertEq(assertError(over({}, 'export const f = a => {\n    const g = x => x\n    return g % g\n}', programRuntime)), 'f: % of any.only(function) and any.only(function) is not in this slice')
         assertEq(assertError(over({}, "import { x } from './y.f.js'\nexport const f = a => b => x", programRuntime)), 'f: an import of ./y.f.js is not in this slice')
+        assertEq(assertError(over({}, "import { x } from './y.f.js'\nconst g = () => x\nexport const f = () => g", programRuntime)), '#f0: an import of ./y.f.js is not in this slice')
         // An export as a value is refused: its signature is not the code of a function value.
         assertEq(assertError(over({}, 'export const g = a => a\nexport const f = a => g', programRuntime)), 'f: a function as a value is not in this slice')
     },
@@ -783,6 +811,7 @@ export const proof = {
         assertEq(doublerC()(4), 8)
         assertEq(sameModuleC(), true)
         assertStructurallySame(sameLocalC(1), [true, 2])
+        assertStructurallySame(listedC()(), [1, 2])
     },
     link: () => {
         assertEq(assertError(link(standIn)({ imports: [], functions: [], exports: [] })), 'L1 imports Any String BigInt Containers Functions Native, and the program ')

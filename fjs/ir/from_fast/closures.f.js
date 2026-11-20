@@ -16,6 +16,8 @@ const double = x => x * 2
 
 const ten = 10
 
+const items = [1, 2]
+
 /** @type {(a: any) => (b: any) => any} */
 export const adder = a => b => a + b
 
@@ -75,3 +77,6 @@ export const sameLocal = a => {
     const inc = x => x + a
     return [inc === inc, inc(1)]
 }
+
+/** @type {() => () => any} */
+export const listed = () => () => items
