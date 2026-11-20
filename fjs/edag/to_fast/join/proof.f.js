@@ -438,15 +438,62 @@ export const proof = /** @type {const} */ ({
     unrelatedTestsAndEarlierWorkKeepTheirRegions: () => {
         const condition = id(0), other = id(0)
         const call = /** @type {Value} */ (['()', ref(other), []])
-        const sharedTest = /** @type {Value} */ (['===', ref(condition), 1])
         for (const before of [
             source(ref(condition), selected(ref(other), 7)),
-            source(sharedTest, selected(sharedTest, 7)),
             source(true, selected(ref(condition), 7)),
             source(ref(condition), selected(true, 7)),
             source(ref(condition), ['array', [call, selected(ref(condition), 7)]]),
             source(ref(condition), ['if', ref(other), result(selected(ref(condition), 7)), result(0)]),
         ]) { assertStructurallySame(_joinResults(before), before) }
+    },
+    // Two tests that are the same expression over the same bindings decide
+    // alike, so a selection on one joins a statement on the other. A test
+    // that holds a region, or differs anywhere, is another test.
+    equalTestsAreTheSameTest: () => {
+        const condition = id(0), other = id(1)
+        /** @type {(test: Value, again: Value) => number} */
+        const joined = (test, again) => branchOf(_joinResults(source(test, selected(again, 7))))[1].length
+        const equal = /** @type {Value} */ (['===', ref(condition), 1])
+        assertEq(joined(equal, equal), 1)
+        assertEq(joined(['===', ref(condition), 1], ['===', ref(condition), 1]), 1)
+        assertEq(joined(['!', ['===', ref(condition), 1]], ['!', ['===', ref(condition), 1]]), 1)
+        assertEq(joined(['===', ref(condition), 1], ['===', ref(condition), 2]), 0)
+        assertEq(joined(['===', ref(condition), 1], ['===', ref(other), 1]), 0)
+        assertEq(joined(['===', ref(condition), 1], ['!', ref(condition)]), 0)
+        assertEq(joined(['===', ref(condition), 1], 1), 0)
+        assertEq(joined(selected(ref(condition), 1, 2), selected(ref(condition), 1, 2)), 0)
+        // a statement that declares a binding its test reads: the later test reads the new one
+        const rebinding = /** @type {Block} */ ({ statements: [['if', [condition], ['===', ref(condition), 1], result(3), result(4)]], exit: ['yield', [selected(['===', ref(condition), 1], 7)]] })
+        assertEq(branchOf(_joinResults(rebinding))[1].length, 1)
+    },
+    // Placing a recipe can put a selection right after the statement that
+    // tests the same binding, and a join can put one inside an arm: the
+    // block, and the arms, are joined again.
+    joinsRunAgainAfterPlacementAndInsideJoinedArms: () => {
+        const condition = id(0), hidden = id(1), chosen = id(2), other = id(3)
+        const afterPlacement = result(ref(chosen), [
+            ['define', hidden, ['array', [selected(ref(condition), 7, 8)]], 'lazy'],
+            ['if', [], ref(condition), normal(), normal()],
+            ['define', chosen, ['.', ref(hidden), 0], 'required'],
+        ])
+        const placedBlock = _joinResults(afterPlacement)
+        assertStructurallySame(joinedCounts(placedBlock), [1])
+        assertEq(deferredCount(placedBlock), 0)
+        const inner = /** @type {Value} */ (['===', ref(other), 1])
+        const insideArm = result(ref(chosen), [
+            ['define', other, 1, 'required'],
+            ['if', [], ref(condition), normal([['if', [], inner, normal(), normal()]]), normal()],
+            ['define', chosen, selected(ref(condition), selected(['===', ref(other), 1], 5, 6), 0), 'required'],
+        ])
+        const armBlock = _joinResults(insideArm)
+        const outer = armBlock.statements[1]
+        assert(outer[0] === 'if')
+        assertStructurallySame(joinedCounts(outer[3]), [1])
+        for (const [before, after] of /** @type {const} */ ([[afterPlacement, placedBlock], [insideArm, armBlock]])) {
+            for (const argument of [false, true]) {
+                assertStructurallySame(assertOk(toData(assertOk(evaluate(after, condition, argument)))), assertOk(toData(assertOk(evaluate(before, condition, argument)))))
+            }
+        }
     },
     selectedResultsJoinPastAnExpansion: () => {
         const condition = id(0), other = id(0)
