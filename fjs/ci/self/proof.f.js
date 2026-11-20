@@ -6,6 +6,7 @@
 
 import { main, packageConsumer, websiteJob, repositoryWorkflow, websiteWorkflow, websitePath, personalNotesPath, personalNotesWorkflow, personalNotesJob } from './module.f.js'
 import { ciWorkflow, main as builtIn } from '../module.f.js'
+import { compare, prepare, selfCompileSteps, writes } from '../self_compile/module.f.js'
 import { exitCode } from '../../effects/node/module.f.js'
 import { virtualAt } from '../../effects/node/virtual/module.f.js'
 import { utf8ToString } from '../../text/utf8/module.f.js'
@@ -52,8 +53,15 @@ export const proof = {
     sharedChecks: () => {
         const generated = unwrap(parseGitHubAction(unwrap(jsonParse(workflowOf(main())))))
         assertStructurallySame(generated, repositoryWorkflow)
-        const checks = ciWorkflow({ nodeExtra: () => [], packageConsumer, smart: true })(true)
+        const checks = ciWorkflow({ nodeExtra: () => [], sourceExtra: selfCompileSteps, packageConsumer, smart: true })(true)
         assertStructurallySame(generated, checks)
+        // The canonical source job writes the compiler twice and compares the
+        // writes, after its tests and before it packs, as one cached check.
+        const runs = (generated.jobs.node?.steps ?? []).map(step => step.run ?? '')
+        const at = runs.indexOf(`mise exec -- ${writes[0]}`)
+        assertStructurallySame(runs.slice(at - 1, at + 4), [prepare, `mise exec -- ${writes[0]}`, `mise exec -- ${writes[1]}`, compare, 'mise exec -- npm start ci report self-compile'])
+        assert(runs.indexOf('mise exec -- npm start t') < at && at < runs.findIndex(run => run.startsWith('mise exec -- npm pack ')))
+        assert((generated.jobs.node?.steps ?? []).slice(at - 1, at + 4).every(step => step.if === "steps.init.outputs.hit-self-compile != 'true'"))
         assertEq(Object.keys(generated.jobs).length, 12)
         assertStructurallySame(generated.on, { pull_request: {}, merge_group: {} })
         const [state] = virtualAt({})(main())
