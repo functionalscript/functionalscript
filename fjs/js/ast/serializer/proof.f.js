@@ -263,7 +263,8 @@ export const proof = {
         // capture: the reader orders slots by first reference, so the text
         // says the same without a name for each. A body that is a block, and
         // one that reads a slot twice, are no different
-        const defined = /** @type {Block['statements']} */ ([['define', outer, ['array', [1]]], ['define', second, ['array', [2]]]])
+        /** @type {Block['statements']} */
+        const defined = [['define', outer, ['array', [1]]], ['define', second, ['array', [2]]]]
         /** @type {(body: Block) => string} */
         const written = body => stringify({ statements: defined, exit: ['yield', [['function', { ...reordered, body }]]] }, 'expression')
         assertEq(written({ statements: [], exit: ['return', target, ['array', [['ref', captured], ['ref', secondCapture], ['ref', captured]]]] }),
