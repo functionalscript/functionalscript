@@ -73,9 +73,10 @@ impl Options {
 ///
 /// `Err` is a language throw: from the module's initialization, from `main`
 /// or from anything the effects call. A module with no `main`, a `main` that
-/// is no function and an end that is no exit code are throws too, the
+/// is no function and an end that is no number are throws too, the
 /// `TypeError` the language answers the same mistake with: calling what is
-/// no function, and reading a number where there is none.
+/// no function, and reading a number where there is none. A number that is
+/// no exit status is refused the same way, by `exit_code`.
 pub fn run<A: IVm, R: Read, O: Write, E: Write>(
     module: Module<A>,
     options: &Options,
@@ -90,12 +91,24 @@ pub fn run<A: IVm, R: Read, O: Write, E: Write>(
         .into_iter()
         .nth(1)
         .unwrap_or_else(|| Nullish::Undefined.to_any());
-    Ok(f64::from(Number::try_from(code)?) as u8)
+    exit_code(f64::from(Number::try_from(code)?))
+}
+
+/// The exit status a process can answer: an integer from `0` to `255`. Any
+/// other number is refused as a throw naming it. A cast would answer one
+/// instead, `0` for `-1` and for `NaN`, and report a program that failed
+/// as one that did not.
+fn exit_code<A: IVm>(code: f64) -> Result<u8, Any<A>> {
+    if code.fract() == 0.0 && (0.0..=255.0).contains(&code) {
+        Ok(code as u8)
+    } else {
+        Err(format!("fjsrs: {code} is no exit code").as_str().into())
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Options, program, run};
+    use super::{Options, exit_code, program, run};
     use nanvm_effects_node::Native;
     use nanvm_lib::{
         naive::Naive,
@@ -195,6 +208,21 @@ mod tests {
             home: "/h".into(),
         };
         assert_eq!(run(counting, &options, &mut Native::buffered(&[])), Ok(212));
+    }
+
+    /// Only an integer a process can answer is an exit code: the two ends
+    /// are, and a negative one, a fraction, one too large and `NaN` are
+    /// refused, where a cast would call the first and the last success.
+    #[test]
+    fn a_number_that_is_no_exit_status_is_refused() {
+        assert_eq!(exit_code::<A>(0.0), Ok(0));
+        assert_eq!(exit_code::<A>(255.0), Ok(255));
+        for code in [-1.0, 0.5, 256.0, f64::NAN, f64::INFINITY] {
+            assert_eq!(
+                exit_code::<A>(code),
+                Err(format!("fjsrs: {code} is no exit code").as_str().into())
+            );
+        }
     }
 
     /// A program whose `main` answers an effect that ends in no `Result`.
