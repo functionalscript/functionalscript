@@ -151,7 +151,7 @@
  * @import { BindingId, Block, Entry, Exit, Function as FastFunction, Item, Key, Loop, Statement, Step, Value } from '../../js/ast/types.ts'
  * @import { Primitive } from '../../media/datajs/types.ts'
  * @import { ConstantOf, Fn, LoopParamOf, Module, OpName, Param, Signature, Term, Type } from '../types.ts'
- * @import { _Context, _Errors, _FirstCast, _Global, _Import, _Lowered, _LowerBlock, _LowerStatement, _LowerValue, _Meaning, _Scope, _Tail } from './private.ts'
+ * @import { _Closure, _Context, _Errors, _FirstCast, _Global, _Import, _Lowered, _LowerBlock, _LowerStatement, _LowerValue, _Meaning, _Scope, _Tail } from './private.ts'
  */
 
 import { assertNotNullish } from '../../asserts/module.f.js'
@@ -161,7 +161,7 @@ import { ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFIN
 import { typeOf } from '../check/module.f.js'
 import { any, array, builder, func, kinds, l0, lengths, object, string } from '../l0/module.f.js'
 import {
-    add, bool, call, cast, constant, div, eq, equal, exact, f64, f64c, false_, field, float, fn, get, if_, le, let_, lit, loop, lt,
+    add, bool, call, cast, codeOf, constant, div, eq, equal, exact, f64, f64c, false_, field, float, fn, get, if_, le, let_, lit, loop, lt,
     make, match, mul, n, ne, neg, next, not, only, product, return_, signature, sub, terms, throw_, trap, true_, u,
 } from '../module.f.js'
 import { native } from '../native/module.f.js'
@@ -1389,12 +1389,36 @@ const ofModule = (imports, capture) => v => {
 }
 
 /**
- * The term of what a value names: a binding, or an import that a
- * constant's term reads. A tag of the L0 view is its float.
+ * A function of FAST as a value, in a program
+ * ([slice 11b](../todo/slices.md#decisions-for-slice-11-2026-11-20)):
+ * `make_function` of its lifted code, the frame of its captures that read
+ * values of the function around it, each lowered where it stands and boxed,
+ * as the items of an array literal are, its count of parameters as its
+ * length, and no text. Outside a program, and for a function with a rest
+ * parameter or one that calls itself, it is refused.
  *
- * @type {(scope: _Scope, m: _Meaning | null) => Result<Term, string>}
+ * @type {(lowerValue: _LowerValue, scope: _Scope, f: FastFunction) => Result<Term, string>}
  */
-const named = (scope, m) => {
+const lift = (lowerValue, scope, f) => {
+    const no = refuse(scope)
+    const c = scope.closureOf(f)
+    if (c === null) { return no('a function as a value is not in this slice') }
+    if (f.rest !== null) { return no('a rest parameter is not in this slice') }
+    if (f.self !== null) { return no('a function that calls itself is not in this slice') }
+    const frame = arrayOf(lowerValue, scope, c.frame.map(({ value: v }) => v))
+    if (frame[0] === 'error') { return frame }
+    return ok(call('Functions', 'make_function', [codeOf(c.code), frame[1], n(BigInt(f.parameters.length)), constant('Any', 'undefined')]))
+}
+
+/**
+ * The term of what a value names: a binding, or an import that a
+ * constant's term reads. A tag of the L0 view is its float. A function
+ * that the function defines, or one of the module that it does not export,
+ * is a function value in a program.
+ *
+ * @type {(lowerValue: _LowerValue, scope: _Scope, m: _Meaning | null) => Result<Term, string>}
+ */
+const named = (lowerValue, scope, m) => {
     const no = refuse(scope)
     const tag = m !== null && m[0] === 'l0' ? tags.find(([k]) => k === m[1]) : undefined
     return m === null ? no('a binding from outside the function is not in this slice')
@@ -1403,6 +1427,7 @@ const named = (scope, m) => {
         : m[0] === 'refused' ? no(m[1])
         : tag !== undefined ? ok(lit(f64c, tag[1]))
         : m[0] === 'errors' ? no("L1's error table as a value is not in this slice: a term reads one of its errors")
+        : m[0] === 'inline' || m[0] === 'module' ? lift(lowerValue, scope, m[1])
         : no('a function as a value is not in this slice')
 }
 
@@ -1534,8 +1559,8 @@ const value = (scope, v) => {
         return x[0] === 'error' ? no(x[1]) : x
     }
     switch (v[0]) {
-        case 'ref': { return named(scope, meaning(scope, v[1])) }
-        case 'function': { return no('a function as a value is not in this slice') }
+        case 'ref': { return named(value, scope, meaning(scope, v[1])) }
+        case 'function': { return lift(value, scope, v[1]) }
         case 'block': { return block(value, scope, v[1], ['value']) }
         case 'if': { return choice(value, block, scope, v[1], v[2], v[3], ['value']) }
         case '?:': {
@@ -1580,7 +1605,7 @@ const value = (scope, v) => {
             const from = !(v[1] instanceof Array) ? null : v[1][0] === 'ref' ? meaning(scope, v[1][1]) : scope.imported(v[1])
             const g = getOf(scope)
             const goes = v.length === 4 && l1Of(scope, 'get') !== null ? unstep(['.', v[1], key], v[3]) : null
-            return m !== null ? named(scope, m)
+            return m !== null ? named(value, scope, m)
                 : from !== null && from[0] === 'errors' ? errorOf(scope, from[1], v.length === 3 ? key : null)
                 : goes !== null ? value(scope, goes)
                 : v.length !== 3 ? no('a member read with a further step, such as a call of the member, is not in this slice')
@@ -1615,7 +1640,7 @@ const outside = () => null
  *
  * @type {(context: _Context, capture: (b: BindingId) => Result<_Meaning, string>) => (entry: readonly [string, FastFunction, Signature]) => Result<readonly [string, Fn], string>}
  */
-const lowerFn = ({ functions, imports, constants }, capture) => ([name, f, { params, result }]) => {
+const lowerFn = ({ functions, imports, constants, closureOf }, capture) => ([name, f, { params, result }]) => {
     /** @type {(message: string) => Result<never, string>} */
     const no = message => error(`${name}: ${message}`)
     if (f.rest !== null) { return no('a rest parameter is not in this slice') }
@@ -1634,8 +1659,46 @@ const lowerFn = ({ functions, imports, constants }, capture) => ([name, f, { par
         ...(f.self === null ? [] : [/** @type {const} */ ([f.self, ['function', name]])]),
         ...captured[1],
     ]
-    const body = block(value, { ir: { name, locals: params, result, functions, imports, constants }, bindings, outer: outside, imported: outside, depth: 0, loops: [], inlining: [], building: [], module }, f.body, ['return'])
+    const body = block(value, { ir: { name, locals: params, result, functions, imports, constants }, bindings, outer: outside, imported: outside, depth: 0, loops: [], inlining: [], building: [], module, closureOf }, f.body, ['return'])
     return body[0] === 'error' ? body : ok([name, fn(params, result, body[1])])
+}
+
+/**
+ * The lifted code of a function of FAST that a program makes as a value
+ * ([slice 11b](../todo/slices.md#decisions-for-slice-11-2026-11-20)),
+ * named for its closure: `(self, args) -> any`, which borrows both, as the
+ * code of L0's function values does. Each capture that reads a value of
+ * the function around it is an item of the frame, `frame(self, k)`, each
+ * parameter an item of `args`, or `undefined` past its length, each in a
+ * local first, and each other capture what it stands for in the module.
+ *
+ * @type {(context: _Context, module: (v: Value) => Result<_Meaning, string>) => (entry: readonly [FastFunction, _Closure]) => Result<readonly [string, Fn], string>}
+ */
+const lowerClosure = ({ functions, imports, constants, closureOf }, module) => ([f, c]) => {
+    const self = get('#self')
+    const args = get('#args')
+    /** @type {readonly Term[]} */
+    const items = [
+        ...c.frame.map((_, k) => call('Functions', 'frame', [self, n(BigInt(k))])),
+        ...f.parameters.map((_, j) => if_(
+            lt(n(BigInt(j)), call('Containers', 'length', [args])),
+            call('Containers', 'item', [args, n(BigInt(j))]),
+            constant('Any', 'undefined'),
+        )),
+    ]
+    const names = items.map((_, k) => `#${k}`)
+    /** @type {readonly Param[]} */
+    const params = [['#self', func], ['#args', array]]
+    /** @type {readonly (readonly [BindingId, _Meaning])[]} */
+    const bindings = [
+        ...c.statics,
+        ...c.frame.map(({ binding }, k) => /** @type {const} */ ([binding, ['local', names[Number(k)]]])),
+        ...f.parameters.map((b, j) => /** @type {const} */ ([b, ['local', names[Number(c.frame.length + j)]]])),
+    ]
+    const ir = { name: c.code, locals: [...params, ...names.map(k => /** @type {const} */ ([k, any]))], result: any, functions, imports, constants }
+    const body = block(value, { ir, bindings, outer: outside, imported: outside, depth: names.length, loops: [], inlining: [], building: [], module, closureOf }, f.body, ['return'])
+    if (body[0] === 'error') { return body }
+    return ok([c.code, fn(params, any, items.reduceRight((x, t, k) => let_(names[Number(k)], t, x), body[1]))])
 }
 
 /**
@@ -1648,7 +1711,7 @@ const lowerFn = ({ functions, imports, constants }, capture) => ([name, f, { par
  *
  * @type {(context: _Context, capture: (b: BindingId) => Result<_Meaning, string>, importOf: (v: Value) => _Import | null) => (name: string, v: Value) => Result<readonly [string, ConstantOf<Term>], string>}
  */
-const lowerConstant = ({ functions, imports, constants }, capture, importOf) => (name, v) => {
+const lowerConstant = ({ functions, imports, constants, closureOf }, capture, importOf) => (name, v) => {
     /** @type {_Scope} */
     const scope = {
         ir: { name, locals: [], functions, imports, constants },
@@ -1663,6 +1726,7 @@ const lowerConstant = ({ functions, imports, constants }, capture, importOf) => 
         inlining: [],
         building: [],
         module: ofModule(imports, capture),
+        closureOf,
     }
     const x = value(scope, v)
     if (x[0] === 'error') { return x }
@@ -1792,6 +1856,54 @@ const keep = ([later, needed], c) => needed.includes(c[0]) ? [[c, ...later], [..
 // programs
 
 /**
+ * Every function of FAST inside a part of normalized FAST, an outer one
+ * before those that it defines.
+ *
+ * @type {(x: unknown) => readonly FastFunction[]}
+ */
+const functionsIn = x => {
+    if (x instanceof Array) { return x.flatMap(functionsIn) }
+    if (typeof x !== 'object' || x === null) { return [] }
+    if ('captures' in x && 'body' in x && 'target' in x) {
+        const f = /** @type {FastFunction} */ (x)
+        return [f, ...functionsIn(f.captures), ...functionsIn(f.body)]
+    }
+    return Object.values(x).flatMap(functionsIn)
+}
+
+/**
+ * The closures of a program
+ * ([slice 11b](../todo/slices.md#decisions-for-slice-11-2026-11-20)):
+ * each function of FAST in its text, once, with the name of its lifted
+ * code, `#f` and its place among them, and its captures, split. A capture
+ * of a function of the module stands for what `module` makes of it. A
+ * capture of a function inside one stands for what the capture that it
+ * reads stands for, where that one stands for something of the module;
+ * any other capture reads a value of the function around it, so it is an
+ * item of the frame.
+ *
+ * @type {(module: (v: Value) => Result<_Meaning, string>, tops: readonly FastFunction[], root: unknown) => readonly (readonly [FastFunction, _Closure])[]}
+ */
+const closuresOf = (module, tops, root) => {
+    const all = functionsIn(root)
+    const fns = all.filter((f, k) => all.indexOf(f) === k)
+    /** @type {(done: readonly (readonly [BindingId, _Meaning])[], f: FastFunction) => readonly (readonly [BindingId, _Meaning])[]} */
+    const add = (done, f) => [...done, ...f.captures.flatMap(({ binding, value: v }) => {
+        /** @type {(m: Result<_Meaning, string>) => readonly (readonly [BindingId, _Meaning])[]} */
+        const of = m => [/** @type {const} */ ([binding, m[0] === 'error' ? /** @type {const} */ (['refused', m[1]]) : m[1]])]
+        if (tops.includes(f)) { return of(module(v)) }
+        const m = done.find(([b]) => v instanceof Array && v[0] === 'ref' && b === v[1])
+        return m === undefined ? [] : [/** @type {const} */ ([binding, m[1]])]
+    })]
+    const statics = fns.reduce(add, [])
+    return fns.map((f, k) => /** @type {const} */ ([f, {
+        code: `#f${k}`,
+        statics: statics.filter(([b]) => f.captures.some(({ binding }) => binding === b)),
+        frame: f.captures.filter(({ binding }) => !statics.some(([b]) => b === binding)),
+    }]))
+}
+
+/**
  * The signature of an export of a program that the table does not name:
  * each parameter, `p0` first, and the result, of `any`.
  *
@@ -1832,6 +1944,31 @@ const uses = t => [
     ...(t[0] === 'call' && t[1] === 'self' ? [t[2]] : t[0] === 'code' ? [t[1]] : t[0] === 'constant' && t[1] === 'self' ? [t[2]] : []),
     ...terms(t).flatMap(uses),
 ]
+
+/**
+ * The lifted code of each closure that the terms of a program reach, by
+ * the names in `todo`, themselves or through the code of others, in the
+ * order that they are reached.
+ *
+ * @type {(lowerClosure: (entry: readonly [FastFunction, _Closure]) => Result<readonly [string, Fn], string>, closures: readonly (readonly [FastFunction, _Closure])[], todo: readonly string[]) => Result<readonly (readonly [string, Fn])[], string>}
+ */
+const madeClosures = (lowerClosure, closures, todo) => {
+    let left = todo
+    /** @type {readonly (readonly [string, Fn])[]} */
+    let made = []
+    while (left.length > 0) {
+        const [name, ...rest] = left
+        left = rest
+        const c = closures.find(([, { code }]) => code === name)
+        if (c !== undefined && !made.some(([k]) => k === name)) {
+            const lowered = lowerClosure(c)
+            if (lowered[0] === 'error') { return lowered }
+            made = [...made, lowered[1]]
+            left = [...left, ...uses(lowered[1][1].body)]
+        }
+    }
+    return ok(made)
+}
 
 /**
  * A program that links L1, as one module
@@ -1988,21 +2125,38 @@ export const lower = (signatures, runtime = null) => ({ statements, exit }, impo
             : exported !== undefined ? error(`${exported[0]} has no signature`)
             : ok(['module', g[1]])
     }
+    const interfaces = runtime === null ? [] : [...l0, /** @type {const} */ (['Native', native])]
+    const tops = [...lowered.map(([, f]) => f), ...defined.flatMap(([, g]) => g[0] === 'function' ? [g[1]] : [])]
+    /** @type {(done: readonly _Lowered[]) => (v: Value) => Result<_Meaning, string>} */
+    const moduleIn = done => ofModule(interfaces, captureIn(done))
+    // A program makes its functions of FAST as values, each of its lifted code.
+    const closures = l1 === null ? [] : closuresOf(moduleIn([]), tops, [statements, entries[1]])
+    /** @type {(f: FastFunction) => _Closure | null} */
+    const closureOf = f => closures.find(([g]) => g === f)?.[1] ?? null
     const ir = {
         functions: [
             ...lowered.map(([key, , s]) => /** @type {const} */ ([key, s])),
             ...(l1 === null ? [] : l1.functions.map(([k, f]) => /** @type {const} */ ([linkedName(k), signature(f.params, f.result)]))),
+            ...closures.map(([, { code }]) => /** @type {const} */ ([code, signature([['#self', func], ['#args', array]], any)])),
         ],
-        imports: runtime === null ? [] : [...l0, /** @type {const} */ (['Native', native])],
+        imports: interfaces,
+        closureOf,
     }
     /** The constants that the lowering made, and the next, which reads those. @type {(done: readonly _Lowered[], definition: readonly [BindingId, Value], k: number) => readonly _Lowered[]} */
     const addConstant = (done, [b, v], k) => [...done, [b, lowerConstant({ ...ir, constants: typesOf(done) }, captureIn(done), importOf)(`#c${k}`, v)]]
     const done = defined.flatMap(([b, g]) => g[0] === 'constant' ? [/** @type {const} */ ([b, g[1]])] : []).reduce(addConstant, [])
     const capture = captureIn(done)
-    const functions = okList(lowered.map(([key, f, s]) => lowerFn({ ...ir, constants: typesOf(done) }, capture)([key, f, s])))
+    const context = { ...ir, constants: typesOf(done) }
+    const functions = okList(lowered.map(([key, f, s]) => lowerFn(context, capture)([key, f, s])))
     if (functions[0] === 'error') { return functions }
-    const [constants] = done.flatMap(([, r]) => r[0] === 'ok' ? [r[1]] : []).reduceRight(keep, [[], functions[1].flatMap(([, f]) => reads(f.body))])
+    const made = madeClosures(lowerClosure(context, moduleIn(done)), closures, [
+        ...functions[1].flatMap(([, f]) => uses(f.body)),
+        ...done.flatMap(([, r]) => r[0] === 'ok' ? uses(r[1][1].value) : []),
+    ])
+    if (made[0] === 'error') { return made }
+    const everything = [...functions[1], ...made[1]]
+    const [constants] = done.flatMap(([, r]) => r[0] === 'ok' ? [r[1]] : []).reduceRight(keep, [[], everything.flatMap(([, f]) => reads(f.body))])
     /** @type {Module} */
-    const m = { imports: ir.imports, constants, functions: functions[1], exports: lowered.map(([key]) => key) }
+    const m = { imports: interfaces, constants, functions: everything, exports: lowered.map(([key]) => key) }
     return l1 === null ? ok(m) : link(l1)(m)
 }

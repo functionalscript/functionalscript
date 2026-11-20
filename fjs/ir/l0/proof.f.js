@@ -46,6 +46,7 @@ export const proof = {
         'Functions.call(f: any.only(function), args: any.only(array)) -> any may fail',
         'Functions.text(f: any.only(function)) -> any.only(string, undefined)',
         'Functions.throw(own v: any) -> never may fail',
+        'Functions.frame(self: any.only(function), i: u(31)) -> any',
     ].join('; ')),
     // A module may import all of them: the checker takes the interfaces.
     checked: () => assertEq(assertOk(check({ imports: l0, functions: [], exports: [] })).imports.map(([k]) => k).join(), 'Any,String,BigInt,Containers,Functions'),

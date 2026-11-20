@@ -479,6 +479,23 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   an error of its own, a `TypeError` say, the module must throw L1's value
   that names the same error ([`wasm/testlib.mjs`](./wasm/testlib.mjs)).
 
+## What 11b adds
+
+- **Closures**: in a program, a function as a value is
+  `Functions.make_function` of code that the
+  [lowering](./from_fast/README.md#closures) lifts, `(#self, #args) ->
+  any`, and a frame of the captures that read values of the function
+  around it. The code reads them by L0's new `Functions.frame(self, i)`,
+  and its parameters as items of `#args`.
+- **The table is exported**: a module whose `code` terms fill its table
+  exports it as `table`, so the checker refuses an export of that name.
+- **The counting host's `make_function`** makes a JavaScript function that
+  calls the module's code through that table, so `call` and JavaScript
+  both call it, and its `frame` reads the frame.
+- **The host's judge**: a function that a call answers agrees with its
+  twin's where both have the same length and agree on probes of their own
+  ([`wasm/testlib.mjs`](./wasm/testlib.mjs)).
+
 ## What every slice refuses
 
 Everything else is refused with the function's name and the reason, never
@@ -503,7 +520,7 @@ whose owned stage does not consume each owned value once on every path, a
 value of a linear type that the lifetime pass would have to copy or drop,
 an interface that names a type, a function or a constant twice, a
 constant of a product or of `never`, two constants of one name, a function
-named `init`, a constant that reads itself or one after it, directly or
+named `init`, an export named `table`, a constant that reads itself or one after it, directly or
 through the functions that it calls, a constant that only borrows its
 value, a `br` to a loop that
 does not give each of its parameters, in their order, and a `trunc_sat` of
