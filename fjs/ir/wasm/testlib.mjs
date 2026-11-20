@@ -241,15 +241,31 @@ const outcome = (f, h) => {
 }
 
 /**
+ * Whether a call throws what its twin throws: the same value, or, where
+ * the twin is a program that JavaScript runs and throws an error of its
+ * own, a `TypeError` say, a value of L1's that names the same error, as
+ * `'TypeError: unexpected type'` does
+ * ([L1's errors](../../wasm/runtime/l1/error/module.f.js)).
+ *
+ * @type {(given: ReadonlySet<unknown>) => (got: _Any, expected: _Any) => boolean}
+ */
+const throwsAs = given => (got, expected) => {
+    const e = expected.any
+    return e instanceof Error ? typeof got.any === 'string' && got.any.startsWith(`${e.name}: `) : same(given)(got, expected)
+}
+
+/**
  * Whether a call's outcome is its twin's: the same value, a throw of the
- * same value, or a trap of both, for the same reason where the module's
- * trap was a throw of an import of the view, whose reason is a string.
+ * same value or of the same error, or a trap of both, for the same reason
+ * where the module's trap was a throw of an import of the view, whose
+ * reason is a string.
  *
  * @type {(given: ReadonlySet<unknown>) => (got: _Outcome, expected: _Outcome) => boolean}
  */
 const agrees = given => (got, expected) => got[0] === 'trapped'
     ? expected[0] === 'trapped' && (typeof got[1] !== 'string' || got[1] === expected[1])
-    : expected[0] !== 'trapped' && got[0] === expected[0] && same(given)(got[1], expected[1])
+    : expected[0] !== 'trapped' && got[0] === expected[0]
+        && (got[0] === 'threw' && expected[0] === 'threw' ? throwsAs(given)(got[1], expected[1]) : same(given)(got[1], expected[1]))
 
 /** The unsigned LEB128 numbers that `bytes` hold, one after another. @type {(bytes: Uint8Array) => readonly number[]} */
 const ulebs = bytes => {

@@ -465,6 +465,20 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
 - **The counting host** makes such values immediates: Any's constant
   cells, whose counts a `dup` or a `drop` leaves.
 
+## What 11a adds
+
+- **Untyped programs**: the [lowering](./from_fast/README.md#programs)
+  takes a module that no table types, each export of `any` alone, and
+  writes its operators, member reads, `?.` and calls of values of `any`
+  as calls of L1's bodies, boxing a float or a boolean where it meets
+  `any`.
+- **`link`**: a program and the bodies of L1 that it reaches, by their
+  `l1.` names, in one module, so one WASM module. Nothing new in the IR,
+  the checker or the emitter: a linked name is a name of the module.
+- **The host's judge**: where a program's twin, JavaScript itself, throws
+  an error of its own, a `TypeError` say, the module must throw L1's value
+  that names the same error ([`wasm/testlib.mjs`](./wasm/testlib.mjs)).
+
 ## What every slice refuses
 
 Everything else is refused with the function's name and the reason, never

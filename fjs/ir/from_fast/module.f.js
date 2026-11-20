@@ -30,6 +30,13 @@
  *   parameters and result, as a TypeScript signature names and types them.
  *   A `number` is an `f64`, a `boolean` a `bool`, a `bigint` the range that
  *   the table gives it, and a value of unknown kind `any`.
+ * - **A program links L1** ([slice 11a](../todo/slices.md)): where the
+ *   runtime gives L1's plain stage, every export is lowered, one that the
+ *   table does not name of `any` alone, and an operator, a member read,
+ *   `?.` and a call of operands that the IR does not take, values of
+ *   `any` among them, is a call of L1's body, each float or boolean boxed
+ *   as `any`. [`link`](#link) merges the bodies that the program reaches
+ *   into the module, by their `l1.` names.
  * - **An import of the L0 view is L0, and one of L1's native rows is
  *   `Native`.** The caller names the runtime, the specifiers of the view
  *   and of the rows, and the module then imports
@@ -141,7 +148,7 @@
  *
  * @import { Result } from '../../types/result/types.ts'
  * @import { AstImport } from '../../compiler/ast/types.ts'
- * @import { BindingId, Block, Entry, Exit, Function as FastFunction, Item, Loop, Statement, Value } from '../../js/ast/types.ts'
+ * @import { BindingId, Block, Entry, Exit, Function as FastFunction, Item, Key, Loop, Statement, Step, Value } from '../../js/ast/types.ts'
  * @import { Primitive } from '../../media/datajs/types.ts'
  * @import { ConstantOf, Fn, LoopParamOf, Module, OpName, Param, Signature, Term, Type } from '../types.ts'
  * @import { _Context, _Errors, _FirstCast, _Global, _Import, _Lowered, _LowerBlock, _LowerStatement, _LowerValue, _Meaning, _Scope, _Tail } from './private.ts'
@@ -155,7 +162,7 @@ import { typeOf } from '../check/module.f.js'
 import { any, array, builder, func, kinds, l0, lengths, object, string } from '../l0/module.f.js'
 import {
     add, bool, call, cast, constant, div, eq, equal, exact, f64, f64c, false_, field, float, fn, get, if_, le, let_, lit, loop, lt,
-    make, match, mul, n, ne, neg, next, not, only, product, return_, sub, terms, throw_, trap, true_, u,
+    make, match, mul, n, ne, neg, next, not, only, product, return_, signature, sub, terms, throw_, trap, true_, u,
 } from '../module.f.js'
 import { native } from '../native/module.f.js'
 import { show } from '../print/module.f.js'
@@ -191,6 +198,51 @@ const staticOf = v => v instanceof Array && v.length === 1 ? staticOp(v[0]) : nu
 const refuse = scope => {
     const name = assertNotNullish(entry(scope.ir, 'name'))
     return message => error(`${name}: ${message}`)
+}
+
+/**
+ * The name of L1's function `name` in a program that links L1
+ * ([`link`](#link)), `l1.add` say, or `null` in a module that links none,
+ * which lowers the operators of the IR alone.
+ *
+ * @type {(scope: _Scope, name: string) => string | null}
+ */
+const l1Of = (scope, name) => {
+    const linked = `l1.${name}`
+    return scope.ir.functions.some(([k]) => k === linked) ? linked : null
+}
+
+/** Whether the module being lowered is a program that links L1 ([`link`](#link)). @type {(scope: _Scope) => boolean} */
+const linking = scope => scope.ir.functions.some(([k]) => k.startsWith('l1.'))
+
+/**
+ * The condition of a choice: a `bool`, or, in a program that links L1, L1's
+ * `toBoolean` of a value of `any`, or of a float boxed as one, as
+ * JavaScript reads one.
+ *
+ * @type {(scope: _Scope, c: Term) => Term}
+ */
+const condition = (scope, c) => {
+    const f = l1Of(scope, 'toBoolean')
+    if (f === null) { return c }
+    const t = typeOf(scope.ir)(c)
+    const x = t[0] === 'error' || equal(t[1], bool) ? null : asAny(t[1], c)
+    return x === null ? c : call('self', f, [x])
+}
+
+/**
+ * The value of a function where it returns: a float or a boolean boxed as
+ * `any` where the function's result is of `any`, as an untyped export of a
+ * program answers one. The value of a function that is inlined, and one
+ * that no conversion fits, is itself.
+ *
+ * @type {(scope: _Scope, x: Term) => Term}
+ */
+const returned = (scope, x) => {
+    const { result } = scope.ir
+    if (scope.inlining.length > 0 || result === undefined || !isAny(result)) { return x }
+    const t = typeOf(scope.ir)(x)
+    return t[0] === 'error' ? x : asAny(t[1], x) ?? x
 }
 
 /** What a binding stands for, or `null` for one from outside the function. @type {(scope: _Scope, b: BindingId) => _Meaning | null} */
@@ -347,8 +399,10 @@ const aligned = (scope, a, b) => {
     const ta = typeOf(scope.ir)(a)
     const tb = typeOf(scope.ir)(b)
     if (ta[0] === 'error' || tb[0] === 'error') { return [a, b] }
-    const left = isAny(tb[1]) ? asAny(ta[1], a) : a
-    const right = isAny(ta[1]) ? asAny(tb[1], b) : b
+    // In a program, arms of two other types, a float and a boolean, meet as `any` too.
+    const both = linking(scope) && !equal(ta[1], tb[1])
+    const left = both || isAny(tb[1]) ? asAny(ta[1], a) : a
+    const right = both || isAny(ta[1]) ? asAny(tb[1], b) : b
     if (left === null || right === null) { return [a, b] }
     return [left, right]
 }
@@ -373,7 +427,8 @@ const localOf = (t, fallback) => t[0] === 'get' ? t[1] : fallback
 const choice = (lowerValue, lowerBlock, scope, c, a, b, tail) => {
     const parts = okList([lowerValue(scope, c), lowerBlock(lowerValue, scope, a, tail), lowerBlock(lowerValue, scope, b, tail)])
     if (parts[0] === 'error') { return parts }
-    const [, cond, x, y] = [null, parts[1][0], parts[1][1], parts[1][2]]
+    const [, test, x, y] = [null, parts[1][0], parts[1][1], parts[1][2]]
+    const cond = condition(scope, test)
     if (isTransfer(x) || isTransfer(y)) { return ok(if_(cond, x, y)) }
     const [left, right] = aligned(scope, x, y)
     return ok(if_(cond, left, right))
@@ -502,9 +557,10 @@ const exitTerm = (lowerValue, scope, exit, tail) => {
         case 'return': {
             if (tail[0] === 'loop') { return no('a return inside a loop is not in this slice') }
             const r = lowerValue(scope, exit[2])
-            return tail[0] === 'return' || r[0] === 'error' ? r
+            return r[0] === 'error' ? r
+                : tail[0] === 'return' ? ok(returned(scope, r[1]))
                 : scope.inlining.length > 0 ? no('a return before the end of a function that is inlined is not in this slice')
-                : ok(return_(r[1]))
+                : ok(return_(returned(scope, r[1])))
         }
         case 'continue': {
             const [, target, vs] = exit
@@ -537,6 +593,14 @@ const exitTerm = (lowerValue, scope, exit, tail) => {
 const block = (lowerValue, scope, { statements, exit }, tail) => sequence(statement, lowerValue, block, scope, statements, tail, next => exitTerm(lowerValue, next, exit, tail))
 
 /**
+ * A term that does nothing as itself, and anything else bound to a local,
+ * in whose scope `rest` reads it.
+ *
+ * @type {(scope: _Scope, x: Term, rest: (scope: _Scope, y: Term) => Result<Term, string>) => Result<Term, string>}
+ */
+const pure = (scope, x, rest) => isPure(x) ? rest(scope, x) : bindTerm(scope, x, (s, name) => rest(s, get(name)))
+
+/**
  * The arguments of a call that reads each of them once it has read them
  * all: each lowered where it stands, in its order, a term that does nothing
  * as itself and anything else bound to a local, in whose scope those after
@@ -549,9 +613,7 @@ const settled = (lowerValue, scope, vs, rest) => {
     const from = (s, done) => {
         if (done.length === vs.length) { return rest(s, done) }
         const x = lowerValue(s, vs[Number(done.length)])
-        return x[0] === 'error' ? x
-            : isPure(x[1]) ? from(s, [...done, x[1]])
-            : bindTerm(s, x[1], (t, name) => from(t, [...done, get(name)]))
+        return x[0] === 'error' ? x : pure(s, x[1], (t, y) => from(t, [...done, y]))
     }
     return from(scope, [])
 }
@@ -1043,6 +1105,12 @@ const binary = (lowerValue, scope, f, a, b) => {
     return xs[0] === 'error' ? xs : ok(f(xs[1][0], xs[1][1]))
 }
 
+/** The operator that `pick` picks for a term of type `t`, or why there is none. @type {(scope: _Scope, tag: string, t: Type, x: Term, pick: (t: Type, x: Term) => Term | null) => Result<Term, string>} */
+const pickedOf = (scope, tag, t, x, pick) => {
+    const picked = pick(t, x)
+    return picked === null ? refuse(scope)(`${tag} of ${show(t)} is not in this slice`) : ok(picked)
+}
+
 /**
  * An operator of one operand, picked by the operand's type: `pick` answers
  * the term, or `null` where no operator of the slice fits.
@@ -1053,10 +1121,13 @@ const unary = (lowerValue, scope, tag, x, pick) => {
     const r = lowerValue(scope, x)
     if (r[0] === 'error') { return r }
     const t = typeOf(scope.ir)(r[1])
-    if (t[0] === 'error') { return t }
-    const picked = pick(t[1], r[1])
-    return picked === null ? refuse(scope)(`${tag} of ${show(t[1])} is not in this slice`) : ok(picked)
+    return t[0] === 'error' ? t : pickedOf(scope, tag, t[1], r[1], pick)
 }
+
+/** `===` of two terms of types `ts`, or `!==` where `negated`, as `same` writes it. @type {(x: Term, y: Term, ts: readonly Type[], negated: boolean) => Term} */
+const sameTerm = (x, y, ts, negated) => !ts.every(t => equal(t, bool)) ? (negated ? ne : eq)(x, y)
+    : negated ? if_(x, not(y), y)
+    : if_(x, y, not(y))
 
 /**
  * `===`, or `!==` where `negated`: `eq` of two numbers, and a `match` of two
@@ -1070,9 +1141,7 @@ const same = (lowerValue, scope, a, b, negated) => {
     const [x, y] = xs[1]
     const ts = okList([typeOf(scope.ir)(x), typeOf(scope.ir)(y)])
     if (ts[0] === 'error') { return ts }
-    return ok(!ts[1].every(t => equal(t, bool)) ? (negated ? ne : eq)(x, y)
-        : negated ? if_(x, not(y), y)
-        : if_(x, y, not(y)))
+    return ok(sameTerm(x, y, ts[1], negated))
 }
 
 /** @type {(item: Item<Value>) => item is readonly ['...', Value]} */
@@ -1112,8 +1181,14 @@ const arrayOf = (lowerValue, scope, items) => {
     })
 }
 
-/** Whether the module being lowered exports L1's `get`, which a member or index of sealed `any` calls. @type {(scope: _Scope) => boolean} */
-const exportsGet = scope => scope.ir.functions.some(([k]) => k === 'get')
+/**
+ * The name of L1's `get`, which a member or index of sealed `any` calls:
+ * `l1.get` in a program that links L1, or `get` where the module being
+ * lowered, L1 itself, exports it, or `null`.
+ *
+ * @type {(scope: _Scope) => string | null}
+ */
+const getOf = scope => l1Of(scope, 'get') ?? (scope.ir.functions.some(([k]) => k === 'get') ? 'get' : null)
 
 /**
  * A read of an array at a number key, `a[0]` or `a[Number(k)]`, by L1's `get` rules
@@ -1140,19 +1215,21 @@ const indexed = (lowerValue, scope, receiver, key) => settled(lowerValue, scope,
         return ok(exact(u(31), k, `${base}.index`, i => if_(lt(i, call('Containers', 'length', [a])), call('Containers', 'item', [a, i]), undefined_), undefined_))
     }
     // An index key is a float (a literal or `Number(...)`); L1's `get` takes `any`.
-    return isAny(t) && exportsGet(s) ? ok(call('self', 'get', [a, call('Any', 'from_f64', [k])]))
+    const g = getOf(s)
+    const y = g === null ? null : isAny(t) ? a : linking(s) ? asAny(t, a) : null
+    return y !== null && g !== null ? ok(call('self', g, [y, call('Any', 'from_f64', [k])]))
         : refuse(s)(`a read of ${show(t)} at a number is not in this slice: only an array's is`)
 })
 
 /**
- * A call of a function value: L0 `call(f, args)` with an args array
- * ([L0 design §12](../../../doc/sasha-gil/wasm/l0-design.md#12-functions-a-code-index-a-frame-a-length-and-a-text)).
- * A single spread of a known array passes that array; otherwise Containers
- * builds one from the positional arguments.
+ * A call of a function value whose callee `lowered` lowers where it stands,
+ * before its arguments: `valueCall`'s, and in a program that links L1, a
+ * call of a value of `any` that may be no function is L1's `call`, which
+ * throws what JavaScript throws for one.
  *
- * @type {(lowerValue: _LowerValue, scope: _Scope, callee: Value, items: readonly Item<Value>[]) => Result<Term, string>}
+ * @type {(lowerValue: _LowerValue, scope: _Scope, lowered: () => Result<Term, string>, callee: Value, items: readonly Item<Value>[]) => Result<Term, string>}
  */
-const valueCall = (lowerValue, scope, callee, items) => {
+const callOf = (lowerValue, scope, lowered, callee, items) => {
     const no = refuse(scope)
     if (!scope.ir.imports.some(([k]) => k === 'Functions')) {
         return no('a call of a value uses Functions.call, which a module lowered without the runtime does not import')
@@ -1162,6 +1239,8 @@ const valueCall = (lowerValue, scope, callee, items) => {
     if (spreads.length > 1 || (spreads.length === 1 && plain.length > 0)) {
         return no('a spread among positional arguments is not in this slice')
     }
+    // A spread of a value that is no array throws in JavaScript, where Functions' `call` would trap.
+    if (spreads.length === 1 && linking(scope)) { return no('a spread argument in a program is not in this slice') }
     if (spreads.length === 1) {
         return settled(lowerValue, scope, [callee, spreads[0]], (s, [f, args]) => {
             // Pure but ill-typed terms (a missing field of a record) still fail typeOf.
@@ -1179,13 +1258,16 @@ const valueCall = (lowerValue, scope, callee, items) => {
             return ok(call('Functions', 'call', [fn, arr]))
         })
     }
-    return settled(lowerValue, scope, [callee, ...plain], (s, [f, ...xs]) => {
+    const r = lowered()
+    if (r[0] === 'error') { return r }
+    return pure(scope, r[1], (t, f) => settled(lowerValue, t, plain, (s, xs) => {
         // Pure but ill-typed terms (a missing field of a record) still fail typeOf.
         const typed = okList([f, ...xs].map(x => typeOf(s.ir)(x)))
         if (typed[0] === 'error') { return typed }
         const [ft, ...ats] = typed[1]
         const fHeld = ft[0] === 'sealed' ? ft[3] ?? kinds : []
-        if (!fHeld.includes('function')) { return no(`a call of ${show(ft)} is not in this slice: only a function's is`) }
+        const linked = fHeld.every(k => k === 'function') ? null : l1Of(s, 'call')
+        if (!fHeld.includes('function') && linked === null) { return no(`a call of ${show(ft)} is not in this slice: only a function's is`) }
         const boxed = okList(ats.map((t, i) => {
             const y = asAny(t, xs[Number(i)])
             return y === null ? no(`an argument of a call is a value of any, and argument ${i} is ${show(t)}`) : ok(y)
@@ -1195,7 +1277,33 @@ const valueCall = (lowerValue, scope, callee, items) => {
         const fn = fHeld.every(k => k === 'function') ? f : cast(func, f, fnName, get(fnName))
         const begun = call('Containers', 'begin_array', [n(BigInt(boxed[1].length))])
         const args = cast(array, call('Containers', 'seal', [boxed[1].reduce((b, x) => call('Containers', 'push', [b, x]), begun)]), 'args', a => a)
-        return ok(call('Functions', 'call', [fn, args]))
+        return ok(linked === null ? call('Functions', 'call', [fn, args]) : call('self', linked, [f, args]))
+    }))
+}
+
+/**
+ * A call of a function value: L0 `call(f, args)` with an args array
+ * ([L0 design §12](../../../doc/sasha-gil/wasm/l0-design.md#12-functions-a-code-index-a-frame-a-length-and-a-text)).
+ * A single spread of a known array passes that array; otherwise Containers
+ * builds one from the positional arguments.
+ *
+ * @type {(lowerValue: _LowerValue, scope: _Scope, callee: Value, items: readonly Item<Value>[]) => Result<Term, string>}
+ */
+const valueCall = (lowerValue, scope, callee, items) => callOf(lowerValue, scope, () => lowerValue(scope, callee), callee, items)
+
+/**
+ * The arguments of a call of a function of the module: in a program, each
+ * float or boolean that a parameter of `any` takes boxed as one, as a call
+ * of an untyped export gives it; elsewhere, as they are.
+ *
+ * @type {(scope: _Scope, name: string, xs: readonly Term[]) => readonly Term[]}
+ */
+const boxedFor = (scope, name, xs) => {
+    const s = linking(scope) ? scope.ir.functions.find(([k]) => k === name) : undefined
+    return s === undefined ? xs : xs.map((x, k) => {
+        const p = s[1].params[Number(k)]
+        const t = p === undefined || !isAny(p[1]) ? null : typeOf(scope.ir)(x)
+        return t === null || t[0] === 'error' ? x : asAny(t[1], x) ?? x
     })
 }
 
@@ -1223,7 +1331,7 @@ const callTerm = (lowerValue, scope, callee, items) => {
         case 'module': { return inline(lowerValue, scope, m[1], vs, scope.module) }
         default: {
             const xs = values(lowerValue, scope, vs)
-            return xs[0] === 'error' ? xs : ok(m[0] === 'function' ? call('self', m[1], xs[1]) : ['op', m[1], xs[1]])
+            return xs[0] === 'error' ? xs : ok(m[0] === 'function' ? call('self', m[1], boxedFor(scope, m[1], xs[1])) : ['op', m[1], xs[1]])
         }
     }
 }
@@ -1314,6 +1422,110 @@ const errorOf = (scope, table, key) => {
     return e === undefined ? no(`L1's error table has no ${key}`) : ok(lit(string, e[1]))
 }
 
+// operators of a program
+
+/** Whether the operator of the IR takes operands of these types: floats, or integers. @type {(ts: readonly Type[]) => boolean} */
+const numeric = ts => ts.every(isFloat) || ts.every(t => t[0] === 'int')
+
+/** Whether `!` of the IR takes an operand of these types: a boolean. @type {(ts: readonly Type[]) => boolean} */
+const boolean = ts => ts.every(t => equal(t, bool))
+
+/** Whether `===` of the IR takes operands of these types: numbers of one kind, or booleans. @type {(ts: readonly Type[]) => boolean} */
+const comparable = ts => numeric(ts) || boolean(ts)
+
+/**
+ * An operator in a program that links L1, of its operands lowered once, in
+ * their order: where the operator of the IR takes them, `fits` says, what
+ * `native` makes of them, and else, such as for values of `any` or a float
+ * and a boolean, `wrap` of a call of L1's function `name` of them, each
+ * float or boolean boxed as `any`. `null` where the module links no L1, or
+ * where `native` answers `null`, for the lowering of the operator of the
+ * IR from the operands.
+ *
+ * @type {(lowerValue: _LowerValue, scope: _Scope, name: string, fits: (ts: readonly Type[]) => boolean, vs: readonly Value[], native: (xs: readonly Term[], ts: readonly Type[]) => Result<Term, string> | null, wrap?: (x: Term) => Term) => Result<Term, string> | null}
+ */
+const viaL1 = (lowerValue, scope, name, fits, vs, native, wrap = x => x) => {
+    const f = l1Of(scope, name)
+    if (f === null) { return null }
+    const xs = values(lowerValue, scope, vs)
+    if (xs[0] === 'error') { return xs }
+    const ts = okList(xs[1].map(x => typeOf(scope.ir)(x)))
+    if (ts[0] === 'error') { return ts }
+    if (fits(ts[1])) { return native(xs[1], ts[1]) }
+    const boxed = xs[1].flatMap((x, k) => {
+        const y = asAny(ts[1][Number(k)], x)
+        return y === null ? [] : [y]
+    })
+    return boxed.length === xs[1].length ? ok(wrap(call('self', f, boxed)))
+        : refuse(scope)(`${name} of ${ts[1].map(show).join(' and ')} is not in this slice`)
+}
+
+/** The operator of the IR of two operands, lowered in their order. @type {(f: (a: Term, b: Term) => Term) => (xs: readonly Term[]) => Result<Term, string>} */
+const inOrder = f => xs => ok(f(xs[0], xs[1]))
+
+/**
+ * `a > b` as `lt(b, a)`, of its operands lowered in their order: where
+ * either does nothing as itself, which one is done first does not show.
+ * `null` where both do something, for `swapped`, which binds `a` first.
+ *
+ * @type {(f: (a: Term, b: Term) => Term) => (xs: readonly Term[]) => Result<Term, string> | null}
+ */
+const flipped = f => ([x, y]) => isPure(x) || isPure(y) ? ok(f(y, x)) : null
+
+/**
+ * A member read or a call that goes on by `step`, as the read or call of
+ * what it goes on from: `a.b.c` is `(a.b).c` and `o.f(x)` is `(o.f)(x)`,
+ * since FunctionalScript has no `this`. `null` for a step that is guarded
+ * or asserted, which this slice does not lower.
+ *
+ * @type {(v: Value, step: Step<Value>) => Value | null}
+ */
+const unstep = (v, step) => {
+    /** @type {Value | null} */
+    const head = step[0] === '|.' ? ['.', v, step[1]] : step[0] === '|()' ? ['()', v, step[1]] : null
+    return head === null || step.length === 2 ? head : unstep(head, step[2])
+}
+
+/**
+ * `o?.k`, and the steps after it, in a program that links L1: `undefined`
+ * where `o` is `undefined` or `null`, which short-circuits the whole chain,
+ * and else the read and the steps of `o` at its other kinds, named
+ * `o.value`. `o` is read once, where it stands.
+ *
+ * @type {(lowerValue: _LowerValue, scope: _Scope, receiver: Value, key: Key<Value>, step: Step<Value> | null) => Result<Term, string>}
+ */
+const guarded = (lowerValue, scope, receiver, key, step) => {
+    const r = lowerValue(scope, receiver)
+    if (r[0] === 'error') { return r }
+    return pure(scope, r[1], (s, x) => {
+        const no = refuse(s)
+        const t = typeOf(s.ir)(x)
+        if (t[0] === 'error') { return t }
+        // A float or a boolean is boxed, as JavaScript reads its members.
+        const y = asAny(t[1], x)
+        if (y === null) { return no(`?. of ${show(t[1])} is not in this slice`) }
+        const ty = t[1]
+        const held = ty[0] === 'sealed' ? ty[3] ?? kinds : [isFloat(ty) ? 'number' : 'boolean']
+        /** @type {readonly string[]} */
+        const nullish = held.filter(k => k === 'undefined' || k === 'null')
+        const others = held.filter(k => !nullish.includes(k))
+        const undefined_ = constant('Any', 'undefined')
+        if (others.length === 0) { return ok(undefined_) }
+        // A binding of no FAST binding stands for the receiver where it is no `undefined` or `null`.
+        const id = { index: -1 }
+        /** @type {Value} */
+        const first = ['.', ['ref', id], key]
+        const read = step === null ? first : unstep(first, step)
+        if (read === null) { return no('a guarded or asserted step after ?. is not in this slice') }
+        const base = localOf(x, '?.')
+        const binder = `${base}.value`
+        if (nullish.length === 0) { return lowerValue(standsFor(s, id, ['term', y]), read) }
+        const inner = standsFor({ ...s, ir: { ...s.ir, locals: [...s.ir.locals, [binder, only(any, ...others)]] } }, id, ['local', binder])
+        const body = lowerValue(inner, read)
+        return body[0] === 'error' ? body : ok(match(x, [[nullish, null, undefined_], [others, binder, body[1]]]))
+    })
+}
+
 /** @type {_LowerValue} */
 const value = (scope, v) => {
     const no = refuse(scope)
@@ -1330,40 +1542,62 @@ const value = (scope, v) => {
             const parts = values(value, scope, [v[1], v[2], v[3]])
             if (parts[0] === 'error') { return parts }
             const [left, right] = aligned(scope, parts[1][1], parts[1][2])
-            return ok(if_(parts[1][0], left, right))
+            return ok(if_(condition(scope, parts[1][0]), left, right))
         }
         case '()': { return callTerm(value, scope, v[1], v[2]) }
         case '-': {
-            return v.length === 3 ? binary(value, scope, sub, v[1], v[2])
-                : unary(value, scope, '-', v[1], (t, x) => t[0] === 'int' ? sub(n(0n), x) : isFloat(t) ? neg(x) : null)
+            /** @type {(t: Type, x: Term) => Term | null} */
+            const negative = (t, x) => t[0] === 'int' ? sub(n(0n), x) : isFloat(t) ? neg(x) : null
+            return v.length === 3 ? viaL1(value, scope, 'subtract', numeric, [v[1], v[2]], inOrder(sub)) ?? binary(value, scope, sub, v[1], v[2])
+                : viaL1(value, scope, 'negate', numeric, [v[1]], (xs, ts) => pickedOf(scope, '-', ts[0], xs[0], negative)) ?? unary(value, scope, '-', v[1], negative)
         }
-        case '+': { return v.length === 3 ? binary(value, scope, add, v[1], v[2]) : no('+ of one operand is not in this slice') }
-        case '!': { return unary(value, scope, '!', v[1], (t, x) => equal(t, bool) ? not(x) : null) }
+        case '+': { return v.length === 3 ? viaL1(value, scope, 'add', numeric, [v[1], v[2]], inOrder(add)) ?? binary(value, scope, add, v[1], v[2]) : no('+ of one operand is not in this slice') }
+        case '!': {
+            /** @type {(t: Type, x: Term) => Term | null} */
+            const negation = (t, x) => equal(t, bool) ? not(x) : null
+            return viaL1(value, scope, 'toBoolean', boolean, [v[1]], (xs, ts) => pickedOf(scope, '!', ts[0], xs[0], negation), not) ?? unary(value, scope, '!', v[1], negation)
+        }
+        case 'typeof': {
+            const f = l1Of(scope, 'typeOf')
+            return f === null ? no('typeof is not in this slice') : unary(value, scope, 'typeof', v[1], (t, x) => {
+                const y = asAny(t, x)
+                return y === null ? null : call('self', f, [y])
+            })
+        }
         case 'Number': { return unary(value, scope, 'Number', v[1], (t, x) => t[0] === 'int' ? float(x) : isFloat(t) ? x : null) }
-        case '*': { return binary(value, scope, mul, v[1], v[2]) }
-        case '/': { return binary(value, scope, div, v[1], v[2]) }
+        case '*': { return viaL1(value, scope, 'multiply', numeric, [v[1], v[2]], inOrder(mul)) ?? binary(value, scope, mul, v[1], v[2]) }
+        case '/': { return viaL1(value, scope, 'divide', numeric, [v[1], v[2]], inOrder(div)) ?? binary(value, scope, div, v[1], v[2]) }
         case '%': { return remainder(value, scope, v[1], v[2]) }
         case 'object': { return objectLiteral(value, scope, v[1]) }
         case 'array': { return arrayOf(value, scope, v[1]) }
+        case '?.': {
+            return l1Of(scope, 'get') === null ? no('?. is not in this slice') : guarded(value, scope, v[1], v[2], v.length === 4 ? v[3] : null)
+        }
         case '.': {
             const key = v[2]
             const m = scope.imported(v)
             // what the receiver names: a binding, or an import that a constant's term reads itself
             const from = !(v[1] instanceof Array) ? null : v[1][0] === 'ref' ? meaning(scope, v[1][1]) : scope.imported(v[1])
+            const g = getOf(scope)
+            const goes = v.length === 4 && l1Of(scope, 'get') !== null ? unstep(['.', v[1], key], v[3]) : null
             return m !== null ? named(scope, m)
                 : from !== null && from[0] === 'errors' ? errorOf(scope, from[1], v.length === 3 ? key : null)
+                : goes !== null ? value(scope, goes)
                 : v.length !== 3 ? no('a member read with a further step, such as a call of the member, is not in this slice')
-                : typeof key === 'string' ? unary(value, scope, `.${key}`, v[1], (t, x) => t[0] === 'product' ? fieldOf(x, key)
-                    : isAny(t) && exportsGet(scope) ? call('self', 'get', [x, lit(string, key)])
-                    : null)
+                : typeof key === 'string' ? unary(value, scope, `.${key}`, v[1], (t, x) => {
+                    if (t[0] === 'product') { return fieldOf(x, key) }
+                    // In a program, a float or a boolean is boxed for L1's `get`, as JavaScript reads its members.
+                    const y = g === null ? null : isAny(t) ? x : linking(scope) ? asAny(t, x) : null
+                    return y === null || g === null ? null : call('self', g, [y, lit(string, key)])
+                })
                 : indexed(value, scope, v[1], key)
         }
-        case '<': { return binary(value, scope, lt, v[1], v[2]) }
-        case '<=': { return binary(value, scope, le, v[1], v[2]) }
-        case '>': { return swapped(value, scope, lt, v[1], v[2]) }
-        case '>=': { return swapped(value, scope, le, v[1], v[2]) }
-        case '===': { return same(value, scope, v[1], v[2], false) }
-        case '!==': { return same(value, scope, v[1], v[2], true) }
+        case '<': { return viaL1(value, scope, 'lessThan', numeric, [v[1], v[2]], inOrder(lt)) ?? binary(value, scope, lt, v[1], v[2]) }
+        case '<=': { return viaL1(value, scope, 'lessThanOrEqual', numeric, [v[1], v[2]], inOrder(le)) ?? binary(value, scope, le, v[1], v[2]) }
+        case '>': { return viaL1(value, scope, 'greaterThan', numeric, [v[1], v[2]], flipped(lt)) ?? swapped(value, scope, lt, v[1], v[2]) }
+        case '>=': { return viaL1(value, scope, 'greaterThanOrEqual', numeric, [v[1], v[2]], flipped(le)) ?? swapped(value, scope, le, v[1], v[2]) }
+        case '===': { return viaL1(value, scope, 'strictEquals', comparable, [v[1], v[2]], (xs, ts) => ok(sameTerm(xs[0], xs[1], ts, false))) ?? same(value, scope, v[1], v[2], false) }
+        case '!==': { return viaL1(value, scope, 'strictEquals', comparable, [v[1], v[2]], (xs, ts) => ok(sameTerm(xs[0], xs[1], ts, true)), not) ?? same(value, scope, v[1], v[2], true) }
         default: { return no(`${v[0]} is not in this slice`) }
     }
 }
@@ -1555,6 +1789,96 @@ const ofConstant = made => made === undefined ? error('a constant that is read b
  */
 const keep = ([later, needed], c) => needed.includes(c[0]) ? [[c, ...later], [...needed, ...reads(c[1].value)]] : [later, needed]
 
+// programs
+
+/**
+ * The signature of an export of a program that the table does not name:
+ * each parameter, `p0` first, and the result, of `any`.
+ *
+ * @type {(f: FastFunction) => Signature}
+ */
+const untyped = f => signature(f.parameters.map((_, k) => /** @type {const} */ ([`p${k}`, any])), any)
+
+/** The name of a function or a constant of L1 in a program that links it: `l1.add`, `l1.#c0`. @type {(name: string) => string} */
+const linkedName = name => `l1.${name}`
+
+/**
+ * A term of L1 as a program that links L1 holds it: each function and
+ * constant of L1's own that it calls or reads by its linked name.
+ *
+ * @type {(t: Term) => Term}
+ */
+const linkedTerm = t => {
+    switch (t[0]) {
+        case 'let': { return ['let', t[1], linkedTerm(t[2]), linkedTerm(t[3])] }
+        case 'op': { return t[3] === undefined ? ['op', t[1], t[2].map(linkedTerm)] : ['op', t[1], t[2].map(linkedTerm), t[3]] }
+        case 'call': { return ['call', t[1], t[1] === 'self' ? linkedName(t[2]) : t[2], t[3].map(linkedTerm)] }
+        case 'code': { return ['code', linkedName(t[1])] }
+        case 'call_ref': { return ['call_ref', linkedTerm(t[1]), t[2].map(linkedTerm)] }
+        case 'make': { return ['make', t[1].map(([k, x]) => /** @type {const} */ ([k, linkedTerm(x)]))] }
+        case 'field': { return ['field', linkedTerm(t[1]), t[2]] }
+        case 'variant': { return ['variant', t[1], t[2], linkedTerm(t[3])] }
+        case 'match': { return ['match', linkedTerm(t[1]), t[2].map(([vs, b, x]) => /** @type {const} */ ([vs, b, linkedTerm(x)]))] }
+        case 'block': { return ['block', t[1], t[2], linkedTerm(t[3])] }
+        case 'loop': { return ['loop', t[1], t[2].map(([k, type, x]) => /** @type {const} */ ([k, type, linkedTerm(x)])), linkedTerm(t[3])] }
+        case 'br': { return ['br', t[1], linkedTerm(t[2])] }
+        case 'constant': { return t[1] === 'self' ? ['constant', 'self', linkedName(t[2])] : t }
+        default: { return t }
+    }
+}
+
+/** The functions and constants of the module's own that a term calls or reads, by their names. @type {(t: Term) => readonly string[]} */
+const uses = t => [
+    ...(t[0] === 'call' && t[1] === 'self' ? [t[2]] : t[0] === 'code' ? [t[1]] : t[0] === 'constant' && t[1] === 'self' ? [t[2]] : []),
+    ...terms(t).flatMap(uses),
+]
+
+/**
+ * A program that links L1, as one module
+ * ([slice 11](../todo/slices.md)): the program's functions and constants,
+ * and those of L1 that they call or read, themselves or through others of
+ * L1, each by its linked name, `l1.add`, L1's constants first, since a
+ * constant of the program may call L1. The program exports what it
+ * exports, and L1 nothing. Both import the runtime's interfaces, and a
+ * program that imports others than L1 does is refused.
+ *
+ * @type {(l1: Module) => (program: Module) => Result<Module, string>}
+ */
+export const link = l1 => program => {
+    const names = program.imports.map(([k]) => k).join(' ')
+    if (l1.imports.map(([k]) => k).join(' ') !== names) { return error(`L1 imports ${l1.imports.map(([k]) => k).join(' ')}, and the program ${names}`) }
+    /** @type {readonly (readonly [string, Fn])[]} */
+    const functions = l1.functions.map(([k, f]) => [linkedName(k), { ...f, body: linkedTerm(f.body) }])
+    /** @type {readonly (readonly [string, ConstantOf<Term>])[]} */
+    const constants = (l1.constants ?? []).map(([k, c]) => [linkedName(k), { type: c.type, value: linkedTerm(c.value) }])
+    /** @type {(name: string) => readonly string[]} */
+    const usesOf = name => {
+        const f = functions.find(([k]) => k === name)
+        const c = constants.find(([k]) => k === name)
+        return f !== undefined ? uses(f[1].body) : c !== undefined ? uses(c[1].value) : []
+    }
+    const own = program.constants ?? []
+    let todo = [...program.functions.flatMap(([, f]) => uses(f.body)), ...own.flatMap(([, c]) => uses(c.value))]
+    /** @type {readonly string[]} */
+    let reached = []
+    let k = 0
+    while (k < todo.length) {
+        const x = todo[Number(k)]
+        k = k + 1
+        if (!reached.includes(x)) {
+            reached = [...reached, x]
+            todo = [...todo, ...usesOf(x)]
+        }
+    }
+    const kept = reached
+    return ok({
+        imports: program.imports,
+        constants: [...constants.filter(([x]) => kept.includes(x)), ...own],
+        functions: [...program.functions, ...functions.filter(([x]) => kept.includes(x))],
+        exports: program.exports,
+    })
+}
+
 /**
  * L1's error table, from the normalized FAST of its module's text
  * ([`l1/error`](../../wasm/runtime/l1/error/module.f.js)): the export
@@ -1584,14 +1908,15 @@ export const errorTable = ({ exit }) => {
  * it: the specifiers by which it imports the L0 view and L1's native rows,
  * whose interfaces it then imports, and, where the module reads L1's error
  * table, its specifier and the table, which [`errorTable`](#errortable)
- * reads from its text; then the normalized FAST of the
+ * reads from its text, and, for a program, L1's plain stage, which
+ * [`link`](#link) merges into it; then the normalized FAST of the
  * module's text and its imports. The functions keep the order of the
  * exports. Each other definition of the module is a constant, named for
  * its place among them, `#c0` first, whose term reads the constants before
  * it; the module keeps those that the functions read, themselves or
  * through the constants that they read, in their order.
  *
- * @type {(signatures: Readonly<Record<string, Signature>>, runtime?: { readonly l0: string, readonly native: string, readonly errors?: { readonly specifier: string, readonly table: readonly (readonly [string, string])[] } } | null) => (fast: Block, imports?: readonly AstImport[]) => Result<Module, string>}
+ * @type {(signatures: Readonly<Record<string, Signature>>, runtime?: { readonly l0: string, readonly native: string, readonly errors?: { readonly specifier: string, readonly table: readonly (readonly [string, string])[] }, readonly l1?: Module } | null) => (fast: Block, imports?: readonly AstImport[]) => Result<Module, string>}
  */
 export const lower = (signatures, runtime = null) => ({ statements, exit }, imports = []) => {
     const table = Object.entries(signatures)
@@ -1617,18 +1942,26 @@ export const lower = (signatures, runtime = null) => ({ statements, exit }, impo
     const [defined, importOf] = globals(source, imports, [...statements, ...entries[1].flatMap(([, ss]) => ss)])
     /** @type {(b: BindingId) => _Global | undefined} */
     const globalOf = b => defined.find(([x]) => x === b)?.[1]
-    /** An export that the table names, as the function to lower and the binding that defines it, if one does. @type {(key: string, v: Value, s: Signature) => Result<readonly [string, FastFunction, Signature, BindingId | null], string>} */
+    const l1 = runtime === null ? null : runtime.l1 ?? null
+    /**
+     * An export that the table names, or in a program any export, as the
+     * function to lower, its signature, which an export that the table
+     * does not name has of `any` alone, and the binding that defines it,
+     * if one does.
+     *
+     * @type {(key: string, v: Value, s: Signature | null) => Result<readonly [string, FastFunction, Signature, BindingId | null], string>}
+     */
     const choose = (key, v, s) => {
-        if (v instanceof Array && v[0] === 'function') { return ok([key, v[1], s, null]) }
+        if (v instanceof Array && v[0] === 'function') { return ok([key, v[1], s ?? untyped(v[1]), null]) }
         const b = v instanceof Array && v[0] === 'ref' ? v[1] : null
         const g = b === null ? undefined : globalOf(b)
-        return b !== null && g !== undefined && g[0] === 'function' ? ok([key, g[1], s, b])
+        return b !== null && g !== undefined && g[0] === 'function' ? ok([key, g[1], s ?? untyped(g[1]), b])
             : g !== undefined && g[0] === 'refused' ? error(`${key}: ${g[1]}`)
             : error(`${key}: an export that is not a function is not in this slice`)
     }
     const chosen = okList(all.flatMap(([key, v]) => {
         const s = table.find(([k]) => k === key)
-        return s === undefined ? [] : [choose(key, v, s[1])]
+        return s !== undefined ? [choose(key, v, s[1])] : l1 === null ? [] : [choose(key, v, null)]
     }))
     if (chosen[0] === 'error') { return chosen }
     const lowered = chosen[1]
@@ -1655,7 +1988,13 @@ export const lower = (signatures, runtime = null) => ({ statements, exit }, impo
             : exported !== undefined ? error(`${exported[0]} has no signature`)
             : ok(['module', g[1]])
     }
-    const ir = { functions: table, imports: runtime === null ? [] : [...l0, /** @type {const} */ (['Native', native])] }
+    const ir = {
+        functions: [
+            ...lowered.map(([key, , s]) => /** @type {const} */ ([key, s])),
+            ...(l1 === null ? [] : l1.functions.map(([k, f]) => /** @type {const} */ ([linkedName(k), signature(f.params, f.result)]))),
+        ],
+        imports: runtime === null ? [] : [...l0, /** @type {const} */ (['Native', native])],
+    }
     /** The constants that the lowering made, and the next, which reads those. @type {(done: readonly _Lowered[], definition: readonly [BindingId, Value], k: number) => readonly _Lowered[]} */
     const addConstant = (done, [b, v], k) => [...done, [b, lowerConstant({ ...ir, constants: typesOf(done) }, captureIn(done), importOf)(`#c${k}`, v)]]
     const done = defined.flatMap(([b, g]) => g[0] === 'constant' ? [/** @type {const} */ ([b, g[1]])] : []).reduce(addConstant, [])
@@ -1663,5 +2002,7 @@ export const lower = (signatures, runtime = null) => ({ statements, exit }, impo
     const functions = okList(lowered.map(([key, f, s]) => lowerFn({ ...ir, constants: typesOf(done) }, capture)([key, f, s])))
     if (functions[0] === 'error') { return functions }
     const [constants] = done.flatMap(([, r]) => r[0] === 'ok' ? [r[1]] : []).reduceRight(keep, [[], functions[1].flatMap(([, f]) => reads(f.body))])
-    return ok({ imports: ir.imports, constants, functions: functions[1], exports: lowered.map(([key]) => key) })
+    /** @type {Module} */
+    const m = { imports: ir.imports, constants, functions: functions[1], exports: lowered.map(([key]) => key) }
+    return l1 === null ? ok(m) : link(l1)(m)
 }
