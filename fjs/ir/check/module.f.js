@@ -627,7 +627,8 @@ const unkept = (env, t) => isNever(t) ? 'a constant of never holds no value' : u
  * value of the type and answers `int(0, n - 1)`, one tag for each of its
  * `n` variants, a counted type names both of its counting functions: a
  * `dup` that borrows a value and answers one of the type, and a `drop` that
- * owns one and answers `unit`, and a function that gives back a parameter
+ * owns one and answers `unit`, only a counted type names copy variants,
+ * each a variant of it, once, and a function that gives back a parameter
  * owns it, and the parameter is of the type of its result, and a function
  * that answers `never` may fail.
  *
@@ -653,6 +654,8 @@ const checkInterface = imports => ([name, { types, constants = [], functions }])
     const untagged = types.find(([type, { variants, kind }]) => kind !== undefined && !takes(kind, type, false, int(0n, BigInt(variants.length - 1))))
     const half = types.find(([, { dup, drop }]) => (dup === undefined) !== (drop === undefined))
     const unmaking = types.find(([, { variants, literal }]) => literal !== undefined && !variants.includes(literal.variant))
+    const uncounted = types.find(([, { dup, copy }]) => dup === undefined && copy !== undefined)
+    const miscopied = types.find(([, { variants, copy = [] }]) => copy.some((v, k) => !variants.includes(v) || copy.indexOf(v) !== k))
     const miscounted = types.find(([type, { dup, drop }]) => dup !== undefined && drop !== undefined && !(takes(dup, type, false, ['sealed', name, type, null]) && takes(drop, type, true, unit)))
     const unreturned = functions.find(([, { params, result, returns }]) => returns !== undefined && !params.some(p => p[0] === returns && isOwn(p) && equal(p[1], result)))
     const silent = functions.find(([, { result, fails }]) => isNever(result) && fails !== true)
@@ -665,6 +668,8 @@ const checkInterface = imports => ([name, { types, constants = [], functions }])
         : untagged !== undefined ? `${name}: ${untagged[1].kind} does not answer the tag of ${untagged[0]}, one for each of its variants`
         : half !== undefined ? `${name}: ${half[0]} names ${half[1].dup === undefined ? 'a drop and no dup' : 'a dup and no drop'}, and a counted type names both`
         : unmaking !== undefined ? `${name}: ${unmaking[0]}'s literals hold ${unmaking[1].literal?.variant}, which is none of its variants`
+        : uncounted !== undefined ? `${name}: ${uncounted[0]} names copy variants, and only a counted type has them`
+        : miscopied !== undefined ? `${name}: ${miscopied[0]}'s copy variants are its variants, each once`
         : miscounted !== undefined ? `${name}: ${miscounted[0]}'s dup borrows a value of the type and answers one, and its drop owns one and answers unit`
         : unreturned !== undefined ? `${name}: ${unreturned[0]} gives back ${unreturned[1].returns}, which is no parameter that it owns of the type of its result`
         : silent !== undefined ? `${name}: ${silent[0]} answers never, so it fails, and it does not say that it may`

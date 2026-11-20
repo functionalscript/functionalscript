@@ -747,8 +747,9 @@ The slices take up the recommendation of open questions 2 to 8: the
 lowering reads normalized FAST, interfaces come first, `next`, `return_`
 and `throw_` are spellings, a cast always tests, a builder is linear, a
 `lazy` definition is refused, and a loop counter is an `f64` read by
-`exact`. Copy variants, the second half of question 6, wait for the item
-after slice 10 in [slices.md](../../../fjs/ir/todo/slices.md#later). For
+`exact`. Copy variants, the second half of question 6, came after
+slice 10 ([slices.md](../../../fjs/ir/todo/slices.md#later)): Any names
+`undefined`, `null` and `boolean`. For
 question 10 the owner chose `fjs/ir` on 2026-11-13.
 Questions 1 and 9 are open.
 

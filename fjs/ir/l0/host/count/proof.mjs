@@ -82,15 +82,30 @@ export const proof = {
         const { undefined: u, null: n, true: t, false: f } = h.imports
         assertEq([u, n, t, f].map(g => `${g.value}:${String(h.read(g.value))}`).join(), '-1:undefined,-2:null,-3:true,-4:false')
         assertEq(cells(h), '0:1')
-        h.imports.dup(-2n)
-        assertEq(cells(h), '0:1,-2:2')
-        h.imports.drop(-2n)
         const s = h.imports.from_unit(0x61)
         h.keep()
         assertEq(cells(h), '')
         h.imports.drop(s)
         h.imports.dup(0n)
         assertEq(cells(h), `0:2,${s}:0`)
+    },
+    // Any's copy variants are not counted: a value made of one is the constant's own cell, a first cell that holds one is
+    // kept from the start, and a dup, a drop, a push or a throw of such a cell leaves its count.
+    copy: () => {
+        const h = counting([true, null, 'a'])
+        assertEq(cells(h), '2:1')
+        assertEq([h.imports.from_bool(1), h.imports.from_bool(0), h.own(undefined), h.own(null)].join(), '-3,-4,-1,-2')
+        assertEq([h.imports.dup(0n), h.imports.dup(-1n)].join(), '0,-1')
+        h.imports.drop(1n)
+        h.imports.drop(-3n)
+        h.imports.drop(-3n)
+        const b = h.imports.begin_array(2)
+        h.imports.push(b, 0n)
+        h.imports.push(b, -2n)
+        const a = h.imports.seal(b)
+        assertEq(`${JSON.stringify(h.read(a))} ${h.read(0n)} ${cells(h)}`, `[true,null] true 2:1,${a}:1`)
+        h.imports.throw(-4n)
+        assertEq(`${h.has_thrown()} ${h.read(h.thrown())} ${cells(h)}`, `1 false 2:1,${a}:1`)
     },
     // The memory holds a module's data segments at data_base, past bytes that the host keeps, and make_string makes a cell
     // of the UTF-16 units at an address, the low byte of each first.

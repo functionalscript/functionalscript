@@ -285,13 +285,30 @@ Owner chose option A on each of four choices.
 
 #### Later
 
-- [ ] **Copy variants of `any`** (after 10). Any marks `undefined`, `null`
+- [x] **Copy variants of `any`** (after 10). Any marks `undefined`, `null`
   and `boolean` as needing no release, as
   [definition.md's open question 6](../../../doc/sasha-gil/ir/definition.md#open-questions)
   recommends, so the lifetime pass writes no `dup` or `drop` of a value
   that holds only those kinds, such as Any's constants. It changes no
-  answer, only counts, so it waits until the whole L1 module shows what it
-  saves.
+  answer, only counts. Choices:
+  - **An interface names them.** A sealed type's `copy` lists variants of
+    it, each once, and only a counted type may list any: the checker
+    refuses the rest. A subset of the type is copy when each of its
+    variants is listed; `any` itself is still counted.
+  - **Both stages agree.** The lifetime pass binds a copy value as it
+    binds a float, so it writes no `dup` and no `drop` of it, and the
+    owned-stage check takes a copy value where a parameter owns its
+    argument, as nothing owns it.
+  - **The counting host makes them immediates.** A value that it makes of
+    one is the constant's own cell, `-1` to `-4`, a first cell that holds
+    one is kept, and a `dup` or a `drop` of one leaves its count, as a
+    drop of a wider type that holds a copy value does nothing.
+  - **A number is not copy.** The counting host keeps a number in a cell
+    of its own, as `from_f64` makes one, so it stays counted until a
+    runtime says that a float is an immediate.
+  - **What it saves.** In the whole L1 module, 7 of 90 `Any.dup` calls go,
+    each of a constant, and none of its 157 `Any.drop` calls: a value of
+    `any` that L1 drops may hold any kind.
 - [ ] **Programs** (11). Operators and member reads on unknown types as
   calls of L1, `get` among them, closures as values, and a program as one
   module linked with L1. Spread in array and object literals, moved here

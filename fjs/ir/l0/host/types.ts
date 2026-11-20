@@ -86,7 +86,7 @@ export type Imports = {
 }
 
 /**
- * A host that counts every value: its imports, the value that a handle
+ * A host that counts every counted value: its imports, the value that a handle
  * names, `keep`, which keeps every cell alive at its count, and the cells
  * that are not as they were kept, each a handle and its count, in the order
  * they were made: a cell alive that is not kept, and a kept one at another
@@ -98,6 +98,11 @@ export type Imports = {
  * value, `thrown` a handle of a new cell of it, which the caller owns, and
  * `recover` frees what the trap abandoned, and answers the cells that it
  * freed, each a handle and the counts it took away.
+ *
+ * A copy value, `undefined`, `null` or a boolean, is not counted: where an
+ * import, `own` or `thrown` would make a new cell of one, it answers the
+ * handle of Any's constant that holds it, `-1` to `-4`, which no one owns,
+ * and a `dup` or a `drop` of a cell that holds one leaves its count.
  */
 export type Counting = {
     readonly imports: Imports
@@ -105,7 +110,7 @@ export type Counting = {
     readonly thrown: () => bigint
     readonly recover: () => readonly (readonly [handle: bigint, count: number])[]
     readonly read: (h: bigint) => unknown
-    /** A cell of `value`, counted once, which the caller owns. */
+    /** A cell of `value`, counted once, which the caller owns; for a copy value, its constant's handle. */
     readonly own: (value: unknown) => bigint
     /**
      * Keep a FunctionalScript throw the way `Functions.call` does when a
