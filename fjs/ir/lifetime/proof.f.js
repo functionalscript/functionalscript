@@ -180,6 +180,15 @@ export const proof = {
             'fn f(own b: any.only(boolean, null)) -> unit =',
             '    Lin.both(b, b)',
         ]),
+        // An arm that narrows a counted operand to copy variants names a copy value, which needs no copy either.
+        copyArm: () => golden(module_([['v', any]], unit, match(get('v'), [[['boolean'], 'b', call('Lin', 'both', [get('b'), get('b')])], [null, null, none]])), [
+            'fn f(v: any) -> unit =',
+            '    match v',
+            '      boolean as b =>',
+            '        Lin.both(b, b)',
+            '      else =>',
+            '        {}',
+        ]),
         // A `call_ref` of a `code` value is an indirect call; nothing is counted for the code itself.
         callRef: () => golden({
             imports: l0,

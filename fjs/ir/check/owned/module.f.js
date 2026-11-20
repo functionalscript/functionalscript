@@ -34,7 +34,8 @@
  * - **A copy value is plain.** A value of a sealed type whose variants its
  *   interface names as copy is neither owned nor borrowed, as a float is,
  *   so it needs no `dup` and no `drop`, and a parameter that owns its
- *   argument takes it.
+ *   argument takes it. So is the name of an arm of a `match` that narrows
+ *   its operand to copy variants.
  * - **A `match` lends its operand**, and the name of an arm is a borrow of
  *   it. A product holds borrows only, and no parameter of a loop is a
  *   product that holds a counted value. A product's borrow leans on every
@@ -296,7 +297,10 @@ const matchTerm = (walk, env, alive, mode, operand, arms) => {
     const { next, value, exits } = o[1]
     if (next === null) { return ok(out(null, plain, exits)) }
     const lent = localOf(value)
-    const bodies = okList(arms.map(([, binder, body]) => walk(binder === null ? env : { ...env, locals: setReplace(binder)(lent)(env.locals) }, next, body, mode)))
+    const [of] = operand
+    /** An arm's name borrows the operand, or is plain where the arm narrows it to copy variants. @type {(variants: readonly string[]) => _Local} */
+    const named = variants => of[0] === 'sealed' && !holds(env.imports)(['sealed', of[1], of[2], variants]) ? ['plain'] : lent
+    const bodies = okList(arms.map(([variants, binder, body]) => walk(binder === null ? env : { ...env, locals: setReplace(binder)(named(variants))(env.locals) }, next, body, mode)))
     if (bodies[0] === 'error') { return bodies }
     const j = join(bodies[1].flatMap(x => x.next === null ? [] : [/** @type {const} */ ([x.next, x.value])]))
     const all = [...exits, ...bodies[1].flatMap(x => x.exits)]
