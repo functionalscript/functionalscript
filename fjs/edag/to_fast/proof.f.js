@@ -53,6 +53,34 @@ export const _snapshotCases = () => {
 }
 
 export const proof = {
+    // A named import is its module's computations, then the export it
+    // selects. Once those are bound, reading them again does nothing, so the
+    // selection is the export alone. A computation still deferred is
+    // evaluated by that read, and stays.
+    establishedAnchorsAreNotReadAgain: () => {
+        /** @type {Exp} */
+        const made = ['()', ['=>', 0, [], ['[]', [7]]], []]
+        /** @type {Exp} */
+        const exported = ['{}', [[':', 'a', made]]]
+        /** @type {Exp} */
+        const selections = ['[]', [exported, [',', [exported, made]], [',', [exported, 2]]]]
+        const block = assertOk(toFast(selections))
+        const [values] = /** @type {Extract<Block['exit'], readonly ['yield', unknown]>} */ (block.exit)[1]
+        const [, first, second] = /** @type {readonly unknown[]} */ (/** @type {Extract<Value, readonly ['array', unknown]>} */ (values)[1])
+        // the module's object is bound once, before; neither selection is a block that reads it
+        assertEq(/** @type {readonly unknown[]} */ (first)[0], 'ref')
+        assertEq(second, 2)
+        // the graph read back has no comma left, and evaluates to the same value
+        for (const graph of [selections, fromFast(block)]) {
+            assertStructurallySame(assertOk(toData(assertOk(memo(assertOk(identityAnalysis(graph)))({ args: [] })))), [{ a: [7] }, [7], 2])
+        }
+        /** @type {Exp} */
+        const deferred = ['=>', 1, [], ['[]', [['?:', ['arg', 0], [',', [made, 1]], 3], ['?:', ['arg', 0], [',', [made, 2]], 4]]]]
+        roundTrip(deferred)
+        for (const [argument, expected] of /** @type {const} */ ([[true, [1, 2]], [false, [3, 4]]])) {
+            assertStructurallySame(assertOk(toData(assertOk(memo(assertOk(identityAnalysis(['()', fromFast(assertOk(toFast(deferred))), [argument]])))({ args: [] })))), expected)
+        }
+    },
     snapshotsKeepEarlierLazyDependencies: () => {
         for (const initial of _snapshotCases()) {
             const expected = assertOk(toData(assertOk(vm({ frame: [], args: [] })(initial))))

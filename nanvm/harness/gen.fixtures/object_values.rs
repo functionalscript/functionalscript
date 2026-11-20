@@ -61,8 +61,5 @@ pub fn module<A: IStaticFunction>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let _b61: Any<A> = (Any::dot(_b5.clone(), f64_any(0x4000000000000000)).end())?;
     let _b67: Any<A> = [[(string_key("kept"), f64_any(0x401c000000000000))].to_object().to_any(), ((f64_any(0x0000000000000000) * f64_any(0x4024000000000000))? + f64_any(0x3ff0000000000000))?].to_array().to_any();
     let _b71: Any<A> = [f64_any(0x0000000000000000), (((Any::dot(_b67.clone(), f64_any(0x3ff0000000000000)).end())? * f64_any(0x4024000000000000))? + f64_any(0x4000000000000000))?].to_array().to_any();
-    Ok([(string_key("default"), [_b17.clone(), _b18.clone(), _b20.clone(), _b22.clone(), _b25.clone(), _b27.clone(), _b43.clone(), _b55.clone(), [_b57.clone(), _b60.clone(), (strict_eq(_b61.clone(), _b3.clone()))?].to_array().to_any(), {
-        let _b9234: Any<A> = _b71.clone();
-        [(Any::call(_b0.clone(), [(Any::dot(_b67.clone(), f64_any(0x0000000000000000)).end())?, (Any::dot(_b71.clone(), f64_any(0x0000000000000000)).end())?].to_array().to_any()))?, (Any::dot(_b71.clone(), f64_any(0x3ff0000000000000)).end())?].to_array().to_any()
-    }].to_array().to_any())].to_object().to_any())
+    Ok([(string_key("default"), [_b17.clone(), _b18.clone(), _b20.clone(), _b22.clone(), _b25.clone(), _b27.clone(), _b43.clone(), _b55.clone(), [_b57.clone(), _b60.clone(), (strict_eq(_b61.clone(), _b3.clone()))?].to_array().to_any(), [(Any::call(_b0.clone(), [(Any::dot(_b67.clone(), f64_any(0x0000000000000000)).end())?, (Any::dot(_b71.clone(), f64_any(0x0000000000000000)).end())?].to_array().to_any()))?, (Any::dot(_b71.clone(), f64_any(0x3ff0000000000000)).end())?].to_array().to_any()].to_array().to_any())].to_object().to_any())
 }
