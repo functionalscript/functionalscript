@@ -333,6 +333,9 @@ const blockExpression = (expression, renderBlock, context, input) => {
         : `(()=>{${renderBlock(context, block, 'return')}})()`
 }
 
+/** The key of a reference: the text between its two `\\u0000`. @type {(reference: string) => string} */
+const keyOf = reference => reference.slice(1, -1)
+
 /**
  * A body written under names of its own for what it captures, rewritten to
  * read the captured names in place, or `null` where that would change what
@@ -349,12 +352,10 @@ const blockExpression = (expression, renderBlock, context, input) => {
  */
 const inPlace = (text, from, to) => {
     const parts = text.split('\u0000')
-    /** @type {(reference: string) => string} */
-    const key = reference => reference.slice(1, -1)
-    const keys = from.map(key)
+    const keys = from.map(keyOf)
     const first = keys.map(key => parts.findIndex((part, index) => index % 2 === 1 && part === key))
     if (first.some((at, index) => at === -1 || index !== 0 && at < first[Number(index - 1)])) { return null }
-    const replacements = to.map(key)
+    const replacements = to.map(keyOf)
     return parts.map((part, index) => {
         const slot = index % 2 === 1 ? keys.indexOf(part) : -1
         return slot === -1 ? part : replacements[Number(slot)]
