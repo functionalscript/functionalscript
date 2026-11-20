@@ -163,7 +163,12 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
     })
     const rootContext = { target: /** @type {FunctionTarget} */ ({ kind: 'function', index: -1 }), parameters: invocation.parameters ?? generate(Math.max(0, ...a.nodes.map(node => node[0] === 'arg' ? node[1] + 1 : 0)), index => ({ index: -32 - index })), rest: invocation.rest ?? { index: -1 }, self: invocation.self ?? { index: -2 }, captures: invocation.captures ?? generate(Math.max(0, ...a.nodes.map(node => node[0] === 'frame' ? node[1] + 1 : 0)), index => ({ index: -64 - index })), loop: { index: -3 }, result: { index: -4 } }
     /** @type {(context: Context, bound: PersistentSet<number>, roots: readonly Operand[], done: Done<Block>) => Work} */
-    const region = (context, bound, roots, done) => () => {
+    const region = (context, bound, given, done) => () => {
+        // A root before the last is evaluated for what it does, and a read
+        // of a node already bound required does nothing. A deferred one is
+        // evaluated by its read, and a literal is kept as written.
+        const roots = given.filter((root, position) => position === given.length - 1
+            || !(root instanceof Array) || !has(root[1])(bound) || context.deferred.includes(root[1]))
         /** @type {(context: Context, bound: PersistentSet<number>, value: Operand, done: Done<Value>) => Work} */
         const valueOf = (context, bound, value, done) => () => {
             if (!(value instanceof Array)) { return deliver(done, value) }
@@ -195,7 +200,7 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
                         functionOf(context, addAll(bound, captures), i, fn => deliver(done, statements.length === 0 ? ['function', fn]
                             : ['block', { statements, exit: ['yield', [['function', fn]]] }])))
                 }
-                case ',': { return region(context, bound, node[1], block => deliver(done, ['block', block])) }
+                case ',': { return region(context, bound, node[1], block => deliver(done, block.statements.length === 0 && block.exit[0] === 'yield' ? block.exit[1][0] : ['block', block])) }
                 case 'throw': { return valueOf(context, bound, node[1], value => deliver(done, ['block', { statements: [], exit: ['throw', value] }])) }
                 case '?:': {
                     return valueOf(context, bound, node[1], condition => region(context, bound, [node[2]], then => region(context, bound, [node[3]], otherwise => deliver(done, ['if', condition, then, otherwise]))))
@@ -342,15 +347,16 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
                 ...plan.binding === null ? [] : [{ ...plan, binding: plan.binding, mode: /** @type {const} */ ('required') }]]
             placed = addAll(placed, [...needed, ...plan.own === null ? [] : [plan.own]])
         }
-        return gather(plans, (plan, _, next) => valueOf(localContext, plan.own === null ? available : remove(plan.own)(available), plan.value, value => deliver(next, /** @type {Statement} */ (['define', plan.binding, value, plan.mode]))), statements => roots.length === 0
+        const inner = { ...localContext, deferred: [...context.deferred, ...lazy] }
+        return gather(plans, (plan, _, next) => valueOf(inner, plan.own === null ? available : remove(plan.own)(available), plan.value, value => deliver(next, /** @type {Statement} */ (['define', plan.binding, value, plan.mode]))), statements => roots.length === 0
             ? deliver(done, { statements, exit: ['yield', [undefined]] })
-            : valueOf(localContext, available, roots[Number(roots.length - 1)], value => deliver(done, { statements, exit: ['yield', [value]] })))
+            : valueOf(inner, available, roots[Number(roots.length - 1)], value => deliver(done, { statements, exit: ['yield', [value]] })))
     }
 
     /** Placement and terminal eligibility are shared by naming and emission. @type {(i: number, functions: Context['functions'], done: Done<_FunctionBody>) => Work} */
     const functionBody = (i, functions, done) => () => {
         const node = /** @type {Extract<Node, readonly ['=>', number, readonly Operand[], Operand]>} */ (a.nodes[Number(i)])
-        const context = /** @type {Context} */ ({ ...contexts[Number(i)], functions, regions: [] })
+        const context = /** @type {Context} */ ({ ...contexts[Number(i)], functions, regions: [], deferred: [] })
         const parts = loopOf(a, i)
         const loop = parts !== null && !keepsRecursion(a, i, parts) ? parts : null
         if (loop !== null) {
@@ -404,7 +410,7 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
     /** Graph entries are in operand postorder, including nested function bodies. @type {(index: number, functions: Context['functions']) => Work} */
     const prepareFunctions = (index, functions) => () => {
         if (index === count) {
-            return region({ ...rootContext, functions, regions: [] }, fromValues(external.map(([index]) => index)), [a.root], terminal)
+            return region({ ...rootContext, functions, regions: [], deferred: [] }, fromValues(external.map(([index]) => index)), [a.root], terminal)
         }
         return a.nodes[Number(index)][0] === '=>'
             ? functionBody(index, functions, body => prepareFunctions(index + 1, setReplace(String(index))(body)(functions)))
