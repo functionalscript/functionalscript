@@ -119,5 +119,7 @@ and the same data is a data segment in WebAssembly.
 - [Host values](../../../fjs/edag/todo/host-values.md) — what an evaluated
   module's value is, which is what would be written.
 - [Reduce `Rc` clones](./087-reduce-rc-clone.md).
+- [Allocation-free calls](./allocation-free-calls.md) — what still
+  allocates once constants are static: a call's arguments and a closure.
 - [Optimal NaNVM](./optimal-nanvm.md) — the packed representation a static
   reference has to fit.
