@@ -94,7 +94,9 @@
  *   ([definition.md: One effect](../../../doc/sasha-gil/ir/definition.md#one-effect)):
  *   `throw`, `call`, and the functions that trap where the view throws, which
  *   definition.md marks: String's `unit` and `substring`, and Containers'
- *   `item`, `push`, `push_property`, `seal` and `join`. Every other function
+ *   `item`, `push`, `push_property`, `seal` and `join`, and Functions'
+ *   `frame`, which traps for a function that `make_function` did not make
+ *   or past its frame, as `item` does past its end. Every other function
  *   of L0 completes on the values of its parameters' types.
  *
  * @module
@@ -239,7 +241,7 @@ const functions = [
     ['call', mayFail(signature([['f', func], ['args', array]], any))],
     ['text', signature([['f', func]], text)],
     ['throw', mayFail(signature([own('v', any)], never))],
-    ['frame', signature([['self', func], ['i', index]], any)],
+    ['frame', mayFail(signature([['self', func], ['i', index]], any))],
 ]
 
 /**

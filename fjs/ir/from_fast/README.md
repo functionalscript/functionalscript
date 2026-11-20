@@ -405,6 +405,8 @@ called stays inlined.
 | a capture that reads a value of the function around it | `Functions.frame(#self, k)`, in a local first |
 | a parameter | `Containers.item(#args, j)`, `Any.undefined` past the length of `#args`, in a local first |
 | a capture of something of the module, or of a capture that stands for one | what it stands for in the module: a function that it inlines or a constant |
+| a function that a function defines, read as a value | the value made once where it is defined, in a local, left out where nothing reads it, so that `g === g` holds |
+| a function of the module that it does not export, read as a value | the module's constant `#vK` of its value, which `init` makes |
 
 A function value has no text yet: L0's `text` of one answers `undefined`.
 A function as a value with a rest parameter waits for

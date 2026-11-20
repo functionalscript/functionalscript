@@ -340,7 +340,10 @@ Owner chose option A on each of four choices.
     the code reads each by L0's new `frame(self, i)`, each parameter as an
     item of `#args`, `undefined` past its length, and each other capture
     as what it stands for in the module. A function that is only called
-    stays inlined. The emitter exports the table as `table`, and the
+    stays inlined. A function read as a value is one value at each read,
+    as JavaScript's `===` tells: one that a function defines is made where
+    it is defined, and one of the module that it does not export is a
+    constant of the module that `init` makes. The emitter exports the table as `table`, and the
     checker refuses an export of that name. The counting host's
     `make_function` makes a JavaScript function that calls the code
     through that table, and its `frame` reads the frame. Proved by the

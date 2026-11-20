@@ -23,6 +23,7 @@ export type _Meaning =
     | readonly ['term', Term]
     | readonly ['function', name: string]
     | readonly ['inline', FastFunction]
+    | readonly ['closure', FastFunction, name: string]
     | readonly ['module', FastFunction]
     | readonly ['op', OpName]
     | readonly ['l0', name: string]
@@ -66,12 +67,14 @@ export type _Context = {
 
 /**
  * A function of FAST that a program makes as a value: the name of its
- * lifted code, what each of its captures that reads no value of the
+ * lifted code, the module's constant that holds its one value where it is
+ * a function of the module, what each of its captures that reads no value of the
  * function around it stands for, and the captures that do, in the order of
  * its frame.
  */
 export type _Closure = {
     readonly code: string
+    readonly shared: string | null
     readonly statics: readonly (readonly [BindingId, _Meaning])[]
     readonly frame: readonly Capture[]
 }

@@ -499,6 +499,31 @@ const sequence = (lowerStatement, lowerValue, lowerBlock, scope, statements, tai
     return lowerStatement(lowerValue, lowerBlock, scope, s, tail, next => sequence(lowerStatement, lowerValue, lowerBlock, next, more, tail, rest))
 }
 
+/** Whether a term reads the local `name`. @type {(name: string) => (t: Term) => boolean} */
+const readsLocal = name => t => (t[0] === 'get' && t[1] === name) || terms(t).some(readsLocal(name))
+
+/**
+ * A function that a function defines, `b`: inlined where it is called. In
+ * a program, its value is made where it is defined, in a local that each
+ * read of it as a value reads, so that each read is the same function, as
+ * in JavaScript, and the `let` is left out where nothing reads it. A
+ * function whose value the lowering refuses, such as one that calls
+ * itself, stays one that is only called, and a read of it as a value is
+ * refused there.
+ *
+ * @type {(lowerValue: _LowerValue, scope: _Scope, b: BindingId, f: readonly ['function', FastFunction], rest: (scope: _Scope) => Result<Term, string>) => Result<Term, string>}
+ */
+const defineFunction = (lowerValue, scope, b, f, rest) => {
+    const inlined = f[1]
+    const made = scope.closureOf(inlined) === null ? null : lowerValue(scope, f)
+    if (made === null || made[0] === 'error') { return rest(standsFor(scope, b, ['inline', inlined])) }
+    const { ir, depth } = scope
+    const name = `#${depth}`
+    const body = rest(standsFor({ ...scope, ir: { ...ir, locals: [...ir.locals, [name, func]] }, depth: depth + 1 }, b, ['closure', inlined, name]))
+    if (body[0] === 'error') { return body }
+    return ok(readsLocal(name)(body[1]) ? let_(name, made[1], body[1]) : body[1])
+}
+
 /** @type {(lowerValue: _LowerValue, lowerBlock: _LowerBlock, scope: _Scope, s: Statement, tail: _Tail, rest: (scope: _Scope) => Result<Term, string>) => Result<Term, string>} */
 const statement = (lowerValue, lowerBlock, scope, s, tail, rest) => {
     const no = refuse(scope)
@@ -510,7 +535,7 @@ const statement = (lowerValue, lowerBlock, scope, s, tail, rest) => {
             const [around, f] = unwrapped(v)
             if (f instanceof Array && f[0] === 'function') {
                 const [, inlined] = f
-                return sequence(statement, lowerValue, lowerBlock, scope, around, tail, next => rest(standsFor(next, b, ['inline', inlined])))
+                return sequence(statement, lowerValue, lowerBlock, scope, around, tail, next => defineFunction(lowerValue, next, b, f, rest))
             }
             const op = staticOf(v)
             if (op !== null) { return rest(standsFor(scope, b, ['op', op])) }
@@ -1332,7 +1357,8 @@ const callTerm = (lowerValue, scope, callee, items) => {
     switch (m[0]) {
         case 'l0': { return viewCall(lowerValue, scope, m[1], vs) }
         case 'native': { return nativeCall(lowerValue, scope, m[1], vs) }
-        case 'inline': { return inline(lowerValue, scope, m[1], vs, local(scope)) }
+        case 'inline':
+        case 'closure': { return inline(lowerValue, scope, m[1], vs, local(scope)) }
         case 'module': { return inline(lowerValue, scope, m[1], vs, scope.module) }
         default: {
             const xs = values(lowerValue, scope, vs)
@@ -1416,6 +1442,19 @@ const lift = (lowerValue, scope, f) => {
 }
 
 /**
+ * A function of the module that it does not export, as a value: in a
+ * program, the module's constant that holds its one value, which `init`
+ * makes, so that each read of it is the same function, as in JavaScript.
+ *
+ * @type {(lowerValue: _LowerValue, scope: _Scope, f: FastFunction) => Result<Term, string>}
+ */
+const shared = (lowerValue, scope, f) => {
+    const made = lift(lowerValue, scope, f)
+    const name = scope.closureOf(f)?.shared ?? null
+    return made[0] === 'error' || name === null ? made : ok(constant('self', name))
+}
+
+/**
  * The term of what a value names: a binding, or an import that a
  * constant's term reads. A tag of the L0 view is its float. A function
  * that the function defines, or one of the module that it does not export,
@@ -1432,7 +1471,9 @@ const named = (lowerValue, scope, m) => {
         : m[0] === 'refused' ? no(m[1])
         : tag !== undefined ? ok(lit(f64c, tag[1]))
         : m[0] === 'errors' ? no("L1's error table as a value is not in this slice: a term reads one of its errors")
-        : m[0] === 'inline' || m[0] === 'module' ? lift(lowerValue, scope, m[1])
+        : m[0] === 'closure' ? ok(get(m[2]))
+        : m[0] === 'inline' ? lift(lowerValue, scope, m[1])
+        : m[0] === 'module' ? shared(lowerValue, scope, m[1])
         : no('a function as a value is not in this slice')
 }
 
@@ -1885,11 +1926,12 @@ const functionsIn = x => {
  * capture of a function inside one stands for what the capture that it
  * reads stands for, where that one stands for something of the module;
  * any other capture reads a value of the function around it, so it is an
- * item of the frame.
+ * item of the frame. A function of the module in `shared` has a constant
+ * of the module, `#v` and its place, that holds its one value.
  *
- * @type {(module: (v: Value) => Result<_Meaning, string>, tops: readonly FastFunction[], root: unknown) => readonly (readonly [FastFunction, _Closure])[]}
+ * @type {(module: (v: Value) => Result<_Meaning, string>, tops: readonly FastFunction[], shared: readonly FastFunction[], root: unknown) => readonly (readonly [FastFunction, _Closure])[]}
  */
-const closuresOf = (module, tops, root) => {
+const closuresOf = (module, tops, shared, root) => {
     const all = functionsIn(root)
     const fns = all.filter((f, k) => all.indexOf(f) === k)
     /** @type {(done: readonly (readonly [BindingId, _Meaning])[], f: FastFunction) => readonly (readonly [BindingId, _Meaning])[]} */
@@ -1903,6 +1945,7 @@ const closuresOf = (module, tops, root) => {
     const statics = fns.reduce(add, [])
     return fns.map((f, k) => /** @type {const} */ ([f, {
         code: `#f${k}`,
+        shared: shared.includes(f) ? `#v${k}` : null,
         statics: statics.filter(([b]) => f.captures.some(({ binding }) => binding === b)),
         frame: f.captures.filter(({ binding }) => !statics.some(([b]) => b === binding)),
     }]))
@@ -2131,11 +2174,12 @@ export const lower = (signatures, runtime = null) => ({ statements, exit }, impo
             : ok(['module', g[1]])
     }
     const interfaces = runtime === null ? [] : [...l0, /** @type {const} */ (['Native', native])]
-    const tops = [...lowered.map(([, f]) => f), ...defined.flatMap(([, g]) => g[0] === 'function' ? [g[1]] : [])]
+    const unexported = defined.flatMap(([, g]) => g[0] === 'function' ? [g[1]] : [])
+    const tops = [...lowered.map(([, f]) => f), ...unexported]
     /** @type {(done: readonly _Lowered[]) => (v: Value) => Result<_Meaning, string>} */
     const moduleIn = done => ofModule(interfaces, captureIn(done))
     // A program makes its functions of FAST as values, each of its lifted code.
-    const closures = l1 === null ? [] : closuresOf(moduleIn([]), tops, [statements, entries[1]])
+    const closures = l1 === null ? [] : closuresOf(moduleIn([]), tops, unexported, [statements, entries[1]])
     /** @type {(f: FastFunction) => _Closure | null} */
     const closureOf = f => closures.find(([g]) => g === f)?.[1] ?? null
     const ir = {
@@ -2148,19 +2192,42 @@ export const lower = (signatures, runtime = null) => ({ statements, exit }, impo
         closureOf,
     }
     /** The constants that the lowering made, and the next, which reads those. @type {(done: readonly _Lowered[], definition: readonly [BindingId, Value], k: number) => readonly _Lowered[]} */
-    const addConstant = (done, [b, v], k) => [...done, [b, lowerConstant({ ...ir, constants: typesOf(done) }, captureIn(done), importOf)(`#c${k}`, v)]]
+    // Each function of the module that it does not export has one value, a constant that `init` makes, where a term reads it.
+    /** @type {readonly (readonly [string, ConstantOf<Term>])[]} */
+    const sharedConstants = closures.flatMap(([f, { code, shared: name }]) => name === null ? [] : [/** @type {const} */ ([name, {
+        type: func,
+        value: call('Functions', 'make_function', [
+            codeOf(code),
+            cast(array, call('Containers', 'seal', [call('Containers', 'begin_array', [n(0n)])]), 'array', a => a),
+            n(BigInt(f.parameters.length)),
+            constant('Any', 'undefined'),
+        ]),
+    }])])
+    /** @type {_Context['constants']} */
+    const sharedTypes = sharedConstants.map(([name, { type }]) => [name, type])
+    /** The constants that the lowering made, and the next, which reads those. @type {(done: readonly _Lowered[], definition: readonly [BindingId, Value], k: number) => readonly _Lowered[]} */
+    const addConstant = (done, [b, v], k) => [...done, [b, lowerConstant({ ...ir, constants: [...sharedTypes, ...typesOf(done)] }, captureIn(done), importOf)(`#c${k}`, v)]]
     const done = defined.flatMap(([b, g]) => g[0] === 'constant' ? [/** @type {const} */ ([b, g[1]])] : []).reduce(addConstant, [])
     const capture = captureIn(done)
-    const context = { ...ir, constants: typesOf(done) }
+    const context = { ...ir, constants: [...sharedTypes, ...typesOf(done)] }
     const functions = okList(lowered.map(([key, f, s]) => lowerFn(context, capture)([key, f, s])))
     if (functions[0] === 'error') { return functions }
-    const made = madeClosures(lowerClosure(context, moduleIn(done)), closures, [
-        ...functions[1].flatMap(([, f]) => uses(f.body)),
-        ...done.flatMap(([, r]) => r[0] === 'ok' ? uses(r[1][1].value) : []),
-    ])
-    if (made[0] === 'error') { return made }
-    const everything = [...functions[1], ...made[1]]
-    const [constants] = done.flatMap(([, r]) => r[0] === 'ok' ? [r[1]] : []).reduceRight(keep, [[], everything.flatMap(([, f]) => reads(f.body))])
+    const lowerOne = lowerClosure(context, moduleIn(done))
+    const candidates = [...sharedConstants, ...done.flatMap(([, r]) => r[0] === 'ok' ? [r[1]] : [])]
+    // The constants that the functions read keep the code of the closures that they make, whose code may read more.
+    /** @type {readonly (readonly [string, Fn])[]} */
+    let made = []
+    let growing = true
+    while (growing) {
+        const reached = [...functions[1], ...made]
+        const [kept] = candidates.reduceRight(keep, [[], reached.flatMap(([, f]) => reads(f.body))])
+        const next = madeClosures(lowerOne, closures, [...reached.flatMap(([, f]) => uses(f.body)), ...kept.flatMap(([, c]) => uses(c.value))])
+        if (next[0] === 'error') { return next }
+        growing = next[1].length > made.length
+        made = next[1]
+    }
+    const everything = [...functions[1], ...made]
+    const [constants] = candidates.reduceRight(keep, [[], everything.flatMap(([, f]) => reads(f.body))])
     /** @type {Module} */
     const m = { imports: interfaces, constants, functions: everything, exports: lowered.map(([key]) => key) }
     return l1 === null ? ok(m) : link(l1)(m)

@@ -487,7 +487,7 @@ export const proof = {
         "    fn call(f: any.only(function), args: any.only(array)) -> any may fail",
         "    fn text(f: any.only(function)) -> any.only(string, undefined)",
         "    fn throw(own v: any) -> never may fail",
-        "    fn frame(self: any.only(function), i: u(31)) -> any",
+        "    fn frame(self: any.only(function), i: u(31)) -> any may fail",
         "",
         "import Native from fjs:l1-native",
         "    fn bigintEquals(a: any.only(bigint), b: any.only(bigint)) -> bool",
@@ -1817,5 +1817,5 @@ export const proof = {
     // programs do, and each function that it answers agrees with
     // JavaScript's on probes of its own; `given` passes one to a function of
     // JavaScript, which calls it.
-    closuresRun: () => runPrograms(fromClosures(), closures, ['applied', 'callTwice', 'given', 'viaCallback']),
+    closuresRun: () => runPrograms(fromClosures(), closures, ['applied', 'callTwice', 'given', 'sameLocal', 'viaCallback']),
 }

@@ -65,3 +65,13 @@ export const doubler = () => double
 
 /** @type {(a: any) => any} */
 export const applied = a => adder(a)(1)
+
+/** @type {() => any} */
+export const sameModule = () => doubler() === doubler()
+
+/** @type {(a: any) => any} */
+export const sameLocal = a => {
+    /** @type {(x: any) => any} */
+    const inc = x => x + a
+    return [inc === inc, inc(1)]
+}
