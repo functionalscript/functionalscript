@@ -171,6 +171,15 @@ export const proof = {
             'fn f(a: any.only(string)) -> unit =',
             '    g(Any.dup(a))',
         ]),
+        // A value of Any's copy variants, here `undefined`, `null` and `boolean`, needs no copy and no drop: a parameter that
+        // owns one gives it to two parameters that own theirs, and one that its callee does not give away is not dropped.
+        copyVariants: () => golden(module_([own('b', only(any, 'boolean', 'null'))], unit, call('Lin', 'both', [get('b'), get('b')]), [['g', fn([own('v', only(any, 'undefined'))], unit, none)]]), [
+            'fn g(own v: any.only(undefined)) -> unit =',
+            '    {}',
+            '',
+            'fn f(own b: any.only(boolean, null)) -> unit =',
+            '    Lin.both(b, b)',
+        ]),
         // A `call_ref` of a `code` value is an indirect call; nothing is counted for the code itself.
         callRef: () => golden({
             imports: l0,
@@ -480,7 +489,7 @@ export const proof = {
             '    String.concat(self.a, self.a)',
             '',
             'const n: any.only(null) =',
-            '    Any.dup(Any.null)',
+            '    Any.null',
             '',
             'const x: f64 =',
             '    1.0 as f64',

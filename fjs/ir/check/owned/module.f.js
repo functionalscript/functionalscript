@@ -31,9 +31,13 @@
  *   a borrow that leans on no more than its first value did. It consumes
  *   what the iteration owns, the parameters included, and nothing that was
  *   alive before the loop.
+ * - **A copy value is plain.** A value of a sealed type whose variants its
+ *   interface names as copy is neither owned nor borrowed, as a float is,
+ *   so it needs no `dup` and no `drop`, and a parameter that owns its
+ *   argument takes it.
  * - **A `match` lends its operand**, and the name of an arm is a borrow of
  *   it. A product holds borrows only, and no parameter of a loop is a
- *   product that holds a sealed value. A product's borrow leans on every
+ *   product that holds a counted value. A product's borrow leans on every
  *   field's roots together; projecting one field keeps that aggregate
  *   ([todo](./todo/product-field-borrow-roots.md)).
  * - **A constant is a borrow that leans on nothing**, since nothing drops
@@ -52,7 +56,7 @@ import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { error, ok, okList } from '../../../types/result/module.f.js'
 import { entry } from '../../../types/object/entry/module.f.js'
 import { at, empty, fromEntries, setReplace } from '../../../types/ordered_map/module.f.js'
-import { equal, isOwn, leaves, never } from '../../module.f.js'
+import { equal, isCopy, isOwn, leaves, never } from '../../module.f.js'
 
 // sets of owned locals, as lists of their names
 
@@ -85,8 +89,10 @@ const leansOn = l => l[0] === 'borrow' ? l[1] : []
 /** The local that binds a value. @type {(v: _Value) => _Local} */
 const localOf = v => v[0] === 'owned' ? ['own'] : v[0] === 'borrowed' ? ['borrow', v[1]] : ['plain']
 
-/** Whether a value of a type holds a value of a sealed type: it is one, or a product with a field that holds one. @type {(t: Type) => boolean} */
-const holds = t => t[0] === 'sealed' || (t[0] === 'product' && t[1].some(([, x]) => holds(x)))
+/** Whether a value of a type holds a counted value: a sealed type that is not copy, or a product with a field that holds one. @type {(imports: OrderedMap<Interface>) => (t: Type) => boolean} */
+const holds = imports => t => t[0] === 'sealed'
+    ? !isCopy(assertNotNullish(assertNotNullish(at(t[1])(imports)).types.find(([k]) => k === t[2]))[1], t)
+    : t[0] === 'product' && t[1].some(([, x]) => holds(imports)(x))
 
 /** @type {(next: readonly string[] | null, value: _Value, exits: readonly _Exit[]) => _Out} */
 const out = (next, value, exits) => ({ next, value, exits })
@@ -175,7 +181,7 @@ const getTerm = (env, alive, name, mode) => {
  * A call: each argument as its parameter takes it, an `own` one taken over
  * and owned, and any other borrowed, in their order; then no borrowed
  * argument may lean on a local that an argument consumed. Its value is
- * owned where its result holds a sealed value, and nothing that only
+ * owned where its result holds a counted value, and nothing that only
  * borrows may take it.
  *
  * @type {(walk: _Walk, env: _Env, alive: readonly string[], type: Type, mode: _Mode, module: string, name: string, args: readonly Typed[]) => Result<_Out, string>}
@@ -194,7 +200,7 @@ const callTerm = (walk, env, alive, type, mode, module, name, args) => {
         return no(env, `${full}: the argument of ${params[Number(strand[1])][0]} may leave before the call takes that of ${params[Number(strand[0])][0]} over: bind it first`)
     }
     if (after === null) { return ok(out(null, plain, exits)) }
-    const lent = results.findIndex((v, k) => isOwn(params[Number(k)]) && v[0] !== 'owned')
+    const lent = results.findIndex((v, k) => isOwn(params[Number(k)]) && v[0] === 'borrowed')
     if (lent >= 0) {
         const [, arg] = args[Number(lent)]
         const param = params[Number(lent)][0]
@@ -202,7 +208,7 @@ const callTerm = (walk, env, alive, type, mode, module, name, args) => {
     }
     const gone = results.flatMap(v => minus(rootsOf(v), after))
     return gone.length > 0 ? no(env, `${full} borrows ${gone[0]}, which an argument of the call consumes`)
-        : !holds(type) ? ok(out(equal(type, never) ? null : after, plain, exits))
+        : !holds(env.imports)(type) ? ok(out(equal(type, never) ? null : after, plain, exits))
         : mode === 'read' ? no(env, `${full} answers an owned value that nothing takes over: bind it first`)
         : ok(out(after, owned, exits))
 }
@@ -230,14 +236,14 @@ const callRefTerm = (walk, env, alive, type, mode, callee, args) => {
         return no(env, `call_ref: the argument of parameter ${strand[1]} may leave before the call takes that of parameter ${strand[0]} over: bind it first`)
     }
     if (after === null) { return ok(out(null, plain, exits)) }
-    const lent = argResults.findIndex((v, k) => params[Number(k)][0] === 'own' && v[0] !== 'owned')
+    const lent = argResults.findIndex((v, k) => params[Number(k)][0] === 'own' && v[0] === 'borrowed')
     if (lent >= 0) {
         const [, arg] = args[Number(lent)]
         return no(env, arg[0] === 'get' ? `call_ref's own: ${arg[1]} is borrowed` : `call_ref's own is own, and its argument is borrowed`)
     }
     const gone = results.flatMap(v => minus(rootsOf(v), after))
     return gone.length > 0 ? no(env, `call_ref borrows ${gone[0]}, which an argument of the call consumes`)
-        : !holds(type) ? ok(out(equal(type, never) ? null : after, plain, exits))
+        : !holds(env.imports)(type) ? ok(out(equal(type, never) ? null : after, plain, exits))
         : mode === 'read' ? no(env, `call_ref answers an owned value that nothing takes over: bind it first`)
         : ok(out(after, owned, exits))
 }
@@ -326,7 +332,7 @@ const blockTerm = (walk, env, alive, mode, label, body) => {
  * @type {(walk: _Walk, env: _Env, alive: readonly string[], mode: _Mode, label: string, params: readonly LoopParamOf<Typed>[], body: Typed) => Result<_Out, string>}
  */
 const loopTerm = (walk, env, alive, mode, label, params, body) => {
-    const nested = params.find(([, x]) => x[0] === 'product' && holds(x))
+    const nested = params.find(([, x]) => x[0] === 'product' && holds(env.imports)(x))
     if (nested !== undefined) { return no(env, `${nested[0]} of loop ${label} is a product that holds a sealed value: not in this slice`) }
     /** @type {readonly (readonly [Typed, _Mode])[]} */
     const items = params.map(([, , first]) => [first, 'take'])
@@ -373,7 +379,7 @@ const repeat = (walk, env, alive, label, start, params, e) => {
         return no(env, `the next ${params[Number(strand[1])][0]} of loop ${label} may leave before the loop takes the next ${params[Number(strand[0])][0]} over: bind it first`)
     }
     if (after === null) { return ok(out(null, plain, exits)) }
-    const lent = results.findIndex((v, k) => params[Number(k)][1][0] === 'own' && v[0] !== 'owned')
+    const lent = results.findIndex((v, k) => params[Number(k)][1][0] === 'own' && v[0] === 'borrowed')
     const wider = results.findIndex((v, k) => minus(rootsOf(v), leansOn(params[Number(k)][1])).length > 0)
     const left = minus(after, start)
     const gone = minus(start, after)
@@ -387,14 +393,14 @@ const repeat = (walk, env, alive, label, start, params, e) => {
 /**
  * The end of a function, at the end of its body or at a `br` to `return`,
  * or of a constant's term: nothing it owns is left, and it owns its value
- * where its result holds a sealed value, since the caller, or the
+ * where its result holds a counted value, since the caller, or the
  * constant, owns it then. `lent` says why a borrowed value may not end it.
  *
  * @type {(env: _Env, alive: readonly string[], value: _Value, lent?: string) => Result<null, string>}
  */
 const end = (env, alive, value, lent = 'the result is borrowed, and its caller would own it') =>
     alive.length > 0 ? no(env, `${are(alive)} left over`)
-    : holds(env.result) && value[0] !== 'owned' ? no(env, lent)
+    : holds(env.imports)(env.result) && value[0] === 'borrowed' ? no(env, lent)
     : ok(null)
 
 /**
@@ -432,7 +438,7 @@ const walk = (env, alive, [type, t], mode) => {
         case 'make': { return makeTerm(walk, env, alive, t[1]) }
         case 'field': {
             const r = walk(env, alive, t[1], 'read')
-            return r[0] === 'error' ? r : ok(out(r[1].next, holds(type) ? r[1].value : plain, r[1].exits))
+            return r[0] === 'error' ? r : ok(out(r[1].next, holds(env.imports)(type) ? r[1].value : plain, r[1].exits))
         }
         case 'variant': {
             const r = walk(env, alive, t[3], 'read')
@@ -444,7 +450,7 @@ const walk = (env, alive, [type, t], mode) => {
         case 'br': { return brTerm(walk, env, alive, t[1], t[2]) }
         case 'trap': { return ok(out(null, plain, [])) }
         // A literal and a constant are borrows that lean on nothing, since nothing drops them.
-        default: { return ok(out(alive, holds(type) ? ['borrowed', []] : plain, [])) }
+        default: { return ok(out(alive, holds(env.imports)(type) ? ['borrowed', []] : plain, [])) }
     }
 }
 
@@ -459,7 +465,7 @@ const returns = ['return']
  */
 const checkFn = (functions, imports) => ([name, { params, result, body }]) => {
     /** @type {readonly (readonly [string, _Local])[]} */
-    const locals = params.map(p => [p[0], !holds(p[1]) ? ['plain'] : isOwn(p) ? ['own'] : ['borrow', []]])
+    const locals = params.map(p => [p[0], !holds(imports)(p[1]) ? ['plain'] : isOwn(p) ? ['own'] : ['borrow', []]])
     /** @type {_Env} */
     const env = { name, result, functions, imports, locals: fromEntries(locals), labels: setReplace('return')(returns)(empty) }
     const r = walk(env, locals.flatMap(([k, l]) => l[0] === 'own' ? [k] : []), body, 'take')

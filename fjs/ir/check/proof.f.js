@@ -576,6 +576,16 @@ export const proof = {
         assertEq(why(importing(counted('d', 'r', [['d', signature([['x', t]], f64)], r]))), miscounted)
         assertEq(why(importing(counted('d', 'r', [d, ['r', signature([['x', t]], unit)]]))), miscounted)
         assertEq(why(importing(counted('d', 'r', [d]))), miscounted)
+        // A counted type may name copy variants, each one of its variants once, and a linear type names none.
+        /** `counted('d', 'r', [d, r])` with `copy` as its copy variants. @type {(copy: readonly string[]) => Interface} */
+        const copying = copy => {
+            const i = counted('d', 'r', [d, r])
+            return { ...i, types: i.types.map(([k, def]) => /** @type {const} */ ([k, { ...def, copy }])) }
+        }
+        assertEq(assertOk(check(importing(copying(['b'])))).imports.length, 6)
+        assertEq(why(importing(copying(['c']))), "Bad: t's copy variants are its variants, each once")
+        assertEq(why(importing(copying(['a', 'a']))), "Bad: t's copy variants are its variants, each once")
+        assertEq(why(importing({ abi: 'test', types: [['t', { variants: ['a'], carrier: 'i32', copy: ['a'] }]], functions: [] })), 'Bad: t names copy variants, and only a counted type has them')
         // A function that gives back a parameter owns it, and the parameter is of the function's result.
         /** An interface of a function `g` of `params` that answers `result` and gives back `x`. @type {(params: readonly Param[], result: Type) => Interface} */
         const giving = (params, result) => ({ abi: 'test', types: [], functions: [['g', signature(params, result, 'x')]] })

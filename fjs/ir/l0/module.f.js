@@ -10,13 +10,15 @@
  * - **`any` is sealed by Any.** Its variants are the nine kinds in the order
  *   of the tags that `kind` answers, which are the
  *   [L0 view's](../../wasm/runtime/l0/module.f.js), and a WASM `i64`
- *   carries it. `dup` and `drop` make it counted: every value of `any` is
- *   counted (copy variants wait for the item after slice 10 of
- *   [slices.md](../todo/slices.md#later)).
+ *   carries it. `dup` and `drop` make it counted, and `undefined`, `null`
+ *   and `boolean` are its copy variants
+ *   ([slices.md](../todo/slices.md#later)): a value that holds only those
+ *   needs no `dup` and no `drop`, and a `drop` of `any` that holds one
+ *   does nothing.
  * - **`undefined`, `null`, `true` and `false` are Any's constants**, which a
  *   module imports as immutable globals that the host makes
  *   ([L0 design §3](../../../doc/sasha-gil/wasm/l0-design.md#3-constants-imported-immutable-globals)).
- *   A module borrows each, and nothing drops one.
+ *   A module borrows each, and nothing counts one.
  * - **A string literal is made by String's `make_string`** from its UTF-16
  *   units in memory
  *   ([L0 design §7](../../../doc/sasha-gil/wasm/l0-design.md#7-strings-utf-16-units-in-l0)),
@@ -142,7 +144,7 @@ const boolean = only(any, 'boolean')
 /** The interface that seals `any`. @type {Interface} */
 const anyInterface = {
     abi: 'fjs:l0',
-    types: [['any', { variants: kinds, kind: 'kind', carrier: 'i64', dup: 'dup', drop: 'drop', literal: { variant: 'string', module: 'String', member: 'make_string' } }]],
+    types: [['any', { variants: kinds, kind: 'kind', carrier: 'i64', dup: 'dup', drop: 'drop', copy: ['undefined', 'null', 'boolean'], literal: { variant: 'string', module: 'String', member: 'make_string' } }]],
     constants: [['undefined', only(any, 'undefined')], ['null', only(any, 'null')], ['true', boolean], ['false', boolean]],
     functions: [
         ['kind', signature([['v', any]], int(0n, 8n))],
