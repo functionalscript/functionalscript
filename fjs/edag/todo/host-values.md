@@ -62,6 +62,15 @@ A value is the host's own value, except a function.
   description is behind a call so that a function value is told from data by `typeof`, and is one
   reference, which is its identity.
 
+  **A call is a change of frame.** The interpreter holds the frame it is
+  evaluating over. To run a function's `edag` it puts that frame on a stack
+  of its own and takes the function's `frame` in its place; when the body
+  has answered, it takes the old one back. The stack is the interpreter's
+  data, not the host's, so a call nested in a call does not enter the
+  evaluator again, which is what
+  [non-tail calls](../value/call/todo/non-tail-recursion.md) ask for. A call
+  in tail position puts nothing on it.
+
   The description may later hold a fourth field, `compiled`: a host function
   built once where the function value is made, which takes the arguments and
   answers the result, so that a call does not walk the body. It is not part
@@ -82,6 +91,11 @@ a value is.
   a description from a map. Either a map is wrapped in a description whose
   `edag` is the `['refMap']` node and which the interpreter calls as the
   host's map, or the two are told apart another way.
+- **What the stack holds.** The old frame alone does not say where to go
+  on: an entry also needs the caller's arguments, the node whose operand the
+  call was, and the values that invocation has already computed. What an
+  entry is, and how an operation with several operands is taken up again
+  part-way.
 - **`undefined`.** It is tagged today so that an absent value and an
   `undefined` one are never confused inside the interpreter
   ([`../value/README.md`](../value/README.md)). With the host's `undefined`
@@ -132,5 +146,7 @@ value to a host one, becomes the identity on data.
 - [Reference map](../../../spec/built-ins/reference-map/README.md) and its
   [design record](../../../spec/design/object-identity.md#reference-map).
 - [`../values.md`](../values.md) — the contracts values keep today.
+- [Non-tail interpreter calls](../value/call/todo/non-tail-recursion.md) —
+  the host stack a nested call takes today, which the frame stack replaces.
 - [`fjs/types/ref_map`](../../types/ref_map/module.f.js) — the map with the
   bound, which the host gives.
