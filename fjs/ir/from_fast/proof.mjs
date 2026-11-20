@@ -1785,6 +1785,6 @@ export const proof = {
         const rows = f => f.length === 1 ? values.map(any => [{ any }])
             : f.length === 2 ? values.flatMap(a => values.map(b => [{ any: a }, { any: b }]))
             : values.flatMap(a => few.flatMap(b => few.map(c => [{ any: a }, { any: b }, { any: c }])))
-        run(fromPrograms(), twins, Object.fromEntries(Object.entries(programs).map(([k, f]) => [k, rows(f)])), ['apply', 'first', 'method', 'mixed', 'pair', 'sum3', 'twice'])
+        run(fromPrograms(), twins, Object.fromEntries(Object.entries(programs).map(([k, f]) => [k, rows(f)])), ['apply', 'called', 'first', 'method', 'mixed', 'pair', 'sum3', 'twice'])
     },
 }

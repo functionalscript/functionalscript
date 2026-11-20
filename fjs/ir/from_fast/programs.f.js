@@ -74,3 +74,11 @@ export const pair = a => [a, a + 1]
 
 /** @type {(a: any, b: any) => any} */
 export const record = (a, b) => ({ a, b })
+
+/** @type {(a: any, b: any) => any} */
+export const called = (a, b) => {
+    // A boolean, which the lowering types as one: JavaScript throws a TypeError on the call.
+    /** @type {any} */
+    const c = a < b
+    return c()
+}

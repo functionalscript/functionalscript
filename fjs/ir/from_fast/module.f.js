@@ -1266,18 +1266,23 @@ const callOf = (lowerValue, scope, lowered, callee, items) => {
         if (typed[0] === 'error') { return typed }
         const [ft, ...ats] = typed[1]
         const fHeld = ft[0] === 'sealed' ? ft[3] ?? kinds : []
-        const linked = fHeld.every(k => k === 'function') ? null : l1Of(s, 'call')
+        // Only a sealed value that holds functions alone is `Functions.call`'s: a float or a boolean callee holds none.
+        const onlyFunctions = fHeld.length > 0 && fHeld.every(k => k === 'function')
+        const linked = onlyFunctions ? null : l1Of(s, 'call')
         if (!fHeld.includes('function') && linked === null) { return no(`a call of ${show(ft)} is not in this slice: only a function's is`) }
+        // In a program, L1's `call` takes the callee as `any`, a float or a boolean boxed, and throws JavaScript's TypeError.
+        const callee = linked === null ? f : asAny(ft, f)
+        if (callee === null) { return no(`a call of ${show(ft)} in a program is not in this slice: only one of any, a float or a boolean is`) }
         const boxed = okList(ats.map((t, i) => {
             const y = asAny(t, xs[Number(i)])
             return y === null ? no(`an argument of a call is a value of any, and argument ${i} is ${show(t)}`) : ok(y)
         }))
         if (boxed[0] === 'error') { return boxed }
         const fnName = `${localOf(f, 'call')}.function`
-        const fn = fHeld.every(k => k === 'function') ? f : cast(func, f, fnName, get(fnName))
+        const fn = onlyFunctions ? f : cast(func, f, fnName, get(fnName))
         const begun = call('Containers', 'begin_array', [n(BigInt(boxed[1].length))])
         const args = cast(array, call('Containers', 'seal', [boxed[1].reduce((b, x) => call('Containers', 'push', [b, x]), begun)]), 'args', a => a)
-        return ok(linked === null ? call('Functions', 'call', [fn, args]) : call('self', linked, [f, args]))
+        return ok(linked === null ? call('Functions', 'call', [fn, args]) : call('self', linked, [callee, args]))
     }))
 }
 

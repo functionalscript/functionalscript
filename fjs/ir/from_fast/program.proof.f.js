@@ -22,7 +22,7 @@ import { native } from '../native/module.f.js'
 import { print } from '../print/module.f.js'
 import { link, lower } from './module.f.js'
 import {
-    apply as applyP, both as bothP, differ as differP, either as eitherP, first as firstP, kind as kindP, maybe as maybeP, method as methodP, mixed as mixedP, nested as nestedP, not as notP, opposite as oppositeP, order as orderP, otherwise as otherwiseP, pair as pairP, record as recordP, sign as signP, size as sizeP, sum3 as sum3P, twice as twiceP,
+    apply as applyP, both as bothP, called as calledP, differ as differP, either as eitherP, first as firstP, kind as kindP, maybe as maybeP, method as methodP, mixed as mixedP, nested as nestedP, not as notP, opposite as oppositeP, order as orderP, otherwise as otherwiseP, pair as pairP, record as recordP, sign as signP, size as sizeP, sum3 as sum3P, twice as twiceP,
 } from './programs.f.js'
 import { runtime, sourceOf } from './testlib.f.js'
 
@@ -273,6 +273,46 @@ export const proof = {
             'export f',
             '',
         ].join('\n'))
+        // A callee that holds no function, a boolean or a float, is boxed and called through L1, which throws JavaScript's TypeError.
+        assertEq(program('export const f = (a, b) => (a < b)()'), [
+            'fn f(p0: any, p1: any) -> any =',
+            '    let #0 = l1.lessThan(p0, p1)',
+            '    l1.call(',
+            '        Any.from_bool(#0),',
+            '        match Containers.seal(Containers.begin_array(0))',
+            '          array as args =>',
+            '            args',
+            '          else =>',
+            '            trap(\'not array\')',
+            '    )',
+            '',
+            'fn l1.lessThan(a: any, b: any) -> bool =',
+            '    false',
+            '',
+            'fn l1.call(f: any, args: any) -> any =',
+            '    f',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(program('export const f = () => 1()'), [
+            'fn f() -> any =',
+            '    l1.call(',
+            '        Any.from_f64(1.0),',
+            '        match Containers.seal(Containers.begin_array(0))',
+            '          array as args =>',
+            '            args',
+            '          else =>',
+            '            trap(\'not array\')',
+            '    )',
+            '',
+            'fn l1.call(f: any, args: any) -> any =',
+            '    f',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(assertError(over({}, 'export const f = a => 1n(a)', programRuntime)), 'f: a call of int(1, 1) in a program is not in this slice: only one of any, a float or a boolean is')
         assertEq(program('import { asFunction } from \'../l0/module.f.js\'\nexport const f = g => asFunction(g)(1)'), [
             'fn f(p0: any) -> any =',
             '    match p0',
@@ -560,6 +600,8 @@ export const proof = {
         assertStructurallySame(pairP(1), [1, 2])
         assertStructurallySame(recordP(1, 'b'), { a: 1, b: 'b' })
     },
+    // A boolean is no function: JavaScript throws a TypeError, as L1's `call` does.
+    calledOriginal: { throw: () => calledP(1, 2) },
     // `link` names what it links `l1.`, and keeps what the program reaches.
     link: () => {
         assertEq(assertError(link(standIn)({ imports: [], functions: [], exports: [] })), 'L1 imports Any String BigInt Containers Functions Native, and the program ')

@@ -480,7 +480,7 @@ that leaves its function.
   functions that throw, which shows the view's order, an item before the
   next state; L1's `toIterable` runs against L1's own on values of every
   kind and on strings of code points.
-  And [`programs.f.js`](./programs.f.js), twenty untyped programs of
+  And [`programs.f.js`](./programs.f.js), twenty-one untyped programs of
   slice 11a, lowered with no table and linked with L1, run against
   JavaScript on the values of L1's parity table: where JavaScript throws a
   `TypeError`, each throws L1's value of that error.
