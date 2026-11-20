@@ -79,6 +79,13 @@ export type _Closure = {
     readonly frame: readonly Capture[]
 }
 
+/**
+ * A part of an array, an object or the arguments of a call that holds a
+ * spread: one item, or, where `many`, a spread, whose term is the array or
+ * the object that L1 makes of it.
+ */
+export type _Part = readonly [many: boolean, x: Term]
+
 /** A loop whose body holds a term: its target in FAST, its label and the locals of its parameters. */
 export type _Loop = readonly [target: LoopTarget, label: string, params: readonly string[]]
 

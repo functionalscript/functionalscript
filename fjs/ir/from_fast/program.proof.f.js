@@ -12,15 +12,16 @@
  */
 
 import { assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { any, l0 } from '../l0/module.f.js'
+import { any, array, container, l0 } from '../l0/module.f.js'
 import { lifetime } from '../lifetime/module.f.js'
 import {
-    add, block, bool, br, call, call_ref, codeOf, constant, f64, f64c, false_, field, fn, get, let_, lit, loop as repeat, make, match,
+    add, block, bool, br, call, call_ref, cast, codeOf, constant, f64, f64c, false_, field, fn, get, let_, lit, loop as repeat, make, match,
     signature, trap, true_, trunc_sat, u,
 } from '../module.f.js'
 import { native } from '../native/module.f.js'
 import { print } from '../print/module.f.js'
-import { link, lower } from './module.f.js'
+import { link } from './link/module.f.js'
+import { lower } from './module.f.js'
 import {
     apply as applyP, both as bothP, called as calledP, differ as differP, either as eitherP, first as firstP, kind as kindP, maybe as maybeP, method as methodP, mixed as mixedP, nested as nestedP, not as notP, opposite as oppositeP, order as orderP, otherwise as otherwiseP, pair as pairP, record as recordP, sign as signP, size as sizeP, sum3 as sum3P, twice as twiceP,
 } from './programs.f.js'
@@ -28,6 +29,9 @@ import { runtime, sourceOf } from './testlib.f.js'
 import {
     adder as adderC, applied as appliedC, callTwice as callTwiceC, viaCallback as viaCallbackC, given as givenC, constant as constantC, pair as pairC, methods as methodsC, nested as nestedC, usesModule as usesModuleC, local as localC, returned as returnedC, compose as composeC, doubler as doublerC, sameModule as sameModuleC, sameLocal as sameLocalC, listed as listedC,
 } from './closures.f.js'
+import {
+    prepend as prependS, around as aroundS, chars as charsS, spreadCall as spreadCallS, spreadMixed as spreadMixedS, merged as mergedS, copied as copiedS, nestedSpread as nestedSpreadS, restLifted as restLiftedS, restInlined as restInlinedS, restEmpty as restEmptyS, restModule as restModuleS, forwarded as forwardedS, restCaptured as restCapturedS,
+} from './spreads.f.js'
 
 /** The signatures of a module of one function, `f`. @type {(params: readonly Param[], result: Type) => Readonly<Record<string, Signature>>} */
 const only = (params, result) => ({ f: signature(params, result) })
@@ -61,6 +65,8 @@ const standIn = {
         ...['lessThan', 'lessThanOrEqual', 'greaterThan', 'greaterThanOrEqual', 'strictEquals'].map(k => /** @type {const} */ ([k, fn(anyTwo, bool, false_)])),
         ['toBoolean', fn(anyOne, bool, call('self', 'strictEquals', [get('v'), get('v')]))],
         ['call', fn([['f', any], ['args', any]], any, get('f'))],
+        ['toIterable', fn(anyOne, array, cast(array, get('v'), 'v.array', x => x))],
+        ['objectSpread', fn(anyOne, container, cast(container, get('v'), 'v.container', x => x))],
         ['unused', fn([], any, constant('Any', 'null'))],
     ],
     exports: [],
@@ -408,7 +414,7 @@ export const proof = {
         assertEq(assertError(over({}, 'export const f = o => ({ a: 1 }).b?.c', programRuntime)), 'f: { a: f64c } has no field b')
         assertEq(assertError(over({}, 'export const f = o => (1n + o)?.c', programRuntime)), 'f: add of int(1, 1) and any is not in this slice')
         assertEq(assertError(over({}, 'export const f = o => (1n + o)(1)', programRuntime)), 'f: add of int(1, 1) and any is not in this slice')
-        assertEq(assertError(over({}, 'export const f = o => o?.f(...o)', programRuntime)), 'f: a spread argument in a program is not in this slice')
+        assertEq(assertError(over({}, 'export const f = o => o?.f(...1n)', programRuntime)), 'f: a spread of int(1, 1) is not in this slice')
         assertEq(assertError(over({}, 'export const f = o => o.f?.(1)', programRuntime)), 'f: a member read with a further step, such as a call of the member, is not in this slice')
         assertEq(assertError(over({}, 'export const k = 1', programRuntime)), 'k: an export that is not a function is not in this slice')
         assertEq(program('export const f = o => o?.a.b(1)'), [
@@ -778,8 +784,7 @@ export const proof = {
         ].join('\n'))
         // A function that only a call reads stays inlined.
         assertEq(program('export const f = a => {\n    const g = x => x\n    return g(a)\n}'), 'fn f(p0: any) -> any =\n    p0\n\nexport f\n')
-        // A rest parameter waits for slice 11c, and a function that calls itself, not in a loop, is refused.
-        assertEq(assertError(over({}, 'export const f = a => (...xs) => xs', programRuntime)), 'f: a rest parameter is not in this slice')
+        // A function that calls itself, not in a loop, is refused.
         assertEq(assertError(over({}, 'export const f = a => {\n    const g = x => 1 + g(x)\n    return g\n}', programRuntime)), 'f: a function that calls itself is not in this slice')
         // A capture of a function that calls itself, a refusal in the lifted code, which names the code, and a capture of an
         // import that the module refuses.
@@ -790,6 +795,226 @@ export const proof = {
         assertEq(assertError(over({}, "import { x } from './y.f.js'\nconst g = () => x\nexport const f = () => g", programRuntime)), '#f0: an import of ./y.f.js is not in this slice')
         // An export as a value is refused: its signature is not the code of a function value.
         assertEq(assertError(over({}, 'export const g = a => a\nexport const f = a => g', programRuntime)), 'f: a function as a value is not in this slice')
+    },
+    // Slice 11c: a spread in an array, an object or the arguments of a call is
+    // what L1's `toIterable` or `objectSpread` makes of it, pushed item by item;
+    // a rest parameter is an array of the arguments past the others.
+    spreads: () => {
+        assertEq(program('export const f = a => [1, ...a]'), [
+            'fn f(p0: any) -> any =',
+            '    let #0 = l1.toIterable(p0)',
+            '    let S1.n.float = add(1.0, float(Containers.length(#0)))',
+            '    let S1.n = trunc_sat(u(31), S1.n.float)',
+            '    if eq(float(S1.n), S1.n.float)',
+            '    then',
+            '        let S1.b0 = Containers.push(Containers.begin_array(S1.n), Any.from_f64(1.0))',
+            '        let S1.b1 =',
+            '            loop S1.1 (S1.1.b: builder = S1.b0, S1.1.i: f64 = 0.0)',
+            '                if lt(S1.1.i, float(Containers.length(#0)))',
+            '                then',
+            '                    let S1.1.k = trunc_sat(u(31), S1.1.i)',
+            '                    if eq(float(S1.1.k), S1.1.i)',
+            '                    then',
+            '                        let S1.1.pushed = Containers.push(S1.1.b, Containers.item(#0, S1.1.k))',
+            '                        br S1.1 { S1.1.b: S1.1.pushed, S1.1.i: add(S1.1.i, 1.0) }',
+            '                    else',
+            '                        trap(\'inexact\')',
+            '                else',
+            '                    S1.1.b',
+            '        match Containers.seal(S1.b1)',
+            '          array as array =>',
+            '            array',
+            '          else =>',
+            '            trap(\'not array\')',
+            '    else',
+            '        trap(\'inexact\')',
+            '',
+            'fn l1.toIterable(v: any) -> any.only(array) =',
+            '    match v',
+            '      array as v.array =>',
+            '        v.array',
+            '      else =>',
+            '        trap(\'not array\')',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(program('export const f = (g, a) => g(...a, 2)'), [
+            'fn f(p0: any, p1: any) -> any =',
+            '    l1.call(',
+            '        p0,',
+            '        let #0 = l1.toIterable(p1)',
+            '        let S1.n.float = add(1.0, float(Containers.length(#0)))',
+            '        let S1.n = trunc_sat(u(31), S1.n.float)',
+            '        if eq(float(S1.n), S1.n.float)',
+            '        then',
+            '            let S1.b0 =',
+            '                loop S1.0 (S1.0.b: builder = Containers.begin_array(S1.n), S1.0.i: f64 = 0.0)',
+            '                    if lt(S1.0.i, float(Containers.length(#0)))',
+            '                    then',
+            '                        let S1.0.k = trunc_sat(u(31), S1.0.i)',
+            '                        if eq(float(S1.0.k), S1.0.i)',
+            '                        then',
+            '                            let S1.0.pushed = Containers.push(S1.0.b, Containers.item(#0, S1.0.k))',
+            '                            br S1.0 { S1.0.b: S1.0.pushed, S1.0.i: add(S1.0.i, 1.0) }',
+            '                        else',
+            '                            trap(\'inexact\')',
+            '                    else',
+            '                        S1.0.b',
+            '            let S1.b1 = Containers.push(S1.b0, Any.from_f64(2.0))',
+            '            match Containers.seal(S1.b1)',
+            '              array as array =>',
+            '                array',
+            '              else =>',
+            '                trap(\'not array\')',
+            '        else',
+            '            trap(\'inexact\')',
+            '    )',
+            '',
+            'fn l1.call(f: any, args: any) -> any =',
+            '    f',
+            '',
+            'fn l1.toIterable(v: any) -> any.only(array) =',
+            '    match v',
+            '      array as v.array =>',
+            '        v.array',
+            '      else =>',
+            '        trap(\'not array\')',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(program('export const f = o => ({ a: 1, ...o })'), [
+            'fn f(p0: any) -> any =',
+            '    let #0 =',
+            '        match l1.objectSpread(p0)',
+            '          object as object =>',
+            '            object',
+            '          else =>',
+            '            trap(\'not object\')',
+            '    let S1.n.float = add(1.0, float(Containers.length(#0)))',
+            '    let S1.n = trunc_sat(u(31), S1.n.float)',
+            '    if eq(float(S1.n), S1.n.float)',
+            '    then',
+            '        let S1.b0 = Containers.push_property(Containers.begin_object(S1.n), "a", Any.from_f64(1.0))',
+            '        let S1.b1 =',
+            '            loop S1.1 (S1.1.b: builder = S1.b0, S1.1.i: f64 = 0.0)',
+            '                if lt(S1.1.i, float(Containers.length(#0)))',
+            '                then',
+            '                    let S1.1.k = trunc_sat(u(31), S1.1.i)',
+            '                    if eq(float(S1.1.k), S1.1.i)',
+            '                    then',
+            '                        let S1.1.pushed = Containers.push_property(S1.1.b, Containers.key(#0, S1.1.k), Containers.item(#0, S1.1.k))',
+            '                        br S1.1 { S1.1.b: S1.1.pushed, S1.1.i: add(S1.1.i, 1.0) }',
+            '                    else',
+            '                        trap(\'inexact\')',
+            '                else',
+            '                    S1.1.b',
+            '        match Containers.seal(S1.b1)',
+            '          object as object =>',
+            '            object',
+            '          else =>',
+            '            trap(\'not object\')',
+            '    else',
+            '        trap(\'inexact\')',
+            '',
+            'fn l1.objectSpread(v: any) -> any.only(array, object) =',
+            '    match v',
+            '      array | object as v.container =>',
+            '        v.container',
+            '      else =>',
+            '        trap(\'not array or object\')',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(program('export const f = a => (x, ...r) => [x, r]'), [
+            'fn f(p0: any) -> any =',
+            '    Functions.make_function(',
+            '        code(#f1),',
+            '        match Containers.seal(Containers.begin_array(0))',
+            '          array as array =>',
+            '            array',
+            '          else =>',
+            '            trap(\'not array\'),',
+            '        1,',
+            '        Any.undefined',
+            '    )',
+            '',
+            'fn #f1(#self: any.only(function), #args: any.only(array)) -> any =',
+            '    let #0 = if lt(0, Containers.length(#args)) then Containers.item(#args, 0) else Any.undefined',
+            '    let #1 =',
+            '        let R.n.float = if lt(1.0, float(Containers.length(#args))) then sub(float(Containers.length(#args)), 1.0) else 0.0',
+            '        let R.n = trunc_sat(u(31), R.n.float)',
+            '        if eq(float(R.n), R.n.float)',
+            '        then',
+            '            loop R (R.b: builder = Containers.begin_array(R.n), R.i: f64 = 0.0)',
+            '                if lt(R.i, float(R.n))',
+            '                then',
+            '                    let R.k.float = add(R.i, 1.0)',
+            '                    let R.k = trunc_sat(u(31), R.k.float)',
+            '                    if eq(float(R.k), R.k.float)',
+            '                    then',
+            '                        let R.pushed = Containers.push(R.b, Containers.item(#args, R.k))',
+            '                        br R { R.b: R.pushed, R.i: add(R.i, 1.0) }',
+            '                    else',
+            '                        trap(\'inexact\')',
+            '                else',
+            '                    match Containers.seal(R.b)',
+            '                      array as array =>',
+            '                        array',
+            '                      else =>',
+            '                        trap(\'not array\')',
+            '        else',
+            '            trap(\'inexact\')',
+            '    match Containers.seal(Containers.push(Containers.push(Containers.begin_array(2), #0), #1))',
+            '      array as array =>',
+            '        array',
+            '      else =>',
+            '        trap(\'not array\')',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(program('const g = (a, ...r) => [a, r]\nexport const h = x => g(x, 1, 2)'), [
+            'fn h(p0: any) -> any =',
+            '    let #0 =',
+            '        match Containers.seal(Containers.push(Containers.push(Containers.begin_array(2), Any.from_f64(1.0)), Any.from_f64(2.0)))',
+            '          array as array =>',
+            '            array',
+            '          else =>',
+            '            trap(\'not array\')',
+            '    match Containers.seal(Containers.push(Containers.push(Containers.begin_array(2), p0), #0))',
+            '      array as array =>',
+            '        array',
+            '      else =>',
+            '        trap(\'not array\')',
+            '',
+            'export h',
+            '',
+        ].join('\n'))
+        // What a spread or a rest parameter of this slice refuses: a spread of what
+        // is no value of any, a computed key, a spread into a function that is
+        // inlined, too few arguments for one with a rest parameter, and an export
+        // with one, whose signature has no rest.
+        assertEq(assertError(over({}, 'export const f = a => [...1n]', programRuntime)), 'f: a spread of int(1, 1) is not in this slice')
+        assertEq(assertError(over({}, 'export const f = a => [1n, ...a]', programRuntime)), 'f: an item of an array is a value of any, and part 0 is int(1, 1)')
+        assertEq(assertError(over({}, 'export const f = a => ({ ...a, b: 1n })', programRuntime)), 'f: a value of an object is a value of any, and part 1 is int(1, 1)')
+        assertEq(assertError(over({}, 'export const f = o => ({ [o]: 1, ...o })', programRuntime)), 'f: an entry of an object that is not a name and its value is not in this slice')
+        assertEq(assertError(over({}, 'export const f = a => 1n(...a)', programRuntime)), 'f: a call of int(1, 1) in a program is not in this slice: only one of any, a float or a boolean is')
+        assertEq(assertError(over({}, 'const g = x => x\nexport const f = a => g(...a)', programRuntime)), 'f: a spread argument is not in this slice')
+        assertEq(assertError(over({}, 'const g = (x, ...r) => r\nexport const f = () => g()', programRuntime)), 'f: a function that is inlined takes at least one argument, and its call gives 0')
+        assertEq(assertError(over({}, 'const g = (...r) => r\nexport const f = () => g(1n)', programRuntime)), 'f: an item of a rest parameter is a value of any, and item 0 is int(1, 1)')
+        assertEq(assertError(over({}, 'export const f = (...r) => r', programRuntime)), 'f: a rest parameter is not in this slice')
+        // A pure term that does not type-check, as a spread, an item beside one, a rest item and a callee, and a callee that
+        // does not lower; and a program whose L1 has no toIterable.
+        assertEq(assertError(over({}, 'export const f = a => [...({ a: 1 }).b]', programRuntime)), 'f: { a: f64c } has no field b')
+        assertEq(assertError(over({}, 'export const f = a => [({ a: 1 }).b, ...a]', programRuntime)), 'f: { a: f64c } has no field b')
+        assertEq(assertError(over({}, 'const g = (...r) => r\nexport const f = () => g(({ a: 1 }).b)', programRuntime)), 'f: { a: f64c } has no field b')
+        assertEq(assertError(over({}, 'export const f = a => (({ a: 1 }).b)(...a)', programRuntime)), 'f: { a: f64c } has no field b')
+        assertEq(assertError(over({}, 'export const f = a => (1n).f(...a)', programRuntime)), 'f: .f of int(1, 1) is not in this slice')
+        const noIterable = { ...programRuntime, l1: { ...standIn, functions: standIn.functions.filter(([k]) => k !== 'toIterable') } }
+        assertEq(assertError(over({}, 'export const f = a => [...a]', noIterable)), "f: a spread uses L1's toIterable, which the program does not link")
     },
     // The originals of slice 11b, which the host proof runs against what the lowering makes of them.
     closureOriginals: () => {
@@ -812,6 +1037,26 @@ export const proof = {
         assertEq(sameModuleC(), true)
         assertStructurallySame(sameLocalC(1), [true, 2])
         assertStructurallySame(listedC()(), [1, 2])
+    },
+    // The originals of slice 11c, which the host proof runs against what the lowering makes of them.
+    spreadOriginals: () => {
+        /** @type {(...xs: readonly any[]) => any} */
+        const list = (...xs) => xs
+        assertStructurallySame(prependS([1, 2]), [0, 1, 2])
+        assertStructurallySame(aroundS([0], 'ab'), [0, 1, 'a', 'b'])
+        assertStructurallySame(charsS('a\ud83d\ude00'), ['a', '\ud83d\ude00'])
+        assertStructurallySame(spreadCallS(list, [1, 2]), [1, 2])
+        assertStructurallySame(spreadMixedS(list, 'x'), [1, 'x', 2])
+        assertStructurallySame(mergedS({ a: 1, k: 0 }, { k: 2 }), { a: 1, k: 2 })
+        assertStructurallySame(copiedS('ab'), { 0: 'a', 1: 'b' })
+        assertStructurallySame(nestedSpreadS([1]), [1, 1])
+        assertStructurallySame(restLiftedS()(1, 2, 3), [1, [2, 3]])
+        assertEq(restLiftedS().length, 1)
+        assertStructurallySame(restInlinedS(1), [1, [1, 3]])
+        assertStructurallySame(restEmptyS(), [])
+        assertStructurallySame(restModuleS(0), [1, 2])
+        assertStructurallySame(forwardedS(list)(1, 2), [1, 2])
+        assertStructurallySame(restCapturedS(1), [1, 1, 2])
     },
     link: () => {
         assertEq(assertError(link(standIn)({ imports: [], functions: [], exports: [] })), 'L1 imports Any String BigInt Containers Functions Native, and the program ')

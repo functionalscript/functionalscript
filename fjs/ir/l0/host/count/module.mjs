@@ -9,7 +9,7 @@
  *   whose cell a `drop` freed.
  * - **`dup` and `drop` count.** `dup` adds one to a cell's count and
  *   answers its handle; `drop` takes one away, and frees the cell at zero.
- * - **`from_unit`, `concat`, `substring`, `item`, `join` and `text` make a
+ * - **`from_unit`, `concat`, `substring`, `item`, `join`, `key` and `text` make a
  *   cell** of the value that the view answers, counted once, and answer its
  *   handle, which the caller owns: an item read from an array is a cell of
  *   its own. `find` answers an `i32`, the property index or `-1`.
@@ -254,6 +254,7 @@ export const counting = (values, data = 0) => {
                 return make(Object.fromEntries(order.map(key => [key, last.get(key)])))
             },
             join: (parts, separator) => make(v.join(parts, separator)),
+            key: (o, i) => make(v.key(o, i)),
             make_function: (code, frame, length, text) => {
                 const items = read(frame)
                 const t = read(text)

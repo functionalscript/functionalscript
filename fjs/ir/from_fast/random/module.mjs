@@ -900,6 +900,38 @@ export const closureProgram = rnd => {
 }
 
 /**
+ * An untyped program of slice 11c that spreads or takes a rest parameter:
+ * an array literal of an item and two spreads, an object literal of a
+ * spread between two names, a rest parameter of a function that a call
+ * inlines, a returned closure of a rest parameter, which the judge calls
+ * on probes, or a spread into the arguments of a call through a value.
+ * What it spreads is an expression of the programs', so it may be no array
+ * or string, and then each throws what JavaScript throws.
+ *
+ * @type {(rnd: _Rnd) => ReturnType<typeof anyProgram>}
+ */
+export const spreadProgram = rnd => {
+    const e = () => programExpr(rnd, below(rnd, 3))
+    const forms = [
+        () => `(a, b) => [${e()}, ...(${e()}), ...(${e()})]`,
+        () => `(a, b) => ({ k: ${e()}, ...(${e()}), length: ${e()} })`,
+        () => `(a, b) => ((...r) => [r, ...r])(${e()}, ${e()})`,
+        () => `(a, b) => (...r) => [a, ...r, b]`,
+        () => `(a, b) => (g => g(${e()}, ...(${e()})))((...r) => r)`,
+    ]
+    const text = pick(rnd, forms)()
+    const fn = new Function(`return ${text}`)()
+    return {
+        text: `export const f = ${text}\n`,
+        signatures: {},
+        inputs: { f: Array.from({ length: 16 }, () => [{ any: pick(rnd, programSamples) }, { any: pick(rnd, programSamples) }]) },
+        twin: xs => ({ any: fn(held(xs[0]), held(xs[1])) }),
+        runtime: { ...l1Runtime(Object.entries(error)), l1: linkedL1() },
+        abandons: ['f'],
+    }
+}
+
+/**
  * Whether a refusal is one the generators expect today: an integer-signed
  * body's range past its signature, which the checker finds by interval
  * arithmetic. The printer may spell that range as `int(lo, hi)`, `i(n)` or

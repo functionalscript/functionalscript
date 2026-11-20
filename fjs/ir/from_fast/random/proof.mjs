@@ -7,7 +7,7 @@
  */
 
 import { assert, assertEq } from '../../../asserts/module.f.js'
-import { anyForm, anyForms, closureProgram, compare, compareOne, rng, typedProgram, untypedProgram } from './module.mjs'
+import { anyForm, anyForms, closureProgram, compare, compareOne, rng, spreadProgram, typedProgram, untypedProgram } from './module.mjs'
 
 /** Typed programs and programs over `any` in one proof run. */
 const typedCount = 120
@@ -102,6 +102,19 @@ export const proof = {
         const rnd = rng(seed + 12)
         for (let k = 0; k < 100; k += 1) {
             const program = closureProgram(rnd)
+            const out = compareOne(program)
+            assertEq(out[0], 'ran', `${program.text}: ${String(out[1])}`)
+        }
+    },
+    /**
+     * Since 11c, spreads into arrays, objects and the arguments of a call,
+     * and rest parameters, of a function that a call inlines and of a
+     * closure. Each agrees with JavaScript.
+     */
+    spreads: () => {
+        const rnd = rng(seed + 13)
+        for (let k = 0; k < 100; k += 1) {
+            const program = spreadProgram(rnd)
             const out = compareOne(program)
             assertEq(out[0], 'ran', `${program.text}: ${String(out[1])}`)
         }

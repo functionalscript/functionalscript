@@ -71,6 +71,8 @@
  *   `find(o, k)` borrows an object and a string key and answers an `i32`.
  *   `join` joins the strings of a borrowed array with a borrowed separator
  *   and answers an owned string; it fails where an item is not a string.
+ *   `key(o, i)` borrows an object and answers the owned key of its property
+ *   `i`, which traps at or past the end, as the view's `key` throws.
  * - **`call` invokes an existing function value**
  *   ([L0 design §12](../../../doc/sasha-gil/wasm/l0-design.md#12-functions-a-code-index-a-frame-a-length-and-a-text)):
  *   `call(f, args)` borrows a function and a sealed array of arguments and
@@ -94,7 +96,7 @@
  *   ([definition.md: One effect](../../../doc/sasha-gil/ir/definition.md#one-effect)):
  *   `throw`, `call`, and the functions that trap where the view throws, which
  *   definition.md marks: String's `unit` and `substring`, and Containers'
- *   `item`, `push`, `push_property`, `seal` and `join`, and Functions'
+ *   `item`, `push`, `push_property`, `seal`, `join` and `key`, and Functions'
  *   `frame`, which traps for a function that `make_function` did not make
  *   or past its frame, as `item` does past its end. Every other function
  *   of L0 completes on the values of its parameters' types.
@@ -204,7 +206,8 @@ const strings = [
  * and `begin_object`, a builder of `n` items or properties, `push` and
  * `push_property`, which own the builder and an item or a key and a value
  * and give the builder back, and `seal`, which owns the builder and answers
- * the array or the object.
+ * the array or the object; and `key`, the owned string key of the
+ * property `i` of an object, which a spread of one copies.
  *
  * @type {Interface['functions']}
  */
@@ -217,6 +220,7 @@ const containers = [
     ['push_property', mayFail(signature([own('b', builder), own('k', string), own('v', any)], builder, 'b'))],
     ['seal', mayFail(signature([own('b', builder)], container))],
     ['join', mayFail(signature([['parts', array], ['separator', string]], string))],
+    ['key', mayFail(signature([['o', object], ['i', index]], string))],
 ]
 
 /**

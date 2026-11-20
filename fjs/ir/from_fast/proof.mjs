@@ -66,7 +66,8 @@ import { print } from '../print/module.f.js'
 import { edges, held, product, run, spellings } from '../wasm/testlib.mjs'
 import { keySources, value, withFunction } from '../../wasm/runtime/l1/parity/testlib.mjs'
 import * as helpers from './helpers.f.js'
-import { errorTable, lower } from './module.f.js'
+import { errorTable } from './link/module.f.js'
+import { lower } from './module.f.js'
 import * as sample from './sample.f.js'
 import * as strings from './strings.f.js'
 import * as constants from './constants.f.js'
@@ -76,6 +77,7 @@ import * as reads from './reads.f.js'
 import * as throws from './throws.f.js'
 import * as builds from './builds.f.js'
 import * as closures from './closures.f.js'
+import * as spreads from './spreads.f.js'
 import * as programs from './programs.f.js'
 import {
     arrays as arraySignatures, builds as buildSignatures, constants as constantSignatures, helpers as helperSignatures,
@@ -154,6 +156,9 @@ const fromPrograms = () => assertOk(lifetime(fromText(new URL('./programs.f.js',
 
 /** The closures of slice 11b, lowered as the programs are. @type {() => Module} */
 const fromClosures = () => assertOk(lifetime(fromText(new URL('./closures.f.js', import.meta.url), {}, { ...l1Runtime(errors), l1: plainL1() })))
+
+/** The spreads and rest parameters of slice 11c, lowered as the programs are. @type {() => Module} */
+const fromSpreads = () => assertOk(lifetime(fromText(new URL('./spreads.f.js', import.meta.url), {}, { ...l1Runtime(errors), l1: plainL1() })))
 
 /** Each function of a module, taking its arguments as a list. @type {(m: object) => StringMap<_Twin>} */
 const twinsOf = m => Object.fromEntries(Object.entries(m).map(([name, f]) => {
@@ -480,6 +485,7 @@ export const proof = {
         "    fn push_property(own b: builder, own k: any.only(string), own v: any) -> builder, gives back b may fail",
         "    fn seal(own b: builder) -> any.only(array, object) may fail",
         "    fn join(parts: any.only(array), separator: any.only(string)) -> any.only(string) may fail",
+        "    fn key(o: any.only(object), i: u(31)) -> any.only(string) may fail",
         "",
         "import Functions from fjs:l0",
         "    fn length(f: any.only(function)) -> u(31)",
@@ -1818,4 +1824,10 @@ export const proof = {
     // JavaScript's on probes of its own; `given` passes one to a function of
     // JavaScript, which calls it.
     closuresRun: () => runPrograms(fromClosures(), closures, ['applied', 'callTwice', 'given', 'sameLocal', 'viaCallback']),
+    // Slice 11c: every export of the spreads, each against JavaScript.
+    spreads: () => {
+        const m = fromSpreads()
+        assertEq([...m.exports].toSorted().join(' '), Object.keys(spreads).toSorted().join(' '))
+    },
+    spreadsRun: () => runPrograms(fromSpreads(), spreads, ['around', 'spreadCall', 'spreadMixed']),
 }

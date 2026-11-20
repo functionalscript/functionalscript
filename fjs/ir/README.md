@@ -496,6 +496,20 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   twin's where both have the same length and agree on probes of their own
   ([`wasm/testlib.mjs`](./wasm/testlib.mjs)).
 
+## What 11c adds
+
+- **Spread in a program**: `...v` in an array literal or in the arguments
+  of a call is L1's `toIterable` of `v`, and in an object literal L1's
+  `objectSpread` of it, each read where it stands, so that it throws where
+  JavaScript throws before anything after it is read. Containers' builder
+  then pushes every item of each part, in order, with a loop for each
+  spread ([lowering](./from_fast/README.md#spread-and-rest-parameters)).
+- **Rest parameters**: the rest parameter of a closure is an array of the
+  items of `#args` past its other parameters, and that of a function that a
+  call inlines an array of the arguments past them.
+- **L0 gains `Containers.key(o, i)`**: it borrows an object and answers the
+  owned key of its property `i`, which a spread of an object copies.
+
 ## What every slice refuses
 
 Everything else is refused with the function's name and the reason, never
