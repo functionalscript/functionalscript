@@ -138,13 +138,20 @@ const computations = module => {
  * the export object holds under the name, the same node. No property is
  * read, so a name a read refuses, `map` or `entries`, is written as source;
  * and the object is not an anchor, so a program that imports names builds
- * no object nothing reads. A module that computes nothing but the value is
- * the value.
+ * no object nothing reads.
+ *
+ * The computations keep the order the module evaluates them in, the
+ * selected one among them where it stands: an export before it that fails
+ * and one after it that never ends are met in that order, as they are when
+ * the module is evaluated. Only where the selection is the last of them is
+ * it not repeated, and a module that computes nothing but the value is the
+ * value.
  *
  * @type {(module: Exp, value: Exp) => Exp}
  */
 const namedExport = (module, value) => {
-    const anchors = computations(module).filter(computed => computed !== value)
+    const computed = computations(module)
+    const anchors = computed.at(-1) === value ? computed.slice(0, -1) : computed
     return anchors.length === 0 ? value : [',', [...anchors, value]]
 }
 

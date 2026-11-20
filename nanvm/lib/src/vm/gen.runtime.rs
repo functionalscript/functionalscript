@@ -17,12 +17,12 @@ use nanvm_lib::vm::{
 #[rustfmt::skip]
 #[allow(clippy::if_same_then_else)]
 pub fn runtime<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
-    let _b4: Any<A> = A::static_function(|_self, _args| Any::has_entry(_args.argument(0), _args.argument(1)).map(|v| v.to_any()), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable===true;}")).to_any();
-    let _b5: Any<A> = A::static_function(|_self, _args| Any::entry(_args.argument(0), _args.argument(1)), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}")).to_any();
-    let _b6: Any<A> = _b5.clone();
-    let _b7: Any<A> = A::static_function(|_self, _args| Any::dot(_args.argument(0), string_any("slice")).end_call_native(|| Ok([_args.argument(1), _args.argument(2)].to_array().to_any())), 3, Array::default(), Some("($0,$1,$2)=>$0.slice($1,$2)")).to_any();
-    let _b8: Any<A> = A::static_function(|_self, _args| Any::dot(_args.argument(0), string_any("charCodeAt")).end_call_native(|| Ok([_args.argument(1)].to_array().to_any())), 2, Array::default(), Some("($0,$1)=>$0.charCodeAt($1)")).to_any();
-    let _b9: Any<A> = _b8.clone();
+    let _b4: Any<A> = A::static_function(|_self, _args| Any::entry(_args.argument(0), _args.argument(1)), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}")).to_any();
+    let _b5: Any<A> = A::static_function(|_self, _args| Any::has_entry(_args.argument(0), _args.argument(1)).map(|v| v.to_any()), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable===true;}")).to_any();
+    let _b6: Any<A> = _b4.clone();
+    let _b7: Any<A> = A::static_function(|_self, _args| Any::dot(_args.argument(0), string_any("charCodeAt")).end_call_native(|| Ok([_args.argument(1)].to_array().to_any())), 2, Array::default(), Some("($0,$1)=>$0.charCodeAt($1)")).to_any();
+    let _b8: Any<A> = A::static_function(|_self, _args| Any::dot(_args.argument(0), string_any("slice")).end_call_native(|| Ok([_args.argument(1), _args.argument(2)].to_array().to_any())), 3, Array::default(), Some("($0,$1,$2)=>$0.slice($1,$2)")).to_any();
+    let _b9: Any<A> = _b7.clone();
     let _b38: Any<A> = A::static_function(|_self, _args| {
         let _b13: Any<A> = (Any::call(A::frame(_self)[0].clone(), [_args.argument(0), _args.argument(1)].to_array().to_any()))?;
         if Any::<A>::to_boolean(&{
@@ -288,7 +288,7 @@ pub fn runtime<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
             if Any::<A>::to_boolean(&_b517.clone()) { (Any::lt(_b510.clone(), f64_any(0x0000000000000000)))? } else { _b517.clone() }
         }) { Ok(f64_any(0x8000000000000000)) } else { Ok(_b516.clone()) }
     }, 1, [_b429.clone(), _b500.clone()].to_array(), Some("function round() { [native code] }")).to_any())].to_object().to_any();
-    let _b528: Any<A> = _b4.clone();
+    let _b528: Any<A> = _b5.clone();
     let _b557: Any<A> = A::static_function(|_self, _args| {
         let _b472052: Any<A> = _args.rest(1).to_any();
         let _b530: Any<A> = (spread_array([spread_item(_b472052.clone())?]))?;
@@ -407,7 +407,7 @@ pub fn runtime<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
             Any::call(A::frame(_self)[0].clone(), (spread_array([value_item(A::frame(_self)[1].clone()), spread_item(_b507584.clone())?]))?)
         }, 0, [A::frame(_self)[1].clone(), _args.argument(0)].to_array(), Some("(...$2)=>$0($1,...$2)")).to_any()) } else { Ok(Nullish::Undefined.to_any()) } } }, 1, [_b557.clone(), _b583.clone()].to_array(), Some("($2)=>$2 instanceof Array?(...$3)=>$0($2,...$3):typeof $2===\"string\"?(...$4)=>$1($2,...$4):undefined")).to_any()), (string_key("map"), A::static_function(|_self, _args| { if Any::<A>::to_boolean(&(<Any<A> as core::ops::Not>::not((Any::instanceof_(&_args.argument(0), Constructor::Array))?))?) { Ok(Nullish::Undefined.to_any()) } else { Ok(A::static_function(|_self, _args| { Any::call(A::frame(_self)[0].clone(), [A::frame(_self)[1].clone(), _args.argument(0)].to_array().to_any()) }, 1, [A::frame(_self)[0].clone(), _args.argument(0)].to_array(), Some("($2)=>$0($1,$2)")).to_any()) } }, 1, [_b220.clone()].to_array(), Some("($1)=>!($1 instanceof Array)?undefined:($2)=>$0($1,$2)")).to_any()), (string_key("startsWith"), {
             let _b628: Any<A> = {
-                let _b616: Any<A> = _b7.clone();
+                let _b616: Any<A> = _b8.clone();
                 A::static_function(|_self, _args| {
                     let _b620: Any<A> = (_args.argument(2) + (Any::dot(_args.argument(1), string_any("length")).end())?)?;
                     if Any::<A>::to_boolean(&(Any::gt(_b620.clone(), (Any::dot(_args.argument(0), string_any("length")).end())?))?) { Ok(false.to_any()) } else { strict_eq((Any::call(A::frame(_self)[0].clone(), [_args.argument(0), _args.argument(2), _b620.clone()].to_array().to_any()))?, _args.argument(1)) }

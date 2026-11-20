@@ -41,8 +41,9 @@ pub fn module<A: IStaticFunction>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let _b597: Any<A> = A::static_function(|_self, _args| { Err(string_any("boom")) }, 0, [runtime.clone()].to_array(), Some("()=>{throw \"boom\";}")).to_any();
     Ok([(string_key("directory"), [(string_key("run"), {
         let _b55: Any<A> = {
-            let _b668034: Any<A> = A::static_function(|_self, _args| Any::has_entry(_args.argument(0), _args.argument(1)).map(|v| v.to_any()), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable===true;}")).to_any();
-            A::static_function(|_self, _args| Any::entry(_args.argument(0), _args.argument(1)), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}")).to_any()
+            let _b53: Any<A> = A::static_function(|_self, _args| Any::entry(_args.argument(0), _args.argument(1)), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}")).to_any();
+            let _b668035: Any<A> = A::static_function(|_self, _args| Any::has_entry(_args.argument(0), _args.argument(1)).map(|v| v.to_any()), 2, Array::default(), Some("($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable===true;}")).to_any();
+            _b53.clone()
         };
         A::static_function(|_self, _args| {
             let _b67: Any<A> = (Any::call(A::frame(_self)[0].clone(), [string_any("mkdir"), [(_args.argument(0) + string_any("/b"))?, Nullish::Undefined.to_any()].to_array().to_any(), A::frame(_self)[1].clone()].to_array().to_any()))?;

@@ -208,9 +208,9 @@ const compared = (first, count) => generate(count, k => first + k).reduce((/** @
 // conditions from the pass makes a part fail: a loop's body as no first
 // demand, operands an optional step skips, a binding declared anew, a
 // `return` as a way to end unread, and what the arm that goes on must hold.
-export const proof = {
+export const proof = /** @type {const} */ ({
     part0: () => { compared(1, 40) },
     part1: () => { compared(41, 40) },
     part2: () => { compared(81, 40) },
     part3: () => { compared(121, 40) },
-}
+})
