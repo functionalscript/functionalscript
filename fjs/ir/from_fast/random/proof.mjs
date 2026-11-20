@@ -7,7 +7,7 @@
  */
 
 import { assert, assertEq } from '../../../asserts/module.f.js'
-import { compare, rng, typedProgram } from './module.mjs'
+import { anyForm, anyForms, compare, compareOne, rng, typedProgram } from './module.mjs'
 
 /** Typed programs and programs over `any` in one proof run. */
 const typedCount = 120
@@ -58,5 +58,22 @@ export const proof = {
             found = rows !== undefined && rows.some(row => row.some(v => typeof v === 'number' && Object.is(v, -0)))
         }
         assert(found)
+    },
+
+    /**
+     * The forms since slice 8c (object literals and `buildObject`), 9a
+     * (numbers and booleans as items) and 9b (calls of function values),
+     * thirty programs each from their own seed: each runs, none is refused,
+     * and every call agrees.
+     */
+    laterForms: () => {
+        assertEq(anyForms, 18)
+        for (const form of [15, 16, 17]) {
+            const rnd = rng(seed + form)
+            for (let k = 0; k < 30; k += 1) {
+                const out = compareOne(anyForm(rnd, form))
+                assertEq(out[0], 'ran', `form ${form}: ${String(out[1])}`)
+            }
+        }
     },
 }

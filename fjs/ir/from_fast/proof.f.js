@@ -1040,6 +1040,8 @@ export const proof = {
             'export f',
             '',
         ].join('\n'))
+        // An arm that no `any` holds is left unboxed, and the checker refuses the `if`: an arm is never dropped silently.
+        assertEq(assertError(check(assertOk(over(only([['v', any]], any), 'import { STRING, kind } from "../l0/module.f.js"\nexport const f = v => kind(v) === STRING ? v : 1n')))), 'f: match: its arms are any, int(1, 1), which no one type holds')
         assertEq(irOver(only([['v', any]], any), 'const u = undefined\nexport const f = v => u'), [
             'fn f(v: any) -> any =',
             '    Any.undefined',

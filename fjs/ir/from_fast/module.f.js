@@ -339,9 +339,11 @@ const values = (lowerValue, scope, vs) => okList(vs.map(v => lowerValue(scope, v
  * @type {(scope: _Scope, a: Term, b: Term) => readonly [Term, Term]}
  */
 const aligned = (scope, a, b) => {
-    // Skip an arm that typeOf cannot place yet under `scope.ir` (a nested
+    // Leave an arm that typeOf cannot place yet under `scope.ir` (a nested
     // `br` to a loop label inside a non-transfer arm, as in a chain of
-    // `if`s that ends in continue): leave it for the checker.
+    // `if`s that ends in continue), and an arm that no `any` holds, as they
+    // are: the checker types every arm again and refuses arms that no one
+    // type holds, so nothing is boxed wrongly or let through.
     const ta = typeOf(scope.ir)(a)
     const tb = typeOf(scope.ir)(b)
     if (ta[0] === 'error' || tb[0] === 'error') { return [a, b] }
