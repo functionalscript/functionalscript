@@ -136,12 +136,29 @@ export const proof = {
             const printed = ['()', ['.', unresolved(unwrap(parse('')(unwrap(tryModuleStringify(graph))))).edag, 'main'], []]
             assertEq(execute(printed), 42)
         },
-        // an export is selected as its value under the module's computation,
-        // with no property read: a name a read refuses is written as source
+        // an export is selected as its value under the module's computations,
+        // with no property read: a name a read refuses is written as source.
+        // The object that holds the exports is no computation, and neither
+        // is a literal: what stays is the sequence before the object and
+        // every other export that is a node
         prototypeNames: () => {
             expectEdag(
                 program({ main: file('import {map} from "./dep"; export default map;'), dep: file('const z=[0]; export const map=1; export const two=2;') })('main'),
-                [',', [['[]', [0]], ['{}', [[':', 'map', 1], [':', 'two', 2]]], 1]])
+                [',', [['[]', [0]], 1]])
+            // in the order the module evaluates them: the selection where it
+            // stands among them, and not repeated where it is the last
+            const ordered = /** @type {const} */ ({ main: file('import {map} from "./dep"; export default map;'), dep: file('export const map=[1]; export const two=[2]; export const three=3;') })
+            const first = program(ordered)('main')
+            expectEdag(first, [',', [['[]', [1]], ['[]', [2]], ['[]', [1]]]])
+            const [, [anchor, , selected]] = /** @type {readonly ['', readonly Exp[]]} */ (/** @type {unknown} */ (first))
+            assertEq(anchor, selected)
+            expectEdag(
+                program({ ...ordered, main: file('import {two} from "./dep"; export default two;') })('main'),
+                [',', [['[]', [1]], ['[]', [2]]]])
+            // a module that computes nothing but the value is the value
+            expectEdag(
+                program({ main: file('import {map} from "./dep"; export default map;'), dep: file('export const map=[1]; export const two=2;') })('main'),
+                ['[]', [1]])
             const graph = unwrap(linked({
                 main: file('import {map,entries} from "./dep"; export const main=()=>map(entries);'),
                 dep: file('export const map=(...args)=>args[0]+1; export const entries=41;'),
@@ -1114,11 +1131,6 @@ export const proof = {
             refuses(value(compile('export default ({ a }) => a;').edag), [])
         },
     },
-    // The imports bound: the linked program is one EDAG, the imported
-    // module's node where the importer's parameter was, and no path in it.
-    // Linked over the modules an earlier link completed, a program binds
-    // the module the two share as the same EDAG node, and does not read
-    // its file again: here it is empty the second time.
     // A node of a linked graph is its module's: the one that reaches it
     // without passing what its own imports selected. A JSON document has no
     // file to name, and a node no module made has no owner.
@@ -1141,6 +1153,11 @@ export const proof = {
         assertEq(_origin(modules, j), '')
         assertEq(_origin(modules, null), '')
     },
+    // The imports bound: the linked program is one EDAG, the imported
+    // module's node where the importer's parameter was, and no path in it.
+    // Linked over the modules an earlier link completed, a program binds
+    // the module the two share as the same EDAG node, and does not read
+    // its file again: here it is empty the second time.
     resolveOver: () => {
         const [linkedModules, a] = assertOk(virtualAt({
             'a.f.js': file('import s from "./s.f.js"; export default [s];'),
