@@ -210,6 +210,7 @@ export const proof = /** @type {const} */ ({
     // comparison: the directory and the two writes run only for it, over the
     // inputs a compile reads, and it is reported once.
     selfCompile: () => {
+        /** @type {readonly string[]} */
         const steps = [selfPrepare, ...selfWrites.map(write => `mise exec -- ${write}`), selfCompare]
         const source = cached([mise, nodeVersion, install, compile, ...steps.map(run => ({ run }))])
         for (const run of steps) {
