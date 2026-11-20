@@ -20,7 +20,7 @@ import { assert } from '../../../asserts/module.f.js'
 import { entry } from '../../../types/object/entry/module.f.js'
 import {
     ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFINED,
-    asBoolean, asNumber, asString, buildArray, concat, fromUnit, item, kind, length, substring, unit,
+    asBoolean, asFunction, asNumber, asString, buildArray, buildObject, concat, fromUnit, item, kind, length, substring, unit,
 } from '../../../wasm/runtime/l0/module.f.js'
 import { error } from '../../../wasm/runtime/l1/error/module.f.js'
 import { numberRemainder } from '../../../wasm/runtime/l1/native/module.f.js'
@@ -432,13 +432,103 @@ const literalSamples = ['""', '"a"', '"ab"', '"x y"', '"Ã©"', '"\\u00e9"', '"ðŸ˜
  *   readonly inputs: StringMap<readonly (readonly _Value[])[]>,
  *   readonly twin: _Twin,
  *   readonly runtime: NonNullable<Parameters<typeof lower>[1]>,
+ *   readonly abandons?: readonly string[],
  * }}
  */
-export const anyProgram = rnd => {
-    const form = below(rnd, 15)
+export const anyProgram = rnd => anyForm(rnd, below(rnd, anyForms))
+
+/** How many forms {@link anyForm} writes: 0 to 14 through slice 8b, 15 to 17 since 8c, 9a and 9b. */
+export const anyForms = 18
+
+/**
+ * The program of one form over values of unknown kind, as
+ * {@link anyProgram} describes.
+ *
+ * @type {(rnd: _Rnd, form: number) => ReturnType<typeof anyProgram>}
+ */
+export const anyForm = (rnd, form) => {
     const samples = () => Array.from({ length: 8 }, () => /** @type {const} */ ([{ any: pick(rnd, anySamples) }]))
     /** Pairs of a value from `values` and a number of `indexSamples`. @type {(values: readonly unknown[]) => readonly (readonly _Value[])[]} */
     const pairs = values => Array.from({ length: 12 }, () => /** @type {const} */ ([{ any: pick(rnd, values) }, pick(rnd, indexSamples)]))
+    if (form === 17) {
+        // a call of a function value through L0's `call`, with an arguments array built from positional arguments,
+        // at times in an arm of a `kind` test
+        const args = pick(rnd, ['', 'v', 'v, w', 'w, v, w'])
+        const call = `asFunction(f)(${args})`
+        const body = rnd() < 0.3 ? `kind(f) === FUNCTION ? ${call} : v` : call
+        const fn = new Function('FUNCTION', 'asFunction', 'kind', `return (f, v, w) => ${body}`)(FUNCTION, asFunction, kind)
+        /** @type {readonly unknown[]} */
+        const callees = [
+            () => 'k',
+            (/** @type {unknown} */ a) => a,
+            (/** @type {unknown} */ a, /** @type {unknown} */ b) => [b, a],
+            (/** @type {readonly unknown[]} */ ...xs) => xs.length,
+            () => { throw 'callee' },
+            1, 'f', null,
+        ]
+        return {
+            text: `${l0Import.replace('asBoolean,', 'asBoolean, asFunction,')}export const f = (f, v, w) => ${body}\n`,
+            signatures: { f: signature([['f', any], ['v', any], ['w', any]], any) },
+            inputs: {
+                f: Array.from({ length: 10 }, () => /** @type {const} */ ([
+                    { any: pick(rnd, callees) },
+                    { any: pick(rnd, anySamples) },
+                    { any: pick(rnd, stringSamples) },
+                ])),
+            },
+            twin: xs => ({ any: fn(held(xs[0]), held(xs[1]), held(xs[2])) }),
+            runtime,
+            // a callee that throws leaves the arguments array behind, which the host's `recover` frees
+            abandons: ['f'],
+        }
+    }
+    if (form === 16) {
+        // numbers and booleans as items of an array literal, which Any's `from_f64` and `from_bool` box
+        const atoms = /** @type {const} */ (['v', 'x', 'x + 1', '-x', '0', '1.5', 'b', '!b', 'x < 1', 'true', '"s"'])
+        const items = Array.from({ length: 1 + below(rnd, 3) }, () => pick(rnd, atoms))
+        const array = `[${items.join(', ')}]`
+        const body = pick(rnd, [array, `[${array}, v]`, `b ? ${array} : [x]`])
+        const fn = new Function(`return (v, x, b) => ${body}`)()
+        return {
+            text: `${l0Import}export const f = (v, x, b) => ${body}\n`,
+            signatures: { f: signature([['v', any], ['x', f64], ['b', bool]], any) },
+            inputs: {
+                f: Array.from({ length: 10 }, () => /** @type {const} */ ([
+                    { any: pick(rnd, anySamples) },
+                    pick(rnd, [0, -0, 1, -1.5, NaN, Infinity, 0.5]),
+                    rnd() < 0.5,
+                ])),
+            },
+            twin: xs => ({ any: fn(held(xs[0]), float64(xs[1]), xs[2] === true) }),
+            runtime,
+        }
+    }
+    if (form === 15) {
+        // an object literal of values of `any`, `{}` among them, at times nested, and `buildObject` of the L0 view,
+        // whose arrow callbacks are inlined into one loop of the builder
+        const values = /** @type {const} */ (['v', 'w', 'concat(w, "!")', 'undefined', '"x"', '[v]'])
+        const keys = ['a', 'b', 'c']
+        /** An object literal of up to three keys, nested where `depth` allows. @type {(depth: number) => string} */
+        const objectText = depth => `{${keys.slice(0, below(rnd, 4)).map(k => ` ${k}: ${depth > 0 && rnd() < 0.3 ? objectText(depth - 1) : pick(rnd, values)}`).join(',')} }`
+        const key = pick(rnd, ['() => "k"', 's => fromUnit(0x61 + s)', 's => s < 1 ? "a" : "b"', 's => concat(w, "!")'])
+        const value = pick(rnd, ['() => v', 's => [w]', '() => "x"', 's => fromUnit(0x41 + s)'])
+        const built = `buildObject(n, 0, s => s + 1, ${key}, ${value})`
+        const body = pick(rnd, [`(${objectText(1)})`, '({})', built, `kind(w) === STRING ? ${built} : ({ a: v })`])
+        const fn = new Function('STRING', 'buildObject', 'concat', 'fromUnit', 'kind', `return (v, w, n) => ${body}`)(STRING, buildObject, concat, fromUnit, kind)
+        return {
+            text: `${l0Import.replace('asString,', 'asString, buildObject,')}export const f = (v, w, n) => ${body}\n`,
+            signatures: { f: signature([['v', any], ['w', any], ['n', f64]], any) },
+            inputs: {
+                f: Array.from({ length: 10 }, () => /** @type {const} */ ([
+                    { any: pick(rnd, anySamples) },
+                    { any: pick(rnd, stringSamples) },
+                    pick(rnd, [0, 1, 2, 3, 0.5, -1, NaN]),
+                ])),
+            },
+            twin: xs => ({ any: fn(held(xs[0]), held(xs[1]), float64(xs[2])) }),
+            runtime,
+        }
+    }
     if (form === 14) {
         // buildArray of the L0 view, one loop of the builder, whose arrow callbacks are inlined: at times nested, and at
         // times in an arm of a `kind` test
@@ -735,7 +825,7 @@ const expectedRefusal = (reason, result) => {
  * bodies. Any other refusal is reported as wrong, so a regression that
  * refuses a supported category fails the proof.
  *
- * @type {(program: ReturnType<typeof typedProgram>) => _Outcome}
+ * @type {(program: ReturnType<typeof typedProgram> & { readonly abandons?: readonly string[] }) => _Outcome}
  */
 export const compareOne = program => {
     const result = program.signatures.f.result
@@ -754,7 +844,7 @@ export const compareOne = program => {
         return accept(owned[1]) ? ['refused', owned[1]] : ['wrong', `refused: ${owned[1]}`]
     }
     try {
-        run(owned[1], { f: program.twin }, program.inputs)
+        run(owned[1], { f: program.twin }, program.inputs, program.abandons ?? [])
     } catch (e) {
         return ['wrong', e instanceof Error ? e.message : String(e)]
     }
