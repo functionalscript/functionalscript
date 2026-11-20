@@ -17,7 +17,7 @@ import { toData } from '../../edag/value/to_unknown/module.f.js'
 import { isArray } from '../../types/array/module.f.js'
 import { tryModuleStringify } from '../serializer/module.f.js'
 import { analysis } from '../../edag/analysis/module.f.js'
-import { _defaultExport, _moduleExports, _moduleThrows, _owner, resolve, resolveOver, unresolved } from './module.f.js'
+import { _defaultExport, _moduleExports, _moduleThrows, _origin, _owner, resolve, resolveOver, unresolved } from './module.f.js'
 import { parse } from '../transpiler/module.f.js'
 import { exp } from '../../edag/module.f.js'
 import { validate } from '../../rtti/validate/module.f.js'
@@ -1136,6 +1136,10 @@ export const proof = {
         assertEq(_owner(modules, t), 's.f.js')
         assertEq(_owner(modules, j), null)
         assertEq(_owner(modules, ['[]', []]), null)
+        // what a diagnostic adds for a node: its file, or nothing
+        assertEq(_origin(modules, t), ', in s.f.js')
+        assertEq(_origin(modules, j), '')
+        assertEq(_origin(modules, null), '')
     },
     resolveOver: () => {
         const [linkedModules, a] = assertOk(virtualAt({

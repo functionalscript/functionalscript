@@ -228,3 +228,15 @@ export const _owner = (linked, node) => {
     const module = toArray(entries(linked)).find(([, module]) => module.path !== null && made(module, node))
     return module === undefined ? null : module[1].path
 }
+
+/**
+ * What a diagnostic of `node` adds to say where it came from: the file of
+ * {@link _owner}, or nothing where the diagnostic is of no node, or of one
+ * no file made.
+ *
+ * @type {(linked: _Linked, node: Exp | null) => string}
+ */
+export const _origin = (linked, node) => {
+    const file = node === null ? null : _owner(linked, node)
+    return file === null ? '' : `, in ${file}`
+}
