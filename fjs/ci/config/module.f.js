@@ -20,7 +20,7 @@ export const images = /** @type {const} */({
     }
 })
 
-export const bun = '1.4.4'
+export const bun = '1.4.5'
 
 export const deno = '2.9.8'
 
