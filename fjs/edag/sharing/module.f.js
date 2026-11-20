@@ -186,6 +186,15 @@ export const operandsOf = node => isChain(node[0])
     : ordinaryOperandsOf(node)
 
 /**
+ * A node's operands with a function's body among them: what a walk of a
+ * whole graph descends into, where {@link operandsOf} stops at the function
+ * boundary.
+ *
+ * @type {(node: readonly unknown[]) => readonly unknown[]}
+ */
+export const withBodies = node => node[0] === '=>' ? [...operandsOf(node), node[3]] : operandsOf(node)
+
+/**
  * The distinct nodes an EDAG reaches from more than one place, in dependency
  * order — the generalization of a corpus's explicit, named `data.shared` to
  * a linked EDAG, where sharing is implicit: two references to one `const`

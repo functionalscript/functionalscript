@@ -31,7 +31,7 @@ import { toArray } from '../../types/list/alt/module.f.js'
 import { invert, ok, unwrap } from '../../types/result/module.f.js'
 import { _defaultExport, unresolved } from '../edag/module.f.js'
 import { parse } from '../transpiler/module.f.js'
-import { _tryModuleSerialize, _trySerialize, functionText, tryFunctionText, trySerialize, tryStringify, tryModuleSerialize, tryModuleStringify, tryMarked, tryModuleMarked } from './module.f.js'
+import { _tryModuleSerialize, _trySerialize, functionText, tryFunctionText, trySerialize, tryStringify, tryModuleSerialize, tryModuleStringify, tryMarked, tryModuleLocated, tryModuleMarked, unlocated } from './module.f.js'
 import { keywords } from '../../js/keywords/module.f.js'
 import { staticIds } from '../../edag/module.f.js'
 import { operandsOf, visit } from '../../edag/sharing/module.f.js'
@@ -273,6 +273,22 @@ const analyzedFunction = e => {
 }
 
 export const proof = {
+    // A refusal carries the node of the graph it is of, for a caller that
+    // linked the graph and can say which file made it; one of the module as
+    // a whole carries none. What is written is what the other writers write.
+    refusedNode: () => {
+        /** @type {Exp} */
+        const args = ['args']
+        const refused = assertError(tryModuleLocated(['{}', [[':', 'a', ['[]', [args]]]]]))
+        assertEq(refused[0], 'a args node')
+        assertEq(refused[1], args)
+        assertStructurallySame(assertError(tryModuleLocated(['{}', []])), ['a module without exports', null])
+        /** @type {Exp} */
+        const written = ['{}', [[':', 'a', 1]]]
+        assertStructurallySame(tryModuleLocated(written), tryModuleMarked(written))
+        assertStructurallySame(unlocated(ok(1)), ['ok', 1])
+        assertStructurallySame(unlocated(invert(ok('why'))), ['error', ['why', null]])
+    },
     deferredLoweringIsDisplayed: () => {
         for (const source of ['export default 1==1;', 'export default (a,x)=>a==x;', 'export default ()=>{return 1;const unused=2==2;};']) {
             const result = _sourceOf(source)

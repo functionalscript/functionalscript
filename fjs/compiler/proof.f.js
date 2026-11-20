@@ -1032,7 +1032,15 @@ export const proof = {
             // the refusal is the output's
             assertEq(
                 fjsRefused({ 'input.f.js': [utf8('export default (()=>{let n=0;const o={f:x=>x};const r=o.f((()=>{n=n+1;return n;})());return [r,n];})();')] }),
-                'output.f.js - error: cannot write as FunctionalScript: an internal member-presence query')
+                'output.f.js - error: cannot write as FunctionalScript: an internal member-presence query, in input.f.js')
+            // and names the file whose module made the node it has none for,
+            // which is not the input where the input imports it
+            assertEq(
+                fjsRefused({
+                    'input.f.js': [utf8('import { fine, refused } from "./m.f.js"; export default [fine, refused];')],
+                    'm.f.js': [utf8('export const refused = (()=>{let n=0;const o={f:x=>x};const r=o.f((()=>{n=n+1;return n;})());return [r,n];})(); export const fine = 1;')],
+                }),
+                'output.f.js - error: cannot write as FunctionalScript: an internal member-presence query, in m.f.js')
         },
         // a `.json` input reaches this route too, as it reaches the others
         jsonInput: () => {

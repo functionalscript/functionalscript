@@ -193,3 +193,13 @@ Questions to answer:
   — EDAG sharing and node-identity semantics.
 - [`../../edag/README.md`](../../edag/README.md) — the canonical EDAG schema;
   source metadata must stay outside that canonical value.
+
+### What exists without one
+
+A refusal of the FunctionalScript writer names the file of the module that
+made the refused node (`_owner` in [`../edag/module.f.js`](../edag/module.f.js)):
+the link keeps, for each module, what its imports selected, and a node
+reached from a module's exports without passing those is that module's. That
+needs no metadata in the EDAG and no sidecar. It stops at the file: a line
+and a column are what a source map would add, and `fjs compile` writing
+FunctionalScript is the first consumer that asks for one.

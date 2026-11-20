@@ -31,6 +31,10 @@ export type Unresolved = {
 export type _Resolved = {
     readonly exports: Exp
     readonly bindings: readonly (readonly [string, Exp])[]
+    /** The module's file, or `null` for a JSON document. */
+    readonly path: string | null
+    /** What its imports selected: where its own nodes end and other modules' begin. */
+    readonly imports: readonly Exp[]
 }
 
 /**

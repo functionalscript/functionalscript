@@ -20,7 +20,7 @@ import { fromAnalysis } from '../to_fast/module.f.js'
 import { prepare } from '../../js/ast/prepare/module.f.js'
 import { functionStringify } from '../../js/ast/serializer/module.f.js'
 import { isFunctionNode, isIntrinsic, isStatic } from '../module.f.js'
-import { operandsOf, visit } from '../sharing/module.f.js'
+import { operandsOf, visit, withBodies } from '../sharing/module.f.js'
 import { error, mapOk, ok, okThen } from '../../types/result/module.f.js'
 import { tagged, untagged } from '../../text/marked/module.f.js'
 import { bindingTagged, scopeTagged as preparedScope, valueTagged } from '../../rust/serializer/module.f.js'
@@ -43,9 +43,6 @@ const functionError = a => {
     }
     return null
 }
-
-/** Function bodies participate in module capability metadata. @type {(node: readonly unknown[]) => readonly unknown[]} */
-const withBodies = node => node[0] === '=>' ? [...operandsOf(node), node[3]] : operandsOf(node)
 
 /** @type {(step: StepOver<Exp, Index> | undefined, member: boolean) => boolean} */
 const memberCall = (step, member) => step === undefined ? false : step[0] === '|.' ? memberCall(step[2], true) : member || memberCall(step[2], false)

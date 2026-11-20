@@ -13,6 +13,8 @@
  * @import { Effect } from '../../effects/types.ts'
  * @import { ReadWhole, ResolveFileModule } from '../../effects/node/types.ts'
  * @import { _Linked, _Resolved, Unresolved } from './types.ts'
+ * @import { List } from '../../types/list/types.ts'
+ * @import { PersistentMap } from '../../types/map/types.ts'
  */
 
 import { tryNormalize } from '../../js/ast/sugar/module.f.js'
@@ -22,6 +24,11 @@ import { pureOk } from '../../effects/module.f.js'
 import { error, mapOk, ok, unwrap } from '../../types/result/module.f.js'
 import { assert } from '../../asserts/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
+import { fromEntries, mapHas, mapSet } from '../../types/map/module.f.js'
+import { next } from '../../types/list/module.f.js'
+import { toArray } from '../../types/list/alt/module.f.js'
+import { entries } from '../../types/ordered_map/module.f.js'
+import { withBodies } from '../../edag/sharing/module.f.js'
 
 const args = /** @type {const} */ (['args'])
 
@@ -122,10 +129,12 @@ const namedExport = (module, value) =>
 
 // ── resolution ────────────────────────────────────────────────────────────────
 
-/** A module's EDAG and its bindings, each export selected as an import reads it. @type {(edag: Exp) => _Resolved} */
-const resolved = edag => ({
+/** A module's EDAG and its bindings, each export selected as an import reads it. @type {(edag: Exp, path?: string | null, imports?: readonly Exp[]) => _Resolved} */
+const resolved = (edag, path = null, imports = []) => ({
     exports: edag,
     bindings: _moduleExports(edag).map(([, key, value]) => [key, key === 'default' ? _defaultExport(edag) : namedExport(edag, value)]),
+    path,
+    imports,
 })
 
 /**
@@ -142,7 +151,7 @@ const linking = {
     select: ({ exports, bindings }, name) => name === null ? exports : bindings.find(([key]) => key === name)?.[1],
     module: ({ path }, imports, module) => {
         const loweredModule = lowered(imports)(module)
-        return loweredModule[0] === 'error' ? error(_fileError(path)(loweredModule[1])) : ok(resolved(loweredModule[1]))
+        return loweredModule[0] === 'error' ? error(_fileError(path)(loweredModule[1])) : ok(resolved(loweredModule[1], path, imports))
     },
 }
 
@@ -178,3 +187,56 @@ export const resolve = _program(pureOk(linking), ({ exports }) => exports)
  * @type {(path: string, linked: _Linked) => Effect<ReadWhole | ResolveFileModule, readonly [_Linked, Exp], ParseError>}
  */
 export const resolveOver = _programOver(pureOk(linking), ({ exports }) => exports)
+
+/**
+ * Whether the module made `node`: it is reached from the module's exports,
+ * or from an export as an import selects it, without passing what the
+ * module's own imports selected. Past those the nodes are other modules'.
+ *
+ * @type {(module: _Resolved, node: Exp) => boolean}
+ */
+const made = ({ exports, bindings, imports }, node) => {
+    /** @type {PersistentMap<unknown, boolean>} */
+    let seen = fromEntries(imports.flatMap(value => value instanceof Array ? [/** @type {readonly [unknown, boolean]} */ ([value, true])] : []))
+    /** @type {List<unknown>} */
+    let pending = [exports, ...bindings.map(([, value]) => value)]
+    while (true) {
+        /** @type {ReturnType<typeof next<unknown>>} */
+        const step = next(pending)
+        if (step === null) { return false }
+        /** @type {unknown} */
+        const first = step.first
+        /** @type {List<unknown>} */
+        const rest = step.tail
+        pending = rest
+        if (!(first instanceof Array) || mapHas(seen, first)) { continue }
+        if (first === /** @type {unknown} */ (node)) { return true }
+        seen = mapSet(seen, first, true)
+        pending = { head: withBodies(first), tail: rest }
+    }
+}
+
+/**
+ * The file of the module that made `node`, among the modules of a link, or
+ * `null` where none did: a node of a JSON document, or of no module. A
+ * linked graph holds no position, so a refusal of one of its nodes can name
+ * the file it came from and no more.
+ *
+ * @type {(linked: _Linked, node: Exp) => string | null}
+ */
+export const _owner = (linked, node) => {
+    const module = toArray(entries(linked)).find(([, module]) => module.path !== null && made(module, node))
+    return module === undefined ? null : module[1].path
+}
+
+/**
+ * What a diagnostic of `node` adds to say where it came from: the file of
+ * {@link _owner}, or nothing where the diagnostic is of no node, or of one
+ * no file made.
+ *
+ * @type {(linked: _Linked, node: Exp | null) => string}
+ */
+export const _origin = (linked, node) => {
+    const file = node === null ? null : _owner(linked, node)
+    return file === null ? '' : `, in ${file}`
+}
