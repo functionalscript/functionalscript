@@ -137,8 +137,11 @@ before it and proved end to end on its own.
   few hundred programs a run under
   [`from_fast/random`](../from_fast/random/README.md); extend it as later
   slices land. It found the three defects that example proofs at 100%
-  coverage missed. Since 7a it judges each call by the three outcomes. Its last form is
-  8b's `buildArray`: 8c to 10b added none.
+  coverage missed. Since 7a it judges each call by the three outcomes. 8c, 9a and 9b
+  gained their forms after the fact: object literals and `buildObject`,
+  numbers and booleans as items, and calls of function values. Slice 10
+  has none, since a read of an unknown receiver needs L1's `get` in the
+  same module; 10c runs the whole L1 module on the parity table instead.
 - [x] **6a. Owned values, by hand** (#3856). The counted kind, `dup`/`drop`;
   borrow and own parameters and owned results (`concat`, `from_unit`);
   static check of the owned stage, which also holds a linear type's owned
