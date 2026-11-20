@@ -40,6 +40,8 @@ const deferredCount = foldNodes((/** @type {number} */ count, node) => node !== 
 const parseModule = parse('/join.f.js')
 /** @type {(text: string) => import('../../types.ts').Exp} */
 const moduleGraph = text => unresolved(assertOk(parseModule(text))).edag
+/** A block that ends otherwise than by yielding one value. @type {(exit: Block['exit'], statements?: readonly Statement[]) => Block} */
+const ending = (exit, statements = []) => ({ statements, exit })
 /** @type {(message: string) => Value} */
 const fail = message => ['block', { statements: [], exit: ['throw', message] }]
 /** @type {(block: Block, parameter: BindingId, argument: boolean) => import('../../../types/result/types.ts').Result<import('../../value/types.ts').EdagValue, import('../../value/types.ts').EdagValue>} */
@@ -712,8 +714,6 @@ export const proof = /** @type {const} */ ({
         const target = /** @type {const} */ ({ kind: 'loop', index: 1 })
         const owner = /** @type {const} */ ({ kind: 'function', index: 0 })
         const recipe = /** @type {Statement} */ (['define', cell, ['()', ref(callee), []], 'lazy'])
-        /** @type {(exit: Block['exit'], statements?: readonly Statement[]) => Block} */
-        const ending = (exit, statements = []) => ({ statements, exit })
         /** @type {(body: Block, parameters?: readonly BindingId[]) => Statement} */
         const loop = (body, parameters = [step]) => ['loop', { target, parameters, initial: [0], results: [out], body }]
         const again = ending(['continue', target, [['+', ref(step), 1]]])
@@ -763,8 +763,6 @@ export const proof = /** @type {const} */ ({
     recipesAreRequiredInTheArmThatGoesOn: () => {
         const condition = id(0), cell = id(1), other = id(2), step = id(3), out = id(4), kept = id(5)
         const target = /** @type {const} */ ({ kind: 'loop', index: 1 })
-        /** @type {(exit: Block['exit'], statements?: readonly Statement[]) => Block} */
-        const ending = (exit, statements = []) => ({ statements, exit })
         const leaving = ending(['break', target, [5]])
         const reading = normal([['define', kept, ['array', [ref(cell)]], 'required']])
         /** @type {(recipe: Statement, statement: Statement, last?: Value) => Block} */
