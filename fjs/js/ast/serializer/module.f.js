@@ -333,6 +333,34 @@ const blockExpression = (expression, renderBlock, context, input) => {
         : `(()=>{${renderBlock(context, block, 'return')}})()`
 }
 
+/**
+ * A body written under names of its own for what it captures, rewritten to
+ * read the captured names in place, or `null` where that would change what
+ * the text says. The reader gives a function's capture slots the order its
+ * text first refers to them in, so the names can stand in place exactly
+ * where that order is the slots' own: each `from` name is found in the
+ * text, the first after the one before it.
+ *
+ * The text is the writer's own: a name is a key between two `\u0000`, as
+ * `names` resolves them, so the parts at odd positions are the references,
+ * in the order the reader meets them.
+ *
+ * @type {(text: string, from: readonly string[], to: readonly string[]) => string | null}
+ */
+const inPlace = (text, from, to) => {
+    const parts = text.split('\u0000')
+    /** @type {(reference: string) => string} */
+    const key = reference => reference.slice(1, -1)
+    const keys = from.map(key)
+    const first = keys.map(key => parts.findIndex((part, index) => index % 2 === 1 && part === key))
+    if (first.some((at, index) => at === -1 || index !== 0 && at < first[Number(index - 1)])) { return null }
+    const replacements = to.map(key)
+    return parts.map((part, index) => {
+        const slot = index % 2 === 1 ? keys.indexOf(part) : -1
+        return slot === -1 ? part : replacements[Number(slot)]
+    }).join('\u0000')
+}
+
 /** @type {(expression: Expression, renderBlock: BlockText, context: Context, fn: PreparedFunction) => string} */
 const functionText = (expression, renderBlock, context, fn) => {
     const references = fn.captures.flatMap(capture => capture.value instanceof Array && capture.value[0] === 'ref' ? [capture.value[1]] : [])
@@ -346,22 +374,26 @@ const functionText = (expression, renderBlock, context, fn) => {
     /** @type {Context} */
     const initial = { ...context, aliases: [...aliases, ...self], binding: null, external: false }
     const params = [...fn.parameters.map(id => declared(initial, id)), ...fn.rest === null ? [] : [`...${declared(initial, fn.rest)}`]].join(',')
-    /** @type {{ readonly inner: Context; readonly preface: string }} */
-    let prepared = { inner: initial, preface: '' }
-    if (!context.runtime && !captured && fn.captures.length > 1) {
-        const before = prepared.inner
-        const locals = captureLocals(context, fn)
-        /** @type {Context} */
-        const rebound = { ...before, aliases: [...before.aliases.filter(([from]) => !fn.captures.some(capture => capture.binding === from)), ...fn.captures.map((capture, index) => /** @type {const} */ ([capture.binding, locals[Number(index)]]))] }
-        const preface = fn.captures.map((capture, index) => `${keyword('const')} ${declared(rebound, locals[Number(index)])}=${name(before, capture.binding)};`).join('')
-        prepared = { inner: rebound, preface }
-    }
-    const { inner, preface } = prepared
-    const expressionBody = preface === '' && fn.body.statements.length === 0 && fn.body.exit[0] === 'return'
-    const value = expressionBody ? expression(inner, /** @type {Extract<Block['exit'], readonly ['return', unknown, Value]>} */ (fn.body.exit)[2]) : ''
-    const body = expressionBody && !value.startsWith('{') ? value : `{${preface}${renderBlock(inner, fn.body, 'return')}}`
+    // Several captures are read under names of their own, declared before
+    // the body in slot order, so that the text reads back with its slots in
+    // that order whatever the body reads first. Where the body reads them in
+    // slot order already, it reads the captured names in place.
+    const several = !context.runtime && !captured && fn.captures.length > 1
+    const locals = several ? captureLocals(context, fn) : []
+    /** @type {Context} */
+    const inner = several
+        ? { ...initial, aliases: [...initial.aliases.filter(([from]) => !fn.captures.some(capture => capture.binding === from)), ...fn.captures.map((capture, index) => /** @type {const} */ ([capture.binding, locals[Number(index)]]))] }
+        : initial
+    const returns = fn.body.statements.length === 0 && fn.body.exit[0] === 'return'
+    const drafted = returns ? expression(inner, /** @type {Extract<Block['exit'], readonly ['return', unknown, Value]>} */ (fn.body.exit)[2]) : renderBlock(inner, fn.body, 'return')
+    const placed = several ? inPlace(drafted, locals.map(local => name(inner, local)), fn.captures.map(capture => name(initial, capture.binding))) : drafted
+    const preface = placed === null ? fn.captures.map((capture, index) => `${keyword('const')} ${declared(inner, locals[Number(index)])}=${name(initial, capture.binding)};`).join('') : ''
+    const text = placed ?? drafted
+    // a block's text for a body that only returns is its `return` statement
+    const statements = returns ? `${keyword('return')} ${text};` : text
+    const body = returns && preface === '' && !text.startsWith('{') ? text : `{${preface}${statements}}`
     const lambda = fn.self !== null && context.runtime
-        ? `(${keyword('function')} ${declared(inner, fn.self)}(${params}){${preface}${renderBlock(inner, fn.body, 'return')}})`
+        ? `(${keyword('function')} ${declared(inner, fn.self)}(${params}){${preface}${statements}})`
         : `(${params})=>${body}`
     if (!captured || fn.captures.length === 0) { return lambda }
     const input = !context.runtime && fn.captures.length > maxLength ? captureLocals(context, fn)[0] : null
