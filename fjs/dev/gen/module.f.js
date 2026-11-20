@@ -12,6 +12,7 @@ import { main as rustTests } from '../../nanvm/update/module.f.js'
 import { main as matrix } from '../../media/datajs/vectors/matrix/module.f.js'
 import { main as fixtures } from '../../nanvm/harness/module.f.js'
 import { main as demos } from '../../nanvm/demos/module.f.js'
+import { main as fjsrs } from '../../nanvm/fjsrs/build/module.f.js'
 import { main as cloudflare } from '../../website/cloudflare/module.f.js'
 
 /**
@@ -40,6 +41,8 @@ export const generators = [
     fixtures,
     // The WASM demo samples compiled to Rust, and the `mod.rs` naming them.
     demos,
+    // The `fjsrs` program compiled to Rust, for the `nanvm-fjsrs` executable.
+    fjsrs,
     // The Cloudflare build script, from the Rust pin.
     cloudflare,
 ]

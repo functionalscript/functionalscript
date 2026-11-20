@@ -18,6 +18,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "nanvm-fjsrs"
+version = "0.1.0"
+dependencies = [
+ "nanvm-effects-node",
+ "nanvm-lib",
+]
+
+[[package]]
 name = "nanvm-harness"
 version = "0.1.0"
 dependencies = [
