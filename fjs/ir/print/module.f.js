@@ -25,7 +25,8 @@
  *
  * A parameter that the callee owns reads `own v: any`, and a counted sealed
  * type names its counting functions after its tag's:
- * `kind: kind, carrier: i64, dup: dup, drop: drop`. A type with string
+ * `kind: kind, carrier: i64, dup: dup, drop: drop`, and its copy variants:
+ * `copy: undefined | null | boolean`. A type with string
  * literals names the variant that one holds and the function that makes it:
  * `literal: string by String.make_string`. A type with no tag names its
  * carrier alone, and a function that gives back a parameter says so after
@@ -300,9 +301,9 @@ const showConstant = (name, { type, value }) => [`const ${name}: ${show(type)} =
 /** An interface as its binding, its sealed types, its constants and its functions' signatures. @type {(name: string, i: Interface) => readonly string[]} */
 const showInterface = (name, { abi, types, constants = [], functions }) => [
     `import ${name} from ${abi}`,
-    ...types.flatMap(([type, { variants, kind, carrier, dup, drop, literal }]) => [
+    ...types.flatMap(([type, { variants, kind, carrier, dup, drop, copy, literal }]) => [
         `    type ${type} = ${variants.join(' | ')}`,
-        `        ${kind === undefined ? '' : `kind: ${kind}, `}carrier: ${carrier}${dup === undefined ? '' : `, dup: ${dup}`}${drop === undefined ? '' : `, drop: ${drop}`}${literal === undefined ? '' : `, literal: ${literal.variant} by ${literal.module}.${literal.member}`}`,
+        `        ${kind === undefined ? '' : `kind: ${kind}, `}carrier: ${carrier}${dup === undefined ? '' : `, dup: ${dup}`}${drop === undefined ? '' : `, drop: ${drop}`}${copy === undefined ? '' : `, copy: ${copy.join(' | ')}`}${literal === undefined ? '' : `, literal: ${literal.variant} by ${literal.module}.${literal.member}`}`,
     ]),
     ...constants.map(([k, t]) => `    const ${k}: ${show(t)}`),
     ...functions.map(([k, s]) => `    ${showSignature(k, s)}`),

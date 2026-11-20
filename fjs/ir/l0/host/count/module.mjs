@@ -13,6 +13,13 @@
  *   cell** of the value that the view answers, counted once, and answer its
  *   handle, which the caller owns: an item read from an array is a cell of
  *   its own. `find` answers an `i32`, the property index or `-1`.
+ * - **A copy value is not counted.** Any names `undefined`, `null` and
+ *   `boolean` as its copy variants, so a module writes no `dup` and no
+ *   `drop` of a value that holds only those: a cell that the host makes of
+ *   one is the constant's own cell below, a first cell that holds one is
+ *   kept from the start, and a `dup` or a `drop` of such a cell, or a
+ *   `push` or a `throw` that takes it over, leaves its count, as a drop of
+ *   a wider type that holds a copy value does nothing.
  * - **What a constant holds is kept.** Any's `undefined`, `null`, `true`
  *   and `false` are the cells `-1` to `-4`, each counted once for the
  *   immutable global that holds it, and kept from the start. `keep` keeps
@@ -76,6 +83,12 @@
 
 import { view } from '../module.f.js'
 
+/** Whether a value is one of Any's copy variants: `undefined`, `null` or a boolean. @type {(value: unknown) => value is undefined | null | boolean} */
+const isCopy = value => value === undefined || value === null || typeof value === 'boolean'
+
+/** The handle of the constant cell that holds a copy value. @type {(value: undefined | null | boolean) => bigint} */
+const constantOf = value => value === undefined ? -1n : value === null ? -2n : value ? -3n : -4n
+
 /** Where the region of a module's data segments starts: past bytes that a runtime would keep for itself. */
 const dataBase = 0x100
 
@@ -90,7 +103,7 @@ export const counting = (values, data = 0) => {
     /** @type {Map<bigint, { readonly value: unknown, readonly count: number }>} */
     const cells = new Map(values.map((value, k) => [BigInt(k), { value, count: 1 }]))
     /** The count at which each kept cell was kept. @type {Map<bigint, number>} */
-    const kept = new Map()
+    const kept = new Map(values.flatMap((value, k) => isCopy(value) ? [/** @type {const} */ ([BigInt(k), 1])] : []))
     let next = BigInt(values.length)
     /** @type {(h: bigint) => { readonly value: unknown, readonly count: number }} */
     const cell = h => {
@@ -102,6 +115,7 @@ export const counting = (values, data = 0) => {
     const read = h => cell(h).value
     /** @type {(value: unknown) => bigint} */
     const make = value => {
+        if (isCopy(value)) { return constantOf(value) }
         const h = next
         next = h + 1n
         cells.set(h, { value, count: 1 })
@@ -110,12 +124,14 @@ export const counting = (values, data = 0) => {
     /** @type {(h: bigint) => bigint} */
     const dup = h => {
         const { value, count } = cell(h)
+        if (isCopy(value)) { return h }
         cells.set(h, { value, count: count + 1 })
         return h
     }
     /** @type {(h: bigint) => void} */
     const drop = h => {
         const { value, count } = cell(h)
+        if (isCopy(value)) { return }
         if (count === 1) {
             cells.delete(h)
         } else {
