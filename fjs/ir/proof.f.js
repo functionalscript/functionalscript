@@ -1,5 +1,5 @@
 /**
- * @import { Int, Term, Typed, TypedTerm } from './types.ts'
+ * @import { Int, SealedDef, Term, Typed, TypedTerm } from './types.ts'
  */
 
 import { assert, assertEq } from '../asserts/module.f.js'
@@ -144,11 +144,14 @@ export const proof = {
         assert(equal(cast(only(any, 'null', 'undefined'), get('v'), 'x', n(1n)), match(get('v'), [[['null', 'undefined'], 'x', n(1n)], [null, null, trap('not null or undefined')]])))
         assert(equal(cast(any, get('v'), 'x', get('x')), let_('x', get('v'), get('x'))))
         // A sealed type is copy when its interface names each of its variants as copy: a subset may be, the whole type not.
-        const def = { variants: ['a', 'b', 'c'], carrier: /** @type {const} */ ('i64'), dup: 'dup', drop: 'drop', copy: ['a', 'b'] }
+        /** @type {SealedDef} */
+        const def = { variants: ['a', 'b', 'c'], carrier: 'i64', dup: 'dup', drop: 'drop', copy: ['a', 'b'] }
         assert(isCopy(def, only(any, 'b', 'a')))
         assert(!isCopy(def, only(any, 'a', 'c')))
         assert(!isCopy(def, any))
-        assert(!isCopy({ variants: ['a'], carrier: /** @type {const} */ ('i64') }, only(any, 'a')))
+        /** @type {SealedDef} */
+        const counted = { variants: ['a'], carrier: 'i64' }
+        assert(!isCopy(counted, only(any, 'a')))
     },
     let_: () => {
         // The body is a term, or a function of the local.
