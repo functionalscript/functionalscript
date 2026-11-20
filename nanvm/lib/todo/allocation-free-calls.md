@@ -53,8 +53,16 @@ through; nothing is decided. What an answer has to deal with:
 
 ### Closures
 
-- A closure that captures nothing is a constant, and can be a static as any
-  other.
+- A function has identity, and evaluating an arrow in a body makes a new
+  one at each call
+  ([names and identity](../../../spec/functions/names-and-identity/README.md)):
+  under `const make = () => () => 1`, `make() === make()` is `false`,
+  though the inner arrow captures nothing. So capturing nothing does not
+  make a closure a constant. One made while the module initializes is one
+  value and can be a static as any other. For one made in a body, what can
+  be static is what it is made of, its code and an empty frame; the
+  function value is still a new one each time, and what a new value costs
+  when it holds nothing of its own is the question.
 - One that captures values made at run time needs its frame somewhere.
   Whether a frame that does not outlive the call that made it can live on
   a stack, which asks what the compiler can say about a function value

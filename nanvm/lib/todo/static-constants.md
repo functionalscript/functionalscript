@@ -127,10 +127,14 @@ and the same data is a data segment in WebAssembly.
 - **Identity.** A value's identity is its address
   (`IComplex::address`). Two different constants must not share one, which
   zero-sized statics, two empty arrays, may.
-- **Which values are constant.** What a module exports and what its
-  closures captured are each one value. Whether a literal inside a function
-  body that reads no argument is one value or a new one at each call is the
-  EDAG's to say, and a new one at each call cannot be a `static`.
+- **Which values are constant.** What module initialization made: what a
+  module exports and what its closures captured are each one value. An
+  array, object or arrow written inside a function body is a new value at
+  each call, whether or not it reads an argument
+  ([names and identity](../../../spec/functions/names-and-identity/README.md)),
+  so it is no `static`: `===` and a reference map would tell the
+  difference. Its parts that have no identity, its strings and numbers,
+  still can be.
 - **The runtime's functions.** A constant that holds a function it was
   given through the module's `runtime` argument is no constant unless those
   are static too.
