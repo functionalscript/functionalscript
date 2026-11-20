@@ -349,6 +349,7 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
                 ...plan.binding === null ? [] : [{ ...plan, binding: plan.binding, mode: /** @type {const} */ ('required') }]]
             placed = addAll(placed, [...needed, ...plan.own === null ? [] : [plan.own]])
         }
+        /** @type {Context} */
         const inner = { ...localContext, deferred: [...context.deferred, ...lazy] }
         return gather(plans, (plan, _, next) => valueOf(inner, plan.own === null ? available : remove(plan.own)(available), plan.value, value => deliver(next, /** @type {Statement} */ (['define', plan.binding, value, plan.mode]))), statements => roots.length === 0
             ? deliver(done, { statements, exit: ['yield', [undefined]] })

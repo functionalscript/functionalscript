@@ -30,6 +30,8 @@ adds Any's `from_f64` and `from_bool`, so a number or boolean meets
 call of a function value, with L1's coercions and `call` (9b3). Slice
 10 lowers L1's `get` (10a), its arithmetic and relational operators
 (10b), and the whole L1 module as one, run on the parity table (10c).
+Then Any's copy variants leave the counts of `undefined`, `null` and
+`boolean` out.
 
 ## Map of this directory
 
@@ -451,6 +453,17 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   among them: every pair for the binary operators and
   `strictEquals`, every value with each key for `get`. `divide` alone may
   abandon what it holds, where `Native.bigintDivide` throws.
+
+## What copy variants add
+
+- **An interface's copy variants**: a counted type may name some of its
+  variants as copy, each once, as Any names `undefined`, `null` and
+  `boolean`. A value of a subset that holds only those, such as Any's
+  constants, is used as a float is: the lifetime pass writes no `dup` and
+  no `drop` of it, and the owned-stage check takes it where a parameter
+  owns its argument.
+- **The counting host** makes such values immediates: Any's constant
+  cells, whose counts a `dup` or a `drop` leaves.
 
 ## What every slice refuses
 

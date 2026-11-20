@@ -45,6 +45,10 @@
  *   value, which a local holds meanwhile.
  * - **A linear type has no `dup` and no `drop`**, so a use that would need
  *   one is refused.
+ * - **A copy type needs neither.** A sealed type whose every variant its
+ *   interface names as copy, as Any names `undefined`, `null` and
+ *   `boolean`, is used as a float is: the pass writes no `dup` and no
+ *   `drop` of it, and nothing owns it.
  *
  * New locals are named `$0`, `$1`, … in each function, past any name that
  * the function binds already.
@@ -61,7 +65,7 @@ import { assert, assertNotNullish } from '../../asserts/module.f.js'
 import { error, ok, okList } from '../../types/result/module.f.js'
 import { at, empty, fromEntries, setReplace } from '../../types/ordered_map/module.f.js'
 import { checkPlain } from '../check/module.f.js'
-import { equal, isOwn, leaves, never } from '../module.f.js'
+import { equal, isCopy, isOwn, leaves, never } from '../module.f.js'
 import { quote, show } from '../print/module.f.js'
 
 // sets of names, as lists
@@ -77,8 +81,24 @@ const union = (a, b) => [...a, ...minus(b, a)]
 
 // terms
 
-/** Whether a value of a type holds a value of a sealed type: it is one, or a product with a field that holds one. @type {(t: Type) => boolean} */
-const holds = t => t[0] === 'sealed' || (t[0] === 'product' && t[1].some(([, x]) => holds(x)))
+/** What a sealed type's interface, of `imports`, says of it. @type {(imports: OrderedMap<Interface>, t: Sealed) => SealedDef} */
+const defIn = (imports, [, module, name]) => assertNotNullish(assertNotNullish(at(module)(imports)).types.find(([k]) => k === name))[1]
+
+/** What a sealed type's interface says of it. @type {(env: _Env, t: Sealed) => SealedDef} */
+const defOf = (env, t) => defIn(env.imports, t)
+
+/**
+ * Whether a type is counted: sealed, and not copy, so that the pass writes
+ * its `dup` and its `drop`.
+ *
+ * @param {_Env} env
+ * @param {Type} t
+ * @returns {t is Sealed}
+ */
+const counted = (env, t) => t[0] === 'sealed' && !isCopy(defOf(env, t), t)
+
+/** Whether a value of a type holds a counted value: it is one, or a product with a field that holds one. @type {(env: _Env, t: Type) => boolean} */
+const holds = (env, t) => counted(env, t) || (t[0] === 'product' && t[1].some(([, x]) => holds(env, x)))
 
 /** Whether a term is a value already, so that naming it changes no order of evaluation: a local, a literal, a constant or a field of such a value. @type {(t: Typed) => boolean} */
 const isSimple = ([, t]) => t[0] === 'get' || t[0] === 'lit' || t[0] === 'constant' || t[0] === 'code' || (t[0] === 'field' && isSimple(t[1]))
@@ -172,16 +192,13 @@ const readsOf = (env, t) => free(t).reduce((r, x) => union(r, leansOn(env, x)), 
 const isLive = (env, x, live) => live.includes(x) || live.some(y => leansOn(env, y).includes(x))
 
 /** The local that binds a value of a type, from its initializer: owned, a product that leans on what its initializer reads, or plain. @type {(env: _Env, t: Type, e: Typed) => _Local} */
-const bindingOf = (env, t, e) => t[0] === 'sealed' ? ['own', t] : holds(t) ? ['view', readsOf(env, e)] : ['plain']
+const bindingOf = (env, t, e) => counted(env, t) ? ['own', t] : holds(env, t) ? ['view', readsOf(env, e)] : ['plain']
 
-/** How a value of a type is given where a region takes it: owned, where the type is sealed. @type {(t: Type) => _Mode} */
-const modeOf = t => t[0] === 'sealed' ? 'take' : 'read'
+/** How a value of a type is given where a region takes it: owned, where the type is counted. @type {(env: _Env, t: Type) => _Mode} */
+const modeOf = (env, t) => counted(env, t) ? 'take' : 'read'
 
 /** Terms that their context borrows. @type {(ts: readonly Typed[]) => readonly (readonly [Typed, _Mode])[]} */
 const reading = ts => ts.map(x => [x, 'read'])
-
-/** What a sealed type's interface says of it. @type {(env: _Env, t: Sealed) => SealedDef} */
-const defOf = (env, [, module, name]) => assertNotNullish(assertNotNullish(at(module)(env.imports)).types.find(([k]) => k === name))[1]
 
 /** A copy of a value of a sealed type, which its context owns, or why there is none. @type {(env: _Env, t: Sealed, e: Term, what: string) => Result<Term, string>} */
 const dupOf = (env, t, e, what) => {
@@ -266,7 +283,7 @@ const later = (a, b) => a > b ? a : b
  */
 const namedCall = (env, type, module, name, args, n) => {
     const { params } = signatureOf(env, module, name)
-    const lent = args.map((x, k) => !isOwn(params[Number(k)]) && x[0][0] === 'sealed' && !isSimple(x))
+    const lent = args.map((x, k) => !isOwn(params[Number(k)]) && counted(env, x[0]) && !isSimple(x))
     return settle(env, type, args, later(lent.lastIndexOf(true), lastLeaving(args)), n, xs => ['call', module, name, xs])
 }
 
@@ -299,7 +316,7 @@ const named = (env, typed, n) => {
             assert(of[0] === 'code', of)
             // The callee first, then the arguments, as the checker and the emitter do.
             const [parts, n1] = each([t[1], ...t[2]], n)
-            const lent = t[2].map((x, k) => of[1][Number(k)][0] !== 'own' && x[0][0] === 'sealed' && !isSimple(x))
+            const lent = t[2].map((x, k) => of[1][Number(k)][0] !== 'own' && counted(env, x[0]) && !isSimple(x))
             const arg = lent.lastIndexOf(true)
             return settle(env, type, parts, later(arg < 0 ? -1 : arg + 1, lastLeaving(parts)), n1,
                 xs => ['call_ref', xs[0], xs.slice(1)])
@@ -320,7 +337,7 @@ const named = (env, typed, n) => {
             const [[e, ...bodies], n1] = each([t[1], ...t[2].map(([, , body]) => body)], n)
             /** @type {readonly TypedArm[]} */
             const arms = t[2].map(([variants, binder, , written], k) => [variants, binder, bodies[Number(k)], written])
-            if (e[0][0] !== 'sealed' || isSimple(e)) { return [[type, ['match', e, arms]], n1] }
+            if (!counted(env, e[0]) || isSimple(e)) { return [[type, ['match', e, arms]], n1] }
             const [y, n2] = fresh(env.taken, n1)
             return [[type, ['let', y, e, [type, ['match', [e[0], ['get', y]], arms]]]], n2]
         }
@@ -375,7 +392,7 @@ const sequence = (go, env, items, owned, live, n) => {
 const getStep = (env, type, x, mode, owned, live, n) => {
     /** @type {Term} */
     const term = ['get', x]
-    if (type[0] !== 'sealed' || mode === 'read') { return ok({ term, owned, n }) }
+    if (!counted(env, type) || mode === 'read') { return ok({ term, owned, n }) }
     if (owned.includes(x) && !isLive(env, x, live)) { return ok({ term, owned: minus(owned, [x]), n }) }
     const d = dupOf(env, type, term, x)
     return d[0] === 'error' ? d : ok({ term: d[1], owned, n })
@@ -458,9 +475,9 @@ const loopStep = (go, env, mode, label, params, body, owned, live, n) => {
     if (r[0] === 'error') { return r }
     const { terms, owned: o, n: n1 } = r[1]
     /** @type {_Frame} */
-    const frame = [label, o, ['loop', params.map(([, x]) => modeOf(x))]]
+    const frame = [label, o, ['loop', params.map(([, x]) => modeOf(env, x))]]
     const inner = { ...params.reduce((x, [k, t, first]) => bind(x, k, bindingOf(env, t, first)), env), frames: [...env.frames, frame] }
-    const b = go(inner, body, mode, params.flatMap(([k, x]) => x[0] === 'sealed' ? [k] : []), live, n1)
+    const b = go(inner, body, mode, params.flatMap(([k, x]) => counted(env, x) ? [k] : []), live, n1)
     if (b[0] === 'error') { return b }
     const { term: rest, owned: o2, n: n2 } = b[1]
     const d = completes(body) ? after(inner, rest, o2, n2) : ok([rest, n2])
@@ -632,7 +649,7 @@ const go = (env, typed, mode, owned, live, n) => {
             const { term: e, owned: o, n: n1 } = r[1]
             /** @type {Term} */
             const read = ['field', e, t[2]]
-            if (type[0] !== 'sealed' || mode === 'read') { return ok({ term: read, owned: o, n: n1 }) }
+            if (!counted(env, type) || mode === 'read') { return ok({ term: read, owned: o, n: n1 }) }
             const d = dupOf(env, type, read, `field ${t[2]}`)
             return d[0] === 'error' ? d : ok({ term: d[1], owned: o, n: n1 })
         }
@@ -652,7 +669,7 @@ const go = (env, typed, mode, owned, live, n) => {
         case 'br': { return brStep(go, env, t[1], t[2], owned, n) }
         default: {
             // A literal and a constant, which nothing drops: copied where the context takes the value over.
-            if (type[0] !== 'sealed' || mode === 'read') { return ok({ term: t, owned, n }) }
+            if (!counted(env, type) || mode === 'read') { return ok({ term: t, owned, n }) }
             const d = dupOf(env, type, t, t[0] === 'constant' ? `${t[1]}.${t[2]}` : quote(`${t[2]}`))
             return d[0] === 'error' ? d : ok({ term: d[1], owned, n })
         }
@@ -672,7 +689,7 @@ const lifetimeFn = (functions, imports) => ([fn, { params, result, body }]) => {
     /** @type {readonly (readonly [string, _Local])[]} */
     const locals = params.map(p => {
         const [k, t] = p
-        return [k, t[0] !== 'sealed' ? ['plain'] : isOwn(p) ? ['own', t] : ['borrow']]
+        return [k, t[0] !== 'sealed' || isCopy(defIn(imports, t), t) ? ['plain'] : isOwn(p) ? ['own', t] : ['borrow']]
     })
     /** @type {_Env} */
     const env = { fn, functions, imports, taken: [...params.map(([k]) => k), ...bound(body)], locals: fromEntries(locals), frames: [['return', nothing, ['return']]] }

@@ -171,6 +171,24 @@ export const proof = {
             'fn f(a: any.only(string)) -> unit =',
             '    g(Any.dup(a))',
         ]),
+        // A value of Any's copy variants, here `undefined`, `null` and `boolean`, needs no copy and no drop: a parameter that
+        // owns one gives it to two parameters that own theirs, and one that its callee does not give away is not dropped.
+        copyVariants: () => golden(module_([own('b', only(any, 'boolean', 'null'))], unit, call('Lin', 'both', [get('b'), get('b')]), [['g', fn([own('v', only(any, 'undefined'))], unit, none)]]), [
+            'fn g(own v: any.only(undefined)) -> unit =',
+            '    {}',
+            '',
+            'fn f(own b: any.only(boolean, null)) -> unit =',
+            '    Lin.both(b, b)',
+        ]),
+        // An arm that narrows a counted operand to copy variants names a copy value, which needs no copy either.
+        copyArm: () => golden(module_([['v', any]], unit, match(get('v'), [[['boolean'], 'b', call('Lin', 'both', [get('b'), get('b')])], [null, null, none]])), [
+            'fn f(v: any) -> unit =',
+            '    match v',
+            '      boolean as b =>',
+            '        Lin.both(b, b)',
+            '      else =>',
+            '        {}',
+        ]),
         // A `call_ref` of a `code` value is an indirect call; nothing is counted for the code itself.
         callRef: () => golden({
             imports: l0,
@@ -351,6 +369,20 @@ export const proof = {
             '        else',
             '            s',
         ]),
+        // A counted parameter whose first value is copy owns it, so a later iteration may give it a counted value.
+        copyFirst: () => golden(module_([['a', string], ['k', f64]], any, loop('L', [['x', any, constant('Any', 'null')], ['i', f64, one]], (x, i) =>
+            if_(lt(i, k), next('L', [['x', concat(a, a)], ['i', add(i, one)]]), x))), [
+            'fn f(a: any.only(string), k: f64) -> any =',
+            '    loop L (x: any = Any.null, i: f64 = 1.0 as f64)',
+            '        if lt(i, k)',
+            '        then',
+            '            let $0 = String.concat(a, a)',
+            '            let $1 = add(i, 1.0 as f64)',
+            '            let $2 = Any.drop(x)',
+            '            br L { x: $0, i: $1 }',
+            '        else',
+            '            x',
+        ]),
         // A path that leaves the function early drops what it owns first, after its value.
         early: () => golden(module_([['a', string], ['b', bool]], f64, let_('t', concat(a, a), t =>
             let_('x', if_(b, return_(zero), one), x => add(x, float(length(t)))))), [
@@ -480,7 +512,7 @@ export const proof = {
             '    String.concat(self.a, self.a)',
             '',
             'const n: any.only(null) =',
-            '    Any.dup(Any.null)',
+            '    Any.null',
             '',
             'const x: f64 =',
             '    1.0 as f64',

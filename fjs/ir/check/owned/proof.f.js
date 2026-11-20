@@ -118,6 +118,11 @@ export const proof = {
         // A loop owns its string: each repeat drops the old one and passes the new one on.
         loopOwns: () => fine(overL0([['c', u(16)], ['k', f64]], string, loop('L', [['s', string, fromUnit(c)], ['i', f64, zero]], (s, i) =>
             if_(lt(i, k), let_('t', concat(s, s), t => let_('d', drop(s), () => next('L', [['s', t], ['i', add(i, one)]]))), s)))),
+        // A counted parameter whose first value is copy owns it, so the next value may be owned.
+        loopCopyFirst: () => fine(overL0([['a', string], ['k', f64]], any, loop('L', [['x', any, constant('Any', 'null')], ['i', f64, zero]], (x, i) =>
+            if_(lt(i, k), let_('t', concat(a, a), t => let_('d', drop(x), () => next('L', [['x', t], ['i', add(i, one)]]))), x)))),
+        // The name of an arm that narrows its operand to copy variants is plain, so a parameter that owns its argument takes it.
+        matchCopy: () => fine(overL0([['v', any]], unit, match(get('v'), [[['boolean', 'null'], 'b', drop(get('b'))], [null, null, none]]))),
         // A loop borrows a parameter that its first value borrows, and passes the borrow on.
         loopBorrows: () => fine(overL0([['a', string], ['k', f64]], f64, loop('L', [['s', string, a], ['i', f64, zero]], (s, i) =>
             if_(lt(i, k), next('L', [['s', s], ['i', add(i, one)]]), float(length(s)))))),
@@ -138,6 +143,8 @@ export const proof = {
             ['g', fn([], u(31), length(self('a')))],
             ['h', fn([], f64, self('x'))],
         ])),
+        // A copy value is owned by no one, so a constant may be one.
+        constantCopy: () => fine(withConstants([['k', { type: only(any, 'null'), value: constant('Any', 'null') }]])),
         // A string literal is a borrow, as a constant is: a term passes it on, and a function answers a dup of it.
         literals: () => fine(withConstants([['a', { type: string, value: dup(lit(string, 'a')) }]], [
             ['f', fn([], string, concat(lit(string, 'a'), lit(string, '')))],
@@ -222,7 +229,7 @@ export const proof = {
     // One refusal per rule.
     refuse: {
         // A constant owns its value, which a borrow is not, and its term leaves nothing over.
-        constantBorrowed: () => assertEq(why(withConstants([['k', { type: only(any, 'null'), value: constant('Any', 'null') }]])), 'k: the value is borrowed, and the constant would own it'),
+        constantBorrowed: () => assertEq(why(withConstants([['a', { type: string, value: fromUnit(letterA) }], ['k', { type: string, value: self('a') }]])), 'k: the value is borrowed, and the constant would own it'),
         constantLeft: () => assertEq(why(withConstants([['k', { type: f64, value: leak(one) }]])), 'k: s is left over'),
         // Nothing owns a string literal: not a constant, not the caller, not a drop.
         literalBorrowed: () => assertEq(why(withConstants([['k', { type: string, value: lit(string, 'a') }]])), 'k: the value is borrowed, and the constant would own it'),

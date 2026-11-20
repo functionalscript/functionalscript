@@ -7,7 +7,7 @@
  *
  * @module
  *
- * @import { ArmOf, Code, CodeParam, F64, F64c, Fn, Int, LoopParamOf, OpName, Param, Parts, Product, Sealed, Signature, Sum, Term, Type, Typed, TypedTerm } from './types.ts'
+ * @import { ArmOf, Code, CodeParam, F64, F64c, Fn, Int, LoopParamOf, OpName, Param, Parts, Product, Sealed, SealedDef, Signature, Sum, Term, Type, Typed, TypedTerm } from './types.ts'
  */
 
 // types
@@ -44,6 +44,16 @@ export const sealed = (module, name) => ['sealed', module, name, null]
 
 /** The values of some variants of a sealed type: `only(any, 'number')`. @type {(t: Sealed, ...variants: readonly string[]) => Sealed} */
 export const only = ([, module, name], ...variants) => ['sealed', module, name, variants]
+
+/**
+ * Whether a value of a sealed type is copy: every variant that it may hold
+ * is one that its interface names as copy, so it needs no `dup` and no
+ * `drop`
+ * ([definition.md: Ownership](../../doc/sasha-gil/ir/definition.md#ownership-is-two-capabilities)).
+ *
+ * @type {(def: SealedDef, t: Sealed) => boolean}
+ */
+export const isCopy = ({ variants, copy = [] }, t) => (t[3] ?? variants).every(v => copy.includes(v))
 
 /**
  * A code type: a pointer to a top-level function of these parameters and

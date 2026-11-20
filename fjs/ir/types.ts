@@ -208,7 +208,10 @@ export type FunctionOf<T> = {
  * type that names no `kind` has no tag, so no `match` branches on it, as a
  * builder has none. A type that has string literals names the variant that
  * one holds and the function that makes one, of an interface that a module
- * with such a literal imports.
+ * with such a literal imports. A counted type may name its copy variants:
+ * a value that holds only those needs no `dup` and no `drop`, so a subset
+ * of the type that holds only them is copy, and the `dup` and the `drop`
+ * of the whole type do nothing to such a value.
  */
 export type SealedDef = {
     readonly variants: readonly string[]
@@ -216,6 +219,7 @@ export type SealedDef = {
     readonly carrier: 'i32' | 'i64'
     readonly dup?: string
     readonly drop?: string
+    readonly copy?: readonly string[]
     readonly literal?: Maker
 }
 
