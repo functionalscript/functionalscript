@@ -484,6 +484,7 @@ export const proof = {
         "    fn push_property(own b: builder, own k: any.only(string), own v: any) -> builder, gives back b may fail",
         "    fn seal(own b: builder) -> any.only(array, object) may fail",
         "    fn join(parts: any.only(array), separator: any.only(string)) -> any.only(string) may fail",
+        "    fn key(o: any.only(object), i: u(31)) -> any.only(string) may fail",
         "",
         "import Functions from fjs:l0",
         "    fn length(f: any.only(function)) -> u(31)",
