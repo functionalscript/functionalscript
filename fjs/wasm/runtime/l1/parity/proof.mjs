@@ -25,6 +25,7 @@ import {
     add, divide, get, greaterThan, greaterThanOrEqual, lessThan, lessThanOrEqual, multiply, negate,
     strictEquals, subtract, toBoolean, toNumber, toString, typeOf,
 } from '../module.f.js'
+import { keySources, sources, value, withFunction } from './testlib.mjs'
 
 const runtime = /** @type {import('../../../../edag/value/types.ts').Runtime} */ (assertOk(read(
     vm({ frame: [], args: [] })(/** @type {import('../../../../edag/types.ts').Exp} */ (/** @type {unknown} */ (runtimeEdag))),
@@ -48,23 +49,6 @@ const l1 = f => {
         return ['throws']
     }
 }
-
-/** Values as source, each evaluated by the host for L1 and compiled for the interpreter. */
-const sources = [
-    'undefined', 'null', 'true', 'false', '0', '-0', '1', '-1.5', '0 / 0', '1 / 0',
-    "''", "'a'", "'ab'", "'1'", "'\\u{1F600}'", '0n', '1n', '-2n',
-    '[]', '[1]', '[1, 2]', '{}', '{ a: 1 }', '{ valueOf: () => 2 }', '{ toString: () => "x" }',
-]
-
-/**
- * {@link sources} and a function. A function's text is the runtime's: the
- * interpreter renders its own, where a JavaScript host answers the source,
- * so a function joins only the operations that do not read its text.
- */
-const withFunction = [...sources, 'x => x']
-
-/** The host value of a source. @type {(s: string) => unknown} */
-const value = s => Function(`return ${s}`)()
 
 /** Whether two outcomes agree, `NaN` and the zeros told apart. @type {(a: readonly [string, unknown?], b: readonly [string, unknown?]) => boolean} */
 const agree = (a, b) => a[0] === b[0] && Object.is(a[1], b[1])
@@ -91,13 +75,6 @@ const unary = [
 const textual = [
     ['Number(#)', toNumber], ['`${#}`', toString],
 ]
-
-/**
- * Keys a member read takes: numbers and strings, as the compiler emits
- * them. A computed number key is written `Number(...)`, as the compiler
- * requires.
- */
-const keySources = ['Number(0)', 'Number(1)', 'Number(-0)', 'Number(1.5)', "'0'", "'01'", "'a'", "'length'"]
 
 /** One proof per pair, so a failure names the expression. @type {(pairs: readonly (readonly [string, () => unknown])[]) => { readonly [k in string]: () => void }} */
 const each = pairs => Object.fromEntries(pairs.map(([source, f]) => [source, () => {

@@ -247,7 +247,7 @@ Owner chose option A on each of four choices.
 | How `asFunction(f)(…xs)` lowers | Always L0 `call(f, args)` with an args array ([L0 §12](../../../doc/sasha-gil/wasm/l0-design.md#12-functions-a-code-index-a-frame-a-length-and-a-text)) |
 | Rows the subjects need beside `call` | Bring `find`, `text`, `join` (and whatever the subjects still miss) into 9b3 with them |
 
-#### Next — the whole L1 module
+#### The whole L1 module
 
 Slice 10, cut in three as decided below. Claim: [#3934](https://github.com/functionalscript/functionalscript/pull/3934).
 
@@ -261,10 +261,13 @@ Slice 10, cut in three as decided below. Claim: [#3934](https://github.com/funct
   `subtract` / `multiply` / `divide` / `negate` and the relational bodies,
   lowered and run against L1's own; native bigint arithmetic and
   `bigintLess`, with `bigintDivide` of `0n` a row that may fail.
-- [ ] **10c. Remaining L1 exports and parity.** Every remaining export of
-  [`l1/module.f.js`](../../wasm/runtime/l1/module.f.js) that is not already
-  a subject, which is `toPropertyKey` alone, and the host twin runs extended so each
-  runs against L1's own. Builtins wait.
+- [x] **10c. Remaining L1 exports and parity.** Every export of
+  [`l1/module.f.js`](../../wasm/runtime/l1/module.f.js), `toPropertyKey`
+  the last of them, lowered from L1's text as one module, and each run
+  against L1's own on the values and keys of the parity table: every pair
+  for the binary operators and `strictEquals`, every value with a key for
+  `get`, a function among them, since L1's own on the same host renders
+  the same text. Builtins wait.
 
 ### Decisions for slice 10 (2026-11-16)
 
