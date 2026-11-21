@@ -48,3 +48,9 @@ impl<A: IVm> Function<A> {
         &self.0
     }
 }
+
+impl<A: crate::vm::IStaticVm> Function<A> {
+    pub fn from_static(value: &'static crate::vm::StaticFunction<A>) -> Self {
+        Self(A::load_function(value))
+    }
+}
