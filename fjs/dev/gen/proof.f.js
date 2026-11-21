@@ -95,7 +95,10 @@ const root = {
                 [name, { 'data.f.js': [utf8(unwrap(tryStringify(/** @type {Unknown} */ (imported))))] }])),
         },
     },
-    'nanvm': { 'harness': { 'fixtures': {} } },
+    'nanvm': {
+        'harness': { 'fixtures': {} },
+        'fjsrs': { 'tests': { 'static-strings.mjs': [utf8('export default 1;')] } },
+    },
     'fjs': {
         'js': { 'runtime': { 'module.f.js': [utf8('export const statics = {}; export const runtime = {};')] } },
         'nanvm': {
@@ -164,7 +167,7 @@ export const proof = {
             assert(typeof executable === 'object' && !(executable instanceof Array))
             const source = executable['src']
             assert(typeof source === 'object' && !(source instanceof Array))
-            assert(hasEntry(source, 'gen.program.rs'), fjsrsOutput)
+            assert(hasEntry(source, 'gen.program.native.rs'), fjsrsOutput)
         },
         // A generator that fails stops the regeneration there: the Rust
         // writer cannot compile the runtime from an empty filesystem, and

@@ -8,7 +8,7 @@
 import { assert, assertEq, assertError, assertOk, assertNotNullish as assertDefined, assertStructurallySame } from '../../asserts/module.f.js'
 import { analysis } from '../../edag/analysis/module.f.js'
 import { memo } from '../../edag/memo/module.f.js'
-import { generate, itemTagged, toRust } from './module.f.js'
+import { generate, itemTagged, toRust, toRustMarked } from './module.f.js'
 import { toText, untagged } from '../../text/marked/module.f.js'
 import { unmarkedWords, wordsOf } from '../../edag/rust/unmarked/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
@@ -24,6 +24,14 @@ import { toJson } from '../../media/json/module.f.js'
 const refusedByRust = ['An import', 'A named import and a call', 'A module imported twice', 'A cyclic import', 'Hex escape', 'Non-breaking space', 'Non-ASCII identifier', 'Parse error']
 
 export const proof = {
+    nativeStrings: () => {
+        const value = 'x\ud800'
+        const rust = toText(unwrap(toRustMarked(['[]', [value, ['=>', 0, [], value], '']], true)))
+        assertEq(rust.split('StaticString(&[0x0078, 0xd800])').length, 2)
+        assertEq(rust.split('String::from_static(&STRING_0)').length, 3)
+        assert(rust.includes('StaticString(&[])'))
+        assert(rust.includes('pub fn module(_runtime: Any<A>)'))
+    },
     deferredLoweringIsDisplayed: () => {
         for (const source of ['export default 1==1;', 'export default (a,x)=>a==x;', 'export default ()=>{return 1;const unused=2==2;};']) {
             const result = _rustOf(source)

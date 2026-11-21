@@ -113,8 +113,8 @@ export const expExprTagged = (shared, runtime = null) => root => okThen(({ block
 /** The same expression with presentation tags removed. @type {(shared: readonly (readonly [Exp, string])[], runtime?: string | null) => (root: Exp) => Result<string, readonly unknown[]>} */
 export const expExpr = (shared, runtime = null) => root => mapOk(untagged)(expExprTagged(shared, runtime)(root))
 
-/** A graph scope through the common conversion and preparation passes. @type {(root: Exp, text?: (e: Exp) => string | undefined, runtime?: string | null) => Result<Scope, readonly unknown[]>} */
-export const scopeTagged = (root, text = noText, runtime = null) => okThen(({ block, external, options }) => preparedScope(block, options, external))(converted(root, [], text, runtime))
+/** A graph scope through the common conversion and preparation passes. @type {(root: Exp, text?: (e: Exp) => string | undefined, runtime?: string | null, native?: boolean) => Result<Scope, readonly unknown[]>} */
+export const scopeTagged = (root, text = noText, runtime = null, native = false) => okThen(({ block, external, options }) => preparedScope(block, options, external, native))(converted(root, [], text, runtime))
 
 /** A corpus scope over its supplied names, through the same prepared serializer. @type {(shared: readonly (readonly [Exp, string])[], runtime?: string | null) => (root: Exp) => Result<readonly string[], readonly unknown[]>} */
 export const statementsOf = (shared, runtime = null) => root => okThen(({ block, external, options }) => mapOk(({ lines }) => lines.map(untagged))(preparedScope(block, options, external)))(converted(root, shared, noText, runtime))

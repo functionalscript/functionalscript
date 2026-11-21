@@ -3,12 +3,11 @@
 
 use nanvm_effects_node::Native;
 use nanvm_fjsrs::{Options, program, run};
-use nanvm_lib::naive::Naive;
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
     match run(
-        program::module::<Naive>,
+        program::module,
         &Options::of_process(),
         &mut Native::stdio(),
     ) {

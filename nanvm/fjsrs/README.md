@@ -12,7 +12,7 @@ cargo run -p nanvm-fjsrs -- help
 
 | Part | What it is |
 | --- | --- |
-| [`src/gen.program.rs`](./src/gen.program.rs) | The program, [`fjs/nanvm/fjsrs/module.f.js`](../../fjs/nanvm/fjsrs/module.f.js), compiled by `fjs compile` to Rust. `npm run gen` writes it; CI fails on a stale copy. |
+| [`src/gen.program.native.rs`](./src/gen.program.native.rs) | The program, [`fjs/nanvm/fjsrs/module.f.js`](../../fjs/nanvm/fjsrs/module.f.js), compiled by `fjs compile` to Rust. `npm run gen` writes it; CI fails on a stale copy. |
 | [`nanvm-lib`](../lib/) | The VM the program's values live in. |
 | [`nanvm-effects-node`](../effects-node/) | The loop and the host that perform the effects the program answers. |
 | [`src/lib.rs`](./src/lib.rs) | `run`: evaluates a compiled module, starts its `main` with the process's arguments, environment and home, performs the effect, and answers the exit code. |
@@ -38,3 +38,11 @@ executable is built from; another target would be another executable beside
 this one. The name a published crate's binary takes is an
 [open question](../lib/todo/mvp-roadmap.md#open-questions) this does not
 decide.
+
+
+The `.native.rs` compiler output takes its concrete VM from the enclosing
+Rust module. The executable chooses `Vm = Naive` once and includes the
+generated application with `use super::Vm as A;`. The common runtime is
+instantiated for that VM through `exports`. String values in the generated
+application borrow named UTF-16 descriptors, one per distinct literal.
+Ordinary `.rs` output continues to expose a generic module function.
