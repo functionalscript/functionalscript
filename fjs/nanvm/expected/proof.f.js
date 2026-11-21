@@ -29,6 +29,13 @@ export const proof = {
         assert(text.includes('#[rustfmt::skip]\npub const JSON: Option<&[u8]> = Some(&[0x5b, 0x31, 0x2c, 0x22, 0x61, 0x22, 0x5d]);'))
         assert(text.endsWith('\npub const THROWS: bool = false;\n'))
     },
+    // Two functions made from one arrow share their body code, as the
+    // interpreter makes them, and each has a graph of its own.
+    sharedBody: () => {
+        const body = /** @type {const} */ (['arg', 0])
+        const text = of(['[]', [['=>', 1, [], body], ['=>', 1, [], body]]])
+        assertEq(text.split('A::static_function(').length, 3)
+    },
     // A shared node is one binding cloned at each reference, so the graph
     // keeps the sharing the JSON text cannot.
     sharing: () => {

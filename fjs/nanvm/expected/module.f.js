@@ -35,6 +35,7 @@
  */
 
 import { toRust } from '../../compiler/rust/module.f.js'
+import { ownBodies } from '../../edag/value/function/module.f.js'
 import { read } from '../../edag/value/property/module.f.js'
 import { toData } from '../../edag/value/to_unknown/module.f.js'
 import { tryJsonStringify } from '../../media/datajs/serializer/module.f.js'
@@ -95,8 +96,8 @@ const throwing = [
     '}',
 ].join('\n')
 
-/** The graph module of a value, as `{ default: value }`. @type {(value: EdagValue) => Result<string, string>} */
-const graph = value => toRust(['{}', [[':', 'default', value]]])
+/** The graph module of a value, as `{ default: value }`, its functions given bodies of their own. @type {(value: EdagValue) => Result<string, string>} */
+const graph = value => toRust(['{}', [[':', 'default', ownBodies(value)]]])
 
 /** Replace the first line of a printed module with the expectation's header. @type {(fixture: string) => (text: string) => string} */
 const withHeader = fixture => text => [header(fixture), ...text.split('\n').slice(1)].join('\n')

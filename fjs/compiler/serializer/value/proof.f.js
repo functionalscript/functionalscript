@@ -103,6 +103,17 @@ export const proof = {
         // with no such function, a value repeated inside one operand stays there
         assertEq(stringify(['{}', [[':', 'x', ['[]', [shared, shared]]]]]), 'export default {"x":(()=>{const $0={"name":"a"};return [$0,$0];})()};')
     },
+    // Two functions made from one arrow share their body code, as the
+    // interpreters make them; each is written as a function of its own.
+    sharedBody: () => {
+        const body = /** @type {const} */ (['[]', [['frame', 0], ['arg', 0]]])
+        const first = /** @type {const} */ (['=>', 1, [1], body])
+        const second = /** @type {const} */ (['=>', 1, [2], body])
+        assertEq(stringify(['[]', [first, second, first]]),
+            'const $0=(($1)=>(($2)=>[$1,$2]))(1);export default [$0,(($3)=>(($4)=>[$3,$4]))(2),$0];')
+        assertEq(factoryStringify(['[]', [first, second]]),
+            'export default()=>{return [(($0)=>(($1)=>[$0,$1]))(1),(($2)=>(($3)=>[$2,$3]))(2)];};')
+    },
     bodyScopes: () => {
         // Body constructors remain in the function, even when their spelling
         // matches a captured container constructed at module load.
