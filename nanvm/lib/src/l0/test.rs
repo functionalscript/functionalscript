@@ -162,6 +162,43 @@ fn native_object() {
     assert_eq!(item(&o, 0), n(2.0));
 }
 
+/// An object NaNVM built itself, as its keys were written.
+fn native(keys: &[&str]) -> V {
+    keys.iter()
+        .enumerate()
+        .map(|(i, k)| (String::from(*k), n(i as f64)))
+        .collect::<Vec<_>>()
+        .to_object()
+        .to_any()
+}
+
+/// Reads of an object whose properties already are its own entries read
+/// them in place; any other object's reads see its own entries all the
+/// same: out of order, with a repeated key, or with more properties than
+/// the check in place takes.
+#[test]
+fn in_place_or_copied() {
+    let o = native(&["1", "2", "b", "a"]);
+    assert_eq!(length(&o), 4);
+    assert_eq!(key(&o, 2), s("b"));
+    assert_eq!(item(&o, 3), n(3.0));
+    assert_eq!(find(&o, &s("a")), 3);
+    assert_eq!(find(&o, &s("c")), -1);
+    let o = native(&["b", "2", "1"]);
+    assert_eq!(key(&o, 0), s("1"));
+    assert_eq!(item(&o, 0), n(2.0));
+    assert_eq!(find(&o, &s("b")), 2);
+    let o = native(&["b", "a", "b"]);
+    assert_eq!(length(&o), 2);
+    assert_eq!(item(&o, 0), n(2.0));
+    assert_eq!(find(&o, &s("a")), 1);
+    let many: Vec<std::string::String> = (0..17).map(|i| format!("k{i}")).collect();
+    let o = native(&many.iter().map(|k| k.as_str()).collect::<Vec<_>>());
+    assert_eq!(length(&o), 17);
+    assert_eq!(key(&o, 16), s("k16"));
+    assert_eq!(find(&o, &s("k16")), 16);
+}
+
 #[test]
 fn identity() {
     let a = array([n(1.0)]);
@@ -304,6 +341,12 @@ mod traps {
     #[should_panic(expected = "l0.item: not an index")]
     fn item_object_past() {
         item(&object([("a", n(1.0))]), 1);
+    }
+
+    #[test]
+    #[should_panic(expected = "l0.key: not an index")]
+    fn key_copied_past() {
+        key(&native(&["a", "a"]), 1);
     }
 
     #[test]
