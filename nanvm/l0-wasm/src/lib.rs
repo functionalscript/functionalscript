@@ -17,6 +17,10 @@
 //!   `fjs:host` `invoke(code, self, args) -> any`, which runs it, borrowing
 //!   both handles and answering an owned one.
 //!
+//! L1's native rows, the `fjs:l1-native` imports, are exports too, under
+//! their row names (`bigintAdd`, `numberToString`, ...), from
+//! [`abi::native`].
+//!
 //! The four constants are the handles `0` to `3`, which a loader makes the
 //! program's immutable `i64` globals. The code is all for `wasm32`:
 //! natively the crate is empty.
@@ -24,7 +28,7 @@
 #![cfg(target_arch = "wasm32")]
 
 use core::cell::RefCell;
-use nanvm_lib::l0::abi;
+use nanvm_lib::l0::abi::{self, native};
 
 #[link(wasm_import_module = "fjs:host")]
 unsafe extern "C" {
@@ -309,4 +313,61 @@ pub extern "C" fn open_builders() -> i32 {
 #[unsafe(export_name = "alive")]
 pub extern "C" fn alive(h: i64) -> i32 {
     abi::alive(h)
+}
+
+// L1's native rows, the `fjs:l1-native` imports.
+
+#[unsafe(export_name = "bigintEquals")]
+pub extern "C" fn bigint_equals(a: i64, b: i64) -> i32 {
+    native::bigint_equals(a, b)
+}
+
+#[unsafe(export_name = "numberRemainder")]
+pub extern "C" fn number_remainder(a: f64, b: f64) -> f64 {
+    native::number_remainder(a, b)
+}
+
+#[unsafe(export_name = "numberToString")]
+pub extern "C" fn number_to_string(n: f64) -> i64 {
+    native::number_to_string(n)
+}
+
+#[unsafe(export_name = "stringToNumber")]
+pub extern "C" fn string_to_number(s: i64) -> f64 {
+    native::string_to_number(s)
+}
+
+#[unsafe(export_name = "bigintToString")]
+pub extern "C" fn bigint_to_string(b: i64) -> i64 {
+    native::bigint_to_string(b)
+}
+
+#[unsafe(export_name = "bigintAdd")]
+pub extern "C" fn bigint_add(a: i64, b: i64) -> i64 {
+    native::bigint_add(a, b)
+}
+
+#[unsafe(export_name = "bigintSubtract")]
+pub extern "C" fn bigint_subtract(a: i64, b: i64) -> i64 {
+    native::bigint_subtract(a, b)
+}
+
+#[unsafe(export_name = "bigintMultiply")]
+pub extern "C" fn bigint_multiply(a: i64, b: i64) -> i64 {
+    native::bigint_multiply(a, b)
+}
+
+#[unsafe(export_name = "bigintDivide")]
+pub extern "C" fn bigint_divide(a: i64, b: i64) -> i64 {
+    native::bigint_divide(a, b)
+}
+
+#[unsafe(export_name = "bigintNegate")]
+pub extern "C" fn bigint_negate(a: i64) -> i64 {
+    native::bigint_negate(a)
+}
+
+#[unsafe(export_name = "bigintLess")]
+pub extern "C" fn bigint_less(a: i64, b: i64) -> f64 {
+    native::bigint_less(a, b)
 }

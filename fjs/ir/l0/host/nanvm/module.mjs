@@ -39,12 +39,15 @@
  *   for each builder that is open.
  *
  * NaNVM's handles are its own, so `first` gives the handles of the first
- * values.
+ * values. L1's native rows are NaNVM's too, in Rust: `native` is its
+ * exports for the `fjs:l1-native` imports, so a module that calls one
+ * stays in WebAssembly as well.
  *
  * @module
  *
  * @import { Counting } from '../types.ts'
  * @import { _Nanvm } from './private.ts'
+ * @import { Host as NativeHost } from '../../../native/host/types.ts'
  */
 
 import { write } from '../../../../media/wasm/binary/write/module.f.js'
@@ -285,6 +288,7 @@ export const nanvmHost = nanvm => (values, data = 0) => {
             true: constant(3n),
         }),
         first,
+        native: /** @type {NativeHost} */ (/** @type {unknown} */ (instance.exports)),
         attach: t => {
             table.grow(t.length)
             for (let k = 0; k < t.length; k += 1) { table.set(k, t.get(k)) }

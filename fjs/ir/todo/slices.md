@@ -374,8 +374,14 @@ Owner chose option A on each of four choices.
     lifetime pass's, FAST's and the random host proofs runs on it too, in
     [`nanvm.test.mjs`](../l0/host/nanvm/nanvm.test.mjs), which CI runs
     after it builds the `.wasm`; L1's native rows are still JavaScript's.
-  - [ ] **12c. Native rows in Rust.** The eleven `fjs:l1-native`
-    functions in NaNVM, checked against JavaScript.
+  - [x] **12c. Native rows in Rust.** The eleven `fjs:l1-native`
+    functions are [Rust in NaNVM](../../../nanvm/lib/src/l0/abi/native.rs),
+    over its handles and computed by its own operators, and
+    `nanvm/l0-wasm` exports them by their names, so the NaNVM host passes
+    them to a module in place of JavaScript's. A broken precondition traps
+    with L1's text; a bigint division by zero throws NaNVM's `RangeError`.
+    [`nanvm.test.mjs`](../l0/host/nanvm/nanvm.test.mjs) compares them with
+    JavaScript on random floats, texts and bigints.
 
 ### Decisions for slice 11 (2026-11-20)
 
@@ -405,7 +411,7 @@ module for calls, for speed.
 | Constants | The loader makes Any's four `i64` globals of NaNVM's handles `0` to `3` |
 | Calls | An adapter module: NaNVM's `fjs:host` `invoke` is the adapter's export, a `call_indirect` into a table that the loader makes, so a call stays in WebAssembly |
 | A misuse's text | A panic hook keeps it for the host (later) |
-| Native rows | Rust in NaNVM, as 12c; JavaScript's until then |
+| Native rows | Rust in NaNVM, as 12c |
 | CI | Builds the `.wasm`, then runs the proofs on it from a file of its own, which fails where the `.wasm` is missing |
 
 The emitter still exports the module's table, and the loader copies it
