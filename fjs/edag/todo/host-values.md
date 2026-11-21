@@ -19,7 +19,7 @@ three costs follow from it.
   reference map, and the analysis and sharing passes are built on that map,
   so the compiler run through an interpreter pays it everywhere. A program
   that sets `n` distinct keys and reads each back, interpreted by
-  [`memo`](../memo/README.md) at `9a14b1d`
+  [`memo`](../memo/README.md) at `2ae0f18`
   (`fjs compile` to a `.data.js`, start-up of about 2 s included):
 
   | `n` | time |
@@ -34,6 +34,37 @@ three costs follow from it.
   addition each take a tagged tuple apart and build another.
 - **A call walks a graph.** A function's body is an expression evaluated node
   by node at each call.
+
+### Where the time goes
+
+One evaluation, profiled: `fjs/ci/module.f.js` interpreted whole by
+[`memo`](../memo/README.md) at `2ae0f18`, about 48 s, with Node's CPU
+profiler and with a count of each interpreted function's calls and time.
+It ran 2,501,232 calls of 493 different functions.
+
+| what | share |
+| --- | --- |
+| copying a function's body where a closure is made (`func`, [`../value/function`](../value/function/module.f.js)) | 21% |
+| garbage collection | 17% |
+| the values a call keeps by node, in `memo` | 8% |
+| the interpreted reference map | 165 calls, 3 ms |
+
+- **The reference map is nothing here.** It costs what the table above
+  says where a program uses it heavily, and this program does not: its
+  module initialization does not run the compiler's analysis. No evaluation
+  that does has been profiled, the whole compiler's included.
+- **The largest single cost is a copy.** A closure's body is copied every
+  time the closure is made, so that two functions from one arrow share no
+  node ([`../values.md`](../values.md)): 760,195 copies for those 493
+  functions. It follows from a value being EDAG, where a node is its
+  identity; [the copy](../value/todo/closure-body-copy.md) has an issue of
+  its own, and is smaller than any of the options below.
+- **The rest is spread.** No operation of the interpreter stands out beyond
+  these, so what emulation costs is not one figure this profile gives. One
+  interpreted function, the binary search of
+  [`fjs/types/function/compare`](../../types/function/compare/module.f.js),
+  is over a third of the interpreted time by itself: it is the program's
+  work, made slow by the calls and closures it is written with.
 
 ### Options
 
@@ -157,7 +188,7 @@ value to a host one, becomes the identity on data.
 - [ ] Settle `undefined` and the object rules.
 - [ ] Measure on one interpreter before moving the rest: the reference-map
   program above, and the whole compiler evaluated (`fjs/module.f.js`), which
-  took 19 min 25 s at `9a14b1d`. What a call still costs there says whether
+  took 19 min 25 s at `2ae0f18`. What a call still costs there says whether
   `compiled` is worth an issue of its own.
 - [ ] Move the operations, then the interpreters, then the consumers.
 - [ ] Write a host value out as EDAG, with sharing kept.
