@@ -575,14 +575,15 @@ a module that does not import the interface that makes it, an interface
 whose literals hold none of their type's variants, a constant that one
 ABI imports by the name of a function, or of a constant whose global holds
 another WASM value, a constant or a function named `memory` or `data_base`
-in the ABI of an interface that makes literals, an `own` parameter of a
+in the ABI of an interface that makes literals, or `table` or
+`table_base` in the first interface's ABI, an `own` parameter of a
 type that is not sealed,
 a counted type without both a `dup` and a `drop` of their shapes, a module
 whose owned stage does not consume each owned value once on every path, a
 value of a linear type that the lifetime pass would have to copy or drop,
 an interface that names a type, a function or a constant twice, a
 constant of a product or of `never`, two constants of one name, a function
-named `init`, an export named `table`, a constant that reads itself or one after it, directly or
+named `init`, a constant that reads itself or one after it, directly or
 through the functions that it calls, a constant that only borrows its
 value, a `br` to a loop that
 does not give each of its parameters, in their order, and a `trunc_sat` of

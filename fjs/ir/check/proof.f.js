@@ -520,6 +520,12 @@ export const proof = {
         assertEq(why(importing({ abi: 'fjs:l0', types: [], constants: [['make_string', f64]], functions: [] })),
             'the constant Bad.make_string and the function String.make_string are both the import make_string of fjs:l0')
         assertOk(check(importing({ abi: 'test:bad', types: [], constants: [['memory', f64]], functions: [['data_base', signature([], f64)]] })))
+        // The first interface's ABI gives the loader's table and table_base, so no constant or function of it has either name.
+        assertEq(why(importing({ abi: 'fjs:l0', types: [], functions: [['table', signature([], f64)]] })),
+            'the function Bad.table is the import table of fjs:l0, which the loader gives a module that holds code')
+        assertEq(why(importing({ abi: 'fjs:l0', types: [], constants: [['table_base', f64]], functions: [] })),
+            'the constant Bad.table_base is the import table_base of fjs:l0, which the loader gives a module that holds code')
+        assertOk(check(importing({ abi: 'test:bad', types: [], constants: [['table', f64]], functions: [['table_base', signature([], f64)]] })))
         // Two interfaces may make literals of one spelling, each of its own type.
         assertOk(check({ imports: [...l0, ['Label', making('text')]], functions: [['f', fn([], bool, let_('l', lit(only(sealed('Label', 'label'), 'text'), 'a'), () => true_))]], exports: [] }))
         // The emitter imports a maker once for its ABI and its name, so the types whose literals it makes share its carrier.
