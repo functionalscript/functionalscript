@@ -67,6 +67,10 @@ ownership transfers. The Rust serializer's inspection calls now borrow their
 arguments, while its ordinary local-read emission still clones; that needs a
 structural borrowed-expression mode rather than rewriting emitted text.
 
+Native Rust now elides top-level aliases of immutable locals and moves a final
+unconditional read into a closure frame, array or call. Slot snapshots, repeated
+operands and reads after a module-level memo retain their clones.
+
 ### Related
 
 - [Rust Unpack dispatch](./089-rust-unpack-dispatch.md) — the existing dispatch
