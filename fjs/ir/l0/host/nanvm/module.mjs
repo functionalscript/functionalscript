@@ -194,7 +194,12 @@ export const nanvmHost = nanvm => (values, data = 0) => {
             const ptr = n.reserve(2 * len)
             n.read_units(h, 0, len, ptr)
             const view = new DataView(n.memory.buffer)
-            return String.fromCharCode(...Array.from({ length: len }, (_, k) => view.getUint16(ptr + 2 * k, true)))
+            // in chunks, since an engine caps how many arguments a call takes
+            let out = ''
+            for (let k = 0; k < len; k += 0x1000) {
+                out += String.fromCharCode(...Array.from({ length: Math.min(0x1000, len - k) }, (_, j) => view.getUint16(ptr + 2 * (k + j), true)))
+            }
+            return out
         }
         if (kind === 5) {
             const len = n.length(h)
@@ -238,7 +243,12 @@ export const nanvmHost = nanvm => (values, data = 0) => {
                 n.leave()
                 return v
             } catch (e) {
-                if (n.has_thrown() === 0) { throw e }
+                if (n.has_thrown() === 0) {
+                    // a misuse threw nothing: free what the call made, and end its mark
+                    n.recover()
+                    prune()
+                    throw e
+                }
                 const t = n.thrown()
                 const v = read(t)
                 n.drop(t)
