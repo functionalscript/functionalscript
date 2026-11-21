@@ -32,6 +32,9 @@ import {
 import {
     prepend as prependS, around as aroundS, chars as charsS, spreadCall as spreadCallS, spreadMixed as spreadMixedS, merged as mergedS, copied as copiedS, nestedSpread as nestedSpreadS, restLifted as restLiftedS, restInlined as restInlinedS, restEmpty as restEmptyS, restModule as restModuleS, forwarded as forwardedS, restCaptured as restCapturedS,
 } from './spreads.f.js'
+import {
+    pair as pairR, counted as countedR, both as bothR, nested as nestedR, whole as wholeR, missing as missingR, twice as twiceR, given as givenR, chosen as chosenR, reordered as reorderedR, kept as keptR,
+} from './records.f.js'
 
 /** The signatures of a module of one function, `f`. @type {(params: readonly Param[], result: Type) => Readonly<Record<string, Signature>>} */
 const only = (params, result) => ({ f: signature(params, result) })
@@ -1039,6 +1042,85 @@ export const proof = {
         assertStructurallySame(listedC()(), [1, 2])
     },
     // The originals of slice 11c, which the host proof runs against what the lowering makes of them.
+    // The records pass: a loop's state that is only read back by its keys is
+    // a local for each key, and an object that leaves, or is read by a key
+    // that it has not, stays one.
+    records: () => {
+        assertEq(program([
+            'export const f = (a, b) => {',
+            '    let s = { i: a, acc: b }',
+            '    while (s.i < 3) {',
+            '        s = { i: s.i + 1, acc: s.acc + s.i }',
+            '    }',
+            '    return s.acc',
+            '}',
+        ].join('\n')), [
+            'fn f(p0: any, p1: any) -> any =',
+            '    let #1.i = p0',
+            '    let #1.acc = p1',
+            '    loop L0 (#2.i: any = #1.i, #2.acc: any = #1.acc)',
+            '        if l1.lessThan(#2.i, Any.from_f64(3.0))',
+            '        then',
+            '            let #2/#3 = l1.add(#2.i, Any.from_f64(1.0))',
+            '            let #2/#4 = l1.add(#2.acc, #2.i)',
+            '            br L0 { #2.i: #2/#3, #2.acc: #2/#4 }',
+            '        else',
+            '            #2.acc',
+            '',
+            'fn l1.add(a: any, b: any) -> any =',
+            '    a',
+            '',
+            'fn l1.get(a: any, b: any) -> any =',
+            '    a',
+            '',
+            'fn l1.lessThan(a: any, b: any) -> bool =',
+            '    false',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(program([
+            'export const f = (a, b) => {',
+            '    const r = { x: a, y: b }',
+            '    return r.x === r.y ? r : r.z',
+            '}',
+        ].join('\n')), [
+            'fn f(p0: any, p1: any) -> any =',
+            '    let #0 =',
+            '        match Containers.seal(Containers.push_property(Containers.push_property(Containers.begin_object(2), "x", p0), "y", p1))',
+            '          object as object =>',
+            '            object',
+            '          else =>',
+            "            trap('not object')",
+            '    if l1.strictEquals(l1.get(#0, "x"), l1.get(#0, "y")) then #0 else l1.get(#0, "z")',
+            '',
+            'fn l1.get(a: any, b: any) -> any =',
+            '    a',
+            '',
+            'fn l1.strictEquals(a: any, b: any) -> bool =',
+            '    false',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+    },
+    recordOriginals: () => {
+        assertEq(pairR(1, 2), 2)
+        assertEq(countedR(10), 6)
+        assertEq(countedR(2), 1)
+        assertEq(bothR(0, 'x'), 2)
+        assertEq(bothR(5, 'x'), 'x')
+        assertEq(nestedR(1, 2), 1)
+        assertStructurallySame(wholeR(1, 2), { x: 1, y: 2 })
+        assertEq(missingR(1), undefined)
+        const [r, q] = twiceR(1, 2)
+        assertEq(r, q)
+        assertEq(givenR(/** @type {(o: any) => any} */ (o => o.x), 3), 3)
+        assertEq(chosenR(true, 1, 2), 1)
+        assertEq(chosenR(0, 1, 2), 2)
+        assertEq(reorderedR(10), 6)
+        assertEq(keptR(10), 3)
+    },
     spreadOriginals: () => {
         /** @type {(...xs: readonly any[]) => any} */
         const list = (...xs) => xs

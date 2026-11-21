@@ -159,7 +159,7 @@
 
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
-import { error, ok, okList } from '../../types/result/module.f.js'
+import { error, mapOk, ok, okList } from '../../types/result/module.f.js'
 import { ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFINED } from '../../wasm/runtime/l0/module.f.js'
 import { typeOf } from '../check/module.f.js'
 import { any, array, builder, func, kinds, l0, lengths, object, string } from '../l0/module.f.js'
@@ -168,6 +168,7 @@ import {
     make, match, mul, n, ne, neg, next, not, only, product, return_, signature, sub, terms, throw_, trap, true_, u,
 } from '../module.f.js'
 import { native } from '../native/module.f.js'
+import { records } from '../records/module.f.js'
 import { link, linkedName, uses } from './link/module.f.js'
 import { show } from '../print/module.f.js'
 
@@ -2356,5 +2357,7 @@ export const lower = (signatures, runtime = null) => ({ statements, exit }, impo
     const [constants] = candidates.reduceRight(keep, [[], everything.flatMap(([, f]) => reads(f.body))])
     /** @type {Module} */
     const m = { imports: interfaces, constants, functions: everything, exports: lowered.map(([key]) => key) }
-    return l1 === null ? ok(m) : link(l1)(m)
+    if (l1 === null) { return ok(m) }
+    // a program: L1's bodies linked in, then the objects that it only reads back split
+    return mapOk(records('l1.get'))(link(l1)(m))
 }
