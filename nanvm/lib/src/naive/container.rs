@@ -103,6 +103,12 @@ impl<H: Clone + PartialEq, I: Clone + Debug> IContainer<Naive> for Container<H, 
             items: Items::Owned(i.into_iter().collect::<Result<_, _>>()?),
         })
     }
+    fn from_vec(header: H, items: Vec<I>) -> Self {
+        Self {
+            header,
+            items: Items::Owned(items.into()),
+        }
+    }
     fn header(&self) -> &H {
         &self.header
     }

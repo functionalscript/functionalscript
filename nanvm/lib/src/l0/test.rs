@@ -209,6 +209,10 @@ fn strings() {
     );
     assert_eq!(concat(&s("ab"), &s("cd")), s("abcd"));
     assert_eq!(concat(&s(""), &s("")), s(""));
+    static AB: crate::vm::StaticString = crate::vm::StaticString(&[0x61, 0x62]);
+    let ab: V = String::<A>::from_static(&AB).to_any();
+    assert_eq!(concat(&ab, &s("c")), s("abc"));
+    assert_eq!(concat(&s(""), &ab), s("ab"));
     assert_eq!(substring(&s("abcdef"), 1, 3), s("bc"));
     assert_eq!(substring(&s("abcdef"), 0, 6), s("abcdef"));
     assert_eq!(substring(&s("abcdef"), 6, 6), s(""));

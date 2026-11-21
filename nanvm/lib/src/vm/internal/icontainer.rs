@@ -25,6 +25,24 @@ pub trait IContainer<A: IVm>: IComplex<A> {
         Self::new::<()>(header, i.into_iter().map(Ok)).unwrap()
     }
 
+    /// A container of the items in `items`, which a VM may take over with
+    /// no copy of each item, where [`new`](Self::new) collects an iterator.
+    fn from_vec(header: Self::Header, items: Vec<Self::Item>) -> Self {
+        Self::new_ok(header, items)
+    }
+
+    /// The items of `self` and then of `other`, in a new container of this
+    /// header: each read once from its container's items, into a buffer of
+    /// their total length.
+    fn concat(&self, other: &Self) -> Self {
+        let a = self.items();
+        let b = other.items();
+        let mut items = Vec::with_capacity(a.length() + b.length());
+        items.extend((0..a.length()).map(|i| a[i].clone()));
+        items.extend((0..b.length()).map(|i| b[i].clone()));
+        Self::from_vec(self.header().clone(), items)
+    }
+
     fn items_eq(&self, b: &Self) -> bool
     where
         Self::Header: PartialEq,
