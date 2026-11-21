@@ -112,16 +112,17 @@ export const numberPath =
 /**
  * A value of `any`, or a float or boolean boxed as one by `from_f64` or
  * `from_bool` ([definition.md's rule 6](../../../../doc/sasha-gil/ir/definition.md#from-normalized-fast-to-the-ir)),
- * or a bigint literal, a literal or a constant of an integer type of one
- * value, made by L1's native row `stringToBigInt` of its decimal text, or
- * `null` where no conversion of this slice fits.
+ * or a bigint literal, a literal of an integer type of one value, made by
+ * L1's native row `stringToBigInt` of its decimal text, or `null` where no
+ * conversion of this slice fits. A constant of such a type is not boxed, as
+ * reading its literal instead would skip its `init`, which may throw.
  *
  * @type {(t: Type, x: Term) => Term | null}
  */
 export const asAny = (t, x) => isAny(t) ? x
     : isFloat(t) ? call('Any', 'from_f64', [x])
     : equal(t, bool) ? call('Any', 'from_bool', [x])
-    : t[0] === 'int' && t[1] === t[2] && (x[0] === 'lit' || x[0] === 'constant') ? call('Native', 'stringToBigInt', [lit(string, String(t[1]))])
+    : t[0] === 'int' && t[1] === t[2] && x[0] === 'lit' ? call('Native', 'stringToBigInt', [lit(string, String(t[1]))])
     : null
 
 /**

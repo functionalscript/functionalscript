@@ -52,9 +52,9 @@ export const proof = {
         assertStructurallySame(asAny(f64c, get('x')), call('Any', 'from_f64', [get('x')]))
         assertStructurallySame(asAny(bool, get('b')), call('Any', 'from_bool', [get('b')]))
         assertEq(asAny(u(8), get('i')), null)
-        // An integer of one value, a literal or a constant, is the bigint that L1's native row makes of its text.
+        // An integer literal is the bigint that L1's native row makes of its text; a constant is not, since its `init` may throw.
         assertStructurallySame(asAny(int(3n, 3n), n(3n)), call('Native', 'stringToBigInt', [lit(string, '3')]))
-        assertStructurallySame(asAny(int(3n, 3n), constant('self', 'k')), call('Native', 'stringToBigInt', [lit(string, '3')]))
+        assertEq(asAny(int(3n, 3n), constant('self', 'k')), null)
         assertEq(asAny(int(3n, 3n), get('k')), null)
     },
     // Each kind of primitive, and those that need the runtime, refused without it.

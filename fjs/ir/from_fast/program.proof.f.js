@@ -136,6 +136,8 @@ export const proof = {
         ].join('\n'))
         // `Number` and `String` of `any` call L1's `number` and `toString`; of a float and of a string, they are it.
         assertEq(program('export const f = () => Number(2n)'), 'fn f() -> any =\n    Any.from_f64(float(2))\n\nexport f\n')
+        // `String` and a template literal of a bigint literal are L1's `toString` of its value.
+        assertEq(program('export const f = () => String(1n)'), 'fn f() -> any =\n    l1.toString(Native.stringToBigInt("1"))\n\nfn l1.toString(v: any) -> any =\n    v\n\nexport f\n')
         // A bigint wider than ±2^53 is L1's to convert, which rounds it.
         assertEq(program('export const f = () => Number(9007199254740993n)'), 'fn f() -> any =\n    Any.from_f64(l1.number(Native.stringToBigInt("9007199254740993")))\n\nfn l1.number(v: any) -> f64 =\n    0.0\n\nexport f\n')
         assertEq(program('export const f = (a, b) => [Number(a), Number(1), `x${b}`, String("y")]'), [
@@ -616,7 +618,9 @@ export const proof = {
             '',
         ].join('\n'))
         assertEq(refusedProgram('export const f = () => (1n + 2n)'), 'f: the body is int(3, 3), not any')
-        // A constant of one integer is boxed as its literal is, and the negation of a sum stays a subtraction.
+        // A constant that `init` computes is read as itself, so a throw in it is kept.
+        assertEq(program('export const g = () => { throw "x" }\nconst k = g()\nexport const f = () => [k]').includes('self.#c0'), true)
+        // A constant of a bigint literal is read as the literal, which is boxed, and the negation of a sum stays a subtraction.
         assertEq(program('const k = 1n\nexport const f = () => [k]'), [
             'fn f() -> any =',
             '    match Containers.seal(Containers.push(Containers.begin_array(1), Native.stringToBigInt("1")))',
