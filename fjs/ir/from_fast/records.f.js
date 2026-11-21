@@ -23,7 +23,7 @@ export const pair = (a, b) => {
 
 /** @type {(n: any) => any} */
 export const counted = n => {
-    const zero = n - n
+    const zero = n * 0
     let s = { i: zero, acc: zero }
     while (s.i < n && s.i < 4) {
         s = { i: s.i + 1, acc: s.acc + s.i }
@@ -81,7 +81,7 @@ export const chosen = (c, a, b) => {
 
 /** @type {(n: any) => any} */
 export const reordered = n => {
-    const zero = n - n
+    const zero = n * 0
     let s = { i: zero, acc: zero }
     while (s.i < n && s.i < 4) {
         s = { acc: s.acc + s.i, i: s.i + 1 }
@@ -91,7 +91,7 @@ export const reordered = n => {
 
 /** @type {(n: any) => any} */
 export const kept = n => {
-    const zero = n - n
+    const zero = n * 0
     /** @type {any} */
     let s = { i: zero, prev: zero }
     while (s.i < n && s.i < 3) {
