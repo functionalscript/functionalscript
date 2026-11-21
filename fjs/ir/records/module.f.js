@@ -28,14 +28,20 @@
  * - **How it splits.** A local `s` of keys `i` and `acc` is the locals
  *   `s.i` and `s.acc`, of `any`: a `let` binds each, a loop has a
  *   parameter for each, and a `br` gives each. The `let`s of the chain that
- *   makes its value are written before, renamed `s.#1`, so that no name
- *   that the rest reads is shadowed. A read `get(s, 'i')` is `s.i`, and a
- *   read of a term whose value may be such an object reads the key at each
- *   end of the term instead: an object's value, or a split local's.
+ *   makes its value are written before, renamed `s/#1`, so that no name
+ *   that the rest reads is shadowed. A key or a name in a new name has
+ *   `\`, `.` and `/` escaped by a `\`, so `s.p.q` is the key `q` of
+ *   `s.p` and `s.p\.q` the key `p.q` of `s`, and no new name is another. A
+ *   function that names a local with any of these three keeps every
+ *   object, since a new name might be one of its own.
+ *   A read `get(s, 'i')` is `s.i`, and a read of a term whose value may
+ *   be such an object reads the key at each end of the term instead: an
+ *   object's value, or a split local's.
  * - **Nothing moves past what does something.** A chain moves before a
  *   loop or a `br` only where all but one of its values do nothing, as a
- *   local, a literal or an object of these does nothing, and a read of one key skips the other values of an object only where
- *   each of them does nothing; otherwise the object stays.
+ *   local, a literal or an object of these does nothing, and a read of
+ *   one key skips the other values of an object only where each of them
+ *   does nothing; otherwise the object stays.
  *
  * The plain stage has no `dup` and no `drop`, so the lifetime pass that
  * runs after it owns each split local as it owns any other.
@@ -48,6 +54,7 @@
 
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { any } from '../l0/module.f.js'
+import { terms } from '../module.f.js'
 
 /** @type {_Env} */
 const top = { locals: [], labels: [] }
@@ -103,6 +110,21 @@ const movable = values => values.filter(x => {
     const site = siteOf(x)
     return !isPure(x) && (site === null || !site.every(([, v]) => isPure(v)))
 }).length < 2
+
+/** A key or a name as a part of a new name: `\\`, `.` and `/` escaped. @type {(k: string) => string} */
+const escape = k => k.replaceAll('\\', '\\\\').replaceAll('.', '\\.').replaceAll('/', '\\/')
+
+/** Whether a name may be a new name, or a part of one. @type {(name: string) => boolean} */
+const reserved = name => name.includes('\\') || name.includes('.') || name.includes('/')
+
+/** The names that a term binds. @type {(t: Term) => readonly string[]} */
+const binders = t => {
+    const own = t[0] === 'let' ? [t[1]]
+        : t[0] === 'loop' ? t[2].map(([k]) => k)
+        : t[0] === 'match' ? t[2].flatMap(([, binder]) => binder === null ? [] : [binder])
+        : []
+    return [...own, ...terms(t).flatMap(binders)]
+}
 
 /** The keys of an object. @type {(site: _Site) => readonly string[]} */
 const keysOf = site => site.map(([k]) => k)
@@ -324,11 +346,11 @@ const rewrite = (get, split) => {
     /** The keys of a local that the pass splits, by its path. @type {(id: string) => readonly string[] | null} */
     const keysAt = id => split.locals.find(([x]) => x === id)?.[1] ?? null
     /** The name of a split local's value at a key. @type {(name: string, key: string) => string} */
-    const part = (name, key) => `${name}.${key}`
+    const part = (name, key) => `${name}.${escape(key)}`
     /** @type {(t: Term, path: string, env: _Env, key: string | null) => Term} */
     const go = (t, path, env, key) => {
         /**
-         * A chain of `let`s that makes a split local's value, `prefix.` before
+         * A chain of `let`s that makes a split local's value, `prefix/` before
          * each name it binds, and what `end` makes of the value at each key
          * where the chain ends. What `end` writes stands inside the chain, whose
          * names no other name is, and reads the scope around it.
@@ -337,7 +359,7 @@ const rewrite = (get, split) => {
          */
         const moved = (t, path, env, prefix, end) => {
             if (t[0] === 'let') {
-                const name = part(prefix, t[1])
+                const name = `${prefix}/${escape(t[1])}`
                 const rest = moved(t[3], `${path}/b`, bind(env, [t[1], path, name]), prefix, end)
                 // a local of the chain that is split too: its parts, under its new name
                 return keysAt(path) === null ? ['let', name, go(t[2], `${path}/v`, env, null), rest]
@@ -461,4 +483,7 @@ const settled = get => f => {
  *
  * @type {(get: string) => (m: Module) => Module}
  */
-export const records = get => m => ({ ...m, functions: m.functions.map(([name, f]) => /** @type {const} */ ([name, settled(get)(f)])) })
+export const records = get => m => ({
+    ...m,
+    functions: m.functions.map(([name, f]) => /** @type {const} */ ([name, [...f.params.map(([k]) => k), ...binders(f.body)].some(reserved) ? f : settled(get)(f)])),
+})

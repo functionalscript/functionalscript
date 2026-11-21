@@ -92,8 +92,8 @@ export const proof = {
         let_('s', let_('t', object([['a', a]]), object([['p', read(get('t'), 'a')]])), read(get('s'), 'p')),
         [
             'fn f(a: any, b: any, c: any) -> any =',
-            '    let s.t.a = a',
-            '    let s.p = s.t.a',
+            '    let s/t.a = a',
+            '    let s.p = s/t.a',
             '    s.p',
         ],
     ),
@@ -101,8 +101,8 @@ export const proof = {
         let_('s', let_('t', effect(a), object([['p', get('t')]])), read(get('s'), 'p')),
         [
             'fn f(a: any, b: any, c: any) -> any =',
-            '    let s.t = Any.effect(a)',
-            '    let s.p = s.t',
+            '    let s/t = Any.effect(a)',
+            '    let s.p = s/t',
             '    s.p',
         ],
     ),
@@ -232,6 +232,19 @@ export const proof = {
             '    }',
         ],
     ),
+    dotted: () => golden(
+        let_('r', object([['p', object([['q', a]])], ['p.q', b], ['s/\\', c]]), make([['x', read(read(get('r'), 'p'), 'q')], ['y', read(get('r'), 'p.q')], ['z', read(get('r'), 's/\\')]])),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    let r.p.q = a',
+            '    let r.p\\.q = b',
+            '    let r.s\\/\\\\ = c',
+            '    { x: r.p.q, y: r.p\\.q, z: r.s\\/\\\\ }',
+        ],
+    ),
+    reservedLet: () => same(let_('r.x', a, read(object([['x', get('r.x')]]), 'x'))),
+    reservedLoop: () => same(loop('L', [['s/', any, a]], () => read(object([['x', a]]), 'x'))),
+    reservedArm: () => same(match(c, [[null, 'w\\', read(object([['x', a]]), 'x')]])),
     nested: () => golden(
         let_('r', object([['p', object([['q', a]])], ['k', b]]), read(read(get('r'), 'p'), 'q')),
         [

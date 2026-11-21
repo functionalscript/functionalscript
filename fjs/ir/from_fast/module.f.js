@@ -159,7 +159,7 @@
 
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
-import { error, ok, okList } from '../../types/result/module.f.js'
+import { error, mapOk, ok, okList } from '../../types/result/module.f.js'
 import { ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFINED } from '../../wasm/runtime/l0/module.f.js'
 import { typeOf } from '../check/module.f.js'
 import { any, array, builder, func, kinds, l0, lengths, object, string } from '../l0/module.f.js'
@@ -2359,6 +2359,5 @@ export const lower = (signatures, runtime = null) => ({ statements, exit }, impo
     const m = { imports: interfaces, constants, functions: everything, exports: lowered.map(([key]) => key) }
     if (l1 === null) { return ok(m) }
     // a program: L1's bodies linked in, then the objects that it only reads back split
-    const linked = link(l1)(m)
-    return linked[0] === 'error' ? linked : ok(records('l1.get')(linked[1]))
+    return mapOk(records('l1.get'))(link(l1)(m))
 }
