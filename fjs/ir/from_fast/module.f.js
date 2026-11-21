@@ -1370,9 +1370,10 @@ const methods = ['charCodeAt', 'at', 'every', 'filter']
  * boxed as `any`, which calls the receiver's own member where it has no
  * body for its kind. JavaScript reads `o.name`, which throws for
  * `undefined` and `null`, before it reads `x`, so a receiver that may be
- * one passes L1's `requireObjectCoercible` first where `x` is no literal
- * or binding. A receiver that is no value of `any`, a record say, reads
- * and calls its member as any other callee does.
+ * one passes L1's `requireObjectCoercible` first where `x` is no literal,
+ * binding or arrow function, which make nothing that can throw. A
+ * receiver that is no value of `any`, a record say, reads and calls its
+ * member as any other callee does.
  *
  * @type {(lowerValue: _LowerValue, scope: _Scope, receiver: Value, name: string, items: readonly Item<Value>[]) => Result<Term, string>}
  */
@@ -1389,7 +1390,7 @@ const methodCall = (lowerValue, scope, receiver, name, items) => {
         const [v] = items
         if (items.length !== 1 || isSpread(v)) { return refuse(s)(`a call of the method ${name} with other than one argument is not in this slice`) }
         const held = t[1][0] === 'sealed' ? t[1][3] ?? kinds : []
-        const quiet = !(v instanceof Array) || v[0] === 'ref' || !held.some(k => k === 'undefined' || k === 'null')
+        const quiet = !(v instanceof Array) || v[0] === 'ref' || v[0] === 'function' || !held.some(k => k === 'undefined' || k === 'null')
         /** The argument, boxed, where `y` stands for the receiver. @type {(s: _Scope, y: Term) => Result<Term, string>} */
         const then = (u, y) => settled(lowerValue, u, [v], (w, [a]) => {
             const at = typeOf(w.ir)(a)
