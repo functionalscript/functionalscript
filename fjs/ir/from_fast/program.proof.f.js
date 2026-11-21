@@ -136,6 +136,7 @@ export const proof = {
         ].join('\n'))
         // `Number` and `String` of `any` call L1's `number` and `toString`; of a float and of a string, they are it.
         assertEq(program('export const f = () => Number(2n)'), 'fn f() -> any =\n    Any.from_f64(float(2))\n\nexport f\n')
+        assertEq(assertError(over({}, 'export const f = () => Number(9007199254740993n)', programRuntime)), 'f: number of int(9007199254740993, 9007199254740993) is not in this slice')
         assertEq(program('export const f = (a, b) => [Number(a), Number(1), `x${b}`, String("y")]'), [
             'fn f(p0: any, p1: any) -> any =',
             '    let #0 = l1.number(p0)',

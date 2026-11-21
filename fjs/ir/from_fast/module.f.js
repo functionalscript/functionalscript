@@ -1779,9 +1779,12 @@ const value = (scope, v) => {
             })
         }
         case 'Number': {
+            // `float` of an integer is exact within ±2^53 alone, so a wider one is L1's, which rounds it.
+            /** @type {(t: Type) => boolean} */
+            const exactly = t => t[0] === 'int' ? -(2n ** 53n) <= t[1] && t[2] <= 2n ** 53n : isFloat(t)
             /** @type {(t: Type, x: Term) => Term | null} */
-            const number = (t, x) => t[0] === 'int' ? float(x) : isFloat(t) ? x : null
-            return viaL1(value, scope, 'number', ts => ts[0][0] === 'int' || isFloat(ts[0]), [v[1]], (xs, ts) => pickedOf(scope, 'Number', ts[0], xs[0], number)) ?? unary(value, scope, 'Number', v[1], number)
+            const number = (t, x) => !exactly(t) ? null : t[0] === 'int' ? float(x) : x
+            return viaL1(value, scope, 'number', ts => exactly(ts[0]), [v[1]], (xs, ts) => pickedOf(scope, 'Number', ts[0], xs[0], number)) ?? unary(value, scope, 'Number', v[1], number)
         }
         // `String(x)`, which a template literal writes for each value that it holds.
         // A function that a program makes has no text yet, so its text is refused rather than thrown at run time.

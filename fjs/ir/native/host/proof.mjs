@@ -10,6 +10,7 @@
 
 import { assert, assertEq } from '../../../asserts/module.f.js'
 import { handles } from '../../l0/host/module.f.js'
+import { error } from '../../../wasm/runtime/l1/error/module.f.js'
 import { host } from './module.mjs'
 
 /** Bigints, one past a word, zero, and a value of another kind. */
@@ -85,6 +86,27 @@ export const proof = {
     bigintLess: () => {
         assertEq(h.bigintLess(0n, 3n), 1)
         assertEq(h.bigintLess(3n, 0n), 0)
+    },
+    // Division by zero and a bigint past the engine's size limit are FunctionalScript throws, which `fail` records before the rethrow.
+    recorded: () => {
+        /** @type {unknown[]} */
+        const failed = []
+        const r = host(handles([1n, 0n, -(1n << 40n)]), () => 0n, e => { failed.push(e) })
+        /** @type {(f: () => unknown) => unknown} */
+        const thrown = f => {
+            try {
+                f()
+            } catch (e) {
+                return e
+            }
+            return undefined
+        }
+        assertEq(thrown(() => r.bigintShiftRight(0n, 2n)), error.bigintTooLarge)
+        assertEq(thrown(() => r.bigintDivide(0n, 1n)), error.divisionByZero)
+        assertEq(thrown(() => r.bigintEquals(0n, 5n)) === undefined, false)
+        assertEq(failed.length, 2)
+        assertEq(failed[0], error.bigintTooLarge)
+        assertEq(failed[1], error.divisionByZero)
     },
     // Kind mismatch traps; division by zero is a FunctionalScript throw (fail records it when wired).
     throw: {
