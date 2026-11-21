@@ -285,6 +285,16 @@ const bigintPair = (x, y) => {
 }
 
 /**
+ * Whether both operands are numbers: the fast path of each arithmetic and
+ * relational operator, which then answers what its general path would,
+ * since a number is its own primitive and its own numeric, with two
+ * `kind` reads in place of the conversions.
+ *
+ * @type {(a: unknown, b: unknown) => boolean}
+ */
+const numbers = (a, b) => kind(a) === NUMBER && kind(b) === NUMBER
+
+/**
  * The `+` operator: a string when either primitive is a string, else a
  * sum of two numbers or two bigints. Both primitives are taken before
  * either is converted, the left first.
@@ -292,6 +302,7 @@ const bigintPair = (x, y) => {
  * @type {(a: unknown, b: unknown) => unknown}
  */
 export const add = (a, b) => {
+    if (numbers(a, b)) { return asNumber(a) + asNumber(b) }
     const pa = toPrimitive(a, false)
     const pb = toPrimitive(b, false)
     if (kind(pa) === STRING || kind(pb) === STRING) { return concat(toString(pa), toString(pb)) }
@@ -306,6 +317,7 @@ export const add = (a, b) => {
  * @type {(a: unknown, b: unknown) => unknown}
  */
 export const subtract = (a, b) => {
+    if (numbers(a, b)) { return asNumber(a) - asNumber(b) }
     const x = toNumeric(a)
     const y = toNumeric(b)
     return bigintPair(x, y) ? bigintSubtract(x, y) : asNumber(x) - asNumber(y)
@@ -317,6 +329,7 @@ export const subtract = (a, b) => {
  * @type {(a: unknown, b: unknown) => unknown}
  */
 export const multiply = (a, b) => {
+    if (numbers(a, b)) { return asNumber(a) * asNumber(b) }
     const x = toNumeric(a)
     const y = toNumeric(b)
     return bigintPair(x, y) ? bigintMultiply(x, y) : asNumber(x) * asNumber(y)
@@ -329,6 +342,7 @@ export const multiply = (a, b) => {
  * @type {(a: unknown, b: unknown) => unknown}
  */
 export const divide = (a, b) => {
+    if (numbers(a, b)) { return asNumber(a) / asNumber(b) }
     const x = toNumeric(a)
     const y = toNumeric(b)
     return bigintPair(x, y) ? bigintDivide(x, y) : asNumber(x) / asNumber(y)
@@ -340,6 +354,7 @@ export const divide = (a, b) => {
  * @type {(a: unknown) => unknown}
  */
 export const negate = a => {
+    if (kind(a) === NUMBER) { return -asNumber(a) }
     const x = toNumeric(a)
     return kind(x) === BIGINT ? bigintNegate(x) : -asNumber(x)
 }
@@ -373,6 +388,7 @@ const less = (a, b) => {
  * @type {(a: unknown, b: unknown) => boolean}
  */
 export const lessThan = (a, b) => {
+    if (numbers(a, b)) { return asNumber(a) < asNumber(b) }
     const pa = toPrimitive(a, false)
     return less(pa, toPrimitive(b, false)) === 1
 }
@@ -383,6 +399,7 @@ export const lessThan = (a, b) => {
  * @type {(a: unknown, b: unknown) => boolean}
  */
 export const greaterThan = (a, b) => {
+    if (numbers(a, b)) { return asNumber(a) > asNumber(b) }
     const pa = toPrimitive(a, false)
     return less(toPrimitive(b, false), pa) === 1
 }
@@ -393,6 +410,7 @@ export const greaterThan = (a, b) => {
  * @type {(a: unknown, b: unknown) => boolean}
  */
 export const lessThanOrEqual = (a, b) => {
+    if (numbers(a, b)) { return asNumber(a) <= asNumber(b) }
     const pa = toPrimitive(a, false)
     return less(toPrimitive(b, false), pa) === 0
 }
@@ -403,6 +421,7 @@ export const lessThanOrEqual = (a, b) => {
  * @type {(a: unknown, b: unknown) => boolean}
  */
 export const greaterThanOrEqual = (a, b) => {
+    if (numbers(a, b)) { return asNumber(a) >= asNumber(b) }
     const pa = toPrimitive(a, false)
     return less(pa, toPrimitive(b, false)) === 0
 }
