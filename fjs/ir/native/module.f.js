@@ -24,10 +24,10 @@
  *   text spells. **`bigintToString` takes a bigint and answers an owned
  *   string**, its decimal spelling. Both join with L1's coercions.
  * - **Bigint arithmetic** takes and answers bigints: `bigintAdd`,
- *   `bigintSubtract`, `bigintMultiply`, `bigintDivide` and
- *   `bigintRemainder` (which may fail on a zero divisor), `bigintNegate`,
- *   `bigintShiftRight` (which may fail past NaNVM's size limit) and
- *   `bigintAnd`. **`bigintLess`** takes two values
+ *   `bigintSubtract`, `bigintMultiply`, `bigintShiftRight` and
+ *   `bigintAnd` (which may fail past NaNVM's size limit),
+ *   `bigintDivide` and `bigintRemainder` (which may fail on a zero
+ *   divisor), and `bigintNegate`. **`bigintLess`** takes two values
  *   of `any` (a bigint, number or string each) and answers a float,
  *   `1` / `0` / `-1`, for L1's mixed bigint comparisons.
  *
@@ -59,14 +59,14 @@ export const native = {
         ['numberToString', signature([['n', f64]], string)],
         ['stringToNumber', signature([['s', string]], f64)],
         ['bigintToString', signature([['b', bigint]], string)],
-        ['bigintAdd', signature(big2, bigint)],
-        ['bigintSubtract', signature(big2, bigint)],
-        ['bigintMultiply', signature(big2, bigint)],
+        ['bigintAdd', mayFail(signature(big2, bigint))],
+        ['bigintSubtract', mayFail(signature(big2, bigint))],
+        ['bigintMultiply', mayFail(signature(big2, bigint))],
         ['bigintDivide', mayFail(signature(big2, bigint))],
         ['bigintNegate', signature([['a', bigint]], bigint)],
         ['bigintRemainder', mayFail(signature(big2, bigint))],
         ['bigintShiftRight', mayFail(signature(big2, bigint))],
-        ['bigintAnd', signature(big2, bigint)],
+        ['bigintAnd', mayFail(signature(big2, bigint))],
         ['bigintLess', signature([['a', any], ['b', any]], f64)],
     ],
 }

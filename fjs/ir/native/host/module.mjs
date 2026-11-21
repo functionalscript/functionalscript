@@ -82,7 +82,7 @@ export const host = (read, make, fail) => {
         bigintNegate: a => make(bigintNegate(read(a))),
         bigintRemainder: (a, b) => sized(() => bigintRemainder(read(a), read(b))),
         bigintShiftRight: (a, b) => sized(() => bigintShiftRight(read(a), read(b))),
-        bigintAnd: (a, b) => make(bigintAnd(read(a), read(b))),
+        bigintAnd: (a, b) => sized(() => bigintAnd(read(a), read(b))),
         bigintLess: (a, b) => bigintLess(read(a), read(b)),
     }
 }
