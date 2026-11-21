@@ -12,6 +12,17 @@
 /** @type {(x: any) => any} */
 const double = x => x * 2
 
+/**
+ * Calls itself, not last, so it is no loop: in a program it is a function
+ * of the IR that the module does not export.
+ *
+ * @type {(x: any) => any}
+ */
+const depth = x => x > 0 && x < 20 ? 1 + depth(x - 1) : 0
+
+/** @type {(x: any) => any} */
+export const countDown = x => depth(x) + depth(x)
+
 /** @type {(a: any, b: any, c: any) => any} */
 export const sum3 = (a, b, c) => a + b + c
 
