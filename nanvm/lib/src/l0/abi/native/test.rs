@@ -10,7 +10,7 @@ use super::*;
 type Row = fn(i64, i64) -> i64;
 
 fn fresh() {
-    super::super::STATE.with_borrow_mut(|s| *s = super::super::State::new());
+    super::super::with(|s| *s = super::super::State::new());
 }
 
 fn string(x: &str) -> i64 {

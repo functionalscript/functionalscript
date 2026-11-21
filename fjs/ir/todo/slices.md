@@ -361,7 +361,7 @@ Owner chose option A on each of four choices.
     that a call inlines and an export with a rest parameter are refused.
     Proved by the programs of [`spreads.f.js`](../from_fast/spreads.f.js)
     against JavaScript and by random spread programs.
-- [ ] **NaNVM's `.wasm`** (12) in place of the JavaScript host.
+- [x] **NaNVM's `.wasm`** (12) in place of the JavaScript host.
   - [x] **12a. NaNVM as the host.** [`nanvm/l0-wasm`](../../../nanvm/l0-wasm/src/lib.rs)
     builds NaNVM's L0 ABI as a `.wasm` that exports `fjs:l0` by its
     names, its memory, and `reserve(size)`, which gives the loader a
@@ -374,6 +374,14 @@ Owner chose option A on each of four choices.
     lifetime pass's, FAST's and the random host proofs runs on it too, in
     [`nanvm.test.mjs`](../l0/host/nanvm/nanvm.test.mjs), which CI runs
     after it builds the `.wasm`; L1's native rows are still JavaScript's.
+  - [x] **12b. A misuse's text.** NaNVM's `.wasm` traps bare under
+    `panic=abort`, so a panic hook keeps what the panic said, and
+    `trap_text_length` and `trap_text_into` give its units through
+    memory. The hook also ends the change of NaNVM's state that the panic
+    stopped, so the host goes on to `has_thrown` and `recover`.
+    The [NaNVM host](../l0/host/nanvm/module.mjs)'s `trap` reads them: the judge
+    then compares a misuse's reason on NaNVM, `l0.unit: not an index` say,
+    as it does on the counting host. `enter` forgets an earlier text.
   - [x] **12c. Native rows in Rust.** The eleven `fjs:l1-native`
     functions are [Rust in NaNVM](../../../nanvm/lib/src/l0/abi/native.rs),
     over its handles and computed by its own operators, and
@@ -410,7 +418,7 @@ module for calls, for speed.
 | Memory | NaNVM exports `memory` and `reserve(size)`; the loader reserves `fjs.layout`'s data size and passes the address as `data_base` |
 | Constants | The loader makes Any's four `i64` globals of NaNVM's handles `0` to `3` |
 | Calls | An adapter module: NaNVM's `fjs:host` `invoke` is the adapter's export, a `call_indirect` into a table that the loader makes, so a call stays in WebAssembly |
-| A misuse's text | A panic hook keeps it for the host (later) |
+| A misuse's text | A panic hook keeps it for the host, as 12b |
 | Native rows | Rust in NaNVM, as 12c |
 | CI | Builds the `.wasm`, then runs the proofs on it from a file of its own, which fails where the `.wasm` is missing |
 

@@ -135,6 +135,31 @@ test('the bigint rows agree with JavaScript', () => {
     }
 })
 
+test('a trap keeps its text until enter', () => {
+    const h = host([])
+    const s = h.own('ab')
+    /** @type {(f: () => unknown) => unknown} */
+    const caught = f => {
+        try { f() } catch (e) { return e }
+        throw 'no trap'
+    }
+    const e = caught(() => h.imports.unit(s, 2))
+    if (!(e instanceof WebAssembly.RuntimeError)) { throw ['not a trap of WebAssembly', e] }
+    if (h.trap?.(e) !== 'l0.unit: not an index') { throw ['text', e] }
+    // taken
+    if (h.trap?.(e) !== e) { throw 'the text was not taken' }
+    caught(() => h.imports.unit(s, -1))
+    h.keep()
+    if (h.trap?.(e) !== e) { throw 'enter kept the text' }
+    // a misuse in the middle of a change of NaNVM's state keeps its text too
+    const full = caught(() => h.imports.push(h.imports.begin_array(0), 0n))
+    // as the judge asks: whether it threw, then what it said, then what it abandoned
+    if (h.has_thrown() !== 0) { throw 'a misuse threw' }
+    if (h.trap?.(full) !== 'l0.push: full') { throw ['text of a full builder', full] }
+    h.recover()
+    if (h.builders().length !== 0) { throw 'recover left the builder open' }
+})
+
 test('NaNVM ran modules', () => {
     if (ran === 0) { throw 'no module ran on NaNVM' }
 })

@@ -44,7 +44,7 @@ pub mod native;
 mod test;
 
 use std::{
-    cell::RefCell,
+    cell::{Cell, UnsafeCell},
     collections::HashMap,
     panic::{AssertUnwindSafe, catch_unwind, resume_unwind},
 };
@@ -227,12 +227,53 @@ impl State {
     }
 }
 
+/// The state, and whether a change of it is under way. A `RefCell` would
+/// do natively, where a panic unwinds and gives the borrow back, but under
+/// `panic=abort` a trap ends the change without that, and every later call
+/// would trap on the borrow: [`release`] ends it instead.
+struct Shared {
+    busy: Cell<bool>,
+    state: UnsafeCell<State>,
+}
+
 thread_local! {
-    static STATE: RefCell<State> = RefCell::new(State::new());
+    static STATE: Shared = Shared { busy: Cell::new(false), state: UnsafeCell::new(State::new()) };
+}
+
+/// Ends a change of the state when it is left, by a return or an unwind.
+struct Busy<'a>(&'a Cell<bool>);
+
+impl Drop for Busy<'_> {
+    fn drop(&mut self) {
+        self.0.set(false)
+    }
 }
 
 fn with<R>(f: impl FnOnce(&mut State) -> R) -> R {
-    STATE.with_borrow_mut(f)
+    STATE.with(|s| {
+        if s.busy.replace(true) {
+            panic!("l0: a change of the state inside another")
+        }
+        let _busy = Busy(&s.busy);
+        // SAFETY: `busy` was false, so no other reference to the state
+        // lives, and it stays true until this one is gone, or until
+        // `release` after a trap ended the change that held it.
+        f(unsafe { &mut *s.state.get() })
+    })
+}
+
+/// Ends the change of the state that a trap stopped, under `panic=abort`,
+/// where nothing unwinds: a panic hook calls it, so the host can go on to
+/// [`has_thrown`] and [`recover`].
+///
+/// # Safety
+///
+/// No reference into the state may be used after it: the caller is a
+/// panic hook under `panic=abort`, where the trap that follows the panic
+/// ends every call that holds one, and nothing touches the state between
+/// the two.
+pub unsafe fn release() {
+    STATE.with(|s| s.busy.set(false))
 }
 
 // Handles. No borrow of the state is held while a typed L0 function or a

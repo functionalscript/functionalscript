@@ -529,6 +529,14 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   handles, not references, so the judge there tells how many handles a call
   left over, not which. CI runs it after it builds the `.wasm`.
 
+## What 12b adds
+
+- **A misuse's text on NaNVM**: NaNVM's `.wasm` keeps what a panic said,
+  which its `trap_text_length` and `trap_text_into` give, and the
+  [NaNVM host](./l0/host/nanvm/module.mjs)'s `trap` reads it, so the judge
+  compares a misuse's reason there, `l0.unit: not an index` say, as it
+  does on the counting host.
+
 ## What 12c adds
 
 - **L1's native rows in Rust**: the eleven `fjs:l1-native` functions are

@@ -5,7 +5,7 @@
 //! Each export is a function of [`nanvm_lib::l0::abi`] under its L0 name,
 //! so a loader passes this module's exports to a program as its `fjs:l0`
 //! imports. Beside them are the host's side, `has_thrown`, `thrown`,
-//! `enter`, `leave`, `recover` and `live`, and two of this build's own:
+//! `enter`, `leave`, `recover` and `live`, and three of this build's own:
 //!
 //! - **`reserve(size) -> ptr`** gives the loader `size` bytes of this
 //!   module's memory, which it exports as `memory`, for a program's data
@@ -16,6 +16,15 @@
 //!   module's table, so a function's code index is handed to the import
 //!   `fjs:host` `invoke(code, self, args) -> any`, which runs it, borrowing
 //!   both handles and answering an owned one.
+//!
+//! - **`trap_text_length() -> i32`** answers how many UTF-16 units the
+//!   last trap's text has, `l0.<name>: <reason>` for a misuse, or `-1`
+//!   where nothing trapped since `enter`, and **`trap_text_into(ptr)`**
+//!   writes them at `ptr`, in a reserved region, and takes the text. Under
+//!   `panic=abort` a panic's message is lost, so a panic hook keeps it for
+//!   the host. The hook also ends the change of NaNVM's state that the
+//!   panic stopped ([`abi::release`]), so the host goes on to `has_thrown`
+//!   and `recover`.
 //!
 //! L1's native rows, the `fjs:l1-native` imports, are exports too, under
 //! their row names (`bigintAdd`, `numberToString`, ...), from
@@ -48,9 +57,60 @@ thread_local! {
     static REGIONS: RefCell<Vec<(usize, usize)>> = const { RefCell::new(Vec::new()) };
 }
 
+thread_local! {
+    /// What the last panic said, which `trap_text_into` takes.
+    static TRAP: RefCell<Option<String>> = const { RefCell::new(None) };
+}
+
+/// Sets the panic hook that keeps a panic's message in [`TRAP`], once.
+fn hook() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        std::panic::set_hook(Box::new(|info| {
+            let text = info
+                .payload_as_str()
+                .map_or_else(|| "panic".to_string(), str::to_string);
+            // `try_with`: a panic while the thread's locals are gone keeps nothing.
+            let _ = TRAP.try_with(|t| t.replace(Some(text)));
+            // SAFETY: under `panic=abort` the trap that follows ends the
+            // change of the state that panicked, and this hook touches
+            // nothing else of it. An unwind gives the change back itself.
+            #[cfg(panic = "abort")]
+            unsafe {
+                abi::release()
+            };
+        }))
+    });
+}
+
+/// How many UTF-16 units the last trap's text has, or `-1` for none.
+#[unsafe(export_name = "trap_text_length")]
+pub extern "C" fn trap_text_length() -> i32 {
+    TRAP.with_borrow(|t| {
+        t.as_ref()
+            .map_or(-1, |text| text.encode_utf16().count() as i32)
+    })
+}
+
+/// Writes the last trap's text at `ptr`, the low byte of each unit first,
+/// and takes it.
+#[unsafe(export_name = "trap_text_into")]
+pub extern "C" fn trap_text_into(ptr: i32) {
+    let units: Vec<u16> = TRAP
+        .with_borrow_mut(Option::take)
+        .unwrap_or_else(|| panic!("l0.trap_text_into: no text"))
+        .encode_utf16()
+        .collect();
+    let bytes = region("trap_text_into", ptr, units.len() as i32, 2);
+    for (pair, u) in bytes.as_chunks_mut::<2>().0.iter_mut().zip(units) {
+        *pair = u.to_le_bytes();
+    }
+}
+
 /// Gives `size` zeroed bytes of the memory and answers their address.
 #[unsafe(export_name = "reserve")]
 pub extern "C" fn reserve(size: i32) -> i32 {
+    hook();
     let size = usize::try_from(size).unwrap_or_else(|_| panic!("l0.reserve: not a count"));
     let bytes: Box<[u8]> = core::iter::repeat_n(0, size).collect();
     let ptr = Box::into_raw(bytes) as *mut u8 as usize;
@@ -287,6 +347,8 @@ pub extern "C" fn thrown() -> i64 {
 
 #[unsafe(export_name = "enter")]
 pub extern "C" fn enter() {
+    hook();
+    TRAP.with_borrow_mut(|t| *t = None);
     abi::enter()
 }
 

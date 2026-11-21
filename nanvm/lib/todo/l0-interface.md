@@ -60,4 +60,5 @@ starts:
       [`nanvm/l0-wasm`](../../l0-wasm/src/lib.rs), loaded by the IR's
       [NaNVM host](../../../fjs/ir/l0/host/nanvm/module.mjs), with calls
       through an adapter module (IR slice 12a).
-- [ ] A misuse's text kept for the host (`trap_text`).
+- [x] A misuse's text kept for the host: `nanvm/l0-wasm`'s panic hook
+      and `trap_text_length` / `trap_text_into` (IR slice 12b).
