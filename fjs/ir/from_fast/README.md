@@ -374,6 +374,7 @@ const program = unwrap(lower({}, { ...l1Runtime(errors), l1 })(fast, imports))
 | --- | --- |
 | `a + b`, `a - b`, `a * b`, `a / b` of operands that the IR's operators do not take, a value of `any` or a float and a boolean | `l1.add`, `l1.subtract`, `l1.multiply`, `l1.divide` of them, each float or boolean boxed by `from_f64` or `from_bool` |
 | `a % b`, `a >> b`, `a & b` of operands that are not two floats | `l1.remainder`, `l1.shiftRight`, `l1.bitwiseAnd` of them, boxed the same way |
+| `Number(x)`, `String(x)` and a template literal's values, in a program, of a value that is not already a float or a string | `l1.number(x)`, `l1.toString(x)` |
 | a call of a function of the module that calls itself, not last, and that the module does not export | a call of `#h0`, `#h1`, …, a function of the IR of `any` alone that no export names |
 | `a < b`, `a <= b`, `a > b`, `a >= b` of such operands | `l1.lessThan`, `l1.lessThanOrEqual`, `l1.greaterThan`, `l1.greaterThanOrEqual`, `a` still first |
 | `a === b`, `a !== b` | `l1.strictEquals`, and its `not` |

@@ -23,6 +23,7 @@ export const proof = {
         'bigintRemainder(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint)',
         'bigintShiftRight(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint)',
         'bigintAnd(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint)',
+        'bigintToNumber(b: any.only(bigint)) -> f64',
         'bigintLess(a: any, b: any) -> f64',
     ].join('; ')),
     // A module may import it beside L0, which seals its values of `any`, and not without.

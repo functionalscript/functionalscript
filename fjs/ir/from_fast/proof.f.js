@@ -561,6 +561,8 @@ export const proof = {
         ].join('\n'))
         assertEq(assertError(over(only([['a', u(8)], ['b', u(8)]], f64), 'export const f = (a, b) => a >> b')), 'f: >> of u(8) and u(8) is not in this slice')
         assertEq(assertError(over(fab, 'export const f = (a, b) => a & b', null)), "f: & of two floats calls L1's native rows, which a module lowered without the runtime does not import")
+        // `String(x)` and a template literal call L1, which only a program links.
+        assertEq(assertError(over(fa, 'export const f = a => `${a}`')), 'f: String is not in this slice')
     },
     native: () => {
         const ab = only([['a', any], ['b', any]], bool)

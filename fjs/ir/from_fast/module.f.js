@@ -1846,7 +1846,13 @@ const value = (scope, v) => {
                 return y === null ? null : call('self', f, [y])
             })
         }
-        case 'Number': { return unary(value, scope, 'Number', v[1], (t, x) => t[0] === 'int' ? float(x) : isFloat(t) ? x : null) }
+        case 'Number': {
+            /** @type {(t: Type, x: Term) => Term | null} */
+            const number = (t, x) => t[0] === 'int' ? float(x) : isFloat(t) ? x : null
+            return viaL1(value, scope, 'number', ts => ts[0][0] === 'int' || isFloat(ts[0]), [v[1]], (xs, ts) => pickedOf(scope, 'Number', ts[0], xs[0], number)) ?? unary(value, scope, 'Number', v[1], number)
+        }
+        // `String(x)`, which a template literal writes for each value that it holds.
+        case 'String': { return viaL1(value, scope, 'toString', ts => equal(ts[0], string), [v[1]], xs => ok(xs[0])) ?? no('String is not in this slice') }
         case '*': { return viaL1(value, scope, 'multiply', numeric, [v[1], v[2]], inOrder(mul)) ?? binary(value, scope, mul, v[1], v[2]) }
         case '/': { return viaL1(value, scope, 'divide', numeric, [v[1], v[2]], inOrder(div)) ?? binary(value, scope, div, v[1], v[2]) }
         case '%': { return viaL1(value, scope, 'remainder', floats, [v[1], v[2]], nativeRow('numberRemainder')) ?? numberRow('%', 'numberRemainder')(value, scope, v[1], v[2]) }

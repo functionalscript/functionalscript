@@ -9,7 +9,7 @@
  * `bigintEquals` is its `bigintEquals` and `numberRemainder` its
  * `numberRemainder`. `numberToString` and `bigintToString` answer a handle
  * that `make` owns for the caller; so do the bigint arithmetic rows.
- * `stringToNumber` and `bigintLess` answer a float.
+ * `stringToNumber`, `bigintToNumber` and `bigintLess` answer a float.
  *
  * A kind mismatch throws as a WebAssembly trap would. A FunctionalScript
  * throw from a row — today `bigintDivide` or `bigintRemainder` of a zero divisor — is recorded
@@ -24,7 +24,7 @@
 import { error } from '../../../wasm/runtime/l1/error/module.f.js'
 import {
     bigintAdd, bigintAnd, bigintDivide, bigintEquals, bigintLess, bigintMultiply, bigintNegate, bigintRemainder,
-    bigintShiftRight, bigintSubtract, bigintToString, numberAnd, numberRemainder, numberShiftRight, numberToString,
+    bigintShiftRight, bigintSubtract, bigintToNumber, bigintToString, numberAnd, numberRemainder, numberShiftRight, numberToString,
     stringToNumber,
 } from '../../../wasm/runtime/l1/native/module.f.js'
 
@@ -70,5 +70,6 @@ export const host = (read, make, fail) => ({
     },
     bigintShiftRight: (a, b) => make(bigintShiftRight(read(a), read(b))),
     bigintAnd: (a, b) => make(bigintAnd(read(a), read(b))),
+    bigintToNumber: b => bigintToNumber(read(b)),
     bigintLess: (a, b) => bigintLess(read(a), read(b)),
 })

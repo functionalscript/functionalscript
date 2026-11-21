@@ -27,7 +27,8 @@
  *   `bigintSubtract`, `bigintMultiply`, `bigintDivide` and
  *   `bigintRemainder` (which may fail on a zero divisor), `bigintNegate`,
  *   `bigintShiftRight` (which may fail past NaNVM's size limit) and
- *   `bigintAnd`. **`bigintLess`** takes two values
+ *   `bigintAnd`. **`bigintToNumber`** takes a bigint and answers its
+ *   nearest float, for `Number(...)`. **`bigintLess`** takes two values
  *   of `any` (a bigint, number or string each) and answers a float,
  *   `1` / `0` / `-1`, for L1's mixed bigint comparisons.
  *
@@ -67,6 +68,7 @@ export const native = {
         ['bigintRemainder', mayFail(signature(big2, bigint))],
         ['bigintShiftRight', mayFail(signature(big2, bigint))],
         ['bigintAnd', signature(big2, bigint)],
+        ['bigintToNumber', signature([['b', bigint]], f64)],
         ['bigintLess', signature([['a', any], ['b', any]], f64)],
     ],
 }
