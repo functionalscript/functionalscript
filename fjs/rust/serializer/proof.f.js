@@ -138,6 +138,9 @@ export const proof = {
     },
     /** Inspection borrows the complete operand, including fallible and conditional expressions. */
     borrowedInspectionOperands: () => {
+        const supplied = unwrap(valueTagged(['typeof', ['ref', x]], options, [{ binding: x, text: 'supplied()', uses: [['vm', 'ToAny']] }], true))
+        assertEq(untagged(supplied[0]), 'Any::typeof_(&supplied())')
+        assertStructurallySame(supplied[1], [['vm', 'ToAny']])
         assertEq(text(['typeof', ['ref', x]], true), 'Any::typeof_(&_b0)')
         assertEq(text(['typeof', ['Number', null]], true), 'Any::typeof_(&(Any::number(Nullish::Null.to_any()))?)')
         assertEq(text(['typeof', ['if', true, yielding([1]), yielding([2])]], true),
