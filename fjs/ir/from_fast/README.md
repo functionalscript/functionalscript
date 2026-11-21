@@ -383,12 +383,12 @@ const program = unwrap(lower({}, { ...l1Runtime(errors), l1 })(fast, imports))
 | `f(x)` of a value that may be no function | `l1.call(f, args)`, which throws where JavaScript throws; of a function, `Functions.call` |
 | a value that a function answers, arms of two other types, an argument of an untyped export | boxed as `any` |
 
-[`link`](./module.f.js) merges the program with the bodies of L1 that it
+[`link`](./link/module.f.js) merges the program with the bodies of L1 that it
 reaches, itself or through others of L1, under `l1.` names, L1's
 constants first, so that the program is one module and one WASM module.
-L1 exports nothing there. A spread argument, `+x` of one operand, `%` of
-`any`, `?.()` and a guarded step after `?.` are refused in a program, and
-so is an export that is not a function.
+L1 exports nothing there. `+x` of one operand, `%` of `any`, `?.()` and a
+guarded step after `?.` are refused in a program, and so is an export that
+is not a function.
 
 ### Closures
 
@@ -408,10 +408,34 @@ called stays inlined.
 | a function that a function defines, read as a value | the value made once where it is defined, in a local, left out where nothing reads it, so that `g === g` holds |
 | a function of the module that it does not export, read as a value | the module's constant `#vK` of its value, which `init` makes |
 
-A function value has no text yet: L0's `text` of one answers `undefined`.
-A function as a value with a rest parameter waits for
-slice 11c, and one that calls itself, other than as a loop, is refused, as
-an export as a value is: its signature is not the code of a function value.
+A function value has no text yet: L0's `text` of one answers `undefined`
+(the owner chose no text for now). One that calls itself, other than as a
+loop, is refused, as an export as a value is: its signature is not the
+code of a function value.
+
+### Spread and rest parameters
+
+In a program ([slice 11c](../todo/slices.md)), an array literal, an object
+literal or the arguments of a call that hold a spread are built of parts,
+each lowered where it stands, in order: an item that stands alone, boxed
+as `any`, or a spread, which L1 makes the array or the object to copy.
+
+| In a program | The IR |
+| --- | --- |
+| `...v` in an array literal or in the arguments of a call | `l1.toIterable(v)`, which throws JavaScript's `TypeError` where `v` is no array or string, and answers a string's code points |
+| `...v` in an object literal | `l1.objectSpread(v)`, cast to an object: an object's own properties, an array's items or a string's units under their index keys, nothing from any other value |
+| the literal or the arguments | `begin_array` or `begin_object` of the count of the items that stand alone and of each spread's length, then a `push` or `push_property` of each item that stands alone, and a loop `S<depth>.<j>` over each spread, `Containers.item` and, for an object, the new `Containers.key`, then `seal`; a repeated key keeps its first place and its last value, as `seal` does |
+| a call with a spread | the call of a value of slice 11a on that array: `Functions.call` or `l1.call` |
+| a rest parameter of a closure | an array, a loop `R`, of the items of `#args` past the other parameters, none where it has no more, in a local after them |
+| a rest parameter of a function that a call inlines | an array of the arguments past the others, each boxed as `any`, in a local |
+
+A function's length counts no rest parameter, as in JavaScript. A spread
+into a function that a call inlines, a spread of what is no value of
+`any`, a float or a boolean, a call with fewer arguments than a function
+with a rest parameter takes, and an export with a rest parameter, whose
+signature has none, are refused. Outside a program, a spread is refused as
+before, but for a single spread of a known array as the arguments of a
+call of a function value.
 
 ## What it refuses
 
@@ -438,8 +462,9 @@ member read that goes on to a call, `?.` and `typeof`, all three outside a
 program, a `lazy` definition, a string, an array, `null`, `undefined` and
 `throw` in a module lowered without the runtime, a read of L1's error
 table as a value or at a computed key, another export of its module, an item of an array
-that is a number or a boolean, a spread in an array, a rest parameter, a
-spread argument, a statement of no result or of several, `%`
+that is a number or a boolean, a spread in an array, an object or the
+arguments of a call outside a program, a rest parameter of an export, a
+statement of no result or of several, `%`
 of integers, or in a module lowered without the runtime, and every
 operator not in the table, such as `**` and the bitwise ones. The
 [checker](../check/module.f.js)
@@ -512,9 +537,11 @@ that leaves its function.
   make closures, returned, kept in an array or an object, called through a
   value or passed to a function of JavaScript, which calls one; each
   function that a call answers agrees with JavaScript's on probes of the
-  judge's own.
+  judge's own. And [`spreads.f.js`](./spreads.f.js), fourteen programs of
+  slice 11c that spread arrays, strings and objects into arrays, objects
+  and calls and take rest parameters, inlined and lifted.
 - [`random/`](./random/README.md) is a seeded host proof: a few hundred
   random programs in what the slices lower, each against JavaScript, and
   since 11a untyped programs linked with L1, since 11b closures among
-  them. Prefer
+  them, and since 11c spreads and rest parameters. Prefer
   `node --test` for it.

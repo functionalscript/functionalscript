@@ -1104,6 +1104,36 @@
           "continue-on-error": true
         },
         {
+          "run": "mkdir \"$RUNNER_TEMP/self\"",
+          "shell": "bash",
+          "if": "steps.init.outputs.hit-self-compile != 'true'"
+        },
+        {
+          "run": "mise exec -- npm start c ./fjs/module.f.js \"$RUNNER_TEMP/self\"/first.f.js",
+          "shell": "bash",
+          "if": "steps.init.outputs.hit-self-compile != 'true'"
+        },
+        {
+          "run": "mise exec -- npm start r \"$RUNNER_TEMP/self\"/first.f.js c ./fjs/module.f.js \"$RUNNER_TEMP/self\"/second.f.js",
+          "shell": "bash",
+          "if": "steps.init.outputs.hit-self-compile != 'true'"
+        },
+        {
+          "run": "git diff --no-index --exit-code --stat \"$RUNNER_TEMP/self\"/first.f.js \"$RUNNER_TEMP/self\"/second.f.js",
+          "shell": "bash",
+          "if": "steps.init.outputs.hit-self-compile != 'true'"
+        },
+        {
+          "run": "mise exec -- npm start ci report self-compile",
+          "shell": "bash",
+          "if": "steps.init.outputs.hit-self-compile != 'true'",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
+          "continue-on-error": true
+        },
+        {
           "run": "mkdir \"$RUNNER_TEMP/consumer\"",
           "shell": "bash"
         },

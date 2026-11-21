@@ -350,11 +350,17 @@ Owner chose option A on each of four choices.
     closures of [`closures.f.js`](../from_fast/closures.f.js) against
     JavaScript, by random closure programs, and by the judge, which calls
     a function that a call answers on probes beside its twin. A function
-    value has no text yet; a rest parameter of one waits for 11c, and one
-    that calls itself, other than as a loop, and an export as a value are
-    refused.
-  - [ ] **11c. Spread.** Spread in array and object literals and in
-    arguments, and rest parameters.
+    value has no text yet (the owner chose no text for now, 2026-11-20),
+    and one that calls itself, other than as a loop, and an export as a
+    value are refused.
+  - [x] **11c. Spread.** Spread in array and object literals and in
+    arguments, and rest parameters: in a program, L1's `toIterable` or
+    `objectSpread` of each spread, then Containers' builder of every item,
+    a loop for each spread; L0 gains `Containers.key`. A rest parameter is
+    an array of the arguments past the others. A spread into a function
+    that a call inlines and an export with a rest parameter are refused.
+    Proved by the programs of [`spreads.f.js`](../from_fast/spreads.f.js)
+    against JavaScript and by random spread programs.
 - [ ] **NaNVM's `.wasm`** (12) in place of the JavaScript host.
 
 ### Decisions for slice 11 (2026-11-20)

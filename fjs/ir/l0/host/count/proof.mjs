@@ -186,6 +186,14 @@ export const proof = {
         h.imports.drop(r)
         assertEq(cells(h), '')
     },
+    key: () => {
+        const h = counting([{ b: 1, a: 2 }])
+        h.keep()
+        const r = h.imports.key(0n, 1)
+        assertEq(`${h.read(r)} ${cells(h)}`, `a ${r}:1`)
+        h.imports.drop(r)
+        assertEq(cells(h), '')
+    },
     text: () => {
         const f = (/** @type {unknown} */ a) => a
         const h = counting([f])

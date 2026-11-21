@@ -14,6 +14,7 @@ import { definedEntries } from '../../types/object/module.f.js'
 import { stepSchema, uses } from '../common/module.f.js'
 import { miseDevelop } from '../mise/module.f.js'
 import { fromValues, values } from '../../types/set/module.f.js'
+import { compare as selfCompare, prepare as selfPrepare, writes as selfWrites } from '../self_compile/module.f.js'
 
 export const checkSchema = /** @type {const} */ ({
     id: string,
@@ -61,13 +62,14 @@ const checkId = (jobId, step) => {
         : run === 'npm start compile' ? 'compile'
         : run === 'npm run sm c' ? 'spidermonkey-compile'
         : run === 'npm run sm t' ? 'spidermonkey-suite'
+        : run === selfCompare ? 'self-compile'
         : undefined
 }
 
 /** @type {(id: string) => Rung} */
 const rung = id => id === 'rust' ? 'rust'
     : id === 'tsc' ? 'ts'
-    : id === 'compile' || id === 'spidermonkey-compile' ? 'fjs'
+    : id === 'compile' || id === 'spidermonkey-compile' || id === 'self-compile' ? 'fjs'
     : 'js'
 
 /**
@@ -87,6 +89,7 @@ const dependencies = (jobId, ids, step) => {
             || run.startsWith('mise -E spidermonkey lock http:spidermonkey --platform ')
             ? ids.filter(id => id.startsWith('spidermonkey-'))
         : run.includes('tsc --version') ? ids.filter(id => id === 'tsc')
+        : run === selfPrepare || selfWrites.some(write => write === run) ? ids.filter(id => id === 'self-compile')
         : isEnvironmentSetup(step) || run.includes('node --version') ? ids
         : []
 }

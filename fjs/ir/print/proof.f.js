@@ -199,6 +199,7 @@ export const proof = {
     "    fn push_property(own b: builder, own k: any.only(string), own v: any) -> builder, gives back b may fail",
     "    fn seal(own b: builder) -> any.only(array, object) may fail",
     "    fn join(parts: any.only(array), separator: any.only(string)) -> any.only(string) may fail",
+    "    fn key(o: any.only(object), i: u(31)) -> any.only(string) may fail",
     "",
     "import Functions from fjs:l0",
     "    fn length(f: any.only(function)) -> u(31)",
@@ -274,7 +275,7 @@ export const proof = {
     "    if toBoolean(v) then false else true",
     "",
     "export toBoolean, kindOf, isNumber, size, tag, number, fail, falsy",
-    ""
+    "",
     ].join('\n')),
     loops: () => assertEq(print(loops), [
     "import Any from fjs:l0",
@@ -315,6 +316,7 @@ export const proof = {
     "    fn push_property(own b: builder, own k: any.only(string), own v: any) -> builder, gives back b may fail",
     "    fn seal(own b: builder) -> any.only(array, object) may fail",
     "    fn join(parts: any.only(array), separator: any.only(string)) -> any.only(string) may fail",
+    "    fn key(o: any.only(object), i: u(31)) -> any.only(string) may fail",
     "",
     "import Functions from fjs:l0",
     "    fn length(f: any.only(function)) -> u(31)",
@@ -438,7 +440,7 @@ export const proof = {
     "    trunc_sat(int(-1099511627776, -3), x)",
     "",
     "export stringEquals, stringLess, factorial, triangle, kindAfter, index, indexOfSum, three, toU31, toI32, toU32, toSmall, toU64, toI64, toWide, toNegative",
-    ""
+    "",
     ].join('\n')),
     samples: () => assertEq(print(samples), [
     'fn max(a: f64, b: f64) -> f64 =',
@@ -632,6 +634,7 @@ export const proof = {
     "    fn push_property(own b: builder, own k: any.only(string), own v: any) -> builder, gives back b may fail",
     "    fn seal(own b: builder) -> any.only(array, object) may fail",
     "    fn join(parts: any.only(array), separator: any.only(string)) -> any.only(string) may fail",
+    "    fn key(o: any.only(object), i: u(31)) -> any.only(string) may fail",
     "",
     "import Functions from fjs:l0",
     "    fn length(f: any.only(function)) -> u(31)",
@@ -725,7 +728,7 @@ export const proof = {
     "    Any.kind(r.p)",
     "",
     "export stringIndex, midpoint, fib, choose, middle, widened, nested, steps, describe, kindOfFirst",
-    ""
+    "",
     ].join('\n')),
     zoo: () => assertEq(print(zoo), [
     'fn ranges(a: int(-5, -1), b: int(0, 0), c: int(1, 3)) -> f64 =',
