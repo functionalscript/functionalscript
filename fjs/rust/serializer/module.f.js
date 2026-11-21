@@ -17,7 +17,7 @@
 import { f64Bits, i64Literal, stringLiteral, u64WordItems, utf16Units } from '../../media/rust/module.f.js'
 import { indent } from '../../media/rust/item/module.f.js'
 import { error, mapOk, ok, okList, okThen, unwrap } from '../../types/result/module.f.js'
-import { helperLength, isHelper, isStatic, staticText } from '../../edag/module.f.js'
+import { helperLength, isHelper, isIntrinsic, isStatic, staticText } from '../../edag/module.f.js'
 import { chunksText, tagged, untagged } from '../../text/marked/module.f.js'
 import { _helperText } from '../../js/ast/serializer/intrinsic/module.f.js'
 import { _resolve } from '../../js/ast/serializer/names/module.f.js'
@@ -300,26 +300,17 @@ const primitiveExpr = v => {
     }
 }
 
-/**
- * An object key.
- *
- * An EDAG object key is an `exp` — one form for `a:`, `"a":`, and computed
- * `[exp]:` keys alike. A string literal is the `string_key` a property takes;
- * any other key converts before its property's value is evaluated.
- *
- * @type {(k: string) => Printed<string>}
- */
-const literalKey = stringCall('string_key')
+/** Load a native literal by its module-local descriptor. @type {(s: _Context, v: string | bigint) => Printed<string>} */
+const loadLiteral = (s, v) => {
+    const id = mapGet(/** @type {_Names} */ (s.names).literals, v)
+    return cat([vm(typeof v === 'string' ? 'String' : 'BigInt'), `::from_static(&LITERAL_${id})`])
+}
 
-/**
- * A literal `.` index, as the `Any<A>` key `Any::dot` takes: a `number` or a
- * `string`, the two `Index` variants the read's own key type
- * (`number | string`) covers directly. The third, `['Number', exp]`, is an
- * operation, and the printer's own {@link index}.
- *
- * @type {(index: string | number) => Printed<string>}
- */
-const literalIndex = index => typeof index === 'string' ? stringCall('string_any')(index) : numberExpr(index)
+/** @type {(s: _Context, v: string) => Printed<string>} */
+const stringKey = (s, v) => s.native ? loadLiteral(s, v) : stringCall('string_key')(v)
+
+/** @type {(s: _Context, v: string) => Printed<string>} */
+const stringAny = (s, v) => s.native ? cat([loadLiteral(s, v), toAny]) : stringCall('string_any')(v)
 
 /** Stable local spelling by identity; underscore permits required unused values. @type {(s: _Context, id: BindingId) => string} */
 const binding = (s, id) => /** @type {string} */ (mapGet(/** @type {_Names} */ (s.names).bindings, id))
@@ -405,7 +396,7 @@ const object = (s, entries) => {
     const members = entries.map(e => e[0] === '...'
         ? flat(map1(v => cat([unstable('spread_entries'), `(${v})`]))(expression(s, e[1], false)))
         : typeof e[1] === 'string'
-            ? flat(map1(v => cat([spread ? unstable('property_item') : code(''), '(', literalKey(/** @type {string} */ (e[1])), `, ${v})`]))(expression(s, e[2], false)))
+            ? flat(map1(v => cat([spread ? unstable('property_item') : code(''), '(', stringKey(s, /** @type {string} */ (e[1])), `, ${v})`]))(expression(s, e[2], false)))
             : flat(map2((k, v) => cat([unstable('property_item'), `((${k}).to_string()?, ${v})`]))(expression(s, e[1], false), expression(s, e[2], false))))
     return flat(map1((/** @type {readonly string[]} */ items) => spread
         ? cat([unstable('spread_object'), `([${items.join(', ')}])`])
@@ -413,7 +404,7 @@ const object = (s, entries) => {
 }
 
 /** @type {(s: _Context, k: Key<Value>) => Result<Printed<string>, readonly unknown[]>} */
-const key = (s, k) => typeof k === 'string' || typeof k === 'number' ? ok(literalIndex(k)) : expression(s, k, false)
+const key = (s, k) => expression(s, k, false)
 
 /** Peel value-only regions without consuming the host stack. @type {(v: Value) => Value} */
 const thunkValue = v => {
@@ -450,7 +441,12 @@ const steps = (s, step, property, member) => ok(/** @type {Printed<string>} */ (
 const operation = (s, n, result) => {
     const tag = n[0]
     if (isStatic([tag])) {
-        if (s.runtime !== null) { return map1(fallible(result))(ok(cat([unstable('static_read'), `(&${s.runtime}, ${str(unwrap(stringLiteral(tag)))})`]))) }
+        if (s.runtime !== null) {
+            const read = s.native
+                ? cat([unstable('static_read_keys'), `(&${s.runtime}, `, stringKey(s, 'static'), ', ', stringKey(s, tag), ')'])
+                : cat([unstable('static_read'), `(&${s.runtime}, ${str(unwrap(stringLiteral(tag)))})`])
+            return map1(fallible(result))(ok(read))
+        }
         if (tag !== 'Object.entries' && tag !== 'String.fromCharCode' && tag !== 'Math.trunc' && tag !== 'Math.floor' && tag !== 'Math.abs' && tag !== 'Math.sqrt' && tag !== 'Math.ceil' && tag !== 'Math.imul' && tag !== 'Math.max' && tag !== 'Math.min' && tag !== 'Math.clz32') { return error(['a static function read with no runtime in scope; the core may not use what it defines', tag]) }
         if (tag === 'String.fromCharCode') {
             return map1(pure(result))(ok(cat([staticFunction(s), '(|_self, _args| ', vm('String'), `::from_char_code(_args).map(|v| v.to_any()), 1, `, vm('Array'), `::default(), ${represented(staticText(tag))})`, toAny])))
@@ -482,7 +478,7 @@ const operation = (s, n, result) => {
         const args = generate(length - 1, k => argRead(k + 1))
         const native = id === 'entry' ? ['Any::entry(', argRead(0), ', ', argRead(1), ')']
             : id === 'hasEntry' ? ['Any::has_entry(', argRead(0), ', ', argRead(1), ').map(|v| v.to_any())']
-            : ['Any::dot(', argRead(0), ', ', stringCall('string_any')(id), ').end_call_native(|| Ok([', ...args.flatMap((x, k) => k === 0 ? [x] : [', ', x]), ']', toArray, toAny, '))']
+            : ['Any::dot(', argRead(0), ', ', stringAny(s, id), ').end_call_native(|| Ok([', ...args.flatMap((x, k) => k === 0 ? [x] : [', ', x]), ']', toArray, toAny, '))']
         return map1(pure(result))(ok(cat([staticFunction(s), '(|_self, _args| ', ...native, ', ', num(`${length}`), ', ', vm('Array'), `::default(), ${represented(helperText(_helperText(id)('helper')))})`, toAny])))
     }
     switch (tag) {
@@ -504,14 +500,14 @@ const operation = (s, n, result) => {
         // and the value, which a VM may substitute natively (DESIGN.md §13)
         case 'in': {
             if (s.runtime === null) { return error(['an in operator with no runtime in scope; the core may not use what it defines', n]) }
-            return map1(fallible(result))(flat(map1(v => cat([`Any::call((Any::dot(${s.runtime}.clone(), `, stringCall('string_any')('in'), ').end())?, [', stringCall('string_any')(n[1]), `, ${v}]`, toArray, toAny, ')']))(expression(s, n[2], false))))
+            return map1(fallible(result))(flat(map1(v => cat([`Any::call((Any::dot(${s.runtime}.clone(), `, stringAny(s, 'in'), ').end())?, [', stringAny(s, n[1]), `, ${v}]`, toArray, toAny, ')']))(expression(s, n[2], false))))
         }
         // Boolean is the shared `!!value` body. The tuple evaluates its
         // operand before lookup, with both outside the new bindings' scope.
         case 'Boolean': {
             if (s.runtime === null) { return error(['a Boolean operator with no runtime in scope; the core may not use what it defines', n]) }
             return map1(fallible(result))(flat(map1(v => cat(['{ ', kw('let'), ' (boolean_value, boolean_body) = (', v,
-                `, (Any::dot(${s.runtime}.clone(), `, stringCall('string_any')('Boolean'), ').end())?); ',
+                `, (Any::dot(${s.runtime}.clone(), `, stringAny(s, 'Boolean'), ').end())?); ',
                 'Any::call(boolean_body, [boolean_value]', toArray, toAny, ') }']))(expression(s, n[1], false))))
         }
         case ',': {
@@ -534,9 +530,7 @@ const operation = (s, n, result) => {
 /** Immediate value spelling reads only its already completed children. @type {(s: _Context, v: Value, result: boolean) => Result<Printed<string>, readonly unknown[]>} */
 const expressionReady = (s, v, result) => {
     if (s.native && (typeof v === 'string' || typeof v === 'bigint')) {
-        const id = mapGet(/** @type {_Names} */ (s.names).literals, v)
-        const type = typeof v === 'string' ? 'String' : 'BigInt'
-        return map1(pure(result))(ok(cat([vm(type), `::from_static(&LITERAL_${id})`, toAny])))
+        return map1(pure(result))(ok(cat([loadLiteral(s, v), toAny])))
     }
     if (!(v instanceof Array)) { return map1(pure(result))(primitiveExpr(v)) }
     switch (v[0]) {
@@ -670,9 +664,6 @@ const stepTask = (context, step, property, member) => ({ kind: 'steps', context,
 /** @type {(context: _Context, values: readonly (Value | readonly ['...', Value])[]) => readonly _Task[]} */
 const itemTasks = (context, values) => values.map(v => valueTask(context, v instanceof Array && v[0] === '...' ? v[1] : /** @type {Value} */ (v)))
 
-/** @type {(context: _Context, k: Key<Value>) => readonly _Task[]} */
-const keyTasks = (context, k) => typeof k === 'string' || typeof k === 'number' ? [] : [valueTask(context, k)]
-
 /** A demanded memo already supplies a callable, rather than a thunk body. @type {(context: _Context, v: Value) => readonly _Task[]} */
 const thunkTasks = (context, v) => {
     const value = thunkValue(v)
@@ -684,10 +675,10 @@ const operationTasks = (context, n, result) => {
     if (n.length === 1) { return [] }
     switch (n[0]) {
         case 'array': { return itemTasks(context, n[1]) }
-        case 'object': { return n[1].flatMap(e => e[0] === '...' ? [valueTask(context, e[1])] : [...(typeof e[1] === 'string' ? [] : [valueTask(context, e[1])]), valueTask(context, e[2])]) }
+        case 'object': { return n[1].flatMap(e => e[0] === '...' ? [valueTask(context, e[1])] : [valueTask(context, e[1]), valueTask(context, e[2])]) }
         case '()': { return [valueTask(context, n[1]), ...itemTasks(context, n[2])] }
-        case 'memberPresent': { return [valueTask(context, n[1]), ...keyTasks(context, n[2])] }
-        case '.': case '?.': { return [valueTask(context, n[1]), ...keyTasks(context, n[2]), stepTask(context, /** @type {Step<Value> | undefined} */ (n[3]), n[0] === '.', true)] }
+        case 'memberPresent': { return [valueTask(context, n[1]), valueTask(context, n[2])] }
+        case '.': case '?.': { return [valueTask(context, n[1]), valueTask(context, n[2]), stepTask(context, /** @type {Step<Value> | undefined} */ (n[3]), n[0] === '.', true)] }
         case '?.()': { return [valueTask(context, n[1]), ...itemTasks(context, n[2]), stepTask(context, /** @type {Step<Value> | undefined} */ (n[3]), false, false)] }
         case 'instanceof': { return [valueTask(context, n[1])] }
         case 'in': { return [valueTask(context, n[2])] }
@@ -741,7 +732,7 @@ const children = task => {
         default: {
             const step = task.step
             if (step === undefined) { return [] }
-            if (step[0] === '|.') { return [...keyTasks(s, step[1]), stepTask(s, step[2], false, true)] }
+            if (step[0] === '|.') { return [valueTask(s, step[1]), stepTask(s, step[2], false, true)] }
             if (task.member && s.runtime === null) { return [] }
             const terminal = step[0] === '|!()' || (step[0] === '|()' && task.property)
             return [...itemTasks(s, step[1]), ...(terminal ? [] : [stepTask(s, step[2], false, false)])]
@@ -828,6 +819,19 @@ const identityNames = (ids, prefix) => {
     }))
 }
 
+/** VM literals read by one instruction, including names introduced by the Rust backend.
+ * @type {(task: _Task) => readonly (string | bigint)[]} */
+const instructionLiterals = task => {
+    if (task.kind !== 'value') { return [] }
+    const v = task.value
+    if (typeof v === 'string' || typeof v === 'bigint') { return [v] }
+    if (!(v instanceof Array)) { return [] }
+    const tag = v[0]
+    if (isStatic([tag]) && task.context.runtime !== null) { return ['static', tag] }
+    if (isIntrinsic([tag]) || tag === 'Boolean') { return [tag] }
+    return tag === 'in' ? [tag, v[1]] : []
+}
+
 /** Target naming walks the prepared instructions, never the source graph. @type {(root: _Task) => _Names} */
 const namesOf = root => {
     /** @type {Stack<_Task>} */
@@ -841,8 +845,10 @@ const namesOf = root => {
     while (pending !== null) {
         /** @type {NonNullable<Stack<_Task>>} */
         const { top, rest } = pending
-        if (root.context.native && top.kind === 'value' && (typeof top.value === 'string' || typeof top.value === 'bigint') && !mapHas(literals, top.value)) {
-            literals = mapSet(literals, top.value, size(literals))
+        if (root.context.native) {
+            for (const value of instructionLiterals(top)) {
+                if (!mapHas(literals, value)) { literals = mapSet(literals, value, size(literals)) }
+            }
         }
         bindings = { first: instructionBindings(top), tail: bindings }
         loops = { first: instructionLoops(top), tail: loops }
