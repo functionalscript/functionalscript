@@ -2370,10 +2370,11 @@ export const lower = (signatures, runtime = null) => ({ statements, exit }, impo
     let called = []
     let growing = true
     while (growing) {
-        const reached = [...functions[1], ...called, ...made]
+        const before = called
+        const reached = [...functions[1], ...before, ...made]
         const [kept] = candidates.reduceRight(keep, [[], reached.flatMap(([, f]) => reads(f.body))])
         const used = [...reached.flatMap(([, f]) => uses(f.body)), ...kept.flatMap(([, c]) => uses(c.value))]
-        const wanted = okList(helpers.filter(([k]) => used.includes(k) && !called.some(([h]) => h === k)).map(([key, f, s]) => lowerFn(context, capture)([key, f, s])))
+        const wanted = okList(helpers.filter(([k]) => used.includes(k) && !before.some(([h]) => h === k)).map(([key, f, s]) => lowerFn(context, capture)([key, f, s])))
         if (wanted[0] === 'error') { return wanted }
         const next = madeClosures(lowerOne, closures, used)
         if (next[0] === 'error') { return next }
