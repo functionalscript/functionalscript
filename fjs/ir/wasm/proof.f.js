@@ -2295,7 +2295,7 @@ export const proof = {
             exports: ['f'],
         })
         assertEq(m.tables.length, 0)
-        assertEq(toJson(m.imports.filter(x => x.name === 'table' || x.name === 'table_base')),
+        assertEq(toJson(m.imports.filter(x => nameOf(x) === 'table' || nameOf(x) === 'table_base')),
             toJson([
                 { module: 'fjs:l0', name: 'table', desc: ['table', { element: 'funcref', limits: { min: 1, max: null } }] },
                 { module: 'fjs:l0', name: 'table_base', desc: ['global', { type: 'i32', mutable: false }] },
