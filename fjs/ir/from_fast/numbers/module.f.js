@@ -32,7 +32,7 @@ export const isAny = t => t[0] === 'sealed' && t[1] === any[1] && t[2] === any[2
  *
  * @type {(t: Term) => number}
  */
-const depthAfter = t => {
+export const depthAfter = t => {
     const own = t[0] === 'let' ? [t[1]]
         : t[0] === 'loop' ? t[2].map(([k]) => k)
         : t[0] === 'match' ? t[2].flatMap(([, binder]) => binder === null ? [] : [binder])
