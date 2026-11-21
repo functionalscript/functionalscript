@@ -584,7 +584,8 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   are numbers, boxed with `from_f64` where it is a float. Only otherwise
   does it call L1, where a float is boxed. `s.i < n` with `s.i` a float
   is 2 L0 calls, not 8. An operand that may hold no number, a bigint or a
-  string say, calls L1 alone.
+  string say, calls L1 alone. The path is
+  [`from_fast/numbers`](./from_fast/numbers/module.f.js).
 - **A read of a split local is that local**: the records pass writes no
   `let` for a `let` of a read of a split object, so the lifetime pass
   copies nothing for it.
