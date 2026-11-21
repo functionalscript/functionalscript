@@ -343,8 +343,8 @@ Owner chose option A on each of four choices.
     stays inlined. A function read as a value is one value at each read,
     as JavaScript's `===` tells: one that a function defines is made where
     it is defined, and one of the module that it does not export is a
-    constant of the module that `init` makes. The emitter exports the table as `table`, and the
-    checker refuses an export of that name. The counting host's
+    constant of the module that `init` makes. The emitter exported the table as `table`, and the
+    checker refused an export of that name, until 12d imports it. The counting host's
     `make_function` makes a JavaScript function that calls the code
     through that table, and its `frame` reads the frame. Proved by the
     closures of [`closures.f.js`](../from_fast/closures.f.js) against
@@ -390,6 +390,17 @@ Owner chose option A on each of four choices.
     with L1's text; a bigint division by zero throws NaNVM's `RangeError`.
     [`nanvm.test.mjs`](../l0/host/nanvm/nanvm.test.mjs) compares them with
     JavaScript on random floats, texts and bigints.
+  - [x] **12d. The imported table.** As
+    [L0 design §5](../../../doc/sasha-gil/wasm/l0-design.md#5-memory-and-table-made-by-the-loader-imported-by-both-modules)
+    picks, the loader makes the table: a module that imports an interface
+    imports `table` and `table_base` from the first interface's `abi`,
+    its element segment starts at `table_base`, `code(f)` adds it, and
+    `fjs.layout`'s third number says how many entries it needs. The
+    counting host and the NaNVM host make the table of that size, and
+    NaNVM's adapter `call_indirect`s into the same table, so nothing
+    copies it and `attach` is gone. A module exports no table, so the
+    checker no longer refuses an export named `table`; one that imports no
+    interface hands no code to a host and keeps a table of its own.
 
 ### Decisions for slice 11 (2026-11-20)
 
@@ -422,9 +433,9 @@ module for calls, for speed.
 | Native rows | Rust in NaNVM, as 12c |
 | CI | Builds the `.wasm`, then runs the proofs on it from a file of its own, which fails where the `.wasm` is missing |
 
-The emitter still exports the module's table, and the loader copies it
-into the adapter's; L0 design §5's imported table, with `table_base`, would
-remove the copy.
+In 12a the emitter still exported the module's table, and the loader
+copied it into the adapter's; 12d imports L0 design §5's table, with
+`table_base`, which removes the copy.
 
 ### Related
 

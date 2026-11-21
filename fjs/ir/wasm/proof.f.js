@@ -2222,8 +2222,8 @@ export const proof = {
             assert(init[0] === 'func', init)
             assertEq(init[1].join(','), '0')
         }
-        // The table that a `code` term fills is exported, so that a host's `make_function` calls the code.
-        assertEq(m.exports.map(x => `${nameOf(x)} ${x.kind} ${x.index}`).join(), 'f func 2,table table 0')
+        // A module that imports no interface hands no code to a host, so its table is its own, and it exports none.
+        assertEq(m.exports.map(x => `${nameOf(x)} ${x.kind} ${x.index}`).join(), 'f func 2')
         assertEq(functions(m)[0], [
             '  (func $sum (;0;) (type 0) (param $a f64) (param $b f64) (result f64)',
             '    local.get $a',
@@ -2279,6 +2279,39 @@ export const proof = {
             assertEq(applyOnly.elements.length, 0)
             assertEq(applyOnly.exports.map(nameOf).join(), 'apply')
         }
+    },
+    // Where the module imports an interface, the loader makes the table (L0 design §5): the module imports `table` and
+    // `table_base` from the first interface's `abi`, fills the table from `table_base`, adds it to a `code` value, and
+    // `fjs.layout` says how many entries it needs, with no data segment and no table of its own.
+    importedTable: () => {
+        const bin = code([['borrow', f64], ['borrow', f64]], f64)
+        const m = emitted({
+            imports: l0,
+            functions: [
+                ['sum', fn([['a', f64], ['b', f64]], f64, (a, b) => add(a, b))],
+                ['apply', fn([['c', bin], ['a', f64], ['b', f64]], f64, (c, a, b) => call_ref(c, [a, b]))],
+                ['f', fn([['a', f64], ['b', f64]], f64, (a, b) => call('self', 'apply', [codeOf('sum'), a, b]))],
+            ],
+            exports: ['f'],
+        })
+        assertEq(m.tables.length, 0)
+        assertEq(toJson(m.imports.filter(x => nameOf(x) === 'table' || nameOf(x) === 'table_base')),
+            toJson([
+                { module: 'fjs:l0', name: 'table', desc: ['table', { element: 'funcref', limits: { min: 1, max: null } }] },
+                { module: 'fjs:l0', name: 'table_base', desc: ['global', { type: 'i32', mutable: false }] },
+            ]))
+        {
+            const mode = m.elements[0].mode
+            assert(mode[0] === 'active', mode)
+            assertEq(`${mode[1]} ${mode[2].map(x => x.join(' ')).join()}`, '0 global.get 4')
+        }
+        assertEq(m.exports.map(nameOf).join(), 'f')
+        assertEq(toJson(m.customs.flatMap(({ content }) => content[0] === 'raw' && content[1] === 'fjs.layout' ? [content[2]] : [])), '[[0,0,1]]')
+        assertEq(m.functions.at(-1)?.body.slice(0, 3).map(x => x.join(' ')).join(', '), 'global.get 4, i32.const 0, i32.add')
+        // A `call_ref` with no `code(f)` imports a table too, of no entries.
+        const applyOnly = emitted({ imports: l0, functions: [['apply', fn([['c', code([], f64)]], f64, c => call_ref(c, []))]], exports: ['apply'] })
+        assertEq(applyOnly.tables.length, 0)
+        assertEq(toJson(applyOnly.customs.flatMap(({ content }) => content[0] === 'raw' && content[1] === 'fjs.layout' ? [content[2]] : [])), '[[0,0,0]]')
     },
     sole: () => {
         const label = sealed('Label', 'label')

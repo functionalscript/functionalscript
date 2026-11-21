@@ -38,13 +38,17 @@
  * - **A `code` value is an `i32` table index.** `code(f)` is the index of
  *   `f` in the module's one `funcref` table, filled by an active element
  *   segment of the functions that any `code` term names. `call_ref` is
- *   `call_indirect` of that table, with the code value as the index. The
- *   module exports the table as `table` where a `code` term fills it, so
- *   that a host's `make_function` calls the code at its index
- *   ([slice 11b](../todo/slices.md#decisions-for-slice-11-2026-11-20));
- *   [L0 design §5](../../../doc/sasha-gil/wasm/l0-design.md#5-memory-and-table-made-by-the-loader-imported-by-both-modules)'s
- *   table that the loader makes and both modules import waits for a
- *   runtime that is a module of its own.
+ *   `call_indirect` of that table, with the code value as the index. Where
+ *   the module imports an interface, the loader makes the table, and the
+ *   module imports it as `table`, with `table_base`, the index of its first
+ *   entry, from the first interface's `abi`
+ *   ([L0 design §5](../../../doc/sasha-gil/wasm/l0-design.md#5-memory-and-table-made-by-the-loader-imported-by-both-modules)):
+ *   the segment starts there, `code(f)` adds it to `f`'s place, and
+ *   `fjs.layout` says how many entries the module needs. A host's
+ *   `make_function` then calls the code at its index in the table it made
+ *   ([slice 11b](../todo/slices.md#decisions-for-slice-11-2026-11-20)).
+ *   A module that imports no interface hands no code to a host, so it
+ *   keeps a table of its own.
  * - **A function that gives back a parameter is an import that answers
  *   nothing** ([definition.md's binding rule 3](../../../doc/sasha-gil/ir/definition.md#bindings)):
  *   the call keeps the parameter's value in a local named for the
@@ -500,7 +504,10 @@ const term = (env, [type, t]) => {
             const rest = sequence(term, { ...env, next: slot + kept.length }, parts.slice(k + 1), [['call', index], ['local.get', slot]])
             return { code: [...before.code, ['local.tee', slot], ...rest.code], locals: [...before.locals, ...kept, ...rest.locals] }
         }
-        case 'code': { return just([['i32.const', assertNotNullish(at(t[1])(env.codes))]]) }
+        case 'code': {
+            const k = assertNotNullish(at(t[1])(env.codes))
+            return just(env.tableBase === null ? [['i32.const', k]] : [['global.get', env.tableBase], ['i32.const', k], ['i32.add']])
+        }
         case 'call_ref': {
             const [, callee, args] = t
             const of = callee[0]
@@ -623,6 +630,9 @@ const globalImport = (abi, name, type) => ({ module: abi, name, desc: ['global',
 /** An import of the memory that the loader makes, which holds the data segments at `data_base`. @type {(abi: string) => Import} */
 const memoryImport = abi => ({ module: abi, name: 'memory', desc: ['memory', { min: 0, max: null }] })
 
+/** An import of the table that the loader makes, which holds the module's code at `table_base`. @type {(abi: string, entries: number) => Import} */
+const tableImport = (abi, entries) => ({ module: abi, name: 'table', desc: ['table', { element: 'funcref', limits: { min: entries, max: null } }] })
+
 /** An export of a function, by its index. @type {(name: string, index: number) => Export} */
 const funcExport = (name, index) => ({ name, kind: 'func', index })
 
@@ -653,9 +663,9 @@ const uleb = n => n < 0x80 ? [n] : [n % 0x80 + 0x80, ...uleb(Math.floor(n / 0x80
  * the data segments' bytes, the scratch space's, which no literal needs,
  * and the table's entries, each an unsigned LEB128 number.
  *
- * @type {(data: number) => Custom}
+ * @type {(data: number, entries: number) => Custom}
  */
-const layout = data => ({ after: 'data', content: ['raw', 'fjs.layout', [...uleb(data), ...uleb(0), ...uleb(0)]] })
+const layout = (data, entries) => ({ after: 'data', content: ['raw', 'fjs.layout', [...uleb(data), ...uleb(0), ...uleb(entries)]] })
 
 /** The value that a global of a constant holds until `init` sets it. @type {(t: ValType) => Instruction} */
 const zero = t => t === 'f64' ? ['f64.const', 0n] : t === 'i64' ? ['i64.const', 0n] : ['i32.const', 0]
@@ -704,6 +714,8 @@ export const emit = m => {
     const needsTable = referenced.length > 0
         || m.functions.some(([, f]) => hasCallRef(f.body))
         || constants.some(([, c]) => hasCallRef(c.value))
+    // The loader makes the table where the module imports an interface, as it does the memory: a module that imports none hands no code to a host, and keeps a table of its own.
+    const tableAbi = needsTable && m.imports.length > 0 ? m.imports[0][1].abi : null
     const signatures = [
         ...imported.map(({ s }) => signature(interfaces, s)),
         ...makers.map(({ type }) => type),
@@ -722,7 +734,8 @@ export const emit = m => {
         fromEntries(imported.flatMap((x, k) => x.module === module ? [/** @type {const} */ ([x.member, callee(k, x.s)])] : [])),
     ])))
     const dataBase = importedConstants.length
-    const literalBase = dataBase + (memoryAbi === null ? 0 : 1)
+    const tableBase = dataBase + (memoryAbi === null ? 0 : 1)
+    const literalBase = tableBase + (tableAbi === null ? 0 : 1)
     const constantBase = literalBase + literals.length
     const globals = fromEntries([
         ...m.imports.map(([module]) => /** @type {const} */ ([
@@ -736,7 +749,7 @@ export const emit = m => {
     const codeIndex = fromEntries(referenced.map((name, k) => /** @type {const} */ ([name, k])))
     /** @type {_Env} */
     const base = {
-        locals: empty, labels: empty, depth: 0, next: 0, functions, imports, interfaces, types, globals, codes: codeIndex,
+        locals: empty, labels: empty, depth: 0, next: 0, functions, imports, interfaces, types, globals, codes: codeIndex, tableBase: tableAbi === null ? null : tableBase,
         literals: literals.map(([t, s], j) => /** @type {const} */ ([t, s, literalBase + j])),
     }
     const codes = m.functions.map(([, { params, result, body }]) => valueOf(term, {
@@ -774,6 +787,7 @@ export const emit = m => {
     const globalNames = [
         ...importedConstants.map(({ module, member }, k) => /** @type {const} */ ([k, `${module}.${member}`])),
         ...(memoryAbi === null ? [] : [/** @type {const} */ ([dataBase, 'data_base'])]),
+        ...(tableAbi === null ? [] : [/** @type {const} */ ([tableBase, 'table_base'])]),
         ...literals.map(([, s], j) => /** @type {const} */ ([literalBase + j, `'${s}'`])),
         ...constants.map(([name], k) => /** @type {const} */ ([constantBase + k, name])),
     ]
@@ -783,8 +797,10 @@ export const emit = m => {
             ...imported.map(({ abi, member }, k) => funcImport(abi, member, typeOf(k))),
             ...makers.map(({ abi, member }, k) => funcImport(abi, member, typeOf(imported.length + k))),
             ...(memoryAbi === null ? [] : [memoryImport(memoryAbi)]),
+            ...(tableAbi === null ? [] : [tableImport(tableAbi, referenced.length)]),
             ...importedConstants.map(({ abi, member, t }) => globalImport(abi, member, carrier(interfaces, t)[0])),
             ...(memoryAbi === null ? [] : [globalImport(memoryAbi, 'data_base', 'i32')]),
+            ...(tableAbi === null ? [] : [globalImport(tableAbi, 'table_base', 'i32')]),
         ],
         functions: [
             ...codes.map((c, k) => ({
@@ -795,7 +811,7 @@ export const emit = m => {
             ...(init.length === 0 ? [] : [{ type: typeOf(initIndex), locals: runs(initCode.locals.map(([, t]) => t)), body: initCode.code }]),
             ...(start.length === 0 ? [] : [{ type: typeOf(startIndex), locals: [], body: startCode }]),
         ],
-        tables: needsTable ? [{ element: 'funcref', limits: { min: referenced.length, max: referenced.length } }] : [],
+        tables: needsTable && tableAbi === null ? [{ element: 'funcref', limits: { min: referenced.length, max: referenced.length } }] : [],
         memories: [],
         globals: [
             ...literals.map(([t]) => definition(interfaces, t).carrier),
@@ -804,11 +820,10 @@ export const emit = m => {
         exports: [
             ...m.exports.map(name => funcExport(name, own + m.functions.findIndex(([k]) => k === name))),
             ...(init.length === 0 ? [] : [funcExport('init', initIndex)]),
-            ...(referenced.length === 0 ? [] : [{ name: 'table', kind: /** @type {const} */ ('table'), index: 0 }]),
         ],
         start: start.length === 0 ? null : startIndex,
         elements: referenced.length === 0 ? [] : [{
-            mode: /** @type {const} */ (['active', 0, [['i32.const', 0]]]),
+            mode: /** @type {const} */ (['active', 0, [tableAbi === null ? ['i32.const', 0] : ['global.get', tableBase]]]),
             init: /** @type {const} */ (['func', referenced.map(name => own + m.functions.findIndex(([k]) => k === name))]),
         }],
         dataCount: null,
@@ -828,7 +843,7 @@ export const emit = m => {
                     ...(globalNames.length === 0 ? [] : [/** @type {const} */ (['global', globalNames])]),
                 ]],
             },
-            ...(memoryAbi === null ? [] : [layout(bytes.length)]),
+            ...(memoryAbi === null && tableAbi === null ? [] : [layout(bytes.length, tableAbi === null ? 0 : referenced.length)]),
         ],
     }
 }

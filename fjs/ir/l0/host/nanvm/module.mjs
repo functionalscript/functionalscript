@@ -14,9 +14,12 @@
  * - **A code index runs through an adapter.** NaNVM hands every code
  *   index to its `fjs:host` import `invoke(code, self, args)`, which is
  *   the export of a small adapter module, `adapter`, so a call stays in
- *   WebAssembly: an index below `HOST` is a `call_indirect` into a table
- *   that the loader makes, into which `attach` copies the module's own
- *   `table`. An index from `HOST` up goes on to JavaScript, and runs a
+ *   WebAssembly: an index below `HOST` is a `call_indirect` into the table
+ *   that the loader makes, of as many entries as the module's
+ *   `fjs.layout` asks for, which the module imports and fills from
+ *   `table_base`, `0`, so the adapter and the module share it
+ *   ([L0 design §5](../../../../../doc/sasha-gil/wasm/l0-design.md#5-memory-and-table-made-by-the-loader-imported-by-both-modules)).
+ *   An index from `HOST` up goes on to JavaScript, and runs a
  *   JavaScript function that `own` gave NaNVM, on the values that its
  *   arguments hold. Where the function throws, the host gives NaNVM the
  *   value to `throw`, which traps.
@@ -111,14 +114,14 @@ const isCopy = value => value === undefined || value === null || typeof value ==
 
 /**
  * The hosts of a compiled NaNVM: each call instantiates NaNVM afresh, with
- * `values` as its first values and a region of `data` bytes for a module's
- * data segments.
+ * `values` as its first values, a region of `data` bytes for a module's
+ * data segments, and a table of `entries` for its code.
  *
- * @type {(nanvm: WebAssembly.Module) => (values: readonly unknown[], data?: number) => Counting}
+ * @type {(nanvm: WebAssembly.Module) => (values: readonly unknown[], data?: number, entries?: number) => Counting}
  */
-export const nanvmHost = nanvm => (values, data = 0) => {
-    /** The table of code that the adapter calls into, which `attach` fills. */
-    const table = new WebAssembly.Table({ element: 'anyfunc', initial: 0 })
+export const nanvmHost = nanvm => (values, data = 0, entries = 0) => {
+    /** The table of code that the module fills and the adapter calls into. */
+    const table = new WebAssembly.Table({ element: 'anyfunc', initial: entries })
     /** The JavaScript functions that `own` gave NaNVM, by code index from `HOST`. @type {Function[]} */
     const functions = []
     /** @type {(code: number, self: bigint, args: bigint) => bigint} */
@@ -287,6 +290,8 @@ export const nanvmHost = nanvm => (values, data = 0) => {
         imports: /** @type {Counting['imports']} */ ({
             ...instance.exports,
             data_base: new WebAssembly.Global({ value: 'i32', mutable: false }, dataBase),
+            table,
+            table_base: new WebAssembly.Global({ value: 'i32', mutable: false }, 0),
             undefined: constant(0n),
             null: constant(1n),
             false: constant(2n),
@@ -294,10 +299,6 @@ export const nanvmHost = nanvm => (values, data = 0) => {
         }),
         first,
         native: /** @type {NativeHost} */ (/** @type {unknown} */ (instance.exports)),
-        attach: t => {
-            table.grow(t.length)
-            for (let k = 0; k < t.length; k += 1) { table.set(k, t.get(k)) }
-        },
         has_thrown: () => n.has_thrown() === 0 ? 0 : 1,
         thrown: n.thrown,
         trap: e => {

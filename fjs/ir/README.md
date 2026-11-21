@@ -488,8 +488,9 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   any`, and a frame of the captures that read values of the function
   around it. The code reads them by L0's new `Functions.frame(self, i)`,
   and its parameters as items of `#args`.
-- **The table is exported**: a module whose `code` terms fill its table
-  exports it as `table`, so the checker refuses an export of that name.
+- **The table was exported**: a module whose `code` terms fill its table
+  exported it as `table`, so the checker refused an export of that name,
+  until 12d imported it.
 - **The counting host's `make_function`** makes a JavaScript function that
   calls the module's code through that table, so `call` and JavaScript
   both call it, and its `frame` reads the frame.
@@ -547,6 +548,16 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   [`nanvm.test.mjs`](./l0/host/nanvm/nanvm.test.mjs) compares them with
   JavaScript on random floats, texts and bigints.
 
+## What 12d adds
+
+- **The imported table**
+  ([L0 design §5](../../doc/sasha-gil/wasm/l0-design.md#5-memory-and-table-made-by-the-loader-imported-by-both-modules)):
+  the loader makes the table of code, as it does the memory. A module that
+  imports an interface imports `table` and `table_base`, fills the table
+  from `table_base`, and says in `fjs.layout` how many entries it needs.
+  The NaNVM host's adapter calls into that same table, so nothing copies
+  it.
+
 ## What every slice refuses
 
 Everything else is refused with the function's name and the reason, never
@@ -564,14 +575,15 @@ a module that does not import the interface that makes it, an interface
 whose literals hold none of their type's variants, a constant that one
 ABI imports by the name of a function, or of a constant whose global holds
 another WASM value, a constant or a function named `memory` or `data_base`
-in the ABI of an interface that makes literals, an `own` parameter of a
+in the ABI of an interface that makes literals, or `table` or
+`table_base` in the first interface's ABI, an `own` parameter of a
 type that is not sealed,
 a counted type without both a `dup` and a `drop` of their shapes, a module
 whose owned stage does not consume each owned value once on every path, a
 value of a linear type that the lifetime pass would have to copy or drop,
 an interface that names a type, a function or a constant twice, a
 constant of a product or of `never`, two constants of one name, a function
-named `init`, an export named `table`, a constant that reads itself or one after it, directly or
+named `init`, a constant that reads itself or one after it, directly or
 through the functions that it calls, a constant that only borrows its
 value, a `br` to a loop that
 does not give each of its parameters, in their order, and a `trunc_sat` of

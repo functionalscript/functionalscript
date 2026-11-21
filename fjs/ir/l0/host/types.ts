@@ -51,13 +51,15 @@ export type View = {
  * result; a throw from the function keeps the value and traps.
  * `make_function` takes over a frame array and a text and makes a cell of
  * a JavaScript function that calls the module's code through the table
- * that `attach` gives, and `frame` answers a new cell of an item of the
- * frame of such a function. `throw` takes over a cell, keeps its
+ * that the host makes, which the module fills from `table_base`, and
+ * `frame` answers a new cell of an item of the frame of such a function. `throw` takes over a cell, keeps its
  * value and returns, so that the `unreachable` after its call traps.
  */
 export type Imports = {
     readonly memory: WebAssembly.Memory
     readonly data_base: WebAssembly.Global
+    readonly table: WebAssembly.Table
+    readonly table_base: WebAssembly.Global
     readonly make_string: (ptr: number, len: number) => bigint
     readonly undefined: WebAssembly.Global
     readonly null: WebAssembly.Global
@@ -143,6 +145,4 @@ export type Counting = {
     readonly keep: () => void
     readonly live: () => readonly (readonly [handle: bigint, count: number])[]
     readonly builders: () => readonly number[]
-    /** Give the host the module's table of code, which its `table` export is, before a function that `make_function` made is called. */
-    readonly attach: (table: WebAssembly.Table) => void
 }
