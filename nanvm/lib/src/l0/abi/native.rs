@@ -136,9 +136,12 @@ pub fn bigint_remainder(a: i64, b: i64) -> i64 {
 }
 
 /// `>>` of two bigints, a floor division by a power of two; a negative
-/// shift is a left shift, which throws past NaNVM's size limit.
+/// shift is a left shift, which throws past NaNVM's size limit, but for
+/// zero, which every shift leaves zero, as JavaScript's does.
 pub fn bigint_shift_right(a: i64, b: i64) -> i64 {
-    arithmetic("bigintShiftRight", a, b, |x, y| x >> y)
+    arithmetic("bigintShiftRight", a, b, |x, y| {
+        if x.is_zero() { Ok(x) } else { x >> y }
+    })
 }
 
 /// `&` of two bigints, as two's complement of infinite width.

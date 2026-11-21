@@ -121,6 +121,12 @@ fn bigints() {
         assert_eq!(value(r), expected);
         drop(r);
     }
+    let (zero, far) = (big(0), big(-(1 << 70)));
+    let r = bigint_shift_right(zero, far);
+    assert_eq!(value(r), 0);
+    for h in [r, zero, far] {
+        drop(h);
+    }
     assert_eq!(bigint_to_number(a), -10.0);
     let n = bigint_negate(a);
     assert_eq!(value(n), 10);
