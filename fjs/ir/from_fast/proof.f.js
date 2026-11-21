@@ -255,6 +255,8 @@ export const proof = {
         assertEq(why(only([['a', bool]], bool), fast('export const f = a => -a')), 'f: - of bool is not in this slice')
         assertEq(why(fa, fast('export const f = a => !a')), 'f: ! of f64 is not in this slice')
         assertEq(why(only([['a', bool]], f64), fast('export const f = a => Number(a)')), 'f: Number of bool is not in this slice')
+        // `float` of an integer wider than ±2^53 would not be exact, so it is refused here, where L1 does not round it.
+        assertEq(why(only([['a', u(64)]], f64), fast('export const f = a => Number(a)')), 'f: Number of u(64) is not in this slice')
     },
     functions: () => {
         assertEq(why(fa, fast('export const f = (...xs) => xs')), 'f: a rest parameter is not in this slice')
