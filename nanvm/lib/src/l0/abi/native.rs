@@ -116,7 +116,9 @@ pub fn bigint_negate(a: i64) -> i64 {
 
 /// `IsLessThan` of two primitives, one at least a bigint and each a
 /// bigint, a number or a string: `1` for less, `0` for not less, `-1` for
-/// undefined, as `a < b ? 1 : a >= b ? 0 : -1` answers it.
+/// undefined, as `a < b ? 1 : a >= b ? 0 : -1` answers it. A string whose
+/// bigint is past NaNVM's size limit throws NaNVM's `RangeError`, where
+/// JavaScript would compare it.
 pub fn bigint_less(a: i64, b: i64) -> f64 {
     let name = "bigintLess";
     let (x, y) = (get(name, a), get(name, b));
@@ -134,7 +136,8 @@ pub fn bigint_less(a: i64, b: i64) -> f64 {
     if !numeric(&x) || !numeric(&y) {
         trap(name, "not a numeric")
     }
-    let is = |r: Result<V, V>| r.is_ok_and(|v| v.to_boolean());
+    // a string past NaNVM's size limit of a bigint throws its `RangeError`
+    let is = |r: Result<V, V>| r.unwrap_or_else(|e| throw(put(e))).to_boolean();
     if is(x.clone().lt(y.clone())) {
         1.0
     } else if is(x.ge(y)) {
