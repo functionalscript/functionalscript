@@ -33,8 +33,11 @@ and constant host stack.
 [`analysis`](../analysis/README.md)'s table of the whole program, which finds
 its shared nodes once. A function's body is not read into a table when it is
 called: the call evaluates the body's own nodes and keeps each value under the
-node that answered it, in a [reference map](../../types/ref_map/module.f.js),
-so one shared node is one value, as the identity table counts it. A call reads
+node that answered it, so one shared node is one value, as the identity table
+counts it. The first few values are kept in a list searched with `===` and
+the rest in a [reference map](../../types/ref_map/module.f.js): most calls
+evaluate a handful of nodes, and a map costs more to start than a handful of
+comparisons. A call reads
 the nodes it reaches and no others. A table would be the body, every body
 nested in it and every value the function captured, walked again at each call.
 
