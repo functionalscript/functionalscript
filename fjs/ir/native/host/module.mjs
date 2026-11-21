@@ -16,8 +16,9 @@
  * with `fail` the same way `Functions.call` keeps a throw, then rethrown so
  * the engine traps and the host reads it by `has_thrown` and `thrown`. So
  * is a bigint past the engine's size limit, which the engine throws as its
- * own `RangeError`: the rows that make a bigint record NaNVM's
- * `bigintTooLarge` for it, as NaNVM's own rows throw past its limit.
+ * own `RangeError`, or past NaNVM's own limit, which is lower: the rows
+ * that make a bigint record NaNVM's `bigintTooLarge` for it, as NaNVM's
+ * own rows throw past its limit.
  *
  * @module
  *
@@ -30,6 +31,9 @@ import {
     bigintShiftRight, bigintSubtract, bigintToNumber, bigintToString, numberAnd, numberRemainder, numberShiftRight, numberToString,
     stringToBigInt, stringToNumber,
 } from '../../../wasm/runtime/l1/native/module.f.js'
+
+/** The least magnitude past NaNVM's limit on a bigint, 2^14 words of 64 bits (`MAX_WORDS` in `nanvm/lib/src/vm/bigint/mod.rs`). */
+const tooLarge = 1n << (64n * (1n << 14n))
 
 /**
  * The `fjs:l1-native` imports over a reading of handles, the one that the
@@ -53,7 +57,10 @@ export const host = (read, make, fail) => {
      */
     const sized = f => {
         try {
-            return make(f())
+            const r = f()
+            // NaNVM's limit, `MAX_WORDS` of `u64` words, is lower than an engine's, so a row past it throws here as on NaNVM.
+            if (typeof r === 'bigint' && (r < 0n ? -r : r) >= tooLarge) { throw error.bigintTooLarge }
+            return make(r)
         } catch (e) {
             const thrown = e instanceof RangeError ? error.bigintTooLarge : e
             if (thrown === error.divisionByZero || thrown === error.bigintTooLarge) { fail(thrown) }
