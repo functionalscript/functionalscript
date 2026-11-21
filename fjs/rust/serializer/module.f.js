@@ -765,7 +765,7 @@ const children = task => {
                 case 'loop': { return loopTasks(s, st) }
                 case 'while': {
                     const repeated = { ...s, moduleInit: false }
-                    return [valueTask(s, st[1].initial), valueTask(repeated, st[1].condition), blockTask(repeated, st[1].body)]
+                    return [valueTask(repeated, st[1].initial), valueTask(repeated, st[1].condition), blockTask(repeated, st[1].body)]
                 }
                 default: { throw ['not a statement', st] }
             }
