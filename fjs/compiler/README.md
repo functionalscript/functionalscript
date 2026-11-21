@@ -65,6 +65,24 @@ held were deleted rather than kept: nothing imported them, no proof covered
 them, and their FunctionalScript half separated statements by newline where
 the language requires `;`. Do not restore them; git history has them.
 
+## Native Rust output
+
+Compile to a filename ending in `.native.rs` to select a concrete VM in the
+Rust wrapper. For example, `fjs compile program.f.js program.native.rs`
+produces a module that can be included like this:
+
+```rust
+mod program {
+    use nanvm_lib::naive::Naive as A;
+    include!("program.native.rs");
+}
+```
+
+Call `nanvm_lib::vm::exports(program::module)` to supply the common runtime.
+The native serializer emits one UTF-16 descriptor per distinct string value.
+The ordinary `.rs` target emits a generic `module<A>` for callers that
+choose their VM at the call site.
+
 ## Marked output
 
 Every output `fjs compile` writes — `.json`, `.data.js`, `.js`,
