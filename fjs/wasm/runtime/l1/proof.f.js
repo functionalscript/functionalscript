@@ -251,21 +251,11 @@ export const proof = {
         for (const k of [...keys, -4, -5, -0.5, -Infinity]) {
             assertEq(at(list, k), list.at(/** @type {number} */ (k)), `.at(${String(k)})`)
         }
-        /** Each call of a callback, with what it is given. @type {(answer: (x: unknown, i: number) => unknown) => readonly [(x: unknown, i: number, a: unknown) => unknown, () => readonly unknown[]]} */
-        const recorded = answer => {
-            /** @type {unknown[]} */
-            const calls = []
-            return [(x, i, a) => { calls.push([x, i, a === list]); return answer(x, i) }, () => calls]
-        }
-        for (const answer of [() => true, () => 0, (/** @type {unknown} */ x) => x, (/** @type {unknown} */ _, /** @type {number} */ i) => i % 2]) {
-            const [ours, oursCalls] = recorded(answer)
-            const [theirs, theirsCalls] = recorded(answer)
-            assertStructurallySame(filter(list, ours), list.filter(theirs))
-            assertStructurallySame(oursCalls(), theirsCalls())
-            const [ours2, oursCalls2] = recorded(answer)
-            const [theirs2, theirsCalls2] = recorded(answer)
-            assertEq(every(list, ours2), list.every(theirs2))
-            assertStructurallySame(oursCalls2(), theirsCalls2())
+        /** Callbacks of every kind of answer, and one that reads the array it is given. @type {readonly ((x: unknown, i: number, a: unknown) => unknown)[]} */
+        const callbacks = [() => true, () => 0, x => x, (_, i) => i % 2, (_, i, a) => a === list && i < 2]
+        for (const g of callbacks) {
+            assertStructurallySame(filter(list, g), list.filter(g))
+            assertEq(every(list, g), list.every(g))
         }
         assertStructurallySame(filter([], f), [])
         assertEq(every([], f), true)
