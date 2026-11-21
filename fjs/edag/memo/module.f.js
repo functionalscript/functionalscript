@@ -23,7 +23,7 @@
  * @import { Runtime } from '../value/types.ts'
  * @import { Invocation } from './types.ts'
  * @import { Context, Evaluation, Tail } from '../operations/types.ts'
- * @import { _Cache } from './private.ts'
+ * @import { _Cache, _State } from './private.ts'
  */
 
 import { isArray } from '../../types/array/module.f.js'
@@ -40,10 +40,10 @@ const evaluate = (a, context, root, invoke) => {
     const settled = settle(invoke)
     const args = moduleArgs(context)
 
-    /** A shared node's established value, where it has one. @type {(index: number, cache: _Cache) => Evaluation<_Cache> | undefined} */
-    const established = (index, cache) => {
-        const entry = cache.find(([i]) => i === index)
-        return entry === undefined ? undefined : [cache, ok(entry[1])]
+    /** A shared node's established value, where it has one. @type {(index: number, state: _State<_Cache, Operand>) => Evaluation<_State<_Cache, Operand>> | undefined} */
+    const established = (index, state) => {
+        const entry = state[0].find(([i]) => i === index)
+        return entry === undefined ? undefined : [state, ok(entry[1])]
     }
 
     /**
@@ -51,44 +51,46 @@ const evaluate = (a, context, root, invoke) => {
      * retained, as the invocation ends with it.
      * @template {Outcome} R
      * @param {number} index
-     * @param {_Cache} cache
+     * @param {_State<_Cache, Operand>} state
      * @param {R} outcome
-     * @returns {readonly [_Cache, R]}
+     * @returns {readonly [_State<_Cache, Operand>, R]}
      */
-    const retained = (index, cache, outcome) =>
-        [outcome[0] === 'ok' && shared.includes(index) ? [...cache, [index, outcome[1]]] : cache, outcome]
+    const retained = (index, [cache, run], outcome) =>
+        [[outcome[0] === 'ok' && shared.includes(index) ? [...cache, [index, outcome[1]]] : cache, run], outcome]
 
     /** A function's body as the table's expression. @type {(e: Operand) => Exp} */
     const expression = e => isArray(e) ? exps[Number(e[1])] : e
 
-    // `tail` holds `operand` and each builds its own `run`, so that the only
-    // name either reads before it is established is a function's own: a
-    // later `const` is not readable
-    // (`../../../spec/todo/3140-forward-references.md`). The two settle
-    // differently and share no helper taking the settling as a parameter:
-    // that helper would be one more host frame per level of a nested graph,
-    // the margin `../todo/stack-safety.md` counts.
+    // The evaluator is built once for the invocation and travels in the
+    // state, beside the cache. `operand` and `tail` are what it is built
+    // from and each calls it, which a `const` cannot say of a later one
+    // (`../../../spec/todo/3140-forward-references.md`); read from the
+    // state, it is a value they are handed. The two settle differently and
+    // share no helper taking the settling as a parameter: that helper would
+    // be one more host frame per level of a nested graph, the margin
+    // `../todo/stack-safety.md` counts.
 
-    /** @type {(operand: Operand, cache: _Cache) => Tail<_Cache>} */
-    const tail = (root, cache) => {
-        /** @type {(e: Operand, cache: _Cache) => Evaluation<_Cache>} */
-        const operand = (e, cache) => {
-            if (!isArray(e)) { return [cache, ok(e)] }
-            const [, index] = e
-            const found = established(index, cache)
-            if (found !== undefined) { return found }
-            const [next, outcome] = operation({ context, moduleArgs: args, operand, tail, expression, invoke })(nodes[Number(index)], cache)
-            return retained(index, next, settled(outcome))
-        }
-        if (!isArray(root)) { return [cache, ok(root)] }
-        const [, index] = root
-        const found = established(index, cache)
+    /** @type {(e: Operand, state: _State<_Cache, Operand>) => Evaluation<_State<_Cache, Operand>>} */
+    const operand = (e, state) => {
+        if (!isArray(e)) { return [state, ok(e)] }
+        const [, index] = e
+        const found = established(index, state)
         if (found !== undefined) { return found }
-        const [next, outcome] = operation({ context, moduleArgs: args, operand, tail, expression, invoke })(nodes[Number(index)], cache)
+        const [next, outcome] = state[1](nodes[Number(index)], state)
+        return retained(index, next, settled(outcome))
+    }
+
+    /** @type {(root: Operand, state: _State<_Cache, Operand>) => Tail<_State<_Cache, Operand>>} */
+    const tail = (root, state) => {
+        if (!isArray(root)) { return [state, ok(root)] }
+        const [, index] = root
+        const found = established(index, state)
+        if (found !== undefined) { return found }
+        const [next, outcome] = state[1](nodes[Number(index)], state)
         return retained(index, next, outcome)
     }
 
-    return tail(root, [])[1]
+    return tail(root, [[], operation({ context, moduleArgs: args, operand, tail, expression, invoke })])[1]
 }
 
 /** Nodes that read what the invocation already holds: nothing to compute, so nothing to keep. */
@@ -115,34 +117,36 @@ const body = (context, root, invoke) => {
     /**
      * @template {Outcome} R
      * @param {ExpOp} e
-     * @param {RefMap} kept
+     * @param {_State<RefMap, Exp>} state
      * @param {R} outcome
-     * @returns {readonly [RefMap, R]}
+     * @returns {readonly [_State<RefMap, Exp>, R]}
      */
-    const retained = (e, kept, outcome) =>
-        [outcome[0] === 'ok' && !reads.includes(e[0]) ? kept(e, outcome[1])[1] : kept, outcome]
+    const retained = (e, [kept, run], outcome) =>
+        [[outcome[0] === 'ok' && !reads.includes(e[0]) ? kept(e, outcome[1])[1] : kept, run], outcome]
 
-    // As in `evaluate`: `tail` holds `operand`, and the two settle
-    // differently without a helper taking the settling as a parameter.
+    // As in `evaluate`: the evaluator is built once and travels in the
+    // state, and the two settle differently without a helper taking the
+    // settling as a parameter.
 
-    /** @type {(e: Exp, kept: RefMap) => Tail<RefMap>} */
-    const tail = (root, kept) => {
-        /** @type {(e: Exp, kept: RefMap) => Evaluation<RefMap>} */
-        const operand = (e, kept) => {
-            if (!isArray(e)) { return [kept, ok(e)] }
-            const [found] = kept(e)
-            if (found !== undefined) { return [kept, ok(/** @type {EdagValue} */ (found))] }
-            const [next, outcome] = operation({ context, moduleArgs: args, operand, tail, expression: identity, invoke })(e, kept)
-            return retained(e, next, settled(outcome))
-        }
-        if (!isArray(root)) { return [kept, ok(root)] }
-        const [found] = kept(root)
-        if (found !== undefined) { return [kept, ok(/** @type {EdagValue} */ (found))] }
-        const [next, outcome] = operation({ context, moduleArgs: args, operand, tail, expression: identity, invoke })(root, kept)
+    /** @type {(e: Exp, state: _State<RefMap, Exp>) => Evaluation<_State<RefMap, Exp>>} */
+    const operand = (e, state) => {
+        if (!isArray(e)) { return [state, ok(e)] }
+        const [found] = state[0](e)
+        if (found !== undefined) { return [state, ok(/** @type {EdagValue} */ (found))] }
+        const [next, outcome] = state[1](e, state)
+        return retained(e, next, settled(outcome))
+    }
+
+    /** @type {(root: Exp, state: _State<RefMap, Exp>) => Tail<_State<RefMap, Exp>>} */
+    const tail = (root, state) => {
+        if (!isArray(root)) { return [state, ok(root)] }
+        const [found] = state[0](root)
+        if (found !== undefined) { return [state, ok(/** @type {EdagValue} */ (found))] }
+        const [next, outcome] = state[1](root, state)
         return retained(root, next, outcome)
     }
 
-    return tail(root, none)[1]
+    return tail(root, [none, operation({ context, moduleArgs: args, operand, tail, expression: identity, invoke })])[1]
 }
 
 /**
