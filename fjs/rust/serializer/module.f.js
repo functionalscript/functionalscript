@@ -102,7 +102,7 @@ const undefinedAny = cat([vm('Nullish'), '::Undefined', toAny])
 export const op1Rust = {
     '+': a => `Any::unary_plus(${a})`,
     '-': a => `<Any<A> as core::ops::Neg>::neg(${a})`,
-    '!': a => `<Any<A> as core::ops::Not>::not(${a})`,
+    '!': a => `<&Any<A> as core::ops::Not>::not(&${a})`,
     '~': a => `Any::bitwise_not(${a})`,
     typeof: a => `Any::typeof_(&${a})`,
     Number: a => `Any::number(${a})`,
@@ -341,6 +341,15 @@ const valueKey = value => Object.is(value, -0) ? negativeZero : value
 /** Read a child completed by the spelling stack. @type {(s: _Context, v: Value, result: boolean) => Result<Printed<string>, readonly unknown[]>} */
 const expression = (s, v, result) => ok(/** @type {Printed<string>} */ (mapGet(/** @type {NonNullable<_Context['ready']>} */ (s.ready)[Number(result ? 1 : 0)], valueKey(v))))
 
+/** @type {(s: _Context, id: BindingId) => BindingId} */
+const originalBinding = (s, id) => s.ownership === undefined ? id : mapGet(s.ownership.aliases, id) ?? id
+
+/** A local can be inspected in place. Supplied bindings may be arbitrary value expressions.
+ * @type {(s: _Context, v: Value) => Result<Printed<string>, readonly unknown[]>} */
+const inspectionOperand = (s, v) => v instanceof Array && v[0] === 'ref' && !s.bindings.some(([id]) => id === v[1])
+    ? plain(binding(s, originalBinding(s, v[1])))
+    : expression(s, v, false)
+
 /** Source text retained by a callable. @type {(s: _Context, text: string) => Printed<string>} */
 const represented = (s, text) => s.native
     ? cat(['Some(', loadLiteral(s, text), ')'])
@@ -497,7 +506,7 @@ const operation = (s, n, result) => {
                 : map2((v, args) => `Any::option_call(${v}, ${args})`)(expression(s, n[1], false), argumentThunk(s, /** @type {readonly (Value | readonly ['...', Value])[]} */ (n[2])))
             return map1(fallible(result))(map2((start, rest) => `${start}${rest}`)(open, steps(s, /** @type {Step<Value> | undefined} */ (n[3]), tag === '.', tag !== '?.()')))
         }
-        case 'instanceof': { return map1(fallible(result))(flat(map1(v => cat([`Any::instanceof_(&${v}, `, vm('Constructor'), `::${n[2]})`]))(expression(s, n[1], false)))) }
+        case 'instanceof': { return map1(fallible(result))(flat(map1(v => cat([`Any::instanceof_(&${v}, `, vm('Constructor'), `::${n[2]})`]))(inspectionOperand(s, n[1])))) }
         // the naive spelling: the runtime's `in` body called with the key
         // and the value, which a VM may substitute natively (DESIGN.md §13)
         case 'in': {
@@ -522,7 +531,7 @@ const operation = (s, n, result) => {
             const infix = n.length === 3 && ['+', '-', '*', '/', '%', '&', '|', '^', '<<', '>>'].includes(tag)
             const eager = (/** @type {Value} */ v) => infix || tag === 'String' ? grouped(s, v) : expression(s, v, false)
             const rest = (/** @type {Value} */ v) => lazy ? thunk(s, v) : eager(v)
-            return map1(fallible(result))(flat(n.length === 2 ? map2((fn, v) => fn(v))(op1(tag), eager(n[1]))
+            return map1(fallible(result))(flat(n.length === 2 ? map2((fn, v) => fn(v))(op1(tag), tag === 'typeof' || tag === '!' ? inspectionOperand(s, n[1]) : eager(n[1]))
                 : n.length === 3 ? map3((fn, a, b) => fn(a, b))(op2(tag), eager(n[1]), rest(n[2]))
                     : map4((fn, a, b, c) => fn(a, b, c))(op3(tag), expression(s, n[1], false), rest(n[2]), rest(n[3]))))
         }
@@ -539,7 +548,7 @@ const expressionReady = (s, v, result) => {
         case 'ref': {
             const found = s.bindings.find(([id]) => id === v[1])
             if (found !== undefined) { return map1(pure(result))(ok(found[1])) }
-            const id = s.ownership === undefined ? v[1] : mapGet(s.ownership.aliases, v[1]) ?? v[1]
+            const id = originalBinding(s, v[1])
             const move = s.owner !== undefined && s.ownership !== undefined && mapGet(s.ownership.moves, id) === s.owner
             return map1(pure(result))(ok(code(`${binding(s, id)}${move ? '' : '.clone()'}`)))
         }
@@ -557,7 +566,7 @@ const expressionReady = (s, v, result) => {
         case 'if': {
             return flat(map3((/** @type {string} */ condition, /** @type {readonly string[]} */ yes, /** @type {readonly string[]} */ no) =>
                 `${kw('if')} ${truth(condition)} ${braced(yes)} ${kw('else')} ${braced(no)}`)(
-                expression(s, v[1], false), block(s, v[2], result, false, true), block(s, v[3], result, false, true)))
+                inspectionOperand(s, v[1]), block(s, v[2], result, false, true), block(s, v[3], result, false, true)))
         }
         default: { return operation(s, v, result) }
     }
@@ -604,7 +613,7 @@ const statementReady = (s, st) => {
         case 'write': { return map1(text => [`${binding(s, st[1])} = ${text};`])(expression(s, st[2], false)) }
         case 'memo': { return memo(s, st[1]) }
         case 'block': { return map1(parts => [braced(parts)])(block(s, st[1], false)) }
-        case 'if': { return map3((condition, yes, no) => [`${kw('if')} ${truth(condition)} ${braced(yes)}${no.length === 0 ? '' : ` ${kw('else')} ${braced(no)}`}`])(expression(s, st[1], false), block(s, st[2], false), block(s, st[3], false)) }
+        case 'if': { return map3((condition, yes, no) => [`${kw('if')} ${truth(condition)} ${braced(yes)}${no.length === 0 ? '' : ` ${kw('else')} ${braced(no)}`}`])(inspectionOperand(s, st[1]), block(s, st[2], false), block(s, st[3], false)) }
         case 'loop': { return loopText(s, st) }
         // `'while'`, the one statement left: `children` refuses any other
         default: {
@@ -613,7 +622,7 @@ const statementReady = (s, st) => {
                 `${kw('let')} ${w.mutable ? `${kw('mut')} ` : ''}${binding(s, w.slot)}: Any<A> = ${initial};`,
                 `'${loopLabel(s, w.target)}: ${kw('while')} ${truth(condition)} ${braced(body)}`,
                 `${kw('let')} ${binding(s, w.result)}: Any<A> = ${binding(s, w.slot)};`,
-            ])(expression(s, w.initial, false), expression(s, w.condition, false), block(s, w.body, false))
+            ])(expression(s, w.initial, false), inspectionOperand(s, w.condition), block(s, w.body, false))
         }
     }
 }

@@ -28,8 +28,8 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             let _b338_18: Any<A> = _args.argument(1);
             let _b339_19: Any<A> = _args.argument(2);
             let _b0_20: Any<A> = A::static_function(|_self, _args| { Any::call(A::frame(_self)[0].clone(), [(_args.argument(0) + f64_any(0x4014000000000000))?].to_array().to_any()) }, 1, [_b339_19.clone()].to_array(), Some("($1)=>$0($1+5)")).to_any();
-            if Any::<A>::to_boolean(&_b337_17.clone()) {
-                if Any::<A>::to_boolean(&_b338_18.clone()) { return Ok(f64_any(0x4045000000000000)); }
+            if Any::<A>::to_boolean(&_b337_17) {
+                if Any::<A>::to_boolean(&_b338_18) { return Ok(f64_any(0x4045000000000000)); }
                 return Any::call(_b0_20.clone(), [f64_any(0x4008000000000000)].to_array().to_any());
             }
             Any::call(_b0_20.clone(), [f64_any(0x0000000000000000)].to_array().to_any())
@@ -42,7 +42,7 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             let _b614_29: Any<A> = _args.argument(2);
             let _b615_30: Any<A> = _args.argument(3);
             let _b0_31: Any<A> = A::static_function(|_self, _args| { Any::call(A::frame(_self)[0].clone(), [_args.argument(0)].to_array().to_any()) }, 1, [_b615_30.clone()].to_array(), Some("($1)=>$0($1)")).to_any();
-            if Any::<A>::to_boolean(&_b612_27.clone()) {
+            if Any::<A>::to_boolean(&_b612_27) {
                 let _b2: Any<A> = (Any::call(_b614_29.clone(), Array::default().to_any()))?;
                 let _b3: Any<A> = (Any::dot(_b2.clone(), string_any("a")).end())?;
                 let _b658: Any<A> = _b3.clone();
