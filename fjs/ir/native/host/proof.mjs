@@ -102,10 +102,15 @@ export const proof = {
         }
         assertEq(thrown(() => r.bigintShiftRight(0n, 2n)), error.bigintTooLarge)
         assertEq(thrown(() => r.bigintDivide(0n, 1n)), error.divisionByZero)
+        // Past NaNVM's limit of 2^14 words, which is under the engine's.
+        const s = host(handles([1n, -(64n << 14n), 1n - (64n << 14n)]), () => 0n, e => { failed.push(e) })
+        assertEq(thrown(() => s.bigintShiftRight(0n, 1n)), error.bigintTooLarge)
+        assertEq(thrown(() => s.bigintShiftRight(0n, 2n)), undefined)
         assertEq(thrown(() => r.bigintEquals(0n, 5n)) === undefined, false)
-        assertEq(failed.length, 2)
+        assertEq(failed.length, 3)
         assertEq(failed[0], error.bigintTooLarge)
         assertEq(failed[1], error.divisionByZero)
+        assertEq(failed[2], error.bigintTooLarge)
     },
     // Kind mismatch traps; division by zero is a FunctionalScript throw (fail records it when wired).
     throw: {
