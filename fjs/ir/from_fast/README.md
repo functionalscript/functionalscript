@@ -96,7 +96,13 @@ A function that calls itself, by its own name or through others, would be
 inlined forever, so it is refused; normalized FAST has already made a loop
 of one that calls itself in its tail. The other reading of the slice, a
 function of the module typed once from its call sites, would need its calls
-to agree on their types, and no note settles how.
+to agree on their types, and no note settles how. A program is the
+exception: there, a function of the module that calls itself, not last,
+and that the module does not export is a function of the IR, `#h0`, `#h1`,
+… in the order of its definitions, of `any` alone, as an untyped export
+is. It is lowered only where something that the module keeps calls it, so
+a definition that nothing calls is not lowered at all, and no export names
+it.
 
 ## Records
 

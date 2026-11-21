@@ -867,6 +867,10 @@ export const proof = {
             'export f',
             '',
         ].join('\n'))
+        // A function of the module that calls itself and that nothing calls is not lowered, so what it holds is not refused.
+        assertEq(program('const dead = x => x >>> x + dead(x)\nexport const f = x => x'), 'fn f(p0: any) -> any =\n    p0\n\nexport f\n')
+        // One that something calls is lowered, and what it holds may be refused, by its name.
+        assertEq(assertError(over({}, 'const g = x => x >>> 1 + g(x)\nexport const f = x => g(x)', programRuntime)), '#h0: >>> is not in this slice')
         // A function that calls itself, not in a loop, is refused.
         assertEq(assertError(over({}, 'export const f = a => {\n    const g = x => 1 + g(x)\n    return g\n}', programRuntime)), 'f: a function that calls itself is not in this slice')
         // A capture of a function that calls itself, a refusal in the lifted code, which names the code, and a capture of an
