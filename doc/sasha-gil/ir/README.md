@@ -23,13 +23,15 @@ has its own table.
 | [pointer-width.md](./pointer-width.md) | Decided: how a heap reference fits the NaN box on Rust, where pointers may be wider than 48 bits. Rust's heap is one buffer read in safe code, and a reference is an offset into it, as on WASM |
 | [nan-box-patterns.md](./nan-box-patterns.md) | The 23 bit patterns of the NaN box that type-system.md's layout proof checks, with what each holds, and the check that ran on them |
 | [nan-box-in-ir.md](./nan-box-in-ir.md) | A check of type-system.md: the whole NaN box and nineteen functions over it, written in its eDSL and run by a prototype. Its two main points and thirteen smaller rules are now in type-system.md, still proposed |
+| [benchmark.md](./benchmark.md) | A measurement after slice 12: untyped programs lowered to WASM run on NaNVM's `.wasm` 50× to 1,400× slower than JavaScript, where the time goes (NaNVM's handle layer, and L1's many L0 calls per operator), and five levers, ordered |
 
 A note's companion files are named after it: `definition.check.mjs` and
 the other `definition.*.mjs` files belong to
 [definition.md](./definition.md), `nan-box-in-ir.check.mjs` and the other
-`nan-box-in-ir.*` files to [nan-box-in-ir.md](./nan-box-in-ir.md), and
+`nan-box-in-ir.*` files to [nan-box-in-ir.md](./nan-box-in-ir.md),
 `nan-box-patterns.check.py` to
-[nan-box-patterns.md](./nan-box-patterns.md). They are prototypes,
+[nan-box-patterns.md](./nan-box-patterns.md), and the `benchmark.*.mjs`
+files to [benchmark.md](./benchmark.md). They are prototypes,
 not part of the build. Each `.mjs` among them starts with
 `// @ts-nocheck`, because the repository's tsconfig type-checks every
 `.mjs` and these are plain JavaScript without types.
