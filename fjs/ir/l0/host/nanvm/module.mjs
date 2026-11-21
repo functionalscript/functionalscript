@@ -40,7 +40,7 @@
  *
  * - **A trap keeps its text.** NaNVM traps bare under `panic=abort`, but
  *   keeps what a panic said, `l0.<name>: <reason>` for a misuse, and `trap`
- *   reads it through NaNVM's `trap_text`, so the judge compares a misuse's
+ *   reads it through NaNVM's `trap_text_length` and `trap_text_into`, so the judge compares a misuse's
  *   reason on NaNVM as it does on the counting host.
  *
  * NaNVM's handles are its own, so `first` gives the handles of the first
@@ -301,11 +301,13 @@ export const nanvmHost = nanvm => (values, data = 0) => {
         has_thrown: () => n.has_thrown() === 0 ? 0 : 1,
         thrown: n.thrown,
         trap: e => {
-            const t = n.trap_text()
-            if (n.kind(t) !== 4) { return e }
-            const text = read(t)
-            n.drop(t)
-            return text
+            // the text comes through memory: a trap in the middle of a change leaves NaNVM's state borrowed
+            const len = n.trap_text_length()
+            if (len < 0) { return e }
+            const ptr = n.reserve(2 * len)
+            n.trap_text_into(ptr)
+            const view = new DataView(n.memory.buffer)
+            return String.fromCharCode(...Array.from({ length: len }, (_, k) => view.getUint16(ptr + 2 * k, true)))
         },
         recover: () => {
             const before = others()

@@ -17,10 +17,13 @@
 //!   `fjs:host` `invoke(code, self, args) -> any`, which runs it, borrowing
 //!   both handles and answering an owned one.
 //!
-//! - **`trap_text() -> any`** answers a string of what the last trap
-//!   said, `l0.<name>: <reason>` for a misuse, and takes it, or
-//!   `undefined` where nothing trapped since `enter`. Under `panic=abort` a
-//!   panic's message is lost, so a panic hook keeps it for the host.
+//! - **`trap_text_length() -> i32`** answers how many UTF-16 units the
+//!   last trap's text has, `l0.<name>: <reason>` for a misuse, or `-1`
+//!   where nothing trapped since `enter`, and **`trap_text_into(ptr)`**
+//!   writes them at `ptr`, in a reserved region, and takes the text. Under
+//!   `panic=abort` a panic's message is lost, so a panic hook keeps it for
+//!   the host. Neither touches NaNVM's state, which a panic in the middle
+//!   of a change leaves borrowed.
 //!
 //! L1's native rows, the `fjs:l1-native` imports, are exports too, under
 //! their row names (`bigintAdd`, `numberToString`, ...), from
@@ -54,7 +57,7 @@ thread_local! {
 }
 
 thread_local! {
-    /// What the last panic said, which `trap_text` takes.
+    /// What the last panic said, which `trap_text_into` takes.
     static TRAP: RefCell<Option<String>> = const { RefCell::new(None) };
 }
 
@@ -72,12 +75,27 @@ fn hook() {
     });
 }
 
-/// A string of what the last trap said, taken, or `undefined`.
-#[unsafe(export_name = "trap_text")]
-pub extern "C" fn trap_text() -> i64 {
-    match TRAP.with_borrow_mut(Option::take) {
-        Some(text) => abi::make_string_of(&text.encode_utf16().collect::<Vec<_>>()),
-        None => abi::UNDEFINED,
+/// How many UTF-16 units the last trap's text has, or `-1` for none.
+#[unsafe(export_name = "trap_text_length")]
+pub extern "C" fn trap_text_length() -> i32 {
+    TRAP.with_borrow(|t| {
+        t.as_ref()
+            .map_or(-1, |text| text.encode_utf16().count() as i32)
+    })
+}
+
+/// Writes the last trap's text at `ptr`, the low byte of each unit first,
+/// and takes it.
+#[unsafe(export_name = "trap_text_into")]
+pub extern "C" fn trap_text_into(ptr: i32) {
+    let units: Vec<u16> = TRAP
+        .with_borrow_mut(Option::take)
+        .unwrap_or_else(|| panic!("l0.trap_text_into: no text"))
+        .encode_utf16()
+        .collect();
+    let bytes = region("trap_text_into", ptr, units.len() as i32, 2);
+    for (pair, u) in bytes.as_chunks_mut::<2>().0.iter_mut().zip(units) {
+        *pair = u.to_le_bytes();
     }
 }
 

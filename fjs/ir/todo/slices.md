@@ -376,8 +376,9 @@ Owner chose option A on each of four choices.
     after it builds the `.wasm`; L1's native rows are still JavaScript's.
   - [x] **12b. A misuse's text.** NaNVM's `.wasm` traps bare under
     `panic=abort`, so a panic hook keeps what the panic said, and
-    `trap_text` answers a string of it, which the
-    [NaNVM host](../l0/host/nanvm/module.mjs)'s `trap` reads: the judge
+    `trap_text_length` and `trap_text_into` give its units through
+    memory, not through NaNVM's state, which a panic can leave borrowed.
+    The [NaNVM host](../l0/host/nanvm/module.mjs)'s `trap` reads them: the judge
     then compares a misuse's reason on NaNVM, `l0.unit: not an index` say,
     as it does on the counting host. `enter` forgets an earlier text.
   - [x] **12c. Native rows in Rust.** The eleven `fjs:l1-native`

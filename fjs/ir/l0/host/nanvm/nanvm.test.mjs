@@ -151,6 +151,9 @@ test('a trap keeps its text until enter', () => {
     caught(() => h.imports.unit(s, -1))
     h.keep()
     if (h.trap?.(e) !== e) { throw 'enter kept the text' }
+    // a misuse in the middle of a change of NaNVM's state keeps its text too
+    const full = caught(() => h.imports.push(h.imports.begin_array(0), 0n))
+    if (h.trap?.(full) !== 'l0.push: full') { throw ['text of a full builder', full] }
 })
 
 test('NaNVM ran modules', () => {
