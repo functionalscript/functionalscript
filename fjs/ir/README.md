@@ -529,6 +529,16 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   handles, not references, so the judge there tells how many handles a call
   left over, not which. CI runs it after it builds the `.wasm`.
 
+## What 12c adds
+
+- **L1's native rows in Rust**: the eleven `fjs:l1-native` functions are
+  [NaNVM's](../../nanvm/lib/src/l0/abi/native.rs), computed by its own
+  operators over its handles, and exported by
+  [`nanvm/l0-wasm`](../../nanvm/l0-wasm/src/lib.rs), so on the NaNVM host
+  a module calls them with no JavaScript between.
+  [`nanvm.test.mjs`](./l0/host/nanvm/nanvm.test.mjs) compares them with
+  JavaScript on random floats, texts and bigints.
+
 ## What every slice refuses
 
 Everything else is refused with the function's name and the reason, never

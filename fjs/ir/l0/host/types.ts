@@ -5,6 +5,7 @@
  */
 
 import type { Kind } from '../../../wasm/runtime/l0/types.ts'
+import type { Host as NativeHost } from '../../native/host/types.ts'
 
 /**
  * The functions of the `fjs:l0` imports that [the interfaces of
@@ -114,6 +115,12 @@ export type Counting = {
     readonly imports: Imports
     /** The handles of the first values, in their order. */
     readonly first: readonly bigint[]
+    /**
+     * The `fjs:l1-native` imports of a host that has its own, as NaNVM
+     * does; a host without them gets the [JavaScript
+     * rows](../../native/host/module.mjs) over its cells.
+     */
+    readonly native?: NativeHost
     readonly has_thrown: () => 0 | 1
     readonly thrown: () => bigint
     readonly recover: () => readonly (readonly [handle: bigint, count: number])[]

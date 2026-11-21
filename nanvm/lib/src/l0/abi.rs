@@ -39,6 +39,7 @@
 //! including a handle that names no value, `not a value`, and bytes out of
 //! the memory, `out of bounds`.
 
+pub mod native;
 #[cfg(test)]
 mod test;
 

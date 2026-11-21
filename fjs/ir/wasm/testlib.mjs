@@ -409,7 +409,7 @@ export const run = (m, twins, inputs, abandons = []) => {
         for (const xs of inputs[name] ?? product(params.map(([, t]) => edges(t)))) {
             const values = xs.flatMap(v => isAny(v) ? [v.any] : [])
             const h = host(values, data)
-            const { exports } = new WebAssembly.Instance(compiled, { 'fjs:l0': h.imports, 'fjs:l1-native': nativeHost(h.read, h.own, h.fail) })
+            const { exports } = new WebAssembly.Instance(compiled, { 'fjs:l0': h.imports, 'fjs:l1-native': h.native ?? nativeHost(h.read, h.own, h.fail) })
             const { init, table } = exports
             if (table instanceof WebAssembly.Table) { h.attach(table) }
             if (typeof init === 'function') { init() }
