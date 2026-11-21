@@ -60,7 +60,7 @@ export const proof = {
         assert(!core.lines.join('').includes('StaticString'))
     },
     nativeBigInts: () => {
-        const wide = 0x1_0000_0000_0000_0002n
+        const wide = /** @type {const} */ (0x1_0000_0000_0000_0002n)
         const body = yielding([['array', [0n, -1n, wide, wide]]])
         const output = unwrap(scopeTagged(body, options, [], true))
         const lines = output.lines.map(untagged)
