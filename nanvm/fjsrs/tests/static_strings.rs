@@ -36,3 +36,23 @@ fn closures_and_common_runtime_share_the_native_vm() {
         );
     }
 }
+
+#[test]
+fn primitive_arrays_preserve_identity_and_contents() {
+    let module = exports(fixture::module).unwrap();
+    let get = |name: &str| module.own_property(&name.into()).unwrap();
+    assert_eq!(get("first"), get("alias"));
+    assert_ne!(get("first"), get("second"));
+    let fresh = Function::try_from(get("fresh")).unwrap();
+    assert_ne!(
+        fresh.call([].to_array()).unwrap(),
+        fresh.call([].to_array()).unwrap()
+    );
+    let mixed = Array::try_from(get("mixed")).unwrap();
+    assert_eq!(mixed[0], 1.0.to_any());
+    assert_eq!(mixed[1], Any::from("very long string"));
+    assert_eq!(
+        BigInt::try_from(mixed[2].clone()).unwrap().to_string(),
+        "18446744073709551618"
+    );
+}
