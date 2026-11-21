@@ -178,6 +178,52 @@ fn functions() {
     assert_eq!(text(g), UNDEFINED);
 }
 
+/// A host's code: `[code, frame[0], args]` for any index past the table.
+fn host_code(code: i32, self_: i64, args: i64) -> i64 {
+    array(&[from_f64(f64::from(code)), frame(self_, 0), dup(args)])
+}
+
+#[test]
+fn host_code_runs_every_index_past_the_table() {
+    fresh();
+    let code = add_code(first_and_args);
+    set_host_code(host_code);
+    let f = make_function(code, array(&[TRUE]), 0, UNDEFINED);
+    let g = make_function(7, array(&[NULL]), 0, UNDEFINED);
+    let args = array(&[]);
+    let r = call(f, args);
+    assert_eq!(length(r), 2);
+    let s = call(g, args);
+    let k = item(s, 0);
+    assert_eq!(to_f64(k), 7.0);
+    assert_eq!(item(s, 1), NULL);
+    for h in [r, s, k, args, f, g] {
+        drop(h);
+    }
+    assert_eq!(live(), 0);
+}
+
+#[test]
+fn bytes_of_a_host_buffer() {
+    fresh();
+    let s = make_string_of(&[0x61, 0xd800]);
+    let mut units = [0; 2];
+    read_units_into(s, 0, &mut units);
+    assert_eq!(units, [0x61, 0xd800]);
+    assert_eq!((alive(s), alive(UNDEFINED), alive(1 << 40)), (1, 1, 0));
+    let builder = begin_array(0);
+    assert_eq!(open_builders(), 1);
+    drop(seal(builder));
+    assert_eq!(open_builders(), 0);
+    let b = make_bigint_of(-1, &[5, 1]);
+    let mut words = [0; 2];
+    read_words_into(b, 0, &mut words);
+    assert_eq!((sign(b), words), (-1, [5, 1]));
+    drop(s);
+    drop(b);
+    assert_eq!(live(), 0);
+}
+
 #[test]
 fn texts_are_interned() {
     fresh();
@@ -438,4 +484,18 @@ fn recover_without_a_mark_frees_nothing() {
     let x = from_f64(1.0);
     recover();
     assert_eq!(to_f64(x), 1.0);
+}
+
+#[cfg(panic = "unwind")]
+#[test]
+fn recover_after_a_misuse_frees_since_the_mark() {
+    fresh();
+    let kept = from_f64(1.0);
+    enter();
+    let left = from_f64(2.0);
+    // A misuse traps with nothing thrown: what the call made is abandoned.
+    assert!(catch_unwind(|| concat(left, kept)).is_err());
+    assert_eq!(has_thrown(), 0);
+    recover();
+    assert_eq!((alive(kept), alive(left)), (1, 0));
 }

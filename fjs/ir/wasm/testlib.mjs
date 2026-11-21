@@ -49,6 +49,38 @@ import { fits, isOwn } from '../module.f.js'
 import { host as nativeHost } from '../native/host/module.mjs'
 import { emit } from './module.f.js'
 
+/**
+ * The host that `run` makes for each call: the counting host, unless
+ * `onHost` gives another for a while.
+ *
+ * @type {(values: readonly unknown[], data?: number) => Counting}
+ */
+let host = counting
+
+/** How many hosts `run` has made since `onHost` began. */
+let made = 0
+
+/**
+ * Runs `f` with `run` making its hosts with `h`, as the [NaNVM
+ * host](../l0/host/nanvm/module.mjs) does, and answers how many it made.
+ *
+ * @type {(h: (values: readonly unknown[], data?: number) => Counting, f: () => void) => number}
+ */
+export const onHost = (h, f) => {
+    const before = host
+    host = (values, data) => {
+        made += 1
+        return h(values, data)
+    }
+    made = 0
+    try {
+        f()
+        return made
+    } finally {
+        host = before
+    }
+}
+
 /** @type {(v: _Value) => v is _Any} */
 const isAny = v => typeof v === 'object'
 
@@ -376,7 +408,7 @@ export const run = (m, twins, inputs, abandons = []) => {
         const twin = assertNotNullish(twins[name], name)
         for (const xs of inputs[name] ?? product(params.map(([, t]) => edges(t)))) {
             const values = xs.flatMap(v => isAny(v) ? [v.any] : [])
-            const h = counting(values, data)
+            const h = host(values, data)
             const { exports } = new WebAssembly.Instance(compiled, { 'fjs:l0': h.imports, 'fjs:l1-native': nativeHost(h.read, h.own, h.fail) })
             const { init, table } = exports
             if (table instanceof WebAssembly.Table) { h.attach(table) }
@@ -387,7 +419,7 @@ export const run = (m, twins, inputs, abandons = []) => {
             /** @type {(v: _Value, k: number) => unknown} */
             const arg = (v, k) => {
                 if (!isAny(v)) { return toHost(params[k][1], v) }
-                const handle = BigInt(xs.slice(0, k).filter(isAny).length)
+                const handle = h.first[xs.slice(0, k).filter(isAny).length]
                 // a parameter that owns its argument takes a count of its own, and the caller keeps the one it holds
                 return isOwn(params[k]) ? h.imports.dup(handle) : handle
             }

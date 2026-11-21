@@ -166,8 +166,7 @@
         },
         {
           "run": "test \"$(mise exec -- node --version)\" = \"v26.13.1\"",
-          "shell": "bash",
-          "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true'"
+          "shell": "bash"
         },
         {
           "run": "test \"$(mise exec -- wasmtime --version | cut -d' ' -f1,2)\" = \"wasmtime 50.0.2\"",
@@ -343,6 +342,14 @@
             "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
           },
           "continue-on-error": true
+        },
+        {
+          "run": "mise exec -- cargo build -p nanvm-l0-wasm --release --target wasm32-unknown-unknown",
+          "shell": "bash"
+        },
+        {
+          "run": "mise exec -- node --test ./fjs/ir/l0/host/nanvm/nanvm.test.mjs",
+          "shell": "bash"
         },
         {
           "run": "mise exec -- npm start ci publish",

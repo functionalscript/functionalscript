@@ -56,4 +56,8 @@ starts:
 - [x] `nanvm_lib::l0`, the typed Rust L0, with tests that mirror
       the FunctionalScript view's proofs.
 - [x] The ABI over handles, `nanvm_lib::l0::abi`.
-- [ ] NaNVM as a `.wasm` exporting L0.
+- [x] NaNVM as a `.wasm` exporting L0:
+      [`nanvm/l0-wasm`](../../l0-wasm/src/lib.rs), loaded by the IR's
+      [NaNVM host](../../../fjs/ir/l0/host/nanvm/module.mjs), with calls
+      through an adapter module (IR slice 12a).
+- [ ] A misuse's text kept for the host (`trap_text`).

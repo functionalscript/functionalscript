@@ -3,8 +3,9 @@
 //!
 //! The functions a compiled program imports from `fjs:l0`, with the WASM
 //! types of the [summary](../../../../doc/sasha-gil/wasm/l0-design.md#summary),
-//! over [`super`], the typed L0. It is still native Rust: step 3 exports it
-//! from a `.wasm`.
+//! over [`super`], the typed L0. Natively it is tested here; step 3,
+//! [`nanvm/l0-wasm`](../../../l0-wasm/src/lib.rs), exports it from a
+//! `.wasm`.
 //!
 //! - **A value is an `i64` handle,** an index into a table of `naive`
 //!   values, with the slot's generation in the high 32 bits, so a handle
@@ -15,11 +16,15 @@
 //! - **A builder is an `i32` handle,** an index into a table of open
 //!   builders, with a generation the same way.
 //! - **Bytes** cross through [`with_memory`], which stands in for the
-//!   memory the loader makes.
+//!   memory the loader makes, or through a host's own buffer:
+//!   [`make_string_of`], [`read_units_into`], [`make_bigint_of`] and
+//!   [`read_words_into`], as the `.wasm` reads its linear memory.
 //! - **Code** is a [`Code`] in a table, [`add_code`], which stands in for
 //!   the shared WASM table. A function L0 makes keeps its code index as the
 //!   item `0` of its NaNVM frame, before the frame the program gave, so one
-//!   Rust [`StaticCode`](crate::vm::StaticCode) runs every code index.
+//!   Rust [`StaticCode`](crate::vm::StaticCode) runs every code index. An
+//!   index past the table goes to the host's code, [`set_host_code`], as
+//!   every index does in the `.wasm`.
 //! - **A throw traps**
 //!   ([`l0-throw-trap.md`](../../../../doc/sasha-gil/wasm/l0-throw-trap.md)).
 //!   [`throw`] keeps the value and traps: in WASM it reaches `unreachable`,
@@ -57,6 +62,12 @@ type V = Any<A>;
 /// ([`l0-design.md` §12](../../../../doc/sasha-gil/wasm/l0-design.md#12-functions-a-code-index-a-frame-a-length-and-a-text)).
 /// It borrows both handles and answers an owned one, or calls [`throw`].
 pub type Code = fn(self_: i64, args: i64) -> i64;
+
+/// The code a host runs for a code index that is not in the table: the
+/// index, then [`Code`]'s two handles, borrowed, and an owned result. A
+/// WASM build, which cannot call into a table of another module, hands
+/// every code index to the host this way.
+pub type HostCode = fn(code: i32, self_: i64, args: i64) -> i64;
 
 /// The constant `undefined`.
 pub const UNDEFINED: i64 = 0;
@@ -169,6 +180,7 @@ struct State {
     builders: Slab<Builder<A>>,
     memory: Vec<u8>,
     table: Vec<Code>,
+    host: Option<HostCode>,
     texts: HashMap<Vec<u16>, &'static str>,
     /// The number of handles made so far, values and builders: the birth
     /// of the next one.
@@ -205,6 +217,7 @@ impl State {
             builders: Slab::new(16, 15),
             memory: core::iter::repeat_n(0, MEMORY).collect(),
             table: Vec::new(),
+            host: None,
             texts: HashMap::new(),
             births: 0,
             marks: Vec::new(),
@@ -359,24 +372,36 @@ pub fn from_bool(b: i32) -> i64 {
 
 /// L0 `make_string`: `len` UTF-16 units at `ptr`.
 pub fn make_string(ptr: i32, len: i32) -> i64 {
-    put(super::make_string(&load_units("make_string", ptr, len)))
+    make_string_of(&load_units("make_string", ptr, len))
+}
+
+/// L0 `make_string` of units a host has read from its own memory.
+pub fn make_string_of(units: &[u16]) -> i64 {
+    put(super::make_string(units))
 }
 
 /// L0 `read_units`: `len` units of `s` from `start`, written at `ptr`.
 pub fn read_units(s: i64, start: i32, len: i32, ptr: i32) {
     bytes("read_units", ptr, len, 2);
     let mut out: Vec<u16> = core::iter::repeat_n(0, len as u32 as usize).collect();
-    super::read_units(&get("read_units", s), start as u32, &mut out);
+    read_units_into(s, start, &mut out);
     let data: Vec<u8> = out.iter().flat_map(|u| u.to_le_bytes()).collect();
     store("read_units", ptr, len, 2, &data);
 }
 
+/// L0 `read_units` into a host's own buffer.
+pub fn read_units_into(s: i64, start: i32, out: &mut [u16]) {
+    super::read_units(&get("read_units", s), start as u32, out);
+}
+
 /// L0 `make_bigint`: a sign and `len` `u64` words at `ptr`.
 pub fn make_bigint(sign: i32, ptr: i32, len: i32) -> i64 {
-    put(super::make_bigint(
-        sign,
-        &load_words("make_bigint", ptr, len),
-    ))
+    make_bigint_of(sign, &load_words("make_bigint", ptr, len))
+}
+
+/// L0 `make_bigint` of words a host has read from its own memory.
+pub fn make_bigint_of(sign: i32, words: &[u64]) -> i64 {
+    put(super::make_bigint(sign, words))
 }
 
 /// L0 `sign`.
@@ -389,9 +414,14 @@ pub fn sign(b: i64) -> i32 {
 pub fn read_words(b: i64, start: i32, len: i32, ptr: i32) {
     bytes("read_words", ptr, len, 8);
     let mut out: Vec<u64> = core::iter::repeat_n(0, len as u32 as usize).collect();
-    super::read_words(&get("read_words", b), start as u32, &mut out);
+    read_words_into(b, start, &mut out);
     let data: Vec<u8> = out.iter().flat_map(|w| w.to_le_bytes()).collect();
     store("read_words", ptr, len, 8, &data);
+}
+
+/// L0 `read_words` into a host's own buffer.
+pub fn read_words_into(b: i64, start: i32, out: &mut [u64]) {
+    super::read_words(&get("read_words", b), start as u32, out);
 }
 
 // Strings.
@@ -502,16 +532,28 @@ pub fn add_code(code: Code) -> i32 {
     })
 }
 
+/// The loader's step that hands every code index past the table to
+/// `host`.
+pub fn set_host_code(host: HostCode) {
+    with(|s| s.host = Some(host))
+}
+
 /// The one Rust code of every function L0 makes: it reads the code index
 /// from the frame and runs that code on two handles it frees after.
 fn run(self_: &<A as IVm>::InternalFunction, args: Array<A>) -> Result<V, V> {
     let index = super::to_f64(&A::frame(self_)[0]) as usize;
-    let code = with(|s| s.table[index]);
+    let (code, host) = with(|s| (s.table.get(index).copied(), s.host));
     let handles = Handles([
         put(Function::<A>::new(self_.clone()).to_any()),
         put(args.to_any()),
     ]);
-    Ok(take("call", code(handles.0[0], handles.0[1])))
+    let [f, a] = handles.0;
+    let result = match (code, host) {
+        (Some(code), _) => code(f, a),
+        (None, Some(host)) => host(index as i32, f, a),
+        (None, None) => trap("call", "not a code index"),
+    };
+    Ok(take("call", result))
 }
 
 /// Frees borrowed handles, also when a throw unwinds past them natively.
@@ -541,7 +583,7 @@ fn intern(text: &V) -> &'static str {
 /// L0 `make_function`. It takes `frame` and `text`, a string or
 /// `undefined`.
 pub fn make_function(code: i32, frame: i64, length: i32, text: i64) -> i64 {
-    if !with(|s| usize::try_from(code).is_ok_and(|i| i < s.table.len())) {
+    if !with(|s| usize::try_from(code).is_ok_and(|i| i < s.table.len() || s.host.is_some())) {
         trap("make_function", "not a code index")
     }
     let length = count("make_function", length);
@@ -630,12 +672,16 @@ pub fn leave() {
 /// after that mark and before the [`throw`]: what the abandoned frames
 /// held, since a program keeps no handle across a call of the host but its
 /// literals, made before any. Then it clears [`has_thrown`]. A handle that
-/// [`thrown`] made stays. Without a mark it frees nothing.
+/// [`thrown`] made stays. After a trap of a misuse, which threw nothing, a
+/// WASM host may go on the same way: it frees every handle made after the
+/// mark. Without a mark it frees nothing.
 pub fn recover() {
     with(|s| {
         let mark = s.marks.pop();
-        if let (Some(mark), Some((_, at))) = (mark, &s.thrown) {
-            let births = mark + 1..=*at;
+        // After a misuse nothing was thrown: every handle since the mark was abandoned.
+        let at = s.thrown.as_ref().map_or(s.births, |(_, at)| *at);
+        if let Some(mark) = mark {
+            let births = mark + 1..=at;
             s.values.free_born(births.clone());
             s.builders.free_born(births);
         }
@@ -669,4 +715,15 @@ pub fn catch(f: impl FnOnce() -> i64) -> Result<i64, i64> {
 /// ownership.
 pub fn live() -> usize {
     with(|s| s.values.count() - CONSTANTS)
+}
+
+/// `1` when `h` names a value, else `0`: for a host that keeps handles of
+/// its own across a [`recover`].
+pub fn alive(h: i64) -> i32 {
+    with(|s| s.values.get(h as u64).is_some()) as i32
+}
+
+/// The number of builders that are open: for tests of ownership.
+pub fn open_builders() -> usize {
+    with(|s| s.builders.count())
 }

@@ -48,6 +48,7 @@ Then Any's copy variants leave the counts of `undefined`, `null` and
 |[`l0`](./l0/module.f.js)                 |the interfaces of L0 as data, and `any`, the type that they seal       |
 |[`l0/host`](./l0/host/module.f.js)        |the `fjs:l0` imports as the L0 view's functions, over handles          |
 |[`l0/host/count`](./l0/host/count/module.mjs)|a host of the `fjs:l0` imports that counts every value, for host proofs|
+|[`l0/host/nanvm`](./l0/host/nanvm/module.mjs)|NaNVM's `.wasm` as the host of the `fjs:l0` imports, for host proofs|
 |[`native`](./native/module.f.js)         |the interface of L1's native rows as data, `Native`                    |
 |[`native/host`](./native/host/module.mjs)|a JavaScript host for the `fjs:l1-native` imports, over L1's rows      |
 
@@ -509,6 +510,24 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   call inlines an array of the arguments past them.
 - **L0 gains `Containers.key(o, i)`**: it borrows an object and answers the
   owned key of its property `i`, which a spread of an object copies.
+
+## What 12a adds
+
+- **NaNVM as the host**: [`nanvm/l0-wasm`](../../nanvm/l0-wasm/src/lib.rs)
+  is NaNVM's L0 ABI built as a `.wasm`, whose exports are a module's
+  `fjs:l0` imports, so a module calls NaNVM with no JavaScript between.
+  The [NaNVM host](./l0/host/nanvm/module.mjs) makes what NaNVM cannot
+  export: Any's constants and `data_base`, a region that NaNVM's
+  `reserve` gives. NaNVM runs a function's code index through an adapter
+  module, a `call_indirect` into a table that the loader fills from the
+  module's `table`, and a JavaScript function that a proof passes from an
+  index past it.
+- **Every host proof on NaNVM**: [`wasm/testlib.mjs`](./wasm/testlib.mjs)'s
+  `onHost` swaps the host that `run` makes, and
+  [`nanvm.test.mjs`](./l0/host/nanvm/nanvm.test.mjs) runs the emitter's,
+  the lifetime pass's, FAST's and the random proofs on NaNVM. NaNVM counts
+  handles, not references, so the judge there tells how many handles a call
+  left over, not which. CI runs it after it builds the `.wasm`.
 
 ## What every slice refuses
 

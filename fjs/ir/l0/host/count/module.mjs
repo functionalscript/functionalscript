@@ -319,6 +319,7 @@ export const counting = (values, data = 0) => {
                 return make(m.items[i])
             },
         },
+        first: values.map((_, k) => BigInt(k)),
         attach: t => { table = t },
         has_thrown: () => held === null ? 0 : 1,
         thrown: () => {

@@ -14,6 +14,7 @@ const workspace = /** @type {const} */ ([
     'nanvm/harness/',
     'nanvm/effects-node/',
     'nanvm/demos/',
+    'nanvm/l0-wasm/',
 ])
 
 // These files control checkout or the shell that executes every check.
