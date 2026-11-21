@@ -10,4 +10,9 @@ export const alias = first
 export const second = /** @type {const} */ ([])
 export const fresh = () => []
 export const mixed = /** @type {const} */ ([1, 'very long string', wide])
+export const record = /** @type {const} */ ({ name: 'very long string', count: wide })
+export const recordAlias = record
+export const emptyObject = () => ({})
+export const left = /** @type {const} */ ({})
+export const right = /** @type {const} */ ({})
 export default () => f()
