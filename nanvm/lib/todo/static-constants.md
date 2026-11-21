@@ -1,7 +1,7 @@
 ## Hold a compiled module's constants as static data
 
 **Priority:** P3
-**Status:** in progress — the VM can load hand-written static descriptors
+**Status:** wip — the VM can load hand-written static descriptors
 
 ### Problem
 

@@ -81,7 +81,7 @@ mod tests {
         text: Some("x => captured"),
     };
     static MODULE: StaticObject<Naive> =
-        StaticObject(&[(&StaticString(&[102]), StaticAny::Function(&FUNCTION))]);
+        StaticObject(&[(&StaticString(&[0x66]), StaticAny::Function(&FUNCTION))]);
     static EMPTY: StaticObject<Naive> = StaticObject(&[]);
     static OTHER_EMPTY: StaticObject<Naive> = StaticObject(&[]);
 
