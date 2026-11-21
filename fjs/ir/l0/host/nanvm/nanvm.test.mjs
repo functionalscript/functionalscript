@@ -129,7 +129,7 @@ test('the bigint rows agree with JavaScript', () => {
         }
         if (native('bigintNegate', [a]) !== -a) { throw ['bigintNegate', a] }
         if (native('bigintToString', [a]) !== String(a)) { throw ['bigintToString', a] }
-        const x = floats(next, 1)[14] ?? 0
+        const x = [NaN, Infinity, -Infinity, 0][k % 8] ?? floats(next, 1)[14] ?? 0
         const mixed = native('bigintLess', [a, x])
         if (mixed !== (a < x ? 1 : a >= x ? 0 : -1)) { throw ['bigintLess', a, x, mixed] }
     }
