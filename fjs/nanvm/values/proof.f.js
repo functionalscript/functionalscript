@@ -51,7 +51,8 @@ export const proof = {
         const first = /** @type {Closure} */ (assertOk(invoke(make, [7], ['[]', []])))
         const second = /** @type {Closure} */ (assertOk(invoke(make, [7], ['[]', []])))
         assert(first !== second)
-        assert(first[3] !== second[3])
+        // two functions made by one arrow are two functions over one body
+        assertEq(first[3], second[3])
         assert(first[2][1] !== second[2][1])
         for (const fn of [first, second]) {
             const [, length, [outer, local]] = fn

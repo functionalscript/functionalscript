@@ -18,6 +18,7 @@ import { identityAnalysis } from '../../analysis/module.f.js'
 import { functionText } from '../../../compiler/serializer/module.f.js'
 import { isStatic, staticText } from '../../module.f.js'
 import { join } from '../array/module.f.js'
+import { ownBodies } from '../function/module.f.js'
 import { objectToPrimitive, primitiveToString, primitiveToNumber } from '../coercion/module.f.js'
 
 /** @type {(result: Result<Primitive, EdagValue>) => Result<string, EdagValue>} */
@@ -35,7 +36,9 @@ export const toPrimitive = (value, hint, invoke) => {
             // shares is one `const` and two equal nodes are two. Captures
             // are represented by slot names and do not enter the rendered
             // text.
-            const table = assertOk(identityAnalysis(value))
+            // The function's captures may hold two functions made from
+            // one arrow, which share their body until given their own.
+            const table = assertOk(identityAnalysis(ownBodies(value)))
             return ok(functionText(table, /** @type {readonly ['#', number]} */ (table.root)[1]))
         }
     }

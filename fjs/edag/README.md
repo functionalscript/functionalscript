@@ -98,9 +98,11 @@ to the operation/invocation layer.
 [`value/function`](value/function/module.f.js) constructs function values
 from deferred captures and valid body templates. Captures evaluate in order,
 retaining their identities and propagating the first failure unchanged.
-Each function gets a fresh copy of its body graph, including nested function
-templates, while sharing within that graph is preserved. Body code stays
-unevaluated; captured values stay outside the copy. Memo's `invoke` interprets
+A function is made over the body graph it was given, so two made by one
+arrow share it. `ownBodies` gives each function of a value a fresh copy of
+its body, including nested function templates, while sharing within that
+graph is preserved; a value goes through it before it is analysed or
+written. Body code stays unevaluated; captured values stay outside the copy. Memo's `invoke` interprets
 the retained body with a fresh invocation cache.
 
 [`value/call`](value/call/module.f.js) prepares bare calls over represented
