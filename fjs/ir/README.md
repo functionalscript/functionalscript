@@ -574,6 +574,21 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   on both hosts against JavaScript in
   [`from_fast`'s host proof](./from_fast/proof.mjs).
 
+## What the number paths add
+
+- **A number is tested where it stands**
+  ([benchmark.md, next lever 1](../../doc/sasha-gil/ir/benchmark.md#levers)):
+  in a program, an arithmetic or relational operator of `any`, or of
+  `any` and a float, matches each `any` once against `number`, reads it
+  once with `to_f64`, and answers with the operator of the IR where all
+  are numbers, boxed with `from_f64` where it is a float. Only otherwise
+  does it call L1, where a float is boxed. `s.i < n` with `s.i` a float
+  is 2 L0 calls, not 8. An operand that may hold no number, a bigint or a
+  string say, calls L1 alone.
+- **A read of a split local is that local**: the records pass writes no
+  `let` for a `let` of a read of a split object, so the lifetime pass
+  copies nothing for it.
+
 ## What every slice refuses
 
 Everything else is refused with the function's name and the reason, never
