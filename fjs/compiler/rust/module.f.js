@@ -73,14 +73,14 @@ const vmBound = root => holdsFunction(root) ? 'IStaticFunction' : 'IVm'
  * module's parameter, or is `null` for the runtime module itself, which
  * has none and may use nothing it defines.
  *
- * @type {(root: Exp, text: ((e: Exp) => string | undefined) | undefined, runtime: string | null) => Result<Scope, readonly unknown[]>}
+ * @type {(root: Exp, text: ((e: Exp) => string | undefined) | undefined, runtime: string | null, native?: boolean) => Result<Scope, readonly unknown[]>}
  */
-const body = (root, text, runtime) => {
+const body = (root, text, runtime, native) => {
     const [kind, a] = okThen(checked)(analysis(root))
     if (kind === 'error') { return error([a, root]) }
     return readsArgs(root)
     ? error(['no Rust for `args` in a module\'s own scope; a module has no arguments', root])
-    : mapOk((/** @type {Scope} */ { lines, uses }) => ({ lines: lines.map(l => `${indent}${l}`), uses }))(scopeTagged(root, text, runtime))
+    : mapOk((/** @type {Scope} */ { lines, uses }) => ({ lines: lines.map(l => `${indent}${l}`), uses }))(scopeTagged(root, text, runtime, native))
 }
 
 /**
@@ -96,9 +96,9 @@ const body = (root, text, runtime) => {
  * gives its built-ins. `runtime` is the parameter's name, or `null` for
  * none.
  *
- * @type {(name: string, text: ((e: Exp) => string | undefined) | undefined, runtime: string | null) => (root: Exp) => Result<{ readonly lines: readonly string[], readonly uses: Scope['uses'], readonly bound: string }, readonly unknown[]>}
+ * @type {(name: string, text: ((e: Exp) => string | undefined) | undefined, runtime: string | null, native?: boolean) => (root: Exp) => Result<{ readonly lines: readonly string[], readonly uses: Scope['uses'], readonly bound: string }, readonly unknown[]>}
  */
-export const itemTagged = (name, text, runtime) => root => mapOk((/** @type {Scope} */ { lines, uses }) => {
+export const itemTagged = (name, text, runtime, native = false) => root => mapOk((/** @type {Scope} */ { lines, uses }) => {
     const bound = vmBound(root)
     const parameter = runtime === null ? '' : `${needsRuntime(root) ? runtime : `_${runtime}`}: Any<A>`
     return {
@@ -107,14 +107,14 @@ export const itemTagged = (name, text, runtime) => root => mapOk((/** @type {Sco
             // Preparation preserves the condition even when both results agree.
             // Folding those arms here would introduce a target-specific pass.
             '#[allow(clippy::if_same_then_else)]',
-            `${tagged('keyword')('pub')} ${tagged('keyword')('fn')} ${name}<A: ${bound}>(${parameter}) -> Result<Any<A>, Any<A>> {`,
+            `${tagged('keyword')('pub')} ${tagged('keyword')('fn')} ${name}${native ? '' : `<A: ${bound}>`}(${parameter}) -> Result<Any<A>, Any<A>> {`,
             ...lines,
             '}',
         ],
         uses,
         bound,
     }
-})(body(root, text, runtime))
+})(body(root, text, runtime, native))
 
 /**
  * The EDAG as a generated Rust module, or the refusal: a node shape this
@@ -134,16 +134,16 @@ export const itemTagged = (name, text, runtime) => root => mapOk((/** @type {Sco
  * of one literal. A layout-preserving printer would have to reproduce
  * rustfmt's own wrapping, which is what the skip avoids paying for.
  *
- * @type {(root: Exp) => Result<string, readonly unknown[]>}
+ * @type {(root: Exp, native?: boolean) => Result<string, readonly unknown[]>}
  */
-const generateTagged = root => mapOk((/** @type {{ readonly lines: readonly string[], readonly uses: Scope['uses'], readonly bound: string }} */ { lines, uses, bound }) => [
+const generateTagged = (root, native = false) => mapOk((/** @type {{ readonly lines: readonly string[], readonly uses: Scope['uses'], readonly bound: string }} */ { lines, uses, bound }) => [
     tagged('comment')(generatedHeader('`fjs compile`', 'recompile the source module instead')),
     '',
-    ...useLinesTagged(uses, bound),
+    ...useLinesTagged(uses, native ? null : bound),
     '',
     ...lines,
     '',
-].join('\n'))(itemTagged('module', undefined, 'runtime')(root))
+].join('\n'))(itemTagged('module', undefined, 'runtime', native)(root))
 
 /**
  * {@link generateTagged} as plain text, the form every caller before marked
@@ -178,10 +178,10 @@ const reasonText = reason => reason.map(value => String(value)).join(': ')
 /**
  * The Rust module with token kinds still tagged in the text, or its refusal.
  *
- * @type {(root: Exp) => Result<string, string>}
+ * @type {(root: Exp, native?: boolean) => Result<string, string>}
  */
-const toRustTagged = root => {
-    const result = generateTagged(root)
+const toRustTagged = (root, native = false) => {
+    const result = generateTagged(root, native)
     return result[0] === 'ok'
         ? result
         : error(`no Rust spelling for this module: ${reasonText(result[1])}`)
@@ -206,6 +206,6 @@ export const toRust = root => mapOk(untagged)(toRustTagged(root))
  * `identifier`: all the data the printer writes is inside a string literal,
  * so what stays plain is its own code. The text is {@link toRust}'s.
  *
- * @type {(root: Exp) => Result<Marked, string>}
+ * @type {(root: Exp, native?: boolean) => Result<Marked, string>}
  */
-export const toRustMarked = root => mapOk(text => withNames(unwrap(fromTagged(text))))(toRustTagged(root))
+export const toRustMarked = (root, native = false) => mapOk(text => withNames(unwrap(fromTagged(text))))(toRustTagged(root, native))

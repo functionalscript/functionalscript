@@ -139,7 +139,7 @@ and the same data is a data segment in WebAssembly.
   table, one VM for the generated code, or virtual calls.
 - [x] Settle the static types, the conversions in the VM's trait and what
   they promise about identity.
-- [ ] Strings first: `StaticString` to `String<A>`, the naive VM keeping
+- [x] Strings first (native application output): `StaticString` to `String<A>`, the naive VM keeping
   the reference, and the Rust serializer writing string constants as
   statics.
 - [ ] Emit big integers, arrays, objects and functions in the serializer.

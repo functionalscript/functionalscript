@@ -11,17 +11,21 @@ import { main, output, source } from './module.f.js'
 
 export const proof = /** @type {const} */ ({
     writes: () => {
-        const [state, code] = virtualAt({ fjs: { nanvm: { fjsrs: { 'module.f.js': [utf8('export const main = 7;')] } } } })(main(defaultNodeProgramOptions))
+        const root = {
+            nanvm: { fjsrs: { tests: { 'static-strings.mjs': [utf8('export default 1;')] } } },
+            fjs: { nanvm: { fjsrs: { 'module.f.js': [utf8('export const main = 7;')] } } },
+        }
+        const [state, code] = virtualAt(root)(main(defaultNodeProgramOptions))
         assertEq(exitCode(code), 0, state.stderr)
         assertEq(source, 'fjs/nanvm/fjsrs/module.f.js')
-        assertEq(output, 'nanvm/fjsrs/src/gen.program.rs')
+        assertEq(output, 'nanvm/fjsrs/src/gen.program.native.rs')
         const nanvm = state.root.nanvm
         assert(typeof nanvm === 'object' && !(nanvm instanceof Array))
         const crate = nanvm.fjsrs
         assert(typeof crate === 'object' && !(crate instanceof Array))
         const src = crate.src
         assert(typeof src === 'object' && !(src instanceof Array))
-        assert(src['gen.program.rs'] !== undefined)
+        assert(src['gen.program.native.rs'] !== undefined)
     },
     noSource: () => {
         const [state, code] = virtual(emptyState)(main(defaultNodeProgramOptions))
