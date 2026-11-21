@@ -394,7 +394,7 @@ const program = unwrap(lower({}, { ...l1Runtime(errors), l1 })(fast, imports))
 [`link`](./link/module.f.js) merges the program with the bodies of L1 that it
 reaches, itself or through others of L1, under `l1.` names, L1's
 constants first, so that the program is one module and one WASM module.
-L1 exports nothing there. `+x` of one operand, `%` of `any`, `?.()` and a
+L1 exports nothing there. `+x` of one operand, `?.()` and a
 guarded step after `?.` are refused in a program, and so is an export that
 is not a function.
 

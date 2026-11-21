@@ -2,19 +2,25 @@
  * The number paths of [the lowering](../module.f.js): a numeric operator
  * of L1 whose operands may hold numbers tests them once and answers with
  * the operator of the IR where they are numbers
- * ([benchmark.md](../../../../doc/sasha-gil/ir/benchmark.md#levers)).
+ * ([benchmark.md](../../../../doc/sasha-gil/ir/benchmark.md#levers)), and
+ * the parts of numbers and primitives that the lowering builds them from:
+ * which operands an operator of the IR takes, the boxing of a value as
+ * `any`, a primitive as a term, and L1's native rows of numbers.
  *
  * @module
  *
  * @import { Result } from '../../../types/result/types.ts'
- * @import { Param, Scope, Term, Type } from '../../types.ts'
+ * @import { Primitive } from '../../../media/datajs/types.ts'
+ * @import { Module, Param, Scope, Term, Type } from '../../types.ts'
  */
 
 import { assertNotNullish } from '../../../asserts/module.f.js'
-import { ok, unwrap } from '../../../types/result/module.f.js'
+import { entry } from '../../../types/object/entry/module.f.js'
+import { error, ok, okList, unwrap } from '../../../types/result/module.f.js'
 import { typeOf } from '../../check/module.f.js'
-import { any, kinds } from '../../l0/module.f.js'
-import { call, f64, f64c, get, let_, match, only, terms } from '../../module.f.js'
+import { any, kinds, string } from '../../l0/module.f.js'
+import { bool, call, constant, equal, f64, f64c, false_, get, let_, lit, match, n, only, terms, true_ } from '../../module.f.js'
+import { show } from '../../print/module.f.js'
 
 /** What the number paths read of the lowering's scope: the IR's scope and the depth that names the next local `#k`. @typedef {{ readonly ir: Scope, readonly depth: number }} Depth */
 
@@ -102,3 +108,69 @@ export const numberPath =
         const depth = [scope.depth, ...xs.map(depthAfter)].reduce((a, b) => a < b ? b : a)
         return bound({ ...scope, depth }, 0, [])
     }
+
+/**
+ * A value of `any`, or a float or boolean boxed as one by `from_f64` or
+ * `from_bool` ([definition.md's rule 6](../../../../doc/sasha-gil/ir/definition.md#from-normalized-fast-to-the-ir)),
+ * or `null` where no conversion of this slice fits.
+ *
+ * @type {(t: Type, x: Term) => Term | null}
+ */
+export const asAny = (t, x) => isAny(t) ? x
+    : isFloat(t) ? call('Any', 'from_f64', [x])
+    : equal(t, bool) ? call('Any', 'from_bool', [x])
+    : null
+
+/**
+ * A primitive as a term: a number is a float literal, a bigint the range
+ * that holds it alone, a boolean a `bool`, a string a literal of `any` that
+ * String makes, and `undefined` and `null` are Any's constants. A module
+ * lowered without the runtime imports neither.
+ *
+ * @type {(imports: Module['imports'], v: Primitive) => Result<Term, string>}
+ */
+export const primitive = (imports, v) => {
+    if (typeof v === 'number') { return ok(lit(f64c, v)) }
+    if (typeof v === 'bigint') { return ok(n(v)) }
+    if (typeof v === 'boolean') { return ok(v ? true_ : false_) }
+    if (typeof v === 'string') {
+        return imports.some(([k]) => k === 'String') ? ok(lit(string, v))
+            : error('a string is a literal that String makes, which a module lowered without the runtime does not import')
+    }
+    const name = v === null ? 'null' : 'undefined'
+    return imports.some(([k]) => k === 'Any') ? ok(constant('Any', name))
+        : error(`${name} is a constant of Any, which a module lowered without the runtime does not import`)
+}
+
+/** Whether the operator of the IR takes operands of these types: floats, or integers. @type {(ts: readonly Type[]) => boolean} */
+export const numeric = ts => ts.every(isFloat) || ts.every(t => t[0] === 'int')
+
+/** Whether `!` of the IR takes an operand of these types: a boolean. @type {(ts: readonly Type[]) => boolean} */
+export const boolean = ts => ts.every(t => equal(t, bool))
+
+/** Whether operands are floats, which a native row of numbers takes. @type {(ts: readonly Type[]) => boolean} */
+export const floats = ts => ts.every(isFloat)
+
+/** A call of L1's native row of numbers `name`, of floats lowered in their order. @type {(name: string) => (xs: readonly Term[]) => Result<Term, string>} */
+export const nativeRow = name => xs => ok(call('Native', name, xs))
+
+/** The operator of the IR of two operands, lowered in their order. @type {(f: (a: Term, b: Term) => Term) => (xs: readonly Term[]) => Result<Term, string>} */
+export const inOrder = f => xs => ok(f(xs[0], xs[1]))
+
+/**
+ * `a % b`, `a >> b` or `a & b` of two floats, `op`: L1's native row of
+ * numbers `row`, `numberRemainder`, `numberShiftRight` or `numberAnd`,
+ * since WASM has no instruction for `%`, nor for the conversion to a
+ * 32-bit integer that the other two read, which a module lowered over the
+ * runtime imports.
+ *
+ * @type {(op: string, row: string) => (scope: { readonly ir: Scope }, xs: readonly Term[]) => Result<Term, string>}
+ */
+export const numberRow = (op, row) => (scope, xs) => {
+    const ts = okList(xs.map(x => typeOf(scope.ir)(x)))
+    if (ts[0] === 'error') { return ts }
+    const name = assertNotNullish(entry(scope.ir, 'name'))
+    return !ts[1].every(isFloat) ? error(`${name}: ${op} of ${ts[1].map(show).join(' and ')} is not in this slice`)
+        : !scope.ir.imports.some(([k]) => k === 'Native') ? error(`${name}: ${op} of two floats calls L1's native rows, which a module lowered without the runtime does not import`)
+        : ok(call('Native', row, xs))
+}
