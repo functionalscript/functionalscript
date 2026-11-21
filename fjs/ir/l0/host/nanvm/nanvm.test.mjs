@@ -153,7 +153,11 @@ test('a trap keeps its text until enter', () => {
     if (h.trap?.(e) !== e) { throw 'enter kept the text' }
     // a misuse in the middle of a change of NaNVM's state keeps its text too
     const full = caught(() => h.imports.push(h.imports.begin_array(0), 0n))
+    // as the judge asks: whether it threw, then what it said, then what it abandoned
+    if (h.has_thrown() !== 0) { throw 'a misuse threw' }
     if (h.trap?.(full) !== 'l0.push: full') { throw ['text of a full builder', full] }
+    h.recover()
+    if (h.builders().length !== 0) { throw 'recover left the builder open' }
 })
 
 test('NaNVM ran modules', () => {

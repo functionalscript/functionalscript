@@ -301,7 +301,7 @@ export const nanvmHost = nanvm => (values, data = 0) => {
         has_thrown: () => n.has_thrown() === 0 ? 0 : 1,
         thrown: n.thrown,
         trap: e => {
-            // the text comes through memory: a trap in the middle of a change leaves NaNVM's state borrowed
+            // the text comes through memory, as bytes that the host reads do
             const len = n.trap_text_length()
             if (len < 0) { return e }
             const ptr = n.reserve(2 * len)

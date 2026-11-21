@@ -22,8 +22,9 @@
 //!   where nothing trapped since `enter`, and **`trap_text_into(ptr)`**
 //!   writes them at `ptr`, in a reserved region, and takes the text. Under
 //!   `panic=abort` a panic's message is lost, so a panic hook keeps it for
-//!   the host. Neither touches NaNVM's state, which a panic in the middle
-//!   of a change leaves borrowed.
+//!   the host. The hook also ends the change of NaNVM's state that the
+//!   panic stopped ([`abi::release`]), so the host goes on to `has_thrown`
+//!   and `recover`.
 //!
 //! L1's native rows, the `fjs:l1-native` imports, are exports too, under
 //! their row names (`bigintAdd`, `numberToString`, ...), from
@@ -71,6 +72,8 @@ fn hook() {
                 .map_or_else(|| "panic".to_string(), str::to_string);
             // `try_with`: a panic while the thread's locals are gone keeps nothing.
             let _ = TRAP.try_with(|t| t.replace(Some(text)));
+            // the trap that follows ends the change of the state that panicked
+            abi::release();
         }))
     });
 }

@@ -377,7 +377,8 @@ Owner chose option A on each of four choices.
   - [x] **12b. A misuse's text.** NaNVM's `.wasm` traps bare under
     `panic=abort`, so a panic hook keeps what the panic said, and
     `trap_text_length` and `trap_text_into` give its units through
-    memory, not through NaNVM's state, which a panic can leave borrowed.
+    memory. The hook also ends the change of NaNVM's state that the panic
+    stopped, so the host goes on to `has_thrown` and `recover`.
     The [NaNVM host](../l0/host/nanvm/module.mjs)'s `trap` reads them: the judge
     then compares a misuse's reason on NaNVM, `l0.unit: not an index` say,
     as it does on the counting host. `enter` forgets an earlier text.

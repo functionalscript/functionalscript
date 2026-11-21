@@ -7,7 +7,7 @@ use super::*;
 /// runtime, of its own, but under `wasm32-wasip1` the tests share one
 /// thread.
 fn fresh() {
-    STATE.with_borrow_mut(|s| *s = State::new());
+    with(|s| *s = State::new());
 }
 
 /// A string, through the memory at `0`.
@@ -230,7 +230,7 @@ fn texts_are_interned() {
     let code = add_code(first_and_args);
     let f = make_function(code, array(&[]), 0, string("() => 0"));
     let g = make_function(code, array(&[]), 0, string("() => 0"));
-    assert_eq!(STATE.with_borrow(|s| s.texts.len()), 1);
+    assert_eq!(with(|s| s.texts.len()), 1);
     drop(f);
     drop(g);
 }
@@ -268,7 +268,7 @@ fn a_throw_reaches_the_host() {
         let e = catch(|| call(c, args)).unwrap_err();
         assert_eq!(text_of(e), "boom");
         assert_eq!(has_thrown(), 0);
-        assert_eq!(STATE.with_borrow(|s| s.builders.count()), 0);
+        assert_eq!(with(|s| s.builders.count()), 0);
         drop(e);
         drop(args);
         // What the abandoned frames held is freed: nothing leaks.
@@ -475,7 +475,7 @@ fn recover_frees_only_the_inner_call() {
     })
     .unwrap();
     assert_eq!(to_f64(r), 7.0);
-    assert_eq!(STATE.with_borrow(|s| s.marks.len()), 0);
+    assert_eq!(with(|s| s.marks.len()), 0);
 }
 
 #[test]
