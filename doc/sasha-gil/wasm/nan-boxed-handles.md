@@ -32,7 +32,7 @@ is NaNVM's to change, and a portable module does not change with it.
 1. **NaNVM** encodes scalars in the handle itself, as
    [type-system.md](../ir/type-system.md) lays out the box, and keeps the
    slab for references only, with the kind in the tag bits.
-2. **The IR's WASM emitter** may then inline `kind`, `to_f64`,
+2. **The IR's WASM emitter** may then inline the scalar half of `kind`, and `to_f64`,
    `from_f64`, `to_bool`, `from_bool`, and the scalar half of `dup` and
    `drop`, in a module compiled for NaNVM alone.
 
@@ -47,8 +47,11 @@ Each is a PR, step 2 on step 1, and the benchmark runs after each.
 | C. Numbers only | In the bits | As today, with the constants at fixed NaN patterns | Smallest |
 
 A is most of B's gain for numeric code at a small part of its cost:
-`kind` of any value, and `to_f64`, `from_f64`, `to_bool` and `from_bool`,
-read no state at all, and a reference's `kind` needs no slab lookup. B is
+`kind` of a number or a constant, and `to_f64`, `from_f64`, `to_bool` and
+`from_bool`, read no state at all. `kind` of a reference still reads its
+slot, to check the generation and that the tag matches the slot's kind,
+so a dropped or forged reference traps as today (see the misuse checks
+below). B is
 a rewrite of NaNVM's heap, which is a project of its own. C leaves `kind`
 of a reference in the slab, and a numeric loop still asks `kind` of
 values that are references.
@@ -117,7 +120,9 @@ Sasha prefers refusing over ignoring, so this is the cost to weigh:
   slot's kind, is `not a value`. `from_f64` never makes one, since it
   canonicalises every NaN.
 - **A reference still traps after its `drop`**, by its generation, as
-  today.
+  today. So `kind` of a reference keeps its slab lookup: the tag alone
+  would answer a kind for a stale or forged reference, which is the
+  ignoring this note avoids.
 - **The proofs that pass a made-up handle** pass one from the NaN space
   instead, so that both hosts still refuse it.
 
@@ -126,8 +131,8 @@ Sasha prefers refusing over ignoring, so this is the cost to weigh:
 Estimates, not measurements:
 
 - **Step 1:** `from_f64` and `drop` of a number stop allocating, and
-  `kind`, `to_f64` and the boolean calls stop entering the state. Each
-  becomes about the 2.4 ns of the call itself. `sumTo` and `fib` might be
+  `kind` of a scalar, `to_f64` and the boolean calls stop entering the
+  state. Each becomes about the 2.4 ns of the call itself. `sumTo` and `fib` might be
   2× to 3× faster, and the others less, since their references stay in
   the slab.
 - **Step 2:** the inlined calls cost about one instruction each, so
