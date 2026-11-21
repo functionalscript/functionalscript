@@ -38,4 +38,5 @@ export type _Nanvm = {
     readonly live: () => number
     readonly open_builders: () => number
     readonly alive: (h: bigint) => number
+    readonly trap_text: () => bigint
 }

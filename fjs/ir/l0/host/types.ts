@@ -123,6 +123,13 @@ export type Counting = {
     readonly native?: NativeHost
     readonly has_thrown: () => 0 | 1
     readonly thrown: () => bigint
+    /**
+     * What a trap with nothing thrown said, of a host whose imports trap
+     * in WebAssembly, as NaNVM's do: the text of `e`, the engine's error,
+     * where the host kept it, and `e` where it did not. A host whose
+     * imports throw their reasons to JavaScript has none.
+     */
+    readonly trap?: (e: unknown) => unknown
     readonly recover: () => readonly (readonly [handle: bigint, count: number])[]
     readonly read: (h: bigint) => unknown
     /** A cell of `value`, counted once, which the caller owns; for a copy value, its constant's handle. */

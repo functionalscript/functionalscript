@@ -307,7 +307,8 @@ const expect = f => {
 /**
  * What a call of a module answers: a value; a throw, whose value the host
  * keeps and which `thrown` hands over, the caller reading it and dropping
- * it; or a trap with nothing thrown, and what the engine threw for it.
+ * it; or a trap with nothing thrown, and what the host's `trap` tells of
+ * it, or else what the engine threw for it.
  *
  * @type {(f: () => _Value, h: Counting) => _Outcome}
  */
@@ -315,7 +316,7 @@ const outcome = (f, h) => {
     try {
         return ['ok', f()]
     } catch (e) {
-        if (h.has_thrown() === 0) { return ['trapped', e] }
+        if (h.has_thrown() === 0) { return ['trapped', h.trap === undefined ? e : h.trap(e)] }
         const t = h.thrown()
         const any = h.read(t)
         h.imports.drop(t)

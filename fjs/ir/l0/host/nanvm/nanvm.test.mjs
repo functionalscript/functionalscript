@@ -135,6 +135,24 @@ test('the bigint rows agree with JavaScript', () => {
     }
 })
 
+test('a trap keeps its text until enter', () => {
+    const h = host([])
+    const s = h.own('ab')
+    /** @type {(f: () => unknown) => unknown} */
+    const caught = f => {
+        try { f() } catch (e) { return e }
+        throw 'no trap'
+    }
+    const e = caught(() => h.imports.unit(s, 2))
+    if (!(e instanceof WebAssembly.RuntimeError)) { throw ['not a trap of WebAssembly', e] }
+    if (h.trap?.(e) !== 'l0.unit: not an index') { throw ['text', e] }
+    // taken
+    if (h.trap?.(e) !== e) { throw 'the text was not taken' }
+    caught(() => h.imports.unit(s, -1))
+    h.keep()
+    if (h.trap?.(e) !== e) { throw 'enter kept the text' }
+})
+
 test('NaNVM ran modules', () => {
     if (ran === 0) { throw 'no module ran on NaNVM' }
 })

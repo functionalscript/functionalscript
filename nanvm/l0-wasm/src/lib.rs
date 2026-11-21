@@ -5,7 +5,7 @@
 //! Each export is a function of [`nanvm_lib::l0::abi`] under its L0 name,
 //! so a loader passes this module's exports to a program as its `fjs:l0`
 //! imports. Beside them are the host's side, `has_thrown`, `thrown`,
-//! `enter`, `leave`, `recover` and `live`, and two of this build's own:
+//! `enter`, `leave`, `recover` and `live`, and three of this build's own:
 //!
 //! - **`reserve(size) -> ptr`** gives the loader `size` bytes of this
 //!   module's memory, which it exports as `memory`, for a program's data
@@ -16,6 +16,11 @@
 //!   module's table, so a function's code index is handed to the import
 //!   `fjs:host` `invoke(code, self, args) -> any`, which runs it, borrowing
 //!   both handles and answering an owned one.
+//!
+//! - **`trap_text() -> any`** answers a string of what the last trap
+//!   said, `l0.<name>: <reason>` for a misuse, and takes it, or
+//!   `undefined` where nothing trapped since `enter`. Under `panic=abort` a
+//!   panic's message is lost, so a panic hook keeps it for the host.
 //!
 //! L1's native rows, the `fjs:l1-native` imports, are exports too, under
 //! their row names (`bigintAdd`, `numberToString`, ...), from
@@ -48,9 +53,38 @@ thread_local! {
     static REGIONS: RefCell<Vec<(usize, usize)>> = const { RefCell::new(Vec::new()) };
 }
 
+thread_local! {
+    /// What the last panic said, which `trap_text` takes.
+    static TRAP: RefCell<Option<String>> = const { RefCell::new(None) };
+}
+
+/// Sets the panic hook that keeps a panic's message in [`TRAP`], once.
+fn hook() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        std::panic::set_hook(Box::new(|info| {
+            let text = info
+                .payload_as_str()
+                .map_or_else(|| "panic".to_string(), str::to_string);
+            // `try_with`: a panic while the thread's locals are gone keeps nothing.
+            let _ = TRAP.try_with(|t| t.replace(Some(text)));
+        }))
+    });
+}
+
+/// A string of what the last trap said, taken, or `undefined`.
+#[unsafe(export_name = "trap_text")]
+pub extern "C" fn trap_text() -> i64 {
+    match TRAP.with_borrow_mut(Option::take) {
+        Some(text) => abi::make_string_of(&text.encode_utf16().collect::<Vec<_>>()),
+        None => abi::UNDEFINED,
+    }
+}
+
 /// Gives `size` zeroed bytes of the memory and answers their address.
 #[unsafe(export_name = "reserve")]
 pub extern "C" fn reserve(size: i32) -> i32 {
+    hook();
     let size = usize::try_from(size).unwrap_or_else(|_| panic!("l0.reserve: not a count"));
     let bytes: Box<[u8]> = core::iter::repeat_n(0, size).collect();
     let ptr = Box::into_raw(bytes) as *mut u8 as usize;
@@ -287,6 +321,8 @@ pub extern "C" fn thrown() -> i64 {
 
 #[unsafe(export_name = "enter")]
 pub extern "C" fn enter() {
+    hook();
+    TRAP.with_borrow_mut(|t| *t = None);
     abi::enter()
 }
 

@@ -38,6 +38,11 @@
  *   the handles that NaNVM's own `recover` freed, and `builders` one entry
  *   for each builder that is open.
  *
+ * - **A trap keeps its text.** NaNVM traps bare under `panic=abort`, but
+ *   keeps what a panic said, `l0.<name>: <reason>` for a misuse, and `trap`
+ *   reads it through NaNVM's `trap_text`, so the judge compares a misuse's
+ *   reason on NaNVM as it does on the counting host.
+ *
  * NaNVM's handles are its own, so `first` gives the handles of the first
  * values. L1's native rows are NaNVM's too, in Rust: `native` is its
  * exports for the `fjs:l1-native` imports, so a module that calls one
@@ -295,6 +300,13 @@ export const nanvmHost = nanvm => (values, data = 0) => {
         },
         has_thrown: () => n.has_thrown() === 0 ? 0 : 1,
         thrown: n.thrown,
+        trap: e => {
+            const t = n.trap_text()
+            if (n.kind(t) !== 4) { return e }
+            const text = read(t)
+            n.drop(t)
+            return text
+        },
         recover: () => {
             const before = others()
             n.recover()
