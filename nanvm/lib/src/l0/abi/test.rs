@@ -499,3 +499,35 @@ fn recover_after_a_misuse_frees_since_the_mark() {
     recover();
     assert_eq!((alive(kept), alive(left)), (1, 0));
 }
+
+// A read runs inside the state, so its trap must end the change.
+
+#[cfg(panic = "unwind")]
+#[test]
+fn a_trap_inside_a_read_leaves_the_state_usable() {
+    fresh();
+    let a = array(&[from_f64(1.0)]);
+    let s = string("ab");
+    assert!(catch_unwind(|| item(a, 5)).is_err());
+    assert!(catch_unwind(|| unit(s, 2)).is_err());
+    assert!(catch_unwind(|| concat(s, a)).is_err());
+    assert_eq!(length(a), 1);
+    assert_eq!(to_f64(item(a, 0)), 1.0);
+    assert_eq!(text_of(concat(s, s)), "abab");
+}
+
+#[test]
+#[should_panic(expected = "l0.concat: not a value")]
+fn concat_second_not_a_value() {
+    fresh();
+    let s = string("a");
+    concat(s, 99);
+}
+
+#[test]
+#[should_panic(expected = "l0.find: not a value")]
+fn find_first_not_a_value() {
+    fresh();
+    let s = string("a");
+    find(99, s);
+}
