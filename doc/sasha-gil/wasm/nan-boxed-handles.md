@@ -44,7 +44,7 @@ Each is a PR, step 2 on step 1, and the benchmark runs after each.
 | --- | --- | --- | --- |
 | **A. Scalars in the box, references in the slab** (recommended) | In the bits | A NaN-space pattern with the kind's 4-bit tag and the slab index and generation in the 46-bit payload | `abi.rs` and the hosts' constants |
 | B. The whole box of type-system.md | In the bits | Short strings and bigints in the bits, others as offsets into one heap buffer ([pointer-width.md](../ir/pointer-width.md), option A) | NaNVM's value representation, rewritten |
-| C. Numbers only | In the bits | As today, with the constants at fixed NaN patterns | Smallest |
+| C. Numbers only | In the bits | One NaN-space pattern with no kind tag, the slab index and generation in the payload; the constants at fixed NaN patterns | Smallest |
 
 A is most of B's gain for numeric code at a small part of its cost:
 `kind` of a number or a constant, and `to_f64`, `from_f64`, `to_bool` and
@@ -52,9 +52,12 @@ A is most of B's gain for numeric code at a small part of its cost:
 slot, to check the generation and that the tag matches the slot's kind,
 so a dropped or forged reference traps as today (see the misuse checks
 below). B is
-a rewrite of NaNVM's heap, which is a project of its own. C leaves `kind`
-of a reference in the slab, and a numeric loop still asks `kind` of
-values that are references.
+a rewrite of NaNVM's heap, which is a project of its own. C needs a NaN-space
+reference pattern too, since a raw index and generation can be any bit
+pattern, a valid number's among them. It differs from A only in leaving
+the kind out of the tag: under both, `kind` of a reference reads its
+slot, but A's tag lets a module tell a reference's kind apart from a
+scalar's without the call, and C's does not.
 
 Under A the patterns are type-system.md's, so a later move to B keeps
 every scalar's bits:
