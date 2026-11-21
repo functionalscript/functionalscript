@@ -1805,13 +1805,16 @@ export const proof = {
         assert(!names.includes('l1.toIterable') && !names.includes('l1.objectSpread'))
         const text = print({ ...m, imports: [] })
         assert(text.includes('fn sum3(p0: any, p1: any, p2: any) -> any ='))
+        // `depth` calls itself, so it is a function of the IR, which no export names.
+        assert(text.includes('fn #h0(p0: any) -> any ='))
+        assert(!m.exports.includes('#h0'))
     },
     // Each program answers what JavaScript answers on the values of the
     // parity table, an object of a nested object, one of a function and a
     // function of two arguments, and throws L1's value of the error that
     // JavaScript throws. A throw of L1 leaves what the caller made for it
     // behind, a boxed key or number, which the host recovers.
-    programsRun: () => runPrograms(fromPrograms(), programs, ['apply', 'called', 'first', 'method', 'mixed', 'pair', 'sum3', 'twice']),
+    programsRun: () => runPrograms(fromPrograms(), programs, ['apply', 'called', 'countDown', 'first', 'method', 'mixed', 'pair', 'sum3', 'twice']),
     // The records pass: the objects that a program only reads back by keys
     // that they have are split, so no function that reads one back builds
     // it, and every other object stays one.

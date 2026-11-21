@@ -787,6 +787,36 @@ export const proof = {
         ].join('\n'))
         // A function that only a call reads stays inlined.
         assertEq(program('export const f = a => {\n    const g = x => x\n    return g(a)\n}'), 'fn f(p0: any) -> any =\n    p0\n\nexport f\n')
+        // A function of the module that calls itself, not last, and that it does not export is a function of the IR, of
+        // `any` alone, which the export calls and no export names.
+        assertEq(program('const g = x => x ? [g(x.a)] : x\nexport const f = a => g(a)'), [
+            'fn f(p0: any) -> any =',
+            '    #h0(p0)',
+            '',
+            'fn #h0(p0: any) -> any =',
+            '    if l1.toBoolean(p0)',
+            '    then',
+            '        let #0 = #h0(l1.get(p0, "a"))',
+            '        match Containers.seal(Containers.push(Containers.begin_array(1), #0))',
+            '          array as array =>',
+            '            array',
+            '          else =>',
+            "            trap('not array')",
+            '    else',
+            '        p0',
+            '',
+            'fn l1.get(a: any, b: any) -> any =',
+            '    a',
+            '',
+            'fn l1.strictEquals(a: any, b: any) -> bool =',
+            '    false',
+            '',
+            'fn l1.toBoolean(v: any) -> bool =',
+            '    l1.strictEquals(v, v)',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
         // A function that calls itself, not in a loop, is refused.
         assertEq(assertError(over({}, 'export const f = a => {\n    const g = x => 1 + g(x)\n    return g\n}', programRuntime)), 'f: a function that calls itself is not in this slice')
         // A capture of a function that calls itself, a refusal in the lifted code, which names the code, and a capture of an

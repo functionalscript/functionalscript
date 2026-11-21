@@ -36,7 +36,10 @@
  *   `?.` and a call of operands that the IR does not take, values of
  *   `any` among them, is a call of L1's body, each float or boolean boxed
  *   as `any`. [`link`](./link/module.f.js#link) merges the bodies that the program reaches
- *   into the module, by their `l1.` names.
+ *   into the module, by their `l1.` names. A function of the module that
+ *   calls itself, not last, and that the module does not export is a
+ *   function of the IR there, `#h0` first, of `any` alone, which no export
+ *   names: its copies, inlined, would never end.
  * - **An import of the L0 view is L0, and one of L1's native rows is
  *   `Native`.** The caller names the runtime, the specifiers of the view
  *   and of the rows, and the module then imports
@@ -688,7 +691,8 @@ const inlineTerms = (lowerValue, scope, f, xs, resolve) => {
  * their order; its captures stand for what `resolve` makes of them: what
  * they read where the call stands, or what the module's bindings are. A
  * function that calls itself, by its own name or through others, is
- * refused, since its copies would never end.
+ * refused, since its copies would never end; in a program, one of the
+ * module is a function of the IR instead, and is called, not inlined.
  *
  * @type {(lowerValue: _LowerValue, scope: _Scope, f: FastFunction, vs: readonly Value[], resolve: (v: Value) => Result<_Meaning, string>) => Result<Term, string>}
  */
@@ -2281,6 +2285,12 @@ export const lower = (signatures, runtime = null) => ({ statements, exit }, impo
     if (shared !== undefined) {
         return error(`${shared[0]} exports the same function as ${lowered.find(([, , , b]) => b === shared[3])?.[0]}`)
     }
+    // In a program, a function of the module that calls itself and that it does not export is a function of the IR, `#h0` first, of `any` alone: its copies would never end.
+    /** @type {readonly (readonly [string, FastFunction, Signature, BindingId | null])[]} */
+    const helpers = l1 === null ? [] : defined
+        .flatMap(([b, g]) => g[0] === 'function' && g[1].self !== null && !lowered.some(([, , , x]) => x === b) ? [/** @type {const} */ ([b, g[1]])] : [])
+        .map(([b, f], k) => /** @type {const} */ ([`#h${k}`, f, untyped(f), b]))
+    const own = [...lowered, ...helpers]
     /**
      * What a term that the lowering makes reads where it reads `b`, once it
      * has made the constants in `done`: a function, which it calls or
@@ -2289,10 +2299,10 @@ export const lower = (signatures, runtime = null) => ({ statements, exit }, impo
      * @type {(done: readonly _Lowered[]) => (b: BindingId) => Result<_Meaning, string>}
      */
     const captureIn = done => b => {
-        const own = lowered.find(([, , , x]) => x === b)
+        const mine = own.find(([, , , x]) => x === b)
         const g = globalOf(b)
         const exported = all.find(([, v]) => v instanceof Array && v[0] === 'ref' && v[1] === b)
-        return own !== undefined ? ok(['function', own[0]])
+        return mine !== undefined ? ok(['function', mine[0]])
             : g === undefined || g[0] === 'args' ? error("a capture of the module's imports is not in this slice")
             : g[0] === 'refused' ? error(g[1])
             : g[0] === 'constant' ? ofConstant(done.find(([x]) => x === b)?.[1])
@@ -2311,7 +2321,7 @@ export const lower = (signatures, runtime = null) => ({ statements, exit }, impo
     const closureOf = f => closures.find(([g]) => g === f)?.[1] ?? null
     const ir = {
         functions: [
-            ...lowered.map(([key, , s]) => /** @type {const} */ ([key, s])),
+            ...own.map(([key, , s]) => /** @type {const} */ ([key, s])),
             ...(l1 === null ? [] : l1.functions.map(([k, f]) => /** @type {const} */ ([linkedName(k), signature(f.params, f.result)]))),
             ...closures.map(([, { code }]) => /** @type {const} */ ([code, signature([['#self', func], ['#args', array]], any)])),
         ],
@@ -2337,7 +2347,7 @@ export const lower = (signatures, runtime = null) => ({ statements, exit }, impo
     const done = defined.flatMap(([b, g]) => g[0] === 'constant' ? [/** @type {const} */ ([b, g[1]])] : []).reduce(addConstant, [])
     const capture = captureIn(done)
     const context = { ...ir, constants: [...sharedTypes, ...typesOf(done)] }
-    const functions = okList(lowered.map(([key, f, s]) => lowerFn(context, capture)([key, f, s])))
+    const functions = okList(own.map(([key, f, s]) => lowerFn(context, capture)([key, f, s])))
     if (functions[0] === 'error') { return functions }
     const lowerOne = lowerClosure(context, moduleIn(done))
     const candidates = [...sharedConstants, ...done.flatMap(([, r]) => r[0] === 'ok' ? [r[1]] : [])]
