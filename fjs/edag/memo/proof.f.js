@@ -17,6 +17,7 @@ import runtimeEdag from '../../js/runtime/gen.edag.js'
 import { read } from '../value/property/module.f.js'
 import { toData } from '../value/to_unknown/module.f.js'
 import { call } from '../value/call/module.f.js'
+import { generate } from '../../types/array/module.f.js'
 import { ok } from '../../types/result/module.f.js'
 import { noRefMap } from '../module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
@@ -218,6 +219,27 @@ export const proof = {
     },
     // Wherever sharing does not decide the value, the answer is amnesia's:
     // every operation once through both executors over one graph.
+    // An invocation keeps its first values in a list and the rest in a
+    // reference map. A node shared early and one shared late are each one
+    // value, read again from where it was kept, and a node met for the
+    // first time past the list is looked for in the map and not found.
+    keptValues: () => {
+        /** @type {readonly Exp[]} */
+        const many = generate(17, i => ['[]', [i]])
+        /** @type {Exp} */
+        const late = ['[]', ['late']]
+        const fn = /** @type {EdagValue} */ (['=>', 0, [], ['[]', [...many, late, late, many[0], many[16]]]])
+        const items = array(apply(fn))[1]
+        assertEq(items.length, 21)
+        assertEq(items[17], items[18])
+        assertEq(items[0], items[19])
+        assertEq(items[16], items[20])
+        assert(items[0] !== items[1])
+        assertStructurallySame(items[17], ['[]', ['late']])
+        assertStructurallySame(items[16], ['[]', [16]])
+        // a second invocation keeps nothing of the first
+        assert(array(apply(fn))[1][17] !== items[17])
+    },
     agrees: () => {
         agrees(1)
         agrees(['+', ['*', 2, 3], ['-', 1]])

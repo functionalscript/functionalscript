@@ -53,12 +53,14 @@ It ran 2,501,232 calls of 493 different functions.
   says where a program uses it heavily, and this program does not: its
   module initialization does not run the compiler's analysis. No evaluation
   that does has been profiled, the whole compiler's included.
-- **The largest single cost is a copy.** A closure's body is copied every
-  time the closure is made, so that two functions from one arrow share no
-  node ([`../values.md`](../values.md)): 760,195 copies for those 493
-  functions. It follows from a value being EDAG, where a node is its
-  identity; [the copy](../value/todo/closure-body-copy.md) has an issue of
-  its own, and is smaller than any of the options below.
+- **The largest single cost was a copy.** A closure's body was copied every
+  time the closure was made, so that two functions from one arrow shared no
+  node: 760,195 copies for those 493 functions. It followed from a value
+  being EDAG, where a node is its identity. The copy is now made where a
+  value is analysed or written
+  ([`ownBodies`](../value/function/module.f.js)), and the same evaluation
+  takes about 17 s where it took about 29 s on the tree before it. The
+  shares in the table are of the run before that change.
 - **The rest is spread.** No operation of the interpreter stands out beyond
   these, so what emulation costs is not one figure this profile gives. One
   interpreted function, the binary search of

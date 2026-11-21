@@ -63,9 +63,15 @@ within one invocation and starts fresh on the next. Amnesia recomputes each
 edge except caller-established nodes. Neither interns equal-looking values.
 
 Repeated references to a function reuse its value node. Distinct function
-values have distinct nodes and body scopes: construction copies scope-local
-body code, retaining sharing within each copy. Evaluated captures stay outside
-that copy and retain their identities. A captured array survives calls; an
+values have distinct nodes over the body code they were made from: two
+functions made by one arrow share it, and construction copies nothing. An
+executor keeps nothing under a body's nodes beyond one invocation, so the
+sharing is not observable there. What reads sharing by node identity, the
+analysis and every writer behind it, cannot take one node under two
+functions, so a value is given bodies of its own first
+([`ownBodies`](value/function/module.f.js)): a copy for each function,
+retaining sharing within each copy. Evaluated captures stay outside that
+copy and are answered once. A captured array survives calls; an
 array constructed in a function body is fresh per call. Captures remain behind
 frame reads, so compiling a value does not move their allocation into the body.
 Execution-model selection belongs to the executor, not persisted metadata.
