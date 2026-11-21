@@ -1838,9 +1838,6 @@ export const proof = {
         assert(!names.includes('l1.toIterable') && !names.includes('l1.objectSpread'))
         const text = print({ ...m, imports: [] })
         assert(text.includes('fn sum3(p0: any, p1: any, p2: any) -> any ='))
-        // `depth` calls itself, so it is a function of the IR, which no export names.
-        assert(text.includes('fn #h0(p0: any) -> any ='))
-        assert(!m.exports.includes('#h0'))
     },
     // Each program answers what JavaScript answers on the values of the
     // parity table, an object of a nested object, one of a function and a

@@ -2358,23 +2358,30 @@ export const lower = (signatures, runtime = null) => ({ statements, exit }, impo
     const done = defined.flatMap(([b, g]) => g[0] === 'constant' ? [/** @type {const} */ ([b, g[1]])] : []).reduce(addConstant, [])
     const capture = captureIn(done)
     const context = { ...ir, constants: [...sharedTypes, ...typesOf(done)] }
-    const functions = okList(own.map(([key, f, s]) => lowerFn(context, capture)([key, f, s])))
+    const functions = okList(lowered.map(([key, f, s]) => lowerFn(context, capture)([key, f, s])))
     if (functions[0] === 'error') { return functions }
     const lowerOne = lowerClosure(context, moduleIn(done))
     const candidates = [...sharedConstants, ...done.flatMap(([, r]) => r[0] === 'ok' ? [r[1]] : [])]
-    // The constants that the functions read keep the code of the closures that they make, whose code may read more.
+    // The constants that the functions read keep the code of the closures that they make, whose code may read more,
+    // and the functions of the module that call themselves are lowered once something reached calls them.
     /** @type {readonly (readonly [string, Fn])[]} */
     let made = []
+    /** @type {readonly (readonly [string, Fn])[]} */
+    let called = []
     let growing = true
     while (growing) {
-        const reached = [...functions[1], ...made]
+        const reached = [...functions[1], ...called, ...made]
         const [kept] = candidates.reduceRight(keep, [[], reached.flatMap(([, f]) => reads(f.body))])
-        const next = madeClosures(lowerOne, closures, [...reached.flatMap(([, f]) => uses(f.body)), ...kept.flatMap(([, c]) => uses(c.value))])
+        const used = [...reached.flatMap(([, f]) => uses(f.body)), ...kept.flatMap(([, c]) => uses(c.value))]
+        const wanted = okList(helpers.filter(([k]) => used.includes(k) && !called.some(([h]) => h === k)).map(([key, f, s]) => lowerFn(context, capture)([key, f, s])))
+        if (wanted[0] === 'error') { return wanted }
+        const next = madeClosures(lowerOne, closures, used)
         if (next[0] === 'error') { return next }
-        growing = next[1].length > made.length
+        growing = next[1].length > made.length || wanted[1].length > 0
         made = next[1]
+        called = [...called, ...wanted[1]]
     }
-    const everything = [...functions[1], ...made]
+    const everything = [...functions[1], ...called, ...made]
     const [constants] = candidates.reduceRight(keep, [[], everything.flatMap(([, f]) => reads(f.body))])
     /** @type {Module} */
     const m = { imports: interfaces, constants, functions: everything, exports: lowered.map(([key]) => key) }
