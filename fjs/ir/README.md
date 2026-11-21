@@ -43,6 +43,7 @@ Then Any's copy variants leave the counts of `undefined`, `null` and
 |[`check/owned`](./check/owned/module.f.js)|the owned-stage check: each owned value consumed once on every path    |
 |[`lifetime`](./lifetime/module.f.js)      |the lifetime pass: a module's plain stage to its owned stage           |
 |[`print`](./print/module.f.js)           |the IR as text, for review and golden proofs                           |
+|[`records`](./records/module.f.js)       |the records pass: an object only read back by its keys, split in locals|
 |[`wasm`](./wasm/module.f.js)             |the emitter, to the AST of [`fjs/media/wasm`](../media/wasm/README.md) |
 |[`from_fast`](./from_fast/README.md)      |the lowering from normalized FAST, with the types from a table         |
 |[`l0`](./l0/module.f.js)                 |the interfaces of L0 as data, and `any`, the type that they seal       |
@@ -557,6 +558,21 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   from `table_base`, and says in `fjs.layout` how many entries it needs.
   The NaNVM host's adapter calls into that same table, so nothing copies
   it.
+
+## What the records pass adds
+
+- **Records of `any` stay records**
+  ([benchmark.md, lever 3](../../doc/sasha-gil/ir/benchmark.md#levers)):
+  after [the lowering](./from_fast/module.f.js) links L1, the
+  [records pass](./records/module.f.js) splits each object literal of
+  values of `any` that its function builds and only reads back by keys
+  that it has, a loop's state say, into a local for each value, so
+  nothing builds it and L1's `get` looks nothing up. An object that
+  leaves its function, is read by a key that it has not, or whose
+  values would move past something that does something stays one.
+  Hand-written IR in [its proofs](./records/proof.f.js), and programs run
+  on both hosts against JavaScript in
+  [`from_fast`'s host proof](./from_fast/proof.mjs).
 
 ## What every slice refuses
 
