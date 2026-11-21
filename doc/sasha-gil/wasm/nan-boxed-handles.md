@@ -56,8 +56,12 @@ a rewrite of NaNVM's heap, which is a project of its own. C needs a NaN-space
 reference pattern too, since a raw index and generation can be any bit
 pattern, a valid number's among them. It differs from A only in leaving
 the kind out of the tag: under both, `kind` of a reference reads its
-slot. A's tag costs nothing more and keeps type-system.md's patterns,
-so a later move to B changes no reference's bits.
+slot. Without the tag, C's pattern `0111_1111_1111_p…p_10` leaves 50
+payload bits, for example 26 of index and 24 of generation, where A's
+four `tttt` bits leave 46 (choice 2). A pays those four bits to keep
+type-system.md's tags, so a reference's kind reads the same under A and B.
+A reference's payload still changes in a move to B, from a slab index and
+generation to a heap offset.
 
 Under A the patterns are type-system.md's, so a later move to B keeps
 every scalar's bits:
