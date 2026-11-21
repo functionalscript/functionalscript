@@ -111,8 +111,8 @@ export const proof = {
             exit: ['loop', target, loopBody],
         }
         const rust = unwrap(scopeTagged(body, options, [], true)).lines.map(untagged).join('\n')
-        assertEq(rust.split('static VALUE: StaticArray<A>').length - 1, 1)
-        assertEq(rust.split('Array::default().to_any()').length - 1, 3)
+        assert(!rust.includes('StaticArray'))
+        assertEq(rust.split('Array::default().to_any()').length - 1, 4)
     },
     nativeBigInts: () => {
         const wide = /** @type {const} */ (0x1_0000_0000_0000_0002n)
