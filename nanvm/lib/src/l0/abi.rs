@@ -264,9 +264,15 @@ fn with<R>(f: impl FnOnce(&mut State) -> R) -> R {
 
 /// Ends the change of the state that a trap stopped, under `panic=abort`,
 /// where nothing unwinds: a panic hook calls it, so the host can go on to
-/// [`has_thrown`] and [`recover`]. Nothing may touch the state between the
-/// panic and the trap.
-pub fn release() {
+/// [`has_thrown`] and [`recover`].
+///
+/// # Safety
+///
+/// No reference into the state may be used after it: the caller is a
+/// panic hook under `panic=abort`, where the trap that follows the panic
+/// ends every call that holds one, and nothing touches the state between
+/// the two.
+pub unsafe fn release() {
     STATE.with(|s| s.busy.set(false))
 }
 

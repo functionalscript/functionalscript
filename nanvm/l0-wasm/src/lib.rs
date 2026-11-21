@@ -72,8 +72,13 @@ fn hook() {
                 .map_or_else(|| "panic".to_string(), str::to_string);
             // `try_with`: a panic while the thread's locals are gone keeps nothing.
             let _ = TRAP.try_with(|t| t.replace(Some(text)));
-            // the trap that follows ends the change of the state that panicked
-            abi::release();
+            // SAFETY: under `panic=abort` the trap that follows ends the
+            // change of the state that panicked, and this hook touches
+            // nothing else of it. An unwind gives the change back itself.
+            #[cfg(panic = "abort")]
+            unsafe {
+                abi::release()
+            };
         }))
     });
 }
