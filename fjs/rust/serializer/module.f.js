@@ -4,6 +4,7 @@
  * this module only spells those instructions and runtime operations.
  *
  * @module
+ * @import { Primitive } from '../../media/datajs/types.ts'
  * @import { Block, Function as PreparedFunction, Memo, Statement, Value } from '../../js/ast/prepare/types.ts'
  * @import { BindingId, FunctionTarget, LoopTarget, Key, Step, Operator } from '../../js/ast/types.ts'
  * @import { Options, Printed, Scope, Use, Uses, External } from './types.ts'
@@ -306,6 +307,24 @@ const loadLiteral = (s, v) => {
     return cat([vm(typeof v === 'string' ? 'String' : 'BigInt'), `::from_static(&LITERAL_${id})`])
 }
 
+/** @type {(s: _Context, v: Primitive) => Printed<string>} */
+const staticItem = (s, v) => {
+    const item = vm('StaticAny')
+    if (v === undefined || v === null) {
+        return cat([item, '::Nullish(', vm('Nullish'), v === null ? '::Null)' : '::Undefined)'])
+    }
+    if (typeof v === 'boolean') { return cat([item, `::Boolean(${lit(`${v}`)})`]) }
+    if (typeof v === 'number') { return cat([item, `::Number(f64::from_bits(${num(f64Bits(v))}))`]) }
+    const id = mapGet(/** @type {_Names} */ (s.names).literals, v)
+    return cat([item, `::${typeof v === 'string' ? 'String' : 'BigInt'}(&LITERAL_${id})`])
+}
+
+/** Each literal site owns its descriptor, even when two sites have identical items.
+ * @type {(s: _Context, values: readonly Primitive[]) => Printed<string>} */
+const staticArray = (s, values) => cat([`{ ${kw('static')} VALUE: `, vm('StaticArray'), '<A> = StaticArray(&[',
+    ...values.flatMap((v, i) => [i === 0 ? '' : ', ', staticItem(s, v)]),
+    ']); ', vm('Array'), '::from_static(&VALUE)', toAny, ' }'])
+
 /** @type {(s: _Context, v: string) => Printed<string>} */
 const stringKey = (s, v) => s.native ? loadLiteral(s, v) : stringCall('string_key')(v)
 
@@ -363,7 +382,7 @@ const closureContext = (s, fn) => {
         ...fn.captures.map((c, i) => /** @type {const} */ ([c.binding, code(`A::frame(_self)[${num(`${i}`)}].clone()`)])),
         ...(fn.self === null ? [] : [/** @type {const} */ ([fn.self, cat([vm('Function'), '::new(_self.clone())', toAny])])]),
     ]
-    return { ...s, runtime: held, bindings }
+    return { ...s, moduleInit: false, runtime: held, bindings }
 }
 
 /** The concrete VM needs the trait in scope for its associated functions. @type {(s: _Context) => Printed<string>} */
@@ -493,7 +512,12 @@ const operation = (s, n, result) => {
         return map1(pure(result))(ok(cat([staticFunction(s), '(|_self, _args| ', ...native, ', ', num(`${length}`), ', ', vm('Array'), '::default(), ', represented(s, helperText(_helperText(id)('helper'))), ')', toAny])))
     }
     switch (tag) {
-        case 'array': { return array(s, n[1], result) }
+        case 'array': {
+            const items = n[1]
+            return s.moduleInit && items.every(v => !(v instanceof Array))
+                ? map1(pure(result))(ok(staticArray(s, /** @type {readonly Primitive[]} */ (items))))
+                : array(s, items, result)
+        }
         case 'object': { return map1(pure(result))(object(s, n[1])) }
         case '()': { return map1(fallible(result))(map2((fn, args) => `Any::call(${fn}, ${args})`)(expression(s, n[1], false), array(s, n[2]))) }
         case 'memberPresent': {
@@ -671,7 +695,7 @@ const valueTask = (context, value, result = false) => ({ kind: 'value', context,
 const blockTask = (context, b, result = false, functionBody = false, valueBlock = false) => ({ kind: 'block', context, block: b, result, functionBody, valueBlock })
 
 /** @type {(context: _Context, loop: readonly ['loop', LoopTarget, Block]) => readonly _Task[]} */
-const loopTasks = (context, loop) => [blockTask(context, loop[2])]
+const loopTasks = (context, loop) => [blockTask({ ...context, moduleInit: false }, loop[2])]
 
 /** @type {(context: _Context, step: Step<Value> | undefined, property: boolean, member: boolean) => _Task} */
 const stepTask = (context, step, property, member) => ({ kind: 'steps', context, step, property, member })
@@ -735,11 +759,14 @@ const children = task => {
             const st = task.statement
             switch (st[0]) {
                 case 'define': case 'slot': case 'write': { return [valueTask({ ...s, owner: st }, st[2])] }
-                case 'memo': { return [blockTask(s, st[1].initializer, false, false, true)] }
+                case 'memo': { return [blockTask({ ...s, moduleInit: false }, st[1].initializer, false, false, true)] }
                 case 'block': { return [blockTask(s, st[1])] }
                 case 'if': { return [valueTask(s, st[1]), blockTask(s, st[2]), blockTask(s, st[3])] }
                 case 'loop': { return loopTasks(s, st) }
-                case 'while': { return [valueTask(s, st[1].initial), valueTask(s, st[1].condition), blockTask(s, st[1].body)] }
+                case 'while': {
+                    const repeated = { ...s, moduleInit: false }
+                    return [valueTask(s, st[1].initial), valueTask(repeated, st[1].condition), blockTask(repeated, st[1].body)]
+                }
                 default: { throw ['not a statement', st] }
             }
         }
@@ -942,7 +969,7 @@ const moduleOwnership = root => {
 
 /** A prepared module/function body, retaining tagged text and import metadata. @type {(b: Block, options: Options, external?: readonly External[], native?: boolean) => Result<Scope, readonly unknown[]>} */
 export const scopeTagged = (b, options, external = [], native = false) => {
-    const task = blockTask({ ...options, native, bindings: external.map(e => [e.binding, [e.text, e.uses ?? []]]) }, b, true)
+    const task = blockTask({ ...options, native, moduleInit: native, bindings: external.map(e => [e.binding, [e.text, e.uses ?? []]]) }, b, true)
     const ids = namesOf(task)
     const declarations = mapEntries(ids.literals).map(([value, id]) => {
         const prefix = `${kw('static')} LITERAL_${id}: `
