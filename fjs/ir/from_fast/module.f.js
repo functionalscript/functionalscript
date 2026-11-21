@@ -168,6 +168,7 @@ import {
     make, match, mul, n, ne, neg, next, not, only, product, return_, signature, sub, terms, throw_, trap, true_, u,
 } from '../module.f.js'
 import { native } from '../native/module.f.js'
+import { records } from '../records/module.f.js'
 import { link, linkedName, uses } from './link/module.f.js'
 import { show } from '../print/module.f.js'
 
@@ -2356,5 +2357,8 @@ export const lower = (signatures, runtime = null) => ({ statements, exit }, impo
     const [constants] = candidates.reduceRight(keep, [[], everything.flatMap(([, f]) => reads(f.body))])
     /** @type {Module} */
     const m = { imports: interfaces, constants, functions: everything, exports: lowered.map(([key]) => key) }
-    return l1 === null ? ok(m) : link(l1)(m)
+    if (l1 === null) { return ok(m) }
+    // a program: L1's bodies linked in, then the objects that it only reads back split
+    const linked = link(l1)(m)
+    return linked[0] === 'error' ? linked : ok(records('l1.get')(linked[1]))
 }
