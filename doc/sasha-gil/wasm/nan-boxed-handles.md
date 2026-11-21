@@ -17,8 +17,10 @@ the handles `0` to `3`. Every other value, a number too, takes a slot:
 - `kind` and `to_f64` enter the thread-local state, set and clear its
   busy flag, check the generation and read the slot: about 8 ns each,
   of which the call itself is about 2.4 ns.
-- The handle layer is still 53% to 92% of every benchmark program but
-  `repeat`, and 90% or more of the numeric loops.
+- In the re-profile taken after the borrow, number and records levers
+  (#4054, commit `55870ce76b`), the handle layer is still 53% to 92% of
+  every benchmark program but `repeat`, and 90% or more of the numeric
+  loops.
 
 The programs never see a handle's bits. A module reads Any's constants
 from imported globals ([L0 design §3](./l0-design.md#3-constants-imported-immutable-globals)),
@@ -88,15 +90,19 @@ on NaNVM.
 
 | Option | How | Cost |
 | --- | --- | --- |
-| **A. Templates in the emitter** (recommended) | The WASM emitter holds the few instructions of each function for NaNVM's ABI version, picked by a compile option | Small: the seven functions are each 3 to 10 instructions |
-| B. Fragments from NaNVM's `.wasm` | NaNVM's `.wasm` lists its fragments in an `fjs.inline` section, and the compiler splices their bodies, as inline-fragments.md proposes | Medium: a fragment reader and inliner on `fjs/media/wasm` |
+| **A. Fragments from NaNVM's `.wasm`** (recommended) | NaNVM's `.wasm` lists its fragments in an `fjs.inline` section, and the compiler splices their bodies, as inline-fragments.md proposes | Medium: a fragment reader and inliner on `fjs/media/wasm` |
+| B. Templates in the emitter | The WASM emitter holds the few instructions of each function for NaNVM's ABI version, picked by a compile option | Small: the seven functions are each 3 to 10 instructions |
 | C. No inlining yet | Step 1 alone, measured first | None |
 
-A makes the bits a second time in FunctionalScript, which a parity test
-against NaNVM's exports keeps the same. B keeps one source of the bits,
-in Rust, and is the general form, but it needs the inliner first. A is a
-step on the way to B: the templates become the first fragments once the
-inliner exists.
+A keeps one source of the bits, NaNVM's Rust, and is the general form
+that the [modular runtime](./modular-runtime.md) needs anyway. B writes
+the bits a second time, in FunctionalScript: a parity test against
+NaNVM's exports checks the values it tries, but cannot stop the two from
+disagreeing on a pattern it does not try, and the repository's rules ask
+for one implementation, not a copy that can drift
+([AGENTS.md](../../../AGENTS.md), "Reuse code; export what you need").
+So B is cheaper only until the bits change once. C is a fine first
+step either way: step 1 is measured before step 2 starts.
 
 ## What changes for the misuse checks
 
@@ -134,6 +140,7 @@ Estimates, not measurements:
    NaNVM exports its four constants, so the JavaScript host reads them
    instead of writing `0` to `3`. The ABI's tests and the host proofs on
    the rebuilt `.wasm` pass, and the benchmark runs.
-2. **The emitter's specialized mode** (choice 3), with the proofs in both
-   modes, and the benchmark again.
+2. **The inliner and the specialized mode** (choice 3): NaNVM's `.wasm`
+   names its fragments, the compiler splices them, and the proofs run in
+   both modes, then the benchmark again.
 3. **The benchmark note** gets the new numbers.
