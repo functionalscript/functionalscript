@@ -171,6 +171,29 @@ fn division_by_zero_throws() {
 }
 
 #[test]
+#[cfg(panic = "unwind")]
+fn and_past_the_limit_throws() {
+    use super::super::{catch, has_thrown};
+    // NaNVM's `MAX_WORDS`, which its `vm::bigint` keeps private.
+    const MAX_WORDS: usize = 1 << 14;
+    fresh();
+    // The operands of the carry case of `bitand.rs`, at the last word NaNVM
+    // allows: their `&` is `-(2^(64 * MAX_WORDS))`, one word too long.
+    let at = |w: u64| {
+        let mut words = vec![0; MAX_WORDS];
+        words[MAX_WORDS - 1] = w;
+        make_bigint_of(-1, &words)
+    };
+    let (x, y) = (at(0xFFFF_FFFF_0000_0001), at(0x1_0000_0000));
+    let e = catch(|| bigint_and(x, y)).unwrap_err();
+    assert_eq!(text(e), "RangeError: Maximum BigInt size exceeded");
+    assert_eq!(has_thrown(), 0);
+    for h in [e, x, y] {
+        drop(h);
+    }
+}
+
+#[test]
 #[should_panic(expected = "l1.bigintAdd: not a bigint")]
 fn add_not_a_bigint() {
     fresh();
