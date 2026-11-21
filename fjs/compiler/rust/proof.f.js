@@ -25,7 +25,7 @@ const refusedByRust = ['An import', 'A named import and a call', 'A module impor
 
 export const proof = {
     nativeStrings: () => {
-        const value = 'x\ud800'
+        const value = /** @type {const} */ ('x\ud800')
         const rust = toText(unwrap(toRustMarked(['[]', [value, ['=>', 0, [], value], '']], true)))
         assertEq(rust.split('StaticString(&[0x0078, 0xd800])').length, 2)
         assertEq(rust.split('String::from_static(&LITERAL_0)').length, 3)
