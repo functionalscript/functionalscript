@@ -30,6 +30,25 @@ const rest = { index: 2 }
 const fn = { target: { kind: 'function', index: 0 }, parameters: [x], rest, self: y, captures: [], body: { statements: [], exit: ['return', { kind: 'function', index: 0 }, ['array', [['ref', x], ['ref', y], ['ref', rest]]]] } }
 
 export const proof = {
+    nativeOwnership: () => {
+        /** @type {(statements: Block['statements'], end: Value) => string} */
+        const print = (statements, end) => unwrap(scopeTagged({ statements, exit: ['yield', [end]] }, options, [], true)).lines.map(untagged).join('\n')
+        /** @type {Block['statements']} */
+        const aliases = [['define', x, 1], ['define', y, ['ref', x]]]
+        const once = print([...aliases, ['define', rest, ['array', [['ref', y]]]]], ['ref', rest])
+        assert(!once.includes('let _b1:'))
+        assert(once.includes('[_b0].to_array()'))
+        const twice = print([...aliases, ['define', rest, ['array', [['ref', y], ['ref', x]]]]], ['ref', rest])
+        assert(twice.includes('[_b0.clone(), _b0.clone()]'))
+        const later = print([...aliases, ['define', rest, ['array', [['ref', y]]]]], ['ref', x])
+        assert(later.includes('[_b0.clone()]'))
+        const slot = print([['slot', x, 1, true], ['define', y, ['ref', x]], ['write', x, 2]], ['ref', y])
+        assert(slot.includes('let _b1: Any<A> = _b0.clone();'))
+        const memo = print([['define', x, 1], ['memo', { binding: y, valueSlot: { index: 3 }, doneSlot: { index: 4 }, initializer: yielding([['ref', x]]) }], ['define', rest, ['array', [['ref', x]]]]], ['demand', y])
+        assert(memo.includes('[_b0.clone()]'))
+        const call = print([...aliases, ['define', rest, ['()', ['ref', y], []]]], ['ref', rest])
+        assert(call.includes('Any::call(_b0,'))
+    },
     nativeStrings: () => {
         const body = yielding([['array', ['hi', 'hi', ['function', fn]]]])
         const output = unwrap(scopeTagged(body, { ...options, text: () => 'hi' }, [], true))
