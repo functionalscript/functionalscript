@@ -107,11 +107,16 @@ export const proof = {
         const s = host(handles([1n, -(64n << 14n), 1n - (64n << 14n)]), () => 0n, e => { failed.push(e) })
         assertEq(thrown(() => s.bigintShiftRight(0n, 1n)), error.bigintTooLarge)
         assertEq(thrown(() => s.bigintShiftRight(0n, 2n)), undefined)
+        // Two negatives at NaNVM's last word whose `&` carries one word past it.
+        const top = 64n * ((1n << 14n) - 1n)
+        const t = host(handles([-(0xFFFF_FFFF_0000_0001n << top), -(0x1_0000_0000n << top)]), () => 0n, e => { failed.push(e) })
+        assertEq(thrown(() => t.bigintAnd(0n, 1n)), error.bigintTooLarge)
         assertEq(thrown(() => r.bigintEquals(0n, 5n)) === undefined, false)
-        assertEq(failed.length, 3)
+        assertEq(failed.length, 4)
         assertEq(failed[0], error.bigintTooLarge)
         assertEq(failed[1], error.divisionByZero)
         assertEq(failed[2], error.bigintTooLarge)
+        assertEq(failed[3], error.bigintTooLarge)
     },
     // Kind mismatch traps; division by zero is a FunctionalScript throw (fail records it when wired).
     throw: {

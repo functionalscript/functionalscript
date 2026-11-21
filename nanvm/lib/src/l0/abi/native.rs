@@ -134,9 +134,10 @@ pub fn bigint_shift_right(a: i64, b: i64) -> i64 {
     })
 }
 
-/// `&` of two bigints, as two's complement of infinite width.
+/// `&` of two bigints, as two's complement of infinite width; two negative
+/// operands may carry into a word past NaNVM's size limit, which throws.
 pub fn bigint_and(a: i64, b: i64) -> i64 {
-    arithmetic("bigintAnd", a, b, |x, y| Ok(x & y))
+    arithmetic("bigintAnd", a, b, |x, y| (x & y).within_limit())
 }
 
 /// `Number(b)` of a bigint: the nearest number.
