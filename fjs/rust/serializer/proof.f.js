@@ -40,6 +40,25 @@ export const proof = {
         assert(output.uses.vm.includes('StaticString'))
         assertEq(useLines(output.uses, null).join('\n').includes('null'), false)
     },
+    nativeKeys: () => {
+        const output = unwrap(scopeTagged(yielding([['object', [[':', 'default', 'default']]]]), options, [], true))
+        const lines = output.lines.map(untagged)
+        assertEq(lines.filter(line => line.startsWith('static ')).length, 1)
+        assert(lines[1].includes('(String::from_static(&LITERAL_0), String::from_static(&LITERAL_0).to_any())'))
+        /** @type {readonly Value[]} */
+        const values = [
+            ['.', ['object', []], 'a', ['|.', 'b', undefined]],
+            ['?.', ['object', []], '\ud800'], ['memberPresent', ['object', []], 'a'],
+            ['Boolean', 1], ['in', 'b', ['object', []]], ['slice'], ['Object.is'],
+        ]
+        const printed = unwrap(scopeTagged(yielding([['array', values]]), options, [], true))
+        assert(printed.uses.unstable.includes('static_read_keys'))
+        const rust = printed.lines.map(untagged).join('\n')
+        assert(!rust.includes('string_any') && !rust.includes('LITERAL_undefined'))
+        assert(rust.includes('StaticString(&[0xd800])'))
+        const core = unwrap(scopeTagged(yielding([['Math.abs']]), { ...options, runtime: null }, [], true))
+        assert(!core.lines.join('').includes('StaticString'))
+    },
     nativeBigInts: () => {
         const wide = /** @type {const} */ (0x1_0000_0000_0000_0002n)
         const body = yielding([['array', [0n, -1n, wide, wide]]])

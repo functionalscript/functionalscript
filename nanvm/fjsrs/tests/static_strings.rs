@@ -19,6 +19,7 @@ fn closures_and_common_runtime_share_the_native_vm() {
         call("default"),
         Any::from("very long stringvery long string")
     );
+    assert_eq!(call("defaultKey"), Any::from("default"));
     assert_eq!(call("same"), true.to_any());
     let integers = Array::try_from(call("integers")).unwrap();
     for (i, expected) in ["0", "-1", "18446744073709551618", "18446744073709551618"]
