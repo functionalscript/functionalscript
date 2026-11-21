@@ -204,3 +204,17 @@ fn string_to_bigint_of_no_bigint() {
     fresh();
     string_to_bigint(string("1.5"));
 }
+
+#[test]
+#[should_panic(expected = "l1.stringToBigInt: no bigint")]
+fn string_to_bigint_of_hex() {
+    fresh();
+    string_to_bigint(string("0x10"));
+}
+
+#[test]
+#[should_panic(expected = "l1.stringToBigInt: no bigint")]
+fn string_to_bigint_of_a_sign_alone() {
+    fresh();
+    string_to_bigint(string("-"));
+}

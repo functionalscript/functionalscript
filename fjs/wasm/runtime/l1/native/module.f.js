@@ -74,19 +74,18 @@ export const numberToString = n => String(asNumber(n))
 export const stringToNumber = s => Number(asString(s))
 
 /**
- * [`StringToBigInt`](https://tc39.es/ecma262/#sec-stringtobigint): the
- * bigint that a string's text spells, which a program's bigint literal is
- * made of. A text that spells none traps.
+ * The bigint that a decimal integer's text spells, an optional `-` and one
+ * digit or more, which a program's bigint literal is made of: of
+ * [`StringToBigInt`](https://tc39.es/ecma262/#sec-stringtobigint), only
+ * the decimal integers, so that any other text traps without a `catch`.
  *
  * @type {(s: unknown) => bigint}
  */
 export const stringToBigInt = s => {
     const t = asString(s)
-    try {
-        return BigInt(t)
-    } catch {
-        throw 'l1.stringToBigInt: no bigint'
-    }
+    const digits = t.startsWith('-') ? t.slice(1) : t
+    if (digits === '' || !digits.split('').every(c => c >= '0' && c <= '9')) { throw 'l1.stringToBigInt: no bigint' }
+    return BigInt(t)
 }
 
 /**

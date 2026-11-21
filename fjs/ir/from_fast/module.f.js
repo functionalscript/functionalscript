@@ -1667,7 +1667,7 @@ const viaL1 = (lowerValue, scope, name, fits, vs, native, wrap = x => x) => {
     const types = ts[1]
     /** L1's call of the operands, each float or boolean boxed. @type {(ys: readonly Term[]) => Term} */
     const slow = ys => wrap(call('self', f, ys.map((y, k) => assertNotNullish(asAny(types[Number(k)], y)))))
-    if (!types.every(t => isAny(t) || isFloat(t) || equal(t, bool))) { return refuse(scope)(`${name} of ${types.map(show).join(' and ')} is not in this slice`) }
+    if (xs[1].some((x, k) => asAny(types[Number(k)], x) === null)) { return refuse(scope)(`${name} of ${types.map(show).join(' and ')} is not in this slice`) }
     return (numberOps.includes(name) ? numberPath(pure, scope, xs[1], types, native, slow) : null) ?? ok(slow(xs[1]))
 }
 

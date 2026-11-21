@@ -136,7 +136,8 @@ export const proof = {
         ].join('\n'))
         // `Number` and `String` of `any` call L1's `number` and `toString`; of a float and of a string, they are it.
         assertEq(program('export const f = () => Number(2n)'), 'fn f() -> any =\n    Any.from_f64(float(2))\n\nexport f\n')
-        assertEq(assertError(over({}, 'export const f = () => Number(9007199254740993n)', programRuntime)), 'f: number of int(9007199254740993, 9007199254740993) is not in this slice')
+        // A bigint wider than ±2^53 is L1's to convert, which rounds it.
+        assertEq(program('export const f = () => Number(9007199254740993n)'), 'fn f() -> any =\n    Any.from_f64(l1.number(Native.stringToBigInt("9007199254740993")))\n\nfn l1.number(v: any) -> f64 =\n    0.0\n\nexport f\n')
         assertEq(program('export const f = (a, b) => [Number(a), Number(1), `x${b}`, String("y")]'), [
             'fn f(p0: any, p1: any) -> any =',
             '    let #0 = l1.number(p0)',

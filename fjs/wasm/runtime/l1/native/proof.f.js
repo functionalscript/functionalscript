@@ -48,11 +48,11 @@ export const proof = {
         assertEq(stringToNumber('-Infinity'), -Infinity)
         assert(Number.isNaN(stringToNumber('1n')))
     },
-    // `stringToBigInt` is `BigInt` of a string.
+    // `stringToBigInt` is `BigInt` of a decimal integer's text.
     stringToBigInt: () => {
         assertEq(stringToBigInt('-18412322765356148968355179291658'), -18412322765356148968355179291658n)
-        assertEq(stringToBigInt(' 0x10 '), 16n)
-        assertEq(stringToBigInt(''), 0n)
+        assertEq(stringToBigInt('0'), 0n)
+        assertEq(stringToBigInt('-007'), -7n)
     },
     // `bigintToString` is `String` of a bigint.
     bigintToString: () => {
@@ -103,6 +103,9 @@ export const proof = {
         bigintAnd: () => { bigintAnd(1n, 1) },
         bigintToNumber: () => { bigintToNumber(1) },
         stringToBigIntNone: () => { stringToBigInt('1.5') },
+        stringToBigIntHex: () => { stringToBigInt('0x10') },
+        stringToBigIntEmpty: () => { stringToBigInt('') },
+        stringToBigIntSign: () => { stringToBigInt('-') },
         stringToBigInt: () => { stringToBigInt(1) },
         numberShiftRight: () => { numberShiftRight('1', 1) },
         numberAnd: () => { numberAnd(1, 1n) },

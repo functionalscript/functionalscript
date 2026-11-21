@@ -14,7 +14,7 @@
 #[cfg(test)]
 mod test;
 
-use super::{get, put, throw};
+use super::{get, length, put, read_units_into, throw};
 use crate::vm::{Any, BigInt, Number, ToAny, Unpacked};
 
 type V = Any<crate::naive::Naive>;
@@ -89,13 +89,21 @@ pub fn string_to_number(s: i64) -> f64 {
     )
 }
 
-/// `BigInt(s)` of a string: `StringToBigInt`; a text that spells no bigint
-/// traps.
+/// The bigint of a decimal integer's text, an optional `-` and one digit
+/// or more, as L1's body takes it; any other text traps.
 pub fn string_to_bigint(s: i64) -> i64 {
     let name = "stringToBigInt";
-    match string(name, s).bigint() {
-        Ok(b) => put(b),
-        Err(_) => trap(name, "no bigint"),
+    let text = string(name, s);
+    let mut units: Vec<u16> = core::iter::repeat_n(0, length(s) as usize).collect();
+    read_units_into(s, 0, &mut units);
+    let digits = units.strip_prefix(&[u16::from(b'-')]).unwrap_or(&units);
+    let decimal = !digits.is_empty()
+        && digits
+            .iter()
+            .all(|&c| (u16::from(b'0')..=u16::from(b'9')).contains(&c));
+    match text.bigint() {
+        Ok(b) if decimal => put(b),
+        _ => trap(name, "no bigint"),
     }
 }
 
