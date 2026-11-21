@@ -74,7 +74,7 @@ export const host = (read, make, fail) => {
         numberAnd: (a, b) => numberAnd(a, b),
         numberToString: n => make(numberToString(n)),
         stringToNumber: s => stringToNumber(read(s)),
-        stringToBigInt: s => make(stringToBigInt(read(s))),
+        stringToBigInt: s => sized(() => stringToBigInt(read(s))),
         bigintToString: b => make(bigintToString(read(b))),
         bigintAdd: (a, b) => sized(() => bigintAdd(read(a), read(b))),
         bigintSubtract: (a, b) => sized(() => bigintSubtract(read(a), read(b))),

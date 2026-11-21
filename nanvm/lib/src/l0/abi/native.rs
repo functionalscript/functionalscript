@@ -90,7 +90,8 @@ pub fn string_to_number(s: i64) -> f64 {
 }
 
 /// The bigint of a decimal integer's text, an optional `-` and one digit
-/// or more, as L1's body takes it; any other text traps.
+/// or more, as L1's body takes it; any other text traps, and one past
+/// NaNVM's size limit throws its `RangeError`.
 pub fn string_to_bigint(s: i64) -> i64 {
     let name = "stringToBigInt";
     let text = string(name, s);
@@ -101,10 +102,10 @@ pub fn string_to_bigint(s: i64) -> i64 {
         && digits
             .iter()
             .all(|&c| (u16::from(b'0')..=u16::from(b'9')).contains(&c));
-    match text.bigint() {
-        Ok(b) if decimal => put(b),
-        _ => trap(name, "no bigint"),
+    if !decimal {
+        trap(name, "no bigint")
     }
+    answer(text.bigint())
 }
 
 /// `String(b)` of a bigint.
