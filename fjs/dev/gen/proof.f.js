@@ -97,7 +97,7 @@ const root = {
     },
     'nanvm': {
         'harness': { 'fixtures': {} },
-        'fjsrs': { 'tests': { 'static-strings.mjs': [utf8('export default 1;')] } },
+        'fjsrs': { 'tests': { 'static-strings.f.js': [utf8('export default 1;')] } },
     },
     'fjs': {
         'js': { 'runtime': { 'module.f.js': [utf8('export const statics = {}; export const runtime = {};')] } },

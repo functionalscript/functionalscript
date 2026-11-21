@@ -533,9 +533,10 @@ const operation = (s, n, result) => {
 
 /** Immediate value spelling reads only its already completed children. @type {(s: _Context, v: Value, result: boolean) => Result<Printed<string>, readonly unknown[]>} */
 const expressionReady = (s, v, result) => {
-    if (s.native && typeof v === 'string') {
-        const id = mapGet(/** @type {_Names} */ (s.names).strings, v)
-        return map1(pure(result))(ok(cat([vm('String'), `::from_static(&STRING_${id})`, toAny])))
+    if (s.native && (typeof v === 'string' || typeof v === 'bigint')) {
+        const id = mapGet(/** @type {_Names} */ (s.names).literals, v)
+        const type = typeof v === 'string' ? 'String' : 'BigInt'
+        return map1(pure(result))(ok(cat([vm(type), `::from_static(&LITERAL_${id})`, toAny])))
     }
     if (!(v instanceof Array)) { return map1(pure(result))(primitiveExpr(v)) }
     switch (v[0]) {
@@ -835,20 +836,20 @@ const namesOf = root => {
     let bindings = null
     /** @type {List<readonly LoopTarget[]>} */
     let loops = null
-    /** @type {PersistentMap<string, number>} */
-    let strings = empty
+    /** @type {PersistentMap<string | bigint, number>} */
+    let literals = empty
     while (pending !== null) {
         /** @type {NonNullable<Stack<_Task>>} */
         const { top, rest } = pending
-        if (root.context.native && top.kind === 'value' && typeof top.value === 'string' && !mapHas(strings, top.value)) {
-            strings = mapSet(strings, top.value, size(strings))
+        if (root.context.native && top.kind === 'value' && (typeof top.value === 'string' || typeof top.value === 'bigint') && !mapHas(literals, top.value)) {
+            literals = mapSet(literals, top.value, size(literals))
         }
         bindings = { first: instructionBindings(top), tail: bindings }
         loops = { first: instructionLoops(top), tail: loops }
         pending = pushAll(children(top), rest)
     }
     return {
-        strings,
+        literals,
         bindings: identityNames(setValues(fromValues(listToArray(bindings).toReversed().flat())), '_b'),
         loops: identityNames(setValues(fromValues(listToArray(loops).toReversed().flat())), '_loop'),
     }
@@ -867,13 +868,17 @@ const names = uses => ({
 export const scopeTagged = (b, options, external = [], native = false) => {
     const task = blockTask({ ...options, native, bindings: external.map(e => [e.binding, [e.text, e.uses ?? []]]) }, b, true)
     const ids = namesOf(task)
-    const declarations = mapEntries(ids.strings).map(([value, id]) =>
-        `${kw('static')} STRING_${id}: StaticString = StaticString(${slice(utf16Units(value))});`)
+    const declarations = mapEntries(ids.literals).map(([value, id]) => {
+        const prefix = `${kw('static')} LITERAL_${id}: `
+        return typeof value === 'string'
+            ? cat([prefix, vm('StaticString'), ` = StaticString(${slice(utf16Units(value))});`])
+            : cat([prefix, vm('StaticBigInt'), ` = StaticBigInt { sign: nanvm_lib::sign::Sign::${value < 0n ? 'Negative' : 'Positive'}, words: ${slice(u64WordItems(value))} };`])
+    })
     const rendered = /** @type {Result<Printed<readonly string[]>, readonly unknown[]>} */ (
         spellingWalk({ ...task, context: { ...task.context, names: ids } }))
     return mapOk((/** @type {Printed<readonly string[]>} */ [parts, uses]) => ({
-        lines: [...declarations, ...parts.flatMap(p => p.split('\n'))],
-        uses: names(declarations.length === 0 ? uses : [...uses, ['vm', 'StaticString']]),
+        lines: [...declarations.map(([text]) => text), ...parts.flatMap(p => p.split('\n'))],
+        uses: names([...uses, ...declarations.flatMap(([, imports]) => imports)]),
     }))(rendered)
 }
 

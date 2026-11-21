@@ -142,7 +142,8 @@ and the same data is a data segment in WebAssembly.
 - [x] Strings first (native application output): `StaticString` to `String<A>`, the naive VM keeping
   the reference, and the Rust serializer writing string constants as
   statics.
-- [ ] Emit big integers, arrays, objects and functions in the serializer.
+- [x] Emit big integer literals in native application output.
+- [ ] Emit arrays, objects and functions in the serializer.
 - [ ] Have the Rust serializer write constants as statics.
 
 ### Related
