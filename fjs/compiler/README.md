@@ -80,7 +80,7 @@ mod program {
 
 Call `nanvm_lib::vm::exports(program::module)` to supply the common runtime.
 The native serializer shares one UTF-16 descriptor across uses of the same string
-as a value, an export or property key, a member name, or a runtime lookup key.
+as a value, an export or property key, a member name, a runtime lookup key, or function source text.
 Each distinct BigInt literal has a static sign and little-endian magnitude, shared across reads.
 The ordinary `.rs` target emits a generic `module<A>` for callers that
 choose their VM at the call site.

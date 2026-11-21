@@ -67,6 +67,13 @@ pub trait IVm: Sized + Clone + From<Unpacked<Self>> + 'static {
         frame: Array<Self>,
         text: Option<&'static str>,
     ) -> Function<Self>;
+    /// Bind a function whose source text is already a VM string.
+    fn function_with_text(
+        code: StaticCode<Self>,
+        length: u32,
+        frame: Array<Self>,
+        text: Option<crate::vm::String<Self>>,
+    ) -> Function<Self>;
     /// The frame `static_function` was given, read by the code through its `self_`.
     fn frame(self_: &Self::InternalFunction) -> &Array<Self>;
 }

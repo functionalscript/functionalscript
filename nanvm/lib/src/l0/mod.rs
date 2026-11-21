@@ -441,7 +441,7 @@ pub fn text<A: IVm>(f: &Any<A>) -> Any<A> {
     as_function("text", f)
         .internal()
         .text()
-        .map_or_else(Any::undefined, Any::from)
+        .map_or_else(Any::undefined, |s| s.to_any())
 }
 
 // Identity.

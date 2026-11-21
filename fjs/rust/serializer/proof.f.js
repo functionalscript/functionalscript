@@ -32,10 +32,10 @@ const fn = { target: { kind: 'function', index: 0 }, parameters: [x], rest, self
 export const proof = {
     nativeStrings: () => {
         const body = yielding([['array', ['hi', 'hi', ['function', fn]]]])
-        const output = unwrap(scopeTagged(body, options, [], true))
+        const output = unwrap(scopeTagged(body, { ...options, text: () => 'hi' }, [], true))
         const lines = output.lines.map(untagged)
         assertEq(lines[0], 'static LITERAL_0: StaticString = StaticString(&[0x0068, 0x0069]);')
-        assertEq(lines.join('\n').split('String::from_static(&LITERAL_0)').length, 3)
+        assertEq(lines.join('\n').split('String::from_static(&LITERAL_0)').length, 4)
         assert(output.uses.vm.includes('IVm'))
         assert(output.uses.vm.includes('StaticString'))
         assertEq(useLines(output.uses, null).join('\n').includes('null'), false)
@@ -49,7 +49,7 @@ export const proof = {
         const values = [
             ['.', ['object', []], 'a', ['|.', 'b']],
             ['?.', ['object', []], '\ud800'], ['memberPresent', ['object', []], 'a'],
-            ['Boolean', 1], ['in', 'b', ['object', []]], ['slice'], ['Object.is'],
+            ['Boolean', 1], ['in', 'b', ['object', []]], ['slice'], ['refMap'], ['Object.is'],
         ]
         const printed = unwrap(scopeTagged(yielding([['array', values]]), options, [], true))
         assert(printed.uses.unstable.includes('static_read_keys'))
@@ -57,7 +57,8 @@ export const proof = {
         assert(!rust.includes('string_any') && !rust.includes('LITERAL_undefined'))
         assert(rust.includes('StaticString(&[0xd800])'))
         const core = unwrap(scopeTagged(yielding([['Math.abs']]), { ...options, runtime: null }, [], true))
-        assert(!core.lines.join('').includes('StaticString'))
+        assert(core.lines.join('').includes('StaticString'))
+        assert(!rust.includes('\"') && !core.lines.map(untagged).join('').includes('\"'))
     },
     nativeBigInts: () => {
         const wide = /** @type {const} */ (0x1_0000_0000_0000_0002n)

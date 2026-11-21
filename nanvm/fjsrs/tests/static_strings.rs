@@ -8,6 +8,8 @@ mod fixture {
 #[test]
 fn closures_and_common_runtime_share_the_native_vm() {
     let module = exports(fixture::module).unwrap();
+    let exported = Function::try_from(module.own_property(&"default".into()).unwrap()).unwrap();
+    assert_eq!(exported.text().unwrap(), "()=>$0()".into());
     let call = |name: &str| {
         let value = module.own_property(&name.into()).unwrap();
         Function::try_from(value)

@@ -103,8 +103,8 @@ fn call<A: IVm>(self_: &A::InternalFunction, args: Array<A>) -> Result<Any<A>, A
 }
 
 /// The map whose trie is `root`.
-fn map<A: IVm>(root: Any<A>, text: Option<&'static str>) -> Any<A> {
-    A::static_function(call::<A>, 2, [root].to_array(), text).to_any()
+fn map<A: IVm>(root: Any<A>, text: Option<crate::vm::String<A>>) -> Any<A> {
+    A::function_with_text(call::<A>, 2, [root].to_array(), text).to_any()
 }
 
 /// A new empty reference map: what a compiled module spells where the
@@ -112,6 +112,11 @@ fn map<A: IVm>(root: Any<A>, text: Option<&'static str>) -> Any<A> {
 /// as a closure is. `text` is the map's text, which every map made from
 /// this one answers `String(m)` with.
 pub fn ref_map<A: IVm>(text: Option<&'static str>) -> Any<A> {
+    ref_map_with_text(text.map(Into::into))
+}
+
+/// Create a reference map with source text held in a VM string.
+pub fn ref_map_with_text<A: IVm>(text: Option<crate::vm::String<A>>) -> Any<A> {
     map(Any::undefined(), text)
 }
 

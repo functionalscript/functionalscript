@@ -51,6 +51,14 @@ impl IVm for InspectVm {
         Function::new(InspectFunction(Rc::new(frame)))
     }
 
+    fn function_with_text(
+        _: StaticCode<Self>,
+        _: u32,
+        frame: Array<Self>,
+        _: Option<crate::vm::String<Self>>,
+    ) -> Function<Self> {
+        Function::new(InspectFunction(Rc::new(frame)))
+    }
     fn frame(self_: &Self::InternalFunction) -> &Array<Self> {
         &self_.0
     }
@@ -123,7 +131,7 @@ impl IFunction<InspectVm> for InspectFunction {
         0
     }
 
-    fn text(&self) -> Option<&'static str> {
+    fn text(&self) -> Option<crate::vm::String<InspectVm>> {
         None
     }
 }

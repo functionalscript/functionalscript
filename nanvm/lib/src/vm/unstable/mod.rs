@@ -2,7 +2,7 @@
 
 mod ref_map;
 
-pub use ref_map::ref_map;
+pub use ref_map::{ref_map, ref_map_with_text};
 
 use crate::{
     sign::Sign,
