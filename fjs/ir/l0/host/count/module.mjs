@@ -53,14 +53,13 @@
  *   string or `undefined`, and makes a cell of a function whose `length`
  *   is the one given. A call of the function, from `call` or from
  *   JavaScript, makes a cell of the function itself and one of its
- *   arguments array, calls the code at its index in the table that
- *   `attach` gives, the module's `table` export, with both borrowed, and
- *   frees them after. A throw of the code keeps its value, so the
+ *   arguments array, calls the code at its index in the table that the
+ *   host makes, with both borrowed, and frees them after. A throw of the code keeps its value, so the
  *   function throws that value, which `call` keeps again. `frame(self, i)`
  *   makes a cell of item `i` of the frame, and `text` answers the text
  *   given. A frame that is not an array, a text that is not a string, a
  *   `frame` of a function that `make_function` did not make, or past its
- *   frame, and a call before `attach`, throw.
+ *   frame, and a call of an index that holds no code, throw.
  * - **A throw keeps its value**
  *   ([L0 design §13](../../../../../doc/sasha-gil/wasm/l0-design.md#13-errors-a-throw-traps)):
  *   `throw` takes over a cell, as `push` does, keeps its value and
@@ -79,7 +78,9 @@
  *   ([L0 design §5](../../../../../doc/sasha-gil/wasm/l0-design.md#5-memory-and-table-made-by-the-loader-imported-by-both-modules)):
  *   the region of a module's data segments starts at `data_base`, past
  *   bytes that the host keeps for itself, and holds as many bytes as the
- *   module's `fjs.layout` asks for. `make_string(ptr, len)` makes a cell of
+ *   module's `fjs.layout` asks for. It makes the table too, of as many
+ *   entries as the layout asks for, which the module fills from
+ *   `table_base`, `0`. `make_string(ptr, len)` makes a cell of
  *   the string of the `len` UTF-16 units at `ptr`, the low byte of each
  *   first, and throws where they reach past the memory.
  *
@@ -107,11 +108,12 @@ const dataBase = 0x100
 /**
  * A counting host whose first cells are `values`, each counted once, and
  * whose memory holds `data` bytes of a module's data segments at
- * `data_base`.
+ * `data_base`, and whose table holds `entries` of its code at
+ * `table_base`.
  *
- * @type {(values: readonly unknown[], data?: number) => Counting}
+ * @type {(values: readonly unknown[], data?: number, entries?: number) => Counting}
  */
-export const counting = (values, data = 0) => {
+export const counting = (values, data = 0, entries = 0) => {
     /** @type {Map<bigint, { readonly value: unknown, readonly count: number }>} */
     const cells = new Map(values.map((value, k) => [BigInt(k), { value, count: 1 }]))
     /** The count at which each kept cell was kept. @type {Map<bigint, number>} */
@@ -182,8 +184,8 @@ export const counting = (values, data = 0) => {
     let held = null
     /** The frame and the text of each function that `make_function` made. @type {WeakMap<object, { readonly items: readonly unknown[], readonly text: string | undefined }>} */
     const made = new WeakMap()
-    /** The module's table of code, which `attach` gives. @type {WebAssembly.Table | null} */
-    let table = null
+    /** The table of the module's code, which it fills from `table_base`. */
+    const table = new WebAssembly.Table({ element: 'anyfunc', initial: entries })
     const v = view(read)
     const memory = new WebAssembly.Memory({ initial: Math.ceil((dataBase + data) / 0x1_0000) })
     /** @type {(ptr: number, len: number) => string} */
@@ -196,6 +198,8 @@ export const counting = (values, data = 0) => {
         imports: {
             memory,
             data_base: new WebAssembly.Global({ value: 'i32', mutable: false }, dataBase),
+            table,
+            table_base: new WebAssembly.Global({ value: 'i32', mutable: false }, 0),
             make_string: (ptr, len) => make(units(ptr, len)),
             undefined: constant(-1n, undefined),
             null: constant(-2n, null),
@@ -264,8 +268,7 @@ export const counting = (values, data = 0) => {
                 drop(text)
                 /** @type {(...args: unknown[]) => unknown} */
                 const fn = (...args) => {
-                    if (table === null) { throw 'fjs:l0 host: make_function before attach' }
-                    const c = table.get(code)
+                    const c = code >= 0 && code < table.length ? table.get(code) : null
                     if (typeof c !== 'function') { throw 'fjs:l0 host: make_function of no code' }
                     const self = make(fn)
                     const a = make(args)
@@ -320,7 +323,6 @@ export const counting = (values, data = 0) => {
             },
         },
         first: values.map((_, k) => BigInt(k)),
-        attach: t => { table = t },
         has_thrown: () => held === null ? 0 : 1,
         thrown: () => {
             if (held === null) { throw 'fjs:l0 host: nothing was thrown' }

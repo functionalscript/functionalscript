@@ -30,8 +30,9 @@
  * where both take as many parameters and, after the call's cells are
  * checked, answer the same or throw the same on each of a few probes, to
  * a depth of three functions that answer functions
- * ([slice 11b](../todo/slices.md)). The module's table, where it exports
- * one, is given to the host, whose `make_function` calls code through it.
+ * ([slice 11b](../todo/slices.md)). The host makes the module's table too,
+ * of as many entries as its `fjs.layout` asks for, and its
+ * `make_function` calls code through it.
  *
  * @module
  *
@@ -53,7 +54,7 @@ import { emit } from './module.f.js'
  * The host that `run` makes for each call: the counting host, unless
  * `onHost` gives another for a while.
  *
- * @type {(values: readonly unknown[], data?: number) => Counting}
+ * @type {(values: readonly unknown[], data?: number, entries?: number) => Counting}
  */
 let host = counting
 
@@ -64,13 +65,13 @@ let made = 0
  * Runs `f` with `run` making its hosts with `h`, as the [NaNVM
  * host](../l0/host/nanvm/module.mjs) does, and answers how many it made.
  *
- * @type {(h: (values: readonly unknown[], data?: number) => Counting, f: () => void) => number}
+ * @type {(h: (values: readonly unknown[], data?: number, entries?: number) => Counting, f: () => void) => number}
  */
 export const onHost = (h, f) => {
     const before = host
-    host = (values, data) => {
+    host = (values, data, entries) => {
         made += 1
-        return h(values, data)
+        return h(values, data, entries)
     }
     made = 0
     try {
@@ -371,14 +372,15 @@ const ulebs = bytes => {
 }
 
 /**
- * The bytes of data segments that a module's `fjs.layout` asks for, `0`
- * where it has none.
+ * What a module's `fjs.layout` asks for: the bytes of its data segments
+ * and the entries of its table, `0` each where it has none.
  *
- * @type {(m: WebAssembly.Module) => number}
+ * @type {(m: WebAssembly.Module) => { readonly data: number, readonly entries: number }}
  */
-export const dataOf = m => {
+export const layoutOf = m => {
     const [section] = WebAssembly.Module.customSections(m, 'fjs.layout')
-    return section === undefined ? 0 : ulebs(new Uint8Array(section))[0]
+    const [data = 0, , entries = 0] = section === undefined ? [] : ulebs(new Uint8Array(section))
+    return { data, entries }
 }
 
 /**
@@ -403,16 +405,15 @@ export const run = (m, twins, inputs, abandons = []) => {
     const bytes = new Uint8Array(write(emit(checked)))
     assert(WebAssembly.validate(bytes))
     const compiled = new WebAssembly.Module(bytes)
-    const data = dataOf(compiled)
+    const { data, entries } = layoutOf(compiled)
     for (const name of checked.exports) {
         const [, { params, result, fails }] = assertNotNullish(checked.functions.find(([k]) => k === name))
         const twin = assertNotNullish(twins[name], name)
         for (const xs of inputs[name] ?? product(params.map(([, t]) => edges(t)))) {
             const values = xs.flatMap(v => isAny(v) ? [v.any] : [])
-            const h = host(values, data)
+            const h = host(values, data, entries)
             const { exports } = new WebAssembly.Instance(compiled, { 'fjs:l0': h.imports, 'fjs:l1-native': h.native ?? nativeHost(h.read, h.own, h.fail) })
-            const { init, table } = exports
-            if (table instanceof WebAssembly.Table) { h.attach(table) }
+            const { init } = exports
             if (typeof init === 'function') { init() }
             h.keep()
             const f = exports[name]

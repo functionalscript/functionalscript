@@ -115,9 +115,8 @@ export const proof = {
         assertEq(why(withConstants([['k', { type: product([['a', f64]]), value: make([['a', one_]]) }]])), 'k: { a: f64 } is not in this slice')
         assertEq(why(withConstants([['k', { type: f64, value: one_ }], ['k', { type: f64, value: one_ }]])), 'two constants are named k')
         assertEq(why(withConstants([], [['init', fn([], f64, one_)]])), 'init is the function that evaluates the constants, so no function has that name')
-        // The module exports its table of code as `table`, so no function is exported by that name; one that is not exported may have it.
-        assertEq(why({ imports: [], functions: [['table', fn([], f64, one_)]], exports: ['table'] }), 'table is the export of the table of code, so no export has that name')
-        assertOk(check({ imports: [], functions: [['table', fn([], f64, one_)]], exports: [] }))
+        // The loader makes the table of code, and the module exports none, so a function may be exported as `table`.
+        assertOk(check({ imports: [], functions: [['table', fn([], f64, one_)]], exports: ['table'] }))
         // `init` evaluates the constants in their order, so each reads only those before it, itself or through the functions that it calls.
         assertEq(why(withConstants([['j', { type: f64, value: self('k') }], ['k', { type: f64, value: one_ }]])), 'j: k is read before init evaluates it')
         assertEq(why(withConstants([['k', { type: f64, value: self('k') }]])), 'k: k is read before init evaluates it')
