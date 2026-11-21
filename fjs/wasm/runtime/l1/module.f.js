@@ -20,7 +20,9 @@
  * operators `+ - * /` and unary `-`, the relations `< <= > >=`, the
  * member read `a[k]`, a call of an unknown value, and the iterations:
  * array spread, `for...of` and array destructuring of an unknown value
- * through `toIterable`, and object spread through `objectSpread`.
+ * through `toIterable`, and object spread through `objectSpread`; and the
+ * method calls `charCodeAt`, `at`, `every` and `filter`, which a program
+ * calls with the receiver, since NaNVM reads no prototype member.
  *
  * A thrown value is one of [`error`](./error/module.f.js), each the text
  * NaNVM throws for the same case, so a native substitution and its body

@@ -72,6 +72,8 @@ const standIn = {
         ['call', fn([['f', any], ['args', any]], any, get('f'))],
         ['toIterable', fn(anyOne, array, cast(array, get('v'), 'v.array', x => x))],
         ['objectSpread', fn(anyOne, container, cast(container, get('v'), 'v.container', x => x))],
+        ...['charCodeAt', 'at', 'every', 'filter'].map(k => /** @type {const} */ ([k, fn(anyTwo, any, get('a'))])),
+        ['requireObjectCoercible', fn(anyOne, any, get('v'))],
         ['unused', fn([], any, constant('Any', 'null'))],
     ],
     exports: [],
@@ -868,6 +870,58 @@ export const proof = {
         assertEq(assertError(over(only([['v', any]], any), 'export const f = v => v?.a')), 'f: ?. is not in this slice')
     },
     // The originals of slice 11a, which the host proof runs against what the lowering makes of them.
+    // A call of a method that L1 has an operation for is that operation of
+    // the receiver and the argument.
+    methods: () => {
+        assertEq(program('export const f = s => s.charCodeAt(0)'), [
+            'fn f(p0: any) -> any =',
+            '    l1.charCodeAt(p0, Any.from_f64(0.0))',
+            '',
+            'fn l1.charCodeAt(a: any, b: any) -> any =',
+            '    a',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // A receiver that may be `undefined` is checked before an argument that does something.
+        assertEq(program('export const f = (s, i) => s.charCodeAt(i >> 3)'), [
+            'fn f(p0: any, p1: any) -> any =',
+            '    let #0 = l1.requireObjectCoercible(p0)',
+            '    let #1 = l1.shiftRight(p1, Any.from_f64(3.0))',
+            '    l1.charCodeAt(#0, #1)',
+            '',
+            'fn l1.shiftRight(a: any, b: any) -> any =',
+            '    a',
+            '',
+            'fn l1.charCodeAt(a: any, b: any) -> any =',
+            '    a',
+            '',
+            'fn l1.requireObjectCoercible(v: any) -> any =',
+            '    v',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // Neither a binding, an arrow, nor a receiver that is never nullish is checked.
+        for (const [text, name] of [['(s, i) => s.at(i)', 'at'], ['a => a.filter(x => x)', 'filter'], ['a => a.every(x => x)', 'every'], ["() => 'ab'.charCodeAt(1 + 1)", 'charCodeAt']]) {
+            const t = program(`export const f = ${text}`)
+            assertEq(t.includes(`l1.${name}(`), true, text)
+            assertEq(t.includes('requireObjectCoercible'), false, text)
+        }
+        // A receiver of no `any` is read and called as any callee is.
+        assertEq(assertError(over({}, 'export const f = () => (1n + 2n).at(0)', programRuntime)), 'f: .at of int(3, 3) is not in this slice')
+        assertEq(program('export const f = () => ({ at: 1 }).at(0)').includes('l1.call(\n        Any.from_f64(1.0),'), true)
+        // A float receiver is boxed, and is never nullish.
+        assertEq(program('export const f = () => (1.5).at(0)').includes('l1.at(Any.from_f64(1.5), Any.from_f64(0.0))'), true)
+        // A missing field of a record fails, as the receiver or as the argument.
+        assertEq(assertError(over({}, 'export const f = () => ({ a: 1 }).b.at(0)', programRuntime)), 'f: { a: f64c } has no field b')
+        assertEq(assertError(over({}, 'export const f = s => s.at(({ a: 1 }).b)', programRuntime)), 'f: { a: f64c } has no field b')
+        assertEq(assertError(over({}, 'export const f = s => s.charCodeAt()', programRuntime)), 'f: a call of the method charCodeAt with other than one argument is not in this slice')
+        assertEq(assertError(over({}, 'export const f = s => s.at(...s)', programRuntime)), 'f: a call of the method at with other than one argument is not in this slice')
+        assertEq(assertError(over({}, 'export const f = s => s.at(1n + 2n)', programRuntime)), 'f: the argument of the method at is int(3, 3)')
+        assertEq(assertError(over({}, 'export const f = s => s.at(2n ** 2n)', programRuntime)), 'f: ** is not in this slice')
+        assertEq(assertError(over({}, 'export const f = () => (2n ** 2n).at(0)', programRuntime)), 'f: ** is not in this slice')
+    },
     programOriginals: () => {
         assertEq(sum3P(1, 2, 3), 6)
         assertEq(sum3P('a', 1, 2), 'a12')
