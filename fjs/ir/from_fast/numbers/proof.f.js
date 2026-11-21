@@ -2,8 +2,6 @@
  * Proofs of [the number paths](./module.f.js): the type predicates, the
  * depth after a term's locals, and each way `numberPath` answers.
  *
- * @module
- *
  * @import { Result } from '../../../types/result/types.ts'
  * @import { Param, Term, Type } from '../../types.ts'
  * @import { _Scope } from '../private.ts'
