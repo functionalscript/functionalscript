@@ -7,6 +7,7 @@ import type { List } from '../../types/list/types.ts'
 import type { PersistentMap } from '../../types/map/types.ts'
 
 export type _Context = Options & {
+    readonly moduleInit?: boolean
     readonly native?: boolean
     readonly bindings: readonly (readonly [BindingId, Printed<string>])[]
     readonly ownership?: undefined | {

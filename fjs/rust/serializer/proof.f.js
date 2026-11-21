@@ -87,6 +87,33 @@ export const proof = {
         assert(core.lines.join('').includes('StaticString'))
         assert(!rust.includes('\"') && !core.lines.map(untagged).join('').includes('\"'))
     },
+    nativePrimitiveArrays: () => {
+        /** @type {Value} */
+        const items = ['array', [null, undefined, false, -0, 'x', 2n]]
+        const body = yielding([['array', [items, ['array', []], ['array', []], ['function', { ...fn, body: yielding([items]) }]]]])
+        const output = unwrap(scopeTagged(body, options, [], true))
+        const rust = output.lines.map(untagged).join('\n')
+        assertEq(rust.split('static VALUE: StaticArray<A>').length - 1, 3)
+        assert(rust.includes('StaticArray(&[StaticAny::Nullish(Nullish::Null), StaticAny::Nullish(Nullish::Undefined), StaticAny::Boolean(false), StaticAny::Number(f64::from_bits(0x8000000000000000)), StaticAny::String(&LITERAL_0), StaticAny::BigInt(&LITERAL_1)])'))
+        assertEq(rust.split('StaticArray(&[]); Array::from_static(&VALUE)').length - 1, 2)
+        assert(output.uses.vm.includes('StaticAny'))
+        assert(!unwrap(scopeTagged(body, options)).uses.vm.includes('StaticArray'))
+    },
+    nativeRepeatedArraySites: () => {
+        const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        /** @type {Value} */
+        const array = ['array', []]
+        /** @type {Block} */
+        const loopBody = { statements: [['define', rest, array]], exit: ['break', target] }
+        /** @type {Block} */
+        const body = {
+            statements: [['while', { target, slot: x, initial: array, condition: array, body: loopBody, result: y, mutable: false }]],
+            exit: ['loop', target, loopBody],
+        }
+        const rust = unwrap(scopeTagged(body, options, [], true)).lines.map(untagged).join('\n')
+        assertEq(rust.split('static VALUE: StaticArray<A>').length - 1, 1)
+        assertEq(rust.split('Array::default().to_any()').length - 1, 3)
+    },
     nativeBigInts: () => {
         const wide = /** @type {const} */ (0x1_0000_0000_0000_0002n)
         const body = yielding([['array', [0n, -1n, wide, wide]]])
@@ -96,7 +123,7 @@ export const proof = {
         assert(lines.some(line => line.includes('Sign::Positive, words: &[]')))
         assert(lines.some(line => line.includes('Sign::Negative, words: &[0x0000000000000001]')))
         assert(lines.some(line => line.includes('Sign::Positive, words: &[0x0000000000000002, 0x0000000000000001]')))
-        assertEq(lines.join('\n').split('BigInt::from_static(&LITERAL_2)').length, 3)
+        assertEq(lines.join('\n').split('StaticAny::BigInt(&LITERAL_2)').length, 3)
     },
     primitives: () => {
         for (const value of [undefined, null, true, false, 0, -0, 1, NaN, Infinity, -Infinity, '', 'a\ud800b', '\u{1f600}', 0n, -(2n ** 63n), 2n ** 64n]) {

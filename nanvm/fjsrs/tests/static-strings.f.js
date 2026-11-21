@@ -4,4 +4,10 @@ export const same = () => Object.is(x, 'very long string')
 const wide = /** @type {const} */ (0x1_0000_0000_0000_0002n)
 export const integers = () => [0n, -1n, wide, wide]
 export const defaultKey = () => ({ default: 'default' }).default
+
+export const first = /** @type {const} */ ([])
+export const alias = first
+export const second = /** @type {const} */ ([])
+export const fresh = () => []
+export const mixed = /** @type {const} */ ([1, 'very long string', wide])
 export default () => f()
