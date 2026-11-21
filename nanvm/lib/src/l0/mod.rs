@@ -243,7 +243,7 @@ pub fn concat<A: IVm>(a: &Any<A>, b: &Any<A>) -> Any<A> {
     let a = as_string("concat", a);
     let b = as_string("concat", b);
     fits("concat", u64::from(a.length()) + u64::from(b.length()));
-    a.index_iter().chain(b.index_iter()).to_string().to_any()
+    a.concat(&b).to_any()
 }
 
 /// L0 `substring`: the units of `s` from `start` up to `end`, where
