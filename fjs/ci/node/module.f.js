@@ -75,15 +75,18 @@ export const coverageJob = (synchronize = false) => ({
 })
 
 /**
- * @type {readonly MetaStep[]}
+ * The canonical source job's steps, the project's own checks after its tests.
+ *
+ * @type {(extra: readonly MetaStep[]) => readonly MetaStep[]}
  */
-const nodeSteps = [
+const nodeSteps = extra => [
     nodeVersionStep(),
     tscVersionStep,
     ...environmentSteps(['npm ci', 'tsc']),
     // Temporary until every authored file forms a generic AST (module-dependency-graph-command.md).
     test({ run: environmentCommand('npm start deps'), 'continue-on-error': true }),
     ...environmentSteps(['npm start compile', 'npm start t']),
+    ...extra,
     test({ run: `mkdir ${consumerDirectory}` }),
     ...environmentSteps([`npm pack --pack-destination ${consumerDirectory}`, 'npm run gen']),
     test({ run: 'git add -A && git diff --cached --exit-code' }),
@@ -94,9 +97,9 @@ const nodeSteps = [
     })),
 ]
 
-/** @type {() => Jobs} */
-export const nodeVersionJobs = () => ({
-    node: ubuntuArm(nodeSteps),
+/** @type {(extra?: readonly MetaStep[]) => Jobs} */
+export const nodeVersionJobs = (extra = []) => ({
+    node: ubuntuArm(nodeSteps(extra)),
 })
 
 /**

@@ -13,7 +13,7 @@
  *   box a float or a boolean as a value of `any`. Where L0 traps, the view
  *   throws, and so does the import.
  * - **`from_f64`, `from_bool`, `from_unit`, `concat`, `substring`, `item`,
- *   `join` and `text` answer a value**, which a host gives a handle of its
+ *   `join`, `key` and `text` answer a value**, which a host gives a handle of its
  *   own, since the caller owns it. `find` answers an `i32`. Counting is the
  *   host's: `dup`, `drop` and the cells are state, which a host boundary
  *   holds and FunctionalScript does not.
@@ -26,7 +26,7 @@
  * @import { View } from './types.ts'
  */
 
-import { asBoolean, asNumber, concat, find, fromUnit, item, join, kind, length, same, substring, text, unit } from '../../../wasm/runtime/l0/module.f.js'
+import { asBoolean, asNumber, concat, find, fromUnit, item, join, key, kind, length, same, substring, text, unit } from '../../../wasm/runtime/l0/module.f.js'
 
 /**
  * The value that a handle names in a table of values, by its index, or a
@@ -61,5 +61,6 @@ export const view = read => ({
     item: (c, i) => item(read(c), i),
     find: (o, k) => find(read(o), read(k)),
     join: (parts, separator) => join(read(parts), read(separator)),
+    key: (o, i) => key(read(o), i),
     text: f => text(read(f)),
 })

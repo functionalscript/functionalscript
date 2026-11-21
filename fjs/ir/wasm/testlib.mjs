@@ -26,7 +26,12 @@
  * it, and no other cell, and no builder that it did not seal: a module that
  * keeps or frees a value that it borrows shows, and so does one that leaves
  * a value over. An array that a module makes is the twin's where their
- * items are, one by one.
+ * items are, one by one. A function that a call answers is the twin's
+ * where both take as many parameters and, after the call's cells are
+ * checked, answer the same or throw the same on each of a few probes, to
+ * a depth of three functions that answer functions
+ * ([slice 11b](../todo/slices.md)). The module's table, where it exports
+ * one, is given to the host, whose `make_function` calls code through it.
  *
  * @module
  *
@@ -163,7 +168,52 @@ const plainObject = v => v !== null && typeof v === 'object' && !Array.isArray(v
  */
 const givenIn = values => new Set(values.flatMap(v => Array.isArray(v) ? [v, ...givenIn(v)]
     : plainObject(v) ? [v, ...givenIn(Object.values(/** @type {object} */ (v)))]
+    : typeof v === 'function' ? [v]
     : []))
+
+/**
+ * The pairs of functions that `sameHeld` met since `run` last probed them:
+ * a module's function and its twin's, which agree where they agree on
+ * each of the `probes`, after the call's cells are checked.
+ *
+ * @type {(readonly [Function, Function])[]}
+ */
+let pending = []
+
+/** The arguments on which a function that a call answers must agree with its twin's. */
+const probes = [[], [1], ['a', 2], [[3], { b: 4 }]]
+
+/**
+ * Calls each pair of functions that `pending` holds on each of the probes,
+ * and asserts that both answer the same value, or both throw the same
+ * value or error, to the depth of three functions that answer functions.
+ *
+ * @type {(context: unknown, depth?: number) => void}
+ */
+const probe = (context, depth = 0) => {
+    const pairs = pending
+    pending = []
+    for (const [a, b] of pairs) {
+        for (const xs of probes) {
+            /** @type {(f: Function) => readonly ['ok' | 'threw', unknown]} */
+            const outcomeOf = f => {
+                try {
+                    return ['ok', f(...xs)]
+                } catch (e) {
+                    return ['threw', e]
+                }
+            }
+            const got = outcomeOf(a)
+            const expected = outcomeOf(b)
+            const given = givenIn(xs)
+            assert(got[0] === expected[0] && (got[0] === 'ok'
+                ? sameHeld(given)(got[1], expected[1])
+                : throwsAs(given)({ any: got[1] }, { any: expected[1] })), [context, 'a function that the call answers', xs, got, expected])
+        }
+        assert(depth < 3 || pending.length === 0, [context, 'functions that answer functions too deep'])
+        probe(context, depth + 1)
+    }
+}
 
 /**
  * Whether two values that values of `any` hold are the same: by `Object.is`,
@@ -176,6 +226,7 @@ const givenIn = values => new Set(values.flatMap(v => Array.isArray(v) ? [v, ...
  * @type {(given: ReadonlySet<unknown>) => (a: unknown, b: unknown) => boolean}
  */
 const sameHeld = given => (a, b) => Object.is(a, b)
+    || typeof a === 'function' && typeof b === 'function' && !given.has(b) && a.length === b.length && (pending.push([a, b]), true)
     || Array.isArray(a) && Array.isArray(b) && !given.has(b) && a.length === b.length && a.every((x, k) => sameHeld(given)(x, b[k]))
     || plainObject(a) && plainObject(b) && !given.has(b) && (() => {
         const ka = Object.keys(/** @type {object} */ (a))
@@ -241,15 +292,31 @@ const outcome = (f, h) => {
 }
 
 /**
+ * Whether a call throws what its twin throws: the same value, or, where
+ * the twin is a program that JavaScript runs and throws an error of its
+ * own, a `TypeError` say, a value of L1's that names the same error, as
+ * `'TypeError: unexpected type'` does
+ * ([L1's errors](../../wasm/runtime/l1/error/module.f.js)).
+ *
+ * @type {(given: ReadonlySet<unknown>) => (got: _Any, expected: _Any) => boolean}
+ */
+const throwsAs = given => (got, expected) => {
+    const e = expected.any
+    return e instanceof Error ? typeof got.any === 'string' && got.any.startsWith(`${e.name}: `) : same(given)(got, expected)
+}
+
+/**
  * Whether a call's outcome is its twin's: the same value, a throw of the
- * same value, or a trap of both, for the same reason where the module's
- * trap was a throw of an import of the view, whose reason is a string.
+ * same value or of the same error, or a trap of both, for the same reason
+ * where the module's trap was a throw of an import of the view, whose
+ * reason is a string.
  *
  * @type {(given: ReadonlySet<unknown>) => (got: _Outcome, expected: _Outcome) => boolean}
  */
 const agrees = given => (got, expected) => got[0] === 'trapped'
     ? expected[0] === 'trapped' && (typeof got[1] !== 'string' || got[1] === expected[1])
-    : expected[0] !== 'trapped' && got[0] === expected[0] && same(given)(got[1], expected[1])
+    : expected[0] !== 'trapped' && got[0] === expected[0]
+        && (got[0] === 'threw' && expected[0] === 'threw' ? throwsAs(given)(got[1], expected[1]) : same(given)(got[1], expected[1]))
 
 /** The unsigned LEB128 numbers that `bytes` hold, one after another. @type {(bytes: Uint8Array) => readonly number[]} */
 const ulebs = bytes => {
@@ -311,7 +378,8 @@ export const run = (m, twins, inputs, abandons = []) => {
             const values = xs.flatMap(v => isAny(v) ? [v.any] : [])
             const h = counting(values, data)
             const { exports } = new WebAssembly.Instance(compiled, { 'fjs:l0': h.imports, 'fjs:l1-native': nativeHost(h.read, h.own, h.fail) })
-            const { init } = exports
+            const { init, table } = exports
+            if (table instanceof WebAssembly.Table) { h.attach(table) }
             if (typeof init === 'function') { init() }
             h.keep()
             const f = exports[name]
@@ -333,6 +401,7 @@ export const run = (m, twins, inputs, abandons = []) => {
             assert(got[0] !== 'threw' || abandoned.length === 0 || abandons.includes(name), [name, xs, 'a throw abandoned', abandoned.join()])
             const cells = [...h.live().map(([k, count]) => `${k}:${count}`), ...(got[0] === 'ok' ? open : [])].join()
             assert(cells === '', [name, xs, cells])
+            probe([name, xs])
         }
     }
 }

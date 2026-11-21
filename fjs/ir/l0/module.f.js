@@ -71,14 +71,21 @@
  *   `find(o, k)` borrows an object and a string key and answers an `i32`.
  *   `join` joins the strings of a borrowed array with a borrowed separator
  *   and answers an owned string; it fails where an item is not a string.
+ *   `key(o, i)` borrows an object and answers the owned key of its property
+ *   `i`, which traps at or past the end, as the view's `key` throws.
  * - **`call` invokes an existing function value**
  *   ([L0 design §12](../../../doc/sasha-gil/wasm/l0-design.md#12-functions-a-code-index-a-frame-a-length-and-a-text)):
  *   `call(f, args)` borrows a function and a sealed array of arguments and
  *   answers the result, owned. A throw from the function fails, as
  *   `throw` does. `text(f)` borrows a function and answers its source text,
- *   an owned string or `undefined`. `make_function` of an IR `code` waits
- *   for slice 11 of [slices.md](../todo/slices.md); the interface names it
- *   so a later host can bind it, and this host refuses a call of it.
+ *   an owned string or `undefined`. `make_function(c, frame, length, text)`
+ *   makes a function value of the module's code `c`, which takes the value
+ *   itself as `self` and its arguments array, and owns the sealed `frame`
+ *   array and the `text`; `frame(self, i)` answers item `i` of that frame,
+ *   owned, so the code reads its captures
+ *   ([slice 11b](../todo/slices.md#decisions-for-slice-11-2026-11-20)).
+ *   A function that `make_function` did not make, or an `i` past its
+ *   frame, traps as misuse.
  * - **A throw is Functions' `throw`**
  *   ([L0 design §13](../../../doc/sasha-gil/wasm/l0-design.md#13-errors-a-throw-traps)):
  *   it takes over a value, which the host keeps, and fails, so it answers
@@ -89,7 +96,9 @@
  *   ([definition.md: One effect](../../../doc/sasha-gil/ir/definition.md#one-effect)):
  *   `throw`, `call`, and the functions that trap where the view throws, which
  *   definition.md marks: String's `unit` and `substring`, and Containers'
- *   `item`, `push`, `push_property`, `seal` and `join`. Every other function
+ *   `item`, `push`, `push_property`, `seal`, `join` and `key`, and Functions'
+ *   `frame`, which traps for a function that `make_function` did not make
+ *   or past its frame, as `item` does past its end. Every other function
  *   of L0 completes on the values of its parameters' types.
  *
  * @module
@@ -197,7 +206,8 @@ const strings = [
  * and `begin_object`, a builder of `n` items or properties, `push` and
  * `push_property`, which own the builder and an item or a key and a value
  * and give the builder back, and `seal`, which owns the builder and answers
- * the array or the object.
+ * the array or the object; and `key`, the owned string key of the
+ * property `i` of an object, which a spread of one copies.
  *
  * @type {Interface['functions']}
  */
@@ -210,14 +220,18 @@ const containers = [
     ['push_property', mayFail(signature([own('b', builder), own('k', string), own('v', any)], builder, 'b'))],
     ['seal', mayFail(signature([own('b', builder)], container))],
     ['join', mayFail(signature([['parts', array], ['separator', string]], string))],
+    ['key', mayFail(signature([['o', object], ['i', index]], string))],
 ]
 
 /**
- * Functions' functions besides its `length`: `make_function`, which an IR
- * `code` waits for slice 11 to use; `call`, which borrows a function and
- * its arguments array and may fail where the function throws; `text`, the
- * owned source text of a function, a string or `undefined`; and `throw`,
- * which takes over a value and fails, so that it answers `never`.
+ * Functions' functions besides its `length`: `make_function`, which makes
+ * a function value of an IR `code`, its frame, its length and its text;
+ * `call`, which borrows a function and its arguments array and may fail
+ * where the function throws; `text`, the owned source text of a function,
+ * a string or `undefined`; `throw`, which takes over a value and fails, so
+ * that it answers `never`; and `frame`, the owned item `i` of the frame of
+ * a function that `make_function` made, which its code reads through
+ * `self`.
  *
  * @type {Interface['functions']}
  */
@@ -231,6 +245,7 @@ const functions = [
     ['call', mayFail(signature([['f', func], ['args', array]], any))],
     ['text', signature([['f', func]], text)],
     ['throw', mayFail(signature([own('v', any)], never))],
+    ['frame', mayFail(signature([['self', func], ['i', index]], any))],
 ]
 
 /**

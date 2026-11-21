@@ -11,8 +11,8 @@ import type { Kind } from '../../../wasm/runtime/l0/types.ts'
  * L0](../module.f.js) bind, over the L0 view, each on a handle as the
  * WebAssembly JavaScript API passes an `i64`: a `bigint`. A `bool` goes back
  * as `0` or `1`, and a length and a unit as the numbers they are, as an
- * index comes. `from_unit`, `concat`, `substring`, `item`, `join` and
- * `text` answer the value that they make or read, which a host gives a
+ * index comes. `from_unit`, `concat`, `substring`, `item`, `join`, `key`
+ * and `text` answer the value that they make or read, which a host gives a
  * handle. `find` answers an `i32`.
  */
 export type View = {
@@ -30,6 +30,7 @@ export type View = {
     readonly item: (c: bigint, i: number) => unknown
     readonly find: (o: bigint, k: bigint) => number
     readonly join: (parts: bigint, separator: bigint) => string
+    readonly key: (o: bigint, i: number) => string
     readonly text: (f: bigint) => string | undefined
 }
 
@@ -37,7 +38,7 @@ export type View = {
  * The `fjs:l0` imports of a host that counts: Any's constants, each an
  * immutable global of the handle of a cell that the host keeps, the view's
  * readers, `dup` and `drop`, which count a cell, and `from_unit`, `concat`,
- * `substring`, `item`, `join` and `text`, which make a cell that the caller
+ * `substring`, `item`, `join`, `key` and `text`, which make a cell that the caller
  * owns and answer its handle. `find` answers an `i32`. The memory that the
  * host makes holds a module's data segments at `data_base`, from which
  * `make_string` makes a cell of a string of the UTF-16 units at an address.
@@ -47,7 +48,10 @@ export type View = {
  * `seal` ends it and makes a cell of the array or the object. `call`
  * borrows a function and an arguments array and answers a new cell of the
  * result; a throw from the function keeps the value and traps.
- * `make_function` waits for slice 11. `throw` takes over a cell, keeps its
+ * `make_function` takes over a frame array and a text and makes a cell of
+ * a JavaScript function that calls the module's code through the table
+ * that `attach` gives, and `frame` answers a new cell of an item of the
+ * frame of such a function. `throw` takes over a cell, keeps its
  * value and returns, so that the `unreachable` after its call traps.
  */
 export type Imports = {
@@ -79,10 +83,12 @@ export type Imports = {
     readonly push_property: (b: number, k: bigint, v: bigint) => void
     readonly seal: (b: number) => bigint
     readonly join: (parts: bigint, separator: bigint) => bigint
+    readonly key: (o: bigint, i: number) => bigint
     readonly make_function: (code: number, frame: bigint, length: number, text: bigint) => bigint
     readonly call: (f: bigint, args: bigint) => bigint
     readonly text: (f: bigint) => bigint
     readonly throw: (v: bigint) => void
+    readonly frame: (self: bigint, i: number) => bigint
 }
 
 /**
@@ -121,4 +127,6 @@ export type Counting = {
     readonly keep: () => void
     readonly live: () => readonly (readonly [handle: bigint, count: number])[]
     readonly builders: () => readonly number[]
+    /** Give the host the module's table of code, which its `table` export is, before a function that `make_function` made is called. */
+    readonly attach: (table: WebAssembly.Table) => void
 }

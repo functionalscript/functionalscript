@@ -29,6 +29,11 @@ export type Setup = {
     readonly environment?: 'mise',
     readonly nodeExtra: (os: Os, architecture: Architecture) => readonly MetaStep[],
     /**
+     * Further checks of the canonical `node` job, after the project's tests
+     * and before its package is packed: what only the project can name.
+     */
+    readonly sourceExtra?: readonly MetaStep[],
+    /**
      * Cache successful check groups by their committed inputs. Supported only
      * for FunctionalScript's own repository: `fjs ci init` reads its job
      * configuration from `fjs/ci/self`, not the caller's setup. Other projects

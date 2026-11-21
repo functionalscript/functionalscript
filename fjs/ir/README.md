@@ -465,6 +465,51 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
 - **The counting host** makes such values immediates: Any's constant
   cells, whose counts a `dup` or a `drop` leaves.
 
+## What 11a adds
+
+- **Untyped programs**: the [lowering](./from_fast/README.md#programs)
+  takes a module that no table types, each export of `any` alone, and
+  writes its operators, member reads, `?.` and calls of values of `any`
+  as calls of L1's bodies, boxing a float or a boolean where it meets
+  `any`.
+- **`link`**: a program and the bodies of L1 that it reaches, by their
+  `l1.` names, in one module, so one WASM module. Nothing new in the IR,
+  the checker or the emitter: a linked name is a name of the module.
+- **The host's judge**: where a program's twin, JavaScript itself, throws
+  an error of its own, a `TypeError` say, the module must throw L1's value
+  that names the same error ([`wasm/testlib.mjs`](./wasm/testlib.mjs)).
+
+## What 11b adds
+
+- **Closures**: in a program, a function as a value is
+  `Functions.make_function` of code that the
+  [lowering](./from_fast/README.md#closures) lifts, `(#self, #args) ->
+  any`, and a frame of the captures that read values of the function
+  around it. The code reads them by L0's new `Functions.frame(self, i)`,
+  and its parameters as items of `#args`.
+- **The table is exported**: a module whose `code` terms fill its table
+  exports it as `table`, so the checker refuses an export of that name.
+- **The counting host's `make_function`** makes a JavaScript function that
+  calls the module's code through that table, so `call` and JavaScript
+  both call it, and its `frame` reads the frame.
+- **The host's judge**: a function that a call answers agrees with its
+  twin's where both have the same length and agree on probes of their own
+  ([`wasm/testlib.mjs`](./wasm/testlib.mjs)).
+
+## What 11c adds
+
+- **Spread in a program**: `...v` in an array literal or in the arguments
+  of a call is L1's `toIterable` of `v`, and in an object literal L1's
+  `objectSpread` of it, each read where it stands, so that it throws where
+  JavaScript throws before anything after it is read. Containers' builder
+  then pushes every item of each part, in order, with a loop for each
+  spread ([lowering](./from_fast/README.md#spread-and-rest-parameters)).
+- **Rest parameters**: the rest parameter of a closure is an array of the
+  items of `#args` past its other parameters, and that of a function that a
+  call inlines an array of the arguments past them.
+- **L0 gains `Containers.key(o, i)`**: it borrows an object and answers the
+  owned key of its property `i`, which a spread of an object copies.
+
 ## What every slice refuses
 
 Everything else is refused with the function's name and the reason, never
@@ -489,7 +534,7 @@ whose owned stage does not consume each owned value once on every path, a
 value of a linear type that the lifetime pass would have to copy or drop,
 an interface that names a type, a function or a constant twice, a
 constant of a product or of `never`, two constants of one name, a function
-named `init`, a constant that reads itself or one after it, directly or
+named `init`, an export named `table`, a constant that reads itself or one after it, directly or
 through the functions that it calls, a constant that only borrows its
 value, a `br` to a loop that
 does not give each of its parameters, in their order, and a `trunc_sat` of

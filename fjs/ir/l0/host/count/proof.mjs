@@ -15,7 +15,7 @@
 import { assert, assertEq, assertOk } from '../../../../asserts/module.f.js'
 import { write } from '../../../../media/wasm/binary/write/module.f.js'
 import { check } from '../../../check/module.f.js'
-import { add, bool, call, f64, float, fn, get, if_, let_, lit, loop, lt, match, next, only, own, return_, u, unit } from '../../../module.f.js'
+import { add, bool, call, codeOf, f64, float, fn, get, if_, let_, lit, loop, lt, match, next, only, own, return_, throw_, u, unit } from '../../../module.f.js'
 import { emit } from '../../../wasm/module.f.js'
 import { any, array, func, l0 } from '../../module.f.js'
 import { counting } from './module.mjs'
@@ -186,6 +186,14 @@ export const proof = {
         h.imports.drop(r)
         assertEq(cells(h), '')
     },
+    key: () => {
+        const h = counting([{ b: 1, a: 2 }])
+        h.keep()
+        const r = h.imports.key(0n, 1)
+        assertEq(`${h.read(r)} ${cells(h)}`, `a ${r}:1`)
+        h.imports.drop(r)
+        assertEq(cells(h), '')
+    },
     text: () => {
         const f = (/** @type {unknown} */ a) => a
         const h = counting([f])
@@ -250,7 +258,9 @@ export const proof = {
     },
     // A handle of no cell throws, and so does one whose cell a drop freed, units past the memory, a handle of no builder or of
     // a sealed one, a push past a builder's length, a seal of fewer items, a throw after a throw and `thrown` after none.
-    // `call` of a non-function or non-array, and `make_function` while an IR code waits for slice 11, trap as misuse.
+    // `call` of a non-function or non-array, `make_function` of a frame that is not an array or a text that is not a
+    // string, a call of its function before `attach`, and `frame` of a function that it did not make or past its frame,
+    // trap as misuse.
     throw: {
         none: () => { counting([]).read(0n) },
         freed: () => {
@@ -290,10 +300,108 @@ export const proof = {
         nothing: () => { counting([]).thrown() },
         callNotFunction: () => { counting(['x', []]).imports.call(0n, 1n) },
         callNotArray: () => { counting([() => 0, 'x']).imports.call(0n, 1n) },
-        makeFunction: () => {
-            const h = counting([[], undefined])
+        frameNotArray: () => {
+            const h = counting(['x'])
+            h.imports.make_function(0, 0n, 0, -1n)
+        },
+        textNotString: () => {
+            const h = counting([[], 1])
             h.imports.make_function(0, 0n, 0, 1n)
         },
+        detached: () => {
+            const h = counting([[]])
+            const f = h.read(h.imports.make_function(0, 0n, 0, -1n))
+            assert(typeof f === 'function')
+            f()
+        },
+        noCode: () => {
+            const h = counting([[]])
+            h.attach(new WebAssembly.Table({ element: 'anyfunc', initial: 1 }))
+            const f = h.read(h.imports.make_function(0, 0n, 0, -1n))
+            assert(typeof f === 'function')
+            f()
+        },
+        frameOfOther: () => { counting([() => 0]).imports.frame(0n, 0) },
+        framePast: () => {
+            const h = counting([['x']])
+            h.imports.frame(h.imports.make_function(0, 0n, 0, -1n), 1)
+        },
+    },
+    // `make_function` makes a function of the module's code, which reads its frame through `self` and its arguments
+    // through `args`: JavaScript and `call` both call it, `length` and `text` are the ones given, a throw of the code is
+    // the function's throw, and every cell is as it was after.
+    closure: () => {
+        const self = get('self')
+        const args = get('args')
+        const index = /** @type {(k: number) => Term} */ (k => lit(u(31), BigInt(k)))
+        const borrowed = /** @type {readonly Param[]} */ ([['self', func], ['args', array]])
+        const text = only(any, 'string', 'undefined')
+        /** @type {(c: string, length: number) => Term} */
+        const make = (c, length) => call('Functions', 'make_function', [codeOf(c), get('fr'), index(length), get('t')])
+        const checked = assertOk(check({
+            imports: l0,
+            functions: [
+                // the item 1 of its frame
+                ['captured', fn(borrowed, any, call('Functions', 'frame', [self, index(1)]))],
+                // its first argument
+                ['first', fn(borrowed, any, call('Containers', 'item', [args, index(0)]))],
+                // a throw of its arguments
+                ['boom', fn(borrowed, any, throw_(call('Any', 'dup', [args])))],
+                ['makeCaptured', fn([own('fr', array), own('t', text)], func, make('captured', 2))],
+                ['makeFirst', fn([own('fr', array), own('t', text)], func, make('first', 1))],
+                ['makeBoom', fn([own('fr', array), own('t', text)], func, make('boom', 0))],
+            ],
+            exports: ['makeCaptured', 'makeFirst', 'makeBoom'],
+        }))
+        const bytes = new Uint8Array(write(emit(checked)))
+        assert(WebAssembly.validate(bytes))
+        const h = counting([['a', 'b'], '(x, y) => b', [], ['x']])
+        const { exports } = new WebAssembly.Instance(new WebAssembly.Module(bytes), { 'fjs:l0': h.imports })
+        const { makeCaptured, makeFirst, makeBoom, table } = exports
+        assert(typeof makeCaptured === 'function' && typeof makeFirst === 'function' && typeof makeBoom === 'function')
+        assert(table instanceof WebAssembly.Table)
+        h.attach(table)
+        h.keep()
+        const c = makeCaptured(h.imports.dup(0n), h.imports.dup(1n))
+        const f = makeFirst(h.imports.dup(2n), -1n)
+        const b = makeBoom(h.imports.dup(2n), -1n)
+        const [cf, ff, bf] = [c, f, b].map(h.read)
+        assert(typeof cf === 'function' && typeof ff === 'function' && typeof bf === 'function')
+        // JavaScript calls them, and each call frees the cells of `self` and `args` that it made
+        assertEq(`${cf()} ${ff("y", "z")} ${cf.length} ${ff.length} ${bf.length}`, "b y 2 1 0")
+        assertEq(cells(h), `${c}:1,${f}:1,${b}:1`)
+        // `call` calls them too, and `text` and `length` answer the ones given
+        const r = h.imports.call(f, 3n)
+        const t = h.imports.text(c)
+        assertEq(`${h.read(r)} ${h.read(t)} ${h.read(h.imports.text(f))} ${h.imports.length(c)}`, 'x (x, y) => b undefined 2')
+        h.imports.drop(r)
+        h.imports.drop(t)
+        // `frame` answers an owned item of the frame
+        const k = h.imports.frame(c, 0)
+        assertEq(h.read(k), 'a')
+        h.imports.drop(k)
+        // a throw of the code is the function's throw, from JavaScript and from `call`
+        try {
+            bf('v')
+            assert(false)
+        } catch (e) {
+            assertEq(JSON.stringify(e), '["v"]')
+        }
+        assertEq(h.has_thrown(), 0)
+        try {
+            h.imports.call(b, 3n)
+            assert(false)
+        } catch (e) {
+            assertEq(JSON.stringify(e), '["x"]')
+        }
+        const thrown = h.thrown()
+        assertEq(JSON.stringify(h.read(thrown)), '["x"]')
+        h.imports.drop(thrown)
+        // the text of a function that make_function did not make is its source
+        const g = counting([() => 0])
+        assertEq(g.read(g.imports.text(0n)), '() => 0')
+        for (const x of [c, f, b]) { h.imports.drop(x) }
+        assertEq(cells(h), '')
     },
     // concat of a borrowed string answers an owned one, which the caller drops.
     concat: () => {

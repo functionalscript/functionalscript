@@ -3,7 +3,7 @@
 **Priority:** P3
 **Status:** open
 
-Pinned Bun 1.4.4 exports the following data URL as a string instead of loading
+Pinned Bun 1.4.5 exports the following data URL as a string instead of loading
 its JavaScript. Node 26.13.1 and Deno 2.9.8 export the function as expected:
 
 ```js

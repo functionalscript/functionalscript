@@ -7,11 +7,12 @@
  */
 
 import { assert, assertEq } from '../../../asserts/module.f.js'
-import { anyForm, anyForms, compare, compareOne, rng, typedProgram } from './module.mjs'
+import { anyForm, anyForms, closureProgram, compare, compareOne, rng, spreadProgram, typedProgram, untypedProgram } from './module.mjs'
 
 /** Typed programs and programs over `any` in one proof run. */
 const typedCount = 120
 const anyCount = 80
+const untypedCount = 60
 const seed = 0x4f1c_5e2d
 
 export const proof = {
@@ -29,11 +30,11 @@ export const proof = {
      * expected for programs that need a later slice.
      */
     compare: () => {
-        const out = compare(seed, typedCount, anyCount)
+        const out = compare(seed, typedCount, anyCount, untypedCount)
         assert(out.wrong === null, out.wrong)
         assert(out.ran > 0, out)
         assert(out.calls > 0, out)
-        assertEq(out.programs, typedCount + anyCount)
+        assertEq(out.programs, typedCount + anyCount + untypedCount)
         assertEq(out.seed, seed)
     },
 
@@ -74,6 +75,48 @@ export const proof = {
                 const out = compareOne(anyForm(rnd, form))
                 assertEq(out[0], 'ran', `form ${form}: ${String(out[1])}`)
             }
+        }
+    },
+
+    /**
+     * Slice 11a's untyped programs, which no table types, with L1 linked
+     * in: a hundred from their own seed, each runs, none is refused, and
+     * every call agrees with JavaScript, a throw of JavaScript's error with
+     * L1's value of it.
+     */
+    untyped: () => {
+        const rnd = rng(seed + 11)
+        for (let k = 0; k < 100; k += 1) {
+            const program = untypedProgram(rnd)
+            const out = compareOne(program)
+            assertEq(out[0], 'ran', `${program.text}: ${String(out[1])}`)
+        }
+    },
+
+    /**
+     * Since 11b, closures of `x` over `a` and `b`: returned, which the judge
+     * calls on probes, or passed to a function that a value call calls.
+     * Each agrees with JavaScript.
+     */
+    closures: () => {
+        const rnd = rng(seed + 12)
+        for (let k = 0; k < 100; k += 1) {
+            const program = closureProgram(rnd)
+            const out = compareOne(program)
+            assertEq(out[0], 'ran', `${program.text}: ${String(out[1])}`)
+        }
+    },
+    /**
+     * Since 11c, spreads into arrays, objects and the arguments of a call,
+     * and rest parameters, of a function that a call inlines and of a
+     * closure. Each agrees with JavaScript.
+     */
+    spreads: () => {
+        const rnd = rng(seed + 13)
+        for (let k = 0; k < 100; k += 1) {
+            const program = spreadProgram(rnd)
+            const out = compareOne(program)
+            assertEq(out[0], 'ran', `${program.text}: ${String(out[1])}`)
         }
     },
 }

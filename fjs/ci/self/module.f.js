@@ -14,6 +14,7 @@
 
 import { ciWorkflow, ciJobs, writeCi, writeWorkflows } from '../module.f.js'
 import { uses, _workflowsDirectory } from '../common/module.f.js'
+import { selfCompileSteps } from '../self_compile/module.f.js'
 import { step } from '../../effects/module.f.js'
 import { exitStep } from '../../effects/node/module.f.js'
 import { images, jobTimeout } from '../config/module.f.js'
@@ -107,6 +108,7 @@ export const packageConsumer = {
 /** Repository configuration shared with cache initialization. @type {Setup} */
 const setup = {
     nodeExtra: () => [],
+    sourceExtra: selfCompileSteps,
     packageConsumer,
     smart: true,
 }

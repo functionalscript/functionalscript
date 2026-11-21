@@ -937,6 +937,7 @@ export const checkPlain = m => {
     if (missing !== undefined) { return error(`no function ${missing} to export`) }
     if (again !== undefined) { return error(`${again} is exported twice`) }
     if (names.includes('init')) { return error('init is the function that evaluates the constants, so no function has that name') }
+    if (m.exports.includes('table')) { return error('table is the export of the table of code, so no export has that name') }
     if (constant !== undefined) { return error(`two constants are named ${constant}`) }
     if (typeof kept === 'string') { return error(kept) }
     const typed = okList(m.functions.map(checkFn(functions, imports, constants)))

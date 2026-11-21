@@ -26,8 +26,13 @@ prepared terminating branch therefore uses the existing FJS guard spelling;
 the renderer adds no join or completion analysis.
 
 Binding and loop identities determine names; diagnostic indices are not keys.
-Source functions with several captures name them in signature order before the
-body, so parsing the output preserves that order even if body reads differ.
+The reader gives a function's capture slots the order its text first refers to
+them in. A source function with several captures therefore reads them in place
+where its body's order of first reference is the slot order, and otherwise
+names them in slot order before the body, so parsing the output preserves that
+order where body reads differ. The order is read off the body as it was
+written, once: the text is the writer's own symbols, the same parts `names`
+resolves.
 Literal captures use factory parameters in capture order. A wide source factory
 receives one private array and establishes its slots in that same order, keeping
 its parameter count within the source limit. A source function retaining self

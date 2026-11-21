@@ -117,15 +117,43 @@ export const _defaultExport = module => {
 }
 
 /**
+ * What evaluating a module computes, past the object that holds its
+ * exports: the sequence before the object, and each export's value that is
+ * a node. The object itself is nothing to compute once its values are, and
+ * a literal is nothing at all.
+ *
+ * @type {(module: Exp) => readonly Exp[]}
+ */
+const computations = module => {
+    if (module instanceof Array && module[0] === ',') {
+        const operands = module[1]
+        return [...operands.slice(0, -1), ...computations(operands[Number(operands.length - 1)])]
+    }
+    return _moduleExports(module).flatMap(([, , value]) => value instanceof Array ? [value] : [])
+}
+
+/**
  * Select a named export's value while evaluating the whole module: the
- * module's computation stays, as an anchor, and the selection is the value
+ * module's computations stay, as anchors, and the selection is the value
  * the export object holds under the name, the same node. No property is
- * read, so a name a read refuses, `map` or `entries`, is written as source.
+ * read, so a name a read refuses, `map` or `entries`, is written as source;
+ * and the object is not an anchor, so a program that imports names builds
+ * no object nothing reads.
+ *
+ * The computations keep the order the module evaluates them in, the
+ * selected one among them where it stands: an export before it that fails
+ * and one after it that never ends are met in that order, as they are when
+ * the module is evaluated. Only where the selection is the last of them is
+ * it not repeated, and a module that computes nothing but the value is the
+ * value.
  *
  * @type {(module: Exp, value: Exp) => Exp}
  */
-const namedExport = (module, value) =>
-    [',', [...(module instanceof Array && module[0] === ',' ? module[1] : [module]), value]]
+const namedExport = (module, value) => {
+    const computed = computations(module)
+    const anchors = computed.at(-1) === value ? computed.slice(0, -1) : computed
+    return anchors.length === 0 ? value : [',', [...anchors, value]]
+}
 
 // ── resolution ────────────────────────────────────────────────────────────────
 

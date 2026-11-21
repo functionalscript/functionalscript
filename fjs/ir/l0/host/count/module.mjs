@@ -9,7 +9,7 @@
  *   whose cell a `drop` freed.
  * - **`dup` and `drop` count.** `dup` adds one to a cell's count and
  *   answers its handle; `drop` takes one away, and frees the cell at zero.
- * - **`from_unit`, `concat`, `substring`, `item`, `join` and `text` make a
+ * - **`from_unit`, `concat`, `substring`, `item`, `join`, `key` and `text` make a
  *   cell** of the value that the view answers, counted once, and answer its
  *   handle, which the caller owns: an item read from an array is a cell of
  *   its own. `find` answers an `i32`, the property index or `-1`.
@@ -47,8 +47,20 @@
  *   arguments, and answers a new cell of the result. A throw from the
  *   function keeps its value as `throw` does and traps. A value that is
  *   not a function, or arguments that are not an array, trap as misuse.
- *   `make_function` of an IR `code` waits for slice 11: a call of it
- *   takes over its frame and text and traps.
+ * - **`make_function` makes a JavaScript function of the module's code**
+ *   ([slice 11b](../../../todo/slices.md#decisions-for-slice-11-2026-11-20)):
+ *   it takes over a cell of a sealed frame array and a cell of a text, a
+ *   string or `undefined`, and makes a cell of a function whose `length`
+ *   is the one given. A call of the function, from `call` or from
+ *   JavaScript, makes a cell of the function itself and one of its
+ *   arguments array, calls the code at its index in the table that
+ *   `attach` gives, the module's `table` export, with both borrowed, and
+ *   frees them after. A throw of the code keeps its value, so the
+ *   function throws that value, which `call` keeps again. `frame(self, i)`
+ *   makes a cell of item `i` of the frame, and `text` answers the text
+ *   given. A frame that is not an array, a text that is not a string, a
+ *   `frame` of a function that `make_function` did not make, or past its
+ *   frame, and a call before `attach`, throw.
  * - **A throw keeps its value**
  *   ([L0 design §13](../../../../../doc/sasha-gil/wasm/l0-design.md#13-errors-a-throw-traps)):
  *   `throw` takes over a cell, as `push` does, keeps its value and
@@ -168,6 +180,10 @@ export const counting = (values, data = 0) => {
     }
     /** The value that a throw keeps, until `thrown` or `recover` takes it. @type {{ readonly value: unknown } | null} */
     let held = null
+    /** The frame and the text of each function that `make_function` made. @type {WeakMap<object, { readonly items: readonly unknown[], readonly text: string | undefined }>} */
+    const made = new WeakMap()
+    /** The module's table of code, which `attach` gives. @type {WebAssembly.Table | null} */
+    let table = null
     const v = view(read)
     const memory = new WebAssembly.Memory({ initial: Math.ceil((dataBase + data) / 0x1_0000) })
     /** @type {(ptr: number, len: number) => string} */
@@ -238,10 +254,40 @@ export const counting = (values, data = 0) => {
                 return make(Object.fromEntries(order.map(key => [key, last.get(key)])))
             },
             join: (parts, separator) => make(v.join(parts, separator)),
-            make_function: (_code, frame, _length, text) => {
+            key: (o, i) => make(v.key(o, i)),
+            make_function: (code, frame, length, text) => {
+                const items = read(frame)
+                const t = read(text)
+                if (!Array.isArray(items)) { throw 'fjs:l0 host: make_function of a frame that is not an array' }
+                if (t !== undefined && typeof t !== 'string') { throw 'fjs:l0 host: make_function of a text that is not a string' }
                 drop(frame)
                 drop(text)
-                throw 'fjs:l0 host: make_function of an IR code waits for slice 11'
+                /** @type {(...args: unknown[]) => unknown} */
+                const fn = (...args) => {
+                    if (table === null) { throw 'fjs:l0 host: make_function before attach' }
+                    const c = table.get(code)
+                    if (typeof c !== 'function') { throw 'fjs:l0 host: make_function of no code' }
+                    const self = make(fn)
+                    const a = make(args)
+                    try {
+                        const r = c(self, a)
+                        const value = read(r)
+                        drop(r)
+                        return value
+                    } catch (e) {
+                        // a throw of the code traps, and the value that it keeps is the function's throw
+                        if (held === null) { throw e }
+                        const { value } = held
+                        held = null
+                        throw value
+                    } finally {
+                        drop(self)
+                        drop(a)
+                    }
+                }
+                Object.defineProperty(fn, 'length', { value: length })
+                made.set(fn, { items, text: t })
+                return make(fn)
             },
             call: (f, args) => {
                 const fn = read(f)
@@ -256,14 +302,24 @@ export const counting = (values, data = 0) => {
                     throw e
                 }
             },
-            text: f => make(v.text(f)),
+            text: f => {
+                const m = made.get(/** @type {object} */ (read(f)))
+                return make(m === undefined ? v.text(f) : m.text)
+            },
             throw: h => {
                 if (held !== null) { throw 'fjs:l0 host: a throw after a throw' }
                 const value = read(h)
                 drop(h)
                 held = { value }
             },
+            frame: (self, i) => {
+                const m = made.get(/** @type {object} */ (read(self)))
+                if (m === undefined) { throw 'fjs:l0 host: frame of a function that make_function did not make' }
+                if (i < 0 || i >= m.items.length) { throw 'fjs:l0 host: frame past its length' }
+                return make(m.items[i])
+            },
         },
+        attach: t => { table = t },
         has_thrown: () => held === null ? 0 : 1,
         thrown: () => {
             if (held === null) { throw 'fjs:l0 host: nothing was thrown' }
