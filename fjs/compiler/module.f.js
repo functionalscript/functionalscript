@@ -117,9 +117,9 @@ const edagText = path => mapStep(resolve(path), tryMarked)
  * into one graph, the same as {@link edagText}, and printed against the
  * `nanvm-lib` API by `./rust` rather than serialized as a DataJS document.
  *
- * @type {(path: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, ParseError>}
+ * @type {(native: boolean) => (path: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, ParseError>}
  */
-const rustText = path => mapStep(resolve(path), toRustMarked)
+const rustText = native => path => mapStep(resolve(path), root => toRustMarked(root, native))
 
 /**
  * The program at `path` as the text of the FunctionalScript module it is:
@@ -173,7 +173,7 @@ const outputMarked = load => outputFileName => {
     if (isEdag(outputFileName)) { return edagText }
     if (isDataJs(outputFileName)) { return dataText(tryMarked)(load) }
     if (isFjs(outputFileName)) { return fjsText }
-    if (outputFileName.endsWith('.rs')) { return rustText }
+    if (outputFileName.endsWith('.rs')) { return rustText(outputFileName.endsWith('.native.rs')) }
     return null
 }
 

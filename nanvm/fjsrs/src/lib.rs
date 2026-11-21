@@ -15,17 +15,15 @@ use nanvm_effects_node::Native;
 use nanvm_lib::vm::{Any, Array, IVm, Module, Nullish, Number, ToAny, ToArray, ToObject, exports};
 use std::io::{Read, Write};
 
-/// The compiled program: a `#[path]`, since a `gen.` name is not a Rust
-/// identifier.
-///
-/// Two lints are the generator's shapes and no mistake of the program: a
-/// loop that is left on its first round is how it writes a block one can
-/// `break` out of, and an `if` inside an `else` is a condition kept where
-/// the graph has it. The generator allows only `if_same_then_else` itself
-/// (`todo/whole-compiler.md`).
+/// VM chosen for this native artifact and its compiled modules.
+pub type Vm = nanvm_lib::naive::Naive;
+
+/// The compiled program. Its block and conditional layout follows the source graph.
 #[allow(clippy::never_loop, clippy::collapsible_if)]
-#[path = "gen.program.rs"]
-pub mod program;
+pub mod program {
+    use super::Vm as A;
+    include!("gen.program.native.rs");
+}
 
 /// What a program is started with, as the Node host's `options` are
 /// (`fjs/effects/node/module.mjs`): the arguments after the program's name,
@@ -137,7 +135,7 @@ mod tests {
     /// is an error naming the commands, on standard error, with code `1`.
     #[test]
     fn no_command_is_an_error_naming_the_commands() {
-        let (code, stdout, stderr) = started(program::module::<A>, &[]);
+        let (code, stdout, stderr) = started(program::module, &[]);
         assert_eq!(code, Ok(1));
         assert_eq!(stdout, "");
         assert_eq!(stderr, format!("Error: command is required.\n{COMMANDS}"));
@@ -145,7 +143,7 @@ mod tests {
 
     #[test]
     fn help_lists_the_commands() {
-        let (code, stdout, stderr) = started(program::module::<A>, &["help"]);
+        let (code, stdout, stderr) = started(program::module, &["help"]);
         assert_eq!(code, Ok(0));
         assert_eq!(stdout, COMMANDS);
         assert_eq!(stderr, "");
@@ -154,7 +152,7 @@ mod tests {
     /// The arguments reach the program: the one it does not know is named.
     #[test]
     fn an_unknown_command_is_named() {
-        let (code, _, stderr) = started(program::module::<A>, &["compile", "a.f.js"]);
+        let (code, _, stderr) = started(program::module, &["compile", "a.f.js"]);
         assert_eq!(code, Ok(1));
         assert_eq!(
             stderr,

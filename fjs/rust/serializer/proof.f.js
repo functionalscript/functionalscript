@@ -30,6 +30,16 @@ const rest = { index: 2 }
 const fn = { target: { kind: 'function', index: 0 }, parameters: [x], rest, self: y, captures: [], body: { statements: [], exit: ['return', { kind: 'function', index: 0 }, ['array', [['ref', x], ['ref', y], ['ref', rest]]]] } }
 
 export const proof = {
+    nativeStrings: () => {
+        const body = yielding([['array', ['hi', 'hi', ['function', fn]]]])
+        const output = unwrap(scopeTagged(body, options, [], true))
+        const lines = output.lines.map(untagged)
+        assertEq(lines[0], 'static STRING_0: StaticString = StaticString(&[0x0068, 0x0069]);')
+        assertEq(lines.join('\n').split('String::from_static(&STRING_0)').length, 3)
+        assert(output.uses.vm.includes('IVm'))
+        assert(output.uses.vm.includes('StaticString'))
+        assertEq(useLines(output.uses, null).join('\n').includes('null'), false)
+    },
     primitives: () => {
         for (const value of [undefined, null, true, false, 0, -0, 1, NaN, Infinity, -Infinity, '', 'a\ud800b', '\u{1f600}', 0n, -(2n ** 63n), 2n ** 64n]) {
             assert(text(value).length > 0)
