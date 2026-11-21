@@ -245,6 +245,15 @@ export const proof = {
     reservedLet: () => same(let_('r.x', a, read(object([['x', get('r.x')]]), 'x'))),
     reservedLoop: () => same(loop('L', [['s/', any, a]], () => read(object([['x', a]]), 'x'))),
     reservedArm: () => same(match(c, [[null, 'w\\', read(object([['x', a]]), 'x')]])),
+    aliased: () => golden(
+        let_('r', object([['x', a]]), let_('v', read(get('r'), 'x'), let_('w', get('b'), make([['v', get('v')], ['w', get('w')]])))),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    let r.x = a',
+            '    let w = b',
+            '    { v: r.x, w: w }',
+        ],
+    ),
     nested: () => golden(
         let_('r', object([['p', object([['q', a]])], ['k', b]]), read(read(get('r'), 'p'), 'q')),
         [

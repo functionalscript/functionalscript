@@ -197,21 +197,34 @@ The first profile, before the levers, had the handle layer at 94% of
 3. **Records of `any` stay records** (#4052, the records pass): no object
    built or read for a loop's state, 13× on `sumToAny`, 2.8× on
    `readFields`, 3.7× on `callMany` and 3.7× on `bigSum`.
+4. **Test only the side that is not known** (#4055, the lowering): an
+   operator of `any` matches each `any` once against `number`, reads it
+   once, and uses the IR's operator, leaving a float unboxed; only
+   otherwise does it call L1. The records pass also stopped copying a
+   read of a split local into a `let` of its own. On NaNVM, medians of
+   three runs:
+
+   | Program | Before | After | Speed-up | L0 calls before | after |
+   | --- | --- | --- | --- | --- | --- |
+   | `sumTo` | 673 µs | 141 µs | 4.8× | 80,010 | 20,004 |
+   | `fib` | 5.2 µs | 1.2 µs | 4.3× | 570 | 144 |
+   | `sumToAny` | 2.19 ms | 1.16 ms | 1.9× | 240,016 | 140,012 |
+   | `readFields` | 14.0 ms | 12.9 ms | 1.1× | 560,016 | 440,012 |
+   | `callMany` | 1.19 ms | 1.12 ms | 1.1× | 29,016 | 21,012 |
+   | `bigSum` | 1.50 ms | 1.68 ms | 0.9× | 73,027 | 77,029 |
+
+   `sumTo` now runs about 3× to 4× slower than JavaScript, and `fib`
+   about 2× to 3×. `bigSum` pays one `kind` more for each operand, which
+   is a bigint and so goes on to L1, which reads it again.
 
 ### Next, by gain for cost
 
-1. **Test only the side that is not known** (the lowering and L1, small).
-   Where one operand is already `f64`, as `s.i` in `sumTo`, the lowering
-   would call a variant of the operator that takes it unboxed, and the
-   fast path would not read a kind twice. `s.i < n` would go from 8 L0
-   calls to 2, so `sumTo` and `fib` would be about 2× to 3× faster, and
-   every loop counter with them. This is an estimate.
-2. **Object lookups without a copy** (NaNVM, small). `find`, `item`, `key`
+1. **Object lookups without a copy** (NaNVM, small). `find`, `item`, `key`
    and `length` would read the object's entries in place, in the order
    that `own_entries` gives, with no `Vec`. That removes most of the 40%
    of `readFields` in objects and the allocator, about 1.5× to 2×. It stays
    inside `l0/mod.rs`.
-3. **NaN-boxed handles** (NaNVM's ABI, large). The handle would be the NaN
+2. **NaN-boxed handles** (NaNVM's ABI, large). The handle would be the NaN
    box's bits, as [type-system.md](./type-system.md) and
    [nan-box-in-ir.md](./nan-box-in-ir.md) lay them out, so a number or a
    constant needs no slot, and `kind`, `to_f64` and `from_f64` become a
@@ -219,14 +232,14 @@ The first profile, before the levers, had the handle layer at 94% of
    53% to 92% of every program but `repeat`, so this is still the largest
    gain: up to about 10× on numeric loops. It is the largest change too:
    NaNVM's ABI, its misuse checks and the inline fragments of
-   [`../wasm/inline-fragments.md`](../wasm/inline-fragments.md). Levers 1
-   and 2 do not depend on it, and lever 1 shrinks what it has to inline.
-4. **A `concat` that copies in bulk** (NaNVM, small to medium). Copying
+   [`../wasm/inline-fragments.md`](../wasm/inline-fragments.md). Lever 1
+   does not depend on it.
+3. **A `concat` that copies in bulk** (NaNVM, small to medium). Copying
    both strings' units with one slice copy each, straight into the new
    string, would make `repeat` several times faster but still quadratic.
    A rope, as JavaScript's engines use, would make it linear, and is a
    larger change to NaNVM's strings.
-5. **Cancel `dup`/`drop` pairs in the lifetime pass** (medium). After the
+4. **Cancel `dup`/`drop` pairs in the lifetime pass** (medium). After the
    records pass, `dup` is at most 1 in 6 of the calls (12,005 of 73,027 in
    `bigSum`, 40,001 of 560,016 in `readFields`), so this lever gains less
    than it would have before: a few percent, not the 20% that the first

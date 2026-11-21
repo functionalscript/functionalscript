@@ -52,6 +52,8 @@ rest of L1 natively, or by linking the reference bodies.
 
 A runtime may also offer small WASM fragments that the compiler inlines in
 place of a call to it: [inline-fragments.md](./inline-fragments.md).
+NaNVM's handle may become the NaN box's bits, so scalars need no slot and
+their L0 calls can be inlined: [nan-boxed-handles.md](./nan-boxed-handles.md).
 A runtime can be assembled from pluggable runtime modules, each with a
 manifest, so that, for example, a string representation can be chosen
 apart from the rest: [modular-runtime.md](./modular-runtime.md).
