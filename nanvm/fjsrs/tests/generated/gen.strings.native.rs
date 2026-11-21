@@ -2,8 +2,8 @@
 
 use nanvm_lib::vm::unstable::static_read_keys;
 use nanvm_lib::vm::{
-    Any, Array, BigInt, IVm, StaticAny, StaticArray, StaticBigInt, StaticString, String, ToAny,
-    ToArray, ToObject,
+    Any, Array, BigInt, IVm, Object, StaticAny, StaticArray, StaticBigInt, StaticObject,
+    StaticString, String, ToAny, ToArray, ToObject,
 };
 
 #[rustfmt::skip]
@@ -11,29 +11,38 @@ use nanvm_lib::vm::{
 pub fn module(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     static LITERAL_0: StaticString = StaticString(&[0x0028, 0x0029, 0x003d, 0x003e, 0x0022, 0x0076, 0x0065, 0x0072, 0x0079, 0x0020, 0x006c, 0x006f, 0x006e, 0x0067, 0x0020, 0x0073, 0x0074, 0x0072, 0x0069, 0x006e, 0x0067, 0x0022, 0x002b, 0x0022, 0x0076, 0x0065, 0x0072, 0x0079, 0x0020, 0x006c, 0x006f, 0x006e, 0x0067, 0x0020, 0x0073, 0x0074, 0x0072, 0x0069, 0x006e, 0x0067, 0x0022]);
     static LITERAL_1: StaticString = StaticString(&[0x0076, 0x0065, 0x0072, 0x0079, 0x0020, 0x006c, 0x006f, 0x006e, 0x0067, 0x0020, 0x0073, 0x0074, 0x0072, 0x0069, 0x006e, 0x0067]);
-    static LITERAL_2: StaticString = StaticString(&[0x0061, 0x006c, 0x0069, 0x0061, 0x0073]);
-    static LITERAL_3: StaticString = StaticString(&[0x0064, 0x0065, 0x0066, 0x0061, 0x0075, 0x006c, 0x0074]);
-    static LITERAL_4: StaticString = StaticString(&[0x0028, 0x0029, 0x003d, 0x003e, 0x0024, 0x0030, 0x0028, 0x0029]);
-    static LITERAL_5: StaticString = StaticString(&[0x0064, 0x0065, 0x0066, 0x0061, 0x0075, 0x006c, 0x0074, 0x004b, 0x0065, 0x0079]);
-    static LITERAL_6: StaticString = StaticString(&[0x0028, 0x0029, 0x003d, 0x003e, 0x007b, 0x0072, 0x0065, 0x0074, 0x0075, 0x0072, 0x006e, 0x0020, 0x007b, 0x0022, 0x0064, 0x0065, 0x0066, 0x0061, 0x0075, 0x006c, 0x0074, 0x0022, 0x003a, 0x0022, 0x0064, 0x0065, 0x0066, 0x0061, 0x0075, 0x006c, 0x0074, 0x0022, 0x007d, 0x002e, 0x0064, 0x0065, 0x0066, 0x0061, 0x0075, 0x006c, 0x0074, 0x003b, 0x007d]);
-    static LITERAL_7: StaticString = StaticString(&[0x0066, 0x0069, 0x0072, 0x0073, 0x0074]);
-    static LITERAL_8: StaticString = StaticString(&[0x0066, 0x0072, 0x0065, 0x0073, 0x0068]);
-    static LITERAL_9: StaticString = StaticString(&[0x0028, 0x0029, 0x003d, 0x003e, 0x005b, 0x005d]);
-    static LITERAL_10: StaticString = StaticString(&[0x0069, 0x006e, 0x0074, 0x0065, 0x0067, 0x0065, 0x0072, 0x0073]);
-    static LITERAL_11: StaticString = StaticString(&[0x0028, 0x0029, 0x003d, 0x003e, 0x005b, 0x0030, 0x006e, 0x002c, 0x002d, 0x0031, 0x006e, 0x002c, 0x0031, 0x0038, 0x0034, 0x0034, 0x0036, 0x0037, 0x0034, 0x0034, 0x0030, 0x0037, 0x0033, 0x0037, 0x0030, 0x0039, 0x0035, 0x0035, 0x0031, 0x0036, 0x0031, 0x0038, 0x006e, 0x002c, 0x0031, 0x0038, 0x0034, 0x0034, 0x0036, 0x0037, 0x0034, 0x0034, 0x0030, 0x0037, 0x0033, 0x0037, 0x0030, 0x0039, 0x0035, 0x0035, 0x0031, 0x0036, 0x0031, 0x0038, 0x006e, 0x005d]);
-    static LITERAL_12: StaticBigInt = StaticBigInt { sign: nanvm_lib::sign::Sign::Positive, words: &[] };
-    static LITERAL_13: StaticBigInt = StaticBigInt { sign: nanvm_lib::sign::Sign::Negative, words: &[0x0000000000000001] };
-    static LITERAL_14: StaticBigInt = StaticBigInt { sign: nanvm_lib::sign::Sign::Positive, words: &[0x0000000000000002, 0x0000000000000001] };
-    static LITERAL_15: StaticString = StaticString(&[0x006d, 0x0069, 0x0078, 0x0065, 0x0064]);
-    static LITERAL_16: StaticString = StaticString(&[0x0073, 0x0061, 0x006d, 0x0065]);
-    static LITERAL_17: StaticString = StaticString(&[0x0028, 0x0029, 0x003d, 0x003e, 0x007b, 0x0063, 0x006f, 0x006e, 0x0073, 0x0074, 0x0020, 0x0024, 0x0030, 0x003d, 0x004f, 0x0062, 0x006a, 0x0065, 0x0063, 0x0074, 0x002e, 0x0069, 0x0073, 0x003b, 0x0072, 0x0065, 0x0074, 0x0075, 0x0072, 0x006e, 0x0020, 0x0024, 0x0030, 0x0028, 0x0022, 0x0076, 0x0065, 0x0072, 0x0079, 0x0020, 0x006c, 0x006f, 0x006e, 0x0067, 0x0020, 0x0073, 0x0074, 0x0072, 0x0069, 0x006e, 0x0067, 0x0022, 0x002c, 0x0022, 0x0076, 0x0065, 0x0072, 0x0079, 0x0020, 0x006c, 0x006f, 0x006e, 0x0067, 0x0020, 0x0073, 0x0074, 0x0072, 0x0069, 0x006e, 0x0067, 0x0022, 0x0029, 0x003b, 0x007d]);
-    static LITERAL_18: StaticString = StaticString(&[0x0073, 0x0074, 0x0061, 0x0074, 0x0069, 0x0063]);
-    static LITERAL_19: StaticString = StaticString(&[0x004f, 0x0062, 0x006a, 0x0065, 0x0063, 0x0074, 0x002e, 0x0069, 0x0073]);
-    static LITERAL_20: StaticString = StaticString(&[0x0073, 0x0065, 0x0063, 0x006f, 0x006e, 0x0064]);
+    static LITERAL_2: StaticString = StaticString(&[0x006e, 0x0061, 0x006d, 0x0065]);
+    static LITERAL_3: StaticString = StaticString(&[0x0063, 0x006f, 0x0075, 0x006e, 0x0074]);
+    static LITERAL_4: StaticBigInt = StaticBigInt { sign: nanvm_lib::sign::Sign::Positive, words: &[0x0000000000000002, 0x0000000000000001] };
+    static LITERAL_5: StaticString = StaticString(&[0x0061, 0x006c, 0x0069, 0x0061, 0x0073]);
+    static LITERAL_6: StaticString = StaticString(&[0x0064, 0x0065, 0x0066, 0x0061, 0x0075, 0x006c, 0x0074]);
+    static LITERAL_7: StaticString = StaticString(&[0x0028, 0x0029, 0x003d, 0x003e, 0x0024, 0x0030, 0x0028, 0x0029]);
+    static LITERAL_8: StaticString = StaticString(&[0x0064, 0x0065, 0x0066, 0x0061, 0x0075, 0x006c, 0x0074, 0x004b, 0x0065, 0x0079]);
+    static LITERAL_9: StaticString = StaticString(&[0x0028, 0x0029, 0x003d, 0x003e, 0x007b, 0x0072, 0x0065, 0x0074, 0x0075, 0x0072, 0x006e, 0x0020, 0x007b, 0x0022, 0x0064, 0x0065, 0x0066, 0x0061, 0x0075, 0x006c, 0x0074, 0x0022, 0x003a, 0x0022, 0x0064, 0x0065, 0x0066, 0x0061, 0x0075, 0x006c, 0x0074, 0x0022, 0x007d, 0x002e, 0x0064, 0x0065, 0x0066, 0x0061, 0x0075, 0x006c, 0x0074, 0x003b, 0x007d]);
+    static LITERAL_10: StaticString = StaticString(&[0x0065, 0x006d, 0x0070, 0x0074, 0x0079, 0x004f, 0x0062, 0x006a, 0x0065, 0x0063, 0x0074]);
+    static LITERAL_11: StaticString = StaticString(&[0x0028, 0x0029, 0x003d, 0x003e, 0x007b, 0x0072, 0x0065, 0x0074, 0x0075, 0x0072, 0x006e, 0x0020, 0x007b, 0x007d, 0x003b, 0x007d]);
+    static LITERAL_12: StaticString = StaticString(&[0x0066, 0x0069, 0x0072, 0x0073, 0x0074]);
+    static LITERAL_13: StaticString = StaticString(&[0x0066, 0x0072, 0x0065, 0x0073, 0x0068]);
+    static LITERAL_14: StaticString = StaticString(&[0x0028, 0x0029, 0x003d, 0x003e, 0x005b, 0x005d]);
+    static LITERAL_15: StaticString = StaticString(&[0x0069, 0x006e, 0x0074, 0x0065, 0x0067, 0x0065, 0x0072, 0x0073]);
+    static LITERAL_16: StaticString = StaticString(&[0x0028, 0x0029, 0x003d, 0x003e, 0x005b, 0x0030, 0x006e, 0x002c, 0x002d, 0x0031, 0x006e, 0x002c, 0x0031, 0x0038, 0x0034, 0x0034, 0x0036, 0x0037, 0x0034, 0x0034, 0x0030, 0x0037, 0x0033, 0x0037, 0x0030, 0x0039, 0x0035, 0x0035, 0x0031, 0x0036, 0x0031, 0x0038, 0x006e, 0x002c, 0x0031, 0x0038, 0x0034, 0x0034, 0x0036, 0x0037, 0x0034, 0x0034, 0x0030, 0x0037, 0x0033, 0x0037, 0x0030, 0x0039, 0x0035, 0x0035, 0x0031, 0x0036, 0x0031, 0x0038, 0x006e, 0x005d]);
+    static LITERAL_17: StaticBigInt = StaticBigInt { sign: nanvm_lib::sign::Sign::Positive, words: &[] };
+    static LITERAL_18: StaticBigInt = StaticBigInt { sign: nanvm_lib::sign::Sign::Negative, words: &[0x0000000000000001] };
+    static LITERAL_19: StaticString = StaticString(&[0x006c, 0x0065, 0x0066, 0x0074]);
+    static LITERAL_20: StaticString = StaticString(&[0x006d, 0x0069, 0x0078, 0x0065, 0x0064]);
+    static LITERAL_21: StaticString = StaticString(&[0x0072, 0x0065, 0x0063, 0x006f, 0x0072, 0x0064]);
+    static LITERAL_22: StaticString = StaticString(&[0x0072, 0x0065, 0x0063, 0x006f, 0x0072, 0x0064, 0x0041, 0x006c, 0x0069, 0x0061, 0x0073]);
+    static LITERAL_23: StaticString = StaticString(&[0x0072, 0x0069, 0x0067, 0x0068, 0x0074]);
+    static LITERAL_24: StaticString = StaticString(&[0x0073, 0x0061, 0x006d, 0x0065]);
+    static LITERAL_25: StaticString = StaticString(&[0x0028, 0x0029, 0x003d, 0x003e, 0x007b, 0x0063, 0x006f, 0x006e, 0x0073, 0x0074, 0x0020, 0x0024, 0x0030, 0x003d, 0x004f, 0x0062, 0x006a, 0x0065, 0x0063, 0x0074, 0x002e, 0x0069, 0x0073, 0x003b, 0x0072, 0x0065, 0x0074, 0x0075, 0x0072, 0x006e, 0x0020, 0x0024, 0x0030, 0x0028, 0x0022, 0x0076, 0x0065, 0x0072, 0x0079, 0x0020, 0x006c, 0x006f, 0x006e, 0x0067, 0x0020, 0x0073, 0x0074, 0x0072, 0x0069, 0x006e, 0x0067, 0x0022, 0x002c, 0x0022, 0x0076, 0x0065, 0x0072, 0x0079, 0x0020, 0x006c, 0x006f, 0x006e, 0x0067, 0x0020, 0x0073, 0x0074, 0x0072, 0x0069, 0x006e, 0x0067, 0x0022, 0x0029, 0x003b, 0x007d]);
+    static LITERAL_26: StaticString = StaticString(&[0x0073, 0x0074, 0x0061, 0x0074, 0x0069, 0x0063]);
+    static LITERAL_27: StaticString = StaticString(&[0x004f, 0x0062, 0x006a, 0x0065, 0x0063, 0x0074, 0x002e, 0x0069, 0x0073]);
+    static LITERAL_28: StaticString = StaticString(&[0x0073, 0x0065, 0x0063, 0x006f, 0x006e, 0x0064]);
     let _b0: Any<A> = { static VALUE: StaticArray<A> = StaticArray(&[]); Array::from_static(&VALUE).to_any() };
     let _b2: Any<A> = A::function_with_text(|_self, _args| { String::from_static(&LITERAL_1).to_any() + String::from_static(&LITERAL_1).to_any() }, 0, [runtime.clone()].to_array(), Some(String::from_static(&LITERAL_0))).to_any();
-    Ok([(String::from_static(&LITERAL_2), _b0.clone()), (String::from_static(&LITERAL_3), A::function_with_text(|_self, _args| { Any::call(A::frame(_self)[0].clone(), Array::default().to_any()) }, 0, [_b2.clone(), runtime.clone()].to_array(), Some(String::from_static(&LITERAL_4))).to_any()), (String::from_static(&LITERAL_5), A::function_with_text(|_self, _args| { Any::dot([(String::from_static(&LITERAL_3), String::from_static(&LITERAL_3).to_any())].to_object().to_any(), String::from_static(&LITERAL_3).to_any()).end() }, 0, [runtime.clone()].to_array(), Some(String::from_static(&LITERAL_6))).to_any()), (String::from_static(&LITERAL_7), _b0.clone()), (String::from_static(&LITERAL_8), A::function_with_text(|_self, _args| { Ok(Array::default().to_any()) }, 0, [runtime.clone()].to_array(), Some(String::from_static(&LITERAL_9))).to_any()), (String::from_static(&LITERAL_10), A::function_with_text(|_self, _args| { Ok([BigInt::from_static(&LITERAL_12).to_any(), BigInt::from_static(&LITERAL_13).to_any(), BigInt::from_static(&LITERAL_14).to_any(), BigInt::from_static(&LITERAL_14).to_any()].to_array().to_any()) }, 0, [runtime.clone()].to_array(), Some(String::from_static(&LITERAL_11))).to_any()), (String::from_static(&LITERAL_15), { static VALUE: StaticArray<A> = StaticArray(&[StaticAny::Number(f64::from_bits(0x3ff0000000000000)), StaticAny::String(&LITERAL_1), StaticAny::BigInt(&LITERAL_14)]); Array::from_static(&VALUE).to_any() }), (String::from_static(&LITERAL_16), A::function_with_text(|_self, _args| {
-        let _b14: Any<A> = (static_read_keys(&A::frame(_self)[0], String::from_static(&LITERAL_18), String::from_static(&LITERAL_19)))?;
-        Any::call(_b14.clone(), [String::from_static(&LITERAL_1).to_any(), String::from_static(&LITERAL_1).to_any()].to_array().to_any())
-    }, 0, [runtime.clone()].to_array(), Some(String::from_static(&LITERAL_17))).to_any()), (String::from_static(&LITERAL_20), { static VALUE: StaticArray<A> = StaticArray(&[]); Array::from_static(&VALUE).to_any() })].to_object().to_any())
+    let _b17: Any<A> = { static VALUE: StaticObject<A> = StaticObject(&[(&LITERAL_2, StaticAny::String(&LITERAL_1)), (&LITERAL_3, StaticAny::BigInt(&LITERAL_4))]); Object::from_static(&VALUE).to_any() };
+    Ok([(String::from_static(&LITERAL_5), _b0.clone()), (String::from_static(&LITERAL_6), A::function_with_text(|_self, _args| { Any::call(A::frame(_self)[0].clone(), Array::default().to_any()) }, 0, [_b2.clone(), runtime.clone()].to_array(), Some(String::from_static(&LITERAL_7))).to_any()), (String::from_static(&LITERAL_8), A::function_with_text(|_self, _args| { Any::dot([(String::from_static(&LITERAL_6), String::from_static(&LITERAL_6).to_any())].to_object().to_any(), String::from_static(&LITERAL_6).to_any()).end() }, 0, [runtime.clone()].to_array(), Some(String::from_static(&LITERAL_9))).to_any()), (String::from_static(&LITERAL_10), A::function_with_text(|_self, _args| { Ok(Object::default().to_any()) }, 0, [runtime.clone()].to_array(), Some(String::from_static(&LITERAL_11))).to_any()), (String::from_static(&LITERAL_12), _b0.clone()), (String::from_static(&LITERAL_13), A::function_with_text(|_self, _args| { Ok(Array::default().to_any()) }, 0, [runtime.clone()].to_array(), Some(String::from_static(&LITERAL_14))).to_any()), (String::from_static(&LITERAL_15), A::function_with_text(|_self, _args| { Ok([BigInt::from_static(&LITERAL_17).to_any(), BigInt::from_static(&LITERAL_18).to_any(), BigInt::from_static(&LITERAL_4).to_any(), BigInt::from_static(&LITERAL_4).to_any()].to_array().to_any()) }, 0, [runtime.clone()].to_array(), Some(String::from_static(&LITERAL_16))).to_any()), (String::from_static(&LITERAL_19), { static VALUE: StaticObject<A> = StaticObject(&[]); Object::from_static(&VALUE).to_any() }), (String::from_static(&LITERAL_20), { static VALUE: StaticArray<A> = StaticArray(&[StaticAny::Number(f64::from_bits(0x3ff0000000000000)), StaticAny::String(&LITERAL_1), StaticAny::BigInt(&LITERAL_4)]); Array::from_static(&VALUE).to_any() }), (String::from_static(&LITERAL_21), _b17.clone()), (String::from_static(&LITERAL_22), _b17.clone()), (String::from_static(&LITERAL_23), { static VALUE: StaticObject<A> = StaticObject(&[]); Object::from_static(&VALUE).to_any() }), (String::from_static(&LITERAL_24), A::function_with_text(|_self, _args| {
+        let _b19: Any<A> = (static_read_keys(&A::frame(_self)[0], String::from_static(&LITERAL_26), String::from_static(&LITERAL_27)))?;
+        Any::call(_b19.clone(), [String::from_static(&LITERAL_1).to_any(), String::from_static(&LITERAL_1).to_any()].to_array().to_any())
+    }, 0, [runtime.clone()].to_array(), Some(String::from_static(&LITERAL_25))).to_any()), (String::from_static(&LITERAL_28), { static VALUE: StaticArray<A> = StaticArray(&[]); Array::from_static(&VALUE).to_any() })].to_object().to_any())
 }

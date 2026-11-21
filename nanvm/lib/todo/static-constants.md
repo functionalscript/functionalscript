@@ -146,7 +146,8 @@ and the same data is a data segment in WebAssembly.
 - [x] Emit big integer literals in native application output.
 - [x] Emit native module-level arrays of primitive literals, preserving a distinct
   descriptor per array literal site.
-- [ ] Extend array emission to composite items and emit objects and functions.
+- [x] Emit native module-level objects with literal string keys and primitive values.
+- [ ] Extend static containers to composite members and emit functions.
 - [ ] Have the Rust serializer write constants as statics.
 
 ### Related
