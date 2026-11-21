@@ -903,7 +903,8 @@ const moduleOwnership = root => {
         const operands = value instanceof Array && value[0] === 'function' ? value[1].captures.map(c => c.value)
             : value instanceof Array && value[0] === 'array' ? value[1]
                 : value instanceof Array && value[0] === '()' ? [value[1], ...value[2]] : []
-        const direct = fromValues(operands.flatMap(v => v instanceof Array && v[0] === 'ref' ? [mapGet(aliases, v[1]) ?? v[1]] : []))
+        const currentAliases = aliases
+        const direct = fromValues(operands.flatMap(v => v instanceof Array && v[0] === 'ref' ? [mapGet(currentAliases, v[1]) ?? v[1]] : []))
         /** @type {PersistentMap<BindingId, boolean>} */
         let seen = empty
         /** @type {Stack<_Task>} */
@@ -920,6 +921,7 @@ const moduleOwnership = root => {
                 }
             }
             // A function reads the outer locals only while constructing its frame.
+            /** @type {readonly _Task[]} */
             const next = v instanceof Array && v[0] === 'function'
                 ? v[1].captures.map(c => valueTask(top.context, c.value)) : children(top)
             pending = pushAll(next, rest)
