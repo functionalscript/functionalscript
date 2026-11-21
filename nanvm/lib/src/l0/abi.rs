@@ -288,6 +288,23 @@ fn get(name: &str, h: i64) -> V {
     with(|s| s.values.get(h as u64).cloned()).unwrap_or_else(|| trap(name, "not a value"))
 }
 
+/// Runs `f` on the value of a handle, which stays where it is: a read
+/// that needs no copy of the value, inside the state. `f` must not
+/// reach the state itself; a trap inside it ends the change as any
+/// trap does.
+fn read<R>(name: &str, h: i64, f: impl FnOnce(&V) -> R) -> R {
+    with(|s| s.values.get(h as u64).map(f)).unwrap_or_else(|| trap(name, "not a value"))
+}
+
+/// [`read`] of two handles at once.
+fn read2<R>(name: &str, a: i64, b: i64, f: impl FnOnce(&V, &V) -> R) -> R {
+    with(|s| match (s.values.get(a as u64), s.values.get(b as u64)) {
+        (Some(x), Some(y)) => Some(f(x, y)),
+        _ => None,
+    })
+    .unwrap_or_else(|| trap(name, "not a value"))
+}
+
 /// The value of a handle the function takes: the handle is freed.
 fn take(name: &str, h: i64) -> V {
     if is_constant(h) {
@@ -387,12 +404,12 @@ fn store(name: &str, ptr: i32, len: i32, size: usize, data: &[u8]) {
 
 /// L0 `kind`.
 pub fn kind(v: i64) -> i32 {
-    super::kind(&get("kind", v)) as i32
+    read("kind", v, |x| super::kind(x) as i32)
 }
 
 /// L0 `to_f64`.
 pub fn to_f64(v: i64) -> f64 {
-    super::to_f64(&get("to_f64", v))
+    read("to_f64", v, super::to_f64)
 }
 
 /// L0 `from_f64`.
@@ -402,7 +419,7 @@ pub fn from_f64(x: f64) -> i64 {
 
 /// L0 `to_bool`.
 pub fn to_bool(v: i64) -> i32 {
-    super::to_bool(&get("to_bool", v)) as i32
+    read("to_bool", v, |x| super::to_bool(x) as i32)
 }
 
 /// L0 `from_bool`: the constant `true` for any `b` but `0`.
@@ -433,7 +450,7 @@ pub fn read_units(s: i64, start: i32, len: i32, ptr: i32) {
 
 /// L0 `read_units` into a host's own buffer.
 pub fn read_units_into(s: i64, start: i32, out: &mut [u16]) {
-    super::read_units(&get("read_units", s), start as u32, out);
+    read("read_units", s, |x| super::read_units(x, start as u32, out));
 }
 
 /// L0 `make_bigint`: a sign and `len` `u64` words at `ptr`.
@@ -448,7 +465,7 @@ pub fn make_bigint_of(sign: i32, words: &[u64]) -> i64 {
 
 /// L0 `sign`.
 pub fn sign(b: i64) -> i32 {
-    super::sign(&get("sign", b))
+    read("sign", b, super::sign)
 }
 
 /// L0 `read_words`: `len` words of `b`'s magnitude from `start`, written
@@ -463,14 +480,14 @@ pub fn read_words(b: i64, start: i32, len: i32, ptr: i32) {
 
 /// L0 `read_words` into a host's own buffer.
 pub fn read_words_into(b: i64, start: i32, out: &mut [u64]) {
-    super::read_words(&get("read_words", b), start as u32, out);
+    read("read_words", b, |x| super::read_words(x, start as u32, out));
 }
 
 // Strings.
 
 /// L0 `unit`.
 pub fn unit(s: i64, i: i32) -> i32 {
-    super::unit(&get("unit", s), i as u32).into()
+    read("unit", s, |x| super::unit(x, i as u32)).into()
 }
 
 /// L0 `from_unit`. A number that is not a UTF-16 unit traps.
@@ -481,21 +498,19 @@ pub fn from_unit(u: i32) -> i64 {
 
 /// L0 `concat`.
 pub fn concat(a: i64, b: i64) -> i64 {
-    put(super::concat(&get("concat", a), &get("concat", b)))
+    put(read2("concat", a, b, super::concat))
 }
 
 /// L0 `substring`.
 pub fn substring(s: i64, start: i32, end: i32) -> i64 {
-    put(super::substring(
-        &get("substring", s),
-        start as u32,
-        end as u32,
-    ))
+    put(read("substring", s, |x| {
+        super::substring(x, start as u32, end as u32)
+    }))
 }
 
 /// L0 `join`.
 pub fn join(parts: i64, separator: i64) -> i64 {
-    put(super::join(&get("join", parts), &get("join", separator)))
+    put(read2("join", parts, separator, super::join))
 }
 
 // Containers.
@@ -533,22 +548,22 @@ pub fn seal(b: i32) -> i64 {
 
 /// L0 `length`.
 pub fn length(v: i64) -> i32 {
-    super::length(&get("length", v)) as i32
+    read("length", v, |x| super::length(x) as i32)
 }
 
 /// L0 `item`.
 pub fn item(v: i64, i: i32) -> i64 {
-    put(super::item(&get("item", v), i as u32))
+    put(read("item", v, |x| super::item(x, i as u32)))
 }
 
 /// L0 `key`.
 pub fn key(o: i64, i: i32) -> i64 {
-    put(super::key(&get("key", o), i as u32))
+    put(read("key", o, |x| super::key(x, i as u32)))
 }
 
 /// L0 `find`.
 pub fn find(o: i64, key: i64) -> i32 {
-    super::find(&get("find", o), &get("find", key))
+    read2("find", o, key, super::find)
 }
 
 // Lifetime.
@@ -665,7 +680,7 @@ pub fn frame(self_: i64, i: i32) -> i64 {
 
 /// L0 `text`.
 pub fn text(f: i64) -> i64 {
-    put(super::text(&get("text", f)))
+    put(read("text", f, super::text))
 }
 
 /// L0 `throw`: keeps `v`, which it takes, and traps.
@@ -682,7 +697,7 @@ pub fn throw(v: i64) -> ! {
 
 /// L0 `same`.
 pub fn same(a: i64, b: i64) -> i32 {
-    super::same(&get("same", a), &get("same", b)) as i32
+    read2("same", a, b, |x, y| super::same(x, y) as i32)
 }
 
 // The host's side, not L0 imports.
