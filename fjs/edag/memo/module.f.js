@@ -16,14 +16,13 @@
  * @module
  * @import { Exp, ExpOp } from '../types.ts'
  * @import { EdagValue } from '../value/types.ts'
- * @import { RefMap } from '../../types/ref_map/types.ts'
  * @import { Analysis, Operand } from '../analysis/types.ts'
  * @import { ValueResult } from '../value/control/types.ts'
  * @import { Invoke, Outcome } from '../value/call/types.ts'
  * @import { Runtime } from '../value/types.ts'
  * @import { Invocation } from './types.ts'
  * @import { Context, Evaluation, Tail } from '../operations/types.ts'
- * @import { _Cache, _State } from './private.ts'
+ * @import { _Cache, _Kept, _State } from './private.ts'
  */
 
 import { isArray } from '../../types/array/module.f.js'
@@ -96,6 +95,26 @@ const evaluate = (a, context, root, invoke) => {
 /** Nodes that read what the invocation already holds: nothing to compute, so nothing to keep. */
 const reads = /** @type {readonly string[]} */ (['arg', 'rest', 'frame', 'self', 'args', 'undefined'])
 
+/** How many values an invocation keeps in a list before it keeps the rest in a reference map. */
+const few = /** @type {number} */ (16)
+
+/** An invocation that has kept nothing. */
+const nothing = /** @type {_Kept} */ ([0, null, none])
+
+/** The value kept for a node, or `undefined`. @type {(kept: _Kept, e: ExpOp) => EdagValue | undefined} */
+const kept = ([size, pairs, rest], e) => {
+    let at = pairs
+    while (at !== null) {
+        if (at[0] === e) { return at[1] }
+        at = at[2]
+    }
+    return size > few ? /** @type {EdagValue | undefined} */ (rest(e)[0]) : undefined
+}
+
+/** `kept` with a node's value kept as well. @type {(kept: _Kept, e: ExpOp, value: EdagValue) => _Kept} */
+const keep = ([size, pairs, rest], e, value) =>
+    size < few ? [size + 1, [e, value, pairs], rest] : [size + 1, pairs, rest(e, value)[1]]
+
 /**
  * An invoked body in tail position, evaluated as the graph has it: a node
  * is its own key, so one shared node is one value and two equal nodes are
@@ -108,6 +127,11 @@ const reads = /** @type {readonly string[]} */ (['arg', 'rest', 'frame', 'self',
  * call, to learn which nodes are shared; keeping every value asks nothing
  * of the nodes an invocation never reaches.
  *
+ * Most invocations evaluate a handful of nodes, and a reference map costs
+ * more to start than a handful of comparisons: the first values are kept in
+ * a list searched with `===`, and only an invocation that keeps more than
+ * {@link few} keeps the rest in a map.
+ *
  * @type {(context: Context, root: Exp, invoke: Invoke) => Outcome}
  */
 const body = (context, root, invoke) => {
@@ -117,36 +141,36 @@ const body = (context, root, invoke) => {
     /**
      * @template {Outcome} R
      * @param {ExpOp} e
-     * @param {_State<RefMap, Exp>} state
+     * @param {_State<_Kept, Exp>} state
      * @param {R} outcome
-     * @returns {readonly [_State<RefMap, Exp>, R]}
+     * @returns {readonly [_State<_Kept, Exp>, R]}
      */
-    const retained = (e, [kept, run], outcome) =>
-        [[outcome[0] === 'ok' && !reads.includes(e[0]) ? kept(e, outcome[1])[1] : kept, run], outcome]
+    const retained = (e, [values, run], outcome) =>
+        [[outcome[0] === 'ok' && !reads.includes(e[0]) ? keep(values, e, outcome[1]) : values, run], outcome]
 
     // As in `evaluate`: the evaluator is built once and travels in the
     // state, and the two settle differently without a helper taking the
     // settling as a parameter.
 
-    /** @type {(e: Exp, state: _State<RefMap, Exp>) => Evaluation<_State<RefMap, Exp>>} */
+    /** @type {(e: Exp, state: _State<_Kept, Exp>) => Evaluation<_State<_Kept, Exp>>} */
     const operand = (e, state) => {
         if (!isArray(e)) { return [state, ok(e)] }
-        const [found] = state[0](e)
-        if (found !== undefined) { return [state, ok(/** @type {EdagValue} */ (found))] }
+        const found = kept(state[0], e)
+        if (found !== undefined) { return [state, ok(found)] }
         const [next, outcome] = state[1](e, state)
         return retained(e, next, settled(outcome))
     }
 
-    /** @type {(root: Exp, state: _State<RefMap, Exp>) => Tail<_State<RefMap, Exp>>} */
+    /** @type {(root: Exp, state: _State<_Kept, Exp>) => Tail<_State<_Kept, Exp>>} */
     const tail = (root, state) => {
         if (!isArray(root)) { return [state, ok(root)] }
-        const [found] = state[0](root)
-        if (found !== undefined) { return [state, ok(/** @type {EdagValue} */ (found))] }
+        const found = kept(state[0], root)
+        if (found !== undefined) { return [state, ok(found)] }
         const [next, outcome] = state[1](root, state)
         return retained(root, next, outcome)
     }
 
-    return tail(root, [none, operation({ context, moduleArgs: args, operand, tail, expression: identity, invoke })])[1]
+    return tail(root, [nothing, operation({ context, moduleArgs: args, operand, tail, expression: identity, invoke })])[1]
 }
 
 /**
