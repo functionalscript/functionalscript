@@ -47,7 +47,7 @@ export const proof = {
         assert(lines[1].includes('(String::from_static(&LITERAL_0), String::from_static(&LITERAL_0).to_any())'))
         /** @type {readonly Value[]} */
         const values = [
-            ['.', ['object', []], 'a', ['|.', 'b', undefined]],
+            ['.', ['object', []], 'a', ['|.', 'b']],
             ['?.', ['object', []], '\ud800'], ['memberPresent', ['object', []], 'a'],
             ['Boolean', 1], ['in', 'b', ['object', []]], ['slice'], ['Object.is'],
         ]
