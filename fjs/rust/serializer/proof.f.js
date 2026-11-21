@@ -34,11 +34,22 @@ export const proof = {
         const body = yielding([['array', ['hi', 'hi', ['function', fn]]]])
         const output = unwrap(scopeTagged(body, options, [], true))
         const lines = output.lines.map(untagged)
-        assertEq(lines[0], 'static STRING_0: StaticString = StaticString(&[0x0068, 0x0069]);')
-        assertEq(lines.join('\n').split('String::from_static(&STRING_0)').length, 3)
+        assertEq(lines[0], 'static LITERAL_0: StaticString = StaticString(&[0x0068, 0x0069]);')
+        assertEq(lines.join('\n').split('String::from_static(&LITERAL_0)').length, 3)
         assert(output.uses.vm.includes('IVm'))
         assert(output.uses.vm.includes('StaticString'))
         assertEq(useLines(output.uses, null).join('\n').includes('null'), false)
+    },
+    nativeBigInts: () => {
+        const wide = 0x1_0000_0000_0000_0002n
+        const body = yielding([['array', [0n, -1n, wide, wide]]])
+        const output = unwrap(scopeTagged(body, options, [], true))
+        const lines = output.lines.map(untagged)
+        assertEq(lines.filter(line => line.startsWith('static ')).length, 3)
+        assert(lines.some(line => line.includes('Sign::Positive, words: &[]')))
+        assert(lines.some(line => line.includes('Sign::Negative, words: &[0x0000000000000001]')))
+        assert(lines.some(line => line.includes('Sign::Positive, words: &[0x0000000000000002, 0x0000000000000001]')))
+        assertEq(lines.join('\n').split('BigInt::from_static(&LITERAL_2)').length, 3)
     },
     primitives: () => {
         for (const value of [undefined, null, true, false, 0, -0, 1, NaN, Infinity, -Infinity, '', 'a\ud800b', '\u{1f600}', 0n, -(2n ** 63n), 2n ** 64n]) {

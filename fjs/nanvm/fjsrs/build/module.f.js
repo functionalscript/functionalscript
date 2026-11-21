@@ -22,4 +22,4 @@ export const output = /** @type {const} */ ('nanvm/fjsrs/src/gen.program.native.
 
 /** @type {NodeProgram} */
 export const main = _options => exitStep(step(compileFile(noRuntime)(source, output), () =>
-    compileFile(noRuntime)('nanvm/fjsrs/tests/static-strings.mjs', 'nanvm/fjsrs/tests/generated/gen.strings.native.rs')))
+    compileFile(noRuntime)('nanvm/fjsrs/tests/static-strings.f.js', 'nanvm/fjsrs/tests/generated/gen.strings.native.rs')))

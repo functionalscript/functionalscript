@@ -14,7 +14,7 @@ export type _Context = Options & {
 }
 
 export type _Names = {
-    readonly strings: PersistentMap<string, number>
+    readonly literals: PersistentMap<string | bigint, number>
     readonly bindings: PersistentMap<BindingId, string>
     readonly loops: PersistentMap<LoopTarget, string>
 }

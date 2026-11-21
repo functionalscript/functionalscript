@@ -12,7 +12,7 @@ import { main, output, source } from './module.f.js'
 export const proof = /** @type {const} */ ({
     writes: () => {
         const root = {
-            nanvm: { fjsrs: { tests: { 'static-strings.mjs': [utf8('export default 1;')] } } },
+            nanvm: { fjsrs: { tests: { 'static-strings.f.js': [utf8('export default 1;')] } } },
             fjs: { nanvm: { fjsrs: { 'module.f.js': [utf8('export const main = 7;')] } } },
         }
         const [state, code] = virtualAt(root)(main(defaultNodeProgramOptions))
