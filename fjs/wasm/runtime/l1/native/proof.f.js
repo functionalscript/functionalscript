@@ -2,6 +2,7 @@ import { assert, assertEq } from '../../../../asserts/module.f.js'
 import {
     bigintAdd, bigintDivide, bigintEquals, bigintLess, bigintMultiply, bigintNegate, bigintSubtract,
     bigintToString, numberRemainder, numberToString, stringToNumber,
+    numberShiftRight, numberAnd, bigintRemainder, bigintShiftRight, bigintAnd,
 } from './module.f.js'
 
 export const proof = {
@@ -20,6 +21,16 @@ export const proof = {
         assertEq(numberRemainder(3, -Infinity), 3)
         assert(Number.isNaN(numberRemainder(1, 0)))
         assert(Number.isNaN(numberRemainder(-Infinity, 1)))
+    },
+    // `numberShiftRight` and `numberAnd` read each number as a 32-bit integer,
+    // the shift by its low five bits.
+    bits: () => {
+        assertEq(numberShiftRight(-9, 1), -5)
+        assertEq(numberShiftRight(2 ** 32 + 8, 33), 4)
+        assertEq(numberShiftRight(NaN, 1), 0)
+        assertEq(numberAnd(0b1100, 0b1010), 0b1000)
+        assertEq(numberAnd(-1, 2 ** 32 + 5), 5)
+        assertEq(numberAnd(1.9, Infinity), 0)
     },
     // `numberToString` is `String` of a number, the shortest round trip.
     numberToString: () => {
@@ -51,6 +62,12 @@ export const proof = {
         assertEq(bigintDivide(-7n, 2n), -3n)
         assertEq(bigintNegate(5n), -5n)
         assertEq(bigintNegate(0n), 0n)
+        assertEq(bigintRemainder(-7n, 2n), -1n)
+        assertEq(bigintShiftRight(-1n, 100n), -1n)
+        assertEq(bigintShiftRight(-9n, 1n), -5n)
+        assertEq(bigintShiftRight(1n, -70n), 0x40_0000_0000_0000_0000n)
+        assertEq(bigintAnd(-1n, 0x1_0000_0000_0000_0005n), 0x1_0000_0000_0000_0005n)
+        assertEq(bigintAnd(-4n, -6n), -8n)
     },
     // `bigintLess` answers `1`, `0` or `-1`, a string read as a bigint and
     // undefined where it spells none, or against `NaN`.
@@ -72,6 +89,12 @@ export const proof = {
         bigintDivideZero: () => { bigintDivide(1n, 0n) },
         bigintDivide: () => { bigintDivide('1', 1n) },
         bigintNegate: () => { bigintNegate(1) },
+        bigintRemainderZero: () => { bigintRemainder(1n, 0n) },
+        bigintRemainder: () => { bigintRemainder(1, 1n) },
+        bigintShiftRight: () => { bigintShiftRight(1n, 1) },
+        bigintAnd: () => { bigintAnd(1n, 1) },
+        numberShiftRight: () => { numberShiftRight('1', 1) },
+        numberAnd: () => { numberAnd(1, 1n) },
         bigintLessNoBigint: () => { bigintLess(1, '1') },
         bigintLessFirst: () => { bigintLess(true, 1n) },
         bigintLessSecond: () => { bigintLess(1n, null) },

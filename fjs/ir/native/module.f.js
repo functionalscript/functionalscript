@@ -13,8 +13,10 @@
  *   [L0's Any](../l0/module.f.js), which a module that imports this
  *   imports too.
  * - **A row of numbers takes and gives floats.** `numberRemainder` is `%`
- *   on two numbers, which WASM has no instruction for. It takes and gives
- *   `f64`s, not values of `any`, so no number is boxed to cross.
+ *   on two numbers, which WASM has no instruction for, and
+ *   `numberShiftRight` and `numberAnd` are `>>` and `&`, which read each
+ *   number as a 32-bit integer. They take and give `f64`s, not values of
+ *   `any`, so no number is boxed to cross.
  * - **`numberToString` takes a float and answers an owned string**, the
  *   decimal spelling of the float, which object spread uses as an index
  *   key. The caller owns the string, as it owns what L0 makes.
@@ -22,8 +24,10 @@
  *   text spells. **`bigintToString` takes a bigint and answers an owned
  *   string**, its decimal spelling. Both join with L1's coercions.
  * - **Bigint arithmetic** takes and answers bigints: `bigintAdd`,
- *   `bigintSubtract`, `bigintMultiply`, `bigintDivide` (which may fail on
- *   a zero divisor) and `bigintNegate`. **`bigintLess`** takes two values
+ *   `bigintSubtract`, `bigintMultiply`, `bigintDivide` and
+ *   `bigintRemainder` (which may fail on a zero divisor), `bigintNegate`,
+ *   `bigintShiftRight` (which may fail past NaNVM's size limit) and
+ *   `bigintAnd`. **`bigintLess`** takes two values
  *   of `any` (a bigint, number or string each) and answers a float,
  *   `1` / `0` / `-1`, for L1's mixed bigint comparisons.
  *
@@ -50,6 +54,8 @@ export const native = {
     functions: [
         ['bigintEquals', signature(big2, bool)],
         ['numberRemainder', signature([['a', f64], ['b', f64]], f64)],
+        ['numberShiftRight', signature([['a', f64], ['b', f64]], f64)],
+        ['numberAnd', signature([['a', f64], ['b', f64]], f64)],
         ['numberToString', signature([['n', f64]], string)],
         ['stringToNumber', signature([['s', string]], f64)],
         ['bigintToString', signature([['b', bigint]], string)],
@@ -58,6 +64,9 @@ export const native = {
         ['bigintMultiply', signature(big2, bigint)],
         ['bigintDivide', mayFail(signature(big2, bigint))],
         ['bigintNegate', signature([['a', bigint]], bigint)],
+        ['bigintRemainder', mayFail(signature(big2, bigint))],
+        ['bigintShiftRight', mayFail(signature(big2, bigint))],
+        ['bigintAnd', signature(big2, bigint)],
         ['bigintLess', signature([['a', any], ['b', any]], f64)],
     ],
 }

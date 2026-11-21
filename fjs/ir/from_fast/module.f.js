@@ -1052,20 +1052,23 @@ const nativeCall = (lowerValue, scope, name, vs) => {
 }
 
 /**
- * `a % b` of two floats: L1's native row `numberRemainder`, since WASM has
- * no instruction for it, which a module lowered over the runtime imports.
+ * `a % b`, `a >> b` or `a & b` of two floats, `op`: L1's native row of
+ * numbers `row`, `numberRemainder`, `numberShiftRight` or `numberAnd`,
+ * since WASM has no instruction for `%`, nor for the conversion to a
+ * 32-bit integer that the other two read, which a module lowered over the
+ * runtime imports.
  *
- * @type {(lowerValue: _LowerValue, scope: _Scope, a: Value, b: Value) => Result<Term, string>}
+ * @type {(op: string, row: string) => (lowerValue: _LowerValue, scope: _Scope, a: Value, b: Value) => Result<Term, string>}
  */
-const remainder = (lowerValue, scope, a, b) => {
+const numberRow = (op, row) => (lowerValue, scope, a, b) => {
     const xs = values(lowerValue, scope, [a, b])
     if (xs[0] === 'error') { return xs }
     const ts = okList(xs[1].map(x => typeOf(scope.ir)(x)))
     if (ts[0] === 'error') { return ts }
     const no = refuse(scope)
-    return !ts[1].every(isFloat) ? no(`% of ${ts[1].map(show).join(' and ')} is not in this slice`)
-        : !scope.ir.imports.some(([k]) => k === 'Native') ? no("% of two floats calls L1's native rows, which a module lowered without the runtime does not import")
-        : ok(call('Native', 'numberRemainder', xs[1]))
+    return !ts[1].every(isFloat) ? no(`${op} of ${ts[1].map(show).join(' and ')} is not in this slice`)
+        : !scope.ir.imports.some(([k]) => k === 'Native') ? no(`${op} of two floats calls L1's native rows, which a module lowered without the runtime does not import`)
+        : ok(call('Native', row, xs[1]))
 }
 
 // records
@@ -1733,6 +1736,12 @@ const viaL1 = (lowerValue, scope, name, fits, vs, native, wrap = x => x) => {
         : refuse(scope)(`${name} of ${ts[1].map(show).join(' and ')} is not in this slice`)
 }
 
+/** Whether operands are floats, which a native row of numbers takes. @type {(ts: readonly Type[]) => boolean} */
+const floats = ts => ts.every(isFloat)
+
+/** A call of L1's native row of numbers `name`, of floats lowered in their order. @type {(name: string) => (xs: readonly Term[]) => Result<Term, string>} */
+const nativeRow = name => xs => ok(call('Native', name, xs))
+
 /** The operator of the IR of two operands, lowered in their order. @type {(f: (a: Term, b: Term) => Term) => (xs: readonly Term[]) => Result<Term, string>} */
 const inOrder = f => xs => ok(f(xs[0], xs[1]))
 
@@ -1840,7 +1849,9 @@ const value = (scope, v) => {
         case 'Number': { return unary(value, scope, 'Number', v[1], (t, x) => t[0] === 'int' ? float(x) : isFloat(t) ? x : null) }
         case '*': { return viaL1(value, scope, 'multiply', numeric, [v[1], v[2]], inOrder(mul)) ?? binary(value, scope, mul, v[1], v[2]) }
         case '/': { return viaL1(value, scope, 'divide', numeric, [v[1], v[2]], inOrder(div)) ?? binary(value, scope, div, v[1], v[2]) }
-        case '%': { return remainder(value, scope, v[1], v[2]) }
+        case '%': { return viaL1(value, scope, 'remainder', floats, [v[1], v[2]], nativeRow('numberRemainder')) ?? numberRow('%', 'numberRemainder')(value, scope, v[1], v[2]) }
+        case '>>': { return viaL1(value, scope, 'shiftRight', floats, [v[1], v[2]], nativeRow('numberShiftRight')) ?? numberRow('>>', 'numberShiftRight')(value, scope, v[1], v[2]) }
+        case '&': { return viaL1(value, scope, 'bitwiseAnd', floats, [v[1], v[2]], nativeRow('numberAnd')) ?? numberRow('&', 'numberAnd')(value, scope, v[1], v[2]) }
         case 'object': { return objectLiteral(value, scope, v[1]) }
         case 'array': { return arrayOf(value, scope, v[1]) }
         case '?.': {

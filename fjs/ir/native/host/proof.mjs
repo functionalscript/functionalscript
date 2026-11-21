@@ -65,6 +65,22 @@ export const proof = {
         const k = h.bigintNegate(0n)
         assertEq(owned[Number(k) - values.length], -1n)
     },
+    numberBits: () => {
+        assertEq(h.numberShiftRight(-9, 1), -5)
+        assertEq(h.numberAnd(6, 3), 2)
+    },
+    bigintRemainder: () => {
+        const k = h.bigintRemainder(3n, 0n)
+        assertEq(owned[Number(k) - values.length], 0n)
+    },
+    bigintShiftRight: () => {
+        const k = h.bigintShiftRight(3n, 0n)
+        assertEq(owned[Number(k) - values.length], 1n << 63n)
+    },
+    bigintAnd: () => {
+        const k = h.bigintAnd(2n, 3n)
+        assertEq(owned[Number(k) - values.length], 1n << 64n)
+    },
     bigintLess: () => {
         assertEq(h.bigintLess(0n, 3n), 1)
         assertEq(h.bigintLess(3n, 0n), 0)
@@ -76,6 +92,7 @@ export const proof = {
         stringToNumber: () => { h.stringToNumber(0n) },
         bigintToString: () => { h.bigintToString(5n) },
         bigintDivideZero: () => { h.bigintDivide(0n, 4n) },
+        bigintRemainderZero: () => { h.bigintRemainder(0n, 4n) },
         bigintLessNoBigint: () => { h.bigintLess(5n, 6n) },
     },
 }

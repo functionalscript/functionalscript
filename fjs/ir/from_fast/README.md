@@ -70,7 +70,7 @@ far more, gives only the functions that the slices name as subjects so far
 | `v.x`, `o[0]` of sealed `any` (not array-only at a number) | `self.get(v, "x")` / `self.get(o, from_f64(0))` where the table names `get`; otherwise refused |
 | a `number`, a `bigint`, a `boolean` | a `lit` of `f64c`, a `lit` of its own range, a variant of `bool` |
 | `+`, `-`, `*`, `/`, `<`, `<=` | `add`, `sub`, `mul`, `div`, `lt`, `le` |
-| `a % b` of two floats | `Native.numberRemainder(a, b)`, [L1's native row](#l1s-native-rows) |
+| `a % b`, `a >> b`, `a & b` of two floats | `Native.numberRemainder(a, b)`, `Native.numberShiftRight(a, b)`, `Native.numberAnd(a, b)`, [L1's native rows](#l1s-native-rows) |
 | `a > b`, `a >= b` | `lt(b, a)`, `le(b, a)`, with `a` bound to a local first where it does something |
 | `a === b`, `a !== b` | `eq`, `ne` of numbers; of two booleans, `if_(a, b, not(b))` and `if_(a, not(b), b)` |
 | `-x` | `neg(x)` of a float, `sub(0, x)` of an integer |
@@ -373,6 +373,8 @@ const program = unwrap(lower({}, { ...l1Runtime(errors), l1 })(fast, imports))
 | In a program | The IR |
 | --- | --- |
 | `a + b`, `a - b`, `a * b`, `a / b` of operands that the IR's operators do not take, a value of `any` or a float and a boolean | `l1.add`, `l1.subtract`, `l1.multiply`, `l1.divide` of them, each float or boolean boxed by `from_f64` or `from_bool` |
+| `a % b`, `a >> b`, `a & b` of operands that are not two floats | `l1.remainder`, `l1.shiftRight`, `l1.bitwiseAnd` of them, boxed the same way |
+| a call of a function of the module that calls itself, not last, and that the module does not export | a call of `#h0`, `#h1`, …, a function of the IR of `any` alone that no export names |
 | `a < b`, `a <= b`, `a > b`, `a >= b` of such operands | `l1.lessThan`, `l1.lessThanOrEqual`, `l1.greaterThan`, `l1.greaterThanOrEqual`, `a` still first |
 | `a === b`, `a !== b` | `l1.strictEquals`, and its `not` |
 | `-x`, `!x`, `typeof x` | `l1.negate`, `not` of `l1.toBoolean`, `l1.typeOf` |

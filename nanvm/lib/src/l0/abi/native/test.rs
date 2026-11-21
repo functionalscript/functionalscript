@@ -60,6 +60,12 @@ fn numbers() {
     assert_eq!(number_remainder(-7.0, 3.0), -1.0);
     assert!(number_remainder(1.0, 0.0).is_nan());
     assert!(number_remainder(f64::INFINITY, 2.0).is_nan());
+    assert_eq!(number_shift_right(-9.0, 1.0), -5.0);
+    assert_eq!(number_shift_right(4_294_967_304.0, 33.0), 4.0);
+    assert_eq!(number_shift_right(f64::NAN, 1.0), 0.0);
+    assert_eq!(number_and(12.0, 10.0), 8.0);
+    assert_eq!(number_and(-1.0, 4_294_967_301.0), 5.0);
+    assert_eq!(number_and(1.9, f64::INFINITY), 0.0);
     for (n, t) in [
         (0.0, "0"),
         (-0.0, "0"),
@@ -96,11 +102,14 @@ fn numbers() {
 fn bigints() {
     fresh();
     let (a, b) = (big(-10), big(3));
-    let rows: [(Row, i128); 4] = [
+    let rows: [(Row, i128); 7] = [
         (bigint_add, -7),
         (bigint_subtract, -13),
         (bigint_multiply, -30),
         (bigint_divide, -3),
+        (bigint_remainder, -1),
+        (bigint_shift_right, -2),
+        (bigint_and, 2),
     ];
     for (row, expected) in rows {
         let r = row(a, b);

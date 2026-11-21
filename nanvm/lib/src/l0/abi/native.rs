@@ -59,6 +59,17 @@ pub fn number_remainder(a: f64, b: f64) -> f64 {
     a % b
 }
 
+/// `>>` of two numbers: `ToInt32` of the first, shifted right by the low
+/// five bits of `ToUint32` of the second, with its sign.
+pub fn number_shift_right(a: f64, b: f64) -> f64 {
+    f64::from(Number::from(a).to_int32() >> (Number::from(b).to_uint32() & 31))
+}
+
+/// `&` of two numbers, each `ToInt32`.
+pub fn number_and(a: f64, b: f64) -> f64 {
+    f64::from(Number::from(a).to_int32() & Number::from(b).to_int32())
+}
+
 /// `String(n)`: `Number::toString` in radix 10.
 pub fn number_to_string(n: f64) -> i64 {
     answer(
@@ -107,6 +118,22 @@ pub fn bigint_multiply(a: i64, b: i64) -> i64 {
 /// `/` of two bigints, truncated toward zero; a zero divisor throws.
 pub fn bigint_divide(a: i64, b: i64) -> i64 {
     arithmetic("bigintDivide", a, b, |x, y| x / y)
+}
+
+/// `%` of two bigints, the dividend's sign; a zero divisor throws.
+pub fn bigint_remainder(a: i64, b: i64) -> i64 {
+    arithmetic("bigintRemainder", a, b, |x, y| x % y)
+}
+
+/// `>>` of two bigints, a floor division by a power of two; a negative
+/// shift is a left shift, which throws past NaNVM's size limit.
+pub fn bigint_shift_right(a: i64, b: i64) -> i64 {
+    arithmetic("bigintShiftRight", a, b, |x, y| x >> y)
+}
+
+/// `&` of two bigints, as two's complement of infinite width.
+pub fn bigint_and(a: i64, b: i64) -> i64 {
+    arithmetic("bigintAnd", a, b, |x, y| Ok(x & y))
 }
 
 /// Unary `-` of a bigint.

@@ -12,7 +12,7 @@
  * `stringToNumber` and `bigintLess` answer a float.
  *
  * A kind mismatch throws as a WebAssembly trap would. A FunctionalScript
- * throw from a row — today `bigintDivide` of a zero divisor — is recorded
+ * throw from a row — today `bigintDivide` or `bigintRemainder` of a zero divisor — is recorded
  * with `fail` the same way `Functions.call` keeps a throw, then rethrown so
  * the engine traps and the host reads it by `has_thrown` and `thrown`.
  *
@@ -23,8 +23,9 @@
 
 import { error } from '../../../wasm/runtime/l1/error/module.f.js'
 import {
-    bigintAdd, bigintDivide, bigintEquals, bigintLess, bigintMultiply, bigintNegate, bigintSubtract,
-    bigintToString, numberRemainder, numberToString, stringToNumber,
+    bigintAdd, bigintAnd, bigintDivide, bigintEquals, bigintLess, bigintMultiply, bigintNegate, bigintRemainder,
+    bigintShiftRight, bigintSubtract, bigintToString, numberAnd, numberRemainder, numberShiftRight, numberToString,
+    stringToNumber,
 } from '../../../wasm/runtime/l1/native/module.f.js'
 
 /**
@@ -42,6 +43,8 @@ import {
 export const host = (read, make, fail) => ({
     bigintEquals: (a, b) => bigintEquals(read(a), read(b)) ? 1 : 0,
     numberRemainder: (a, b) => numberRemainder(a, b),
+    numberShiftRight: (a, b) => numberShiftRight(a, b),
+    numberAnd: (a, b) => numberAnd(a, b),
     numberToString: n => make(numberToString(n)),
     stringToNumber: s => stringToNumber(read(s)),
     bigintToString: b => make(bigintToString(read(b))),
@@ -57,5 +60,15 @@ export const host = (read, make, fail) => ({
         }
     },
     bigintNegate: a => make(bigintNegate(read(a))),
+    bigintRemainder: (a, b) => {
+        try {
+            return make(bigintRemainder(read(a), read(b)))
+        } catch (e) {
+            if (e === error.divisionByZero) { fail(e) }
+            throw e
+        }
+    },
+    bigintShiftRight: (a, b) => make(bigintShiftRight(read(a), read(b))),
+    bigintAnd: (a, b) => make(bigintAnd(read(a), read(b))),
     bigintLess: (a, b) => bigintLess(read(a), read(b)),
 })

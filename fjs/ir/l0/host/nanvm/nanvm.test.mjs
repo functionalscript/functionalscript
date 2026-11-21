@@ -103,6 +103,19 @@ test('numberToString and stringToNumber agree with JavaScript', () => {
     }
 })
 
+test('numberShiftRight and numberAnd agree with JavaScript', () => {
+    const next = words(0x5_41f7)
+    const xs = floats(next, 300)
+    for (const a of xs) {
+        for (const b of xs.slice(0, 40)) {
+            for (const [name, f] of /** @type {const} */ ([['numberShiftRight', (/** @type {number} */ x, /** @type {number} */ y) => x >> y], ['numberAnd', (/** @type {number} */ x, /** @type {number} */ y) => x & y]])) {
+                const got = native(name, [a, b])
+                if (!Object.is(got, f(a, b))) { throw [name, a, b, got, f(a, b)] }
+            }
+        }
+    }
+})
+
 test('the bigint rows agree with JavaScript', () => {
     const next = words(0xb16_1e55)
     /** @type {() => bigint} */
@@ -117,16 +130,20 @@ test('the bigint rows agree with JavaScript', () => {
         ['bigintSubtract', (a, b) => a - b],
         ['bigintMultiply', (a, b) => a * b],
         ['bigintDivide', (a, b) => a / b],
+        ['bigintRemainder', (a, b) => a % b],
+        ['bigintAnd', (a, b) => a & b],
         ['bigintEquals', (a, b) => a === b ? 1 : 0],
         ['bigintLess', (a, b) => a < b ? 1 : 0],
     ]
     for (let k = 0; k < 500; k += 1) {
         const [a, b] = [big(), big()]
         for (const [name, f] of rows) {
-            if (name === 'bigintDivide' && b === 0n) { continue }
+            if ((name === 'bigintDivide' || name === 'bigintRemainder') && b === 0n) { continue }
             const got = native(name, [a, b])
             if (got !== f(a, b)) { throw [name, a, b, got, f(a, b)] }
         }
+        const by = BigInt(next() % 200 - 100)
+        if (native('bigintShiftRight', [a, by]) !== a >> by) { throw ['bigintShiftRight', a, by] }
         if (native('bigintNegate', [a]) !== -a) { throw ['bigintNegate', a] }
         if (native('bigintToString', [a]) !== String(a)) { throw ['bigintToString', a] }
         const x = [NaN, Infinity, -Infinity, 0][k % 8] ?? floats(next, 1)[14] ?? 0

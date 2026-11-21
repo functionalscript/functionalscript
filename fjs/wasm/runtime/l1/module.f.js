@@ -35,8 +35,9 @@ import {
     fromUnit, item, join, kind, length, same, substring, text, unit,
 } from '../l0/module.f.js'
 import {
-    bigintAdd, bigintDivide, bigintEquals, bigintLess, bigintMultiply, bigintNegate, bigintSubtract,
-    bigintToString, numberToString, stringToNumber,
+    bigintAdd, bigintAnd, bigintDivide, bigintEquals, bigintLess, bigintMultiply, bigintNegate, bigintRemainder,
+    bigintShiftRight, bigintSubtract, bigintToString, numberAnd, numberRemainder, numberShiftRight, numberToString,
+    stringToNumber,
 } from './native/module.f.js'
 import { error } from './error/module.f.js'
 
@@ -346,6 +347,45 @@ export const divide = (a, b) => {
     const x = toNumeric(a)
     const y = toNumeric(b)
     return bigintPair(x, y) ? bigintDivide(x, y) : asNumber(x) / asNumber(y)
+}
+
+/**
+ * The `%` operator on values of unknown type: the dividend's sign. A
+ * bigint divided by `0n` throws in the native row.
+ *
+ * @type {(a: unknown, b: unknown) => unknown}
+ */
+export const remainder = (a, b) => {
+    if (numbers(a, b)) { return numberRemainder(asNumber(a), asNumber(b)) }
+    const x = toNumeric(a)
+    const y = toNumeric(b)
+    return bigintPair(x, y) ? bigintRemainder(x, y) : numberRemainder(asNumber(x), asNumber(y))
+}
+
+/**
+ * The `>>` operator on values of unknown type: two numbers as 32-bit
+ * integers, or two bigints.
+ *
+ * @type {(a: unknown, b: unknown) => unknown}
+ */
+export const shiftRight = (a, b) => {
+    if (numbers(a, b)) { return numberShiftRight(asNumber(a), asNumber(b)) }
+    const x = toNumeric(a)
+    const y = toNumeric(b)
+    return bigintPair(x, y) ? bigintShiftRight(x, y) : numberShiftRight(asNumber(x), asNumber(y))
+}
+
+/**
+ * The `&` operator on values of unknown type: two numbers as 32-bit
+ * integers, or two bigints.
+ *
+ * @type {(a: unknown, b: unknown) => unknown}
+ */
+export const bitwiseAnd = (a, b) => {
+    if (numbers(a, b)) { return numberAnd(asNumber(a), asNumber(b)) }
+    const x = toNumeric(a)
+    const y = toNumeric(b)
+    return bigintPair(x, y) ? bigintAnd(x, y) : numberAnd(asNumber(x), asNumber(y))
 }
 
 /**

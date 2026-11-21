@@ -10,6 +10,8 @@ export const proof = {
         `${f}(${params.map(([k, t]) => `${k}: ${show(t)}`).join(', ')}) -> ${show(result)}`).join('; '), [
         'bigintEquals(a: any.only(bigint), b: any.only(bigint)) -> bool',
         'numberRemainder(a: f64, b: f64) -> f64',
+        'numberShiftRight(a: f64, b: f64) -> f64',
+        'numberAnd(a: f64, b: f64) -> f64',
         'numberToString(n: f64) -> any.only(string)',
         'stringToNumber(s: any.only(string)) -> f64',
         'bigintToString(b: any.only(bigint)) -> any.only(string)',
@@ -18,6 +20,9 @@ export const proof = {
         'bigintMultiply(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint)',
         'bigintDivide(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint)',
         'bigintNegate(a: any.only(bigint)) -> any.only(bigint)',
+        'bigintRemainder(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint)',
+        'bigintShiftRight(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint)',
+        'bigintAnd(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint)',
         'bigintLess(a: any, b: any) -> f64',
     ].join('; ')),
     // A module may import it beside L0, which seals its values of `any`, and not without.
