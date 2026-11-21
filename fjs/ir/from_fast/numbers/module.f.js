@@ -110,22 +110,6 @@ export const numberPath =
     }
 
 /**
- * A value of `any`, or a float or boolean boxed as one by `from_f64` or
- * `from_bool` ([definition.md's rule 6](../../../../doc/sasha-gil/ir/definition.md#from-normalized-fast-to-the-ir)),
- * or a bigint literal, a term of an integer type of one value, as
- * {@link bigintOf} boxes it, or `null` where no conversion of this slice
- * fits. A constant of such a type is not boxed, as
- * reading its literal instead would skip its `init`, which may throw.
- *
- * @type {(t: Type, x: Term) => Term | null}
- */
-export const asAny = (t, x) => isAny(t) ? x
-    : isFloat(t) ? call('Any', 'from_f64', [x])
-    : equal(t, bool) ? call('Any', 'from_bool', [x])
-    : t[0] === 'int' && t[1] === t[2] ? bigintOf(t[1], x)
-    : null
-
-/**
  * A term of an integer type of the one value `v` as a bigint of `any`: a
  * literal is made by L1's native row `stringToBigInt` of its decimal text,
  * and a `let` or a `match` whose every arm answers such a term, as two
@@ -144,6 +128,22 @@ const bigintOf = (v, x) => {
     const arms = x[2].map(([ks, binder, body]) => /** @type {const} */ ([ks, binder, bigintOf(v, body)]))
     return arms.some(([, , b]) => b === null) ? null : match(x[1], arms.map(([ks, binder, b]) => [ks, binder, assertNotNullish(b)]))
 }
+
+/**
+ * A value of `any`, or a float or boolean boxed as one by `from_f64` or
+ * `from_bool` ([definition.md's rule 6](../../../../doc/sasha-gil/ir/definition.md#from-normalized-fast-to-the-ir)),
+ * or a bigint literal, a term of an integer type of one value, as
+ * {@link bigintOf} boxes it, or `null` where no conversion of this slice
+ * fits. A constant of such a type is not boxed, as reading its literal
+ * instead would skip its `init`, which may throw.
+ *
+ * @type {(t: Type, x: Term) => Term | null}
+ */
+export const asAny = (t, x) => isAny(t) ? x
+    : isFloat(t) ? call('Any', 'from_f64', [x])
+    : equal(t, bool) ? call('Any', 'from_bool', [x])
+    : t[0] === 'int' && t[1] === t[2] ? bigintOf(t[1], x)
+    : null
 
 /**
  * A primitive as a term: a number is a float literal, a bigint the range
