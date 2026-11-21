@@ -34,9 +34,10 @@
  *   `s.p` and `s.p\.q` the key `p.q` of `s`, and no new name is another. A
  *   function that names a local with any of these three keeps every
  *   object, since a new name might be one of its own.
- *   A read `get(s, 'i')` is `s.i`, and a read of a term whose value may
- *   be such an object reads the key at each end of the term instead: an
- *   object's value, or a split local's.
+ *   A read `get(s, 'i')` is `s.i`, and a `let` of such a read is no
+ *   local of its own but `s.i` itself, so nothing copies it. A read of a
+ *   term whose value may be such an object reads the key at each end of
+ *   the term instead: an object's value, or a split local's.
  * - **Nothing moves past what does something.** A chain moves before a
  *   loop or a `br` only where all but one of its values do nothing, as a
  *   local, a literal or an object of these does nothing, and a read of
@@ -387,7 +388,10 @@ const rewrite = (get, split) => {
             case 'let': {
                 const keys = keysAt(path)
                 if (keys === null) {
-                    return ['let', t[1], go(t[2], `${path}/v`, env, null), go(t[3], `${path}/b`, bind(env, [t[1], path, t[1]]), key)]
+                    const value = go(t[2], `${path}/v`, env, null)
+                    // a read that is now a split local's part: the local is that part, with no copy of it
+                    return value[0] === 'get' && t[2][0] !== 'get' ? go(t[3], `${path}/b`, bind(env, [t[1], path, value[1]]), key)
+                        : ['let', t[1], value, go(t[3], `${path}/b`, bind(env, [t[1], path, t[1]]), key)]
                 }
                 return moved(t[2], `${path}/v`, env, t[1], values => values.reduceRight(
                     (body, [k, x]) => /** @type {Term} */ (['let', part(t[1], k), x, body]),

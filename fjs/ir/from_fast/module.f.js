@@ -171,18 +171,13 @@ import {
     make, match, mul, n, ne, neg, next, not, only, product, return_, signature, sub, terms, throw_, trap, true_, u,
 } from '../module.f.js'
 import { native } from '../native/module.f.js'
+import { isAny, isFloat, numberOps, numberPath } from './numbers/module.f.js'
 import { records } from '../records/module.f.js'
 import { link, linkedName, uses } from './link/module.f.js'
 import { show } from '../print/module.f.js'
 
 /** A count in a message: `one parameter`, `2 values`. @type {(k: number, noun: string) => string} */
 const count = (k, noun) => k === 1 ? `one ${noun}` : `${k} ${noun}s`
-
-/** @type {(t: Type) => boolean} */
-const isFloat = t => t[0] === 'f64' || t[0] === 'f64c'
-
-/** Whether a type is `any`, of every kind or of some. @type {(t: Type) => boolean} */
-const isAny = t => t[0] === 'sealed' && t[1] === any[1] && t[2] === any[2]
 
 /**
  * A value of `any`, or a float or boolean boxed as one by `from_f64` or
@@ -1725,12 +1720,11 @@ const viaL1 = (lowerValue, scope, name, fits, vs, native, wrap = x => x) => {
     const ts = okList(xs[1].map(x => typeOf(scope.ir)(x)))
     if (ts[0] === 'error') { return ts }
     if (fits(ts[1])) { return native(xs[1], ts[1]) }
-    const boxed = xs[1].flatMap((x, k) => {
-        const y = asAny(ts[1][Number(k)], x)
-        return y === null ? [] : [y]
-    })
-    return boxed.length === xs[1].length ? ok(wrap(call('self', f, boxed)))
-        : refuse(scope)(`${name} of ${ts[1].map(show).join(' and ')} is not in this slice`)
+    const types = ts[1]
+    /** L1's call of the operands, each float or boolean boxed. @type {(ys: readonly Term[]) => Term} */
+    const slow = ys => wrap(call('self', f, ys.map((y, k) => assertNotNullish(asAny(types[Number(k)], y)))))
+    if (!types.every(t => isAny(t) || isFloat(t) || equal(t, bool))) { return refuse(scope)(`${name} of ${types.map(show).join(' and ')} is not in this slice`) }
+    return (numberOps.includes(name) ? numberPath(pure, scope, xs[1], types, native, slow) : null) ?? ok(slow(xs[1]))
 }
 
 /** The operator of the IR of two operands, lowered in their order. @type {(f: (a: Term, b: Term) => Term) => (xs: readonly Term[]) => Result<Term, string>} */
