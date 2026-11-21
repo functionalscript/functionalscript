@@ -1,7 +1,7 @@
 ## Hold a compiled module's constants as static data
 
 **Priority:** P3
-**Status:** open — proposed by the language designer; no design yet
+**Status:** wip — the VM can load hand-written static descriptors
 
 ### Problem
 
@@ -26,22 +26,11 @@ time, binary size and reference counts is not measured.
 
 Write a constant as a Rust `static`, and let a value be a reference to one.
 
-- The constants are written in a type that names no VM, something like
-
-  ```rust
-  enum StaticAny {
-      Number(f64),
-      String(&'static [u16]),
-      Array(&'static [StaticAny]),
-      Object(&'static [(&'static [u16], StaticAny)]),
-      // …
-  }
-  ```
-
-  A `static` cannot be generic, and a generated module is generic over its
-  VM (`fn module<A: IStaticFunction>`); a type without `A` can be a
-  `static` in it. It holds no `Rc`, so it is `Sync`, which a `static` has to
-  be, with no `unsafe`.
+- [The static descriptors](../src/vm/static_value.rs) name their VM wherever
+  a function can occur. A `StaticFunction<A>` holds its `StaticCode<A>`
+  directly. Strings and big integers contain only primitive data and are
+  shared across VM types. A hand-written module can declare named statics
+  for a concrete VM. Emitting them for generic modules is still open.
 - Turning a static into a value is the VM's. The VM's trait converts each
   static container into its own: a `StaticString` to a `String<A>`, and the
   same for a big integer, an array, an object and a function, as
@@ -83,8 +72,8 @@ and the same data is a data segment in WebAssembly.
   abstraction, `IContainer::Items: SizedIndex<usize, Output = Item>`, and
   not a slice by contract. What it answers is a reference, `&Item`, as
   `Index<u32> for Array<A>` does, and an item wrapped on request is a new
-  value with nothing to refer to. The read has to answer the item itself,
-  and every reader of `array[i]` as a place changes with it.
+  value with nothing to refer to. The naive VM retains borrowed indexing by
+  caching the immediate items on first access.
 - **Functions.** A compiled function is generic over its VM, since its
   body calls the VM's operations, and its code is `StaticCode<A>`. A
   `static` cannot name `A`, so it cannot hold a reference to that code.
@@ -148,12 +137,12 @@ and the same data is a data segment in WebAssembly.
   generated today.
 - [ ] Decide how a static refers to a function's code: an id and a
   table, one VM for the generated code, or virtual calls.
-- [ ] Settle the static types, the conversions in the VM's trait and what
+- [x] Settle the static types, the conversions in the VM's trait and what
   they promise about identity.
 - [ ] Strings first: `StaticString` to `String<A>`, the naive VM keeping
   the reference, and the Rust serializer writing string constants as
   statics.
-- [ ] Then big integers, then arrays, objects and functions.
+- [ ] Emit big integers, arrays, objects and functions in the serializer.
 - [ ] Have the Rust serializer write constants as statics.
 
 ### Related

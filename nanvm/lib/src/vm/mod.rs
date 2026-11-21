@@ -25,6 +25,7 @@ mod primitive;
 mod primitive_coercion;
 mod primitive_dispatch;
 mod runtime;
+mod static_value;
 mod string;
 mod string_coercion;
 mod string_numeric_literal;
@@ -43,6 +44,9 @@ pub use crate::vm::{
     number::Number,
     object::{Object, property::Property, to_object::ToObject},
     object_spread::ObjectSpread,
+    static_value::{
+        IStaticVm, StaticAny, StaticArray, StaticBigInt, StaticFunction, StaticObject, StaticString,
+    },
     string::{String, to_string::ToString},
     unpacked::Unpacked,
 };

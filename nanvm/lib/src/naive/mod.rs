@@ -47,3 +47,23 @@ impl IVm for Naive {
         self_.frame()
     }
 }
+
+use crate::vm::{IStaticVm, StaticArray, StaticBigInt, StaticFunction, StaticObject, StaticString};
+
+impl IStaticVm for Naive {
+    fn load_string(value: &'static StaticString) -> Self::InternalString {
+        Container::borrowed((), value, value.0)
+    }
+    fn load_bigint(value: &'static StaticBigInt) -> Self::InternalBigInt {
+        Container::borrowed(value.sign, value, value.words)
+    }
+    fn load_array(value: &'static StaticArray<Self>) -> Self::InternalArray {
+        Container::array(value)
+    }
+    fn load_object(value: &'static StaticObject<Self>) -> Self::InternalObject {
+        Container::object(value)
+    }
+    fn load_function(value: &'static StaticFunction<Self>) -> Self::InternalFunction {
+        Function::from_static(value)
+    }
+}

@@ -25,3 +25,9 @@ use crate::vm::IVm;
 /// ```
 #[derive(Clone)]
 pub struct Object<A: IVm>(A::InternalObject);
+
+impl<A: crate::vm::IStaticVm> Object<A> {
+    pub fn from_static(value: &'static crate::vm::StaticObject<A>) -> Self {
+        Self(A::load_object(value))
+    }
+}
