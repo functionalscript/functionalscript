@@ -64,7 +64,7 @@ Nothing is threaded through invocations: the value carries its own index.
 - [ ] Check the identity of static and intrinsic function values as keys.
 - [ ] Add the form, its call and its normalization.
 - [ ] Time the reference-map program of [host values](./host-values.md#problem)
-  and the whole compiler evaluated, 19 min 25 s at `9a14b1d`. What is left
+  and the whole compiler evaluated, 19 min 25 s at `2ae0f18`. What is left
   says how much the other two costs named there are.
 
 ### Related
