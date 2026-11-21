@@ -167,7 +167,7 @@ import { ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFIN
 import { typeOf } from '../check/module.f.js'
 import { any, array, builder, func, kinds, l0, lengths, object, string } from '../l0/module.f.js'
 import {
-    add, bool, call, cast, codeOf, constant, div, eq, equal, exact, f64, f64c, false_, field, float, fn, get, if_, le, let_, lit, loop, lt,
+    add, bool, call, cast, codeOf, constant, div, eq, equal, exact, f64, f64c, false_, field, fits, float, fn, get, if_, int, le, let_, lit, loop, lt,
     make, match, mul, n, ne, neg, next, not, only, product, return_, signature, sub, terms, throw_, trap, true_, u,
 } from '../module.f.js'
 import { native } from '../native/module.f.js'
@@ -187,13 +187,16 @@ const isAny = t => t[0] === 'sealed' && t[1] === any[1] && t[2] === any[2]
 /**
  * A value of `any`, or a float or boolean boxed as one by `from_f64` or
  * `from_bool` ([definition.md's rule 6](../../../doc/sasha-gil/ir/definition.md#from-normalized-fast-to-the-ir)),
- * or `null` where no conversion of this slice fits.
+ * or a bigint literal, a literal or a constant of an integer type of one
+ * value, made by L1's native row `stringToBigInt` of its decimal text, or
+ * `null` where no conversion of this slice fits.
  *
  * @type {(t: Type, x: Term) => Term | null}
  */
 const asAny = (t, x) => isAny(t) ? x
     : isFloat(t) ? call('Any', 'from_f64', [x])
     : equal(t, bool) ? call('Any', 'from_bool', [x])
+    : t[0] === 'int' && t[1] === t[2] && (x[0] === 'lit' || x[0] === 'constant') ? call('Native', 'stringToBigInt', [lit(string, String(t[1]))])
     : null
 
 /** The static functions that are operators of the IR. @type {(id: string) => OpName | null} */
@@ -1595,13 +1598,18 @@ const swapped = (lowerValue, scope, f, a, b) => {
  * A primitive as a term: a number is a float literal, a bigint the range
  * that holds it alone, a boolean a `bool`, a string a literal of `any` that
  * String makes, and `undefined` and `null` are Any's constants. A module
- * lowered without the runtime imports neither.
+ * lowered without the runtime imports neither. A bigint that no word holds
+ * is a value of `any` that L1's native row `stringToBigInt` makes of its
+ * decimal text, where the module imports the rows.
  *
  * @type {(imports: Module['imports'], v: Primitive) => Result<Term, string>}
  */
 const primitive = (imports, v) => {
     if (typeof v === 'number') { return ok(lit(f64c, v)) }
-    if (typeof v === 'bigint') { return ok(n(v)) }
+    if (typeof v === 'bigint') {
+        return fits(64)(int(v, v)) || !imports.some(([k]) => k === 'Native') ? ok(n(v))
+            : ok(call('Native', 'stringToBigInt', [lit(string, String(v))]))
+    }
     if (typeof v === 'boolean') { return ok(v ? true_ : false_) }
     if (typeof v === 'string') {
         return imports.some(([k]) => k === 'String') ? ok(lit(string, v))

@@ -1003,6 +1003,8 @@ export const proof = {
             'export f',
             '',
         ].join('\n'))
+        // A bigint that no word holds stays a literal where the module imports no native rows, which the checker refuses.
+        assertEq(ir(only([], u(8)), fast('export const f = () => 18446744073709551616n')), 'fn f() -> u(8) =\n    18446744073709551616\n\nexport f\n')
         assertEq(ir(only([['a', u(8)]], u(16)), fast('const k = 3n * 2n\nexport const f = a => a + k')), [
             'const #c0: int(6, 6) =',
             '    mul(3, 2)',
@@ -1057,7 +1059,7 @@ export const proof = {
             '',
         ].join('\n'))
         // An arm that no `any` holds is left unboxed, and the checker refuses the `if`: an arm is never dropped silently.
-        assertEq(assertError(check(assertOk(over(only([['v', any]], any), 'import { STRING, kind } from "../l0/module.f.js"\nexport const f = v => kind(v) === STRING ? v : 1n')))), 'f: match: its arms are any, int(1, 1), which no one type holds')
+        assertEq(assertError(check(assertOk(over(only([['v', any]], any), 'import { STRING, kind } from "../l0/module.f.js"\nexport const f = v => kind(v) === STRING ? v : 1n + 2n')))), 'f: match: its arms are any, int(3, 3), which no one type holds')
         assertEq(irOver(only([['v', any]], any), 'const u = undefined\nexport const f = v => u'), [
             'fn f(v: any) -> any =',
             '    Any.undefined',

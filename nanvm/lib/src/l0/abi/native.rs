@@ -89,6 +89,16 @@ pub fn string_to_number(s: i64) -> f64 {
     )
 }
 
+/// `BigInt(s)` of a string: `StringToBigInt`; a text that spells no bigint
+/// traps.
+pub fn string_to_bigint(s: i64) -> i64 {
+    let name = "stringToBigInt";
+    match string(name, s).bigint() {
+        Ok(b) => put(b),
+        Err(_) => trap(name, "no bigint"),
+    }
+}
+
 /// `String(b)` of a bigint.
 pub fn bigint_to_string(b: i64) -> i64 {
     let b = bigint("bigintToString", b);

@@ -25,7 +25,7 @@ import { error } from '../../../wasm/runtime/l1/error/module.f.js'
 import {
     bigintAdd, bigintAnd, bigintDivide, bigintEquals, bigintLess, bigintMultiply, bigintNegate, bigintRemainder,
     bigintShiftRight, bigintSubtract, bigintToNumber, bigintToString, numberAnd, numberRemainder, numberShiftRight, numberToString,
-    stringToNumber,
+    stringToBigInt, stringToNumber,
 } from '../../../wasm/runtime/l1/native/module.f.js'
 
 /**
@@ -47,6 +47,7 @@ export const host = (read, make, fail) => ({
     numberAnd: (a, b) => numberAnd(a, b),
     numberToString: n => make(numberToString(n)),
     stringToNumber: s => stringToNumber(read(s)),
+    stringToBigInt: s => make(stringToBigInt(read(s))),
     bigintToString: b => make(bigintToString(read(b))),
     bigintAdd: (a, b) => make(bigintAdd(read(a), read(b))),
     bigintSubtract: (a, b) => make(bigintSubtract(read(a), read(b))),

@@ -74,6 +74,22 @@ export const numberToString = n => String(asNumber(n))
 export const stringToNumber = s => Number(asString(s))
 
 /**
+ * [`StringToBigInt`](https://tc39.es/ecma262/#sec-stringtobigint): the
+ * bigint that a string's text spells, which a program's bigint literal is
+ * made of. A text that spells none traps.
+ *
+ * @type {(s: unknown) => bigint}
+ */
+export const stringToBigInt = s => {
+    const t = asString(s)
+    try {
+        return BigInt(t)
+    } catch {
+        throw 'l1.stringToBigInt: no bigint'
+    }
+}
+
+/**
  * [`BigInt::toString`](https://tc39.es/ecma262/#sec-numeric-types-bigint-tostring)
  * in radix 10.
  *

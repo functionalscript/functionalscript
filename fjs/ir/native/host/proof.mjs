@@ -91,6 +91,8 @@ export const proof = {
         notBigint: () => { h.bigintEquals(0n, 5n) },
         notHandle: () => { h.bigintEquals(0n, 7n) },
         stringToNumber: () => { h.stringToNumber(0n) },
+        // 'a' spells no bigint
+        stringToBigInt: () => { h.stringToBigInt(6n) },
         bigintToString: () => { h.bigintToString(5n) },
         bigintDivideZero: () => { h.bigintDivide(0n, 4n) },
         bigintRemainderZero: () => { h.bigintRemainder(0n, 4n) },
