@@ -56,6 +56,12 @@ export const proof = {
         assertStructurallySame(asAny(int(3n, 3n), n(3n)), call('Native', 'stringToBigInt', [lit(string, '3')]))
         assertEq(asAny(int(3n, 3n), constant('self', 'k')), null)
         assertEq(asAny(int(3n, 3n), get('k')), null)
+        // A `let` and a `match` are boxed where they answer, and not where an arm is no literal.
+        assertStructurallySame(asAny(int(3n, 3n), let_('x', get('a'), n(3n))), let_('x', get('a'), call('Native', 'stringToBigInt', [lit(string, '3')])))
+        assertStructurallySame(asAny(int(3n, 3n), match(get('b'), [[['true'], null, n(3n)], [['false'], null, n(3n)]])),
+            match(get('b'), [[['true'], null, call('Native', 'stringToBigInt', [lit(string, '3')])], [['false'], null, call('Native', 'stringToBigInt', [lit(string, '3')])]]))
+        assertEq(asAny(int(3n, 3n), match(get('b'), [[['true'], null, n(3n)], [['false'], null, get('k')]])), null)
+        assertEq(asAny(int(3n, 3n), let_('x', get('a'), get('k'))), null)
     },
     // Each kind of primitive, and those that need the runtime, refused without it.
     primitive: () => {

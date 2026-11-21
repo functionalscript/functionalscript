@@ -506,7 +506,7 @@ export const proof = {
         "    fn numberAnd(a: f64, b: f64) -> f64",
         "    fn numberToString(n: f64) -> any.only(string)",
         "    fn stringToNumber(s: any.only(string)) -> f64",
-        "    fn stringToBigInt(s: any.only(string)) -> any.only(bigint)",
+        "    fn stringToBigInt(s: any.only(string)) -> any.only(bigint) may fail",
         "    fn bigintToString(b: any.only(bigint)) -> any.only(string)",
         "    fn bigintAdd(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint)",
         "    fn bigintSubtract(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint)",

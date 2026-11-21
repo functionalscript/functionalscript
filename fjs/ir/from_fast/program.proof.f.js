@@ -618,6 +618,8 @@ export const proof = {
             '',
         ].join('\n'))
         assertEq(refusedProgram('export const f = () => (1n + 2n)'), 'f: the body is int(3, 3), not any')
+        // Two equal bigint arms merge as one integer type, and each arm is boxed where it answers.
+        assertEq(program('export const f = a => a ? 1n : 1n').split('Native.stringToBigInt("1")').length, 3)
         // A constant that `init` computes is read as itself, so a throw in it is kept.
         assertEq(program('export const g = () => { throw "x" }\nconst k = g()\nexport const f = () => [k]').includes('self.#c0'), true)
         // A constant of a bigint literal is read as the literal, which is boxed, and the negation of a sum stays a subtraction.
