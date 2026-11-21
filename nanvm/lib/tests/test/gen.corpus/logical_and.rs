@@ -19,15 +19,15 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("bigOneAndTwo", scope(|| { if Any::<A>::to_boolean(&bigint_any(1)) { Ok(f64_any(0x4000000000000000)) } else { Ok(bigint_any(1)) } }), f64_any(0x4000000000000000));
     check::<A>("emptyArrayAndOne", scope(|| {
         let _b0: Any<A> = Array::default().to_any();
-        if Any::<A>::to_boolean(&_b0.clone()) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(_b0.clone()) }
+        if Any::<A>::to_boolean(&_b0) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(_b0.clone()) }
     }), f64_any(0x3ff0000000000000));
     check::<A>("emptyObjectAndOne", scope(|| {
         let _b0: Any<A> = Object::default().to_any();
-        if Any::<A>::to_boolean(&_b0.clone()) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(_b0.clone()) }
+        if Any::<A>::to_boolean(&_b0) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(_b0.clone()) }
     }), f64_any(0x3ff0000000000000));
     check::<A>("functionAndOne", scope(|| {
         let _b1: Any<A> = A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, Array::default(), Some("()=>undefined")).to_any();
-        if Any::<A>::to_boolean(&_b1.clone()) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(_b1.clone()) }
+        if Any::<A>::to_boolean(&_b1) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(_b1.clone()) }
     }), f64_any(0x3ff0000000000000));
     check::<A>("falseAndUnreached", scope(|| { if Any::<A>::to_boolean(&false.to_any()) { bigint_any(1) / bigint_any(0) } else { Ok(false.to_any()) } }), false.to_any());
     check::<A>("nullAndUnreached", scope(|| { if Any::<A>::to_boolean(&Nullish::Null.to_any()) { bigint_any(1) / bigint_any(0) } else { Ok(Nullish::Null.to_any()) } }), Nullish::Null.to_any());
