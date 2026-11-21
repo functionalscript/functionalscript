@@ -8,6 +8,7 @@ import { checks, checksSchema, platform, platformSchema, smartJobs } from './mod
 import { uses } from '../common/module.f.js'
 import { installNode } from '../node/module.f.js'
 import { jobTimeout } from '../config/module.f.js'
+import { nanvmWasmCommands } from '../rust/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
 import { compare as selfCompare, prepare as selfPrepare, writes as selfWrites } from '../self_compile/module.f.js'
 
@@ -181,6 +182,13 @@ export const proof = /** @type {const} */ ({
         assertEq(stepWith(source, 'mise -E spidermonkey exec -- custom-generator').if, undefined)
         assertEq(stepWith(source, 'git add -A && git diff --cached --exit-code').if, undefined)
         assertEq(source.steps.filter(step => step.run?.startsWith('mise exec -- npm start ci report ')).length, 1)
+    },
+    /** NaNVM's `.wasm` build and its proofs read Rust and JavaScript, so neither is a cached check. */
+    nanvmWasmStaysUncached: () => {
+        const steps = nanvmWasmCommands.map(c => ({ run: `mise exec -- ${c}` }))
+        const source = cached([mise, nodeVersion, suite, ...steps])
+        for (const { run } of steps) { assertEq(stepWith(source, run).if, undefined) }
+        assertStructurallySame(checks('node', job([mise, nodeVersion, suite, ...steps])), checks('node', job([mise, nodeVersion, suite])))
     },
     /** Rust and SpiderMonkey never inherit the JavaScript suite's success. */
     independentChecks: () => {

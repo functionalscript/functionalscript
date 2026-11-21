@@ -5,5 +5,6 @@ members = [
     "nanvm/harness",
     "nanvm/effects-node",
     "nanvm/fjsrs",
-    "nanvm/demos"
+    "nanvm/demos",
+    "nanvm/l0-wasm"
 ]

@@ -112,6 +112,8 @@ export type Imports = {
  */
 export type Counting = {
     readonly imports: Imports
+    /** The handles of the first values, in their order. */
+    readonly first: readonly bigint[]
     readonly has_thrown: () => 0 | 1
     readonly thrown: () => bigint
     readonly recover: () => readonly (readonly [handle: bigint, count: number])[]
