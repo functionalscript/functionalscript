@@ -1,9 +1,9 @@
 import { assert } from '../../../asserts/module.f.js'
 import { structEq } from './module.f.js'
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     ordered: () => {
-        const child = { x: NaN }
+        const child = /** @type {const} */ ({ x: NaN })
         assert(structEq([child, child], [{ x: NaN }, { x: NaN }]))
         assert(structEq({ b: 1, '2': 0 }, { '2': 0, b: 1 }))
         assert(!structEq({ a: 0, b: 1 }, { b: 1, a: 0 }))
@@ -20,4 +20,4 @@ export const proof = {
         assert(structEq([f], [f]))
         assert(!structEq([f], [make(2)]))
     },
-}
+})
