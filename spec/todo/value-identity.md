@@ -18,21 +18,17 @@ A JS-hosted EDAG interpreter with fresh allocations returns `false`. A compiler 
 
 ### Proposed exception to JavaScript agreement
 
-The proposed exception to rule 2 concerns `Object.is` on object and function references. [Language principles](../principles/README.md)
-
-- **Same value.** Two aliases of one value always compare `true`.
-- **Different content.** Values with different content always compare `false`.
-- **Equal content, built separately.** On a non-CAVM the result is *unspecified*. Either `true` or `false` is valid. On a CAVM the result is `true` from the first comparison, for a fixed semantics version.
-
-Once two live references compare `true`, they denote one value for the rest of that execution and subsequent comparisons of that pair return `true`. A `false` result carries no promise about future sharing. This leaves each non-CAVM free to choose whether or when to share. [Separate language-design proposal](https://github.com/functionalscript/functionalscript/pull/4080)
+The proposed exception to rule 2 concerns object and function references. On a non-CAVM, the result of `Object.is(a, b)` is *unspecified* subject to one bound. **A `true` result implies equal content.** Different content therefore always compares `false`. A `false` result is inconclusive, even for `Object.is(x, x)` on a single variable holding a reference. Neither result promises what a later comparison will return. Whether or where an alias splits stays open. On a CAVM, content determines the answer for a fixed semantics version. [Language principles](../principles/README.md) · [Decision on alias splitting](https://github.com/functionalscript/functionalscript/pull/4076#issuecomment-7078093043) · [Language-design proposal](https://github.com/functionalscript/functionalscript/pull/4080)
 
 The practical example is running the serialized program on another VM. The compiler's `.edag.data.js` output retains the comparison and its operands. Executing that graph on a CAVM gives `true` because both records have the same ordered content. If the first execution writes its result to `.json` or `.data.js`, loading that value gives the original `false`. [Program and value outputs](../command-line/output.md#evaluation-and-projection)
 
+Sharing can also be lost. Suppose a CAVM compiler emits two modules that each contain a copy of the same canonical record. Its two references compare `true` on the CAVM. A non-CAVM loading the modules separately may allocate two records, so comparing the two exports can return `false`. Both records still have the same ordered content. [Two-module example](https://github.com/functionalscript/functionalscript/pull/4076#issuecomment-7078069880)
+
 #### Which equality operation should a program use?
 
-**On a non-CAVM, prefer `structEq(a, b)` for comparing contents**, including in tests. A true `Object.is(a, b)` lets `structEq` return immediately. After a false result, the contents may still match.
+**On a non-CAVM, prefer `structEq(a, b)` for comparing contents**, including in tests. When `Object.is(a, b)` returns `true`, the current `structEq` call can return immediately. On `false`, compare the contents as defined below.
 
-A parser generator can use `Object.is` to assign entries in a map of grammar rules. Suppose the start production is `S ::= "x" "x"` and the generator constructs the two literal rules separately. One VM may assign both occurrences the same rule ID. Another may return a map with two IDs. The start production refers to the literal twice in either map, so both parsers must recognize exactly `xx`. Different returned maps are valid when the generator promises a correct parser and allows the rule numbering to vary.
+A parser generator can use `Object.is` to assign entries in a map of grammar rules. Suppose the start production is `S ::= "x" "x"` and the generator constructs the two literal rules separately. One VM may assign both occurrences the same rule ID. Another may return a map with two IDs. On a lookup miss the generator can assign an ID and use it directly in the production. The production refers to the literal twice either way, so both parsers must recognize exactly `xx`. Different returned maps are valid when the generator promises a correct parser and allows the rule numbering to vary.
 
 On a VM that compares object references, `Object.is` takes `O(1)`. An executor that discovers identity by comparing content can have a different cost. Comparing independently built structures with `structEq` can take `O(n)` time, where `n` counts all descendant visits, including repeated visits to a shared subtree.
 
@@ -40,7 +36,7 @@ For example, build two separate graphs by starting with a leaf and wrapping each
 
 **On a CAVM, both names denote the same equality instruction for every FJS value.** The CAVM specifies the answer and leaves the time complexity unspecified. An implementation can intern values at creation or establish content identity lazily during comparison.
 
-On every executor, `Object.is` treats `NaN` as equal to itself and distinguishes `0` from `-0`. A true `Object.is(a, b)` implies `structEq(a, b)`. On a CAVM the converse also holds.
+Primitive comparisons keep their `Object.is` semantics on every executor, including `Object.is(NaN, NaN)` returning `true` and `Object.is(0, -0)` returning `false`.
 
 Identity-sensitive operations include reference-map lookup, reference comparisons with `===`, and array `includes`. If a branch depends on allocation identity, its result can vary across executors even in a program with no I/O or mutation. [Reference map](#reference-map) · [Language principles](../principles/README.md)
 
@@ -55,7 +51,7 @@ Define `structEq(a, b)` once as an executable FJS **library function**. Its **pa
 | Records | Compare own enumerable string keys in `Object.entries` order, then the corresponding values recursively. A present `undefined` counts as an entry. |
 | Functions | Use `Object.is(a, b)` on the two function references, including inside a container. |
 
-Different kinds compare unequal. The same ordered, function-free data gives the same answer on every VM regardless of sharing. For a container with function leaves, the result also depends on whether the corresponding function references are shared. Reversing ordinary string keys changes the answer. Array-index keys enumerate first. `{ b: 1, "2": 0 }` and `{ "2": 0, b: 1 }` both enumerate `["2", "b"]`. The existing `structurallySame` intentionally compares record keys as an unordered set. Audit its callers and retain it temporarily or rename it for those that need unordered comparison. [Objects](../values/objects/README.md) · [Existing helper](../../fjs/types/object/structurally_same/README.md)
+Different kinds compare unequal. The same ordered, function-free data gives the same answer on every VM regardless of sharing. A separate `structEq` call that reaches a function leaf consults reference identity at that comparison and may return `false` even after an earlier positive comparison. Reversing ordinary string keys changes the answer. Array-index keys enumerate first. `{ b: 1, "2": 0 }` and `{ "2": 0, b: 1 }` both enumerate `["2", "b"]`. The existing `structurallySame` intentionally compares record keys as an unordered set. Audit its callers and retain it temporarily or rename it for those that need unordered comparison. [Objects](../values/objects/README.md) · [Existing helper](../../fjs/types/object/structurally_same/README.md)
 
 ### What is the canonical content of a closure?
 
@@ -63,13 +59,13 @@ Closure folding is a language decision of its own. It would reverse the approved
 
 Define canonical code per semantics version, before discretionary optimizer rewrites. Today's EDAG uses the name-erased graph with specified lowerings. A minimal candidate compares operator tags, binding and frame slot references, signature, and the graph's specified sharing. A consistent renaming makes `x => x` and `y => y` the same code. Should canonicalization also fold `() => 1 + 2` to `() => 3`, substitute a captured constant into the body, or normalize additional graph sharing? Specify each admitted rewrite and its expected equality result for the version. Backends may emit the same machine code for two functions while preserving their distinct language identities. [Current EDAG representation](../../fjs/edag/README.md)
 
-Given `const wrap = x => () => x`, two calls to `wrap(1)` may coalesce and a CAVM must give them one identity. `wrap(1)` and `wrap(2)` remain distinct. If the captured values are references `a` and `b`, folding `wrap(a)` with `wrap(b)` must preserve what calls return. Their common result would have to alias both `a` and `b`. The caller can distinguish the closures while calls return distinguishable captures.
+Given `const wrap = x => () => x`, two calls to `wrap(1)` may coalesce and a CAVM must give them one identity. `wrap(1)` and `wrap(2)` remain distinct. If `a` and `b` are references, folding `wrap(a)` with `wrap(b)` must preserve the content returned by calling each closure. Different captured contents remain distinguishable by calling the closures.
 
 ### Reference map
 
 For lookup, treat each persistent map version as a list of writes with object or function keys. Search newest first and take the value of the first key for which `Object.is(storedKey, key)` is true, or `undefined` on a miss. A read `m(key)` returns that value and the same map. A write `m(key, value)` returns the previous value and a new version with the write prepended. Passing `undefined` as the value is a read. The EDAG list implementation uses `===`, which agrees with `Object.is` for its object and function keys. [Reference-map API](../built-ins/reference-map/README.md) · [EDAG implementation](../../fjs/js/ref_map/module.f.js) · [Designer's lookup rule](https://github.com/functionalscript/functionalscript/pull/4076#issuecomment-7077249934)
 
-Suppose a non-CAVM keeps the equal-content keys `a` and `b` distinct through three writes. Save each version with its write order and reload it on a CAVM.
+Suppose a JS-compatible executor performs three writes using distinct, equal-content object keys `a` and `b`. The third write reuses its original `a` reference. Save each version with its write order and reload it on a CAVM.
 
 | Map version | Write | Previous value returned at the write | CAVM lookup with either key |
 | --- | --- | --- | --- |
@@ -77,7 +73,7 @@ Suppose a non-CAVM keeps the equal-content keys `a` and `b` distinct through thr
 | `m2`, from `m1` | `b → 2` | `undefined` | `2` |
 | `m3`, from `m2` | `a → 3` | `1` | `3` |
 
-The newest matching write wins under the receiving VM's identity relation.
+Each lookup uses the comparisons made for that lookup. An earlier hit on a non-CAVM does not guarantee a later hit with the same key.
 
 The EDAG interpreters scan up to all the writes in a version. Production VMs must answer each map call in `O(log n)`, including calls on older versions, where `n` counts distinct keys set since `empty`. An address-indexed implementation must preserve newest-first lookup for the identity policy it implements. [Executor bounds and implementations](../built-ins/reference-map/README.md#executors)
 
@@ -93,15 +89,13 @@ The map's own canonical identity remains a CAVM design question. One candidate u
 
 Test the properties the algorithm promises. For the grammar-rule map, run the generated parser on `xx`, `x` and `xxx`. Only `xx` should be accepted, whichever rule IDs the generator chose. Also check any parse output the grammar specifies. For the two records above, the portable content assertion is `structEq(a, b)`. Non-CA sharing choices are outside the portable test contract.
 
-Amnesia serves as a proof evaluator outside the FJS identity-conformance suite. It can allocate two arrays for a shared node and report `false` even though both reads denote one value and must compare `true`. [Amnesia's shared-node example](../../fjs/edag/amnesia/README.md#recomputed-code-retained-values)
-
 ### Tasks
 
 - [ ] **Allocation identity (language decision).** Record the language designer's explicit approval of the portability exception and link it here before implementation. [Language-design approval](../../doc/DESIGN.md#new-language-features-start-with-a-todo) · [Compatibility tracker](../../todo/fjs-javascript-compatibility.md)
 - [ ] **Closure folding (language decision).** Decide the CAVM's versioned canonical code/frame rules and the separate [map identity question](#map-identity). Record which prior identity decisions this supersedes and publish examples of CAVM equality.
 - [ ] **Library change.** Implement the ordered helper and migrate content assertions. Include reordered keys, shared children, missing entries, signed zeros and function leaves.
 - [ ] **Backend optimization.** Recognize the helper as a pattern instruction after its semantics are tested. Compare the instruction with the executable definition under the same identity choices. Verify the constant-time identity fast path on a reference-comparing VM and the shared equality operation on a CAVM.
-- [ ] Test the `Object.is` bounds on every conforming VM. With `const a = { x: 1 }` and `const alias = a`, require `Object.is(a, alias)` to be `true` and `Object.is(a, { x: 2 })` to be `false`. For a separately built `b = { x: 1 }`, require `true` on a CAVM and accept either first result on a non-CAVM. If the first result is `true`, check that the same live pair still compares `true` on a later call.
+- [ ] Test the reference bound on every VM. `Object.is({ x: 1 }, { x: 2 })` must return `false`. Use ordered `structEq` to check the two separately loaded module exports by content. On a CAVM also check that equal-content records compare `true` with `Object.is`.
 - [ ] Verify that serializing the boolean preserves the result obtained and that evaluating the serialized comparison on a CAVM uses content identity.
 - [ ] Test round trips by format. JSON can unfold graph sharing. DataJS records it. Check ordered content and the sharing each format promises. Import the one-key snapshot and the ordered snapshots of all three map versions into a CAVM. Check the winner under both write orders, including the final overwrite. Accept unordered bindings when the result is unambiguous and reject the two different competing bindings when their precedence is lost. [DataJS sharing](../datajs/README.md) · [Serialization](../design/serialization.md)
 - [ ] Evolve the existing VM in stages. Start with reference identity and ordered `structEq`, allow the compiler to share equal values, then unify the two equality instructions on the CAVM. Portable content comparisons use the same spelling throughout. Evaluate lazy hashing and caching as implementation choices. [CAVM design](../design/content-addressable-vm.md)

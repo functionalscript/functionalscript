@@ -22,24 +22,16 @@ discussion does not authorize a different successful answer.
 | [Content-addressable VM](#4-content-addressable-vm) | content identity | no |
 
 **Proposed identity contract.** The [value-identity proposal](../../spec/todo/value-identity.md)
-would allow an executor to share separately created, equal-content values.
-Portable algorithms can return different results when every result meets their
-contract. A grammar-rule map, for example, can contain one or two entries for
-equivalent literal rules as long as the generated parser implements the grammar.
-Fresh allocations can compare unequal on a JS-hosted interpreter and equal when a
-CAVM executes the serialized EDAG. A serialized boolean keeps its value.
-[Program and value outputs](../../spec/command-line/output.md#evaluation-and-projection)
+gives non-CAVM reference comparisons one bound. A `true` answer from
+`Object.is` implies equal content. Whether an alias splits stays unspecified.
+Amnesia's [shared-array example](#1-amnesia) illustrates a permitted `false`
+result under this proposal. Amnesia remains an execution model for proofs.
 
-**Amnesia is a proof evaluator and does not conform to FJS identity semantics.**
-The example in [§1](#1-amnesia) reaches one shared array node twice. Amnesia
-allocates two arrays and returns false when comparing them. Both reads denote
-one value, so comparing them must return true. Keep Amnesia for proofs where
-recomputation preserves the property being proved. The conformance tests use
-the other execution policies. Any future attempt to make a recomputing
-executor conform would have to preserve aliases across all identity observers,
-including reference maps, and implement the versioned
-[closure-content rules](../../spec/todo/value-identity.md#what-is-the-canonical-content-of-a-closure)
-once those are decided.
+On a CAVM, content determines identity. Executing a serialized comparison on a
+CAVM can yield `true` after a JS-hosted interpreter yielded `false`.
+Conversely, independently loading two modules containing copies of the same
+CAVM value can yield distinct references on a non-CAVM. A serialized boolean
+keeps its value. [Program and value outputs](../../spec/command-line/output.md#evaluation-and-projection)
 
 ## 1. Amnesia
 
