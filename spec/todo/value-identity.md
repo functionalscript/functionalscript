@@ -5,7 +5,7 @@
 
 ### Problem
 
-The goal is to evolve the existing VM into a content-addressable VM (CAVM). **An algorithm may use `Object.is` and return different results on different VMs. It is portable if every permitted identity choice produces a result that meets its contract.** Use ordered `structEq` when the contract calls for content equality.
+The goal is to evolve the existing VM into a content-addressable VM (CAVM). **Developers are responsible for their algorithm’s correctness when it uses allocation identity.** An algorithm may use `Object.is` and return different valid results on different VMs. Use ordered `structEq` when the algorithm requires content equality.
 
 ```js
 const make = x => ({ x })
@@ -18,7 +18,9 @@ A JS-hosted EDAG interpreter with fresh allocations returns `false`. A compiler 
 
 ### Proposed exception to JavaScript agreement
 
-The proposal relaxes allocation identity under rule 2 of the language principles. For separately created objects or functions with equal content, the result of `Object.is(a, b)` on a non-CAVM is unspecified. Either boolean is valid. An algorithm whose correctness requires one particular outcome is nonportable. Once the comparison returns, the program uses that boolean normally. Existing aliases still denote one value, and different content stays distinct. A VM may keep separate allocations or share them. The proposal leaves the timing to the implementation, including the possibility of discovering sharing within a run. Only a CAVM guarantees a deterministic identity result for fixed inputs and a fixed semantics version. [Language principles](../principles/README.md) · [Identity design discussion](https://github.com/functionalscript/functionalscript/pull/4076#issuecomment-7076917938)
+The proposal relaxes allocation identity under rule 2 of the language principles. A non-CAVM may keep separately created equal-content objects or functions distinct or share them. FJS leaves the timing of that choice open. Existing aliases still denote one value, and different content stays distinct. Only a CAVM guarantees a deterministic identity result for fixed inputs and a fixed semantics version. [Language principles](../principles/README.md) · [Identity design discussion](https://github.com/functionalscript/functionalscript/pull/4076#issuecomment-7076917938)
+
+Leave unresolved non-CA identity cases open until a concrete use requires a guarantee. A later specification can narrow the choices while preserving programs that already work across them. Withdrawing a guarantee can break programs that came to depend on it.
 
 The practical example is running the serialized program on another VM. The compiler’s `.edag.data.js` output retains the comparison and its operands. Executing that graph on a CAVM gives `true` because both records have the same ordered content. If the first execution writes its result to `.json` or `.data.js`, loading that value gives the original `false`. [Program and value outputs](../command-line/output.md#evaluation-and-projection)
 
@@ -71,7 +73,7 @@ Suppose a non-CAVM keeps the equal-content keys `a` and `b` distinct through thr
 | `m2`, from `m1` | `b → 2` | `undefined` | `2` |
 | `m3`, from `m2` | `a → 3` | `1` | `3` |
 
-The newest matching write wins under the receiving VM’s identity relation. The same lookup rule applies if an executor shares keys during a run.
+The newest matching write wins under the receiving VM’s identity relation.
 
 The EDAG interpreters scan up to all the writes in a version. Production VMs must answer each map call in `O(log n)`, including calls on older versions, where `n` counts distinct keys set since `empty`. An address-indexed implementation must preserve newest-first lookup for the identity policy it implements. [Executor bounds and implementations](../built-ins/reference-map/README.md#executors)
 
@@ -81,23 +83,21 @@ The single-key case must succeed. Save `empty({}, 7)[1]` alone, reload it on a C
 
 #### Map identity
 
-The map’s own identity remains open. One candidate gives two map versions equal content if every lookup returns the same bound value under `Object.is` (or both miss), now and after any permitted key sharing. If two maps wrote `a → 1` and `b → 2` in opposite orders, they agree while the keys are distinct but have different winners when the keys become one. If both writes stored `7`, the order makes no difference. [Proposed identity criterion](https://github.com/functionalscript/functionalscript/pull/4076#issuecomment-7077397030)
-
-On a CAVM the candidate reduces to the unordered set of current canonical bindings. Writing `a → 1` then `a → 2` gives the same map as writing only `a → 2`. A selective VM may keep the maps separate. A closure-based alternative would have to specify which representation differences contribute to map content.
+The map’s own canonical identity remains a CAVM design question. One candidate uses the unordered set of current canonical bindings. Under that rule, writing `a → 1` then `a → 2` gives the same map as writing only `a → 2`. Non-CA map identity can stay open. [Map identity discussion](https://github.com/functionalscript/functionalscript/pull/4076#issuecomment-7077397030)
 
 ### Testing identity-dependent results
 
-Test the properties the algorithm promises. For the grammar-rule map, build parsers from shared and separately allocated literal rules. Each parser must accept `xx`, reject inputs such as `x` and `xxx`, and produce any parse output the grammar specifies. The test can use the IDs in the returned map to resolve each rule reference. For the separately constructed records, check ordered content with `structEq` and check identity according to each executor’s own policy. A JavaScript answer is an exact oracle only where the result is independent of allocation choices. Agreement between fresh allocation and full sharing alone cannot establish portability because a VM may share one pair and leave another separate.
+Test the properties the algorithm promises. For the grammar-rule map, run the generated parser on `xx`, `x` and `xxx`. Only `xx` should be accepted, whichever rule IDs the generator chose. Also check any parse output the grammar specifies. For the two records above, the portable content assertion is `structEq(a, b)`. Non-CA sharing choices are outside the portable test contract.
 
 Amnesia serves as a proof evaluator outside the FJS identity-conformance suite. It can evaluate a shared array node twice and return false when both reads denote the same logical value. The same-value rule requires true. [Amnesia's shared-node example](../../fjs/edag/amnesia/README.md#recomputed-code-retained-values)
 
 ### Tasks
 
 - [ ] **Allocation identity (language decision).** Record the language designer's explicit approval of the portability exception and link it here before implementation. [Language-design approval](../../doc/DESIGN.md#new-language-features-start-with-a-todo) · [Compatibility tracker](../../todo/fjs-javascript-compatibility.md)
-- [ ] **Closure folding (language decision).** Decide the versioned canonical code/frame rules and the separate [map identity question](#map-identity). Record which prior identity decisions this supersedes and publish pairs that must and must not merge.
+- [ ] **Closure folding (language decision).** Decide the CAVM’s versioned canonical code/frame rules and the separate [map identity question](#map-identity). Record which prior identity decisions this supersedes and publish examples of CAVM equality.
 - [ ] **Library change.** Implement the ordered helper and migrate content assertions. Include reordered keys, shared children, missing entries, signed zeros and function leaves.
 - [ ] **Backend optimization.** Recognize the helper as a pattern instruction after its semantics are tested. Compare the instruction with the executable definition under the same identity choices. Verify the constant-time identity fast path on a reference-comparing VM and the shared equality operation on a CAVM.
-- [ ] Test that repeated references to the same value preserve aliasing. For separate allocations, cover the JS-hosted EDAG result, the serialized boolean, and a fresh comparison on a CAVM as described above. Exercise a non-CAVM’s chosen sharing policy in its own backend tests.
+- [ ] Test that repeated references to the same value preserve aliasing. For separate allocations, verify that serializing the boolean preserves the result obtained and that evaluating the serialized comparison on a CAVM uses content identity.
 - [ ] Test round trips by format. JSON can unfold graph sharing. DataJS records it. Check ordered content and the sharing each format promises. Import the one-key snapshot and the ordered snapshots of all three map versions into a CAVM. Check the winner under both write orders, including the final overwrite. Accept unordered bindings when the result is unambiguous and reject the two different competing bindings when their precedence is lost. [DataJS sharing](../datajs/README.md) · [Serialization](../design/serialization.md)
 - [ ] Evolve the existing VM in stages. Start with reference identity and ordered `structEq`, allow the compiler to share equal values, then unify the two equality instructions on the CAVM. Portable content comparisons use the same spelling throughout. Evaluate lazy hashing and caching as implementation choices. [CAVM design](../design/content-addressable-vm.md)
 
