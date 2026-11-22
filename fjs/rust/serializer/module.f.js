@@ -382,7 +382,7 @@ const closureContext = (s, fn) => {
     const held = s.runtime === null || isStaticClosure(s, fn) ? null : `A::frame(_self)[${num(`${fn.captures.length}`)}]`
     const bindings = [
         ...fn.parameters.map((id, i) => /** @type {const} */ ([id, argRead(i)])),
-        ...fn.captures.map((c, i) => /** @type {const} */ ([c.binding, code(`A::frame(_self)[${num(`${i}`)}].clone()`)])),
+        ...fn.captures.map((c, i) => /** @type {const} */ ([c.binding, cat([['A::frame', s.native ? [['vm', 'IVm']] : []], `(_self)[${num(`${i}`)}].clone()`])])),
         ...(fn.self === null ? [] : [/** @type {const} */ ([fn.self, cat([vm('Function'), '::new(_self.clone())', toAny])])]),
     ]
     return { ...s, moduleInit: false, runtime: held, bindings }
@@ -394,25 +394,41 @@ const staticFunction = s => [s.native ? 'A::function_with_text' : 'A::static_fun
 /** Block transfers use the targets already selected by preparation. @type {(s: _Context, b: Block, result: boolean, functionBody?: boolean, valueBlock?: boolean) => Result<Printed<readonly string[]>, readonly unknown[]>} */
 const block = (s, b, result, functionBody = false, valueBlock = false) => ok(/** @type {Printed<readonly string[]>} */ (mapGet(/** @type {NonNullable<_Context['ready']>} */ (s.ready)[Number(2 + (result ? 1 : 0) + (functionBody ? 2 : 0) + (valueBlock ? 4 : 0))], b)))
 
+/** @type {(s: _Context, id: BindingId) => string} */
+const functionName = (s, id) => `FUNCTION_${binding(s, id).slice(2).toUpperCase()}`
+
+/** @type {(s: _Context, st: Statement) => PreparedFunction | null} */
+const namedFunction = (s, st) => st[0] === 'define' && st[2] instanceof Array && st[2][0] === 'function' && isStaticClosure(s, st[2][1]) ? st[2][1] : null
+
+/** @type {(s: _Context, fn: PreparedFunction) => Result<Printed<string>, readonly unknown[]>} */
+const functionBody = (s, fn) => {
+    const rest = fn.rest === null ? [] : [`${kw('let')} ${binding(s, fn.rest)}: Any<A> = _args.rest(${num(`${fn.parameters.length}`)}).to_any();`]
+    return map1(lines => braced([...rest, ...lines]))(block(closureContext(s, fn), fn.body, true, true))
+}
+
+/** @type {(s: _Context, fn: PreparedFunction, name: string) => Result<Printed<string>, readonly unknown[]>} */
+const functionDeclaration = (s, fn, name) => {
+    const names = /** @type {_Names} */ (s.names)
+    const frame = /** @type {readonly BindingId[]} */ (mapGet(names.staticFunctions, fn))
+    const id = mapGet(names.literals, s.text(fn))
+    return flat(map1(body => cat([`${kw('static')} ${name}: `, vm('StaticFunction'),
+        `<A> = StaticFunction { code: |_self, _args| ${body}, length: ${num(`${fn.parameters.length}`)}, frame: &`, vm('StaticArray'), '(&[',
+        ...frame.flatMap((binding, i) => [i === 0 ? '' : ', ', vm('StaticAny'), `::Function(&${functionName(s, binding)})`]),
+        `]), text: Some(&LITERAL_${id}) };`]))(functionBody(s, fn)))
+}
+
 /** @type {(s: _Context, fn: PreparedFunction) => Result<Printed<string>, readonly unknown[]>} */
 const closure = (s, fn) => {
+    if (isStaticClosure(s, fn)) {
+        return flat(map1(decl => cat([`{ ${decl} `, vm('Function'), '::from_static(&VALUE)', toAny, ' }']))(functionDeclaration(s, fn, 'VALUE')))
+    }
     const captured = fn.captures.map(c => expression(s, c.value, false))
     const values = s.runtime === null ? captured : [...captured, plain(`${s.runtime}.clone()`)]
-    const inner = closureContext(s, fn)
-    const rest = fn.rest === null ? [] : [`${kw('let')} ${binding(s, fn.rest)}: Any<A> = _args.rest(${num(`${fn.parameters.length}`)}).to_any();`]
-    const body = block(inner, fn.body, true, true)
-    const length = num(`${fn.parameters.length}`)
-    if (isStaticClosure(s, fn)) {
-        const id = mapGet(/** @type {_Names} */ (s.names).literals, s.text(fn))
-        return flat(map1((/** @type {readonly string[]} */ lines) => cat([`{ ${kw('static')} VALUE: `, vm('StaticFunction'),
-            `<A> = StaticFunction { code: |_self, _args| ${braced([...rest, ...lines])}, length: ${length}, frame: &`,
-            vm('StaticArray'), `(&[]), text: Some(&LITERAL_${id}) }; `, vm('Function'), '::from_static(&VALUE)', toAny, ' }']))(body))
-    }
-    return flat(map2((/** @type {readonly string[]} */ captures, /** @type {readonly string[]} */ lines) => cat([
-        staticFunction(s), `(|_self, _args| ${braced([...rest, ...lines])}, ${length}, `,
+    return flat(map2((/** @type {readonly string[]} */ captures, /** @type {string} */ body) => cat([
+        staticFunction(s), `(|_self, _args| ${body}, ${num(`${fn.parameters.length}`)}, `,
         captures.length === 0 ? cat([vm('Array'), '::default()']) : cat([`[${captures.join(', ')}]`, toArray]),
         ', ', represented(s, s.text(fn)), ')', toAny,
-    ]))(all(values), body))
+    ]))(all(values), functionBody(s, fn)))
 }
 
 /** Resolve helper presentation symbols without introducing graph inspection. @type {(text: string) => string} */
@@ -651,6 +667,12 @@ const declaration = (name, mutable, value) => map1(text => `${kw('let')} ${mutab
 /** @type {(s: _Context, st: Statement) => Result<Printed<readonly string[]>, readonly unknown[]>} */
 const statementReady = (s, st) => {
     if (st[0] === 'define' && s.ownership !== undefined && mapHas(s.ownership.aliases, st[1])) { return ok(code([])) }
+    const fn = namedFunction(s, st)
+    if (fn !== null && st[0] === 'define') {
+        const name = functionName(s, st[1])
+        return map2((decl, local) => [decl, local])(functionDeclaration(s, fn, name),
+            declaration(binding(s, st[1]), false, ok(cat([vm('Function'), `::from_static(&${name})`, toAny]))))
+    }
     switch (st[0]) {
         case 'define': case 'slot': { return map1(text => [text])(declaration(binding(s, st[1]), st[0] === 'slot' && st[3], expression(s, st[2], false))) }
         case 'write': { return map1(text => [`${binding(s, st[1])} = ${text};`])(expression(s, st[2], false)) }
@@ -776,6 +798,8 @@ const children = task => {
         }
         case 'statement': {
             const st = task.statement
+            const fn = namedFunction(s, st)
+            if (fn !== null) { return [blockTask(closureContext(s, fn), fn.body, true, true)] }
             switch (st[0]) {
                 case 'define': case 'slot': case 'write': { return [valueTask({ ...s, owner: st }, st[2])] }
                 case 'memo': { return [blockTask({ ...s, moduleInit: false }, st[1].initializer, false, false, true)] }
@@ -927,15 +951,29 @@ const namesOf = root => {
     let loops = null
     /** @type {PersistentMap<string | bigint, number>} */
     let literals = empty
-    /** @type {PersistentMap<PreparedFunction, true>} */
+    /** @type {PersistentMap<PreparedFunction, readonly BindingId[]>} */
     let staticFunctions = empty
+    /** @type {PersistentMap<BindingId, BindingId>} */
+    let functionBindings = empty
     while (pending !== null) {
         /** @type {NonNullable<Stack<_Task>>} */
         const { top, rest } = pending
         if (root.context.native) {
             const v = top.kind === 'value' ? top.value : null
-            if (top.context.moduleInit && v instanceof Array && v[0] === 'function' && v[1].captures.length === 0 && !bodyNeedsRuntime(top.context, v[1])) {
-                staticFunctions = mapSet(staticFunctions, v[1], true)
+            if (top.context.moduleInit && v instanceof Array) {
+                const owner = top.context.owner
+                const def = owner?.[0] === 'define' && owner[2] === v ? owner[1] : null
+                if (v[0] === 'function') {
+                    const known = functionBindings
+                    const frame = v[1].captures.flatMap(({ value }) => value instanceof Array && value[0] === 'ref' ? mapGet(known, value[1]) ?? [] : [])
+                    if (frame.length === v[1].captures.length && !bodyNeedsRuntime(top.context, v[1])) {
+                        staticFunctions = mapSet(staticFunctions, v[1], frame)
+                        if (def !== null) { functionBindings = mapSet(functionBindings, def, def) }
+                    }
+                } else if (def !== null && v[0] === 'ref') {
+                    const source = mapGet(functionBindings, v[1])
+                    if (source !== undefined) { functionBindings = mapSet(functionBindings, def, source) }
+                }
             }
             for (const value of instructionLiterals(top)) {
                 if (!mapHas(literals, value)) { literals = mapSet(literals, value, size(literals)) }

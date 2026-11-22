@@ -107,3 +107,25 @@ fn static_functions_preserve_identity_metadata_and_nested_calls() {
         );
     }
 }
+
+#[test]
+fn static_frames_retain_the_original_function_identity() {
+    let module = exports(fixture::module).unwrap();
+    let reload = exports(fixture::module).unwrap();
+    let get = |name: &str| module.own_property(&name.into()).unwrap();
+    for name in ["default", "capturedId", "capturedWrapper"] {
+        assert_eq!(get(name), reload.own_property(&name.into()).unwrap());
+    }
+    let call = |name| {
+        Function::try_from(get(name))
+            .unwrap()
+            .call([].to_array())
+            .unwrap()
+    };
+    assert_eq!(call("capturedWrapper"), get("capturedId"));
+    assert_eq!(call("capturedId"), get("id"));
+    assert_eq!(
+        call("default"),
+        Any::from("very long stringvery long string")
+    );
+}

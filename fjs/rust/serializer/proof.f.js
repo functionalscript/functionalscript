@@ -89,6 +89,20 @@ export const proof = {
         const core = unwrap(scopeTagged(yielding([arrow(['Math.floor'])]), { ...options, runtime: null }, [], true))
         assert(core.uses.vm.includes('StaticFunction'))
     },
+    nativeFunctionFrames: () => {
+        /** @type {(captures: readonly Value[]) => Value} */
+        const arrow = captures => ['function', {
+            ...fn, captures: captures.map((value, i) => ({ binding: { index: i + 8 }, value })), body: yielding([1]),
+        }]
+        /** @type {Block['statements']} */
+        const defs = [['define', x, arrow([])], ['define', y, ['ref', x]], ['define', rest, arrow([['ref', y]])]]
+        const rust = print(defs, arrow([['ref', rest], ['ref', y]]))
+        assert(rust.includes('static FUNCTION_0: StaticFunction<A>'))
+        assert(rust.includes('frame: &StaticArray(&[StaticAny::Function(&FUNCTION_0)])'))
+        assert(rust.includes('frame: &StaticArray(&[StaticAny::Function(&FUNCTION_2), StaticAny::Function(&FUNCTION_0)])'))
+        const mixed = print(defs, arrow([['ref', x], 1]))
+        assert(mixed.includes('A::function_with_text'))
+    },
     nativeKeys: () => {
         const output = unwrap(scopeTagged(yielding([['object', [[':', 'default', 'default']]]]), options, [], true))
         const lines = output.lines.map(untagged)
