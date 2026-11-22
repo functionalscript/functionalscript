@@ -7,7 +7,7 @@
 
 import { assertEq, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.js'
 import { any } from '../../l0/module.f.js'
-import { block, br, call, call_ref, constant, f64, f64c, field, get, int, let_, lit, loop, make, match, n, trap, u, variant } from '../../module.f.js'
+import { block, br, call, call_ref, constant, f64, f64c, field, get, int, let_, lit, loop, make, match, n, only, trap, u, variant } from '../../module.f.js'
 import { boxed, literals, nameOf, replace } from './module.f.js'
 
 /** `Any.from_f64` of the float literal `v`. @type {(v: number) => Term} */
@@ -15,6 +15,9 @@ const box = v => call('Any', 'from_f64', [lit(f64c, v)])
 
 /** The `k`th constant. @type {(k: number) => Term} */
 const c = k => constant('self', nameOf(k))
+
+/** The type of a boxed number. */
+const number = only(any, 'number')
 
 /** @type {Module} */
 const module = {
@@ -60,10 +63,10 @@ export const proof = {
     literals: () => {
         const m = literals(module)
         assertStructurallySame(m.constants, [
-            [nameOf(0), { type: any, value: box(1) }],
-            [nameOf(1), { type: any, value: box(-0) }],
-            [nameOf(2), { type: any, value: box(0) }],
-            [nameOf(3), { type: any, value: box(NaN) }],
+            [nameOf(0), { type: number, value: box(1) }],
+            [nameOf(1), { type: number, value: box(-0) }],
+            [nameOf(2), { type: number, value: box(0) }],
+            [nameOf(3), { type: number, value: box(NaN) }],
             ['#c0', { type: any, value: box(5) }],
         ])
         assertStructurallySame(m.functions, [
@@ -76,6 +79,6 @@ export const proof = {
         const plain = { ...module, functions: [['g', { params: [], result: any, body: get('x') }]] }
         assertEq(literals(plain), plain)
         // A module with no constants of its own gets the numbers alone.
-        assertStructurallySame(literals({ imports: [], functions: [['g', { params: [], result: any, body: box(4) }]], exports: [] }).constants, [[nameOf(0), { type: any, value: box(4) }]])
+        assertStructurallySame(literals({ imports: [], functions: [['g', { params: [], result: any, body: box(4) }]], exports: [] }).constants, [[nameOf(0), { type: number, value: box(4) }]])
     },
 }
