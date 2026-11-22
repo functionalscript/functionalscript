@@ -8,7 +8,7 @@
 import { assertEq, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.js'
 import { any } from '../../l0/module.f.js'
 import { block, br, call, call_ref, constant, f64, f64c, field, get, int, let_, lit, loop, make, match, n, only, trap, u, variant } from '../../module.f.js'
-import { boxed, literals, nameOf, replace } from './module.f.js'
+import { boxed, literals, nameOf, prefixOf, replace } from './module.f.js'
 
 /** `Any.from_f64` of the float literal `v`. @type {(v: number) => Term} */
 const box = v => call('Any', 'from_f64', [lit(f64c, v)])
@@ -80,5 +80,18 @@ export const proof = {
         assertEq(literals(plain), plain)
         // A module with no constants of its own gets the numbers alone.
         assertStructurallySame(literals({ imports: [], functions: [['g', { params: [], result: any, body: box(4) }]], exports: [] }).constants, [[nameOf(0), { type: number, value: box(4) }]])
+        // A module whose own constants start with `#n` gets names that none of them starts with.
+        assertStructurallySame(literals({ imports: [], constants: [['#n0', { type: any, value: box(4) }], ['#nn', { type: any, value: box(5) }]], functions: [['g', { params: [], result: any, body: box(4) }]], exports: [] }), {
+            imports: [],
+            constants: [['#nnn0', { type: number, value: box(4) }], ['#n0', { type: any, value: box(4) }], ['#nn', { type: any, value: box(5) }]],
+            functions: [['g', { params: [], result: any, body: constant('self', '#nnn0') }]],
+            exports: [],
+        })
+    },
+    prefixOf: () => {
+        assertEq(prefixOf([]), '#n')
+        assertEq(prefixOf(['#c0', 'n0', '#m']), '#n')
+        assertEq(prefixOf(['#n0']), '#nn')
+        assertEq(prefixOf(['#n0', '#nn1']), '#nnn')
     },
 }
