@@ -1,7 +1,7 @@
 /** Rendering context; placement and transfer selection are already complete. @module */
 
 import type { BindingId, LoopTarget, Step } from '../../js/ast/types.ts'
-import type { Block, Statement, Value } from '../../js/ast/prepare/types.ts'
+import type { Block, Function, Statement, Value } from '../../js/ast/prepare/types.ts'
 import type { Options, Printed } from './types.ts'
 import type { List } from '../../types/list/types.ts'
 import type { PersistentMap } from '../../types/map/types.ts'
@@ -20,6 +20,7 @@ export type _Context = Options & {
 }
 
 export type _Names = {
+    readonly staticFunctions: PersistentMap<Function, true>
     readonly literals: PersistentMap<string | bigint, number>
     readonly bindings: PersistentMap<BindingId, string>
     readonly loops: PersistentMap<LoopTarget, string>

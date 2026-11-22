@@ -374,9 +374,12 @@ const represented = (s, text) => s.native
     ? cat(['Some(', loadLiteral(s, text), ')'])
     : code(`Some(${str(unwrap(stringLiteral(text)))})`)
 
+/** @type {(s: _Context, fn: PreparedFunction) => boolean} */
+const isStaticClosure = (s, fn) => s.moduleInit === true && s.names !== undefined && mapHas(s.names.staticFunctions, fn)
+
 /** One callable's explicit invocation environment. @type {(s: _Context, fn: PreparedFunction) => _Context} */
 const closureContext = (s, fn) => {
-    const held = s.runtime === null ? null : `A::frame(_self)[${num(`${fn.captures.length}`)}]`
+    const held = s.runtime === null || isStaticClosure(s, fn) ? null : `A::frame(_self)[${num(`${fn.captures.length}`)}]`
     const bindings = [
         ...fn.parameters.map((id, i) => /** @type {const} */ ([id, argRead(i)])),
         ...fn.captures.map((c, i) => /** @type {const} */ ([c.binding, code(`A::frame(_self)[${num(`${i}`)}].clone()`)])),
@@ -397,11 +400,19 @@ const closure = (s, fn) => {
     const values = s.runtime === null ? captured : [...captured, plain(`${s.runtime}.clone()`)]
     const inner = closureContext(s, fn)
     const rest = fn.rest === null ? [] : [`${kw('let')} ${binding(s, fn.rest)}: Any<A> = _args.rest(${num(`${fn.parameters.length}`)}).to_any();`]
-    return flat(map2((/** @type {readonly string[]} */ captures, /** @type {readonly string[]} */ body) => cat([
-        staticFunction(s), `(|_self, _args| ${braced([...rest, ...body])}, ${num(`${fn.parameters.length}`)}, `,
+    const body = block(inner, fn.body, true, true)
+    const length = num(`${fn.parameters.length}`)
+    if (isStaticClosure(s, fn)) {
+        const id = mapGet(/** @type {_Names} */ (s.names).literals, s.text(fn))
+        return flat(map1((/** @type {readonly string[]} */ lines) => cat([`{ ${kw('static')} VALUE: `, vm('StaticFunction'),
+            `<A> = StaticFunction { code: |_self, _args| ${braced([...rest, ...lines])}, length: ${length}, frame: &`,
+            vm('StaticArray'), `(&[]), text: Some(&LITERAL_${id}) }; `, vm('Function'), '::from_static(&VALUE)', toAny, ' }']))(body))
+    }
+    return flat(map2((/** @type {readonly string[]} */ captures, /** @type {readonly string[]} */ lines) => cat([
+        staticFunction(s), `(|_self, _args| ${braced([...rest, ...lines])}, ${length}, `,
         captures.length === 0 ? cat([vm('Array'), '::default()']) : cat([`[${captures.join(', ')}]`, toArray]),
         ', ', represented(s, s.text(fn)), ')', toAny,
-    ]))(all(values), block(inner, fn.body, true, true)))
+    ]))(all(values), body))
 }
 
 /** Resolve helper presentation symbols without introducing graph inspection. @type {(text: string) => string} */
@@ -887,6 +898,25 @@ const instructionLiterals = task => {
     return tag === 'in' ? [tag, v[1]] : []
 }
 
+/** A nested function may need its enclosing function to pass the runtime on to it.
+ * @type {(s: _Context, fn: PreparedFunction) => boolean} */
+const bodyNeedsRuntime = (s, fn) => {
+    if (s.runtime === null) { return false }
+    /** @type {Stack<_Task>} */
+    let pending = { top: blockTask(s, fn.body), rest: null }
+    while (pending !== null) {
+        /** @type {NonNullable<Stack<_Task>>} */
+        const { top, rest } = pending
+        if (top.kind === 'steps' && top.member && top.step !== undefined && top.step[0] !== '|.') { return true }
+        if (top.kind === 'value' && top.value instanceof Array) {
+            const v = top.value
+            if (isStatic(v) || v[0] === 'in' || v[0] === 'Boolean' || v[0] === 'memberPresent') { return true }
+        }
+        pending = pushAll(children(top), rest)
+    }
+    return false
+}
+
 /** Target naming walks the prepared instructions, never the source graph. @type {(root: _Task) => _Names} */
 const namesOf = root => {
     /** @type {Stack<_Task>} */
@@ -897,10 +927,16 @@ const namesOf = root => {
     let loops = null
     /** @type {PersistentMap<string | bigint, number>} */
     let literals = empty
+    /** @type {PersistentMap<PreparedFunction, true>} */
+    let staticFunctions = empty
     while (pending !== null) {
         /** @type {NonNullable<Stack<_Task>>} */
         const { top, rest } = pending
         if (root.context.native) {
+            const v = top.kind === 'value' ? top.value : null
+            if (top.context.moduleInit && v instanceof Array && v[0] === 'function' && v[1].captures.length === 0 && !bodyNeedsRuntime(top.context, v[1])) {
+                staticFunctions = mapSet(staticFunctions, v[1], true)
+            }
             for (const value of instructionLiterals(top)) {
                 if (!mapHas(literals, value)) { literals = mapSet(literals, value, size(literals)) }
             }
@@ -910,7 +946,7 @@ const namesOf = root => {
         pending = pushAll(children(top), rest)
     }
     return {
-        literals,
+        literals, staticFunctions,
         bindings: identityNames(setValues(fromValues(listToArray(bindings).toReversed().flat())), '_b'),
         loops: identityNames(setValues(fromValues(listToArray(loops).toReversed().flat())), '_loop'),
     }

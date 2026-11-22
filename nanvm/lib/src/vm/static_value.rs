@@ -18,7 +18,7 @@ pub struct StaticFunction<A: IVm> {
     pub code: StaticCode<A>,
     pub length: u32,
     pub frame: &'static StaticArray<A>,
-    pub text: Option<&'static str>,
+    pub text: Option<&'static StaticString>,
 }
 
 /// A module constant. Identity-bearing values refer to named static descriptors.
@@ -78,7 +78,9 @@ mod tests {
         code: capture,
         frame: &FRAME,
         length: 1,
-        text: Some("x => captured"),
+        text: Some(&StaticString(&[
+            0x78, 0x20, 0x3d, 0x3e, 0x20, 0x63, 0x61, 0x70, 0x74, 0x75, 0x72, 0x65, 0x64,
+        ])),
     };
     static MODULE: StaticObject<Naive> =
         StaticObject(&[(&StaticString(&[0x66]), StaticAny::Function(&FUNCTION))]);

@@ -15,4 +15,11 @@ export const recordAlias = record
 export const emptyObject = () => ({})
 export const left = /** @type {const} */ ({})
 export const right = /** @type {const} */ ({})
+/** @type {(x: unknown) => unknown} */
+export const id = x => x
+export const idAlias = id
+/** @type {() => (x: unknown) => unknown} */
+export const make = () => x => x
+/** @type {() => (x: unknown) => boolean} */
+export const makeBoolean = () => x => Boolean(x)
 export default () => f()

@@ -63,10 +63,31 @@ export const proof = {
         const output = unwrap(scopeTagged(body, { ...options, text: () => 'hi' }, [], true))
         const lines = output.lines.map(untagged)
         assertEq(lines[0], 'static LITERAL_0: StaticString = StaticString(&[0x0068, 0x0069]);')
-        assertEq(lines.join('\n').split('String::from_static(&LITERAL_0)').length, 4)
-        assert(output.uses.vm.includes('IVm'))
+        assertEq(lines.join('\n').split('String::from_static(&LITERAL_0)').length, 3)
+        assert(lines.join('\n').includes('text: Some(&LITERAL_0)'))
+        assert(output.uses.vm.includes('StaticFunction'))
         assert(output.uses.vm.includes('StaticString'))
         assertEq(useLines(output.uses, null).join('\n').includes('null'), false)
+    },
+    nativeFunctions: () => {
+        /** @type {(v: Value) => Value} */
+        const arrow = v => ['function', { ...fn, body: yielding([v]) }]
+        /** @type {readonly Value[]} */
+        const reads = [
+            ['Object.is'], ['Boolean', 1], ['in', 'x', 1], ['memberPresent', 1, 'x'],
+            ['.', 1, 'a', ['|.', 'b', ['|()', []]]],
+        ]
+        for (const value of reads) {
+            const rust = print([], arrow(arrow(value)))
+            assert(!rust.includes('StaticFunction'))
+            assert(rust.includes('[runtime.clone()]'))
+        }
+        const simple = arrow(['.', 1, 'x'])
+        const nested = print([], arrow(simple))
+        assertEq(nested.split('Function::from_static(&VALUE)').length, 2)
+        assert(nested.includes('A::function_with_text'))
+        const core = unwrap(scopeTagged(yielding([arrow(['Math.floor'])]), { ...options, runtime: null }, [], true))
+        assert(core.uses.vm.includes('StaticFunction'))
     },
     nativeKeys: () => {
         const output = unwrap(scopeTagged(yielding([['object', [[':', 'default', 'default']]]]), options, [], true))
