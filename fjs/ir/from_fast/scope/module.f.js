@@ -10,8 +10,18 @@
  * @import { Result } from '../../../types/result/types.ts'
  * @import { BindingId, Item, Value } from '../../../js/ast/types.ts'
  * @import { Param, Term } from '../../types.ts'
- * @import { _LowerValue, _Meaning, _Part, _Scope } from '../private.ts'
+ * @import { Scope as IrScope } from '../../types.ts'
  */
+
+/**
+ * What these helpers read of the lowering's scope: the IR's scope and the
+ * depth that names the next local `#k`. The lowering's own scope holds more,
+ * which each helper keeps as it is.
+ *
+ * @typedef {{ readonly ir: IrScope, readonly depth: number }} Depth
+ */
+
+/** A part of a literal or of a call's arguments: whether it is a spread, and its term. @typedef {readonly [many: boolean, x: Term]} Part */
 
 import { assertNotNullish } from '../../../asserts/module.f.js'
 import { entry } from '../../../types/object/entry/module.f.js'
@@ -20,7 +30,7 @@ import { typeOf } from '../../check/module.f.js'
 import { any, kinds } from '../../l0/module.f.js'
 import { call, cast, equal, false_, get, let_, only, true_ } from '../../module.f.js'
 
-/** @type {(scope: _Scope) => (message: string) => Result<never, string>} */
+/** @type {(scope: Depth) => (message: string) => Result<never, string>} */
 export const refuse = scope => {
     const name = assertNotNullish(entry(scope.ir, 'name'))
     return message => error(`${name}: ${message}`)
@@ -31,14 +41,14 @@ export const refuse = scope => {
  * ([`link`](../link/module.f.js#link)), `l1.add` say, or `null` in a module that links none,
  * which lowers the operators of the IR alone.
  *
- * @type {(scope: _Scope, name: string) => string | null}
+ * @type {(scope: Depth, name: string) => string | null}
  */
 export const l1Of = (scope, name) => {
     const linked = `l1.${name}`
     return scope.ir.functions.some(([k]) => k === linked) ? linked : null
 }
 
-/** Whether the module being lowered is a program that links L1 ([`link`](../link/module.f.js#link)). @type {(scope: _Scope) => boolean} */
+/** Whether the module being lowered is a program that links L1 ([`link`](../link/module.f.js#link)). @type {(scope: Depth) => boolean} */
 export const linking = scope => scope.ir.functions.some(([k]) => k.startsWith('l1.'))
 
 /**
@@ -46,11 +56,19 @@ export const linking = scope => scope.ir.functions.some(([k]) => k.startsWith('l
  * `l1.get` in a program that links L1, or `get` where the module being
  * lowered, L1 itself, exports it, or `null`.
  *
- * @type {(scope: _Scope) => string | null}
+ * @type {(scope: Depth) => string | null}
  */
 export const getOf = scope => l1Of(scope, 'get') ?? (scope.ir.functions.some(([k]) => k === 'get') ? 'get' : null)
 
-/** The scope where `b` stands for `m`. @type {(scope: _Scope, b: BindingId, m: _Meaning) => _Scope} */
+/**
+ * The scope where `b` stands for `m`.
+ *
+ * @template {{ readonly bindings: readonly (readonly [BindingId, unknown])[] }} S
+ * @param {S} scope
+ * @param {BindingId} b
+ * @param {S['bindings'][number][1]} m
+ * @returns {S}
+ */
 export const standsFor = (scope, b, m) => ({ ...scope, bindings: [...scope.bindings, [b, m]] })
 
 /** A term that does nothing but give its value: a local, a literal, a constant, `false` or `true`, a product of such terms, or a field of one. @type {(t: Term) => boolean} */
@@ -63,7 +81,11 @@ export const isPure = t => t[0] === 'get' || t[0] === 'lit' || t[0] === 'constan
  * block, which reads the local by that name. A `let` whose body is only its
  * local is its value.
  *
- * @type {(scope: _Scope, x: Term, rest: (scope: _Scope, name: string) => Result<Term, string>) => Result<Term, string>}
+ * @template {Depth} S
+ * @param {S} scope
+ * @param {Term} x
+ * @param {(scope: S, name: string) => Result<Term, string>} rest
+ * @returns {Result<Term, string>}
  */
 export const bindTerm = (scope, x, rest) => {
     const { ir, depth } = scope
@@ -76,14 +98,26 @@ export const bindTerm = (scope, x, rest) => {
     return ok(b[0] === 'get' && b[1] === name ? x : let_(name, x, b))
 }
 
-/** @type {(lowerValue: _LowerValue, scope: _Scope, vs: readonly Value[]) => Result<readonly Term[], string>} */
+/**
+ * Each value lowered where the scope is.
+ *
+ * @template S
+ * @param {(scope: S, v: Value) => Result<Term, string>} lowerValue
+ * @param {S} scope
+ * @param {readonly Value[]} vs
+ * @returns {Result<readonly Term[], string>}
+ */
 export const values = (lowerValue, scope, vs) => okList(vs.map(v => lowerValue(scope, v)))
 
 /**
  * A term that does nothing as itself, and anything else bound to a local,
  * in whose scope `rest` reads it.
  *
- * @type {(scope: _Scope, x: Term, rest: (scope: _Scope, y: Term) => Result<Term, string>) => Result<Term, string>}
+ * @template {Depth} S
+ * @param {S} scope
+ * @param {Term} x
+ * @param {(scope: S, y: Term) => Result<Term, string>} rest
+ * @returns {Result<Term, string>}
  */
 export const pure = (scope, x, rest) => isPure(x) ? rest(scope, x) : bindTerm(scope, x, (s, name) => rest(s, get(name)))
 
@@ -93,10 +127,15 @@ export const pure = (scope, x, rest) => isPure(x) ? rest(scope, x) : bindTerm(sc
  * as itself and anything else bound to a local, in whose scope those after
  * it are lowered. `rest` reads them all, as terms that do nothing.
  *
- * @type {(lowerValue: _LowerValue, scope: _Scope, vs: readonly Value[], rest: (scope: _Scope, xs: readonly Term[]) => Result<Term, string>) => Result<Term, string>}
+ * @template {Depth} S
+ * @param {(scope: S, v: Value) => Result<Term, string>} lowerValue
+ * @param {S} scope
+ * @param {readonly Value[]} vs
+ * @param {(scope: S, xs: readonly Term[]) => Result<Term, string>} rest
+ * @returns {Result<Term, string>}
  */
 export const settled = (lowerValue, scope, vs, rest) => {
-    /** @type {(s: _Scope, done: readonly Term[]) => Result<Term, string>} */
+    /** @type {(s: S, done: readonly Term[]) => Result<Term, string>} */
     const from = (s, done) => {
         if (done.length === vs.length) { return rest(s, done) }
         const x = lowerValue(s, vs[Number(done.length)])
@@ -116,10 +155,16 @@ export const isSpread = item => item instanceof Array && item[0] === '...'
  * anything after it is read. `rest` reads them all, as terms that do
  * nothing.
  *
- * @type {(lowerValue: _LowerValue, scope: _Scope, items: readonly Item<Value>[], spread: (s: _Scope, x: Term) => Result<Term, string>, rest: (scope: _Scope, parts: readonly _Part[]) => Result<Term, string>) => Result<Term, string>}
+ * @template {Depth} S
+ * @param {(scope: S, v: Value) => Result<Term, string>} lowerValue
+ * @param {S} scope
+ * @param {readonly Item<Value>[]} items
+ * @param {(s: S, x: Term) => Result<Term, string>} spread
+ * @param {(scope: S, parts: readonly Part[]) => Result<Term, string>} rest
+ * @returns {Result<Term, string>}
  */
 export const settledParts = (lowerValue, scope, items, spread, rest) => {
-    /** @type {(s: _Scope, done: readonly _Part[]) => Result<Term, string>} */
+    /** @type {(s: S, done: readonly Part[]) => Result<Term, string>} */
     const from = (s, done) => {
         if (done.length === items.length) { return rest(s, done) }
         const item = items[Number(done.length)]
@@ -144,7 +189,14 @@ export const casts = [['asBoolean', 'boolean'], ['asNumber', 'number'], ['asStri
  * two arguments read is cast once. The checker refuses an argument that
  * holds none of the kinds.
  *
- * @type {(lowerValue: _LowerValue, scope: _Scope, module: string, name: string, params: readonly Param[], vs: readonly Value[]) => Result<Term, string>}
+ * @template {Depth} S
+ * @param {(scope: S, v: Value) => Result<Term, string>} lowerValue
+ * @param {S} scope
+ * @param {string} module
+ * @param {string} name
+ * @param {readonly Param[]} params
+ * @param {readonly Value[]} vs
+ * @returns {Result<Term, string>}
  */
 export const castCall = (lowerValue, scope, module, name, params, vs) => settled(lowerValue, scope, vs, ({ ir }, args) => {
     const needs = args.flatMap((x, k) => {

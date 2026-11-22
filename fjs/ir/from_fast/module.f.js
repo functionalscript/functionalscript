@@ -1628,7 +1628,9 @@ const guarded = (lowerValue, scope, receiver, key, step) => {
         const base = localOf(x, '?.')
         const binder = `${base}.value`
         if (nullish.length === 0) { return lowerValue(standsFor(s, id, ['term', y]), read) }
-        const inner = standsFor({ ...s, ir: { ...s.ir, locals: [...s.ir.locals, [binder, only(any, ...others)]] } }, id, ['local', binder])
+        /** @type {_Scope} */
+        const narrowed = { ...s, ir: { ...s.ir, locals: [...s.ir.locals, [binder, only(any, ...others)]] } }
+        const inner = standsFor(narrowed, id, ['local', binder])
         const body = lowerValue(inner, read)
         return body[0] === 'error' ? body : ok(match(x, [[nullish, null, undefined_], [others, binder, body[1]]]))
     })
