@@ -47,7 +47,9 @@ impl Function {
             code: value.code,
             length: value.length,
             frame: Array::from_static(value.frame),
-            text: value.text.map(Text::Utf8),
+            text: value
+                .text
+                .map(|text| Text::Vm(crate::vm::String::from_static(text))),
         }))
     }
 
