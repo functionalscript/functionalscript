@@ -12,11 +12,21 @@
 //! one differ in what performs the effects, not in what asks for them.
 
 use nanvm_effects_node::Native;
-use nanvm_lib::vm::{Any, Array, IVm, Module, Nullish, Number, ToAny, ToArray, ToObject, exports};
+use nanvm_lib::vm::{
+    Any, Array, IVm, Module, Nullish, Number, Object, ToAny, ToArray, ToObject, exports,
+    exports_with_runtime,
+};
 use std::io::{Read, Write};
 
 /// VM chosen for this native artifact and its compiled modules.
 pub type Vm = nanvm_lib::naive::Naive;
+
+mod native_runtime {
+    use super::Vm as A;
+    include!("gen.runtime.native.rs");
+}
+
+pub use native_runtime::runtime;
 
 /// The compiled program. Its block and conditional layout follows the source graph.
 #[allow(clippy::never_loop, clippy::collapsible_if)]
@@ -80,7 +90,24 @@ pub fn run<A: IVm, R: Read, O: Write, E: Write>(
     options: &Options,
     host: &mut Native<R, O, E>,
 ) -> Result<u8, Any<A>> {
-    let main = exports(module)?
+    run_exports(exports(module)?, options, host)
+}
+
+/// Run a native module with the common runtime compiled for the same VM.
+pub fn run_native<R: Read, O: Write, E: Write>(
+    module: Module<Vm>,
+    options: &Options,
+    host: &mut Native<R, O, E>,
+) -> Result<u8, Any<Vm>> {
+    run_exports(exports_with_runtime(module, runtime()?)?, options, host)
+}
+
+fn run_exports<A: IVm, R: Read, O: Write, E: Write>(
+    exports: Object<A>,
+    options: &Options,
+    host: &mut Native<R, O, E>,
+) -> Result<u8, Any<A>> {
+    let main = exports
         .own_property(&"main".into())
         .unwrap_or_else(|| Nullish::Undefined.to_any());
     let effect = Any::call(main, [options.to_any()].to_array().to_any())?;
@@ -106,7 +133,7 @@ fn exit_code<A: IVm>(code: f64) -> Result<u8, Any<A>> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Options, exit_code, program, run};
+    use super::{Options, exit_code, program, run, run_native};
     use nanvm_effects_node::Native;
     use nanvm_lib::{
         naive::Naive,
@@ -126,7 +153,7 @@ mod tests {
             home: "/home/user".into(),
         };
         let mut host = Native::buffered(&[]);
-        let code = run(module, &options, &mut host);
+        let code = run_native(module, &options, &mut host);
         let text = |bytes: &Vec<u8>| String::from_utf8(bytes.clone()).unwrap();
         (code, text(host.stdout()), text(host.stderr()))
     }
