@@ -1224,7 +1224,9 @@ const arrayOf = (lowerValue, scope, items) => {
  * `undefined` where it is anything else. The receiver holds an array alone
  * keeps that path. A sealed `any` of another kind is a call of the module's
  * `get` where the signature table names it; without `get`, that read is
- * refused.
+ * refused. In a program, a value of `any` that may be an array is matched
+ * once, and takes that path where it is one, so only the other kinds call
+ * `get` (lever P5 of the perf demos).
  *
  * @type {(lowerValue: _LowerValue, scope: _Scope, receiver: Value, key: Value) => Result<Term, string>}
  */
@@ -1237,14 +1239,19 @@ const indexed = (lowerValue, scope, receiver, key) => settled(lowerValue, scope,
     const held = t[0] === 'sealed' ? t[3] : null
     const undefined_ = constant('Any', 'undefined')
     const base = a[0] === 'get' ? a[1] : 'array'
-    if (isAny(t) && held !== null && held.length === 1 && held[0] === 'array') {
-        return ok(exact(u(31), k, `${base}.index`, i => if_(lt(i, call('Containers', 'length', [a])), call('Containers', 'item', [a, i]), undefined_), undefined_))
-    }
+    /** The item of the array `b` at `k`, or `undefined`. @type {(b: Term) => Term} */
+    const item = b => exact(u(31), k, `${base}.index`, i => if_(lt(i, call('Containers', 'length', [b])), call('Containers', 'item', [b, i]), undefined_), undefined_)
+    if (isAny(t) && held !== null && held.length === 1 && held[0] === 'array') { return ok(item(a)) }
     // An index key is a float (a literal or `Number(...)`); L1's `get` takes `any`.
     const g = getOf(s)
     const y = g === null ? null : isAny(t) ? a : linking(s) ? asAny(t, a) : null
-    return y !== null && g !== null ? ok(call('self', g, [y, call('Any', 'from_f64', [k])]))
-        : refuse(s)(`a read of ${show(t)} at a number is not in this slice: only an array's is`)
+    if (y === null || g === null) { return refuse(s)(`a read of ${show(t)} at a number is not in this slice: only an array's is`) }
+    /** L1's `get` of the key, boxed. @type {(z: Term) => Term} */
+    const slow = z => call('self', g, [z, call('Any', 'from_f64', [k])])
+    // In a program, a value of `any` that may be an array is read as one where it is, and by `get` else, where `get` is L1's own.
+    if (!isAny(t) || g !== 'l1.get' || !(held ?? kinds).includes('array')) { return ok(slow(y)) }
+    const [b, other] = [`${base}.array`, `${base}.other`]
+    return ok(match(a, [[['array'], b, item(get(b))], [null, other, slow(get(other))]]))
 })
 
 /**
