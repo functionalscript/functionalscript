@@ -172,9 +172,9 @@ const table = root => {
  * export object printed by the ordinary backend with no runtime in its
  * scope, every static body carrying the NativeFunction text of its id.
  *
- * @type {(sections: _Table) => Result<{ readonly lines: readonly string[], readonly uses: Uses, readonly bound: string }, readonly unknown[]>}
+ * @type {(sections: _Table, native: boolean) => Result<{ readonly lines: readonly string[], readonly uses: Uses, readonly bound: string }, readonly unknown[]>}
  */
-const valueLines = ({ builtIns, value }) => {
+const valueLines = ({ builtIns, value }, native) => {
     /** @type {(node: Exp) => string | undefined} */
     const text = node => {
         const named = builtIns.find(b => b.node === node)
@@ -191,7 +191,7 @@ const valueLines = ({ builtIns, value }) => {
         ],
         uses,
         bound,
-    }))(itemTagged('runtime', text, null)(value))
+    }))(itemTagged('runtime', text, null, native)(value))
 }
 
 /**
@@ -199,25 +199,25 @@ const valueLines = ({ builtIns, value }) => {
  * generated header, the `use` lines for every name the value spells, and
  * the value, {@link valueLines}.
  *
- * @type {(root: Exp) => Result<string, readonly unknown[]>}
+ * @type {(root: Exp, native?: boolean) => Result<string, readonly unknown[]>}
  */
-export const generateRuntimeTagged = root => okThen((/** @type {_Table} */ sections) =>
+export const generateRuntimeTagged = (root, native = false) => okThen((/** @type {_Table} */ sections) =>
     mapOk((/** @type {{ readonly lines: readonly string[], readonly uses: Uses, readonly bound: string }} */ { lines, uses, bound }) => [
         tagged('comment')(generatedHeader('`npm run gen` from `fjs/js/runtime/module.f.js`', 'change the runtime and regenerate')),
         '',
-        ...useLinesTagged(uses, bound),
+        ...useLinesTagged(uses, native ? null : bound),
         '',
         ...lines,
         '',
-    ].join('\n'))(valueLines(sections)))(table(root))
+    ].join('\n'))(valueLines(sections, native)))(table(root))
 
 /**
  * {@link generateRuntimeTagged} as plain text, with a refusal as text:
  * `[reason, detail]` pairs joined as `../module.f.js` joins its own.
  *
- * @type {(root: Exp) => Result<string, string>}
+ * @type {(root: Exp, native?: boolean) => Result<string, string>}
  */
-export const generateRuntime = root => {
-    const result = generateRuntimeTagged(root)
+export const generateRuntime = (root, native = false) => {
+    const result = generateRuntimeTagged(root, native)
     return result[0] === 'ok' ? ok(untagged(result[1])) : error(result[1].map(value => String(value)).join(': '))
 }

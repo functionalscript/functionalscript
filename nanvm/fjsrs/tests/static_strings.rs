@@ -1,4 +1,4 @@
-use nanvm_lib::vm::{Any, Array, BigInt, Function, ToAny, ToArray, exports};
+use nanvm_lib::vm::{Any, Array, BigInt, Function, ToAny, ToArray, exports_with_runtime};
 
 mod fixture {
     use nanvm_fjsrs::Vm as A;
@@ -7,7 +7,7 @@ mod fixture {
 
 #[test]
 fn closures_and_common_runtime_share_the_native_vm() {
-    let module = exports(fixture::module).unwrap();
+    let module = exports_with_runtime(fixture::module, nanvm_fjsrs::runtime().unwrap()).unwrap();
     let exported = Function::try_from(module.own_property(&"default".into()).unwrap()).unwrap();
     assert_eq!(exported.text().unwrap(), "()=>$0()".into());
     let call = |name: &str| {
@@ -39,7 +39,7 @@ fn closures_and_common_runtime_share_the_native_vm() {
 
 #[test]
 fn primitive_arrays_preserve_identity_and_contents() {
-    let module = exports(fixture::module).unwrap();
+    let module = exports_with_runtime(fixture::module, nanvm_fjsrs::runtime().unwrap()).unwrap();
     let get = |name: &str| module.own_property(&name.into()).unwrap();
     assert_eq!(get("first"), get("alias"));
     assert_ne!(get("first"), get("second"));
@@ -59,7 +59,7 @@ fn primitive_arrays_preserve_identity_and_contents() {
 
 #[test]
 fn primitive_objects_preserve_properties_and_identity() {
-    let module = exports(fixture::module).unwrap();
+    let module = exports_with_runtime(fixture::module, nanvm_fjsrs::runtime().unwrap()).unwrap();
     let get = |name: &str| module.own_property(&name.into()).unwrap();
     assert_eq!(get("record"), get("recordAlias"));
     assert_ne!(get("left"), get("right"));
@@ -83,8 +83,8 @@ fn primitive_objects_preserve_properties_and_identity() {
 
 #[test]
 fn static_functions_preserve_identity_metadata_and_nested_calls() {
-    let module = exports(fixture::module).unwrap();
-    let reload = exports(fixture::module).unwrap();
+    let module = exports_with_runtime(fixture::module, nanvm_fjsrs::runtime().unwrap()).unwrap();
+    let reload = exports_with_runtime(fixture::module, nanvm_fjsrs::runtime().unwrap()).unwrap();
     let get = |name: &str| module.own_property(&name.into()).unwrap();
     assert_eq!(get("id"), get("idAlias"));
     assert_eq!(get("id"), reload.own_property(&"id".into()).unwrap());
@@ -110,8 +110,8 @@ fn static_functions_preserve_identity_metadata_and_nested_calls() {
 
 #[test]
 fn static_frames_retain_the_original_function_identity() {
-    let module = exports(fixture::module).unwrap();
-    let reload = exports(fixture::module).unwrap();
+    let module = exports_with_runtime(fixture::module, nanvm_fjsrs::runtime().unwrap()).unwrap();
+    let reload = exports_with_runtime(fixture::module, nanvm_fjsrs::runtime().unwrap()).unwrap();
     let get = |name: &str| module.own_property(&name.into()).unwrap();
     for name in ["default", "capturedId", "capturedWrapper"] {
         assert_eq!(get(name), reload.own_property(&name.into()).unwrap());
@@ -128,4 +128,37 @@ fn static_frames_retain_the_original_function_identity() {
         call("default"),
         Any::from("very long stringvery long string")
     );
+}
+
+#[test]
+fn native_runtime_shares_its_object_is_builtin() {
+    let runtime = nanvm_fjsrs::runtime().unwrap();
+    let lookup = || nanvm_lib::vm::unstable::static_read(&runtime, "Object.is").unwrap();
+    let is = Function::try_from(lookup()).unwrap();
+    assert_eq!(is.clone().to_any(), lookup());
+    assert_eq!(is.text().unwrap(), "function is() { [native code] }".into());
+    assert_eq!(
+        is.call([0.0.to_any(), (-0.0).to_any()].to_array()).unwrap(),
+        false.to_any()
+    );
+}
+
+#[test]
+fn native_dot_creates_fresh_functions_bound_to_the_receiver() {
+    let runtime = nanvm_fjsrs::runtime().unwrap();
+    let dot = Function::try_from(runtime.dot("dot".into()).end().unwrap()).unwrap();
+    let bind = |receiver: &str| {
+        dot.call([receiver.into(), "startsWith".into()].to_array())
+            .unwrap()
+    };
+    let first = bind("abc");
+    assert_ne!(first, bind("abc"));
+    let starts_with_a = |bound| {
+        Function::try_from(bound)
+            .unwrap()
+            .call(["a".into()].to_array())
+            .unwrap()
+    };
+    assert_eq!(starts_with_a(first), true.to_any());
+    assert_eq!(starts_with_a(bind("bcd")), false.to_any());
 }

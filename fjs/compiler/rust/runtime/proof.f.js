@@ -109,6 +109,12 @@ export const proof = {
         assert(nativeRust.includes('Any::entries(') && nativeRust.includes('string_any("native")'))
         assertEq(refusal(module(object([['Object.f', [',', []]]]))), 'a built-in that is no function: Object.f')
     },
+    nativeRuntime: () => {
+        const rust = assertOk(generateRuntime(module(object([['Object.x', fn(0, [], 1)]])), true))
+        assert(rust.includes('pub fn runtime() -> Result<Any<A>, Any<A>>'))
+        assert(rust.includes('StaticFunction<A> = StaticFunction'))
+        assert(rust.includes('Function::from_static('))
+    },
     /**
      * The repository's runtime, from its compiled EDAG: one item, the
      * value, under the generated header and the `use` lines it spells.

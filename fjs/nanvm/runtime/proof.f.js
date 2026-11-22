@@ -9,7 +9,7 @@ import { parseFromTokens } from '../../compiler/parser/module.f.js'
 import { tokenize } from '../../compiler/tokenizer/module.f.js'
 import { stringToList } from '../../text/utf16/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
-import { edagPath, generate, load, rustPath, source } from './module.f.js'
+import { edagPath, generate, load, nativeRustPath, rustPath, source } from './module.f.js'
 import { toJson } from '../../media/json/module.f.js'
 
 /** A root holding `text` at the runtime's path. @type {(text: string) => Dir} */
@@ -32,13 +32,16 @@ export const proof = {
         assertOk(result)
         const [, rust] = virtual(state)(readUtf8File(rustPath))
         assert(assertOk(rust).includes('(string_key("Object.x"), A::static_function(') && assertOk(rust).includes('Some("function x() { [native code] }")'))
+        const [, native] = virtual(state)(readUtf8File(nativeRustPath))
+        assert(assertOk(native).includes('pub fn runtime()'))
+        assert(assertOk(native).includes('Function::from_static('))
         const [, edag] = virtual(state)(readUtf8File(edagPath))
         const data = assertOk(edag)
         assert(data.includes('\n/** @type {unknown} */\nconst $') && data.includes('[":","Object.x",["=>",0,[],1]]') && data.includes('[":","static",["=>",1,'))
         // This artifact is ordinary JavaScript holding EDAG data, with an
         // explicit type boundary; comments remain outside DataJS's grammar.
         assertOk(parseFromTokens(toArray(tokenize(stringToList(data))(''))))
-        for (const output of [assertOk(rust), data]) {
+        for (const output of [assertOk(rust), assertOk(native), data]) {
             assert(output.includes('Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.'))
             assert(output.includes('granted, provided that this notice is preserved.'))
         }
