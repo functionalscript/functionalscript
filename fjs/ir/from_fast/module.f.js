@@ -174,6 +174,7 @@ import { native } from '../native/module.f.js'
 import { asAny, boolean, floats, inOrder, isAny, isFloat, nativeRow, numbered, numberPath, numberRow, numeric, primitive } from './numbers/module.f.js'
 import { records } from '../records/module.f.js'
 import { literals } from './literals/module.f.js'
+import { lengthRead } from './reads/module.f.js'
 import { bindTerm, castCall, casts, getOf, isPure, isSpread, l1Of, linking, pure, refuse, settled, settledParts, standsFor, values } from './scope/module.f.js'
 import { link, linkedName, uses } from './link/module.f.js'
 import { show } from '../print/module.f.js'
@@ -1720,7 +1721,11 @@ const value = (scope, v) => {
                     if (t[0] === 'product') { return fieldOf(x, key) }
                     // In a program, a float or a boolean is boxed for L1's `get`, as JavaScript reads its members.
                     const y = g === null ? null : isAny(t) ? x : linking(scope) ? asAny(t, x) : null
-                    return y === null || g === null ? null : call('self', g, [y, lit(string, key)])
+                    if (y === null || g === null) { return null }
+                    /** L1's `get` of the key. @type {(z: Term) => Term} */
+                    const slow = z => call('self', g, [z, lit(string, key)])
+                    // An array's or a string's length is read in place.
+                    return (key === 'length' && linking(scope) ? lengthRead(x, t, slow, localOf(x, 'length')) : null) ?? slow(y)
                 })
                 : indexed(value, scope, v[1], key)
         }
