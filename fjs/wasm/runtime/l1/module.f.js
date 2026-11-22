@@ -20,7 +20,9 @@
  * operators `+ - * /` and unary `-`, the relations `< <= > >=`, the
  * member read `a[k]`, a call of an unknown value, and the iterations:
  * array spread, `for...of` and array destructuring of an unknown value
- * through `toIterable`, and object spread through `objectSpread`.
+ * through `toIterable`, and object spread through `objectSpread`; and the
+ * method calls `charCodeAt`, `at`, `every` and `filter`, which a program
+ * calls with the receiver, since NaNVM reads no prototype member.
  *
  * A thrown value is one of [`error`](./error/module.f.js), each the text
  * NaNVM throws for the same case, so a native substitution and its body
@@ -552,6 +554,141 @@ export const get = (a, k) => {
 export const call = (f, args) => {
     if (kind(f) !== FUNCTION) { throw error.unexpectedType }
     return asFunction(f)(...asArray(args))
+}
+
+// methods
+
+/**
+ * [`ToIntegerOrInfinity`](https://tc39.es/ecma262/#sec-tointegerorinfinity)
+ * of a number: `0` for `NaN`, an infinity as it is, anything else
+ * truncated toward zero.
+ *
+ * @type {(x: number) => number}
+ */
+export const toIntegerOrInfinity = x => x !== x ? 0 : x === Infinity || x === -Infinity ? x : x - x % 1
+
+/**
+ * [`RequireObjectCoercible`](https://tc39.es/ecma262/#sec-requireobjectcoercible):
+ * the value itself, or NaNVM's `TypeError` for `undefined` and `null`. A
+ * method call `o.name(x)` whose argument may throw checks its receiver with
+ * it first, since JavaScript reads `o.name`, which throws for those two,
+ * before it evaluates `x`.
+ *
+ * @type {(v: unknown) => unknown}
+ */
+export const requireObjectCoercible = v => {
+    const k = kind(v)
+    if (k === UNDEFINED || k === NULL) { throw error.nullishToObject }
+    return v
+}
+
+/**
+ * The member `name` of a receiver that has no method body here, as a
+ * function: NaNVM's `TypeError` where it is none, before any argument
+ * array is made for it.
+ *
+ * @type {(o: unknown, name: string) => (x: unknown) => unknown}
+ */
+const memberFunction = (o, name) => {
+    const m = get(o, name)
+    if (kind(m) !== FUNCTION) { throw error.unexpectedType }
+    return asFunction(m)
+}
+
+/**
+ * The method call `o.charCodeAt(pos)`: for a string, the UTF-16 unit at the
+ * position `pos` converts to, or `NaN` outside the string, as
+ * [`String.prototype.charCodeAt`](https://tc39.es/ecma262/#sec-string.prototype.charcodeat)
+ * answers; for any other kind, the call of its member `charCodeAt`.
+ *
+ * @type {(o: unknown, pos: unknown) => unknown}
+ */
+export const charCodeAt = (o, pos) => {
+    if (kind(o) !== STRING) { return memberFunction(o, 'charCodeAt')(pos) }
+    const p = toIntegerOrInfinity(toNumber(pos))
+    return p >= 0 && p < length(o) ? unit(o, p) : NaN
+}
+
+/**
+ * The method call `o.at(i)`: for an array or a string, the item or the
+ * one-unit string at the position `i` converts to, a negative one counting
+ * from the end, or `undefined` outside it, as
+ * [`Array.prototype.at`](https://tc39.es/ecma262/#sec-array.prototype.at)
+ * and `String.prototype.at` answer; for any other kind, the call of its
+ * member `at`.
+ *
+ * @type {(o: unknown, i: unknown) => unknown}
+ */
+export const at = (o, i) => {
+    const k = kind(o)
+    if (k !== ARRAY && k !== STRING) { return memberFunction(o, 'at')(i) }
+    const n = length(o)
+    const p = toIntegerOrInfinity(toNumber(i))
+    const j = p < 0 ? n + p : p
+    if (j < 0 || j >= n) { return undefined }
+    return k === ARRAY ? item(o, j) : fromUnit(unit(o, j))
+}
+
+/**
+ * The method call `o.every(f)`: for an array, whether `f` of each item, its
+ * index and the array is truthy, calling `f` in order up to the first that
+ * is not, as [`Array.prototype.every`](https://tc39.es/ecma262/#sec-array.prototype.every)
+ * does; for any other kind, the call of its member `every`. A callback that
+ * is no function throws NaNVM's `TypeError`, even for an empty array.
+ *
+ * @type {(o: unknown, f: unknown) => unknown}
+ */
+export const every = (o, f) => {
+    if (kind(o) !== ARRAY) { return memberFunction(o, 'every')(f) }
+    if (kind(f) !== FUNCTION) { throw error.unexpectedType }
+    const g = asFunction(f)
+    const n = length(o)
+    let r = { i: 0, all: true }
+    while (r.all && r.i < n) {
+        r = { i: r.i + 1, all: toBoolean(g(item(o, r.i), r.i, o)) }
+    }
+    return r.all
+}
+
+/**
+ * The first index from `i` whose item of `kept` is `true`: there is one,
+ * since {@link filter} asks only for as many as it counted, and asks for
+ * the first only where it counted one.
+ *
+ * @type {(kept: unknown, i: number) => number}
+ */
+const nextKept = (kept, i) => {
+    let r = { i }
+    while (!asBoolean(item(kept, r.i))) {
+        r = { i: r.i + 1 }
+    }
+    return r.i
+}
+
+/**
+ * The method call `o.filter(f)`: for an array, the items for which `f` of
+ * the item, its index and the array is truthy, in order, as
+ * [`Array.prototype.filter`](https://tc39.es/ecma262/#sec-array.prototype.filter)
+ * answers; for any other kind, the call of its member `filter`. `f` is
+ * called once for each item, in order, and what it answers is kept in an
+ * array of booleans; a count of those, then one pass that builds the
+ * answer from them, follow. A callback that is no function throws NaNVM's
+ * `TypeError`, even for an empty array.
+ *
+ * @type {(o: unknown, f: unknown) => unknown}
+ */
+export const filter = (o, f) => {
+    if (kind(o) !== ARRAY) { return memberFunction(o, 'filter')(f) }
+    if (kind(f) !== FUNCTION) { throw error.unexpectedType }
+    const g = asFunction(f)
+    const n = length(o)
+    const kept = buildArray(n, 0, i => i + 1, i => toBoolean(g(item(o, i), i, o)))
+    let r = { i: 0, count: 0 }
+    while (r.i < n) {
+        r = { i: r.i + 1, count: asBoolean(item(kept, r.i)) ? r.count + 1 : r.count }
+    }
+    // The first state is found before any item is asked for, so none kept builds none.
+    return r.count === 0 ? [] : buildArray(r.count, nextKept(kept, 0), i => nextKept(kept, i + 1), i => item(o, i))
 }
 
 /**
