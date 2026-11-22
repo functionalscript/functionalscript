@@ -1387,7 +1387,7 @@ const boxedFor = (scope, name, xs) => {
 const inlinedCallback = (lowerValue, s, name, f, o, held, slow) => {
     const building = name === 'filter'
     const label = `${building ? 'F' : 'E'}${s.depth}`
-    const [a, other] = [`${label}.array`, `${label}.other`]
+    const [a, other] = /** @type {const} */ ([`${label}.array`, `${label}.other`])
     const v = callbackNames(label)
     /** @type {_Scope} */
     const inner = {
