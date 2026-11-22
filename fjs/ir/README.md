@@ -590,6 +590,11 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   on NaNVM's `.wasm` went from 1.37 s to 0.66 s. `===` of two values of
   `any` calls L1 alone. The path is
   [`from_fast/numbers`](./from_fast/numbers/module.f.js).
+- **`.length` of `any` is read in place**: in a program, `x.length` of a
+  value of `any` that may be an array or a string matches it once and
+  reads Containers' or String's `length`, and calls L1's `get` only for
+  the other kinds, which would compare its key with `"length"` unit by
+  unit. The read is [`from_fast/reads`](./from_fast/reads/module.f.js).
 - **A boxed number literal is made once**: a program's functions read
   each number that they box as `any`, as `l1.strictEquals(x, 1)` does on
   the slow path, from a constant of the module, `#n0` first, which `init`
