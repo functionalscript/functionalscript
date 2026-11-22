@@ -172,7 +172,7 @@ const equalityShape = definitionShape(structEqSource, 'structEq')
 
 /** A candidate still goes through ordinary resolution and statement checks.
  * @type {(node: Extract<Node, readonly ['=>', ParameterList, Node]>, self: string) => boolean} */
-export const isStructEq = (node, self) => node[2][0] === 'block' && node[2][1].length === 7
+export const isStructEq = (node, self) => node[2][0] === 'block' && node[2][1].length === 3
     && structurallySame(shapeOf(node, self), equalityShape)
 
 /**

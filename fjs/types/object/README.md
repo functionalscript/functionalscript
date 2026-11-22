@@ -35,6 +35,9 @@ structurallySame({ a: [1] }, { a: [1] }) // true
 |[`structEq(a, b)`](./struct_eq/module.f.js) |deep equality in array and own enumerable record-entry order |
 |`structurallySame(a, b)`               |deep equality over plain data with unordered record keys                                                  |
 
+`structEq` visits child pairs using an explicit stack. Deeply nested arrays
+and records use heap space for pending siblings and keep the call stack flat.
+
 ## Own-property lookup
 
 `object[name]` also finds what the object inherits. `({})['constructor']` is

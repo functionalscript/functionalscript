@@ -93,14 +93,27 @@ export const binary = {
  * already in enumeration order. Functions are leaves decided by SameValue.
  * @type {(a: EdagValue, b: EdagValue) => boolean} */
 export const structEq = (a, b) => {
-    if (is(a, b)) { return true }
-    if (!isArray(a) || !isArray(b)) { return false }
-    if (a[0] === '[]' && b[0] === '[]') {
-        return a[1].length === b[1].length && a[1].every((v, i) => structEq(v, b[1][Number(i)]))
+    /** @type {import('../../../types/stack_walk/types.ts').Stack<readonly [EdagValue, EdagValue]>} */
+    let pending = { top: [a, b], rest: null }
+    while (pending !== null) {
+        const [x, y] = pending.top
+        pending = pending.rest
+        if (is(x, y)) { continue }
+        if (!isArray(x) || !isArray(y)) { return false }
+        if (x[0] === '[]' && y[0] === '[]') {
+            if (x[1].length !== y[1].length) { return false }
+            for (let i = x[1].length - 1; i >= 0; i -= 1) {
+                pending = { top: [x[1][Number(i)], y[1][Number(i)]], rest: pending }
+            }
+        } else {
+            if (x[0] !== '{}' || y[0] !== '{}' || x[1].length !== y[1].length) { return false }
+            for (let i = x[1].length - 1; i >= 0; i -= 1) {
+                const left = x[1][Number(i)]
+                const right = y[1][Number(i)]
+                if (left[1] !== right[1]) { return false }
+                pending = { top: [left[2], right[2]], rest: pending }
+            }
+        }
     }
-    if (a[0] !== '{}' || b[0] !== '{}') { return false }
-    return a[1].length === b[1].length && a[1].every((property, i) => {
-        const other = b[1][Number(i)]
-        return property[1] === other[1] && structEq(property[2], other[2])
-    })
+    return true
 }

@@ -51,19 +51,24 @@ export const slice = (s, start, end) => s.slice(start, end)
  */
 export const charCodeAt = (s, at) => s.charCodeAt(at)
 
-/** Portable spelling used to recognize and serialize the recursive helper. @type {string} */
+/** Portable spelling used to recognize and serialize the ordered comparison. @type {string} */
 export const structEqSource = `const structEq = (a, b) => {
-    if (Object.is(a, b)) { return true }
-    if (a === null || typeof a !== 'object' || b === null || typeof b !== 'object') { return false }
-    if (a instanceof Array) {
-        return b instanceof Array && a.length === b.length
-            && a.every((value, i) => structEq(value, b[Number(i)]))
+    let pending = { top: [a, b], rest: null }
+    while (pending !== null) {
+        const x = pending.top[0]
+        const y = pending.top[1]
+        pending = pending.rest
+        if (Object.is(x, y)) { continue }
+        if (x === null || typeof x !== 'object' || y === null || typeof y !== 'object') { return false }
+        if ((x instanceof Array) !== (y instanceof Array)) { return false }
+        const left = x instanceof Array ? x : Object.entries(x)
+        const right = y instanceof Array ? y : Object.entries(y)
+        if (left.length !== right.length) { return false }
+        let i = left.length
+        while (i > 0) {
+            i -= 1
+            pending = { top: [left[Number(i)], right[Number(i)]], rest: pending }
+        }
     }
-    if (b instanceof Array) { return false }
-    const left = Object.entries(a)
-    const right = Object.entries(b)
-    return left.length === right.length && left.every((item, i) => {
-        const other = right[Number(i)]
-        return item[0] === other[0] && structEq(item[1], other[1])
-    })
+    return true
 }`

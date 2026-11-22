@@ -43,7 +43,20 @@ const compare = (a, b, equal, same) => {
     assertEq(assertOk(binary['!=='](b, a)), !equal)
 }
 
+/** @type {(value: EdagValue) => EdagValue} */
+const deep = value => {
+    for (let i = 0; i < 10_000; i += 1) {
+        value = ['[]', [['{}', [[':', 'next', value]]]]]
+    }
+    return value
+}
+
 export const proof = {
+    depth: () => {
+        const left = deep(0)
+        assertEq(structEq(left, deep(0)), true)
+        assertEq(structEq(left, deep(-0)), false)
+    },
     ordered: () => {
         const record = /** @type {const} */ (['{}', [[':', 'x', ['undefined']]]])
         const array = /** @type {const} */ (['[]', [record, NaN]])

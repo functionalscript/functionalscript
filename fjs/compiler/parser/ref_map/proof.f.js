@@ -29,7 +29,7 @@ export const proof = {
     orderedComparison: () => {
         const source = `${structEqSource}\nexport default structEq`
         assert(isStructEq(...declared(source)))
-        assert(!isStructEq(...declared(source.replace('item[0]', 'item[1]'))))
+        assert(!isStructEq(...declared(source.replace('pending.top[0]', 'pending.top[1]'))))
         assert(!isStructEq(...declared('const f = a => a; export default f')))
         assert(!isStructEq(...declared(canonical)))
     },

@@ -1,7 +1,20 @@
 import { assert } from '../../../asserts/module.f.js'
 import { structEq } from './module.f.js'
 
+/** @type {(value: unknown) => unknown} */
+const deep = value => {
+    for (let i = 0; i < 10_000; i += 1) {
+        value = [{ next: value }]
+    }
+    return value
+}
+
 export const proof = /** @type {const} */ ({
+    depth: () => {
+        const left = deep(0)
+        assert(structEq(left, deep(0)))
+        assert(!structEq(left, deep(-0)))
+    },
     ordered: () => {
         const child = /** @type {const} */ ({ x: NaN })
         assert(structEq([child, child], [{ x: NaN }, { x: NaN }]))
