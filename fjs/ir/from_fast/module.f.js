@@ -1733,8 +1733,8 @@ const value = (scope, v) => {
                     if (y === null || g === null) { return null }
                     /** L1's `get` of the key. @type {(z: Term) => Term} */
                     const slow = z => call('self', g, [z, lit(string, key)])
-                    // An array's or a string's length is read in place.
-                    return (key === 'length' && linking(scope) ? lengthRead(x, t, slow, localOf(x, 'length')) : null) ?? slow(y)
+                    // An array's or a string's length is read in place, where `get` is L1's own.
+                    return (key === 'length' && g === 'l1.get' ? lengthRead(x, t, slow, localOf(x, 'length')) : null) ?? slow(y)
                 })
                 : indexed(value, scope, v[1], key)
         }
