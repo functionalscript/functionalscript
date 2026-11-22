@@ -5,7 +5,7 @@
 
 ### Problem
 
-The goal is to evolve the existing VM into a content-addressable VM (CAVM). **Write portable FJS so its result does not depend on whether two separately created objects with equal content share an identity.** Use ordered `structEq` to compare data. An `Object.is` fast path is portable when the fallback computes the same answer for equal data.
+The goal is to evolve the existing VM into a content-addressable VM (CAVM). **An algorithm may use `Object.is` and return different results on different VMs. It is portable if every permitted identity choice produces a result that meets its contract.** Use ordered `structEq` when the contract calls for content equality.
 
 ```js
 const make = x => ({ x })
@@ -18,13 +18,15 @@ A JS-hosted EDAG interpreter with fresh allocations returns `false`. A compiler 
 
 ### Proposed exception to JavaScript agreement
 
-The proposal relaxes allocation identity under rule 2 of the language principles. For separately created objects or functions with equal content, the result of `Object.is(a, b)` on a non-CAVM is unspecified. Either boolean is valid. Code that relies on one outcome is nonportable. Once the comparison returns, the program uses that boolean normally. Existing aliases still denote one value, and different content stays distinct. A VM may keep separate allocations or share them. The proposal leaves the timing to the implementation, including the possibility of discovering sharing within a run. Only a CAVM guarantees a deterministic identity result for fixed inputs and a fixed semantics version. [Language principles](../principles/README.md) · [Identity design discussion](https://github.com/functionalscript/functionalscript/pull/4076#issuecomment-7076917938)
+The proposal relaxes allocation identity under rule 2 of the language principles. For separately created objects or functions with equal content, the result of `Object.is(a, b)` on a non-CAVM is unspecified. Either boolean is valid. An algorithm whose correctness requires one particular outcome is nonportable. Once the comparison returns, the program uses that boolean normally. Existing aliases still denote one value, and different content stays distinct. A VM may keep separate allocations or share them. The proposal leaves the timing to the implementation, including the possibility of discovering sharing within a run. Only a CAVM guarantees a deterministic identity result for fixed inputs and a fixed semantics version. [Language principles](../principles/README.md) · [Identity design discussion](https://github.com/functionalscript/functionalscript/pull/4076#issuecomment-7076917938)
 
 The practical example is running the serialized program on another VM. The compiler’s `.edag.data.js` output retains the comparison and its operands. Executing that graph on a CAVM gives `true` because both records have the same ordered content. If the first execution writes its result to `.json` or `.data.js`, loading that value gives the original `false`. [Program and value outputs](../command-line/output.md#evaluation-and-projection)
 
 #### Which equality operation should a program use?
 
-**On a non-CAVM, prefer `structEq(a, b)` for comparing contents**, including in tests. Use `Object.is(a, b)` when the program needs identity. A true result lets `structEq` return immediately. After a false result, the contents may still match.
+**On a non-CAVM, prefer `structEq(a, b)` for comparing contents**, including in tests. A true `Object.is(a, b)` lets `structEq` return immediately. After a false result, the contents may still match.
+
+A parser generator can use `Object.is` to assign entries in a map of grammar rules. Suppose the start production is `S ::= "x" "x"` and the generator constructs the two literal rules separately. One VM may assign both occurrences the same rule ID. Another may return a map with two IDs. The start production refers to the literal twice in either map, so both parsers must recognize exactly `xx`. Different returned maps are valid when the generator promises a correct parser and allows the rule numbering to vary.
 
 On a VM that compares object references, `Object.is` takes `O(1)`. An executor that discovers identity by comparing content can have a different cost. Comparing independently built structures with `structEq` can take `O(n)` time, where `n` counts all descendant visits, including repeated visits to a shared subtree.
 
@@ -85,7 +87,7 @@ On a CAVM the candidate reduces to the unordered set of current canonical bindin
 
 ### Testing identity-dependent results
 
-Test portable programs against their observable results. For ordered, function-free data, use `structEq`. For the example above, check the content result on both executors and the identity result promised by each executor’s own policy. A JavaScript answer is an exact oracle only where the result is independent of allocation choices. Agreement between fresh allocation and full sharing alone cannot establish portability because a VM may share one pair and leave another separate.
+Test the properties the algorithm promises. For the grammar-rule map, build parsers from shared and separately allocated literal rules. Each parser must accept `xx`, reject inputs such as `x` and `xxx`, and produce any parse output the grammar specifies. The test can use the IDs in the returned map to resolve each rule reference. For the separately constructed records, check ordered content with `structEq` and check identity according to each executor’s own policy. A JavaScript answer is an exact oracle only where the result is independent of allocation choices. Agreement between fresh allocation and full sharing alone cannot establish portability because a VM may share one pair and leave another separate.
 
 Amnesia serves as a proof evaluator outside the FJS identity-conformance suite. It can evaluate a shared array node twice and return false when both reads denote the same logical value. The same-value rule requires true. [Amnesia's shared-node example](../../fjs/edag/amnesia/README.md#recomputed-code-retained-values)
 

@@ -23,8 +23,10 @@ discussion does not authorize a different successful answer.
 
 **Proposed identity contract.** The [value-identity proposal](../../spec/todo/value-identity.md)
 would allow an executor to share separately created, equal-content values.
-Portable programs should avoid depending on that choice. For example, fresh
-allocations can compare unequal on a JS-hosted interpreter and equal when a
+Portable algorithms can return different results when every result meets their
+contract. A grammar-rule map, for example, can contain one or two entries for
+equivalent literal rules as long as the generated parser implements the grammar.
+Fresh allocations can compare unequal on a JS-hosted interpreter and equal when a
 CAVM executes the serialized EDAG. A serialized boolean keeps its value.
 [Program and value outputs](../../spec/command-line/output.md#evaluation-and-projection)
 
