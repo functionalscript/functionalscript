@@ -22,15 +22,20 @@ discussion does not authorize a different successful answer.
 | [Content-addressable VM](#4-content-addressable-vm) | content identity | no |
 
 **Proposed identity contract.** The [value-identity proposal](../../spec/todo/value-identity.md)
-would bring fresh allocation, global memoization and full content identity under
-one contract. A global memoizer must honor permanent identity merges on every
-cache hit. The CAVM gives equal content one identity from the first observation.
-Amnesia currently re-evaluates a shared node and can compare its two allocations
-as unequal, as the example in [§1](#1-amnesia) shows. It could retain that
-evaluation strategy if all identity observers, including reference maps, used a
-consistent content comparison. Conformance for functions depends on first
-specifying [canonical closure content](../../spec/todo/value-identity.md#what-is-the-canonical-content-of-a-closure)
-for the semantics version and implementing that comparison for bodies and frames.
+would permit fresh allocation, global memoization and full content identity.
+A global memoizer must honor permanent merges on every cache hit. The CAVM
+gives equal content one identity from the first observation.
+
+**Amnesia is a proof evaluator and does not conform to FJS identity semantics.**
+The example in [§1](#1-amnesia) reaches one shared array node twice. Amnesia
+allocates two arrays and returns false when comparing them. Both reads denote
+one value, so the same-value rule requires true. Keep Amnesia for proofs where
+recomputation preserves the property being proved. The conformance tests use
+the other execution policies. Any future attempt to make a recomputing
+executor conform would have to preserve aliases across all identity observers,
+including reference maps, and implement the versioned
+[closure-content rules](../../spec/todo/value-identity.md#what-is-the-canonical-content-of-a-closure)
+once those are decided.
 
 ## 1. Amnesia
 
