@@ -57,9 +57,11 @@ Different kinds compare unequal. The same ordered, function-free data gives the 
 
 Closure folding is a language decision of its own. It would reverse the approved rule that two separately written instances of the recognized `empty` helper have distinct identities even after compilation. The proposed eligibility test uses canonical code, signature (including the observable `length`) and the corresponding captured values. A JS-inferred function name is a spelling and contributes no content. Rendering a function as text is a separate observation. [Approved object-identity decision](../design/object-identity.md#decisions) · [Function names and identity](../functions/names-and-identity/README.md) · [Function-text design questions](./cavm-function-to-string.md#what-must-default-function-text-guarantee)
 
+Until the closure-folding decision is approved, the first non-CAVM implementation can use a conservative rule. Return `true` only for the same closure instance or a copy known to preserve that instance's code and captured frame. A comparison may still return `false` in either case. Matching function text alone gives no evidence about captures.
+
 Define canonical code per semantics version, before discretionary optimizer rewrites. Today's EDAG uses the name-erased graph with specified lowerings. A minimal candidate compares operator tags, binding and frame slot references, signature, and the graph's specified sharing. A consistent renaming makes `x => x` and `y => y` the same code. Should canonicalization also fold `() => 1 + 2` to `() => 3`, substitute a captured constant into the body, or normalize additional graph sharing? Specify each admitted rewrite and its expected equality result for the version. Backends may emit the same machine code for two functions while preserving their distinct language identities. [Current EDAG representation](../../fjs/edag/README.md)
 
-Given `const wrap = x => () => x`, two calls to `wrap(1)` may coalesce and a CAVM must give them one identity. `wrap(1)` and `wrap(2)` remain distinct. If `a` and `b` are references, folding `wrap(a)` with `wrap(b)` must preserve the content returned by calling each closure. Different captured contents remain distinguishable by calling the closures.
+Under the proposed folding rule, with `const wrap = x => () => x`, two independent calls to `wrap(1)` use the same function template and capture the same number. A compiler may share that closure, and a CAVM using that rule gives them one identity. `wrap(1)` and `wrap(2)` must compare `false` because calling them returns different numbers. If `a` and `b` are references, folding `wrap(a)` with `wrap(b)` must preserve the content returned by calling each closure. Different captured contents remain distinguishable by calling the closures.
 
 ### Reference map
 
@@ -73,7 +75,7 @@ Suppose a JS-compatible executor performs three writes using distinct, equal-con
 | `m2`, from `m1` | `b → 2` | `undefined` | `2` |
 | `m3`, from `m2` | `a → 3` | `1` | `3` |
 
-Each lookup uses the comparisons made for that lookup. An earlier hit on a non-CAVM does not guarantee a later hit with the same key.
+On a non-CAVM, a hit identifies a write under a key of equal content. A miss can occur even just after writing the same key. Use the map to avoid redundant work when a hit occurs. If correctness requires deduplication, the algorithm must also detect duplicates when the map misses.
 
 The EDAG interpreters scan up to all the writes in a version. Production VMs must answer each map call in `O(log n)`, including calls on older versions, where `n` counts distinct keys set since `empty`. An address-indexed implementation must preserve newest-first lookup for the identity policy it implements. [Executor bounds and implementations](../built-ins/reference-map/README.md#executors)
 
@@ -91,7 +93,11 @@ Test the properties the algorithm promises. For the grammar-rule map, run the ge
 
 ### Tasks
 
-- [ ] **Allocation identity (language decision).** Record the language designer's explicit approval of the portability exception and link it here before implementation. [Language-design approval](../../doc/DESIGN.md#new-language-features-start-with-a-todo) · [Compatibility tracker](../../todo/fjs-javascript-compatibility.md)
+- [ ] **Allocation identity (language decision).** Record the language designer's explicit approval of the portability exception and link it here before implementation. [Language-design approval](../../doc/DESIGN.md#new-language-features-start-with-a-todo)
+- [ ] **Reconcile the published contract after approval.**
+  - Record the rule 2 exception and its effects on branches and exported results in the [language principles](../principles/README.md) and [compatibility tracker](../../todo/fjs-javascript-compatibility.md#one-authoritative-contract).
+  - Update the [reference-map API](../built-ins/reference-map/README.md) and its [cross-run guarantee](../built-ins/reference-map/README.md#only-a-mapping). A lookup returns the newest write whose key comparison succeeds. A previously written key can miss, and answers can differ across executors or runs.
+  - Update the [helper identity decision](../design/object-identity.md#decisions) and [function identity examples](../functions/names-and-identity/README.md) to reflect each approved change. Today they promise that aliases of one written body compare identical and separately written copies of the same body compare distinct.
 - [ ] **Closure folding (language decision).** Decide the CAVM's versioned canonical code/frame rules and the separate [map identity question](#map-identity). Record which prior identity decisions this supersedes and publish examples of CAVM equality.
 - [ ] **Library change.** Implement the ordered helper and migrate content assertions. Include reordered keys, shared children, missing entries, signed zeros and function leaves.
 - [ ] **Backend optimization.** Recognize the helper as a pattern instruction after its semantics are tested. Compare the instruction with the executable definition under the same identity choices. Verify the constant-time identity fast path on a reference-comparing VM and the shared equality operation on a CAVM.
