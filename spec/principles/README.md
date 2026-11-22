@@ -54,6 +54,19 @@ more convenient meaning. The valid JavaScript the compiler refuses is
 catalogued in [refused constructs](../todo/refused-constructs.md), each marked
 as refused by design, planned or undecided.
 
+## Leave unsettled behavior undefined
+
+**Only promise behavior the language is prepared to keep.** When designing a
+feature, start with the guarantees FJS already makes, including agreement with
+JavaScript. If those guarantees leave an observable detail unsettled, explicitly
+leave that detail undefined (UB). Developers are responsible for keeping their
+programs correct without relying on a particular outcome for that detail.
+
+A later specification can define the behavior without breaking programs that
+relied only on the published guarantees. Withdrawing a guarantee can break
+programs that correctly relied on it. A conformance test that requires one VM’s choice can turn
+that choice into a language rule in practice.
+
 ## Function-source representation exception
 
 **Adopted:** in FunctionalScript VM execution, the default string representation

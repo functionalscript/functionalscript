@@ -20,7 +20,7 @@ A JS-hosted EDAG interpreter with fresh allocations returns `false`. A compiler 
 
 The proposal relaxes allocation identity under rule 2 of the language principles. A non-CAVM may keep separately created equal-content objects or functions distinct or share them. FJS leaves the timing of that choice open. Existing aliases still denote one value, and different content stays distinct. Only a CAVM guarantees a deterministic identity result for fixed inputs and a fixed semantics version. [Language principles](../principles/README.md) · [Identity design discussion](https://github.com/functionalscript/functionalscript/pull/4076#issuecomment-7076917938)
 
-Leave unresolved non-CA identity cases open until a concrete use requires a guarantee. A later specification can narrow the choices while preserving programs that already work across them. Withdrawing a guarantee can break programs that came to depend on it.
+Leave unresolved non-CA identity cases open until a concrete use requires a guarantee. [Language-design principle](../principles/README.md#leave-unsettled-behavior-undefined)
 
 The practical example is running the serialized program on another VM. The compiler’s `.edag.data.js` output retains the comparison and its operands. Executing that graph on a CAVM gives `true` because both records have the same ordered content. If the first execution writes its result to `.json` or `.data.js`, loading that value gives the original `false`. [Program and value outputs](../command-line/output.md#evaluation-and-projection)
 
