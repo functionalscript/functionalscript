@@ -175,6 +175,7 @@ import { asAny, boolean, floats, inOrder, isAny, isFloat, nativeRow, numbered, n
 import { records } from '../records/module.f.js'
 import { literals } from './literals/module.f.js'
 import { lengthRead } from './reads/module.f.js'
+import { everyLoop, filterLoops, locals as callbackLocals, names as callbackNames } from './callbacks/module.f.js'
 import { bindTerm, castCall, casts, getOf, isPure, isSpread, l1Of, linking, pure, refuse, settled, settledParts, standsFor, values } from './scope/module.f.js'
 import { link, linkedName, uses } from './link/module.f.js'
 import { show } from '../print/module.f.js'
@@ -1370,6 +1371,41 @@ const boxedFor = (scope, name, xs) => {
     })
 }
 
+/**
+ * `o.every(f)` or `o.filter(f)` of a value of `any` that may be an array,
+ * whose callback `f` is an arrow literal of at most three parameters: a
+ * `match` of `o` whose arm for an array is one loop with `f` inlined, as
+ * [`from_fast/callbacks`](./callbacks/module.f.js) writes it (lever P6 of
+ * the perf demos), and whose arm for the other kinds, if any, is `slow`,
+ * L1's call. The callback's item, index and array stand for its
+ * parameters, and what it answers is read as JavaScript reads a
+ * condition. A `throw` inside `filter`'s is refused, as it would leave the
+ * builder of its mask behind.
+ *
+ * @type {(lowerValue: _LowerValue, s: _Scope, name: string, f: FastFunction, o: Term, held: readonly string[], slow: (s: _Scope, y: Term) => Result<Term, string>) => Result<Term, string>}
+ */
+const inlinedCallback = (lowerValue, s, name, f, o, held, slow) => {
+    const building = name === 'filter'
+    const label = `${building ? 'F' : 'E'}${s.depth}`
+    const [a, other] = [`${label}.array`, `${label}.other`]
+    const v = callbackNames(label)
+    /** @type {_Scope} */
+    const inner = {
+        ...s,
+        ir: { ...s.ir, locals: [...s.ir.locals, [a, only(any, 'array')], ...callbackLocals(label, building)] },
+        depth: s.depth + 1,
+        building: building ? [label, ...s.building] : s.building,
+    }
+    const body = inlineTerms(lowerValue, inner, f, [get(v.x), get(v.i), get(a)].slice(0, f.parameters.length), local(inner))
+    if (body[0] === 'error') { return body }
+    const test = condition(inner, body[1])
+    const arm = building ? filterLoops(label, get(a), test) : call('Any', 'from_bool', [everyLoop(label, get(a), test)])
+    const rest = held.filter(k => k !== 'array')
+    if (rest.length === 0) { return ok(match(o, [[['array'], a, arm]])) }
+    const r = slow({ ...s, ir: { ...s.ir, locals: [...s.ir.locals, [other, only(any, ...rest)]] } }, get(other))
+    return mapOk(/** @type {(y: Term) => Term} */ (y => match(o, [[['array'], a, arm], [null, other, y]])))(r)
+}
+
 /** The methods that L1 has an operation for, each called with one argument: `o.name(x)` is `l1.name(o, x)`. */
 const methods = ['charCodeAt', 'at', 'every', 'filter']
 
@@ -1407,9 +1443,14 @@ const methodCall = (lowerValue, scope, receiver, name, items) => {
             const b = asAny(at[1], a)
             return b === null ? refuse(w)(`the argument of the method ${name} is ${show(at[1])}`) : ok(call('self', `l1.${name}`, [y, b]))
         })
+        const f = v instanceof Array && v[0] === 'function' ? v[1] : null
+        if (f !== null && (name === 'every' || name === 'filter') && f.rest === null && f.self === null && f.parameters.length <= 3 && isAny(t[1]) && held.includes('array')) {
+            return inlinedCallback(lowerValue, s, name, f, o, held, then)
+        }
         return quiet ? then(s, o) : pure(s, call('self', 'l1.requireObjectCoercible', [o]), then)
     })
 }
+
 
 /**
  * A call of a function of the module, of a static function that is an

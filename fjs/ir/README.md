@@ -595,6 +595,16 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   reads Containers' or String's `length`, and calls L1's `get` only for
   the other kinds, which would compare its key with `"length"` unit by
   unit. The read is [`from_fast/reads`](./from_fast/reads/module.f.js).
+- **An arrow callback of `every` and `filter` is inlined**: in a program,
+  `a.every(f)` and `a.filter(f)` of a value of `any` that may be an
+  array, whose `f` is an arrow literal of at most three parameters,
+  matches `a` once, and for an array is one loop with `f`'s body inlined,
+  so no closure, no array of arguments and no call is made per item.
+  `filter` marks each item on a mask, with `Any.null` or
+  `Any.undefined`, which are copied for nothing, and then pushes the kept
+  ones. Other receivers call L1 as before. Sort of 100,000 went from
+  8.4 s to 2.5 s on NaNVM's `.wasm`, from 276M L0 calls to 99M. The loops
+  are [`from_fast/callbacks`](./from_fast/callbacks/module.f.js).
 - **A boxed number literal is made once**: a program's functions read
   each number that they box as `any`, as `l1.strictEquals(x, 1)` does on
   the slow path, from a constant of the module, `#n0` first, which `init`
