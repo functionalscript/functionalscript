@@ -8,7 +8,7 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("undefined", scope(|| { <Any<A> as core::ops::Neg>::neg(Nullish::Undefined.to_any()) }), f64_any(0x7ff8000000000000));
     check::<A>("booleanFalse", scope(|| { <Any<A> as core::ops::Neg>::neg(false.to_any()) }), f64_any(0x8000000000000000));
     check::<A>("booleanTrue", scope(|| { <Any<A> as core::ops::Neg>::neg(true.to_any()) }), f64_any(0xbff0000000000000));
-    check::<A>("numberZero", scope(|| { <Any<A> as core::ops::Neg>::neg(f64_any(0x0000000000000000)) }), f64_any(0x8000000000000000));
+    check::<A>("numberZero", scope(|| { <Any<A> as core::ops::Neg>::neg(f64_any(0x0)) }), f64_any(0x8000000000000000));
     check::<A>("numberPositive", scope(|| { <Any<A> as core::ops::Neg>::neg(f64_any(0x4002666666666666)) }), f64_any(0xc002666666666666));
     check::<A>("numberNegative", scope(|| { <Any<A> as core::ops::Neg>::neg(f64_any(0xc002666666666666)) }), f64_any(0x4002666666666666));
     check::<A>("numberLarge", scope(|| { <Any<A> as core::ops::Neg>::neg(f64_any(0xc06de00000000000)) }), f64_any(0x406de00000000000));

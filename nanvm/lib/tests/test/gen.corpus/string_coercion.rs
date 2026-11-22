@@ -6,7 +6,7 @@ use crate::harness::*;
 pub fn run<A: IStaticFunction>() {
     check::<A>("number", scope(|| { f64_any(0x405ec00000000000).to_string().map(|v| v.to_any()) }), string_any("123"));
     check::<A>("negativeNumber", scope(|| { f64_any(0xc07c800000000000).to_string().map(|v| v.to_any()) }), string_any("-456"));
-    check::<A>("zero", scope(|| { f64_any(0x0000000000000000).to_string().map(|v| v.to_any()) }), string_any("0"));
+    check::<A>("zero", scope(|| { f64_any(0x0).to_string().map(|v| v.to_any()) }), string_any("0"));
     check::<A>("negativeZero", scope(|| { f64_any(0x8000000000000000).to_string().map(|v| v.to_any()) }), string_any("0"));
     check::<A>("infinity", scope(|| { f64_any(0x7ff0000000000000).to_string().map(|v| v.to_any()) }), string_any("Infinity"));
     check::<A>("negativeInfinity", scope(|| { f64_any(0xfff0000000000000).to_string().map(|v| v.to_any()) }), string_any("-Infinity"));
@@ -41,7 +41,7 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("callback", scope(|| {
         A::static_function(|_self, _args| {
             let _b132: Any<A> = _args.rest(0).to_any();
-            (Any::dot(_b132.clone(), f64_any(0x0000000000000000)).end())? * f64_any(0x4000000000000000)
+            (Any::dot(_b132.clone(), f64_any(0x0)).end())? * f64_any(0x4000000000000000)
         }, 0, Array::default(), Some("(...$0)=>$0[0]*2")).to_any().to_string().map(|v| v.to_any())
     }), string_any("(...$0)=>$0[0]*2"));
     check::<A>("arrayOfFunction", scope(|| { [A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, Array::default(), Some("()=>undefined")).to_any(), f64_any(0x3ff0000000000000)].to_array().to_any().to_string().map(|v| v.to_any()) }), string_any("()=>undefined,1"));

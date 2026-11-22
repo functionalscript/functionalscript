@@ -7,5 +7,5 @@ use nanvm_lib::vm::{Any, IVm, ToAny, ToArray, ToObject};
 #[allow(clippy::if_same_then_else)]
 pub fn module<A: IVm>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let _b0: Any<A> = (static_read(&runtime, "encodeURIComponent"))?;
-    Ok([(string_key("default"), (Any::call(_b0.clone(), [string_any_utf16(&[0xd800, 0x0078])].to_array().to_any()))?)].to_object().to_any())
+    Ok([(string_key("default"), (Any::call(_b0.clone(), [string_any_utf16(&[55296, 120])].to_array().to_any()))?)].to_object().to_any())
 }

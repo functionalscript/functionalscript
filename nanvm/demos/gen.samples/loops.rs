@@ -12,12 +12,12 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             '_loop14: while Any::<A>::to_boolean(&{
                 let _b1104: Any<A> = _b1103.clone();
                 let _b2: Any<A> = (Any::dot(_b1104.clone(), f64_any(0x3ff0000000000000)).end())?;
-                let _b3: Any<A> = (Any::dot(_b1104.clone(), f64_any(0x0000000000000000)).end())?;
+                let _b3: Any<A> = (Any::dot(_b1104.clone(), f64_any(0x0)).end())?;
                 (Any::lt(_b3.clone(), A::frame(_self)[0].clone()))?
             }) {
                 let _b778_9: Any<A> = _b1103.clone();
                 let _b2: Any<A> = (Any::dot(_b778_9.clone(), f64_any(0x3ff0000000000000)).end())?;
-                let _b3: Any<A> = (Any::dot(_b778_9.clone(), f64_any(0x0000000000000000)).end())?;
+                let _b3: Any<A> = (Any::dot(_b778_9.clone(), f64_any(0x0)).end())?;
                 let _b1107: Any<A> = [(_b3.clone() * f64_any(0x4000000000000000))?, (_b2.clone() + f64_any(0x3ff0000000000000))?].to_array().to_any();
                 _b1103 = _b1107.clone();
             }
@@ -25,12 +25,12 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             let _b797: Any<A> = {
                 let _b1106: Any<A> = _b1105.clone();
                 let _b2: Any<A> = (Any::dot(_b1106.clone(), f64_any(0x3ff0000000000000)).end())?;
-                let _b3: Any<A> = (Any::dot(_b1106.clone(), f64_any(0x0000000000000000)).end())?;
+                let _b3: Any<A> = (Any::dot(_b1106.clone(), f64_any(0x0)).end())?;
                 [_b3.clone(), _b2.clone()].to_array().to_any()
             };
             Ok(_b797.clone())
         }, 1, [_args.argument(0)].to_array(), Some("($1)=>{let $2=$1;while((()=>{const $3=$2;const $4=$3[1];const $5=$3[0];return $5<$0;})()){const $6=$2;const $4=$6[1];const $5=$6[0];const $7=[$5*2,$4+1];$2=$7;}const $8=(()=>{const $9=$2;const $4=$9[1];const $5=$9[0];return [$5,$4];})();return $8;}")).to_any();
-        let _b16: Any<A> = (Any::call(_b14.clone(), [[f64_any(0x3ff0000000000000), f64_any(0x0000000000000000)].to_array().to_any()].to_array().to_any()))?;
-        Ok([(Any::dot(_b16.clone(), f64_any(0x0000000000000000)).end())?, (Any::dot(_b16.clone(), f64_any(0x3ff0000000000000)).end())?].to_array().to_any())
+        let _b16: Any<A> = (Any::call(_b14.clone(), [[f64_any(0x3ff0000000000000), f64_any(0x0)].to_array().to_any()].to_array().to_any()))?;
+        Ok([(Any::dot(_b16.clone(), f64_any(0x0)).end())?, (Any::dot(_b16.clone(), f64_any(0x3ff0000000000000)).end())?].to_array().to_any())
     }, 1, Array::default(), Some("($0)=>{const $1=($2)=>{let $3=$2;while((()=>{const $4=$3;const $5=$4[1];const $6=$4[0];return $6<$0;})()){const $7=$3;const $5=$7[1];const $6=$7[0];const $8=[$6*2,$5+1];$3=$8;}const $9=(()=>{const $10=$3;const $5=$10[1];const $6=$10[0];return [$6,$5];})();return $9;};const $11=$1([1,0]);return [$11[0],$11[1]];}")).to_any())].to_object().to_any())
 }

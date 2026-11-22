@@ -7,12 +7,12 @@ use nanvm_lib::vm::{Any, Array, IStaticFunction, Nullish, ToAny, ToArray, ToObje
 #[allow(clippy::if_same_then_else)]
 pub fn module<A: IStaticFunction>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let _b6: Any<A> = A::static_function(|_self, _args| {
-        let _b9628: Any<A> = f64_any(0x0000000000000000);
-        (if Any::<A>::to_boolean(&_args.argument(0)) { (f64_any(0x0000000000000000) + f64_any(0x4000000000000000))? } else { (f64_any(0x0000000000000000) + f64_any(0x4014000000000000))? }) * f64_any(0x4024000000000000)
+        let _b9628: Any<A> = f64_any(0x0);
+        (if Any::<A>::to_boolean(&_args.argument(0)) { (f64_any(0x0) + f64_any(0x4000000000000000))? } else { (f64_any(0x0) + f64_any(0x4014000000000000))? }) * f64_any(0x4024000000000000)
     }, 1, [runtime.clone()].to_array(), Some("($0)=>{const $1=0;return ($0?0+2:0+5)*10;}")).to_any();
     let _b12: Any<A> = A::static_function(|_self, _args| {
-        let _b9628_5: Any<A> = f64_any(0x0000000000000000);
-        (if Any::<A>::to_boolean(&_args.argument(0)) { (f64_any(0x0000000000000000) + f64_any(0x4000000000000000))? } else { f64_any(0x0000000000000000) }) * f64_any(0x4024000000000000)
+        let _b9628_5: Any<A> = f64_any(0x0);
+        (if Any::<A>::to_boolean(&_args.argument(0)) { (f64_any(0x0) + f64_any(0x4000000000000000))? } else { f64_any(0x0) }) * f64_any(0x4024000000000000)
     }, 1, [runtime.clone()].to_array(), Some("($0)=>{const $1=0;return ($0?0+2:0)*10;}")).to_any();
     let _b30: Any<A> = A::static_function(|_self, _args| {
         let _b26: Any<A> = if Any::<A>::to_boolean(&_args.argument(0)) { [_args.argument(2), A::static_function(|_self, _args| { Ok(A::frame(_self)[0].clone()) }, 0, [_args.argument(2), A::frame(_self)[0].clone()].to_array(), Some("()=>$0")).to_any()].to_array().to_any() } else { [_args.argument(1), A::static_function(|_self, _args| { Ok(A::frame(_self)[0].clone()) }, 0, [_args.argument(1), A::frame(_self)[0].clone()].to_array(), Some("()=>$0")).to_any()].to_array().to_any() };
@@ -21,14 +21,14 @@ pub fn module<A: IStaticFunction>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let _b58: Any<A> = A::static_function(|_self, _args| {
         let _b35: Any<A> = (Any::call(A::frame(_self)[0].clone(), [_args.argument(0), [f64_any(0x4008000000000000)].to_array().to_any(), [f64_any(0x401c000000000000)].to_array().to_any()].to_array().to_any()))?;
         let _b38: Any<A> = (Any::call(A::frame(_self)[0].clone(), [_args.argument(0), [f64_any(0x4008000000000000)].to_array().to_any(), [f64_any(0x401c000000000000)].to_array().to_any()].to_array().to_any()))?;
-        Ok([(strict_eq((Any::dot(_b35.clone(), f64_any(0x0000000000000000)).end())?, (Any::dot(_b35.clone(), f64_any(0x3ff0000000000000)).end())?))?, (strict_eq((Any::dot(_b35.clone(), f64_any(0x4000000000000000)).end_call(&A::frame(_self)[1], || Ok(Array::default().to_any())))?, (Any::dot(_b35.clone(), f64_any(0x0000000000000000)).end())?))?, (strict_eq((Any::dot((Any::dot(_b35.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x3ff0000000000000)).end_call(&A::frame(_self)[1], || Ok(Array::default().to_any())))?, (Any::dot((Any::dot(_b35.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x0000000000000000)).end())?))?, (strict_ne((Any::dot(_b35.clone(), f64_any(0x0000000000000000)).end())?, (Any::dot(_b38.clone(), f64_any(0x0000000000000000)).end())?))?, (Any::dot((Any::dot((Any::dot(_b35.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x0000000000000000)).end())?, f64_any(0x0000000000000000)).end())?].to_array().to_any())
+        Ok([(strict_eq((Any::dot(_b35.clone(), f64_any(0x0)).end())?, (Any::dot(_b35.clone(), f64_any(0x3ff0000000000000)).end())?))?, (strict_eq((Any::dot(_b35.clone(), f64_any(0x4000000000000000)).end_call(&A::frame(_self)[1], || Ok(Array::default().to_any())))?, (Any::dot(_b35.clone(), f64_any(0x0)).end())?))?, (strict_eq((Any::dot((Any::dot(_b35.clone(), f64_any(0x0)).end())?, f64_any(0x3ff0000000000000)).end_call(&A::frame(_self)[1], || Ok(Array::default().to_any())))?, (Any::dot((Any::dot(_b35.clone(), f64_any(0x0)).end())?, f64_any(0x0)).end())?))?, (strict_ne((Any::dot(_b35.clone(), f64_any(0x0)).end())?, (Any::dot(_b38.clone(), f64_any(0x0)).end())?))?, (Any::dot((Any::dot((Any::dot(_b35.clone(), f64_any(0x0)).end())?, f64_any(0x0)).end())?, f64_any(0x0)).end())?].to_array().to_any())
     }, 1, [_b30.clone(), runtime.clone()].to_array(), Some("($1)=>{const $2=$0($1,[3],[7]);const $3=$0($1,[3],[7]);return [$2[0]===$2[1],$2[2]()===$2[0],$2[0][1]()===$2[0][0],$2[0]!==$3[0],$2[0][0][0]];}")).to_any();
     let _b66: Any<A> = A::static_function(|_self, _args| {
-        let _b9628_21: Any<A> = f64_any(0x0000000000000000);
+        let _b9628_21: Any<A> = f64_any(0x0);
         if Any::<A>::to_boolean(&_args.argument(0)) {
             let _b9628_22: Any<A> = (bigint_any(1) / bigint_any(0))?;
             Ok(f64_any(0x3ff0000000000000))
-        } else { Ok(f64_any(0x0000000000000000)) }
+        } else { Ok(f64_any(0x0)) }
     }, 1, [runtime.clone()].to_array(), Some("($0)=>{const $1=0;return $0?(()=>{const $2=1n/0n;return 1;})():0;}")).to_any();
     let _b79: Any<A> = A::static_function(|_self, _args| {
         let _b9629: Any<A> = _args.argument(0);
@@ -39,12 +39,12 @@ pub fn module<A: IStaticFunction>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         '_loop79: loop {
             let _b9168_31: Any<A> = _b9631.clone();
             let _b9169_32: Any<A> = _b9632.clone();
-            if Any::<A>::to_boolean(&(strict_eq(_b9168_31.clone(), f64_any(0x0000000000000000)))?) {
+            if Any::<A>::to_boolean(&(strict_eq(_b9168_31.clone(), f64_any(0x0)))?) {
                 let _b9634: Any<A> = _b9169_32.clone();
                 _b9633 = _b9634.clone();
                 break '_loop79;
             } else {
-                let _b73: Any<A> = if Any::<A>::to_boolean(&(Any::gt(_b9168_31.clone(), f64_any(0x0000000000000000)))?) { (_b9169_32.clone() + f64_any(0x3ff0000000000000))? } else { _b9169_32.clone() };
+                let _b73: Any<A> = if Any::<A>::to_boolean(&(Any::gt(_b9168_31.clone(), f64_any(0x0)))?) { (_b9169_32.clone() + f64_any(0x3ff0000000000000))? } else { _b9169_32.clone() };
                 let _b9635: Any<A> = (_b9168_31.clone() - f64_any(0x3ff0000000000000))?;
                 let _b9636: Any<A> = _b73.clone();
                 _b9631 = _b9635.clone();

@@ -29,7 +29,7 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("bigintRadix", scope(|| { Any::dot(bigint_any(255), string_any("toString")).end_call(&rt, || Ok([f64_any(0x4030000000000000)].to_array().to_any())) }), string_any("ff"));
     check::<A>("bigintNegativeRadix", scope(|| { Any::dot(bigint_any(-255), string_any("toString")).end_call(&rt, || Ok([f64_any(0x4042000000000000)].to_array().to_any())) }), string_any("-73"));
     check::<A>("bigintRadixTen", scope(|| { Any::dot(bigint_any(10), string_any("toString")).end_call(&rt, || Ok([Nullish::Undefined.to_any()].to_array().to_any())) }), string_any("10"));
-    check_throws::<A>("bigintRadixOutOfRange", scope(|| { Any::dot(bigint_any(1), string_any("toString")).end_call(&rt, || Ok([f64_any(0x0000000000000000)].to_array().to_any())) }));
+    check_throws::<A>("bigintRadixOutOfRange", scope(|| { Any::dot(bigint_any(1), string_any("toString")).end_call(&rt, || Ok([f64_any(0x0)].to_array().to_any())) }));
     check::<A>("argumentIgnored", scope(|| { Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("toString")).end_call(&rt, || Ok([f64_any(0x4030000000000000)].to_array().to_any())) }), string_any("1"));
     check_throws::<A>("null", scope(|| { Any::dot(Nullish::Null.to_any(), string_any("toString")).end_call(&rt, || Ok(Array::default().to_any())) }));
     check_throws::<A>("undefined", scope(|| { Any::dot(Nullish::Undefined.to_any(), string_any("toString")).end_call(&rt, || Ok(Array::default().to_any())) }));
@@ -37,7 +37,7 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("callback", scope(|| {
         Any::dot(A::static_function(|_self, _args| {
             let _b92: Any<A> = _args.rest(0).to_any();
-            Any::dot(_b92.clone(), f64_any(0x0000000000000000)).end()
+            Any::dot(_b92.clone(), f64_any(0x0)).end()
         }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0]")).to_any(), string_any("toString")).end_call(&rt, || Ok(Array::default().to_any()))
     }), string_any("(...$0)=>$0[0]"));
 }

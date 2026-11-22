@@ -15,6 +15,6 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("bigint", scope(|| { Any::instanceof_(&bigint_any(5), Constructor::Array) }), false.to_any());
     check::<A>("emptyObject", scope(|| { Any::instanceof_(&Object::default().to_any(), Constructor::Array) }), false.to_any());
     check::<A>("object", scope(|| { Any::instanceof_(&[(string_key("a"), f64_any(0x3ff0000000000000))].to_object().to_any(), Constructor::Array) }), false.to_any());
-    check::<A>("arrayLikeObject", scope(|| { Any::instanceof_(&[(string_key("length"), f64_any(0x0000000000000000))].to_object().to_any(), Constructor::Array) }), false.to_any());
+    check::<A>("arrayLikeObject", scope(|| { Any::instanceof_(&[(string_key("length"), f64_any(0x0))].to_object().to_any(), Constructor::Array) }), false.to_any());
     check::<A>("function", scope(|| { Any::instanceof_(&A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, Array::default(), Some("()=>undefined")).to_any(), Constructor::Array) }), false.to_any());
 }

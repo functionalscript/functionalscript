@@ -8,19 +8,19 @@ use nanvm_lib::vm::{Any, Array, IStaticFunction, Nullish, ToAny, ToArray, ToObje
 pub fn module<A: IStaticFunction>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let _b7: Any<A> = A::static_function(|_self, _args| { if Any::<A>::to_boolean(&_args.argument(0)) {
         let _b2: Any<A> = [_args.argument(1), f64_any(0x401c000000000000)].to_array().to_any();
-        if Any::<A>::to_boolean(&(Any::dot(_b2.clone(), f64_any(0x0000000000000000)).end())?) { Any::dot(_b2.clone(), f64_any(0x3ff0000000000000)).end() } else { Ok(f64_any(0x4022000000000000)) }
+        if Any::<A>::to_boolean(&(Any::dot(_b2.clone(), f64_any(0x0)).end())?) { Any::dot(_b2.clone(), f64_any(0x3ff0000000000000)).end() } else { Ok(f64_any(0x4022000000000000)) }
     } else { Ok(f64_any(0x4022000000000000)) } }, 2, [runtime.clone()].to_array(), Some("($0,$1)=>$0?(()=>{const $2=[$1,7];return $2[0]?$2[1]:9;})():9")).to_any();
     let _b27: Any<A> = A::static_function(|_self, _args| {
         let _b3944_7: Any<A> = _args.argument(0);
         let _b3945_8: Any<A> = _args.argument(1);
-        let _b15730: Any<A> = f64_any(0x0000000000000000);
+        let _b15730: Any<A> = f64_any(0x0);
         let _b0: Any<A> = A::static_function(|_self, _args| { _args.argument(0) + f64_any(0x4014000000000000) }, 1, [A::frame(_self)[0].clone()].to_array(), Some("($0)=>$0+5")).to_any();
         if Any::<A>::to_boolean(&_b3944_7) {
             let _b17: Any<A> = [(string_key("a"), A::static_function(|_self, _args| { Ok(A::frame(_self)[0].clone()) }, 0, [_b3945_8.clone(), A::frame(_self)[0].clone()].to_array(), Some("()=>$0")).to_any()), (string_key("b"), A::static_function(|_self, _args| { Ok(f64_any(0x401c000000000000)) }, 0, [A::frame(_self)[0].clone()].to_array(), Some("()=>7")).to_any()), (string_key("c"), A::static_function(|_self, _args| { Ok(f64_any(0x4008000000000000)) }, 0, [A::frame(_self)[0].clone()].to_array(), Some("()=>3")).to_any())].to_object().to_any();
             if Any::<A>::to_boolean(&(Any::dot(_b17.clone(), string_any("a")).end_call(&A::frame(_self)[0], || Ok(Array::default().to_any())))?) { return Any::dot(_b17.clone(), string_any("b")).end_call(&A::frame(_self)[0], || Ok(Array::default().to_any())); }
-            return Any::call(_b0.clone(), [(f64_any(0x0000000000000000) + (Any::dot(_b17.clone(), string_any("c")).end_call(&A::frame(_self)[0], || Ok(Array::default().to_any())))?)?].to_array().to_any());
+            return Any::call(_b0.clone(), [(f64_any(0x0) + (Any::dot(_b17.clone(), string_any("c")).end_call(&A::frame(_self)[0], || Ok(Array::default().to_any())))?)?].to_array().to_any());
         }
-        Any::call(_b0.clone(), [f64_any(0x0000000000000000)].to_array().to_any())
+        Any::call(_b0.clone(), [f64_any(0x0)].to_array().to_any())
     }, 2, [runtime.clone()].to_array(), Some("($0,$1)=>{const $2=$0;const $3=$1;const $4=0;const $5=($6)=>$6+5;if($2){const $7={\"a\":()=>$3,\"b\":()=>7,\"c\":()=>3};if($7.a()){return $7.b();}return $5(0+$7.c());}return $5(0);}")).to_any();
     let _b45: Any<A> = A::static_function(|_self, _args| {
         let _b6500_17: Any<A> = _args.argument(0);
@@ -39,21 +39,21 @@ pub fn module<A: IStaticFunction>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let _b61: Any<A> = A::static_function(|_self, _args| {
         let _b48: Any<A> = (Any::call(A::frame(_self)[0].clone(), [_args.argument(0), false.to_any()].to_array().to_any()))?;
         let _b49: Any<A> = (Any::call(A::frame(_self)[0].clone(), [_args.argument(0), false.to_any()].to_array().to_any()))?;
-        Ok([(strict_eq((Any::dot(_b48.clone(), f64_any(0x0000000000000000)).end())?, (Any::dot(_b48.clone(), f64_any(0x3ff0000000000000)).end())?))?, (strict_ne(_b48.clone(), _b49.clone()))?, if Any::<A>::to_boolean(&_args.argument(0)) { (strict_ne((Any::dot(_b48.clone(), f64_any(0x0000000000000000)).end())?, (Any::dot(_b49.clone(), f64_any(0x0000000000000000)).end())?))? } else { true.to_any() }, (Any::dot(_b48.clone(), f64_any(0x0000000000000000)).end())?].to_array().to_any())
+        Ok([(strict_eq((Any::dot(_b48.clone(), f64_any(0x0)).end())?, (Any::dot(_b48.clone(), f64_any(0x3ff0000000000000)).end())?))?, (strict_ne(_b48.clone(), _b49.clone()))?, if Any::<A>::to_boolean(&_args.argument(0)) { (strict_ne((Any::dot(_b48.clone(), f64_any(0x0)).end())?, (Any::dot(_b49.clone(), f64_any(0x0)).end())?))? } else { true.to_any() }, (Any::dot(_b48.clone(), f64_any(0x0)).end())?].to_array().to_any())
     }, 1, [_b45.clone(), runtime.clone()].to_array(), Some("($1)=>{const $2=$0($1,false);const $3=$0($1,false);return [$2[0]===$2[1],$2!==$3,$1?$2[0]!==$3[0]:true,$2[0]];}")).to_any();
     let _b73: Any<A> = A::static_function(|_self, _args| {
-        let _b15730_32: Any<A> = f64_any(0x0000000000000000);
+        let _b15730_32: Any<A> = f64_any(0x0);
         (if Any::<A>::to_boolean(&_args.argument(0)) {
             let _b68: Any<A> = A::static_function(|_self, _args| { if Any::<A>::to_boolean(&A::frame(_self)[0].clone()) { Ok(f64_any(0x401c000000000000)) } else { Ok(f64_any(0x4020000000000000)) } }, 0, [_args.argument(0), A::frame(_self)[0].clone()].to_array(), Some("()=>$0?7:8")).to_any();
             (Any::call(_b68.clone(), Array::default().to_any()))?
-        } else { f64_any(0x0000000000000000) }) + f64_any(0x3ff0000000000000)
+        } else { f64_any(0x0) }) + f64_any(0x3ff0000000000000)
     }, 1, [runtime.clone()].to_array(), Some("($0)=>{const $1=0;return ($0?(()=>{const $2=()=>$0?7:8;return $2();})():0)+1;}")).to_any();
     let _b86: Any<A> = A::static_function(|_self, _args| {
-        let _b15730_39: Any<A> = f64_any(0x0000000000000000);
+        let _b15730_39: Any<A> = f64_any(0x0);
         if Any::<A>::to_boolean(&_args.argument(0)) {
             let _b80: Any<A> = (Any::dot(if Any::<A>::to_boolean(&_args.argument(1)) { [(string_key("a"), f64_any(0x401c000000000000))].to_object().to_any() } else { Nullish::Null.to_any() }, string_any("a")).end())?;
             if Any::<A>::to_boolean(&_args.argument(2)) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(_b80.clone()) }
-        } else { Ok(f64_any(0x0000000000000000)) }
+        } else { Ok(f64_any(0x0)) }
     }, 3, [runtime.clone()].to_array(), Some("($0,$1,$2)=>{const $3=0;return $0?(()=>{const $4=($1?{\"a\":7}:null).a;return $2?1:$4;})():0;}")).to_any();
     let _b106: Any<A> = A::static_function(|_self, _args| {
         let _b15731: Any<A> = _args.argument(0);
@@ -64,7 +64,7 @@ pub fn module<A: IStaticFunction>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         '_loop106: loop {
             let _b15162_49: Any<A> = _b15733.clone();
             let _b15163_50: Any<A> = _b15734.clone();
-            if Any::<A>::to_boolean(&(Any::gt(_b15162_49.clone(), f64_any(0x0000000000000000)))?) {
+            if Any::<A>::to_boolean(&(Any::gt(_b15162_49.clone(), f64_any(0x0)))?) {
                 let _b95: Any<A> = [(_b15162_49.clone() - f64_any(0x3ff0000000000000))?, (_b15163_50.clone() + f64_any(0x3ff0000000000000))?].to_array().to_any();
                 if Any::<A>::to_boolean(&(strict_eq(_b15162_49.clone(), f64_any(0x3ff0000000000000)))?) {
                     let _b15736: Any<A> = (Any::dot(_b95.clone(), f64_any(0x3ff0000000000000)).end())?;
