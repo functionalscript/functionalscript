@@ -1,11 +1,11 @@
-## Allow equal-content allocations to share identity
+## Evolve a non-CA VM into a CAVM
 
 **Priority:** P2 — language-design decision
 **Status:** open — pending design approval
 
 ### Problem
 
-Can the compiler evaluate `make(1)` once here?
+The goal is to evolve the existing VM into a content-addressable VM (CAVM) under one language contract. Programs can ask for content equality from the start. The VM can introduce sharing incrementally. For example, can the compiler evaluate `make(1)` once here?
 
 ```js
 const make = x => ({ x })
@@ -13,7 +13,7 @@ const a = make(1)
 const b = make(1)
 ```
 
-Today a JS-compatible executor must make two objects because the program can later ask `Object.is(a, b)`. Relaxing that rule permits common-subexpression elimination, hoisting and memoizing functions that return objects. It also lets an ordinary VM evolve into a content-addressable VM (CAVM). The cost is observable even in a program that returns just a boolean. [Execution models](../../fjs/edag/execution-models.md)
+Today a JS-compatible executor must make two objects because the program can later ask `Object.is(a, b)`. Relaxing that rule permits common-subexpression elimination, hoisting and memoizing functions that return objects. The cost is observable even in a program that returns just a boolean. [Execution models](../../fjs/edag/execution-models.md)
 
 ### Proposed exception to JavaScript agreement
 
@@ -24,11 +24,15 @@ For **every FJS executor**, amend rule 2 of the [language principles](../princip
 | `Object.is(a, a)` | `true` | `true` | `true` |
 | `Object.is(a, make(2))` | `false` | `false` | `false` |
 | `Object.is(a, b)` | `false` | Either boolean | `true` |
+| `structEq(a, b)` | `true` | `true` | `true` |
 
-**Identity uses `Object.is` on every FJS value.** This is a stable equivalence relation (reflexive, symmetric and transitive). It treats `NaN` as equal to itself and distinguishes `0` from `-0`. The implications below hold for all admitted values `a` and `b`.
+#### Which equality operation should a program use?
 
-- On every executor, `Object.is(a, b)` implies `structEq(a, b)`.
-- On a CAVM, `Object.is(a, b)` if and only if `structEq(a, b)`.
+**On a non-CAVM, prefer `structEq(a, b)` for comparing contents**, including in tests. `Object.is(a, b)` is a distinct instruction for identity. On object references it runs in `O(1)`. A true result is a fast path for `structEq`. A false result leaves open whether the contents match. For independently built objects, `structEq` may traverse the full structure and take `O(n)` time, where `n` is the size of the compared data including all descendants. A traversal that revisits a shared subtree counts its entries on each visit.
+
+**On a CAVM, both names denote the same equality instruction for every FJS value.** The CAVM specifies the answer and leaves the time complexity unspecified. An implementation can intern values at creation or establish content identity lazily during comparison.
+
+`Object.is` is a stable equivalence relation (reflexive, symmetric and transitive). It treats `NaN` as equal to itself and distinguishes `0` from `-0`. On every executor `Object.is(a, b)` implies `structEq(a, b)`. The converse is guaranteed on a CAVM.
 
 **One choice must account for the whole execution.** Every use of a shared reference observes the same value, including its children. With `p = [a]` and `q = [b]`, choosing `Object.is(p, q)` requires `Object.is(a, b)`. From an empty reference map, storing an entry under `a` makes it retrievable under `b` exactly when `Object.is(a, b)`. [Reference map](../built-ins/reference-map/README.md)
 
@@ -66,9 +70,10 @@ The proposed native-map serialization can omit a key found nowhere else in the g
 - [ ] **Allocation identity (language decision).** Record the designer's decision on the rule 2 exception. If approved, reconcile the principles, execution models and reference-map contract. [Compatibility tracker](../../todo/fjs-javascript-compatibility.md)
 - [ ] **Closure folding (language decision).** Decide the versioned canonical code/frame rules and reference-map content. Record which prior identity decisions this supersedes and publish pairs that must and must not merge.
 - [ ] **Library change.** Implement the ordered helper and migrate content assertions. Include reordered keys, shared children, missing entries, signed zeros and function leaves.
-- [ ] **Backend optimization.** Recognize the helper as a pattern instruction after its semantics are tested. Compare the instruction with the executable definition under the same identity choices. On a CAVM the entire instruction can lower to `Object.is(a, b)` for every admitted input, including `NaN` and signed zero. On a non-CAVM, a true `Object.is(a, b)` can short-circuit the ordered comparison.
+- [ ] **Backend optimization.** Recognize the helper as a pattern instruction after its semantics are tested. Compare the instruction with the executable definition under the same identity choices. Verify that a non-CAVM keeps the constant-time object identity check distinct from deep comparison, and that both spellings reach the same equality operation on a CAVM.
 - [ ] Run identity-sensitive tests under fresh, selective and full-content policies. Check admissible whole results, transitivity, child and captured aliases, repeated live comparisons, fresh pairs, map lookups and exported calls. Compare identity-independent outputs directly with JavaScript under the same function-text assumptions.
-- [ ] Test round trips by format. JSON can unfold graph sharing. DataJS records it. Check the ordered content, the sharing each format promises and reconstruction of map keys. Evaluate lazy hashing and reuse of cached computations subject to observed identities. [DataJS sharing](../datajs/README.md) · [Serialization](../design/serialization.md) · [CAVM design](../design/content-addressable-vm.md)
+- [ ] Test round trips by format. JSON can unfold graph sharing. DataJS records it. Check the ordered content, the sharing each format promises and reconstruction of map keys. [DataJS sharing](../datajs/README.md) · [Serialization](../design/serialization.md)
+- [ ] Evolve the existing VM in stages. Start with reference identity and ordered `structEq`, allow selective reuse while preserving observed identities, then unify the two instructions when identity is fully determined by content. Code that already asks for ordered content equality keeps using `structEq` throughout. Evaluate lazy hashing and cached comparisons along that path. [CAVM design](../design/content-addressable-vm.md)
 
 ### Related designs
 
