@@ -145,6 +145,7 @@ test('the bigint rows agree with JavaScript', () => {
         const by = BigInt(next() % 200 - 100)
         if (native('bigintShiftRight', [a, by]) !== a >> by) { throw ['bigintShiftRight', a, by] }
         if (native('bigintNegate', [a]) !== -a) { throw ['bigintNegate', a] }
+        if (native('bigintToNumber', [a]) !== Number(a)) { throw ['bigintToNumber', a] }
         if (native('bigintToString', [a]) !== String(a)) { throw ['bigintToString', a] }
         const x = [NaN, Infinity, -Infinity, 0][k % 8] ?? floats(next, 1)[14] ?? 0
         const mixed = native('bigintLess', [a, x])

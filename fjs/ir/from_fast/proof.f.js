@@ -255,6 +255,8 @@ export const proof = {
         assertEq(why(only([['a', bool]], bool), fast('export const f = a => -a')), 'f: - of bool is not in this slice')
         assertEq(why(fa, fast('export const f = a => !a')), 'f: ! of f64 is not in this slice')
         assertEq(why(only([['a', bool]], f64), fast('export const f = a => Number(a)')), 'f: Number of bool is not in this slice')
+        // `float` of an integer wider than ±2^53 would not be exact, so it is refused here, where L1 does not round it.
+        assertEq(why(only([['a', u(64)]], f64), fast('export const f = a => Number(a)')), 'f: Number of u(64) is not in this slice')
     },
     functions: () => {
         assertEq(why(fa, fast('export const f = (...xs) => xs')), 'f: a rest parameter is not in this slice')
@@ -561,6 +563,8 @@ export const proof = {
         ].join('\n'))
         assertEq(assertError(over(only([['a', u(8)], ['b', u(8)]], f64), 'export const f = (a, b) => a >> b')), 'f: >> of u(8) and u(8) is not in this slice')
         assertEq(assertError(over(fab, 'export const f = (a, b) => a & b', null)), "f: & of two floats calls L1's native rows, which a module lowered without the runtime does not import")
+        // `String(x)` and a template literal call L1, which only a program links.
+        assertEq(assertError(over(fa, 'export const f = a => `${a}`')), 'f: String is not in this slice')
     },
     native: () => {
         const ab = only([['a', any], ['b', any]], bool)
