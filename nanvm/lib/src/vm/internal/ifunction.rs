@@ -17,5 +17,5 @@ pub trait IFunction<A: IVm>: IComplex<A> {
     fn length(&self) -> u32;
     /// The function's text, `String(f)`, or `None` for a function that has
     /// none: see [`IStaticFunction`](super::IStaticFunction).
-    fn text(&self) -> Option<&'static str>;
+    fn text(&self) -> Option<crate::vm::String<A>>;
 }

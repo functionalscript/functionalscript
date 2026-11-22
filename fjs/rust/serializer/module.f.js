@@ -341,8 +341,10 @@ const valueKey = value => Object.is(value, -0) ? negativeZero : value
 /** Read a child completed by the spelling stack. @type {(s: _Context, v: Value, result: boolean) => Result<Printed<string>, readonly unknown[]>} */
 const expression = (s, v, result) => ok(/** @type {Printed<string>} */ (mapGet(/** @type {NonNullable<_Context['ready']>} */ (s.ready)[Number(result ? 1 : 0)], valueKey(v))))
 
-/** Rust representation text for a callable. @type {(text: string) => string} */
-const represented = text => `Some(${str(unwrap(stringLiteral(text)))})`
+/** Source text retained by a callable. @type {(s: _Context, text: string) => Printed<string>} */
+const represented = (s, text) => s.native
+    ? cat(['Some(', loadLiteral(s, text), ')'])
+    : code(`Some(${str(unwrap(stringLiteral(text)))})`)
 
 /** One callable's explicit invocation environment. @type {(s: _Context, fn: PreparedFunction) => _Context} */
 const closureContext = (s, fn) => {
@@ -356,7 +358,7 @@ const closureContext = (s, fn) => {
 }
 
 /** The concrete VM needs the trait in scope for its associated functions. @type {(s: _Context) => Printed<string>} */
-const staticFunction = s => ['A::static_function', s.native ? [['vm', 'IVm']] : []]
+const staticFunction = s => [s.native ? 'A::function_with_text' : 'A::static_function', s.native ? [['vm', 'IVm']] : []]
 
 /** Block transfers use the targets already selected by preparation. @type {(s: _Context, b: Block, result: boolean, functionBody?: boolean, valueBlock?: boolean) => Result<Printed<readonly string[]>, readonly unknown[]>} */
 const block = (s, b, result, functionBody = false, valueBlock = false) => ok(/** @type {Printed<readonly string[]>} */ (mapGet(/** @type {NonNullable<_Context['ready']>} */ (s.ready)[Number(2 + (result ? 1 : 0) + (functionBody ? 2 : 0) + (valueBlock ? 4 : 0))], b)))
@@ -370,7 +372,7 @@ const closure = (s, fn) => {
     return flat(map2((/** @type {readonly string[]} */ captures, /** @type {readonly string[]} */ body) => cat([
         staticFunction(s), `(|_self, _args| ${braced([...rest, ...body])}, ${num(`${fn.parameters.length}`)}, `,
         captures.length === 0 ? cat([vm('Array'), '::default()']) : cat([`[${captures.join(', ')}]`, toArray]),
-        `, ${represented(s.text(fn))})`, toAny,
+        ', ', represented(s, s.text(fn)), ')', toAny,
     ]))(all(values), block(inner, fn.body, true, true)))
 }
 
@@ -449,21 +451,21 @@ const operation = (s, n, result) => {
         }
         if (tag !== 'Object.entries' && tag !== 'String.fromCharCode' && tag !== 'Math.trunc' && tag !== 'Math.floor' && tag !== 'Math.abs' && tag !== 'Math.sqrt' && tag !== 'Math.ceil' && tag !== 'Math.imul' && tag !== 'Math.max' && tag !== 'Math.min' && tag !== 'Math.clz32') { return error(['a static function read with no runtime in scope; the core may not use what it defines', tag]) }
         if (tag === 'String.fromCharCode') {
-            return map1(pure(result))(ok(cat([staticFunction(s), '(|_self, _args| ', vm('String'), `::from_char_code(_args).map(|v| v.to_any()), 1, `, vm('Array'), `::default(), ${represented(staticText(tag))})`, toAny])))
+            return map1(pure(result))(ok(cat([staticFunction(s), '(|_self, _args| ', vm('String'), `::from_char_code(_args).map(|v| v.to_any()), 1, `, vm('Array'), '::default(), ', represented(s, staticText(tag)), ')', toAny])))
         }
         if (tag === 'Math.trunc' || tag === 'Math.floor' || tag === 'Math.abs' || tag === 'Math.sqrt' || tag === 'Math.ceil' || tag === 'Math.clz32') {
             const method = tag.slice(5)
-            return map1(pure(result))(ok(cat([staticFunction(s), '(|_self, _args| ', argRead(0), `.to_number().map(|v| v.${method}().to_any()), 1, `, vm('Array'), `::default(), ${represented(staticText(tag))})`, toAny])))
+            return map1(pure(result))(ok(cat([staticFunction(s), '(|_self, _args| ', argRead(0), `.to_number().map(|v| v.${method}().to_any()), 1, `, vm('Array'), '::default(), ', represented(s, staticText(tag)), ')', toAny])))
         }
         if (tag === 'Math.imul') {
-            return map1(pure(result))(ok(cat([staticFunction(s), '(|_self, _args| ', argRead(0), '.to_number().and_then(|a| ', argRead(1), `.to_number().map(|b| a.imul(b).to_any())), 2, `, vm('Array'), `::default(), ${represented(staticText(tag))})`, toAny])))
+            return map1(pure(result))(ok(cat([staticFunction(s), '(|_self, _args| ', argRead(0), '.to_number().and_then(|a| ', argRead(1), `.to_number().map(|b| a.imul(b).to_any())), 2, `, vm('Array'), '::default(), ', represented(s, staticText(tag)), ')', toAny])))
         }
         if (tag === 'Math.max' || tag === 'Math.min') {
             const method = tag.slice(5)
             const initial = tag === 'Math.min' ? 'INFINITY' : 'NEG_INFINITY'
-            return map1(pure(result))(ok(cat([staticFunction(s), '(|_self, _args| _args.into_iter().try_fold(', vm('Number'), `::from(f64::${initial}), |current, value| value.to_number().map(|value| current.${method}(value))).map(|value| value.to_any()), 2, `, vm('Array'), `::default(), ${represented(staticText(tag))})`, toAny])))
+            return map1(pure(result))(ok(cat([staticFunction(s), '(|_self, _args| _args.into_iter().try_fold(', vm('Number'), `::from(f64::${initial}), |current, value| value.to_number().map(|value| current.${method}(value))).map(|value| value.to_any()), 2, `, vm('Array'), '::default(), ', represented(s, staticText(tag)), ')', toAny])))
         }
-        return map1(pure(result))(ok(cat([staticFunction(s), '(|_self, _args| Any::entries(', argRead(0), '), ', num('1'), ', ', vm('Array'), `::default(), ${represented(staticText('Object.entries'))})`, toAny])))
+        return map1(pure(result))(ok(cat([staticFunction(s), '(|_self, _args| Any::entries(', argRead(0), '), ', num('1'), ', ', vm('Array'), '::default(), ', represented(s, staticText('Object.entries')), ')', toAny])))
     }
     if (isHelper([tag])) {
         // the arity and the text are the helper table's; only the native
@@ -472,14 +474,14 @@ const operation = (s, n, result) => {
         // the empty reference map is NaNVM's own, a new map wherever
         // the node is established, under the text the writer gives it
         if (id === 'refMap') {
-            return map1(pure(result))(ok(cat([unstable('ref_map'), `(${represented(helperText(_helperText(id)('helper')))})`])))
+            return map1(pure(result))(ok(cat([unstable(s.native ? 'ref_map_with_text' : 'ref_map'), '(', represented(s, helperText(_helperText(id)('helper'))), ')'])))
         }
         const length = helperLength(id)
         const args = generate(length - 1, k => argRead(k + 1))
         const native = id === 'entry' ? ['Any::entry(', argRead(0), ', ', argRead(1), ')']
             : id === 'hasEntry' ? ['Any::has_entry(', argRead(0), ', ', argRead(1), ').map(|v| v.to_any())']
             : ['Any::dot(', argRead(0), ', ', stringAny(s, id), ').end_call_native(|| Ok([', ...args.flatMap((x, k) => k === 0 ? [x] : [', ', x]), ']', toArray, toAny, '))']
-        return map1(pure(result))(ok(cat([staticFunction(s), '(|_self, _args| ', ...native, ', ', num(`${length}`), ', ', vm('Array'), `::default(), ${represented(helperText(_helperText(id)('helper')))})`, toAny])))
+        return map1(pure(result))(ok(cat([staticFunction(s), '(|_self, _args| ', ...native, ', ', num(`${length}`), ', ', vm('Array'), '::default(), ', represented(s, helperText(_helperText(id)('helper'))), ')', toAny])))
     }
     switch (tag) {
         case 'array': { return array(s, n[1], result) }
@@ -827,8 +829,13 @@ const instructionLiterals = task => {
     if (typeof v === 'string' || typeof v === 'bigint') { return [v] }
     if (!(v instanceof Array)) { return [] }
     const tag = v[0]
-    if (isStatic([tag]) && task.context.runtime !== null) { return ['static', tag] }
-    if (isIntrinsic([tag]) || tag === 'Boolean') { return [tag] }
+    if (tag === 'function') { return [task.context.text(v[1])] }
+    if (isStatic(v)) { return task.context.runtime === null ? [staticText(v[0])] : ['static', tag] }
+    if (isHelper(v)) {
+        const text = helperText(_helperText(v[0])('helper'))
+        return isIntrinsic([tag]) ? [tag, text] : [text]
+    }
+    if (tag === 'Boolean') { return [tag] }
     return tag === 'in' ? [tag, v[1]] : []
 }
 
