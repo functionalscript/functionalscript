@@ -26,11 +26,11 @@ and one value has one text. So
 ```js
 const a = () => 2
 const b = x => () => x
-a === b(2) // true in the CAVM
+a === b(2) // true if canonicalization substitutes the captured constant
 ```
 
-Under the proposed normalization, this requires `String(a) === String(b(2))`;
-any rendering that depends on how the function was built — a literal `2` in one
+If the semantics version adopts that normalization, it requires `String(a) === String(b(2))`.
+Any rendering that depends on how the function was built — a literal `2` in one
 body, a captured `x` in the
 other — risks giving one content value two texts. Current code-only rendering
 has a finite answer: captured functions stay slot references, and named `self`
@@ -146,6 +146,8 @@ CAVM-specific branch would be future work, not a change already present in it.
 
 #### What must default function text guarantee?
 
+Bun and Node can expose different function text for the same ordinary function in the same `.mjs` file. With `const scale = 3` and `const f = (x) => x * scale`, Node 24.19.0 printed `(x) => x * scale`. Bun 1.4.2 printed `(x) => x * 3` after its runtime transpiler inlined the constant. The difference is observable through direct and indirect string conversion. [Bun/Node example](https://github.com/oven-sh/bun/issues/43460) · [Bun documentation](https://bun.com/docs/compiler/compatibility)
+
 1. **May an FJS executor return any string?** One option gives non-CAVMs freedom over the spelling, including a constant, and requires repeated conversions of the same function to agree within a run. A CAVM needs an exact rule for each semantics version if programs using `String(f)` are to agree across implementations. Even `String(f).length` can expose a difference. One specified string for every CAVM function, for example `"[function]"`, meets that requirement without retaining source, rendering code or computing a hash. A code-only rendering can preserve readable output if every CAVM derives it from the same canonical representation. Either rule also governs indirect conversions such as `'' + f`.
 2. **Must different captured frames produce different strings?** For `const make = x => () => x`, `make(1)` and `make(2)` return different values when called. Their closures can have distinct content identities and still have the same text. Determinism requires `f === g` to imply `String(f) === String(g)`. The converse would make the text an identity for the whole closure. The hash-based spelling proposed above chooses that stronger guarantee and can require hashing the frame on first conversion. A fixed string gives up readable function text. The existing code-only renderer has a different trade-off: it shows the body and omits captured values. [Current rendering contract](../../fjs/edag/function-text.md)
 
@@ -183,10 +185,7 @@ The choice is open. Allowing arbitrary text on existing FJS VMs would relax thei
 
 ### Tasks
 
-- [ ] Record in [content-addressable-vm](../design/content-addressable-vm.md) the
-      identity this relies on: a function's content is its EDAG *with* its
-      captured frame, reduced, so a captured constant and a literal are one
-      content and `a === b(2)` above holds.
+- [ ] Settle the [canonical closure rules](./value-identity.md#what-is-the-canonical-content-of-a-closure) for this semantics version, including whether a captured constant and a literal have one identity. Apply the selected text rule consistently to every pair that shares an identity.
 - [ ] Decide the hash spelling in a name: full or prefix, and whether it
       carries a version.
 - [ ] Land the
