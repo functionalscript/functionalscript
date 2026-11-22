@@ -461,7 +461,7 @@ const staticFields = (entries, known) => {
         const value = e[2]
         if (!(value instanceof Array)) { return [/** @type {const} */ ([e[1], value])] }
         const ref = referenced(known, value)
-        return ref?.kind === 'Function' ? [/** @type {const} */ ([e[1], ref])] : []
+        return ref === undefined ? [] : [/** @type {const} */ ([e[1], ref])]
     })
     return fields.length === entries.length ? fields : null
 }

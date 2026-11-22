@@ -7,9 +7,10 @@ import type { Options, Printed } from './types.ts'
 import type { List } from '../../types/list/types.ts'
 import type { PersistentMap } from '../../types/map/types.ts'
 
-export type _FunctionRef = { readonly kind: 'Function'; readonly id: BindingId; readonly fn: Function }
-export type _Fields = readonly (readonly [string, Primitive | _FunctionRef])[]
-export type _Descriptor = _FunctionRef | { readonly kind: 'Object'; readonly id: BindingId; readonly fields: _Fields }
+export type _Fields = readonly (readonly [string, Primitive | _Descriptor])[]
+export type _Descriptor =
+    | { readonly kind: 'Function'; readonly id: BindingId; readonly fn: Function }
+    | { readonly kind: 'Object'; readonly id: BindingId; readonly fields: _Fields }
 export type _StaticBindings = PersistentMap<BindingId, _Descriptor>
 
 export type _Context = Options & {

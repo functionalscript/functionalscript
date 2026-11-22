@@ -152,7 +152,7 @@ and the same data is a data segment in WebAssembly.
 - [x] Generate the common runtime for the native application with the same static descriptors.
 - [x] Emit static objects with properties that refer to named static functions.
 - [x] Allow native function frames to capture named static objects and their aliases.
-- [ ] Emit static objects with properties that refer to named static objects and their aliases.
+- [x] Emit static objects with properties that refer to named static objects and their aliases.
 - [ ] Extend static containers to composite members and function frames to other static values.
 - [ ] Have the Rust serializer write constants as statics.
 

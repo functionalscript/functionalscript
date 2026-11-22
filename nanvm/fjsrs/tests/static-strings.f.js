@@ -20,6 +20,8 @@ export const id = x => x
 export const idAlias = id
 export const functionTable = /** @type {const} */ ({ f: id, alias: idAlias })
 const tableAlias = functionTable
+export const tables = /** @type {const} */ ({ table: functionTable, alias: tableAlias })
+export const freshTables = () => ({ table: tableAlias })
 export const readTable = () => tableAlias
 export const callTable = () => tableAlias.f(7)
 export const freshTable = () => ({ f: id })
