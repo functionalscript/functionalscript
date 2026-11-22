@@ -33,7 +33,7 @@ CAVM executes the serialized EDAG. A serialized boolean keeps its value.
 **Amnesia is a proof evaluator and does not conform to FJS identity semantics.**
 The example in [§1](#1-amnesia) reaches one shared array node twice. Amnesia
 allocates two arrays and returns false when comparing them. Both reads denote
-one value, so the same-value rule requires true. Keep Amnesia for proofs where
+one value, so comparing them must return true. Keep Amnesia for proofs where
 recomputation preserves the property being proved. The conformance tests use
 the other execution policies. Any future attempt to make a recomputing
 executor conform would have to preserve aliases across all identity observers,

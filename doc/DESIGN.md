@@ -493,8 +493,7 @@ justify a less familiar source language.
 **Every new language feature starts with a `todo/` proposal, not implementation.**
 Follow the [issue format](../todo/README.md#issue-format), and explicitly explain
 the proposed feature's benefits and drawbacks, including its effects on
-JavaScript compatibility and language complexity. State [which behavior the proposal
-deliberately leaves undefined](../spec/principles/README.md#leave-unsettled-behavior-undefined).
+JavaScript compatibility and language complexity.
 
 Before implementing it, obtain **formal, explicit approval from the language
 designer**. Record the approving designer and a link to their approval in the
