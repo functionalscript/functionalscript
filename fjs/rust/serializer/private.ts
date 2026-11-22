@@ -1,12 +1,19 @@
 /** Rendering context; placement and transfer selection are already complete. @module */
 
+import type { Primitive } from '../../media/datajs/types.ts'
 import type { BindingId, LoopTarget, Step } from '../../js/ast/types.ts'
 import type { Block, Function, Statement, Value } from '../../js/ast/prepare/types.ts'
 import type { Options, Printed } from './types.ts'
 import type { List } from '../../types/list/types.ts'
 import type { PersistentMap } from '../../types/map/types.ts'
 
+export type _FunctionRef = { readonly kind: 'Function'; readonly id: BindingId; readonly fn: Function }
+export type _Fields = readonly (readonly [string, Primitive | _FunctionRef])[]
+export type _Descriptor = _FunctionRef | { readonly kind: 'Object'; readonly id: BindingId; readonly fields: _Fields }
+export type _StaticBindings = PersistentMap<BindingId, _Descriptor>
+
 export type _Context = Options & {
+    readonly captures?: _StaticBindings | undefined
     readonly moduleInit?: boolean
     readonly native?: boolean
     readonly bindings: readonly (readonly [BindingId, Printed<string>])[]
@@ -20,8 +27,8 @@ export type _Context = Options & {
 }
 
 export type _Names = {
-    readonly functionBindings: PersistentMap<BindingId, BindingId>
-    readonly staticFunctions: PersistentMap<Function, readonly BindingId[]>
+    readonly staticBindings: _StaticBindings
+    readonly staticFunctions: PersistentMap<Function, _StaticBindings>
     readonly literals: PersistentMap<string | bigint, number>
     readonly bindings: PersistentMap<BindingId, string>
     readonly loops: PersistentMap<LoopTarget, string>

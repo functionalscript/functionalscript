@@ -136,8 +136,7 @@ and the same data is a data segment in WebAssembly.
 - [ ] Measure first: build time, binary size and start of one module with
   its constants as statics, written by hand, against the same module as
   generated today.
-- [ ] Decide how a static refers to a function's code: an id and a
-  table, one VM for the generated code, or virtual calls.
+- [x] Use a VM-typed function pointer in native static function descriptors.
 - [x] Settle the static types, the conversions in the VM's trait and what
   they promise about identity.
 - [x] Strings first (native application output): `StaticString` to `String<A>`, the naive VM keeping
@@ -152,6 +151,7 @@ and the same data is a data segment in WebAssembly.
 - [x] Emit static frames for module-level functions capturing other static functions.
 - [x] Generate the common runtime for the native application with the same static descriptors.
 - [x] Emit static objects with properties that refer to named static functions.
+- [x] Allow native function frames to capture named static objects and their aliases.
 - [ ] Extend static containers to composite members and function frames to other static values.
 - [ ] Have the Rust serializer write constants as statics.
 

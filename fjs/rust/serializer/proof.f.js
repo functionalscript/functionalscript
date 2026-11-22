@@ -103,6 +103,24 @@ export const proof = {
         const mixed = print(defs, arrow([['ref', x], 1]))
         assert(mixed.includes('A::function_with_text'))
     },
+    nativeObjectFrames: () => {
+        /** @type {Block['statements']} */
+        const defs = [['define', x, ['object', [[':', 'f', 1]]]], ['define', y, ['ref', x]]]
+        /** @type {(value: Value) => Value} */
+        const wrapper = value => ['function', { ...fn, captures: [{ binding: rest, value: ['ref', y] }], body: yielding([value]) }]
+        const own = print(defs, wrapper(['.', ['ref', rest], 'f', ['|()', []]]))
+        assert(own.includes('frame: &StaticArray(&[StaticAny::Object(&OBJECT_0)])'))
+        assert(own.includes('.end_call_native('))
+        const terminal = print(defs, wrapper(['.', ['ref', rest], 'f', ['|!()', []]]))
+        assert(terminal.includes('.end_call_native('))
+        const guarded = print(defs, wrapper(['.', ['ref', rest], 'f', ['|?.()', []]]))
+        assert(!guarded.includes('.end_call_native('))
+        const runtimeArg = print(defs, wrapper(['.', ['ref', rest], 'f', ['|()', [['Boolean', 1]]]]))
+        assert(runtimeArg.includes('A::function_with_text'))
+        const missing = print(defs, wrapper(['.', ['ref', rest], 'missing', ['|()', []]]))
+        assert(missing.includes('A::function_with_text'))
+        assert(missing.includes('.end_call(&A::frame(_self)[1]'))
+    },
     nativeKeys: () => {
         const output = unwrap(scopeTagged(yielding([['object', [[':', 'default', 'default']]]]), options, [], true))
         const lines = output.lines.map(untagged)
