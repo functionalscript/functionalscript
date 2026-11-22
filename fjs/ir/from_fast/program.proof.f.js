@@ -82,6 +82,9 @@ const standIn = {
 /** The runtime of a program, which links the stand-in for L1. */
 const programRuntime = { ...runtime, l1: standIn }
 
+/** The IR of a program's text over an L1 without `get`, where the program exports its own, printed without the interfaces that it imports. @type {(text: string) => string} */
+const ownGet = text => print({ ...assertOk(over({}, text, { ...programRuntime, l1: { ...standIn, functions: standIn.functions.filter(([k]) => k !== 'get') } })), imports: [] })
+
 /** The IR of a program's text, which no table types, printed without the interfaces that it imports. @type {(text: string) => string} */
 const program = text => print({ ...assertOk(over({}, text, programRuntime)), imports: [] })
 
@@ -173,6 +176,34 @@ export const proof = {
         // The text of a function that the program makes is refused, since it has none yet, in a template literal and in `String`.
         assertEq(assertError(over({}, 'export const f = () => `${() => 1}`', programRuntime)), 'f: the text of a function that a program makes is not in this slice')
         assertEq(assertError(over({}, 'export const f = () => String(() => 1)', programRuntime)), 'f: the text of a function that a program makes is not in this slice')
+        // `.length` of `any` reads an array's or a string's length in place, and calls L1's `get` for the other kinds.
+        assertEq(program('export const f = a => a.length'), [
+            'fn f(p0: any) -> any =',
+            '    match p0',
+            '      array as p0.array =>',
+            '        Any.from_f64(float(Containers.length(p0.array)))',
+            '      string as p0.string =>',
+            '        Any.from_f64(float(String.length(p0.string)))',
+            '      else as p0.other =>',
+            '        l1.get(p0.other, "length")',
+            '',
+            'fn l1.get(a: any, b: any) -> any =',
+            '    a',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // Where `get` is the program's own, not L1's, `.length` is its call for every kind.
+        assertEq(ownGet('export const get = (a, k) => a\nexport const f = a => a.length'), [
+            'fn f(p0: any) -> any =',
+            '    get(p0, "length")',
+            '',
+            'fn get(p0: any, p1: any) -> any =',
+            '    p0',
+            '',
+            'export f, get',
+            '',
+        ].join('\n'))
         // `===` and `!==` of `any` and a float take the number path, `eq` or `ne`; of two values of `any` they call L1 alone.
         assertEq(program('export const f = (a, b) => [a === 1, 2 !== a, a === b]'), [
             'const #n0: any.only(number) =',
@@ -553,10 +584,9 @@ export const proof = {
         ].join('\n'))
         assertEq(program('export const f = o => \'x\'?.length'), [
             'fn f(p0: any) -> any =',
-            '    l1.get("x", "length")',
-            '',
-            'fn l1.get(a: any, b: any) -> any =',
-            '    a',
+            '    match "x"',
+            '      string as length.string =>',
+            '        Any.from_f64(float(String.length(length.string)))',
             '',
             'export f',
             '',
