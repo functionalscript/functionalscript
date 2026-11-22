@@ -2,7 +2,9 @@
  * Boxed number literals made once, lever P2 of the perf demos: the lowering boxes a number literal as `any` with `Any.from_f64` where
  * it stands, so a loop that compares with `1` or passes `1` to L1 boxes
  * and drops it each round. This pass makes each such value a constant of
- * the module, `#n0` first, in the order that the functions box them, which
+ * the module, `#n0` first, in the order that the functions box them, typed
+ * `any.only(number)` as `Any.from_f64` answers so that it meets a narrowed
+ * result or parameter as the literal did, which
  * `init` boxes once, and reads that constant where the value was boxed.
  * A constant is borrowed, so a read that only reads the value copies
  * nothing, and the lifetime pass copies it where the context takes it over.
@@ -16,7 +18,7 @@
  */
 
 import { any } from '../../l0/module.f.js'
-import { call, constant, f64c, lit } from '../../module.f.js'
+import { call, constant, f64c, lit, only } from '../../module.f.js'
 import { isFloat } from '../numbers/module.f.js'
 
 /** The number that a term boxes, `Any.from_f64` of a float literal, or `null`. @type {(t: Term) => number | null} */
@@ -118,6 +120,6 @@ export const literals = m => {
         [[], start])
     if (numbers.length === 0) { return m }
     /** @type {NonNullable<Module['constants']>} */
-    const made = numbers.map((v, k) => [nameOf(k), { type: any, value: call('Any', 'from_f64', [lit(f64c, v)]) }])
+    const made = numbers.map((v, k) => [nameOf(k), { type: only(any, 'number'), value: call('Any', 'from_f64', [lit(f64c, v)]) }])
     return { ...m, constants: [...made, ...(m.constants ?? [])], functions }
 }

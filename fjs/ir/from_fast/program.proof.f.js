@@ -107,7 +107,7 @@ export const proof = {
     // operators of `any` call L1, which links into the same module.
     programs: () => {
         assertEq(program('export const f = (a, b) => a + b * 2'), [
-            'const #n0: any =',
+            'const #n0: any.only(number) =',
             '    Any.from_f64(2.0)',
             '',
             'fn f(p0: any, p1: any) -> any =',
@@ -146,7 +146,7 @@ export const proof = {
         // A bigint wider than ±2^53 is L1's to convert, which rounds it.
         assertEq(program('export const f = () => Number(9007199254740993n)'), 'fn f() -> any =\n    Any.from_f64(l1.number(Native.stringToBigInt("9007199254740993")))\n\nfn l1.number(v: any) -> f64 =\n    0.0\n\nexport f\n')
         assertEq(program('export const f = (a, b) => [Number(a), Number(1), `x${b}`, String("y")]'), [
-            'const #n0: any =',
+            'const #n0: any.only(number) =',
             '    Any.from_f64(1.0)',
             '',
             'fn f(p0: any, p1: any) -> any =',
@@ -175,10 +175,10 @@ export const proof = {
         assertEq(assertError(over({}, 'export const f = () => String(() => 1)', programRuntime)), 'f: the text of a function that a program makes is not in this slice')
         // `===` and `!==` of `any` and a float take the number path, `eq` or `ne`; of two values of `any` they call L1 alone.
         assertEq(program('export const f = (a, b) => [a === 1, 2 !== a, a === b]'), [
-            'const #n0: any =',
+            'const #n0: any.only(number) =',
             '    Any.from_f64(1.0)',
             '',
-            'const #n1: any =',
+            'const #n1: any.only(number) =',
             '    Any.from_f64(2.0)',
             '',
             'fn f(p0: any, p1: any) -> any =',
@@ -211,7 +211,7 @@ export const proof = {
         ].join('\n'))
         // `%`, `>>` and `&` of `any` match each `any` once against `number`, for L1's native rows, and call L1 else; of two floats they call the rows alone.
         assertEq(program('export const f = (a, b) => [a % b, (a >> 1) & b, 7 % 2]'), [
-            'const #n0: any =',
+            'const #n0: any.only(number) =',
             '    Any.from_f64(1.0)',
             '',
             'fn f(p0: any, p1: any) -> any =',
@@ -325,10 +325,10 @@ export const proof = {
             '',
         ].join('\n'))
         assertEq(program('export const g = a => -a\nexport const f = (a, b) => g(a) / (b - 1) + g(2)'), [
-            'const #n0: any =',
+            'const #n0: any.only(number) =',
             '    Any.from_f64(1.0)',
             '',
-            'const #n1: any =',
+            'const #n1: any.only(number) =',
             '    Any.from_f64(2.0)',
             '',
             'fn f(p0: any, p1: any) -> any =',
@@ -505,7 +505,7 @@ export const proof = {
             '',
         ].join('\n'))
         assertEq(program('export const f = a => {\n    if (a) { return 1 }\n    return true\n}'), [
-            'const #n0: any =',
+            'const #n0: any.only(number) =',
             '    Any.from_f64(1.0)',
             '',
             'fn f(p0: any) -> any =',
@@ -535,7 +535,7 @@ export const proof = {
             '',
         ].join('\n'))
         assertEq(program('export const f = o => o?.[0]'), [
-            'const #n0: any =',
+            'const #n0: any.only(number) =',
             '    Any.from_f64(0.0)',
             '',
             'fn f(p0: any) -> any =',
@@ -569,7 +569,7 @@ export const proof = {
             '',
         ].join('\n'))
         assertEq(program('export const f = o => o.f(1).g'), [
-            'const #n0: any =',
+            'const #n0: any.only(number) =',
             '    Any.from_f64(1.0)',
             '',
             'fn f(p0: any) -> any =',
@@ -646,7 +646,7 @@ export const proof = {
             '',
         ].join('\n'))
         assertEq(program('export const f = () => 1()'), [
-            'const #n0: any =',
+            'const #n0: any.only(number) =',
             '    Any.from_f64(1.0)',
             '',
             'fn f() -> any =',
@@ -667,7 +667,7 @@ export const proof = {
         ].join('\n'))
         assertEq(assertError(over({}, 'export const f = a => (1n + 2n)(a)', programRuntime)), 'f: a call of int(3, 3) in a program is not in this slice: only one of any, a float or a boolean is')
         assertEq(program('import { asFunction } from \'../l0/module.f.js\'\nexport const f = g => asFunction(g)(1)'), [
-            'const #n0: any =',
+            'const #n0: any.only(number) =',
             '    Any.from_f64(1.0)',
             '',
             'fn f(p0: any) -> any =',
@@ -741,7 +741,7 @@ export const proof = {
         ].join('\n'))
         assertEq(refusedProgram('export const f = a => ({ a: 1 }).b'), 'f: { a: f64c } has no field b')
         assertEq(program('export const f = a => ({ a: 1 }).b ? a : 1'), [
-            'const #n0: any =',
+            'const #n0: any.only(number) =',
             '    Any.from_f64(1.0)',
             '',
             'fn f(p0: any) -> any =',
@@ -798,7 +798,7 @@ export const proof = {
         assertEq(assertError(over({}, 'export const f = o => o.f?.(1)', programRuntime)), 'f: a member read with a further step, such as a call of the member, is not in this slice')
         assertEq(assertError(over({}, 'export const k = 1', programRuntime)), 'k: an export that is not a function is not in this slice')
         assertEq(program('export const f = o => o?.a.b(1)'), [
-            'const #n0: any =',
+            'const #n0: any.only(number) =',
             '    Any.from_f64(1.0)',
             '',
             'fn f(p0: any) -> any =',
@@ -827,7 +827,7 @@ export const proof = {
         ].join('\n'))
         assertEq(assertError(over({}, 'export const f = o => (1n + 2n).f(1)', programRuntime)), 'f: .f of int(3, 3) is not in this slice')
         assertEq(program('export const f = o => (1)?.length'), [
-            'const #n0: any =',
+            'const #n0: any.only(number) =',
             '    Any.from_f64(1.0)',
             '',
             'fn f(p0: any) -> any =',
@@ -840,10 +840,10 @@ export const proof = {
             '',
         ].join('\n'))
         assertEq(program('export const f = a => (true).length + (1)[0]'), [
-            'const #n0: any =',
+            'const #n0: any.only(number) =',
             '    Any.from_f64(1.0)',
             '',
-            'const #n1: any =',
+            'const #n1: any.only(number) =',
             '    Any.from_f64(0.0)',
             '',
             'fn f(p0: any) -> any =',
@@ -871,10 +871,10 @@ export const proof = {
             '',
         ].join('\n'))
         assertEq(program('export const f = a => true + 1 > !2 ? -true : 1 === true'), [
-            'const #n0: any =',
+            'const #n0: any.only(number) =',
             '    Any.from_f64(1.0)',
             '',
-            'const #n1: any =',
+            'const #n1: any.only(number) =',
             '    Any.from_f64(2.0)',
             '',
             'fn f(p0: any) -> any =',
@@ -899,10 +899,10 @@ export const proof = {
             '',
         ].join('\n'))
         assertEq(program('export const f = a => 1 ? a : 2'), [
-            'const #n0: any =',
+            'const #n0: any.only(number) =',
             '    Any.from_f64(1.0)',
             '',
-            'const #n1: any =',
+            'const #n1: any.only(number) =',
             '    Any.from_f64(2.0)',
             '',
             'fn f(p0: any) -> any =',
@@ -996,7 +996,7 @@ export const proof = {
     // the receiver and the argument.
     methods: () => {
         assertEq(program('export const f = s => s.charCodeAt(0)'), [
-            'const #n0: any =',
+            'const #n0: any.only(number) =',
             '    Any.from_f64(0.0)',
             '',
             'fn f(p0: any) -> any =',
@@ -1010,7 +1010,7 @@ export const proof = {
         ].join('\n'))
         // A receiver that may be `undefined` is checked before an argument that does something.
         assertEq(program('export const f = (s, i) => s.charCodeAt(i >> 3)'), [
-            'const #n0: any =',
+            'const #n0: any.only(number) =',
             '    Any.from_f64(3.0)',
             '',
             'fn f(p0: any, p1: any) -> any =',
@@ -1118,7 +1118,7 @@ export const proof = {
             '',
         ].join('\n'))
         assertEq(program('const k = 3\nexport const f = a => () => () => [a, k]'), [
-            'const #n0: any =',
+            'const #n0: any.only(number) =',
             '    Any.from_f64(3.0)',
             '',
             'fn f(p0: any) -> any =',
@@ -1159,7 +1159,7 @@ export const proof = {
         ].join('\n'))
         // A capture of a capture of the module's function stands for that function, so the frame holds nothing.
         assertEq(program('const double = x => x * 2\nexport const f = a => b => double(b)'), [
-            'const #n0: any =',
+            'const #n0: any.only(number) =',
             '    Any.from_f64(2.0)',
             '',
             'fn f(p0: any) -> any =',
@@ -1192,7 +1192,7 @@ export const proof = {
         // A function read as a value is one value at each read, as JavaScript's `===` tells: a function of the module that it
         // does not export is a constant that `init` makes, and one that a function defines is made where it is defined.
         assertEq(program('const g = () => 0\nexport const f = () => g === g'), [
-            'const #n0: any =',
+            'const #n0: any.only(number) =',
             '    Any.from_f64(0.0)',
             '',
             'const #v0: any.only(function) =',
@@ -1339,7 +1339,7 @@ export const proof = {
     // a rest parameter is an array of the arguments past the others.
     spreads: () => {
         assertEq(program('export const f = a => [1, ...a]'), [
-            'const #n0: any =',
+            'const #n0: any.only(number) =',
             '    Any.from_f64(1.0)',
             '',
             'fn f(p0: any) -> any =',
@@ -1381,7 +1381,7 @@ export const proof = {
             '',
         ].join('\n'))
         assertEq(program('export const f = (g, a) => g(...a, 2)'), [
-            'const #n0: any =',
+            'const #n0: any.only(number) =',
             '    Any.from_f64(2.0)',
             '',
             'fn f(p0: any, p1: any) -> any =',
@@ -1429,7 +1429,7 @@ export const proof = {
             '',
         ].join('\n'))
         assertEq(program('export const f = o => ({ a: 1, ...o })'), [
-            'const #n0: any =',
+            'const #n0: any.only(number) =',
             '    Any.from_f64(1.0)',
             '',
             'fn f(p0: any) -> any =',
@@ -1524,10 +1524,10 @@ export const proof = {
             '',
         ].join('\n'))
         assertEq(program('const g = (a, ...r) => [a, r]\nexport const h = x => g(x, 1, 2)'), [
-            'const #n0: any =',
+            'const #n0: any.only(number) =',
             '    Any.from_f64(1.0)',
             '',
-            'const #n1: any =',
+            'const #n1: any.only(number) =',
             '    Any.from_f64(2.0)',
             '',
             'fn h(p0: any) -> any =',
@@ -1605,10 +1605,10 @@ export const proof = {
             '    return s.acc',
             '}',
         ].join('\n')), [
-            'const #n0: any =',
+            'const #n0: any.only(number) =',
             '    Any.from_f64(3.0)',
             '',
-            'const #n1: any =',
+            'const #n1: any.only(number) =',
             '    Any.from_f64(1.0)',
             '',
             'fn f(p0: any, p1: any) -> any =',
