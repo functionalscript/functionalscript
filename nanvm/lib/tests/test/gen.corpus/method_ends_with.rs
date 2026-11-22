@@ -13,6 +13,6 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("longer", scope(|| { Any::dot(string_any("bc"), string_any("endsWith")).end_call(&rt, || Ok([string_any("abc")].to_array().to_any())) }), false.to_any());
     check::<A>("pastTheEnd", scope(|| { Any::dot(string_any("abc"), string_any("endsWith")).end_call(&rt, || Ok([string_any("c"), f64_any(0x4022000000000000)].to_array().to_any())) }), true.to_any());
     check::<A>("negative", scope(|| { Any::dot(string_any("abc"), string_any("endsWith")).end_call(&rt, || Ok([string_any(""), f64_any(0xbff0000000000000)].to_array().to_any())) }), true.to_any());
-    check::<A>("zero", scope(|| { Any::dot(string_any("abc"), string_any("endsWith")).end_call(&rt, || Ok([string_any("a"), f64_any(0x0000000000000000)].to_array().to_any())) }), false.to_any());
+    check::<A>("zero", scope(|| { Any::dot(string_any("abc"), string_any("endsWith")).end_call(&rt, || Ok([string_any("a"), f64_any(0x0)].to_array().to_any())) }), false.to_any());
     check_throws::<A>("bigintEnd", scope(|| { Any::dot(string_any("abc"), string_any("endsWith")).end_call(&rt, || Ok([string_any("a"), bigint_any(1)].to_array().to_any())) }));
 }

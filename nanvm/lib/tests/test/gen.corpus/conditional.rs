@@ -9,7 +9,7 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("falsePicksAlternate", scope(|| { if Any::<A>::to_boolean(&false.to_any()) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(f64_any(0x4000000000000000)) } }), f64_any(0x4000000000000000));
     check::<A>("nullPicksAlternate", scope(|| { if Any::<A>::to_boolean(&Nullish::Null.to_any()) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(f64_any(0x4000000000000000)) } }), f64_any(0x4000000000000000));
     check::<A>("undefinedPicksAlternate", scope(|| { if Any::<A>::to_boolean(&Nullish::Undefined.to_any()) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(f64_any(0x4000000000000000)) } }), f64_any(0x4000000000000000));
-    check::<A>("zeroPicksAlternate", scope(|| { if Any::<A>::to_boolean(&f64_any(0x0000000000000000)) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(f64_any(0x4000000000000000)) } }), f64_any(0x4000000000000000));
+    check::<A>("zeroPicksAlternate", scope(|| { if Any::<A>::to_boolean(&f64_any(0x0)) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(f64_any(0x4000000000000000)) } }), f64_any(0x4000000000000000));
     check::<A>("nanPicksAlternate", scope(|| { if Any::<A>::to_boolean(&f64_any(0x7ff8000000000000)) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(f64_any(0x4000000000000000)) } }), f64_any(0x4000000000000000));
     check::<A>("emptyStringPicksAlternate", scope(|| { if Any::<A>::to_boolean(&string_any("")) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(f64_any(0x4000000000000000)) } }), f64_any(0x4000000000000000));
     check::<A>("nonEmptyStringPicksConsequent", scope(|| { if Any::<A>::to_boolean(&string_any("a")) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(f64_any(0x4000000000000000)) } }), f64_any(0x3ff0000000000000));

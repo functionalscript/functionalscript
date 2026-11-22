@@ -8,7 +8,7 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("double", scope(|| {
         Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("map")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
             let _b174: Any<A> = _args.rest(0).to_any();
-            (Any::dot(_b174.clone(), f64_any(0x0000000000000000)).end())? * f64_any(0x4000000000000000)
+            (Any::dot(_b174.clone(), f64_any(0x0)).end())? * f64_any(0x4000000000000000)
         }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0]*2")).to_any()].to_array().to_any()))
     }), [f64_any(0x4000000000000000), f64_any(0x4010000000000000)].to_array().to_any());
     check::<A>("arguments", scope(|| {
@@ -16,23 +16,23 @@ pub fn run<A: IStaticFunction>() {
             let _b92: Any<A> = _args.rest(0).to_any();
             Ok(_b92.clone())
         }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0")).to_any()].to_array().to_any()))
-    }), [[f64_any(0x4024000000000000), f64_any(0x0000000000000000), [f64_any(0x4024000000000000), f64_any(0x4034000000000000)].to_array().to_any()].to_array().to_any(), [f64_any(0x4034000000000000), f64_any(0x3ff0000000000000), [f64_any(0x4024000000000000), f64_any(0x4034000000000000)].to_array().to_any()].to_array().to_any()].to_array().to_any());
+    }), [[f64_any(0x4024000000000000), f64_any(0x0), [f64_any(0x4024000000000000), f64_any(0x4034000000000000)].to_array().to_any()].to_array().to_any(), [f64_any(0x4034000000000000), f64_any(0x3ff0000000000000), [f64_any(0x4024000000000000), f64_any(0x4034000000000000)].to_array().to_any()].to_array().to_any()].to_array().to_any());
     check::<A>("empty", scope(|| {
         Any::dot(Array::default().to_any(), string_any("map")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
             let _b174: Any<A> = _args.rest(0).to_any();
-            (Any::dot(_b174.clone(), f64_any(0x0000000000000000)).end())? * f64_any(0x4000000000000000)
+            (Any::dot(_b174.clone(), f64_any(0x0)).end())? * f64_any(0x4000000000000000)
         }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0]*2")).to_any()].to_array().to_any()))
     }), Array::default().to_any());
     check::<A>("undefinedAnswers", scope(|| {
         Any::dot([Object::default().to_any(), Object::default().to_any()].to_array().to_any(), string_any("map")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
             let _b264: Any<A> = _args.rest(0).to_any();
-            Any::dot((Any::dot(_b264.clone(), f64_any(0x0000000000000000)).end())?, string_any("x")).end()
+            Any::dot((Any::dot(_b264.clone(), f64_any(0x0)).end())?, string_any("x")).end()
         }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0].x")).to_any()].to_array().to_any()))
     }), [Nullish::Undefined.to_any(), Nullish::Undefined.to_any()].to_array().to_any());
     check_throws::<A>("throw", scope(|| {
         Any::dot([Object::default().to_any(), Nullish::Null.to_any()].to_array().to_any(), string_any("map")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
             let _b218: Any<A> = _args.rest(0).to_any();
-            Any::dot((Any::dot(_b218.clone(), f64_any(0x0000000000000000)).end())?, string_any("x")).end()
+            Any::dot((Any::dot(_b218.clone(), f64_any(0x0)).end())?, string_any("x")).end()
         }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0].x")).to_any()].to_array().to_any()))
     }));
     check_throws::<A>("mapNotAFunction", scope(|| { Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("map")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())) }));
@@ -41,13 +41,13 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("mapThisArg", scope(|| {
         Any::dot([[(string_key("x"), f64_any(0x3ff0000000000000))].to_object().to_any()].to_array().to_any(), string_any("map")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
             let _b224: Any<A> = _args.rest(0).to_any();
-            Any::dot((Any::dot(_b224.clone(), f64_any(0x0000000000000000)).end())?, string_any("x")).end()
-        }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0].x")).to_any(), [(string_key("x"), f64_any(0x0000000000000000))].to_object().to_any()].to_array().to_any()))
+            Any::dot((Any::dot(_b224.clone(), f64_any(0x0)).end())?, string_any("x")).end()
+        }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0].x")).to_any(), [(string_key("x"), f64_any(0x0))].to_object().to_any()].to_array().to_any()))
     }), [f64_any(0x3ff0000000000000)].to_array().to_any());
     check_throws::<A>("mapObject", scope(|| {
         Any::dot(Object::default().to_any(), string_any("map")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
             let _b174: Any<A> = _args.rest(0).to_any();
-            Any::dot((Any::dot(_b174.clone(), f64_any(0x0000000000000000)).end())?, string_any("x")).end()
+            Any::dot((Any::dot(_b174.clone(), f64_any(0x0)).end())?, string_any("x")).end()
         }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0].x")).to_any()].to_array().to_any()))
     }));
 }

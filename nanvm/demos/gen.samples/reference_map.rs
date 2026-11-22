@@ -18,7 +18,7 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         })?]))?, f64_any(0x3ff0000000000000)).end())?;
         A::static_function(|_self, _args| {
             let _b1118: Any<A> = _args.rest(0).to_any();
-            Any::dot((Any::call(A::frame(_self)[0].clone(), [(Any::dot([A::frame(_self)[1].clone(), A::frame(_self)[2].clone(), Object::default().to_any()].to_array().to_any(), (Any::number((Any::dot(_b1118.clone(), f64_any(0x0000000000000000)).end())?))?).end())?].to_array().to_any()))?, f64_any(0x0000000000000000)).end()
+            Any::dot((Any::call(A::frame(_self)[0].clone(), [(Any::dot([A::frame(_self)[1].clone(), A::frame(_self)[2].clone(), Object::default().to_any()].to_array().to_any(), (Any::number((Any::dot(_b1118.clone(), f64_any(0x0)).end())?))?).end())?].to_array().to_any()))?, f64_any(0x0)).end()
         }, 0, [_b8.clone(), _b1.clone(), _b5.clone()].to_array(), Some("(...$3)=>$0([$1,$2,{}][Number($3[0])])[0]")).to_any()
     })].to_object().to_any())
 }

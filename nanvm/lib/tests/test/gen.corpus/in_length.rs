@@ -10,7 +10,7 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("function", scope(|| { Any::call((Any::dot(rt.clone(), string_any("in")).end())?, [string_any("length"), A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, [rt.clone()].to_array(), Some("()=>undefined")).to_any()].to_array().to_any()) }), true.to_any());
     check::<A>("emptyObject", scope(|| { Any::call((Any::dot(rt.clone(), string_any("in")).end())?, [string_any("length"), Object::default().to_any()].to_array().to_any()) }), false.to_any());
     check::<A>("object", scope(|| { Any::call((Any::dot(rt.clone(), string_any("in")).end())?, [string_any("length"), [(string_key("a"), f64_any(0x3ff0000000000000))].to_object().to_any()].to_array().to_any()) }), false.to_any());
-    check::<A>("arrayLikeObject", scope(|| { Any::call((Any::dot(rt.clone(), string_any("in")).end())?, [string_any("length"), [(string_key("length"), f64_any(0x0000000000000000))].to_object().to_any()].to_array().to_any()) }), true.to_any());
+    check::<A>("arrayLikeObject", scope(|| { Any::call((Any::dot(rt.clone(), string_any("in")).end())?, [string_any("length"), [(string_key("length"), f64_any(0x0))].to_object().to_any()].to_array().to_any()) }), true.to_any());
     check_throws::<A>("string", scope(|| { Any::call((Any::dot(rt.clone(), string_any("in")).end())?, [string_any("length"), string_any("abc")].to_array().to_any()) }));
     check_throws::<A>("undefined", scope(|| { Any::call((Any::dot(rt.clone(), string_any("in")).end())?, [string_any("length"), Nullish::Undefined.to_any()].to_array().to_any()) }));
 }

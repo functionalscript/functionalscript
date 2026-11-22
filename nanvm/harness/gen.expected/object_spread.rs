@@ -6,7 +6,7 @@ use nanvm_lib::vm::{Any, IVm, Object, ToAny, ToArray, ToObject};
 #[rustfmt::skip]
 #[allow(clippy::if_same_then_else)]
 pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
-    Ok([(string_key("default"), [[(string_key("a"), f64_any(0x3ff0000000000000)), (string_key("b"), f64_any(0x4000000000000000)), (string_key("c"), f64_any(0x4008000000000000))].to_object().to_any(), [(string_key("b"), f64_any(0x4000000000000000)), (string_key("a"), f64_any(0x3ff0000000000000))].to_object().to_any(), [(string_key("a"), f64_any(0x0000000000000000)), (string_key("b"), f64_any(0x4000000000000000))].to_object().to_any(), [(string_key("0"), string_any("p")), (string_key("z"), f64_any(0x0000000000000000))].to_object().to_any(), [(string_key("0"), string_any("a")), (string_key("1"), string_any_utf16(&[0xd83d])), (string_key("2"), string_any_utf16(&[0xde00]))].to_object().to_any(), Object::default().to_any()].to_array().to_any())].to_object().to_any())
+    Ok([(string_key("default"), [[(string_key("a"), f64_any(0x3ff0000000000000)), (string_key("b"), f64_any(0x4000000000000000)), (string_key("c"), f64_any(0x4008000000000000))].to_object().to_any(), [(string_key("b"), f64_any(0x4000000000000000)), (string_key("a"), f64_any(0x3ff0000000000000))].to_object().to_any(), [(string_key("a"), f64_any(0x0)), (string_key("b"), f64_any(0x4000000000000000))].to_object().to_any(), [(string_key("0"), string_any("p")), (string_key("z"), f64_any(0x0))].to_object().to_any(), [(string_key("0"), string_any("a")), (string_key("1"), string_any_utf16(&[55357])), (string_key("2"), string_any_utf16(&[56832]))].to_object().to_any(), Object::default().to_any()].to_array().to_any())].to_object().to_any())
 }
 
 #[rustfmt::skip]

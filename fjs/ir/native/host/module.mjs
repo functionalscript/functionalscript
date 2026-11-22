@@ -29,7 +29,7 @@ import { error } from '../../../wasm/runtime/l1/error/module.f.js'
 import {
     bigintAdd, bigintAnd, bigintDivide, bigintEquals, bigintLess, bigintMultiply, bigintNegate, bigintRemainder,
     bigintShiftRight, bigintSubtract, bigintToNumber, bigintToString, numberAnd, numberRemainder, numberShiftRight, numberToString,
-    stringToNumber,
+    stringToBigInt, stringToNumber,
 } from '../../../wasm/runtime/l1/native/module.f.js'
 
 /** The least magnitude past NaNVM's limit on a bigint, 2^14 words of 64 bits (`MAX_WORDS` in `nanvm/lib/src/vm/bigint/mod.rs`). */
@@ -74,6 +74,7 @@ export const host = (read, make, fail) => {
         numberAnd: (a, b) => numberAnd(a, b),
         numberToString: n => make(numberToString(n)),
         stringToNumber: s => stringToNumber(read(s)),
+        stringToBigInt: s => sized(() => stringToBigInt(read(s))),
         bigintToString: b => make(bigintToString(read(b))),
         bigintAdd: (a, b) => sized(() => bigintAdd(read(a), read(b))),
         bigintSubtract: (a, b) => sized(() => bigintSubtract(read(a), read(b))),

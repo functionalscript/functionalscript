@@ -9,9 +9,9 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("nullPlusOne", scope(|| { Nullish::Null.to_any() + f64_any(0x3ff0000000000000) }), f64_any(0x3ff0000000000000));
     check::<A>("undefinedPlusOne", scope(|| { Nullish::Undefined.to_any() + f64_any(0x3ff0000000000000) }), f64_any(0x7ff8000000000000));
     check::<A>("truePlusTrue", scope(|| { true.to_any() + true.to_any() }), f64_any(0x4000000000000000));
-    check::<A>("onePlusNegativeOne", scope(|| { f64_any(0x3ff0000000000000) + f64_any(0xbff0000000000000) }), f64_any(0x0000000000000000));
-    check::<A>("negativeZeroPlusZero", scope(|| { f64_any(0x8000000000000000) + f64_any(0x0000000000000000) }), f64_any(0x0000000000000000));
-    check::<A>("zeroPlusNegativeZero", scope(|| { f64_any(0x0000000000000000) + f64_any(0x8000000000000000) }), f64_any(0x0000000000000000));
+    check::<A>("onePlusNegativeOne", scope(|| { f64_any(0x3ff0000000000000) + f64_any(0xbff0000000000000) }), f64_any(0x0));
+    check::<A>("negativeZeroPlusZero", scope(|| { f64_any(0x8000000000000000) + f64_any(0x0) }), f64_any(0x0));
+    check::<A>("zeroPlusNegativeZero", scope(|| { f64_any(0x0) + f64_any(0x8000000000000000) }), f64_any(0x0));
     check::<A>("negativeZeroPlusNegativeZero", scope(|| { f64_any(0x8000000000000000) + f64_any(0x8000000000000000) }), f64_any(0x8000000000000000));
     check::<A>("emptyStringPlusOne", scope(|| { string_any("") + f64_any(0x3ff0000000000000) }), string_any("1"));
     check::<A>("onePlusEmptyString", scope(|| { f64_any(0x3ff0000000000000) + string_any("") }), string_any("1"));

@@ -6,33 +6,33 @@ use crate::harness::*;
 pub fn run<A: IStaticFunction>() {
     let rt: Any<A> = runtime::<A>().unwrap();
     check::<A>("one", scope(|| {
-        Any::dot([f64_any(0x0000000000000000), f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("some")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
+        Any::dot([f64_any(0x0), f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("some")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
             let _b132: Any<A> = _args.rest(0).to_any();
-            Any::dot(_b132.clone(), f64_any(0x0000000000000000)).end()
+            Any::dot(_b132.clone(), f64_any(0x0)).end()
         }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0]")).to_any()].to_array().to_any()))
     }), true.to_any());
     check::<A>("none", scope(|| {
-        Any::dot([f64_any(0x0000000000000000), string_any(""), Nullish::Null.to_any()].to_array().to_any(), string_any("some")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
+        Any::dot([f64_any(0x0), string_any(""), Nullish::Null.to_any()].to_array().to_any(), string_any("some")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
             let _b132: Any<A> = _args.rest(0).to_any();
-            Any::dot(_b132.clone(), f64_any(0x0000000000000000)).end()
+            Any::dot(_b132.clone(), f64_any(0x0)).end()
         }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0]")).to_any()].to_array().to_any()))
     }), false.to_any());
     check::<A>("empty", scope(|| {
         Any::dot(Array::default().to_any(), string_any("some")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
             let _b132: Any<A> = _args.rest(0).to_any();
-            Any::dot(_b132.clone(), f64_any(0x0000000000000000)).end()
+            Any::dot(_b132.clone(), f64_any(0x0)).end()
         }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0]")).to_any()].to_array().to_any()))
     }), false.to_any());
     check::<A>("stops", scope(|| {
         Any::dot([[(string_key("x"), f64_any(0x3ff0000000000000))].to_object().to_any(), Nullish::Null.to_any()].to_array().to_any(), string_any("some")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
             let _b218: Any<A> = _args.rest(0).to_any();
-            Any::dot((Any::dot(_b218.clone(), f64_any(0x0000000000000000)).end())?, string_any("x")).end()
+            Any::dot((Any::dot(_b218.clone(), f64_any(0x0)).end())?, string_any("x")).end()
         }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0].x")).to_any()].to_array().to_any()))
     }), true.to_any());
     check_throws::<A>("reachesThrow", scope(|| {
         Any::dot([Object::default().to_any(), Nullish::Null.to_any()].to_array().to_any(), string_any("some")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
             let _b218: Any<A> = _args.rest(0).to_any();
-            Any::dot((Any::dot(_b218.clone(), f64_any(0x0000000000000000)).end())?, string_any("x")).end()
+            Any::dot((Any::dot(_b218.clone(), f64_any(0x0)).end())?, string_any("x")).end()
         }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0].x")).to_any()].to_array().to_any()))
     }));
     check_throws::<A>("someNotAFunction", scope(|| { Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("some")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())) }));
@@ -41,13 +41,13 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("someThisArg", scope(|| {
         Any::dot([[(string_key("x"), f64_any(0x3ff0000000000000))].to_object().to_any()].to_array().to_any(), string_any("some")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
             let _b224: Any<A> = _args.rest(0).to_any();
-            Any::dot((Any::dot(_b224.clone(), f64_any(0x0000000000000000)).end())?, string_any("x")).end()
-        }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0].x")).to_any(), [(string_key("x"), f64_any(0x0000000000000000))].to_object().to_any()].to_array().to_any()))
+            Any::dot((Any::dot(_b224.clone(), f64_any(0x0)).end())?, string_any("x")).end()
+        }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0].x")).to_any(), [(string_key("x"), f64_any(0x0))].to_object().to_any()].to_array().to_any()))
     }), true.to_any());
     check_throws::<A>("someObject", scope(|| {
         Any::dot(Object::default().to_any(), string_any("some")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
             let _b174: Any<A> = _args.rest(0).to_any();
-            Any::dot((Any::dot(_b174.clone(), f64_any(0x0000000000000000)).end())?, string_any("x")).end()
+            Any::dot((Any::dot(_b174.clone(), f64_any(0x0)).end())?, string_any("x")).end()
         }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0].x")).to_any()].to_array().to_any()))
     }));
 }

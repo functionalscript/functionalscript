@@ -8,9 +8,9 @@ use nanvm_lib::vm::{Any, Array, IStaticFunction, Nullish, ToAny, ToArray, ToObje
 pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     Ok([(string_key("add"), A::static_function(|_self, _args| {
         let _b204: Any<A> = _args.rest(0).to_any();
-        (Any::dot(_b204.clone(), f64_any(0x0000000000000000)).end())? + (Any::dot(_b204.clone(), f64_any(0x3ff0000000000000)).end())?
+        (Any::dot(_b204.clone(), f64_any(0x0)).end())? + (Any::dot(_b204.clone(), f64_any(0x3ff0000000000000)).end())?
     }, 0, Array::default(), Some("(...$0)=>$0[0]+$0[1]")).to_any()), (string_key("answer"), [f64_any(0x4045000000000000)].to_array().to_any()), (string_key("fails"), A::static_function(|_self, _args| {
         let _b424: Any<A> = _args.rest(0).to_any();
-        Any::dot((Any::dot(_b424.clone(), f64_any(0x0000000000000000)).end())?, string_any("x")).end()
+        Any::dot((Any::dot(_b424.clone(), f64_any(0x0)).end())?, string_any("x")).end()
     }, 0, Array::default(), Some("(...$0)=>$0[0].x")).to_any()), (string_key("nothing"), Nullish::Undefined.to_any())].to_object().to_any())
 }

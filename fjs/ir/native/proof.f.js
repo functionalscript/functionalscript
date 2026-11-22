@@ -14,6 +14,7 @@ export const proof = {
         'numberAnd(a: f64, b: f64) -> f64',
         'numberToString(n: f64) -> any.only(string)',
         'stringToNumber(s: any.only(string)) -> f64',
+        'stringToBigInt(s: any.only(string)) -> any.only(bigint)',
         'bigintToString(b: any.only(bigint)) -> any.only(string)',
         'bigintAdd(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint)',
         'bigintSubtract(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint)',

@@ -13,34 +13,34 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("ascending", scope(|| {
         Any::dot([f64_any(0x4024000000000000), f64_any(0x4022000000000000), f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("toSorted")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
             let _b264: Any<A> = _args.rest(0).to_any();
-            (Any::dot(_b264.clone(), f64_any(0x0000000000000000)).end())? - (Any::dot(_b264.clone(), f64_any(0x3ff0000000000000)).end())?
+            (Any::dot(_b264.clone(), f64_any(0x0)).end())? - (Any::dot(_b264.clone(), f64_any(0x3ff0000000000000)).end())?
         }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0]-$0[1]")).to_any()].to_array().to_any()))
     }), [f64_any(0x3ff0000000000000), f64_any(0x4022000000000000), f64_any(0x4024000000000000)].to_array().to_any());
     check::<A>("descending", scope(|| {
         Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4024000000000000), f64_any(0x4022000000000000)].to_array().to_any(), string_any("toSorted")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
             let _b264: Any<A> = _args.rest(0).to_any();
-            (Any::dot(_b264.clone(), f64_any(0x3ff0000000000000)).end())? - (Any::dot(_b264.clone(), f64_any(0x0000000000000000)).end())?
+            (Any::dot(_b264.clone(), f64_any(0x3ff0000000000000)).end())? - (Any::dot(_b264.clone(), f64_any(0x0)).end())?
         }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[1]-$0[0]")).to_any()].to_array().to_any()))
     }), [f64_any(0x4024000000000000), f64_any(0x4022000000000000), f64_any(0x3ff0000000000000)].to_array().to_any());
     check::<A>("undefinedNeverCompared", scope(|| {
         Any::dot([f64_any(0x4000000000000000), Nullish::Undefined.to_any(), f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("toSorted")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
             let _b312: Any<A> = _args.rest(0).to_any();
-            (Any::dot(_b312.clone(), f64_any(0x0000000000000000)).end())? - (Any::dot(_b312.clone(), f64_any(0x3ff0000000000000)).end())?
+            (Any::dot(_b312.clone(), f64_any(0x0)).end())? - (Any::dot(_b312.clone(), f64_any(0x3ff0000000000000)).end())?
         }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0]-$0[1]")).to_any()].to_array().to_any()))
     }), [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), Nullish::Undefined.to_any()].to_array().to_any());
     check::<A>("nanAnswerIsEqual", scope(|| {
         Any::dot([f64_any(0x4008000000000000), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("toSorted")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
             let _b174: Any<A> = _args.rest(0).to_any();
-            Any::dot((Any::dot(_b174.clone(), f64_any(0x0000000000000000)).end())?, string_any("x")).end()
+            Any::dot((Any::dot(_b174.clone(), f64_any(0x0)).end())?, string_any("x")).end()
         }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0].x")).to_any()].to_array().to_any()))
     }), [f64_any(0x4008000000000000), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any());
-    check::<A>("stable", scope(|| { Any::dot([f64_any(0x4008000000000000), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("toSorted")).end_call(&rt, || Ok([A::static_function(|_self, _args| { Ok(f64_any(0x0000000000000000)) }, 0, [rt.clone()].to_array(), Some("()=>0")).to_any()].to_array().to_any())) }), [f64_any(0x4008000000000000), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any());
-    check::<A>("stableUndefinedLast", scope(|| { Any::dot([f64_any(0x4008000000000000), Nullish::Undefined.to_any(), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("toSorted")).end_call(&rt, || Ok([A::static_function(|_self, _args| { Ok(f64_any(0x0000000000000000)) }, 0, [rt.clone()].to_array(), Some("()=>0")).to_any()].to_array().to_any())) }), [f64_any(0x4008000000000000), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), Nullish::Undefined.to_any()].to_array().to_any());
+    check::<A>("stable", scope(|| { Any::dot([f64_any(0x4008000000000000), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("toSorted")).end_call(&rt, || Ok([A::static_function(|_self, _args| { Ok(f64_any(0x0)) }, 0, [rt.clone()].to_array(), Some("()=>0")).to_any()].to_array().to_any())) }), [f64_any(0x4008000000000000), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any());
+    check::<A>("stableUndefinedLast", scope(|| { Any::dot([f64_any(0x4008000000000000), Nullish::Undefined.to_any(), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("toSorted")).end_call(&rt, || Ok([A::static_function(|_self, _args| { Ok(f64_any(0x0)) }, 0, [rt.clone()].to_array(), Some("()=>0")).to_any()].to_array().to_any())) }), [f64_any(0x4008000000000000), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), Nullish::Undefined.to_any()].to_array().to_any());
     check::<A>("empty", scope(|| { Any::dot(Array::default().to_any(), string_any("toSorted")).end_call(&rt, || Ok(Array::default().to_any())) }), Array::default().to_any());
     check::<A>("one", scope(|| {
         Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("toSorted")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
             let _b264: Any<A> = _args.rest(0).to_any();
-            (Any::dot(_b264.clone(), f64_any(0x0000000000000000)).end())? - (Any::dot(_b264.clone(), f64_any(0x3ff0000000000000)).end())?
+            (Any::dot(_b264.clone(), f64_any(0x0)).end())? - (Any::dot(_b264.clone(), f64_any(0x3ff0000000000000)).end())?
         }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0]-$0[1]")).to_any()].to_array().to_any()))
     }), [f64_any(0x3ff0000000000000)].to_array().to_any());
     check_throws::<A>("nullComparator", scope(|| { Any::dot([f64_any(0x4000000000000000), f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("toSorted")).end_call(&rt, || Ok([Nullish::Null.to_any()].to_array().to_any())) }));
@@ -49,13 +49,13 @@ pub fn run<A: IStaticFunction>() {
     check_throws::<A>("bigintAnswer", scope(|| {
         Any::dot([bigint_any(2), bigint_any(1)].to_array().to_any(), string_any("toSorted")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
             let _b132: Any<A> = _args.rest(0).to_any();
-            Any::dot(_b132.clone(), f64_any(0x0000000000000000)).end()
+            Any::dot(_b132.clone(), f64_any(0x0)).end()
         }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0]")).to_any()].to_array().to_any()))
     }));
     check_throws::<A>("throwingComparator", scope(|| {
         Any::dot([Nullish::Null.to_any(), Nullish::Null.to_any()].to_array().to_any(), string_any("toSorted")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
             let _b174: Any<A> = _args.rest(0).to_any();
-            Any::dot((Any::dot(_b174.clone(), f64_any(0x0000000000000000)).end())?, string_any("x")).end()
+            Any::dot((Any::dot(_b174.clone(), f64_any(0x0)).end())?, string_any("x")).end()
         }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0].x")).to_any()].to_array().to_any()))
     }));
     check_throws::<A>("object", scope(|| { Any::dot(Object::default().to_any(), string_any("toSorted")).end_call(&rt, || Ok(Array::default().to_any())) }));
