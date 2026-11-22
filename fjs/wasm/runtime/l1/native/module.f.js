@@ -167,6 +167,15 @@ export const bigintAnd = (a, b) => {
 }
 
 /**
+ * [`Number(bigint)`](https://tc39.es/ecma262/#sec-number-constructor-number-value):
+ * the nearest number, a tie to the even significand, and an infinity past
+ * the range.
+ *
+ * @type {(b: unknown) => number}
+ */
+export const bigintToNumber = b => Number(asBigInt(b))
+
+/**
  * Unary `-` on a bigint.
  *
  * @type {(a: unknown) => bigint}

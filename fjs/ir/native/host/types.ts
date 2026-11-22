@@ -26,5 +26,6 @@ export type Host = {
     readonly bigintRemainder: (a: bigint, b: bigint) => bigint
     readonly bigintShiftRight: (a: bigint, b: bigint) => bigint
     readonly bigintAnd: (a: bigint, b: bigint) => bigint
+    readonly bigintToNumber: (b: bigint) => number
     readonly bigintLess: (a: bigint, b: bigint) => number
 }

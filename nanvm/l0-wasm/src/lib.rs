@@ -439,6 +439,11 @@ pub extern "C" fn bigint_and(a: i64, b: i64) -> i64 {
     native::bigint_and(a, b)
 }
 
+#[unsafe(export_name = "bigintToNumber")]
+pub extern "C" fn bigint_to_number(b: i64) -> f64 {
+    native::bigint_to_number(b)
+}
+
 #[unsafe(export_name = "bigintMultiply")]
 pub extern "C" fn bigint_multiply(a: i64, b: i64) -> i64 {
     native::bigint_multiply(a, b)

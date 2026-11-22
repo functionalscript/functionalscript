@@ -26,6 +26,9 @@ export const countDown = x => depth(x) + depth(x)
 /** @type {(a: any, b: any) => any} */
 export const bits = (a, b) => [a % b, a >> b, a & b]
 
+/** @type {(a: any, b: any) => any} */
+export const texts = (a, b) => `${a}:${Number(b)}`
+
 /** @type {(a: any, b: any, c: any) => any} */
 export const sum3 = (a, b, c) => a + b + c
 

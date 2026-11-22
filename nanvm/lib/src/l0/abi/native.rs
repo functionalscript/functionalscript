@@ -140,6 +140,11 @@ pub fn bigint_and(a: i64, b: i64) -> i64 {
     arithmetic("bigintAnd", a, b, |x, y| (x & y).within_limit())
 }
 
+/// `Number(b)` of a bigint: the nearest number.
+pub fn bigint_to_number(b: i64) -> f64 {
+    f64::from(bigint("bigintToNumber", b).to_number())
+}
+
 /// Unary `-` of a bigint.
 pub fn bigint_negate(a: i64) -> i64 {
     put((-bigint("bigintNegate", a)).to_any())

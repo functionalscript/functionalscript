@@ -82,6 +82,7 @@ export const proof = {
         const k = h.bigintAnd(2n, 3n)
         assertEq(owned[Number(k) - values.length], 1n << 64n)
     },
+    bigintToNumber: () => assertEq(h.bigintToNumber(3n), 18446744073709552000),
     bigintLess: () => {
         assertEq(h.bigintLess(0n, 3n), 1)
         assertEq(h.bigintLess(3n, 0n), 0)

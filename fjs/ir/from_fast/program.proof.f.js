@@ -65,6 +65,8 @@ const standIn = {
         ...['add', 'subtract', 'multiply', 'divide', 'remainder', 'shiftRight', 'bitwiseAnd', 'get'].map(k => /** @type {const} */ ([k, fn(anyTwo, any, get('a'))])),
         ['negate', fn(anyOne, any, get('v'))],
         ['typeOf', fn(anyOne, any, constant('self', '#c0'))],
+        ['number', fn(anyOne, f64, lit(f64c, 0))],
+        ['toString', fn(anyOne, any, get('v'))],
         ...['lessThan', 'lessThanOrEqual', 'greaterThan', 'greaterThanOrEqual', 'strictEquals'].map(k => /** @type {const} */ ([k, fn(anyTwo, bool, false_)])),
         ['toBoolean', fn(anyOne, bool, call('self', 'strictEquals', [get('v'), get('v')]))],
         ['call', fn([['f', any], ['args', any]], any, get('f'))],
@@ -132,6 +134,34 @@ export const proof = {
             'export f',
             '',
         ].join('\n'))
+        // `Number` and `String` of `any` call L1's `number` and `toString`; of a float and of a string, they are it.
+        assertEq(program('export const f = () => Number(2n)'), 'fn f() -> any =\n    Any.from_f64(float(2))\n\nexport f\n')
+        assertEq(assertError(over({}, 'export const f = () => Number(9007199254740993n)', programRuntime)), 'f: number of int(9007199254740993, 9007199254740993) is not in this slice')
+        assertEq(program('export const f = (a, b) => [Number(a), Number(1), `x${b}`, String("y")]'), [
+            'fn f(p0: any, p1: any) -> any =',
+            '    let #0 = l1.number(p0)',
+            '    let #1 = l1.add(l1.add("x", l1.toString(p1)), "")',
+            '    match Containers.seal(Containers.push(Containers.push(Containers.push(Containers.push(Containers.begin_array(4), Any.from_f64(#0)), Any.from_f64(1.0)), #1), "y"))',
+            '      array as array =>',
+            '        array',
+            '      else =>',
+            "        trap('not array')",
+            '',
+            'fn l1.add(a: any, b: any) -> any =',
+            '    a',
+            '',
+            'fn l1.number(v: any) -> f64 =',
+            '    0.0',
+            '',
+            'fn l1.toString(v: any) -> any =',
+            '    v',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // The text of a function that the program makes is refused, since it has none yet, in a template literal and in `String`.
+        assertEq(assertError(over({}, 'export const f = () => `${() => 1}`', programRuntime)), 'f: the text of a function that a program makes is not in this slice')
+        assertEq(assertError(over({}, 'export const f = () => String(() => 1)', programRuntime)), 'f: the text of a function that a program makes is not in this slice')
         // `%`, `>>` and `&` of `any` call L1, and of two floats L1's native rows.
         assertEq(program('export const f = (a, b) => [a % b, (a >> 1) & b, 7 % 2]'), [
             'fn f(p0: any, p1: any) -> any =',

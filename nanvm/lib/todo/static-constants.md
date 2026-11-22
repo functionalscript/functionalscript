@@ -149,7 +149,8 @@ and the same data is a data segment in WebAssembly.
   descriptor per array literal site.
 - [x] Emit native module-level objects with literal string keys and primitive values.
 - [x] Emit static native module-level functions with an empty frame.
-- [ ] Extend static containers to composite members and function frames to static captures.
+- [x] Emit static frames for module-level functions capturing other static functions.
+- [ ] Extend static containers to composite members and function frames to other static values.
 - [ ] Have the Rust serializer write constants as statics.
 
 ### Related

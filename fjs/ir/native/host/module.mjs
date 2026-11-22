@@ -28,7 +28,7 @@
 import { error } from '../../../wasm/runtime/l1/error/module.f.js'
 import {
     bigintAdd, bigintAnd, bigintDivide, bigintEquals, bigintLess, bigintMultiply, bigintNegate, bigintRemainder,
-    bigintShiftRight, bigintSubtract, bigintToString, numberAnd, numberRemainder, numberShiftRight, numberToString,
+    bigintShiftRight, bigintSubtract, bigintToNumber, bigintToString, numberAnd, numberRemainder, numberShiftRight, numberToString,
     stringToNumber,
 } from '../../../wasm/runtime/l1/native/module.f.js'
 
@@ -83,6 +83,7 @@ export const host = (read, make, fail) => {
         bigintRemainder: (a, b) => sized(() => bigintRemainder(read(a), read(b))),
         bigintShiftRight: (a, b) => sized(() => bigintShiftRight(read(a), read(b))),
         bigintAnd: (a, b) => sized(() => bigintAnd(read(a), read(b))),
+        bigintToNumber: b => bigintToNumber(read(b)),
         bigintLess: (a, b) => bigintLess(read(a), read(b)),
     }
 }

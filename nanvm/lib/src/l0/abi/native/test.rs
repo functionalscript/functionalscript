@@ -122,6 +122,7 @@ fn bigints() {
     for h in [r, zero, far] {
         drop(h);
     }
+    assert_eq!(bigint_to_number(a), -10.0);
     let n = bigint_negate(a);
     assert_eq!(value(n), 10);
     let wide = big(1 << 70);
