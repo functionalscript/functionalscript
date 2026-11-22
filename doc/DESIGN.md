@@ -488,6 +488,20 @@ When proposing a restriction, explain which guarantee it protects or which
 mistake it prevents. A simpler internal representation does not, by itself,
 justify a less familiar source language.
 
+### Leave unsettled language behavior open
+
+**Only promise behavior the language is prepared to keep.** When designing a
+feature, leave an unresolved question open. A later specification can add a
+guarantee without breaking programs that relied only on existing guarantees.
+Withdrawing a guarantee can break programs that correctly relied on it.
+
+When an admitted operation deliberately permits several outcomes, describe
+that choice as *unspecified* and state its bounds. Developers can rely on
+those bounds. Conformance tests should allow every permitted outcome.
+JavaScript agreement still applies outside a specified exception, and an
+executor refuses inputs it cannot handle under the contract. [Language
+principles](../spec/principles/README.md) · [Refusal](#10-refuse-what-you-cannot-handle)
+
 ### New language features start with a TODO
 
 **Every new language feature starts with a `todo/` proposal, not implementation.**
