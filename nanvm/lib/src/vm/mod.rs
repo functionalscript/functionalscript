@@ -57,7 +57,7 @@ pub use crate::vm::{
 pub use crate::vm::runtime::compiled::runtime;
 
 /// A compiled module, and its export object read through the runtime value.
-pub use crate::vm::runtime::{Module, exports};
+pub use crate::vm::runtime::{Module, exports, exports_with_runtime};
 
 pub(crate) use crate::vm::impls::ContainerWrapper;
 
