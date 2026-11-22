@@ -14,6 +14,7 @@ export const proof = {
         'numberAnd(a: f64, b: f64) -> f64',
         'numberToString(n: f64) -> any.only(string)',
         'stringToNumber(s: any.only(string)) -> f64',
+        'stringToBigInt(s: any.only(string)) -> any.only(bigint)',
         'bigintToString(b: any.only(bigint)) -> any.only(string)',
         'bigintAdd(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint)',
         'bigintSubtract(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint)',
@@ -23,6 +24,7 @@ export const proof = {
         'bigintRemainder(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint)',
         'bigintShiftRight(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint)',
         'bigintAnd(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint)',
+        'bigintToNumber(b: any.only(bigint)) -> f64',
         'bigintLess(a: any, b: any) -> f64',
     ].join('; ')),
     // A module may import it beside L0, which seals its values of `any`, and not without.

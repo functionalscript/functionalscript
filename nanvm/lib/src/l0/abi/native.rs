@@ -14,7 +14,7 @@
 #[cfg(test)]
 mod test;
 
-use super::{get, put, throw};
+use super::{get, length, put, read_units_into, throw};
 use crate::vm::{Any, BigInt, Number, ToAny, Unpacked};
 
 type V = Any<crate::naive::Naive>;
@@ -89,6 +89,25 @@ pub fn string_to_number(s: i64) -> f64 {
     )
 }
 
+/// The bigint of a decimal integer's text, an optional `-` and one digit
+/// or more, as L1's body takes it; any other text traps, and one past
+/// NaNVM's size limit throws its `RangeError`.
+pub fn string_to_bigint(s: i64) -> i64 {
+    let name = "stringToBigInt";
+    let text = string(name, s);
+    let mut units: Vec<u16> = core::iter::repeat_n(0, length(s) as usize).collect();
+    read_units_into(s, 0, &mut units);
+    let digits = units.strip_prefix(&[u16::from(b'-')]).unwrap_or(&units);
+    let decimal = !digits.is_empty()
+        && digits
+            .iter()
+            .all(|&c| (u16::from(b'0')..=u16::from(b'9')).contains(&c));
+    if !decimal {
+        trap(name, "no bigint")
+    }
+    answer(text.bigint())
+}
+
 /// `String(b)` of a bigint.
 pub fn bigint_to_string(b: i64) -> i64 {
     let b = bigint("bigintToString", b);
@@ -138,6 +157,11 @@ pub fn bigint_shift_right(a: i64, b: i64) -> i64 {
 /// operands may carry into a word past NaNVM's size limit, which throws.
 pub fn bigint_and(a: i64, b: i64) -> i64 {
     arithmetic("bigintAnd", a, b, |x, y| (x & y).within_limit())
+}
+
+/// `Number(b)` of a bigint: the nearest number.
+pub fn bigint_to_number(b: i64) -> f64 {
+    f64::from(bigint("bigintToNumber", b).to_number())
 }
 
 /// Unary `-` of a bigint.

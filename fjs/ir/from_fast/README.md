@@ -69,6 +69,7 @@ far more, gives only the functions that the slices name as subjects so far
 | `a[0]`, `a[Number(k)]` of an array | the integer of `u(31)` that the key holds, named `a.index`, then `Containers.item(a, a.index)` where it is less than `Containers.length(a)`, and `Any.undefined` where it is not or the key holds no integer, by L1's `get` |
 | `v.x`, `o[0]` of sealed `any` (not array-only at a number) | `self.get(v, "x")` / `self.get(o, from_f64(0))` where the table names `get`; otherwise refused |
 | a `number`, a `bigint`, a `boolean` | a `lit` of `f64c`, a `lit` of its own range, a variant of `bool` |
+| a `bigint` literal where a value of `any` is wanted, and a `bigint` that no 64-bit word holds | `Native.stringToBigInt("<its decimal text>")`, [L1's native row](#l1s-native-rows), which makes the value of `any` |
 | `+`, `-`, `*`, `/`, `<`, `<=` | `add`, `sub`, `mul`, `div`, `lt`, `le` |
 | `a % b`, `a >> b`, `a & b` of two floats | `Native.numberRemainder(a, b)`, `Native.numberShiftRight(a, b)`, `Native.numberAnd(a, b)`, [L1's native rows](#l1s-native-rows) |
 | `a > b`, `a >= b` | `lt(b, a)`, `le(b, a)`, with `a` bound to a local first where it does something |
@@ -380,6 +381,7 @@ const program = unwrap(lower({}, { ...l1Runtime(errors), l1 })(fast, imports))
 | --- | --- |
 | `a + b`, `a - b`, `a * b`, `a / b` of operands that the IR's operators do not take, a value of `any` or a float and a boolean | `l1.add`, `l1.subtract`, `l1.multiply`, `l1.divide` of them, each float or boolean boxed by `from_f64` or `from_bool` |
 | `a % b`, `a >> b`, `a & b` of operands that are not two floats | `l1.remainder`, `l1.shiftRight`, `l1.bitwiseAnd` of them, boxed the same way |
+| `Number(x)`, `String(x)` and a template literal's values, in a program, of a value that is not already a float or a string | `l1.number(x)`, `l1.toString(x)` ; refused for a function that the program makes, which has no text yet |
 | a call of a function of the module that calls itself, not last, and that the module does not export | a call of `#h0`, `#h1`, …, a function of the IR of `any` alone that no export names |
 | `a < b`, `a <= b`, `a > b`, `a >= b` of such operands | `l1.lessThan`, `l1.lessThanOrEqual`, `l1.greaterThan`, `l1.greaterThanOrEqual`, `a` still first |
 | `a === b`, `a !== b` | `l1.strictEquals`, and its `not` |
