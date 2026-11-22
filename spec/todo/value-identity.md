@@ -13,7 +13,7 @@ const a = make(1)
 const b = make(1)
 ```
 
-Today a JS-compatible executor must make two objects because the program can later ask `a === b`. Relaxing that rule permits common-subexpression elimination, hoisting and memoizing functions that return objects. It also lets an ordinary VM evolve into a content-addressable VM (CAVM). The cost is observable even in a program that returns just a boolean. [Execution models](../../fjs/edag/execution-models.md)
+Today a JS-compatible executor must make two objects because the program can later ask `Object.is(a, b)`. Relaxing that rule permits common-subexpression elimination, hoisting and memoizing functions that return objects. It also lets an ordinary VM evolve into a content-addressable VM (CAVM). The cost is observable even in a program that returns just a boolean. [Execution models](../../fjs/edag/execution-models.md)
 
 ### Proposed exception to JavaScript agreement
 
@@ -21,13 +21,18 @@ For **every FJS executor**, amend rule 2 of the [language principles](../princip
 
 | Observation in the example | Direct JS | Non-CAVM | CAVM |
 | --- | --- | --- | --- |
-| `a === a` | `true` | `true` | `true` |
-| `a === make(2)` | `false` | `false` | `false` |
-| `a === b` | `false` | Either boolean | `true` |
+| `Object.is(a, a)` | `true` | `true` | `true` |
+| `Object.is(a, make(2))` | `false` | `false` | `false` |
+| `Object.is(a, b)` | `false` | Either boolean | `true` |
 
-**One choice must account for the whole execution.** For the same live reference values (arrays, records and functions), `===` is reflexive, symmetric, transitive and stable. It implies `structEq`. On a CAVM the converse holds for these references. Every use of a shared reference must observe the same value, including its children. If `p = [a]` and `q = [b]`, choosing `p === q` requires `a === b`. From an empty reference map, storing under `a` and finding that entry under `b` also requires `a === b`, and equal keys must find it. For primitives keep JavaScript's comparisons. `NaN === NaN` is false and `0 === -0` is true. The proposed `structEq` gives the opposite answers for these two cases. [Reference map](../built-ins/reference-map/README.md)
+**Identity uses `Object.is` on every FJS value.** This is a stable equivalence relation (reflexive, symmetric and transitive). It treats `NaN` as equal to itself and distinguishes `0` from `-0`. The implications below hold for all admitted values `a` and `b`.
 
-The choice reaches `!==`, `Object.is`, reference-map reads and updates, array `indexOf` and `includes`, `switch`, and downstream data, branches and failures. With the same live `a` and `b`, a comparison during module initialization and one in an exported function must agree. Two calls to `() => make(1) === make(1)` each construct a new pair and may yield different booleans even within one non-CAVM run. This is why comparing final outputs to Node alone cannot validate every such program. [Module evaluation](../../fjs/edag/memo/README.md) · [Switch](../control-flow/switch/README.md)
+- On every executor, `Object.is(a, b)` implies `structEq(a, b)`.
+- On a CAVM, `Object.is(a, b)` if and only if `structEq(a, b)`.
+
+**One choice must account for the whole execution.** Every use of a shared reference observes the same value, including its children. With `p = [a]` and `q = [b]`, choosing `Object.is(p, q)` requires `Object.is(a, b)`. From an empty reference map, storing an entry under `a` makes it retrievable under `b` exactly when `Object.is(a, b)`. [Reference map](../built-ins/reference-map/README.md)
+
+For reference operands, the same choice reaches `===`, `!==`, reference-map reads and updates, array `indexOf` and `includes`, `switch`, and downstream data, branches and failures. With the same live `a` and `b`, a comparison during module initialization and one in an exported function must agree. Two calls to `() => Object.is(make(1), make(1))` each construct a new pair and may yield different booleans even within one non-CAVM run. This is why comparing final outputs to Node alone cannot validate every such program. [Module evaluation](../../fjs/edag/memo/README.md) · [Switch](../control-flow/switch/README.md)
 
 ### Ordered structural equality and its pattern instruction
 
@@ -38,7 +43,7 @@ Define `structEq(a, b)` once as an executable FJS **library function**. Its **pa
 | Primitives | Use `Object.is`, including equal `NaN` values and distinct signed zeros. |
 | Arrays | Compare lengths and corresponding elements recursively in index order. |
 | Records | Compare own enumerable string keys in `Object.entries` order, then the corresponding values recursively. A present `undefined` counts as an entry. |
-| Functions | Compare the two references by `===`, also when reached inside a container. |
+| Functions | Use `Object.is(a, b)` on the two function references, including inside a container. |
 
 Different kinds compare unequal. The same ordered, function-free data gives the same answer on every VM regardless of sharing. With function leaves, an answer may depend on permitted closure folding. Reversing ordinary string keys changes the answer. Array-index keys enumerate first. `{ b: 1, "2": 0 }` and `{ "2": 0, b: 1 }` both enumerate `["2", "b"]`. The existing `structurallySame` intentionally compares record keys as an unordered set. Audit its callers and retain it temporarily or rename it for those that need unordered comparison. [Objects](../values/objects/README.md) · [Existing helper](../../fjs/types/object/structurally_same/README.md)
 
@@ -61,7 +66,7 @@ The proposed native-map serialization can omit a key found nowhere else in the g
 - [ ] **Allocation identity (language decision).** Record the designer's decision on the rule 2 exception. If approved, reconcile the principles, execution models and reference-map contract. [Compatibility tracker](../../todo/fjs-javascript-compatibility.md)
 - [ ] **Closure folding (language decision).** Decide the versioned canonical code/frame rules and reference-map content. Record which prior identity decisions this supersedes and publish pairs that must and must not merge.
 - [ ] **Library change.** Implement the ordered helper and migrate content assertions. Include reordered keys, shared children, missing entries, signed zeros and function leaves.
-- [ ] **Backend optimization.** Recognize the helper as a pattern instruction after its semantics are tested. Compare the instruction with the executable definition under the same identity choices. On a CAVM a reference comparison suffices for two reference operands. Preserve `Object.is` behavior for primitive leaves.
+- [ ] **Backend optimization.** Recognize the helper as a pattern instruction after its semantics are tested. Compare the instruction with the executable definition under the same identity choices. On a CAVM the entire instruction can lower to `Object.is(a, b)` for every admitted input, including `NaN` and signed zero. On a non-CAVM, a true `Object.is(a, b)` can short-circuit the ordered comparison.
 - [ ] Run identity-sensitive tests under fresh, selective and full-content policies. Check admissible whole results, transitivity, child and captured aliases, repeated live comparisons, fresh pairs, map lookups and exported calls. Compare identity-independent outputs directly with JavaScript under the same function-text assumptions.
 - [ ] Test round trips by format. JSON can unfold graph sharing. DataJS records it. Check the ordered content, the sharing each format promises and reconstruction of map keys. Evaluate lazy hashing and reuse of cached computations subject to observed identities. [DataJS sharing](../datajs/README.md) · [Serialization](../design/serialization.md) · [CAVM design](../design/content-addressable-vm.md)
 
