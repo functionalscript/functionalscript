@@ -4,11 +4,10 @@
  * this module only spells those instructions and runtime operations.
  *
  * @module
- * @import { Primitive } from '../../media/datajs/types.ts'
  * @import { Block, Function as PreparedFunction, Memo, Statement, Value } from '../../js/ast/prepare/types.ts'
  * @import { BindingId, FunctionTarget, LoopTarget, Entry, Item, Key, Step, Operator } from '../../js/ast/types.ts'
  * @import { Options, Printed, Scope, Use, Uses, External } from './types.ts'
- * @import { _Context, _Descriptor, _Fields, _StaticBindings, _Frame, _Names, _Output, _Task } from './private.ts'
+ * @import { _Context, _Descriptor, _Fields, _StaticBindings, _StaticValue, _Frame, _Names, _Output, _Task } from './private.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Stack } from '../../types/stack_walk/types.ts'
@@ -307,24 +306,6 @@ const loadLiteral = (s, v) => {
     return cat([vm(typeof v === 'string' ? 'String' : 'BigInt'), `::from_static(&LITERAL_${id})`])
 }
 
-/** @type {(s: _Context, v: Primitive) => Printed<string>} */
-const staticItem = (s, v) => {
-    const item = vm('StaticAny')
-    if (v === undefined || v === null) {
-        return cat([item, '::Nullish(', vm('Nullish'), v === null ? '::Null)' : '::Undefined)'])
-    }
-    if (typeof v === 'boolean') { return cat([item, `::Boolean(${lit(`${v}`)})`]) }
-    if (typeof v === 'number') { return cat([item, `::Number(f64::from_bits(${num(f64Bits(v))}))`]) }
-    const id = mapGet(/** @type {_Names} */ (s.names).literals, v)
-    return cat([item, `::${typeof v === 'string' ? 'String' : 'BigInt'}(&LITERAL_${id})`])
-}
-
-/** Each literal site owns its descriptor, even when two sites have identical items.
- * @type {(s: _Context, values: readonly Primitive[]) => Printed<string>} */
-const staticArray = (s, values) => cat([`{ ${kw('static')} VALUE: `, vm('StaticArray'), '<A> = StaticArray(&[',
-    ...values.flatMap((v, i) => [i === 0 ? '' : ', ', staticItem(s, v)]),
-    ']); ', vm('Array'), '::from_static(&VALUE)', toAny, ' }'])
-
 /** @type {(s: _Context, v: string) => Printed<string>} */
 const stringKey = (s, v) => s.native ? loadLiteral(s, v) : stringCall('string_key')(v)
 
@@ -401,7 +382,26 @@ const descriptorName = (s, ref) => `${ref.kind.toUpperCase()}_${binding(s, ref.i
 /** @type {(s: _Context, ref: _Descriptor) => Printed<string>} */
 const descriptorItem = (s, ref) => cat([vm('StaticAny'), `::${ref.kind}(&${descriptorName(s, ref)})`])
 
-/** @type {(known: _StaticBindings, value: Value) => _Descriptor | undefined} */
+/** @type {(s: _Context, v: _StaticValue) => Printed<string>} */
+const staticItem = (s, v) => {
+    if (typeof v === 'object' && v !== null) { return descriptorItem(s, v) }
+    const item = vm('StaticAny')
+    if (v === undefined || v === null) {
+        return cat([item, '::Nullish(', vm('Nullish'), v === null ? '::Null)' : '::Undefined)'])
+    }
+    if (typeof v === 'boolean') { return cat([item, `::Boolean(${lit(`${v}`)})`]) }
+    if (typeof v === 'number') { return cat([item, `::Number(f64::from_bits(${num(f64Bits(v))}))`]) }
+    const id = mapGet(/** @type {_Names} */ (s.names).literals, v)
+    return cat([item, `::${typeof v === 'string' ? 'String' : 'BigInt'}(&LITERAL_${id})`])
+}
+
+/** Each literal site owns its descriptor, even when two sites have identical items.
+ * @type {(s: _Context, values: readonly _StaticValue[]) => Printed<string>} */
+const staticArray = (s, values) => cat([`{ ${kw('static')} VALUE: `, vm('StaticArray'), '<A> = StaticArray(&[',
+    ...values.flatMap((v, i) => [i === 0 ? '' : ', ', staticItem(s, v)]),
+    ']); ', vm('Array'), '::from_static(&VALUE)', toAny, ' }'])
+
+/** @type {(known: _StaticBindings, value: Item<Value>) => _Descriptor | undefined} */
 const referenced = (known, value) => value instanceof Array && value[0] === 'ref' ? mapGet(known, value[1]) : undefined
 
 /** @type {(s: _Context, st: Statement) => _Descriptor | undefined} */
@@ -454,14 +454,20 @@ const array = (s, values, result = false) => {
         : flat(map1((/** @type {readonly string[]} */ items) => cat([`[${items.join(', ')}]`, toArray, toAny]))(all(values.map(v => expression(s, /** @type {Value} */ (v), false))))))
 }
 
+/** A primitive (including undefined) or a named descriptor contributes one static entry.
+ * @type {(known: _StaticBindings, value: Item<Value>) => readonly _StaticValue[]} */
+const staticEntry = (known, value) => {
+    if (!(value instanceof Array)) { return [value] }
+    const ref = referenced(known, value)
+    return ref === undefined ? [] : [ref]
+}
+
 /** @type {(entries: readonly Entry<Value>[], known: _StaticBindings) => _Fields | null} */
 const staticFields = (entries, known) => {
     const fields = entries.flatMap(/** @returns {_Fields} */ e => {
         if (e[0] !== ':' || typeof e[1] !== 'string') { return [] }
-        const value = e[2]
-        if (!(value instanceof Array)) { return [/** @type {const} */ ([e[1], value])] }
-        const ref = referenced(known, value)
-        return ref === undefined ? [] : [/** @type {const} */ ([e[1], ref])]
+        const key = e[1]
+        return staticEntry(known, e[2]).map(v => /** @type {const} */ ([key, v]))
     })
     return fields.length === entries.length ? fields : null
 }
@@ -472,7 +478,7 @@ const objectDeclaration = (s, name, fields) => {
     const properties = Object.entries(Object.fromEntries(fields))
     return cat([`${kw('static')} ${name}: `, vm('StaticObject'), '<A> = StaticObject(&[',
         ...properties.flatMap(([k, v], i) => [i === 0 ? '(' : ', (', `&LITERAL_${mapGet(/** @type {_Names} */ (s.names).literals, k)}, `,
-            typeof v === 'object' && v !== null ? descriptorItem(s, v) : staticItem(s, v), ')']), ']);'])
+            staticItem(s, v), ')']), ']);'])
 }
 
 /** @type {(s: _Context, entries: readonly Entry<Value>[]) => Result<Printed<string>, readonly unknown[]>} */
@@ -584,8 +590,9 @@ const operation = (s, n, result) => {
     switch (tag) {
         case 'array': {
             const items = n[1]
-            return s.moduleInit && items.every(v => !(v instanceof Array))
-                ? map1(pure(result))(ok(staticArray(s, /** @type {readonly Primitive[]} */ (items))))
+            const values = s.moduleInit ? items.flatMap(v => staticEntry(/** @type {_Names} */ (s.names).staticBindings, v)) : null
+            return values !== null && values.length === items.length
+                ? map1(pure(result))(ok(staticArray(s, values)))
                 : array(s, items, result)
         }
         case 'object': { return map1(pure(result))(object(s, n[1])) }
