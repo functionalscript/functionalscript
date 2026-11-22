@@ -19,7 +19,7 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
                 _b1044 = _b1046.clone();
                 continue '_loop19;
             } else { if Any::<A>::to_boolean(&(strict_eq(_b1008_10.clone(), f64_any(0x3ff0000000000000)))?) {
-                let _b10: Any<A> = (Any::call(Function::new(_self.clone()).to_any(), [f64_any(0x0000000000000000)].to_array().to_any()))?;
+                let _b10: Any<A> = (Any::call(Function::new(_self.clone()).to_any(), [f64_any(0x0)].to_array().to_any()))?;
                 let _b1047: Any<A> = [_b10.clone(), _b10.clone()].to_array().to_any();
                 _b1045 = _b1047.clone();
                 break '_loop19;

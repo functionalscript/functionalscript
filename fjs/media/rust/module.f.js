@@ -35,7 +35,6 @@
  */
 
 import { error, ok } from '../../types/result/module.f.js'
-import { map } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { isWellFormed, stringToList } from '../../text/utf16/module.f.js'
 import { bitsOf } from '../../types/number/module.f.js'
@@ -85,22 +84,7 @@ const character = c => {
 export const stringLiteral = v =>
     isWellFormed(v) ? ok(`"${[...v].map(character).join('')}"`) : error(v)
 
-/**
- * A non-negative integer as a Rust hexadecimal literal, zero-padded to
- * `digits` digits: `hexLiteral(4)(0x61)` is `0x0061`.
- *
- * @type {(digits: number) => (n: number | bigint) => string}
- */
-const hexLiteral = digits => {
-    const hex = encodeScalar(digits)
-    return n => `0x${hex(n)}`
-}
-
-/** A `u16` in four hex digits. */
-const u16Hex = hexLiteral(4)
-
-/** A `u64` in sixteen hex digits. */
-const u64Hex = hexLiteral(16)
+const wordDigits = encodeScalar(16)
 
 /**
  * A Rust slice literal of already-spelled items: `&[a, b]`, and `&[]` for none.
@@ -110,16 +94,16 @@ const u64Hex = hexLiteral(16)
 const sliceLiteral = items => `&[${items.join(', ')}]`
 
 /**
- * The code units of `v`, each as the hex literal `utf16Literal` lists: its
+ * The code units of `v`, each as the decimal literal `utf16Literal` lists: its
  * items, for a printer that marks each one.
  *
  * @type {(v: string) => readonly string[]}
  */
-export const utf16Units = v => toArray(map(u16Hex)(stringToList(v)))
+export const utf16Units = v => toArray(stringToList(v)).map(unit => unit.toString())
 
 /**
  * A string's UTF-16 code units as a Rust `&[u16]` slice literal,
- * `&[0xd800, 0x0061]`: the spelling for a string {@link stringLiteral}
+ * `&[55296, 97]`: the spelling for a string {@link stringLiteral}
  * refuses, since a code unit array holds a lone surrogate where a `&str`
  * cannot. Every string has one.
  *
@@ -128,8 +112,8 @@ export const utf16Units = v => toArray(map(u16Hex)(stringToList(v)))
 export const utf16Literal = v => sliceLiteral(utf16Units(v))
 
 /**
- * The IEEE 754 binary64 bits of a number as a Rust `u64` literal in sixteen
- * hex digits — `f64::from_bits` reads it back as the same number, `-0`, the
+ * The IEEE 754 binary64 bits of a number as an unpadded hexadecimal Rust
+ * `u64` literal — `f64::from_bits` reads it back as the same number, `-0`, the
  * infinities and subnormals included. The shared {@link bitsOf} conversion
  * supplies the bits in exact arithmetic. Every `NaN` uses the canonical
  * quiet-NaN encoding `0x7ff8000000000000`, whatever sign
@@ -140,7 +124,7 @@ export const utf16Literal = v => sliceLiteral(utf16Units(v))
  *
  * @type {(v: number) => string}
  */
-export const f64Bits = v => u64Hex(bitsOf(v))
+export const f64Bits = v => `0x${bitsOf(v).toString(16)}`
 
 const i64Min = -(2n ** 63n)
 const i64Max = 2n ** 63n - 1n
@@ -162,7 +146,7 @@ const words = a => a === 0n ? [] : [a & 0xffff_ffff_ffff_ffffn, ...words(a >> 64
  *
  * @type {(v: bigint) => readonly string[]}
  */
-export const u64WordItems = v => words(v < 0n ? -v : v).map(u64Hex)
+export const u64WordItems = v => words(v < 0n ? -v : v).map(word => `0x${wordDigits(word)}`)
 
 /**
  * The magnitude of `v` as a Rust `&[u64]` literal, least significant word

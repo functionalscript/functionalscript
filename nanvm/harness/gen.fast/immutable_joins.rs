@@ -12,7 +12,7 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             if Any::<A>::to_boolean(&_args.argument(1)) { return Ok(f64_any(0x4045000000000000)); }
             return Any::call(_b0_3.clone(), [f64_any(0x4008000000000000)].to_array().to_any());
         }
-        Any::call(_b0_3.clone(), [f64_any(0x0000000000000000)].to_array().to_any())
+        Any::call(_b0_3.clone(), [f64_any(0x0)].to_array().to_any())
     }, 3, Array::default(), Some("($0,$1,$2)=>{const $3=($4)=>$2($4+5);if($0){if($1){return 42;}return $3(3);}return $3(0);}")).to_any()), (string_key("nested"), A::static_function(|_self, _args| {
         let _b0_9: Any<A> = A::static_function(|_self, _args| { Any::call(A::frame(_self)[0].clone(), [_args.argument(0)].to_array().to_any()) }, 1, [_args.argument(3)].to_array(), Some("($1)=>$0($1)")).to_any();
         if Any::<A>::to_boolean(&_args.argument(0)) {
@@ -32,7 +32,7 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
                 if Any::<A>::to_boolean(&_b338_18) { return Ok(f64_any(0x4045000000000000)); }
                 return Any::call(_b0_20.clone(), [f64_any(0x4008000000000000)].to_array().to_any());
             }
-            Any::call(_b0_20.clone(), [f64_any(0x0000000000000000)].to_array().to_any())
+            Any::call(_b0_20.clone(), [f64_any(0x0)].to_array().to_any())
         }, 3, Array::default(), Some("($0,$1,$2)=>{const $3=$0;const $4=$1;const $5=$2;const $6=($7)=>$5($7+5);if($3){if($4){return 42;}return $6(3);}return $6(0);}")).to_any();
         _b8.clone()
     }), (string_key("graphNested"), {
@@ -65,7 +65,7 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             '_loop8: loop {
                 let _b337_47: Any<A> = _b661.clone();
                 let _b338_48: Any<A> = _b662.clone();
-                if Any::<A>::to_boolean(&(Any::gt(_b337_47.clone(), f64_any(0x0000000000000000)))?) {
+                if Any::<A>::to_boolean(&(Any::gt(_b337_47.clone(), f64_any(0x0)))?) {
                     let _b664: Any<A> = (_b337_47.clone() - f64_any(0x3ff0000000000000))?;
                     let _b665: Any<A> = (_b338_48.clone() + f64_any(0x3ff0000000000000))?;
                     _b661 = _b664.clone();

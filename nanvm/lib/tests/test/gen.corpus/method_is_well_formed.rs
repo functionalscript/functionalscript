@@ -7,8 +7,8 @@ pub fn run<A: IStaticFunction>() {
     let rt: Any<A> = runtime::<A>().unwrap();
     check::<A>("ascii", scope(|| { Any::dot(string_any("abc"), string_any("isWellFormed")).end_call(&rt, || Ok(Array::default().to_any())) }), true.to_any());
     check::<A>("pair", scope(|| { Any::dot(string_any("a😀b"), string_any("isWellFormed")).end_call(&rt, || Ok(Array::default().to_any())) }), true.to_any());
-    check::<A>("loneHigh", scope(|| { Any::dot(string_any_utf16(&[0x0061, 0xd83d]), string_any("isWellFormed")).end_call(&rt, || Ok(Array::default().to_any())) }), false.to_any());
-    check::<A>("loneLow", scope(|| { Any::dot(string_any_utf16(&[0xde00, 0x0061]), string_any("isWellFormed")).end_call(&rt, || Ok(Array::default().to_any())) }), false.to_any());
-    check::<A>("reversedPair", scope(|| { Any::dot(string_any_utf16(&[0xde00, 0xd83d]), string_any("isWellFormed")).end_call(&rt, || Ok(Array::default().to_any())) }), false.to_any());
+    check::<A>("loneHigh", scope(|| { Any::dot(string_any_utf16(&[97, 55357]), string_any("isWellFormed")).end_call(&rt, || Ok(Array::default().to_any())) }), false.to_any());
+    check::<A>("loneLow", scope(|| { Any::dot(string_any_utf16(&[56832, 97]), string_any("isWellFormed")).end_call(&rt, || Ok(Array::default().to_any())) }), false.to_any());
+    check::<A>("reversedPair", scope(|| { Any::dot(string_any_utf16(&[56832, 55357]), string_any("isWellFormed")).end_call(&rt, || Ok(Array::default().to_any())) }), false.to_any());
     check::<A>("empty", scope(|| { Any::dot(string_any(""), string_any("isWellFormed")).end_call(&rt, || Ok(Array::default().to_any())) }), true.to_any());
 }

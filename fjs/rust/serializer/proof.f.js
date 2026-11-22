@@ -62,7 +62,7 @@ export const proof = {
         const body = yielding([['array', ['hi', 'hi', ['function', fn]]]])
         const output = unwrap(scopeTagged(body, { ...options, text: () => 'hi' }, [], true))
         const lines = output.lines.map(untagged)
-        assertEq(lines[0], 'static LITERAL_0: StaticString = StaticString(&[0x0068, 0x0069]);')
+        assertEq(lines[0], 'static LITERAL_0: StaticString = StaticString(&[104, 105]);')
         assertEq(lines.join('\n').split('String::from_static(&LITERAL_0)').length, 3)
         assert(lines.join('\n').includes('text: Some(&LITERAL_0)'))
         assert(output.uses.vm.includes('StaticFunction'))
@@ -118,7 +118,7 @@ export const proof = {
         assert(printed.uses.unstable.includes('static_read_keys'))
         const rust = printed.lines.map(untagged).join('\n')
         assert(!rust.includes('string_any') && !rust.includes('LITERAL_undefined'))
-        assert(rust.includes('StaticString(&[0xd800])'))
+        assert(rust.includes('StaticString(&[55296])'))
         const core = unwrap(scopeTagged(yielding([['Math.abs']]), { ...options, runtime: null }, [], true))
         assert(core.lines.join('').includes('StaticString'))
         assert(!rust.includes('\"') && !core.lines.map(untagged).join('').includes('\"'))
@@ -204,7 +204,7 @@ export const proof = {
     /** Boolean dispatches through the shared body and retains its operand once. */
     booleanRuntime: () => {
         assertEq(text(['Boolean', 0], true),
-            '{ let (boolean_value, boolean_body) = (f64_any(0x0000000000000000), (Any::dot(runtime.clone(), string_any("Boolean")).end())?); Any::call(boolean_body, [boolean_value].to_array().to_any()) }')
+            '{ let (boolean_value, boolean_body) = (f64_any(0x0), (Any::dot(runtime.clone(), string_any("Boolean")).end())?); Any::call(boolean_body, [boolean_value].to_array().to_any()) }')
         assertEq(text(['Boolean', ['()', ['ref', x], []]], true),
             '{ let (boolean_value, boolean_body) = ((Any::call(_b0.clone(), Array::default().to_any()))?, (Any::dot(runtime.clone(), string_any("Boolean")).end())?); Any::call(boolean_body, [boolean_value].to_array().to_any()) }')
         assertStructurallySame(valueTagged(['Boolean', 0], { ...options, runtime: null }),
@@ -223,7 +223,7 @@ export const proof = {
             'Any::instanceof_(&(Any::number(Nullish::Null.to_any()))?, Constructor::Array)')
     },
     containers: () => {
-        assertEq(text(['array', [0, -0]]), '[f64_any(0x0000000000000000), f64_any(0x8000000000000000)].to_array().to_any()')
+        assertEq(text(['array', [0, -0]]), '[f64_any(0x0), f64_any(0x8000000000000000)].to_array().to_any()')
         /** @type {readonly Value[]} */
         const values = [
             ['array', []], ['array', [1, 2]], ['array', [1, ['...', ['array', [2]]]]],
@@ -326,7 +326,7 @@ export const proof = {
     },
     memberPresence: () => {
         assertEq(text(['memberPresent', ['array', []], 'at'], true), 'Any::member_present(Array::default().to_any(), string_any("at"), &runtime)')
-        assertEq(text(['memberPresent', ['array', []], 0]), '(Any::member_present(Array::default().to_any(), f64_any(0x0000000000000000), &runtime))?')
+        assertEq(text(['memberPresent', ['array', []], 0]), '(Any::member_present(Array::default().to_any(), f64_any(0x0), &runtime))?')
         assertEq(text(['memberPresent', ['array', [1]], ['Number', '0']], true), 'Any::member_present([f64_any(0x3ff0000000000000)].to_array().to_any(), (Any::number(string_any("0")))?, &runtime)')
         const captured = text(['function', { ...fn, rest: null, self: null, body: yielding([['memberPresent', ['array', []], 'at']]) }])
         assert(captured.includes('runtime.clone()'))

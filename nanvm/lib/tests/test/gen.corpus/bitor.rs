@@ -22,8 +22,8 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("arrayTenBitOrSixSwapped", scope(|| { f64_any(0x4018000000000000) | [f64_any(0x4024000000000000)].to_array().to_any() }), f64_any(0x402c000000000000));
     check::<A>("arrayStringTenBitOrSix", scope(|| { [string_any("10")].to_array().to_any() | f64_any(0x4018000000000000) }), f64_any(0x402c000000000000));
     check::<A>("arrayStringTenBitOrSixSwapped", scope(|| { f64_any(0x4018000000000000) | [string_any("10")].to_array().to_any() }), f64_any(0x402c000000000000));
-    check::<A>("arrayPairBitOrSix", scope(|| { [f64_any(0x0000000000000000), f64_any(0x0000000000000000)].to_array().to_any() | f64_any(0x4018000000000000) }), f64_any(0x4018000000000000));
-    check::<A>("arrayPairBitOrSixSwapped", scope(|| { f64_any(0x4018000000000000) | [f64_any(0x0000000000000000), f64_any(0x0000000000000000)].to_array().to_any() }), f64_any(0x4018000000000000));
+    check::<A>("arrayPairBitOrSix", scope(|| { [f64_any(0x0), f64_any(0x0)].to_array().to_any() | f64_any(0x4018000000000000) }), f64_any(0x4018000000000000));
+    check::<A>("arrayPairBitOrSixSwapped", scope(|| { f64_any(0x4018000000000000) | [f64_any(0x0), f64_any(0x0)].to_array().to_any() }), f64_any(0x4018000000000000));
     check::<A>("emptyObjectBitOrSix", scope(|| { Object::default().to_any() | f64_any(0x4018000000000000) }), f64_any(0x4018000000000000));
     check::<A>("emptyObjectBitOrSixSwapped", scope(|| { f64_any(0x4018000000000000) | Object::default().to_any() }), f64_any(0x4018000000000000));
     check::<A>("functionBitOrSix", scope(|| { A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, Array::default(), Some("()=>undefined")).to_any() | f64_any(0x4018000000000000) }), f64_any(0x4018000000000000));

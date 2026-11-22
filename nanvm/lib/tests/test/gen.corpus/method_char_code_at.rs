@@ -5,11 +5,11 @@ use crate::harness::*;
 #[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
     let rt: Any<A> = runtime::<A>().unwrap();
-    check::<A>("first", scope(|| { Any::dot(string_any("abc"), string_any("charCodeAt")).end_call(&rt, || Ok([f64_any(0x0000000000000000)].to_array().to_any())) }), f64_any(0x4058400000000000));
+    check::<A>("first", scope(|| { Any::dot(string_any("abc"), string_any("charCodeAt")).end_call(&rt, || Ok([f64_any(0x0)].to_array().to_any())) }), f64_any(0x4058400000000000));
     check::<A>("noArgument", scope(|| { Any::dot(string_any("abc"), string_any("charCodeAt")).end_call(&rt, || Ok(Array::default().to_any())) }), f64_any(0x4058400000000000));
     check::<A>("negative", scope(|| { Any::dot(string_any("abc"), string_any("charCodeAt")).end_call(&rt, || Ok([f64_any(0xbff0000000000000)].to_array().to_any())) }), f64_any(0x7ff8000000000000));
     check::<A>("pastTheEnd", scope(|| { Any::dot(string_any("abc"), string_any("charCodeAt")).end_call(&rt, || Ok([f64_any(0x4008000000000000)].to_array().to_any())) }), f64_any(0x7ff8000000000000));
-    check::<A>("highSurrogate", scope(|| { Any::dot(string_any("😀"), string_any("charCodeAt")).end_call(&rt, || Ok([f64_any(0x0000000000000000)].to_array().to_any())) }), f64_any(0x40eb07a000000000));
+    check::<A>("highSurrogate", scope(|| { Any::dot(string_any("😀"), string_any("charCodeAt")).end_call(&rt, || Ok([f64_any(0x0)].to_array().to_any())) }), f64_any(0x40eb07a000000000));
     check::<A>("lowSurrogate", scope(|| { Any::dot(string_any("😀"), string_any("charCodeAt")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())) }), f64_any(0x40ebc00000000000));
     check_throws::<A>("bigint", scope(|| { Any::dot(string_any("abc"), string_any("charCodeAt")).end_call(&rt, || Ok([bigint_any(0)].to_array().to_any())) }));
 }

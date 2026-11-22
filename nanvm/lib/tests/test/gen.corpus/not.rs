@@ -8,7 +8,7 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("undefined", scope(|| { <&Any<A> as core::ops::Not>::not(&Nullish::Undefined.to_any()) }), true.to_any());
     check::<A>("booleanFalse", scope(|| { <&Any<A> as core::ops::Not>::not(&false.to_any()) }), true.to_any());
     check::<A>("booleanTrue", scope(|| { <&Any<A> as core::ops::Not>::not(&true.to_any()) }), false.to_any());
-    check::<A>("numberZero", scope(|| { <&Any<A> as core::ops::Not>::not(&f64_any(0x0000000000000000)) }), true.to_any());
+    check::<A>("numberZero", scope(|| { <&Any<A> as core::ops::Not>::not(&f64_any(0x0)) }), true.to_any());
     check::<A>("numberNegativeZero", scope(|| { <&Any<A> as core::ops::Not>::not(&f64_any(0x8000000000000000)) }), true.to_any());
     check::<A>("numberNan", scope(|| { <&Any<A> as core::ops::Not>::not(&f64_any(0x7ff8000000000000)) }), true.to_any());
     check::<A>("numberPositive", scope(|| { <&Any<A> as core::ops::Not>::not(&f64_any(0x4002666666666666)) }), false.to_any());

@@ -4,28 +4,28 @@ use crate::harness::*;
 
 #[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
-    check::<A>("nullModThree", scope(|| { Nullish::Null.to_any() % f64_any(0x4008000000000000) }), f64_any(0x0000000000000000));
+    check::<A>("nullModThree", scope(|| { Nullish::Null.to_any() % f64_any(0x4008000000000000) }), f64_any(0x0));
     check::<A>("undefinedModThree", scope(|| { Nullish::Undefined.to_any() % f64_any(0x4008000000000000) }), f64_any(0x7ff8000000000000));
     check::<A>("trueModThree", scope(|| { true.to_any() % f64_any(0x4008000000000000) }), f64_any(0x3ff0000000000000));
-    check::<A>("falseModThree", scope(|| { false.to_any() % f64_any(0x4008000000000000) }), f64_any(0x0000000000000000));
+    check::<A>("falseModThree", scope(|| { false.to_any() % f64_any(0x4008000000000000) }), f64_any(0x0));
     check::<A>("stringTenModThree", scope(|| { string_any("10") % f64_any(0x4008000000000000) }), f64_any(0x3ff0000000000000));
     check::<A>("stringLetterModThree", scope(|| { string_any("a") % f64_any(0x4008000000000000) }), f64_any(0x7ff8000000000000));
-    check::<A>("emptyArrayModThree", scope(|| { Array::default().to_any() % f64_any(0x4008000000000000) }), f64_any(0x0000000000000000));
+    check::<A>("emptyArrayModThree", scope(|| { Array::default().to_any() % f64_any(0x4008000000000000) }), f64_any(0x0));
     check::<A>("arrayTenModThree", scope(|| { [f64_any(0x4024000000000000)].to_array().to_any() % f64_any(0x4008000000000000) }), f64_any(0x3ff0000000000000));
     check::<A>("arrayStringTenModThree", scope(|| { [string_any("10")].to_array().to_any() % f64_any(0x4008000000000000) }), f64_any(0x3ff0000000000000));
-    check::<A>("arrayPairModThree", scope(|| { [f64_any(0x0000000000000000), f64_any(0x0000000000000000)].to_array().to_any() % f64_any(0x4008000000000000) }), f64_any(0x7ff8000000000000));
+    check::<A>("arrayPairModThree", scope(|| { [f64_any(0x0), f64_any(0x0)].to_array().to_any() % f64_any(0x4008000000000000) }), f64_any(0x7ff8000000000000));
     check::<A>("emptyObjectModThree", scope(|| { Object::default().to_any() % f64_any(0x4008000000000000) }), f64_any(0x7ff8000000000000));
     check::<A>("functionModThree", scope(|| { A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, Array::default(), Some("()=>undefined")).to_any() % f64_any(0x4008000000000000) }), f64_any(0x7ff8000000000000));
-    check::<A>("zeroModOne", scope(|| { f64_any(0x0000000000000000) % f64_any(0x3ff0000000000000) }), f64_any(0x0000000000000000));
+    check::<A>("zeroModOne", scope(|| { f64_any(0x0) % f64_any(0x3ff0000000000000) }), f64_any(0x0));
     check::<A>("negativeZeroModOne", scope(|| { f64_any(0x8000000000000000) % f64_any(0x3ff0000000000000) }), f64_any(0x8000000000000000));
-    check::<A>("oneModOne", scope(|| { f64_any(0x3ff0000000000000) % f64_any(0x3ff0000000000000) }), f64_any(0x0000000000000000));
+    check::<A>("oneModOne", scope(|| { f64_any(0x3ff0000000000000) % f64_any(0x3ff0000000000000) }), f64_any(0x0));
     check::<A>("tenModThree", scope(|| { f64_any(0x4024000000000000) % f64_any(0x4008000000000000) }), f64_any(0x3ff0000000000000));
     check::<A>("negativeTenModThree", scope(|| { f64_any(0xc024000000000000) % f64_any(0x4008000000000000) }), f64_any(0xbff0000000000000));
     check::<A>("tenModNegativeThree", scope(|| { f64_any(0x4024000000000000) % f64_any(0xc008000000000000) }), f64_any(0x3ff0000000000000));
     check::<A>("negativeTenModNegativeThree", scope(|| { f64_any(0xc024000000000000) % f64_any(0xc008000000000000) }), f64_any(0xbff0000000000000));
-    check::<A>("fiveModZero", scope(|| { f64_any(0x4014000000000000) % f64_any(0x0000000000000000) }), f64_any(0x7ff8000000000000));
-    check::<A>("zeroModZero", scope(|| { f64_any(0x0000000000000000) % f64_any(0x0000000000000000) }), f64_any(0x7ff8000000000000));
-    check::<A>("negativeZeroModZero", scope(|| { f64_any(0x8000000000000000) % f64_any(0x0000000000000000) }), f64_any(0x7ff8000000000000));
+    check::<A>("fiveModZero", scope(|| { f64_any(0x4014000000000000) % f64_any(0x0) }), f64_any(0x7ff8000000000000));
+    check::<A>("zeroModZero", scope(|| { f64_any(0x0) % f64_any(0x0) }), f64_any(0x7ff8000000000000));
+    check::<A>("negativeZeroModZero", scope(|| { f64_any(0x8000000000000000) % f64_any(0x0) }), f64_any(0x7ff8000000000000));
     check::<A>("fiveModInfinity", scope(|| { f64_any(0x4014000000000000) % f64_any(0x7ff0000000000000) }), f64_any(0x4014000000000000));
     check::<A>("negativeFiveModInfinity", scope(|| { f64_any(0xc014000000000000) % f64_any(0x7ff0000000000000) }), f64_any(0xc014000000000000));
     check::<A>("infinityModFive", scope(|| { f64_any(0x7ff0000000000000) % f64_any(0x4014000000000000) }), f64_any(0x7ff8000000000000));
