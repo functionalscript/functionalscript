@@ -144,6 +144,15 @@ CAVM-specific branch would be future work, not a change already present in it.
 
 ### Open
 
+#### What must default function text guarantee?
+
+1. **May an FJS executor return any string?** One option gives non-CAVMs freedom over the spelling, including a constant, and requires repeated conversions of the same function to agree within a run. A CAVM needs an exact rule for each semantics version if programs using `String(f)` are to agree across implementations. Even `String(f).length` can expose a difference. One specified string for every CAVM function, for example `"[function]"`, meets that requirement without retaining source, rendering code or computing a hash. A code-only rendering can preserve readable output if every CAVM derives it from the same canonical representation. Either rule also governs indirect conversions such as `'' + f`.
+2. **Must different captured frames produce different strings?** For `const make = x => () => x`, `make(1)` and `make(2)` return different values when called. Their closures can have distinct content identities and still have the same text. Determinism requires `f === g` to imply `String(f) === String(g)`. The converse would make the text an identity for the whole closure. The hash-based spelling proposed above chooses that stronger guarantee and can require hashing the frame on first conversion. A fixed string gives up readable function text. The existing code-only renderer has a different trade-off: it shows the body and omits captured values. [Current rendering contract](../../fjs/edag/function-text.md)
+
+The choice is open. Allowing arbitrary text on existing FJS VMs would relax their EDAG-derived text guarantee. Identify tests and consumers that rely on that guarantee before changing it. Function-reference comparison and closure folding are specified separately in the [value identity proposal](./value-identity.md).
+
+#### Questions specific to the hash-based spelling
+
 - **Length.** The full hash is 255 bits
   ([content-addressable-vm](../design/content-addressable-vm.md)), forty-three
   base64 characters: correct, and still long for a name. A prefix is
