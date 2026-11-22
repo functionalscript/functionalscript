@@ -13,14 +13,14 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("emptyArrayGreaterOrEqualFive", scope(|| { Any::ge(Array::default().to_any(), f64_any(0x4014000000000000)) }), false.to_any());
     check::<A>("arrayThreeGreaterOrEqualFive", scope(|| { Any::ge([f64_any(0x4008000000000000)].to_array().to_any(), f64_any(0x4014000000000000)) }), false.to_any());
     check::<A>("arrayStringThreeGreaterOrEqualFive", scope(|| { Any::ge([string_any("3")].to_array().to_any(), f64_any(0x4014000000000000)) }), false.to_any());
-    check::<A>("arrayPairGreaterOrEqualFive", scope(|| { Any::ge([f64_any(0x0000000000000000), f64_any(0x0000000000000000)].to_array().to_any(), f64_any(0x4014000000000000)) }), false.to_any());
+    check::<A>("arrayPairGreaterOrEqualFive", scope(|| { Any::ge([f64_any(0x0), f64_any(0x0)].to_array().to_any(), f64_any(0x4014000000000000)) }), false.to_any());
     check::<A>("emptyObjectGreaterOrEqualFive", scope(|| { Any::ge(Object::default().to_any(), f64_any(0x4014000000000000)) }), false.to_any());
     check::<A>("functionGreaterOrEqualFive", scope(|| { Any::ge(A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, Array::default(), Some("()=>undefined")).to_any(), f64_any(0x4014000000000000)) }), false.to_any());
     check::<A>("threeGreaterOrEqualFive", scope(|| { Any::ge(f64_any(0x4008000000000000), f64_any(0x4014000000000000)) }), false.to_any());
     check::<A>("fiveGreaterOrEqualThree", scope(|| { Any::ge(f64_any(0x4014000000000000), f64_any(0x4008000000000000)) }), true.to_any());
     check::<A>("fiveGreaterOrEqualFive", scope(|| { Any::ge(f64_any(0x4014000000000000), f64_any(0x4014000000000000)) }), true.to_any());
-    check::<A>("zeroGreaterOrEqualNegativeZero", scope(|| { Any::ge(f64_any(0x0000000000000000), f64_any(0x8000000000000000)) }), true.to_any());
-    check::<A>("negativeZeroGreaterOrEqualZero", scope(|| { Any::ge(f64_any(0x8000000000000000), f64_any(0x0000000000000000)) }), true.to_any());
+    check::<A>("zeroGreaterOrEqualNegativeZero", scope(|| { Any::ge(f64_any(0x0), f64_any(0x8000000000000000)) }), true.to_any());
+    check::<A>("negativeZeroGreaterOrEqualZero", scope(|| { Any::ge(f64_any(0x8000000000000000), f64_any(0x0)) }), true.to_any());
     check::<A>("nanGreaterOrEqualOne", scope(|| { Any::ge(f64_any(0x7ff8000000000000), f64_any(0x3ff0000000000000)) }), false.to_any());
     check::<A>("oneGreaterOrEqualNan", scope(|| { Any::ge(f64_any(0x3ff0000000000000), f64_any(0x7ff8000000000000)) }), false.to_any());
     check::<A>("nanGreaterOrEqualNan", scope(|| { Any::ge(f64_any(0x7ff8000000000000), f64_any(0x7ff8000000000000)) }), false.to_any());

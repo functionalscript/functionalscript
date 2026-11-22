@@ -8,6 +8,6 @@ use nanvm_lib::vm::{Any, Array, IStaticFunction, ToAny, ToArray, ToObject};
 pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     Ok([(string_key("default"), A::static_function(|_self, _args| {
         let _b264: Any<A> = _args.rest(0).to_any();
-        Any::dot((Any::dot([string_any("tab\there"), string_any("it's"), string_any("A")].to_array().to_any(), (Any::number((Any::dot(_b264.clone(), f64_any(0x0000000000000000)).end())?))?).end())?, string_any("length")).end()
+        Any::dot((Any::dot([string_any("tab\there"), string_any("it's"), string_any("A")].to_array().to_any(), (Any::number((Any::dot(_b264.clone(), f64_any(0x0)).end())?))?).end())?, string_any("length")).end()
     }, 0, Array::default(), Some("(...$0)=>[\"tab\\there\",\"it's\",\"A\"][Number($0[0])].length")).to_any())].to_object().to_any())
 }

@@ -66,7 +66,7 @@ export const proof = {
     // A lone surrogate is escaped in the JSON text and spelled in UTF-16 in the graph.
     loneSurrogate: () => {
         const text = of(['[]', ['\ud83d']])
-        assert(text.includes('string_any_utf16(&[0xd83d])'))
+        assert(text.includes('string_any_utf16(&[55357])'))
         // `["\ud83d"]`, the escape as text
         assert(text.includes('Some(&[0x5b, 0x22, 0x5c, 0x75, 0x64, 0x38, 0x33, 0x64, 0x22, 0x5d])'))
     },

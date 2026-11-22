@@ -9,19 +9,19 @@ import { builtInIdentifier, f64Bits, i64Literal, snakeCase, stringLiteral, u64Wo
 export const proof = {
     // the items the literals list, for a printer that marks each one
     items: () => {
-        assertStructurallySame(utf16Units('a\ud800'), ['0x0061', '0xd800'])
+        assertStructurallySame(utf16Units('a\ud800'), ['97', '55296'])
         assertStructurallySame(utf16Units(''), [])
         // a pair is listed as its two code units, high first
-        assertStructurallySame(utf16Units('\u{1F600}\udc00'), ['0xd83d', '0xde00', '0xdc00'])
+        assertStructurallySame(utf16Units('\u{1F600}\udc00'), ['55357', '56832', '56320'])
         assertStructurallySame(u64WordItems(2n ** 64n), ['0x0000000000000000', '0x0000000000000001'])
         assertStructurallySame(u64WordItems(-1n), ['0x0000000000000001'])
         assertStructurallySame(u64WordItems(0n), [])
     },
     utf16Literal: () => {
         assertEq(utf16Literal(''), '&[]')
-        assertEq(utf16Literal('a'), '&[0x0061]')
-        assertEq(utf16Literal('a\ud800'), '&[0x0061, 0xd800]')
-        assertEq(utf16Literal('\u{1F600}'), '&[0xd83d, 0xde00]')
+        assertEq(utf16Literal('a'), '&[97]')
+        assertEq(utf16Literal('a\ud800'), '&[97, 55296]')
+        assertEq(utf16Literal('\u{1F600}'), '&[55357, 56832]')
     },
     stringLiteral: () => {
         assertStructurallySame(stringLiteral(''), ok('""'))
@@ -51,7 +51,7 @@ export const proof = {
     f64Bits: () => {
         // One spelling for every number, its own bits: the values a decimal
         // literal cannot spell are ordinary here.
-        assertEq(f64Bits(0), '0x0000000000000000')
+        assertEq(f64Bits(0), '0x0')
         assertEq(f64Bits(-0), '0x8000000000000000')
         assertEq(f64Bits(1), '0x3ff0000000000000')
         assertEq(f64Bits(-1), '0xbff0000000000000')
@@ -70,9 +70,9 @@ export const proof = {
         // The largest and the smallest normal, and two subnormals down to
         // the smallest double there is.
         assertEq(f64Bits(1.7976931348623157e308), '0x7fefffffffffffff')
-        assertEq(f64Bits(2.2250738585072014e-308), '0x0010000000000000')
-        assertEq(f64Bits(2.225073858507201e-308), '0x000fffffffffffff')
-        assertEq(f64Bits(5e-324), '0x0000000000000001')
+        assertEq(f64Bits(2.2250738585072014e-308), '0x10000000000000')
+        assertEq(f64Bits(2.225073858507201e-308), '0xfffffffffffff')
+        assertEq(f64Bits(5e-324), '0x1')
     },
     i64Literal: () => {
         assertStructurallySame(i64Literal(0n), ok('0'))

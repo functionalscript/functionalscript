@@ -5,7 +5,7 @@ use crate::harness::*;
 #[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
     let rt: Any<A> = runtime::<A>().unwrap();
-    check::<A>("first", scope(|| { Any::dot([f64_any(0x4024000000000000), f64_any(0x4034000000000000), f64_any(0x403e000000000000)].to_array().to_any(), string_any("at")).end_call(&rt, || Ok([f64_any(0x0000000000000000)].to_array().to_any())) }), f64_any(0x4024000000000000));
+    check::<A>("first", scope(|| { Any::dot([f64_any(0x4024000000000000), f64_any(0x4034000000000000), f64_any(0x403e000000000000)].to_array().to_any(), string_any("at")).end_call(&rt, || Ok([f64_any(0x0)].to_array().to_any())) }), f64_any(0x4024000000000000));
     check::<A>("last", scope(|| { Any::dot([f64_any(0x4024000000000000), f64_any(0x4034000000000000), f64_any(0x403e000000000000)].to_array().to_any(), string_any("at")).end_call(&rt, || Ok([f64_any(0x4000000000000000)].to_array().to_any())) }), f64_any(0x403e000000000000));
     check::<A>("fromTheEnd", scope(|| { Any::dot([f64_any(0x4024000000000000), f64_any(0x4034000000000000), f64_any(0x403e000000000000)].to_array().to_any(), string_any("at")).end_call(&rt, || Ok([f64_any(0xbff0000000000000)].to_array().to_any())) }), f64_any(0x403e000000000000));
     check::<A>("firstFromTheEnd", scope(|| { Any::dot([f64_any(0x4024000000000000), f64_any(0x4034000000000000), f64_any(0x403e000000000000)].to_array().to_any(), string_any("at")).end_call(&rt, || Ok([f64_any(0xc008000000000000)].to_array().to_any())) }), f64_any(0x4024000000000000));
@@ -13,7 +13,7 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("beforeTheStart", scope(|| { Any::dot([f64_any(0x4024000000000000), f64_any(0x4034000000000000), f64_any(0x403e000000000000)].to_array().to_any(), string_any("at")).end_call(&rt, || Ok([f64_any(0xc010000000000000)].to_array().to_any())) }), Nullish::Undefined.to_any());
     check::<A>("infinity", scope(|| { Any::dot([f64_any(0x4024000000000000), f64_any(0x4034000000000000), f64_any(0x403e000000000000)].to_array().to_any(), string_any("at")).end_call(&rt, || Ok([f64_any(0x7ff0000000000000)].to_array().to_any())) }), Nullish::Undefined.to_any());
     check::<A>("negativeInfinity", scope(|| { Any::dot([f64_any(0x4024000000000000), f64_any(0x4034000000000000), f64_any(0x403e000000000000)].to_array().to_any(), string_any("at")).end_call(&rt, || Ok([f64_any(0xfff0000000000000)].to_array().to_any())) }), Nullish::Undefined.to_any());
-    check::<A>("empty", scope(|| { Any::dot(Array::default().to_any(), string_any("at")).end_call(&rt, || Ok([f64_any(0x0000000000000000)].to_array().to_any())) }), Nullish::Undefined.to_any());
+    check::<A>("empty", scope(|| { Any::dot(Array::default().to_any(), string_any("at")).end_call(&rt, || Ok([f64_any(0x0)].to_array().to_any())) }), Nullish::Undefined.to_any());
     check::<A>("truncated", scope(|| { Any::dot([f64_any(0x4024000000000000), f64_any(0x4034000000000000), f64_any(0x403e000000000000)].to_array().to_any(), string_any("at")).end_call(&rt, || Ok([f64_any(0x3ffb333333333333)].to_array().to_any())) }), f64_any(0x4034000000000000));
     check::<A>("negativeFraction", scope(|| { Any::dot([f64_any(0x4024000000000000), f64_any(0x4034000000000000), f64_any(0x403e000000000000)].to_array().to_any(), string_any("at")).end_call(&rt, || Ok([f64_any(0xbfe0000000000000)].to_array().to_any())) }), f64_any(0x4024000000000000));
     check::<A>("string", scope(|| { Any::dot([f64_any(0x4024000000000000), f64_any(0x4034000000000000), f64_any(0x403e000000000000)].to_array().to_any(), string_any("at")).end_call(&rt, || Ok([string_any("1")].to_array().to_any())) }), f64_any(0x4034000000000000));
@@ -23,15 +23,15 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("extraArgument", scope(|| { Any::dot([f64_any(0x4024000000000000), f64_any(0x4034000000000000), f64_any(0x403e000000000000)].to_array().to_any(), string_any("at")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any())) }), f64_any(0x4034000000000000));
     check::<A>("nested", scope(|| { Any::dot([[f64_any(0x3ff0000000000000)].to_array().to_any(), [f64_any(0x4000000000000000)].to_array().to_any()].to_array().to_any(), string_any("at")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())) }), [f64_any(0x4000000000000000)].to_array().to_any());
     check_throws::<A>("bigint", scope(|| { Any::dot([f64_any(0x4024000000000000), f64_any(0x4034000000000000), f64_any(0x403e000000000000)].to_array().to_any(), string_any("at")).end_call(&rt, || Ok([bigint_any(1)].to_array().to_any())) }));
-    check_throws::<A>("object", scope(|| { Any::dot(Object::default().to_any(), string_any("at")).end_call(&rt, || Ok([f64_any(0x0000000000000000)].to_array().to_any())) }));
-    check_throws::<A>("number", scope(|| { Any::dot(f64_any(0x3ff0000000000000), string_any("at")).end_call(&rt, || Ok([f64_any(0x0000000000000000)].to_array().to_any())) }));
-    check::<A>("ownProperty", scope(|| { Any::dot([(string_key("at"), A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, [rt.clone()].to_array(), Some("()=>undefined")).to_any())].to_object().to_any(), string_any("at")).end_call(&rt, || Ok([f64_any(0x0000000000000000)].to_array().to_any())) }), Nullish::Undefined.to_any());
-    check::<A>("stringFirst", scope(|| { Any::dot(string_any("abc"), string_any("at")).end_call(&rt, || Ok([f64_any(0x0000000000000000)].to_array().to_any())) }), string_any("a"));
+    check_throws::<A>("object", scope(|| { Any::dot(Object::default().to_any(), string_any("at")).end_call(&rt, || Ok([f64_any(0x0)].to_array().to_any())) }));
+    check_throws::<A>("number", scope(|| { Any::dot(f64_any(0x3ff0000000000000), string_any("at")).end_call(&rt, || Ok([f64_any(0x0)].to_array().to_any())) }));
+    check::<A>("ownProperty", scope(|| { Any::dot([(string_key("at"), A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, [rt.clone()].to_array(), Some("()=>undefined")).to_any())].to_object().to_any(), string_any("at")).end_call(&rt, || Ok([f64_any(0x0)].to_array().to_any())) }), Nullish::Undefined.to_any());
+    check::<A>("stringFirst", scope(|| { Any::dot(string_any("abc"), string_any("at")).end_call(&rt, || Ok([f64_any(0x0)].to_array().to_any())) }), string_any("a"));
     check::<A>("stringFromTheEnd", scope(|| { Any::dot(string_any("abc"), string_any("at")).end_call(&rt, || Ok([f64_any(0xbff0000000000000)].to_array().to_any())) }), string_any("c"));
     check::<A>("stringPastTheEnd", scope(|| { Any::dot(string_any("abc"), string_any("at")).end_call(&rt, || Ok([f64_any(0x4008000000000000)].to_array().to_any())) }), Nullish::Undefined.to_any());
     check::<A>("stringBeforeTheStart", scope(|| { Any::dot(string_any("abc"), string_any("at")).end_call(&rt, || Ok([f64_any(0xc010000000000000)].to_array().to_any())) }), Nullish::Undefined.to_any());
     check::<A>("stringNoArgument", scope(|| { Any::dot(string_any("abc"), string_any("at")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("a"));
-    check::<A>("stringEmpty", scope(|| { Any::dot(string_any(""), string_any("at")).end_call(&rt, || Ok([f64_any(0x0000000000000000)].to_array().to_any())) }), Nullish::Undefined.to_any());
-    check::<A>("stringCodeUnit", scope(|| { Any::dot(string_any("😀"), string_any("at")).end_call(&rt, || Ok([f64_any(0x0000000000000000)].to_array().to_any())) }), string_any_utf16(&[0xd83d]));
+    check::<A>("stringEmpty", scope(|| { Any::dot(string_any(""), string_any("at")).end_call(&rt, || Ok([f64_any(0x0)].to_array().to_any())) }), Nullish::Undefined.to_any());
+    check::<A>("stringCodeUnit", scope(|| { Any::dot(string_any("😀"), string_any("at")).end_call(&rt, || Ok([f64_any(0x0)].to_array().to_any())) }), string_any_utf16(&[55357]));
     check_throws::<A>("stringBigint", scope(|| { Any::dot(string_any("abc"), string_any("at")).end_call(&rt, || Ok([bigint_any(0)].to_array().to_any())) }));
 }

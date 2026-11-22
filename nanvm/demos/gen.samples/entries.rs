@@ -10,6 +10,6 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let _b1: Any<A> = [(string_key("n"), string_any("newline")), (string_key("t"), string_any("tab"))].to_object().to_any();
     Ok([(string_key("default"), A::static_function(|_self, _args| {
         let _b468: Any<A> = _args.rest(0).to_any();
-        Any::call(A::frame(_self)[0].clone(), [A::frame(_self)[1].clone(), (Any::dot([string_any("n"), string_any("x")].to_array().to_any(), (Any::number((Any::dot(_b468.clone(), f64_any(0x0000000000000000)).end())?))?).end())?].to_array().to_any())
+        Any::call(A::frame(_self)[0].clone(), [A::frame(_self)[1].clone(), (Any::dot([string_any("n"), string_any("x")].to_array().to_any(), (Any::number((Any::dot(_b468.clone(), f64_any(0x0)).end())?))?).end())?].to_array().to_any())
     }, 0, [_b0.clone(), _b1.clone()].to_array(), Some("(...$2)=>$0($1,[\"n\",\"x\"][Number($2[0])])")).to_any())].to_object().to_any())
 }

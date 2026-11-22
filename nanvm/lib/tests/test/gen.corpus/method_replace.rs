@@ -22,7 +22,7 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("functionMatch", scope(|| {
         Any::dot(string_any("aXb"), string_any("replace")).end_call(&rt, || Ok([string_any("X"), A::static_function(|_self, _args| {
             let _b92: Any<A> = _args.rest(0).to_any();
-            Any::dot(_b92.clone(), f64_any(0x0000000000000000)).end()
+            Any::dot(_b92.clone(), f64_any(0x0)).end()
         }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0]")).to_any()].to_array().to_any()))
     }), string_any("aXb"));
     check::<A>("undefinedPattern", scope(|| { Any::dot(string_any("aundefinedb"), string_any("replace")).end_call(&rt, || Ok([Nullish::Undefined.to_any(), string_any("-")].to_array().to_any())) }), string_any("a-b"));
@@ -31,7 +31,7 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("undefinedAnswer", scope(|| {
         Any::dot(string_any("aXb"), string_any("replace")).end_call(&rt, || Ok([string_any("X"), A::static_function(|_self, _args| {
             let _b132: Any<A> = _args.rest(0).to_any();
-            Any::dot((Any::dot(_b132.clone(), f64_any(0x0000000000000000)).end())?, string_any("x")).end()
+            Any::dot((Any::dot(_b132.clone(), f64_any(0x0)).end())?, string_any("x")).end()
         }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0].x")).to_any()].to_array().to_any()))
     }), string_any("aundefinedb"));
 }
