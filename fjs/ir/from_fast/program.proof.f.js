@@ -1188,6 +1188,12 @@ export const proof = {
         assertEq(program('export const f = a => a.every((...xs) => xs)').includes('loop E'), false)
         assertEq(program('export const f = () => (1.5).every(x => x)').includes('loop E'), false)
         assertEq(program('export const f = a => a.at(x => x)').includes('loop E'), false)
+        // A callback that answers a record, which no condition reads, is L1's call.
+        for (const m of ['every', 'filter']) {
+            const text = program(`export const f = a => a.${m}((x, i) => ({ i }))`)
+            assertEq(text.includes('loop E') || text.includes('loop F'), false)
+            assertEq(text.includes(`l1.${m}(`), true)
+        }
         // A throw in `filter`'s callback would leave its mask's builder behind.
         assertEq(assertError(over({}, 'export const f = a => a.filter(x => { throw x })', programRuntime)), "f: a throw inside a callback of buildArray or buildObject is not in this slice: it would leave the builder of F0, which is linear, behind")
         // A receiver of no `any` is read and called as any callee is.

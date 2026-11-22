@@ -1380,9 +1380,11 @@ const boxedFor = (scope, name, xs) => {
  * L1's call. The callback's item, index and array stand for its
  * parameters, and what it answers is read as JavaScript reads a
  * condition. A `throw` inside `filter`'s is refused, as it would leave the
- * builder of its mask behind.
+ * builder of its mask behind. A callback whose answer is no `bool` once it
+ * is read as a condition, a record say, is not inlined: the answer is
+ * `null`, and the call is L1's.
  *
- * @type {(lowerValue: _LowerValue, s: _Scope, name: string, f: FastFunction, o: Term, held: readonly string[], slow: (s: _Scope, y: Term) => Result<Term, string>) => Result<Term, string>}
+ * @type {(lowerValue: _LowerValue, s: _Scope, name: string, f: FastFunction, o: Term, held: readonly string[], slow: (s: _Scope, y: Term) => Result<Term, string>) => Result<Term, string> | null}
  */
 const inlinedCallback = (lowerValue, s, name, f, o, held, slow) => {
     const building = name === 'filter'
@@ -1399,6 +1401,8 @@ const inlinedCallback = (lowerValue, s, name, f, o, held, slow) => {
     const body = inlineTerms(lowerValue, inner, f, [get(v.x), get(v.i), get(a)].slice(0, f.parameters.length), local(inner))
     if (body[0] === 'error') { return body }
     const test = condition(inner, body[1])
+    const tested = typeOf(inner.ir)(test)
+    if (tested[0] === 'error' || !equal(tested[1], bool)) { return null }
     const arm = building ? filterLoops(label, get(a), test) : call('Any', 'from_bool', [everyLoop(label, get(a), test)])
     const rest = held.filter(k => k !== 'array')
     if (rest.length === 0) { return ok(match(o, [[['array'], a, arm]])) }
@@ -1446,7 +1450,8 @@ const methodCall = (lowerValue, scope, receiver, name, items) => {
         })
         const f = v instanceof Array && v[0] === 'function' ? v[1] : null
         if (f !== null && (name === 'every' || name === 'filter') && f.rest === null && f.self === null && f.parameters.length <= 3 && isAny(t[1]) && held.includes('array')) {
-            return inlinedCallback(lowerValue, s, name, f, o, held, then)
+            const inlined = inlinedCallback(lowerValue, s, name, f, o, held, then)
+            if (inlined !== null) { return inlined }
         }
         return quiet ? then(s, o) : pure(s, call('self', 'l1.requireObjectCoercible', [o]), then)
     })
