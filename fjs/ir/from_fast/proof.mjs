@@ -1804,7 +1804,9 @@ export const proof = {
         const pairs = two(values, values)
         // The receivers of `every` and `filter`: arrays, and values of each
         // other kind; and callbacks, the last of them no function.
+        /** @type {readonly unknown[]} */
         const lists = [[], [1, 'a', 0, null], [[], ''], ...values]
+        /** @type {readonly unknown[]} */
         const callbacks = [f, (/** @type {unknown} */ x) => x, () => 0, (/** @type {unknown} */ _, /** @type {number} */ i) => i % 2, 1]
         // `divide` may abandon what it holds when `Native.bigintDivide` throws
         // for a zero divisor, as in `l1ArithRun`.
