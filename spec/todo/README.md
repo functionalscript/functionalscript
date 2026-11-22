@@ -20,7 +20,7 @@ successful-result agreement, purity and indistinguishable execution failures.
 tracks the current and proposed P1 violations and their root-cause corrections.
 These rules apply at every stage, regardless of a feature's priority below.
 
-[Value identity](./value-identity.md) proposes allowing equal-content allocations to share identity and recognizing a portable structural-equality instruction. The existing compatibility rules apply pending a design decision.
+[Value identity](./value-identity.md) proposes explicit identity nondeterminism on non-CAVMs, ordered structural equality with function references, and full content identity on the CAVM. The existing compatibility rules apply pending a design decision.
 
 [Refused constructs](./refused-constructs.md) lists the valid JavaScript the
 compiler refuses, and why.
