@@ -1406,7 +1406,7 @@ const inlinedCallback = (lowerValue, s, name, f, o, held, slow) => {
     return mapOk(/** @type {(y: Term) => Term} */ (y => match(o, [[['array'], a, arm], [null, other, y]])))(r)
 }
 
-/** The methods that L1 has an operation for, each called with one argument: `o.name(x)` is `l1.name(o, x)`. */
+/** The methods that L1 has an operation for, each called with one argument: `o.name(x)` is `l1.name(o, x)`. @type {readonly string[]} */
 const methods = ['charCodeAt', 'at', 'every', 'filter']
 
 /**
@@ -1430,6 +1430,7 @@ const methodCall = (lowerValue, scope, receiver, name, items) => {
         if (t[0] === 'error') { return t }
         const o = asAny(t[1], x)
         // A binding of no FAST binding stands for the receiver, read once.
+        /** @type {BindingId} */
         const id = { index: -1 }
         if (o === null) { return valueCall(lowerValue, standsFor(s, id, ['term', x]), ['.', ['ref', id], name], items) }
         const [v] = items
@@ -1670,6 +1671,7 @@ const guarded = (lowerValue, scope, receiver, key, step) => {
         const undefined_ = constant('Any', 'undefined')
         if (others.length === 0) { return ok(undefined_) }
         // A binding of no FAST binding stands for the receiver where it is no `undefined` or `null`.
+        /** @type {BindingId} */
         const id = { index: -1 }
         /** @type {Value} */
         const first = ['.', ['ref', id], key]
