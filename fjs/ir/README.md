@@ -590,6 +590,12 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   on NaNVM's `.wasm` went from 1.37 s to 0.66 s. `===` of two values of
   `any` calls L1 alone. The path is
   [`from_fast/numbers`](./from_fast/numbers/module.f.js).
+- **A boxed number literal is made once**: a program's functions read
+  each number that they box as `any`, as `l1.strictEquals(x, 1)` does on
+  the slow path, from a constant of the module, `#n0` first, which `init`
+  boxes once, instead of a `from_f64` and a `drop` at each use. The pass
+  is [`from_fast/literals`](./from_fast/literals/module.f.js), and runs
+  last.
 - **A read of a split local is that local**: the records pass writes no
   `let` for a `let` of a read of a split object, so the lifetime pass
   copies nothing for it.
