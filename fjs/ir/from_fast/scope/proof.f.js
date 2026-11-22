@@ -3,7 +3,7 @@
  * names, and the binding of terms that do something, in order.
  *
  * @import { Result } from '../../../types/result/types.ts'
- * @import { Value } from '../../../js/ast/types.ts'
+ * @import { BindingId, Value } from '../../../js/ast/types.ts'
  * @import { Param, Term } from '../../types.ts'
  * @import { _Scope } from '../private.ts'
  */
@@ -63,7 +63,7 @@ export const proof = {
         assertEq(getOf(empty), null)
     },
     standsFor: () => {
-        const id = { index: 0 }
+        const id = /** @type {BindingId} */ ({ index: 0 })
         assertStructurallySame(standsFor(empty, id, ['local', 'a']).bindings, [[id, ['local', 'a']]])
     },
     isPure: () => {
