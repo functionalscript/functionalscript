@@ -217,7 +217,20 @@ export const proof = {
             'export f',
             '',
         ].join('\n'))
-        // Where `get` is the program's own, not L1's, `.length` is its call for every kind.
+        // Where `get` is the program's own, not L1's, `.length` and a number-key read are its call for every kind.
+        assertEq(ownGet('export const get = (a, k) => a\nexport const f = a => a[0]'), [
+            'const #n0: any.only(number) =',
+            '    Any.from_f64(0.0)',
+            '',
+            'fn f(p0: any) -> any =',
+            '    get(p0, self.#n0)',
+            '',
+            'fn get(p0: any, p1: any) -> any =',
+            '    p0',
+            '',
+            'export f, get',
+            '',
+        ].join('\n'))
         assertEq(ownGet('export const get = (a, k) => a\nexport const f = a => a.length'), [
             'fn f(p0: any) -> any =',
             '    get(p0, "length")',
