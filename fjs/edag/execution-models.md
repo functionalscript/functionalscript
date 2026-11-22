@@ -22,9 +22,11 @@ discussion does not authorize a different successful answer.
 | [Content-addressable VM](#4-content-addressable-vm) | content identity | no |
 
 **Proposed identity contract.** The [value-identity proposal](../../spec/todo/value-identity.md)
-would permit fresh allocation, global memoization and full content identity.
-A global memoizer must honor permanent merges on every cache hit. The CAVM
-gives equal content one identity from the first observation.
+would allow an executor to share separately created, equal-content values.
+Portable programs should avoid depending on that choice. For example, fresh
+allocations can compare unequal on a JS-hosted interpreter and equal when a
+CAVM executes the serialized EDAG. A serialized boolean keeps its value.
+[Program and value outputs](../../spec/command-line/output.md#evaluation-and-projection)
 
 **Amnesia is a proof evaluator and does not conform to FJS identity semantics.**
 The example in [§1](#1-amnesia) reaches one shared array node twice. Amnesia
