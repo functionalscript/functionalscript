@@ -144,7 +144,9 @@ and the same data is a data segment in WebAssembly.
   statics.
 - [x] Share native string descriptors across literal values, property keys and runtime lookups.
 - [x] Emit big integer literals in native application output.
-- [ ] Emit arrays, objects and functions in the serializer.
+- [x] Emit native module-level arrays of primitive literals, preserving a distinct
+  descriptor per array literal site.
+- [ ] Extend array emission to composite items and emit objects and functions.
 - [ ] Have the Rust serializer write constants as statics.
 
 ### Related
