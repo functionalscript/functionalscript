@@ -36,6 +36,8 @@ export const proof = {
     nativeOwnership: () => {
         /** @type {Block['statements']} */
         const aliases = [['define', x, 1], ['define', y, ['ref', x]]]
+        const inspected = print([...aliases, ['define', rest, ['if', ['ref', y], yielding([['ref', x]]), yielding([null])]]], ['ref', rest])
+        assert(inspected.includes('if Any::<A>::to_boolean(&_b0) { _b0.clone() }'))
         const once = print([...aliases, ['define', rest, ['array', [['ref', y]]]]], ['ref', rest])
         assert(!once.includes('let _b1:'))
         assert(once.includes('[_b0].to_array()'))
@@ -137,7 +139,10 @@ export const proof = {
     },
     /** Inspection borrows the complete operand, including fallible and conditional expressions. */
     borrowedInspectionOperands: () => {
-        assertEq(text(['typeof', ['ref', x]], true), 'Any::typeof_(&_b0.clone())')
+        const supplied = unwrap(valueTagged(['typeof', ['ref', x]], options, [{ binding: x, text: 'supplied()', uses: [['vm', 'ToAny']] }], true))
+        assertEq(untagged(supplied[0]), 'Any::typeof_(&supplied())')
+        assertStructurallySame(supplied[1], [['vm', 'ToAny']])
+        assertEq(text(['typeof', ['ref', x]], true), 'Any::typeof_(&_b0)')
         assertEq(text(['typeof', ['Number', null]], true), 'Any::typeof_(&(Any::number(Nullish::Null.to_any()))?)')
         assertEq(text(['typeof', ['if', true, yielding([1]), yielding([2])]], true),
             'Any::typeof_(&if Any::<A>::to_boolean(&true.to_any()) { f64_any(0x3ff0000000000000) } else { f64_any(0x4000000000000000) })')

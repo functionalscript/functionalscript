@@ -35,7 +35,7 @@ pub fn module<A: IStaticFunction>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let _b35: Any<A> = (static_read(&runtime, "Object.values"))?;
     let _b36: Any<A> = (strict_eq(_b0.clone(), _b35.clone()))?;
     let _b37: Any<A> = (static_read(&runtime, "Object.values"))?;
-    let _b38: Any<A> = (Any::typeof_(&_b37.clone()))?;
+    let _b38: Any<A> = (Any::typeof_(&_b37))?;
     let _b39: Any<A> = (static_read(&runtime, "Object.values"))?;
     let _b40: Any<A> = (Any::dot(_b39.clone(), string_any("length")).end())?;
     let _b41: Any<A> = (static_read(&runtime, "Object.values"))?;

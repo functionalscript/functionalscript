@@ -45,7 +45,7 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             '_loop44: while Any::<A>::to_boolean(&{
                 let _b3830: Any<A> = _b3829.clone();
                 let _b33: Any<A> = (Any::lt(_b3830.clone(), A::frame(_self)[0].clone()))?;
-                if Any::<A>::to_boolean(&_b33.clone()) { (Any::ge(_b3830.clone(), f64_any(0x0000000000000000)))? } else { _b33.clone() }
+                if Any::<A>::to_boolean(&_b33) { (Any::ge(_b3830.clone(), f64_any(0x0000000000000000)))? } else { _b33.clone() }
             }) {
                 let _b3676: Any<A> = _b3829.clone();
                 let _b3831: Any<A> = if Any::<A>::to_boolean(&(strict_eq((_b3676.clone() % f64_any(0x4000000000000000))?, f64_any(0x0000000000000000)))?) { (_b3676.clone() + f64_any(0x3ff0000000000000))? } else { (_b3676.clone() + f64_any(0x4008000000000000))? };
