@@ -8,19 +8,24 @@ use nanvm_lib::vm::{
 #[rustfmt::skip]
 #[allow(clippy::if_same_then_else)]
 pub fn module(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
-    static LITERAL_0: StaticString = StaticString(&[0x0076, 0x0065, 0x0072, 0x0079, 0x0020, 0x006c, 0x006f, 0x006e, 0x0067, 0x0020, 0x0073, 0x0074, 0x0072, 0x0069, 0x006e, 0x0067]);
-    static LITERAL_1: StaticString = StaticString(&[0x0064, 0x0065, 0x0066, 0x0061, 0x0075, 0x006c, 0x0074]);
-    static LITERAL_2: StaticString = StaticString(&[0x0064, 0x0065, 0x0066, 0x0061, 0x0075, 0x006c, 0x0074, 0x004b, 0x0065, 0x0079]);
-    static LITERAL_3: StaticString = StaticString(&[0x0069, 0x006e, 0x0074, 0x0065, 0x0067, 0x0065, 0x0072, 0x0073]);
-    static LITERAL_4: StaticBigInt = StaticBigInt { sign: nanvm_lib::sign::Sign::Positive, words: &[] };
-    static LITERAL_5: StaticBigInt = StaticBigInt { sign: nanvm_lib::sign::Sign::Negative, words: &[0x0000000000000001] };
-    static LITERAL_6: StaticBigInt = StaticBigInt { sign: nanvm_lib::sign::Sign::Positive, words: &[0x0000000000000002, 0x0000000000000001] };
-    static LITERAL_7: StaticString = StaticString(&[0x0073, 0x0061, 0x006d, 0x0065]);
-    static LITERAL_8: StaticString = StaticString(&[0x0073, 0x0074, 0x0061, 0x0074, 0x0069, 0x0063]);
-    static LITERAL_9: StaticString = StaticString(&[0x004f, 0x0062, 0x006a, 0x0065, 0x0063, 0x0074, 0x002e, 0x0069, 0x0073]);
-    let _b1: Any<A> = A::static_function(|_self, _args| { String::from_static(&LITERAL_0).to_any() + String::from_static(&LITERAL_0).to_any() }, 0, [runtime.clone()].to_array(), Some("()=>\"very long string\"+\"very long string\"")).to_any();
-    Ok([(String::from_static(&LITERAL_1), A::static_function(|_self, _args| { Any::call(A::frame(_self)[0].clone(), Array::default().to_any()) }, 0, [_b1.clone(), runtime.clone()].to_array(), Some("()=>$0()")).to_any()), (String::from_static(&LITERAL_2), A::static_function(|_self, _args| { Any::dot([(String::from_static(&LITERAL_1), String::from_static(&LITERAL_1).to_any())].to_object().to_any(), String::from_static(&LITERAL_1).to_any()).end() }, 0, [runtime.clone()].to_array(), Some("()=>{return {\"default\":\"default\"}.default;}")).to_any()), (String::from_static(&LITERAL_3), A::static_function(|_self, _args| { Ok([BigInt::from_static(&LITERAL_4).to_any(), BigInt::from_static(&LITERAL_5).to_any(), BigInt::from_static(&LITERAL_6).to_any(), BigInt::from_static(&LITERAL_6).to_any()].to_array().to_any()) }, 0, [runtime.clone()].to_array(), Some("()=>[0n,-1n,18446744073709551618n,18446744073709551618n]")).to_any()), (String::from_static(&LITERAL_7), A::static_function(|_self, _args| {
-        let _b10: Any<A> = (static_read_keys(&A::frame(_self)[0], String::from_static(&LITERAL_8), String::from_static(&LITERAL_9)))?;
-        Any::call(_b10.clone(), [String::from_static(&LITERAL_0).to_any(), String::from_static(&LITERAL_0).to_any()].to_array().to_any())
-    }, 0, [runtime.clone()].to_array(), Some("()=>{const $0=Object.is;return $0(\"very long string\",\"very long string\");}")).to_any())].to_object().to_any())
+    static LITERAL_0: StaticString = StaticString(&[0x0028, 0x0029, 0x003d, 0x003e, 0x0022, 0x0076, 0x0065, 0x0072, 0x0079, 0x0020, 0x006c, 0x006f, 0x006e, 0x0067, 0x0020, 0x0073, 0x0074, 0x0072, 0x0069, 0x006e, 0x0067, 0x0022, 0x002b, 0x0022, 0x0076, 0x0065, 0x0072, 0x0079, 0x0020, 0x006c, 0x006f, 0x006e, 0x0067, 0x0020, 0x0073, 0x0074, 0x0072, 0x0069, 0x006e, 0x0067, 0x0022]);
+    static LITERAL_1: StaticString = StaticString(&[0x0076, 0x0065, 0x0072, 0x0079, 0x0020, 0x006c, 0x006f, 0x006e, 0x0067, 0x0020, 0x0073, 0x0074, 0x0072, 0x0069, 0x006e, 0x0067]);
+    static LITERAL_2: StaticString = StaticString(&[0x0064, 0x0065, 0x0066, 0x0061, 0x0075, 0x006c, 0x0074]);
+    static LITERAL_3: StaticString = StaticString(&[0x0028, 0x0029, 0x003d, 0x003e, 0x0024, 0x0030, 0x0028, 0x0029]);
+    static LITERAL_4: StaticString = StaticString(&[0x0064, 0x0065, 0x0066, 0x0061, 0x0075, 0x006c, 0x0074, 0x004b, 0x0065, 0x0079]);
+    static LITERAL_5: StaticString = StaticString(&[0x0028, 0x0029, 0x003d, 0x003e, 0x007b, 0x0072, 0x0065, 0x0074, 0x0075, 0x0072, 0x006e, 0x0020, 0x007b, 0x0022, 0x0064, 0x0065, 0x0066, 0x0061, 0x0075, 0x006c, 0x0074, 0x0022, 0x003a, 0x0022, 0x0064, 0x0065, 0x0066, 0x0061, 0x0075, 0x006c, 0x0074, 0x0022, 0x007d, 0x002e, 0x0064, 0x0065, 0x0066, 0x0061, 0x0075, 0x006c, 0x0074, 0x003b, 0x007d]);
+    static LITERAL_6: StaticString = StaticString(&[0x0069, 0x006e, 0x0074, 0x0065, 0x0067, 0x0065, 0x0072, 0x0073]);
+    static LITERAL_7: StaticString = StaticString(&[0x0028, 0x0029, 0x003d, 0x003e, 0x005b, 0x0030, 0x006e, 0x002c, 0x002d, 0x0031, 0x006e, 0x002c, 0x0031, 0x0038, 0x0034, 0x0034, 0x0036, 0x0037, 0x0034, 0x0034, 0x0030, 0x0037, 0x0033, 0x0037, 0x0030, 0x0039, 0x0035, 0x0035, 0x0031, 0x0036, 0x0031, 0x0038, 0x006e, 0x002c, 0x0031, 0x0038, 0x0034, 0x0034, 0x0036, 0x0037, 0x0034, 0x0034, 0x0030, 0x0037, 0x0033, 0x0037, 0x0030, 0x0039, 0x0035, 0x0035, 0x0031, 0x0036, 0x0031, 0x0038, 0x006e, 0x005d]);
+    static LITERAL_8: StaticBigInt = StaticBigInt { sign: nanvm_lib::sign::Sign::Positive, words: &[] };
+    static LITERAL_9: StaticBigInt = StaticBigInt { sign: nanvm_lib::sign::Sign::Negative, words: &[0x0000000000000001] };
+    static LITERAL_10: StaticBigInt = StaticBigInt { sign: nanvm_lib::sign::Sign::Positive, words: &[0x0000000000000002, 0x0000000000000001] };
+    static LITERAL_11: StaticString = StaticString(&[0x0073, 0x0061, 0x006d, 0x0065]);
+    static LITERAL_12: StaticString = StaticString(&[0x0028, 0x0029, 0x003d, 0x003e, 0x007b, 0x0063, 0x006f, 0x006e, 0x0073, 0x0074, 0x0020, 0x0024, 0x0030, 0x003d, 0x004f, 0x0062, 0x006a, 0x0065, 0x0063, 0x0074, 0x002e, 0x0069, 0x0073, 0x003b, 0x0072, 0x0065, 0x0074, 0x0075, 0x0072, 0x006e, 0x0020, 0x0024, 0x0030, 0x0028, 0x0022, 0x0076, 0x0065, 0x0072, 0x0079, 0x0020, 0x006c, 0x006f, 0x006e, 0x0067, 0x0020, 0x0073, 0x0074, 0x0072, 0x0069, 0x006e, 0x0067, 0x0022, 0x002c, 0x0022, 0x0076, 0x0065, 0x0072, 0x0079, 0x0020, 0x006c, 0x006f, 0x006e, 0x0067, 0x0020, 0x0073, 0x0074, 0x0072, 0x0069, 0x006e, 0x0067, 0x0022, 0x0029, 0x003b, 0x007d]);
+    static LITERAL_13: StaticString = StaticString(&[0x0073, 0x0074, 0x0061, 0x0074, 0x0069, 0x0063]);
+    static LITERAL_14: StaticString = StaticString(&[0x004f, 0x0062, 0x006a, 0x0065, 0x0063, 0x0074, 0x002e, 0x0069, 0x0073]);
+    let _b1: Any<A> = A::function_with_text(|_self, _args| { String::from_static(&LITERAL_1).to_any() + String::from_static(&LITERAL_1).to_any() }, 0, [runtime.clone()].to_array(), Some(String::from_static(&LITERAL_0))).to_any();
+    Ok([(String::from_static(&LITERAL_2), A::function_with_text(|_self, _args| { Any::call(A::frame(_self)[0].clone(), Array::default().to_any()) }, 0, [_b1.clone(), runtime.clone()].to_array(), Some(String::from_static(&LITERAL_3))).to_any()), (String::from_static(&LITERAL_4), A::function_with_text(|_self, _args| { Any::dot([(String::from_static(&LITERAL_2), String::from_static(&LITERAL_2).to_any())].to_object().to_any(), String::from_static(&LITERAL_2).to_any()).end() }, 0, [runtime.clone()].to_array(), Some(String::from_static(&LITERAL_5))).to_any()), (String::from_static(&LITERAL_6), A::function_with_text(|_self, _args| { Ok([BigInt::from_static(&LITERAL_8).to_any(), BigInt::from_static(&LITERAL_9).to_any(), BigInt::from_static(&LITERAL_10).to_any(), BigInt::from_static(&LITERAL_10).to_any()].to_array().to_any()) }, 0, [runtime.clone()].to_array(), Some(String::from_static(&LITERAL_7))).to_any()), (String::from_static(&LITERAL_11), A::function_with_text(|_self, _args| {
+        let _b10: Any<A> = (static_read_keys(&A::frame(_self)[0], String::from_static(&LITERAL_13), String::from_static(&LITERAL_14)))?;
+        Any::call(_b10.clone(), [String::from_static(&LITERAL_1).to_any(), String::from_static(&LITERAL_1).to_any()].to_array().to_any())
+    }, 0, [runtime.clone()].to_array(), Some(String::from_static(&LITERAL_12))).to_any())].to_object().to_any())
 }

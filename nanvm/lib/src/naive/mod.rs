@@ -2,7 +2,10 @@ mod container;
 mod function;
 
 use crate::{
-    naive::{container::Container, function::Function},
+    naive::{
+        container::Container,
+        function::{Function, Text},
+    },
     sign::Sign,
     vm::{Any, Array, IVm, Property, StaticCode, Unpacked},
 };
@@ -40,9 +43,17 @@ impl IVm for Naive {
         frame: Array<Naive>,
         text: Option<&'static str>,
     ) -> crate::vm::Function<Naive> {
-        crate::vm::Function::new(Function::new(code, length, frame, text))
+        crate::vm::Function::new(Function::new(code, length, frame, text.map(Text::Utf8)))
     }
 
+    fn function_with_text(
+        code: StaticCode<Self>,
+        length: u32,
+        frame: Array<Self>,
+        text: Option<crate::vm::String<Self>>,
+    ) -> crate::vm::Function<Self> {
+        crate::vm::Function::new(Function::new(code, length, frame, text.map(Text::Vm)))
+    }
     fn frame(self_: &Function) -> &Array<Naive> {
         self_.frame()
     }
