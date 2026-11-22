@@ -173,6 +173,7 @@ import {
 import { native } from '../native/module.f.js'
 import { asAny, boolean, floats, inOrder, isAny, isFloat, nativeRow, numbered, numberPath, numberRow, numeric, primitive } from './numbers/module.f.js'
 import { records } from '../records/module.f.js'
+import { literals } from './literals/module.f.js'
 import { bindTerm, castCall, casts, getOf, isPure, isSpread, l1Of, linking, pure, refuse, settled, settledParts, standsFor, values } from './scope/module.f.js'
 import { link, linkedName, uses } from './link/module.f.js'
 import { show } from '../print/module.f.js'
@@ -2233,7 +2234,7 @@ export const lower = (signatures, runtime = null) => ({ statements, exit }, impo
     const [constants] = candidates.reduceRight(keep, [[], everything.flatMap(([, f]) => reads(f.body))])
     /** @type {Module} */
     const m = { imports: interfaces, constants, functions: everything, exports: lowered.map(([key]) => key) }
-    if (l1 === null) { return ok(m) }
-    // a program: L1's bodies linked in, then the objects that it only reads back split
-    return mapOk(records('l1.get'))(link(l1)(m))
+    if (l1 === null) { return ok(literals(m)) }
+    // a program: L1's bodies linked in, then the objects that it only reads back split, then its boxed numbers made once
+    return mapOk(x => literals(records('l1.get')(x)))(link(l1)(m))
 }
