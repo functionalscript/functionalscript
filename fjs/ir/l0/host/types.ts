@@ -5,6 +5,7 @@
  */
 
 import type { Kind } from '../../../wasm/runtime/l0/types.ts'
+import type { Host as NativeHost } from '../../native/host/types.ts'
 
 /**
  * The functions of the `fjs:l0` imports that [the interfaces of
@@ -50,13 +51,15 @@ export type View = {
  * result; a throw from the function keeps the value and traps.
  * `make_function` takes over a frame array and a text and makes a cell of
  * a JavaScript function that calls the module's code through the table
- * that `attach` gives, and `frame` answers a new cell of an item of the
- * frame of such a function. `throw` takes over a cell, keeps its
+ * that the host makes, which the module fills from `table_base`, and
+ * `frame` answers a new cell of an item of the frame of such a function. `throw` takes over a cell, keeps its
  * value and returns, so that the `unreachable` after its call traps.
  */
 export type Imports = {
     readonly memory: WebAssembly.Memory
     readonly data_base: WebAssembly.Global
+    readonly table: WebAssembly.Table
+    readonly table_base: WebAssembly.Global
     readonly make_string: (ptr: number, len: number) => bigint
     readonly undefined: WebAssembly.Global
     readonly null: WebAssembly.Global
@@ -112,8 +115,23 @@ export type Imports = {
  */
 export type Counting = {
     readonly imports: Imports
+    /** The handles of the first values, in their order. */
+    readonly first: readonly bigint[]
+    /**
+     * The `fjs:l1-native` imports of a host that has its own, as NaNVM
+     * does; a host without them gets the [JavaScript
+     * rows](../../native/host/module.mjs) over its cells.
+     */
+    readonly native?: NativeHost
     readonly has_thrown: () => 0 | 1
     readonly thrown: () => bigint
+    /**
+     * What a trap with nothing thrown said, of a host whose imports trap
+     * in WebAssembly, as NaNVM's do: the text of `e`, the engine's error,
+     * where the host kept it, and `e` where it did not. A host whose
+     * imports throw their reasons to JavaScript has none.
+     */
+    readonly trap?: (e: unknown) => unknown
     readonly recover: () => readonly (readonly [handle: bigint, count: number])[]
     readonly read: (h: bigint) => unknown
     /** A cell of `value`, counted once, which the caller owns; for a copy value, its constant's handle. */
@@ -127,6 +145,4 @@ export type Counting = {
     readonly keep: () => void
     readonly live: () => readonly (readonly [handle: bigint, count: number])[]
     readonly builders: () => readonly number[]
-    /** Give the host the module's table of code, which its `table` export is, before a function that `make_function` made is called. */
-    readonly attach: (table: WebAssembly.Table) => void
 }

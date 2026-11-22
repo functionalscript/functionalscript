@@ -43,11 +43,13 @@ Then Any's copy variants leave the counts of `undefined`, `null` and
 |[`check/owned`](./check/owned/module.f.js)|the owned-stage check: each owned value consumed once on every path    |
 |[`lifetime`](./lifetime/module.f.js)      |the lifetime pass: a module's plain stage to its owned stage           |
 |[`print`](./print/module.f.js)           |the IR as text, for review and golden proofs                           |
+|[`records`](./records/module.f.js)       |the records pass: an object only read back by its keys, split in locals|
 |[`wasm`](./wasm/module.f.js)             |the emitter, to the AST of [`fjs/media/wasm`](../media/wasm/README.md) |
 |[`from_fast`](./from_fast/README.md)      |the lowering from normalized FAST, with the types from a table         |
 |[`l0`](./l0/module.f.js)                 |the interfaces of L0 as data, and `any`, the type that they seal       |
 |[`l0/host`](./l0/host/module.f.js)        |the `fjs:l0` imports as the L0 view's functions, over handles          |
 |[`l0/host/count`](./l0/host/count/module.mjs)|a host of the `fjs:l0` imports that counts every value, for host proofs|
+|[`l0/host/nanvm`](./l0/host/nanvm/module.mjs)|NaNVM's `.wasm` as the host of the `fjs:l0` imports, for host proofs|
 |[`native`](./native/module.f.js)         |the interface of L1's native rows as data, `Native`                    |
 |[`native/host`](./native/host/module.mjs)|a JavaScript host for the `fjs:l1-native` imports, over L1's rows      |
 
@@ -487,8 +489,9 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   any`, and a frame of the captures that read values of the function
   around it. The code reads them by L0's new `Functions.frame(self, i)`,
   and its parameters as items of `#args`.
-- **The table is exported**: a module whose `code` terms fill its table
-  exports it as `table`, so the checker refuses an export of that name.
+- **The table was exported**: a module whose `code` terms fill its table
+  exported it as `table`, so the checker refused an export of that name,
+  until 12d imported it.
 - **The counting host's `make_function`** makes a JavaScript function that
   calls the module's code through that table, so `call` and JavaScript
   both call it, and its `frame` reads the frame.
@@ -510,6 +513,83 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
 - **L0 gains `Containers.key(o, i)`**: it borrows an object and answers the
   owned key of its property `i`, which a spread of an object copies.
 
+## What 12a adds
+
+- **NaNVM as the host**: [`nanvm/l0-wasm`](../../nanvm/l0-wasm/src/lib.rs)
+  is NaNVM's L0 ABI built as a `.wasm`, whose exports are a module's
+  `fjs:l0` imports, so a module calls NaNVM with no JavaScript between.
+  The [NaNVM host](./l0/host/nanvm/module.mjs) makes what NaNVM cannot
+  export: Any's constants and `data_base`, a region that NaNVM's
+  `reserve` gives. NaNVM runs a function's code index through an adapter
+  module, a `call_indirect` into a table that the loader fills from the
+  module's `table`, and a JavaScript function that a proof passes from an
+  index past it.
+- **Every host proof on NaNVM**: [`wasm/testlib.mjs`](./wasm/testlib.mjs)'s
+  `onHost` swaps the host that `run` makes, and
+  [`nanvm.test.mjs`](./l0/host/nanvm/nanvm.test.mjs) runs the emitter's,
+  the lifetime pass's, FAST's and the random proofs on NaNVM. NaNVM counts
+  handles, not references, so the judge there tells how many handles a call
+  left over, not which. CI runs it after it builds the `.wasm`.
+
+## What 12b adds
+
+- **A misuse's text on NaNVM**: NaNVM's `.wasm` keeps what a panic said,
+  which its `trap_text_length` and `trap_text_into` give, and the
+  [NaNVM host](./l0/host/nanvm/module.mjs)'s `trap` reads it, so the judge
+  compares a misuse's reason there, `l0.unit: not an index` say, as it
+  does on the counting host.
+
+## What 12c adds
+
+- **L1's native rows in Rust**: the eleven `fjs:l1-native` functions are
+  [NaNVM's](../../nanvm/lib/src/l0/abi/native.rs), computed by its own
+  operators over its handles, and exported by
+  [`nanvm/l0-wasm`](../../nanvm/l0-wasm/src/lib.rs), so on the NaNVM host
+  a module calls them with no JavaScript between.
+  [`nanvm.test.mjs`](./l0/host/nanvm/nanvm.test.mjs) compares them with
+  JavaScript on random floats, texts and bigints.
+
+## What 12d adds
+
+- **The imported table**
+  ([L0 design §5](../../doc/sasha-gil/wasm/l0-design.md#5-memory-and-table-made-by-the-loader-imported-by-both-modules)):
+  the loader makes the table of code, as it does the memory. A module that
+  imports an interface imports `table` and `table_base`, fills the table
+  from `table_base`, and says in `fjs.layout` how many entries it needs.
+  The NaNVM host's adapter calls into that same table, so nothing copies
+  it.
+
+## What the records pass adds
+
+- **Records of `any` stay records**
+  ([benchmark.md, lever 3](../../doc/sasha-gil/ir/benchmark.md#levers)):
+  after [the lowering](./from_fast/module.f.js) links L1, the
+  [records pass](./records/module.f.js) splits each object literal of
+  values of `any` that its function builds and only reads back by keys
+  that it has, a loop's state say, into a local for each value, so
+  nothing builds it and L1's `get` looks nothing up. An object that
+  leaves its function, is read by a key that it has not, or whose
+  values would move past something that does something stays one.
+  Hand-written IR in [its proofs](./records/proof.f.js), and programs run
+  on both hosts against JavaScript in
+  [`from_fast`'s host proof](./from_fast/proof.mjs).
+
+## What the number paths add
+
+- **A number is tested where it stands**
+  ([benchmark.md, next lever 1](../../doc/sasha-gil/ir/benchmark.md#levers)):
+  in a program, an arithmetic or relational operator of `any`, or of
+  `any` and a float, matches each `any` once against `number`, reads it
+  once with `to_f64`, and answers with the operator of the IR where all
+  are numbers, boxed with `from_f64` where it is a float. Only otherwise
+  does it call L1, where a float is boxed. `s.i < n` with `s.i` a float
+  is 2 L0 calls, not 8. An operand that may hold no number, a bigint or a
+  string say, calls L1 alone. The path is
+  [`from_fast/numbers`](./from_fast/numbers/module.f.js).
+- **A read of a split local is that local**: the records pass writes no
+  `let` for a `let` of a read of a split object, so the lifetime pass
+  copies nothing for it.
+
 ## What every slice refuses
 
 Everything else is refused with the function's name and the reason, never
@@ -527,14 +607,15 @@ a module that does not import the interface that makes it, an interface
 whose literals hold none of their type's variants, a constant that one
 ABI imports by the name of a function, or of a constant whose global holds
 another WASM value, a constant or a function named `memory` or `data_base`
-in the ABI of an interface that makes literals, an `own` parameter of a
+in the ABI of an interface that makes literals, or `table` or
+`table_base` in the first interface's ABI, an `own` parameter of a
 type that is not sealed,
 a counted type without both a `dup` and a `drop` of their shapes, a module
 whose owned stage does not consume each owned value once on every path, a
 value of a linear type that the lifetime pass would have to copy or drop,
 an interface that names a type, a function or a constant twice, a
 constant of a product or of `never`, two constants of one name, a function
-named `init`, an export named `table`, a constant that reads itself or one after it, directly or
+named `init`, a constant that reads itself or one after it, directly or
 through the functions that it calls, a constant that only borrows its
 value, a `br` to a loop that
 does not give each of its parameters, in their order, and a `trunc_sat` of

@@ -7,7 +7,7 @@ use super::*;
 /// runtime, of its own, but under `wasm32-wasip1` the tests share one
 /// thread.
 fn fresh() {
-    STATE.with_borrow_mut(|s| *s = State::new());
+    with(|s| *s = State::new());
 }
 
 /// A string, through the memory at `0`.
@@ -178,13 +178,59 @@ fn functions() {
     assert_eq!(text(g), UNDEFINED);
 }
 
+/// A host's code: `[code, frame[0], args]` for any index past the table.
+fn host_code(code: i32, self_: i64, args: i64) -> i64 {
+    array(&[from_f64(f64::from(code)), frame(self_, 0), dup(args)])
+}
+
+#[test]
+fn host_code_runs_every_index_past_the_table() {
+    fresh();
+    let code = add_code(first_and_args);
+    set_host_code(host_code);
+    let f = make_function(code, array(&[TRUE]), 0, UNDEFINED);
+    let g = make_function(7, array(&[NULL]), 0, UNDEFINED);
+    let args = array(&[]);
+    let r = call(f, args);
+    assert_eq!(length(r), 2);
+    let s = call(g, args);
+    let k = item(s, 0);
+    assert_eq!(to_f64(k), 7.0);
+    assert_eq!(item(s, 1), NULL);
+    for h in [r, s, k, args, f, g] {
+        drop(h);
+    }
+    assert_eq!(live(), 0);
+}
+
+#[test]
+fn bytes_of_a_host_buffer() {
+    fresh();
+    let s = make_string_of(&[0x61, 0xd800]);
+    let mut units = [0; 2];
+    read_units_into(s, 0, &mut units);
+    assert_eq!(units, [0x61, 0xd800]);
+    assert_eq!((alive(s), alive(UNDEFINED), alive(1 << 40)), (1, 1, 0));
+    let builder = begin_array(0);
+    assert_eq!(open_builders(), 1);
+    drop(seal(builder));
+    assert_eq!(open_builders(), 0);
+    let b = make_bigint_of(-1, &[5, 1]);
+    let mut words = [0; 2];
+    read_words_into(b, 0, &mut words);
+    assert_eq!((sign(b), words), (-1, [5, 1]));
+    drop(s);
+    drop(b);
+    assert_eq!(live(), 0);
+}
+
 #[test]
 fn texts_are_interned() {
     fresh();
     let code = add_code(first_and_args);
     let f = make_function(code, array(&[]), 0, string("() => 0"));
     let g = make_function(code, array(&[]), 0, string("() => 0"));
-    assert_eq!(STATE.with_borrow(|s| s.texts.len()), 1);
+    assert_eq!(with(|s| s.texts.len()), 1);
     drop(f);
     drop(g);
 }
@@ -222,7 +268,7 @@ fn a_throw_reaches_the_host() {
         let e = catch(|| call(c, args)).unwrap_err();
         assert_eq!(text_of(e), "boom");
         assert_eq!(has_thrown(), 0);
-        assert_eq!(STATE.with_borrow(|s| s.builders.count()), 0);
+        assert_eq!(with(|s| s.builders.count()), 0);
         drop(e);
         drop(args);
         // What the abandoned frames held is freed: nothing leaks.
@@ -429,7 +475,7 @@ fn recover_frees_only_the_inner_call() {
     })
     .unwrap();
     assert_eq!(to_f64(r), 7.0);
-    assert_eq!(STATE.with_borrow(|s| s.marks.len()), 0);
+    assert_eq!(with(|s| s.marks.len()), 0);
 }
 
 #[test]
@@ -438,4 +484,50 @@ fn recover_without_a_mark_frees_nothing() {
     let x = from_f64(1.0);
     recover();
     assert_eq!(to_f64(x), 1.0);
+}
+
+#[cfg(panic = "unwind")]
+#[test]
+fn recover_after_a_misuse_frees_since_the_mark() {
+    fresh();
+    let kept = from_f64(1.0);
+    enter();
+    let left = from_f64(2.0);
+    // A misuse traps with nothing thrown: what the call made is abandoned.
+    assert!(catch_unwind(|| concat(left, kept)).is_err());
+    assert_eq!(has_thrown(), 0);
+    recover();
+    assert_eq!((alive(kept), alive(left)), (1, 0));
+}
+
+// A read runs inside the state, so its trap must end the change.
+
+#[cfg(panic = "unwind")]
+#[test]
+fn a_trap_inside_a_read_leaves_the_state_usable() {
+    fresh();
+    let a = array(&[from_f64(1.0)]);
+    let s = string("ab");
+    assert!(catch_unwind(|| item(a, 5)).is_err());
+    assert!(catch_unwind(|| unit(s, 2)).is_err());
+    assert!(catch_unwind(|| concat(s, a)).is_err());
+    assert_eq!(length(a), 1);
+    assert_eq!(to_f64(item(a, 0)), 1.0);
+    assert_eq!(text_of(concat(s, s)), "abab");
+}
+
+#[test]
+#[should_panic(expected = "l0.concat: not a value")]
+fn concat_second_not_a_value() {
+    fresh();
+    let s = string("a");
+    concat(s, 99);
+}
+
+#[test]
+#[should_panic(expected = "l0.find: not a value")]
+fn find_first_not_a_value() {
+    fresh();
+    let s = string("a");
+    find(99, s);
 }

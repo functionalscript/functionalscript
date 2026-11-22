@@ -13,6 +13,7 @@ import { array, or, string } from '../../rtti/module.f.js'
 import { definedEntries } from '../../types/object/module.f.js'
 import { stepSchema, uses } from '../common/module.f.js'
 import { miseDevelop } from '../mise/module.f.js'
+import { nanvmWasmCommands } from '../rust/module.f.js'
 import { fromValues, values } from '../../types/set/module.f.js'
 import { compare as selfCompare, prepare as selfPrepare, writes as selfWrites } from '../self_compile/module.f.js'
 
@@ -56,6 +57,7 @@ const isEnvironmentSetup = step => isAction(step, 'jdx/mise-action')
 const checkId = (jobId, step) => {
     const run = command(step)
     return jobId === 'deno' || jobId === 'bun' ? 'suite'
+        : nanvmWasmCommands.some(c => c === run) ? undefined
         : run.startsWith('cargo ') ? 'rust'
         : run === 'node --test ./fjs/emergent_testing/js-only.mjs' || run === 'npm start t' ? 'suite'
         : run === 'tsc' ? 'tsc'

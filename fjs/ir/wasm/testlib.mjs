@@ -30,8 +30,9 @@
  * where both take as many parameters and, after the call's cells are
  * checked, answer the same or throw the same on each of a few probes, to
  * a depth of three functions that answer functions
- * ([slice 11b](../todo/slices.md)). The module's table, where it exports
- * one, is given to the host, whose `make_function` calls code through it.
+ * ([slice 11b](../todo/slices.md)). The host makes the module's table too,
+ * of as many entries as its `fjs.layout` asks for, and its
+ * `make_function` calls code through it.
  *
  * @module
  *
@@ -48,6 +49,38 @@ import { counting } from '../l0/host/count/module.mjs'
 import { fits, isOwn } from '../module.f.js'
 import { host as nativeHost } from '../native/host/module.mjs'
 import { emit } from './module.f.js'
+
+/**
+ * The host that `run` makes for each call: the counting host, unless
+ * `onHost` gives another for a while.
+ *
+ * @type {(values: readonly unknown[], data?: number, entries?: number) => Counting}
+ */
+let host = counting
+
+/** How many hosts `run` has made since `onHost` began. */
+let made = 0
+
+/**
+ * Runs `f` with `run` making its hosts with `h`, as the [NaNVM
+ * host](../l0/host/nanvm/module.mjs) does, and answers how many it made.
+ *
+ * @type {(h: (values: readonly unknown[], data?: number, entries?: number) => Counting, f: () => void) => number}
+ */
+export const onHost = (h, f) => {
+    const before = host
+    host = (values, data, entries) => {
+        made += 1
+        return h(values, data, entries)
+    }
+    made = 0
+    try {
+        f()
+        return made
+    } finally {
+        host = before
+    }
+}
 
 /** @type {(v: _Value) => v is _Any} */
 const isAny = v => typeof v === 'object'
@@ -275,7 +308,8 @@ const expect = f => {
 /**
  * What a call of a module answers: a value; a throw, whose value the host
  * keeps and which `thrown` hands over, the caller reading it and dropping
- * it; or a trap with nothing thrown, and what the engine threw for it.
+ * it; or a trap with nothing thrown, and what the host's `trap` tells of
+ * it, or else what the engine threw for it.
  *
  * @type {(f: () => _Value, h: Counting) => _Outcome}
  */
@@ -283,7 +317,7 @@ const outcome = (f, h) => {
     try {
         return ['ok', f()]
     } catch (e) {
-        if (h.has_thrown() === 0) { return ['trapped', e] }
+        if (h.has_thrown() === 0) { return ['trapped', h.trap === undefined ? e : h.trap(e)] }
         const t = h.thrown()
         const any = h.read(t)
         h.imports.drop(t)
@@ -338,14 +372,15 @@ const ulebs = bytes => {
 }
 
 /**
- * The bytes of data segments that a module's `fjs.layout` asks for, `0`
- * where it has none.
+ * What a module's `fjs.layout` asks for: the bytes of its data segments
+ * and the entries of its table, `0` each where it has none.
  *
- * @type {(m: WebAssembly.Module) => number}
+ * @type {(m: WebAssembly.Module) => { readonly data: number, readonly entries: number }}
  */
-export const dataOf = m => {
+export const layoutOf = m => {
     const [section] = WebAssembly.Module.customSections(m, 'fjs.layout')
-    return section === undefined ? 0 : ulebs(new Uint8Array(section))[0]
+    const [data = 0, , entries = 0] = section === undefined ? [] : ulebs(new Uint8Array(section))
+    return { data, entries }
 }
 
 /**
@@ -370,16 +405,15 @@ export const run = (m, twins, inputs, abandons = []) => {
     const bytes = new Uint8Array(write(emit(checked)))
     assert(WebAssembly.validate(bytes))
     const compiled = new WebAssembly.Module(bytes)
-    const data = dataOf(compiled)
+    const { data, entries } = layoutOf(compiled)
     for (const name of checked.exports) {
         const [, { params, result, fails }] = assertNotNullish(checked.functions.find(([k]) => k === name))
         const twin = assertNotNullish(twins[name], name)
         for (const xs of inputs[name] ?? product(params.map(([, t]) => edges(t)))) {
             const values = xs.flatMap(v => isAny(v) ? [v.any] : [])
-            const h = counting(values, data)
-            const { exports } = new WebAssembly.Instance(compiled, { 'fjs:l0': h.imports, 'fjs:l1-native': nativeHost(h.read, h.own, h.fail) })
-            const { init, table } = exports
-            if (table instanceof WebAssembly.Table) { h.attach(table) }
+            const h = host(values, data, entries)
+            const { exports } = new WebAssembly.Instance(compiled, { 'fjs:l0': h.imports, 'fjs:l1-native': h.native ?? nativeHost(h.read, h.own, h.fail) })
+            const { init } = exports
             if (typeof init === 'function') { init() }
             h.keep()
             const f = exports[name]
@@ -387,7 +421,7 @@ export const run = (m, twins, inputs, abandons = []) => {
             /** @type {(v: _Value, k: number) => unknown} */
             const arg = (v, k) => {
                 if (!isAny(v)) { return toHost(params[k][1], v) }
-                const handle = BigInt(xs.slice(0, k).filter(isAny).length)
+                const handle = h.first[xs.slice(0, k).filter(isAny).length]
                 // a parameter that owns its argument takes a count of its own, and the caller keeps the one it holds
                 return isOwn(params[k]) ? h.imports.dup(handle) : handle
             }

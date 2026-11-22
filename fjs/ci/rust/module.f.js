@@ -111,6 +111,17 @@ const wasmTargetCommands = target =>
         ]
 
 /**
+ * NaNVM built as the `.wasm` that exports `fjs:l0`, then the IR's host
+ * proofs run on it ([slice 12](../../ir/todo/slices.md)). They read both
+ * Rust and JavaScript, which no one rung's inputs cover, so they run
+ * uncached, after the JavaScript proofs on ARM Linux.
+ */
+export const nanvmWasmCommands = /** @type {const} */ ([
+    'cargo build -p nanvm-l0-wasm --release --target wasm32-unknown-unknown',
+    'node --test ./fjs/ir/l0/host/nanvm/nanvm.test.mjs',
+])
+
+/**
  * Native checks, plus i686 on Intel Linux and formatting/WASM on ARM Linux.
  * @type {(v: Os, a: Architecture) => readonly string[]}
  */

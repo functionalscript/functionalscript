@@ -20,7 +20,57 @@ fn array_index_value<A: IVm>(k: &String<A>) -> Option<u32> {
     string_to_index(k).filter(|&n| n != u32::MAX)
 }
 
+/// The most properties that [`Object::lists_own_entries`] checks in place:
+/// it compares each key that is no array index with every key before it,
+/// so a larger object takes the copy instead.
+const IN_PLACE: u32 = 16;
+
 impl<A: IVm> Object<A> {
+    /// Whether the property list, as it was written, already is
+    /// [`Object::own_entries`]: each key once, array-index keys first and
+    /// ascending, so a read by position or by key reads it in place, with
+    /// no copy. `false` where it is not, or where it has more than
+    /// [`IN_PLACE`] properties, for the copy. An object built by L0's
+    /// `seal` always is.
+    ///
+    /// ```
+    /// use nanvm_lib::{naive::Naive, vm::{Object, ToAny, ToObject}};
+    /// let of = |keys: &[&str]| -> Object<Naive> {
+    ///     keys.iter().map(|k| ((*k).into(), true.to_any())).collect::<Vec<_>>().to_object()
+    /// };
+    /// assert!(of(&["1", "2", "b", "a"]).lists_own_entries());
+    /// assert!(!of(&["2", "1"]).lists_own_entries());
+    /// assert!(!of(&["b", "1"]).lists_own_entries());
+    /// assert!(!of(&["b", "a", "b"]).lists_own_entries());
+    /// assert!(!of(&["1", "1"]).lists_own_entries());
+    /// ```
+    pub fn lists_own_entries(&self) -> bool {
+        let n = self.length();
+        if n > IN_PLACE {
+            return false;
+        }
+        let mut last: Option<u32> = None;
+        let mut other = false;
+        for i in 0..n {
+            let k = &self[i].0;
+            match array_index_value(k) {
+                Some(v) => {
+                    if other || last.is_some_and(|l| l >= v) {
+                        return false;
+                    }
+                    last = Some(v);
+                }
+                None => {
+                    if (0..i).any(|j| self[j].0 == *k) {
+                        return false;
+                    }
+                    other = true;
+                }
+            }
+        }
+        true
+    }
+
     /// The own enumerable string-keyed entries, as `[[OwnPropertyKeys]]`
     /// lists them: each key once, holding its *last* value at its *first*
     /// position, array-index keys first, ascending by value, then every

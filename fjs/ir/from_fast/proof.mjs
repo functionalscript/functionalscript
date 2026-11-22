@@ -79,6 +79,7 @@ import * as builds from './builds.f.js'
 import * as closures from './closures.f.js'
 import * as spreads from './spreads.f.js'
 import * as programs from './programs.f.js'
+import * as records from './records.f.js'
 import {
     arrays as arraySignatures, builds as buildSignatures, constants as constantSignatures, helpers as helperSignatures,
     l1, l1Arith, l1Builders, l1Coerce, l1Get, l1Iterable, l1Runtime, l1Throws, l1Whole, literals as literalSignatures,
@@ -153,6 +154,9 @@ const plainL1 = () => fromText(new URL('../../wasm/runtime/l1/module.f.js', impo
 
 /** The owned stage of the programs, which no table types, with the bodies of L1 that they reach linked in. @type {() => Module} */
 const fromPrograms = () => assertOk(lifetime(fromText(new URL('./programs.f.js', import.meta.url), {}, { ...l1Runtime(errors), l1: plainL1() })))
+
+/** The programs of the records pass, lowered as the programs are. @type {() => Module} */
+const fromRecords = () => assertOk(lifetime(fromText(new URL('./records.f.js', import.meta.url), {}, { ...l1Runtime(errors), l1: plainL1() })))
 
 /** The closures of slice 11b, lowered as the programs are. @type {() => Module} */
 const fromClosures = () => assertOk(lifetime(fromText(new URL('./closures.f.js', import.meta.url), {}, { ...l1Runtime(errors), l1: plainL1() })))
@@ -1807,7 +1811,19 @@ export const proof = {
     // function of two arguments, and throws L1's value of the error that
     // JavaScript throws. A throw of L1 leaves what the caller made for it
     // behind, a boxed key or number, which the host recovers.
-    programsRun: () => runPrograms(fromPrograms(), programs, ['apply', 'called', 'first', 'method', 'mixed', 'pair', 'sum3', 'twice']),
+    programsRun: () => runPrograms(fromPrograms(), programs, ['apply', 'called', 'countDown', 'first', 'method', 'mixed', 'pair', 'sum3', 'twice']),
+    // The records pass: the objects that a program only reads back by keys
+    // that they have are split, so no function that reads one back builds
+    // it, and every other object stays one.
+    records: () => {
+        const m = fromRecords()
+        /** @type {(name: string) => string} */
+        const text = name => print({ ...m, imports: [], functions: m.functions.filter(([k]) => k === name) })
+        for (const name of ['pair', 'counted', 'both', 'nested', 'chosen']) { assert(!text(name).includes('begin_object'), name) }
+        for (const name of ['whole', 'missing', 'twice', 'given', 'reordered', 'kept']) { assert(text(name).includes('begin_object'), name) }
+    },
+    // Each answers what JavaScript answers, split or not.
+    recordsRun: () => runPrograms(fromRecords(), records, ['both', 'counted', 'given', 'kept', 'reordered']),
     // Slice 11b: every export of the closures, and the lifted code of each
     // function that they make as a value, `(#self, #args) -> any`, which reads
     // its frame through `#self`.

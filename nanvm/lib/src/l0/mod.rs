@@ -16,7 +16,9 @@
 //! An object answers its properties as [`Object::own_entries`] lists them:
 //! each key once, array-index keys first, as a JavaScript host and the
 //! FunctionalScript view do. NaNVM keeps an object's properties as they
-//! were written, so a read computes that view each time.
+//! were written, so a read reads them in place where they already are that
+//! view ([`Object::lists_own_entries`]), as an object that `seal` built
+//! always is, and computes the view otherwise.
 
 pub mod abi;
 
@@ -241,7 +243,7 @@ pub fn concat<A: IVm>(a: &Any<A>, b: &Any<A>) -> Any<A> {
     let a = as_string("concat", a);
     let b = as_string("concat", b);
     fits("concat", u64::from(a.length()) + u64::from(b.length()));
-    a.index_iter().chain(b.index_iter()).to_string().to_any()
+    a.concat(&b).to_any()
 }
 
 /// L0 `substring`: the units of `s` from `start` up to `end`, where
@@ -365,6 +367,7 @@ pub fn length<A: IVm>(v: &Any<A>) -> u32 {
         Unpacked::String(s) => s.length(),
         Unpacked::BigInt(b) => b.length(),
         Unpacked::Array(a) => a.length(),
+        Unpacked::Object(o) if o.lists_own_entries() => o.length(),
         Unpacked::Object(o) => o.own_entries().len() as u32,
         Unpacked::Function(f) => f.length(),
         _ => trap(
@@ -390,6 +393,9 @@ pub fn key<A: IVm>(o: &Any<A>, i: u32) -> Any<A> {
 }
 
 fn property<A: IVm>(name: &str, o: &Object<A>, i: u32) -> Property<A> {
+    if o.lists_own_entries() {
+        return o[index(name, i, o.length())].clone();
+    }
     let mut entries = o.own_entries();
     let i = index(name, i, entries.len() as u32);
     entries.swap_remove(i as usize)
@@ -400,6 +406,11 @@ fn property<A: IVm>(name: &str, o: &Object<A>, i: u32) -> Property<A> {
 pub fn find<A: IVm>(o: &Any<A>, key: &Any<A>) -> i32 {
     let o = as_object("find", o);
     let key = as_string("find", key);
+    if o.lists_own_entries() {
+        return (0..o.length())
+            .position(|i| o[i].0 == key)
+            .map_or(-1, |i| i as i32);
+    }
     o.own_entries()
         .iter()
         .position(|(k, _)| *k == key)

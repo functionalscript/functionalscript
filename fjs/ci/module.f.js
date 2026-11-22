@@ -24,6 +24,7 @@ import {
     ubuntuArm
 } from './common/module.f.js'
 import {
+    nanvmWasmCommands,
     rustPlatformSteps,
     shellRustCommands,
     shellRustVersionSteps,
@@ -74,6 +75,7 @@ const shellPlatformSteps = (rust, o, a) => [
         'npm ci',
         ...(rust ? shellRustCommands(o, a) : []),
         ...(a === 'arm' ? ['node --test ./fjs/emergent_testing/js-only.mjs'] : []),
+        ...(rust && o === 'ubuntu' && a === 'arm' ? nanvmWasmCommands : []),
     ]),
 ]
 

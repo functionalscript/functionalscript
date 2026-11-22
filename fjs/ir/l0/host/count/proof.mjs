@@ -17,6 +17,7 @@ import { write } from '../../../../media/wasm/binary/write/module.f.js'
 import { check } from '../../../check/module.f.js'
 import { add, bool, call, codeOf, f64, float, fn, get, if_, let_, lit, loop, lt, match, next, only, own, return_, throw_, u, unit } from '../../../module.f.js'
 import { emit } from '../../../wasm/module.f.js'
+import { layoutOf } from '../../../wasm/testlib.mjs'
 import { any, array, func, l0 } from '../../module.f.js'
 import { counting } from './module.mjs'
 
@@ -259,7 +260,8 @@ export const proof = {
     // A handle of no cell throws, and so does one whose cell a drop freed, units past the memory, a handle of no builder or of
     // a sealed one, a push past a builder's length, a seal of fewer items, a throw after a throw and `thrown` after none.
     // `call` of a non-function or non-array, `make_function` of a frame that is not an array or a text that is not a
-    // string, a call of its function before `attach`, and `frame` of a function that it did not make or past its frame,
+    // string, a call of its function at an index past the table or of no code, and `frame` of a function that it did not
+    // make or past its frame,
     // trap as misuse.
     throw: {
         none: () => { counting([]).read(0n) },
@@ -308,15 +310,14 @@ export const proof = {
             const h = counting([[], 1])
             h.imports.make_function(0, 0n, 0, 1n)
         },
-        detached: () => {
+        pastTable: () => {
             const h = counting([[]])
             const f = h.read(h.imports.make_function(0, 0n, 0, -1n))
             assert(typeof f === 'function')
             f()
         },
         noCode: () => {
-            const h = counting([[]])
-            h.attach(new WebAssembly.Table({ element: 'anyfunc', initial: 1 }))
+            const h = counting([[]], 0, 1)
             const f = h.read(h.imports.make_function(0, 0n, 0, -1n))
             assert(typeof f === 'function')
             f()
@@ -355,12 +356,15 @@ export const proof = {
         }))
         const bytes = new Uint8Array(write(emit(checked)))
         assert(WebAssembly.validate(bytes))
-        const h = counting([['a', 'b'], '(x, y) => b', [], ['x']])
-        const { exports } = new WebAssembly.Instance(new WebAssembly.Module(bytes), { 'fjs:l0': h.imports })
-        const { makeCaptured, makeFirst, makeBoom, table } = exports
+        const compiled = new WebAssembly.Module(bytes)
+        const { entries } = layoutOf(compiled)
+        assertEq(entries, 3)
+        const h = counting([['a', 'b'], '(x, y) => b', [], ['x']], 0, entries)
+        const { exports } = new WebAssembly.Instance(compiled, { 'fjs:l0': h.imports })
+        const { makeCaptured, makeFirst, makeBoom } = exports
         assert(typeof makeCaptured === 'function' && typeof makeFirst === 'function' && typeof makeBoom === 'function')
-        assert(table instanceof WebAssembly.Table)
-        h.attach(table)
+        // the module fills the host's table, and exports none
+        assert(exports.table === undefined && h.imports.table.get(0) !== null)
         h.keep()
         const c = makeCaptured(h.imports.dup(0n), h.imports.dup(1n))
         const f = makeFirst(h.imports.dup(2n), -1n)

@@ -1,0 +1,266 @@
+/**
+ * Proofs of the records pass: hand-written plain IR, the same IR again
+ * where an object that a function builds is only read back by its keys,
+ * as text, and the same text where something else keeps the object.
+ *
+ * @import { Fn, Term } from '../types.ts'
+ */
+
+import { assertEq } from '../../asserts/module.f.js'
+import { any, string } from '../l0/module.f.js'
+import { add, block, br, call, call_ref, codeOf, constant, f64, field, fn, get, if_, let_, lit, loop, make, match, n, next, trap, trunc_sat, u, variant } from '../module.f.js'
+import { print } from '../print/module.f.js'
+import { records } from './module.f.js'
+
+/** A string literal. @type {(s: string) => Term} */
+const s = v => lit(string, v)
+
+/** The calls that the lowering writes to build an object of these keys and values, before `seal`. @type {(pairs: readonly (readonly [string, Term])[]) => Term} */
+const pushes = pairs => pairs.reduce((b, [k, x]) => call('Containers', 'push_property', [b, s(k), x]), call('Containers', 'begin_object', [n(BigInt(pairs.length))]))
+
+/** An object of these keys and values, as the lowering builds one. @type {(pairs: readonly (readonly [string, Term])[]) => Term} */
+const object = pairs => match(call('Containers', 'seal', [pushes(pairs)]), [[['object'], 'o', get('o')], [null, null, trap('not object')]])
+
+/** A read of a key by the module's own `get`. @type {(x: Term, key: string) => Term} */
+const read = (x, key) => call('self', 'get', [x, s(key)])
+
+/** Something that does something. @type {(x: Term) => Term} */
+const effect = x => call('Any', 'effect', [x])
+
+/** A function of `any`s. @type {(body: Term) => Fn} */
+const f_ = body => fn([['a', any], ['b', any], ['c', any]], any, body)
+
+/** The text of a function after the pass. @type {(body: Term) => string} */
+const after = body => print({ imports: [], functions: records('get')({ imports: [], functions: [['f', f_(body)]], exports: [] }).functions, exports: [] })
+
+/** The pass writes the function as this text. @type {(body: Term, lines: readonly string[]) => void} */
+const golden = (body, lines) => assertEq(after(body), lines.map(line => `${line}\n`).join(''))
+
+/** The pass leaves the function as it is. @type {(body: Term) => void} */
+const same = body => assertEq(after(body), print({ imports: [], functions: [['f', f_(body)]], exports: [] }))
+
+const a = get('a')
+const b = get('b')
+const c = get('c')
+
+export const proof = {
+    splitLet: () => golden(
+        let_('r', object([['x', a], ['y', b]]), read(get('r'), 'y')),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    let r.x = a',
+            '    let r.y = b',
+            '    r.y',
+        ],
+    ),
+    direct: () => golden(
+        read(object([['x', a]]), 'x'),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    a',
+        ],
+    ),
+    impure: () => golden(
+        let_('r', object([['x', a], ['y', effect(b)]]), read(get('r'), 'x')),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    let r.x = a',
+            '    let r.y = Any.effect(b)',
+            '    r.x',
+        ],
+    ),
+    missing: () => same(let_('r', object([['x', a]]), read(get('r'), 'z'))),
+    arms: () => golden(
+        read(if_(c, object([['x', a]]), object([['x', b]])), 'x'),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    if c then a else b',
+        ],
+    ),
+    armBinder: () => golden(
+        read(match(c, [[['object'], 'q', object([['x', get('q')]])], [null, null, object([['x', b]])]]), 'x'),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    match c',
+            '      object as q =>',
+            '        q',
+            '      else =>',
+            '        b',
+        ],
+    ),
+    chainSplit: () => golden(
+        let_('s', let_('t', object([['a', a]]), object([['p', read(get('t'), 'a')]])), read(get('s'), 'p')),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    let s/t.a = a',
+            '    let s.p = s/t.a',
+            '    s.p',
+        ],
+    ),
+    chainKept: () => golden(
+        let_('s', let_('t', effect(a), object([['p', get('t')]])), read(get('s'), 'p')),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    let s/t = Any.effect(a)',
+            '    let s.p = s/t',
+            '    s.p',
+        ],
+    ),
+    alias: () => golden(
+        let_('r', object([['x', a]]), let_('q', get('r'), read(get('q'), 'x'))),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    let r.x = a',
+            '    let q.x = r.x',
+            '    q.x',
+        ],
+    ),
+    param: () => same(read(a, 'x')),
+    free: () => same(read(get('zz'), 'x')),
+    loopSplit: () => golden(
+        loop('L', [['s', any, object([['i', a], ['acc', b]])]], s_ => if_(read(s_, 'i'), next('L', [['s', object([['i', read(s_, 'acc')], ['acc', read(s_, 'i')]])]]), read(s_, 'acc'))),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    loop L (s.i: any = a, s.acc: any = b)',
+            '        if s.i then br L { s.i: s.acc, s.acc: s.i } else s.acc',
+        ],
+    ),
+    loopReorder: () => same(loop('L', [['s', any, object([['i', a], ['acc', b]])]], s_ => if_(read(s_, 'i'), next('L', [['s', object([['acc', read(s_, 'i')], ['i', read(s_, 'acc')]])]]), read(s_, 'acc')))),
+    loopTwo: () => golden(
+        loop('L', [['s', any, object([['i', a]])], ['k', any, effect(b)]], (s_, k) => if_(read(s_, 'i'), next('L', [['s', object([['i', k]])], ['k', k]]), read(s_, 'i'))),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    loop L (s.i: any = a, k: any = Any.effect(b))',
+            '        if s.i then br L { s.i: k, k: k } else s.i',
+        ],
+    ),
+    loopTwoPure: () => golden(
+        loop('L', [['s', any, object([['i', a]])], ['k', any, b]], (s_, k) => if_(read(s_, 'i'), next('L', [['k', effect(k)], ['s', object([['i', k]])]]), read(s_, 'i'))),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    loop L (s.i: any = a, k: any = b)',
+            '        if s.i then br L { k: Any.effect(k), s.i: k } else s.i',
+        ],
+    ),
+    loopKeep: () => same(loop('L', [['s', any, object([['i', a]])], ['k', any, b]], (s_, k) => if_(read(s_, 'i'), next('L', [['s', object([['i', k]])], ['k', k]]), s_))),
+    loopValue: () => same(let_('r', loop('L', [['s', any, object([['i', a]])]], s_ => s_), read(get('r'), 'i'))),
+    brOther: () => same(block('B', any, br('B', object([['x', a]])))),
+    brNotMake: () => same(loop('L', [['s', any, object([['i', a]])]], s_ => if_(read(s_, 'i'), br('L', get('m')), read(s_, 'i')))),
+    brField: () => golden(
+        loop('L', [['s', any, object([['i', a]])]], s_ => if_(read(s_, 'i'), next('L', [['s', object([['i', a]])], ['zz', object([['j', a]])]]), read(s_, 'i'))),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    loop L (s.i: any = a)',
+            '        if s.i',
+            '        then',
+            '            br L',
+            '                {',
+            '                    s.i: a,',
+            '                    zz:',
+            '                        match Containers.seal(Containers.push_property(Containers.begin_object(1), "j", a))',
+            '                          object as o =>',
+            '                            o',
+            '                          else =>',
+            "                            trap('not object')",
+            '                }',
+            '        else',
+            '            s.i',
+        ],
+    ),
+    opaqueDef: () => same(let_('r', effect(a), read(get('r'), 'x'))),
+    terms: () => golden(
+        let_('r', object([['x', a], ['y', b]]), make([
+        ['o', trunc_sat(u(8), read(get('r'), 'x'))], ['p', add(read(get('r'), 'y'), lit(f64, 1))], ['q', call_ref(codeOf('g'), [read(get('r'), 'x')])],
+        ['f', field(make([['k', read(get('r'), 'y')]]), 'k')], ['v', variant(any, 'v', read(get('r'), 'x'))], ['c', constant('self', 'k')], ['t', trap('t')],
+        ['b', block('B', any, read(get('r'), 'x'))], ['m', match(read(get('r'), 'y'), [[null, 'w', get('w')]])],
+      ])),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    let r.x = a',
+            '    let r.y = b',
+            '    {',
+            '        o: trunc_sat(u(8), r.x),',
+            '        p: add(r.y, 1.0 as f64),',
+            '        q: call_ref(code(g), r.x),',
+            '        f: { k: r.y }.k,',
+            '        v: v(r.x),',
+            '        c: self.k,',
+            "        t: trap('t'),",
+            '        b:',
+            '            block B: any',
+            '                r.x,',
+            '        m:',
+            '            match r.y',
+            '              else as w =>',
+            '                w',
+            '    }',
+        ],
+    ),
+    kept: () => same(let_('r', object([['x', a]]), object([['k', read(get('r'), 'x')], ['all', object([['x', get('r')]])]]))),
+    directImpure: () => same(read(object([['x', a], ['y', effect(b)]]), 'x')),
+    loopBad: () => same(loop('L', [['s', any, object([['i', effect(a)]])], ['k', any, effect(b)]], (s_, k) => if_(read(s_, 'i'), next('L', [['s', object([['i', k]])], ['k', k]]), read(s_, 'i')))),
+    brBad: () => same(loop('L', [['s', any, object([['i', a]])], ['k', any, b]], (s_, k) => if_(read(s_, 'i'), next('L', [['s', object([['i', effect(k)]])], ['k', effect(k)]]), read(s_, 'i')))),
+    notPushed: () => same(let_('r', match(call('Containers', 'seal', [get('m')]), [[['object'], 'o', get('o')], [null, null, trap('not object')]]), read(get('r'), 'x'))),
+    otherModule: () => same(let_('r', match(call('Containers', 'seal', [call('Any', 'push_property', [pushes([]), s('x'), a])]), [[['object'], 'o', get('o')], [null, null, trap('not object')]]), read(get('r'), 'x'))),
+    count: () => same(let_('r', match(call('Containers', 'seal', [call('Containers', 'push_property', [call('Containers', 'begin_object', [n(2n)]), s('x'), a])]), [[['object'], 'o', get('o')], [null, null, trap('not object')]]), read(get('r'), 'x'))),
+    otherCall: () => same(let_('r', match(call('Containers', 'seal', [call('Containers', 'push_item', [pushes([]), a])]), [[['object'], 'o', get('o')], [null, null, trap('not object')]]), read(get('r'), 'x'))),
+    keyed: () => same(let_('r', match(call('Containers', 'seal', [call('Containers', 'push_property', [pushes([]), b, a])]), [[['object'], 'o', get('o')], [null, null, trap('not object')]]), read(get('r'), 'x'))),
+    twice: () => same(let_('r', object([['x', a], ['x', b]]), read(get('r'), 'x'))),
+    readKey: () => same(let_('r', object([['x', a]]), call('self', 'get', [get('r'), b]))),
+    chosen: () => same(let_('r', if_(c, object([['x', a]]), match(b, [[null, 'w', object([['x', get('w')]])]])), read(get('r'), 'x'))),
+    unknownLabel: () => golden(
+        let_('r', object([['x', a]]), make([['x', read(get('r'), 'x')], ['z', br('Z', make([['k', a]]))], ['zz', get('zz')]])),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    let r.x = a',
+            '    { x: r.x, z: br Z { k: a }, zz: zz }',
+        ],
+    ),
+    brPlain: () => golden(
+        let_('r', object([['x', a]]), make([['x', read(get('r'), 'x')], ['l', loop('L', [['s', any, a]], () => br('L', get('m')))], ['b', block('B', any, br('B', a))]])),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    let r.x = a',
+            '    {',
+            '        x: r.x,',
+            '        l:',
+            '            loop L (s: any = a)',
+            '                br L m,',
+            '        b:',
+            '            block B: any',
+            '                br B a',
+            '    }',
+        ],
+    ),
+    dotted: () => golden(
+        let_('r', object([['p', object([['q', a]])], ['p.q', b], ['s/\\', c]]), make([['x', read(read(get('r'), 'p'), 'q')], ['y', read(get('r'), 'p.q')], ['z', read(get('r'), 's/\\')]])),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    let r.p.q = a',
+            '    let r.p\\.q = b',
+            '    let r.s\\/\\\\ = c',
+            '    { x: r.p.q, y: r.p\\.q, z: r.s\\/\\\\ }',
+        ],
+    ),
+    reservedLet: () => same(let_('r.x', a, read(object([['x', get('r.x')]]), 'x'))),
+    reservedLoop: () => same(loop('L', [['s/', any, a]], () => read(object([['x', a]]), 'x'))),
+    reservedArm: () => same(match(c, [[null, 'w\\', read(object([['x', a]]), 'x')]])),
+    aliased: () => golden(
+        let_('r', object([['x', a]]), let_('v', read(get('r'), 'x'), let_('w', get('b'), make([['v', get('v')], ['w', get('w')]])))),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    let r.x = a',
+            '    let w = b',
+            '    { v: r.x, w: w }',
+        ],
+    ),
+    nested: () => golden(
+        let_('r', object([['p', object([['q', a]])], ['k', b]]), read(read(get('r'), 'p'), 'q')),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    let r.p.q = a',
+            '    let r.k = b',
+            '    r.p.q',
+        ],
+    ),
+}

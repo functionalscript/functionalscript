@@ -701,7 +701,9 @@ const globalOf = (env, t) => {
  * the host's function, as the four `length`s do. The function that makes a
  * type's literals is a function of its interface's ABI here too, and that
  * ABI's `memory` and `data_base` are the loader's, so no constant or
- * function of the ABI has either name. The emitter imports a maker once
+ * function of the ABI has either name. So are `table` and `table_base` of
+ * the first interface's ABI, from which a module that holds code imports
+ * the loader's table. The emitter imports a maker once
  * for its ABI and its name, and it answers one WASM value, so two types
  * whose literals it makes are carried by that value.
  *
@@ -716,6 +718,9 @@ const shared = (env, imports) => {
     const cs = imports.flatMap(([module, { abi, constants = [] }]) => constants.map(([member, t]) => /** @type {const} */ ([`${module}.${member}`, abi, member, globalOf(env, t)])))
     const loader = [...fns.map(([name, abi, member]) => /** @type {const} */ ([`function ${name}`, abi, member])), ...cs.map(([name, abi, member]) => /** @type {const} */ ([`constant ${name}`, abi, member]))]
         .find(([, abi, member]) => (member === 'memory' || member === 'data_base') && makers.some(([, a]) => a === abi))
+    const first = imports.length === 0 ? null : imports[0][1].abi
+    const table = [...fns.map(([name, abi, member]) => /** @type {const} */ ([`function ${name}`, abi, member])), ...cs.map(([name, abi, member]) => /** @type {const} */ ([`constant ${name}`, abi, member]))]
+        .find(([, abi, member]) => (member === 'table' || member === 'table_base') && abi === first)
     const clash = cs.flatMap(([name, abi, member, w], j) => {
         const f = fns.find(([, a, m]) => a === abi && m === member)
         const c = cs.find(([, a, m, x], k) => k < j && a === abi && m === member && x !== null && w !== null && x !== w)
@@ -727,7 +732,9 @@ const shared = (env, imports) => {
         const other = makers.find(([, a, m, , x], k) => k < j && a === abi && m === member && x !== c)
         return other === undefined ? [] : [`the literals of ${other[3]}, carried by ${other[4]}, and of ${type}, carried by ${c}, are both made by the import ${member} of ${abi}, which answers one WASM value`]
     })
-    return loader !== undefined ? `the ${loader[0]} is the import ${loader[2]} of ${loader[1]}, which the loader gives a module that makes literals` : clash[0] ?? carried[0] ?? null
+    return loader !== undefined ? `the ${loader[0]} is the import ${loader[2]} of ${loader[1]}, which the loader gives a module that makes literals`
+        : table !== undefined ? `the ${table[0]} is the import ${table[2]} of ${table[1]}, which the loader gives a module that holds code`
+        : clash[0] ?? carried[0] ?? null
 }
 
 /**
@@ -937,7 +944,6 @@ export const checkPlain = m => {
     if (missing !== undefined) { return error(`no function ${missing} to export`) }
     if (again !== undefined) { return error(`${again} is exported twice`) }
     if (names.includes('init')) { return error('init is the function that evaluates the constants, so no function has that name') }
-    if (m.exports.includes('table')) { return error('table is the export of the table of code, so no export has that name') }
     if (constant !== undefined) { return error(`two constants are named ${constant}`) }
     if (typeof kept === 'string') { return error(kept) }
     const typed = okList(m.functions.map(checkFn(functions, imports, constants)))
