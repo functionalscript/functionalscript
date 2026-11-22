@@ -173,6 +173,30 @@ export const proof = {
         // The text of a function that the program makes is refused, since it has none yet, in a template literal and in `String`.
         assertEq(assertError(over({}, 'export const f = () => `${() => 1}`', programRuntime)), 'f: the text of a function that a program makes is not in this slice')
         assertEq(assertError(over({}, 'export const f = () => String(() => 1)', programRuntime)), 'f: the text of a function that a program makes is not in this slice')
+        // `a[Number(i)]` of `any` reads an array's item in place, and calls L1's `get` for the other kinds.
+        assertEq(program('export const f = (a, i) => a[Number(i)]'), [
+            'fn f(p0: any, p1: any) -> any =',
+            '    let #0 = l1.number(p1)',
+            '    match p0',
+            '      array as p0.array =>',
+            '        let p0.index = trunc_sat(u(31), #0)',
+            '        if eq(float(p0.index), #0)',
+            '        then',
+            '            if lt(p0.index, Containers.length(p0.array)) then Containers.item(p0.array, p0.index) else Any.undefined',
+            '        else',
+            '            Any.undefined',
+            '      else as p0.other =>',
+            '        l1.get(p0.other, Any.from_f64(#0))',
+            '',
+            'fn l1.get(a: any, b: any) -> any =',
+            '    a',
+            '',
+            'fn l1.number(v: any) -> f64 =',
+            '    0.0',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
         // `.length` of `any` reads an array's or a string's length in place, and calls L1's `get` for the other kinds.
         assertEq(program('export const f = a => a.length'), [
             'fn f(p0: any) -> any =',
@@ -560,7 +584,16 @@ export const proof = {
             '      undefined | null =>',
             '        Any.undefined',
             '      boolean | number | string | bigint | array | object | function as p0.value =>',
-            '        l1.get(p0.value, self.#n0)',
+            '        match p0.value',
+            '          array as p0.value.array =>',
+            '            let p0.value.index = trunc_sat(u(31), 0.0)',
+            '            if eq(float(p0.value.index), 0.0)',
+            '            then',
+            '                if lt(p0.value.index, Containers.length(p0.value.array)) then Containers.item(p0.value.array, p0.value.index) else Any.undefined',
+            '            else',
+            '                Any.undefined',
+            '          else as p0.value.other =>',
+            '            l1.get(p0.value.other, self.#n0)',
             '',
             'fn l1.get(a: any, b: any) -> any =',
             '    a',
