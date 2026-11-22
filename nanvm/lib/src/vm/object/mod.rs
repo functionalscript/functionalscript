@@ -31,3 +31,9 @@ impl<A: crate::vm::IStaticVm> Object<A> {
         Self(A::load_object(value))
     }
 }
+
+impl<A: IVm> core::fmt::Debug for Object<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        self.0.fmt(f)
+    }
+}

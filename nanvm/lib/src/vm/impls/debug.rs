@@ -1,6 +1,7 @@
+use crate::common::sized_index::SizedIndex;
 use crate::vm::{
-    Any, Array, IVm, Object, Unpacked, container_fmt::ContainerFmt, impls::unpack,
-    numeric::Numeric, primitive::Primitive,
+    Any, Array, IVm, Unpacked, container_fmt::container_fmt, impls::unpack, numeric::Numeric,
+    primitive::Primitive,
 };
 use core::fmt::{Debug, Formatter, Result};
 
@@ -12,13 +13,7 @@ impl<A: IVm> Debug for Any<A> {
 
 impl<A: IVm> Debug for Array<A> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        self.container_fmt('[', ']', f)
-    }
-}
-
-impl<A: IVm> Debug for Object<A> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        self.container_fmt('{', '}', f)
+        container_fmt((0..self.length()).map(|i| &self[i]), '[', ']', f)
     }
 }
 

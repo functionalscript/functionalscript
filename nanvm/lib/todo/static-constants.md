@@ -73,7 +73,8 @@ and the same data is a data segment in WebAssembly.
   not a slice by contract. What it answers is a reference, `&Item`, as
   `Index<u32> for Array<A>` does, and an item wrapped on request is a new
   value with nothing to refer to. The naive VM retains borrowed indexing by
-  caching the immediate items on first access.
+  caching array items on first access. Object property reads return owned pairs,
+  so static objects can retain just their descriptor and load properties individually.
 - **Functions.** A compiled function is generic over its VM, since its
   body calls the VM's operations, and its code is `StaticCode<A>`. A
   `static` cannot name `A`, so it cannot hold a reference to that code.

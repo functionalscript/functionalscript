@@ -1,5 +1,6 @@
 mod container;
 mod function;
+mod object;
 
 use crate::{
     naive::{
@@ -7,7 +8,7 @@ use crate::{
         function::{Function, Text},
     },
     sign::Sign,
-    vm::{Any, Array, IVm, Property, StaticCode, Unpacked},
+    vm::{Any, Array, IVm, StaticCode, Unpacked},
 };
 
 /// Note: we can't use `type InternalAny = Unpacked<InternalAny>;` because Rust doesn't support
@@ -24,7 +25,7 @@ impl<T: Into<Unpacked<Naive>>> From<T> for Naive {
 impl IVm for Naive {
     type InternalString = Container<(), u16>;
     type InternalBigInt = Container<Sign, u64>;
-    type InternalObject = Container<(), Property<Naive>>;
+    type InternalObject = object::Object;
     type InternalArray = Container<(), Any<Naive>>;
     type InternalFunction = Function;
 
@@ -72,7 +73,7 @@ impl IStaticVm for Naive {
         Container::array(value)
     }
     fn load_object(value: &'static StaticObject<Self>) -> Self::InternalObject {
-        Container::object(value)
+        object::Object::Static(value)
     }
     fn load_function(value: &'static StaticFunction<Self>) -> Self::InternalFunction {
         Function::from_static(value)
