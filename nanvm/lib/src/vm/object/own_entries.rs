@@ -1,10 +1,7 @@
 use std::collections::{BTreeMap, btree_map::Entry};
 
 use super::Object;
-use crate::{
-    common::sized_index::SizedIndex,
-    vm::{IVm, Property, String, member_access::string_to_index},
-};
+use crate::vm::{IVm, Property, String, member_access::string_to_index};
 
 /// The `u32` value of `k` if ECMAScript's own-property enumeration treats it
 /// as an "array index" — the keys `JSON.stringify` (via
@@ -102,12 +99,12 @@ impl<A: IVm> Object<A> {
         let mut slots: BTreeMap<String<A>, usize> = BTreeMap::new();
         let mut entries: Vec<Property<A>> = Vec::new();
         for i in 0..self.length() {
-            let (k, v) = &self[i];
+            let (k, v) = self.property_at(i);
             match slots.entry(k.clone()) {
-                Entry::Occupied(slot) => entries[*slot.get()].1 = v.clone(),
+                Entry::Occupied(slot) => entries[*slot.get()].1 = v,
                 Entry::Vacant(slot) => {
                     slot.insert(entries.len());
-                    entries.push((k.clone(), v.clone()));
+                    entries.push((k, v));
                 }
             }
         }

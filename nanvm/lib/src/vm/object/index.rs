@@ -1,20 +1,14 @@
-use core::ops::Index;
+use crate::vm::{IObject, IVm, Object, Property};
 
-use crate::vm::{ContainerWrapper, IVm, Object, Property};
-
-impl<A: IVm> Index<u32> for Object<A> {
-    type Output = Property<A>;
-    /// Currently panics if out of bounds.
-    /// TODO: Future versions may change to return `Nullish::Undefined`.
-    fn index(&self, index: u32) -> &Self::Output {
-        self.item(index)
+impl<A: IVm> Object<A> {
+    pub fn length(&self) -> u32 {
+        self.0.length()
     }
-}
-
-impl<A: IVm> ContainerWrapper for Object<A> {
-    type Vm = A;
-    type Internal = A::InternalObject;
-    fn internal(&self) -> &Self::Internal {
-        &self.0
+    pub fn is_empty(&self) -> bool {
+        self.length() == 0
+    }
+    /// Returns an owned property and panics if the index is out of bounds.
+    pub fn property_at(&self, index: u32) -> Property<A> {
+        self.0.property_at(index)
     }
 }

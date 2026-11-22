@@ -12,7 +12,9 @@ The implementation uses ordinary Rust types and reference counting:
 - [`Naive`](./mod.rs) wraps `Unpacked<Naive>` and implements `IVm`'s
   conversions and internal types.
 - [`Container`](./container.rs) stores a header and an `Rc` of its items,
-  covering strings, bigints, arrays, and objects.
+  covering strings, bigints, and arrays.
+- [Object storage](./object.rs) holds dynamic properties in an `Rc` slice or
+  a pointer to a static descriptor. Reading a static property loads its value on demand.
 - [`Function`](./function.rs) holds static Rust code and its captured frame
   behind an `Rc`; `Naive` implements `IStaticFunction` to construct it.
 

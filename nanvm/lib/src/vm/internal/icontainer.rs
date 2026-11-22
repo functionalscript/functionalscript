@@ -4,7 +4,7 @@ use crate::{common::sized_index::SizedIndex, vm::IVm};
 
 use super::IComplex;
 
-/// A sequence with a header: a string, a bigint, an array, an object.
+/// A sequence with a header: a string, a bigint, or an array.
 pub trait IContainer<A: IVm>: IComplex<A> {
     // types
     type Header: PartialEq + Clone;

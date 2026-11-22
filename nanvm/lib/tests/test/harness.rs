@@ -18,10 +18,7 @@ pub use nanvm_lib::vm::{
     },
 };
 
-use nanvm_lib::{
-    common::sized_index::SizedIndex,
-    vm::{Property, Unpacked},
-};
+use nanvm_lib::{common::sized_index::SizedIndex, vm::Unpacked};
 
 /// An `Any` holding the corpus's `() => undefined`, with the text the
 /// compiler renders for it: an operator that converts a function reads its
@@ -53,8 +50,8 @@ fn same<A: IVm>(a: &Any<A>, b: &Any<A>) -> bool {
         (Unpacked::Object(x), Unpacked::Object(y)) => {
             x.length() == y.length()
                 && (0..x.length()).all(|i| {
-                    let (k, v): &Property<A> = &x[i];
-                    y.own_property(k).is_some_and(|w| same(v, &w))
+                    let (k, v) = x.property_at(i);
+                    y.own_property(&k).is_some_and(|w| same(&v, &w))
                 })
         }
         _ => a.same_value(b),

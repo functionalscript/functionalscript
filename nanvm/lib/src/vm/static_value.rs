@@ -90,10 +90,10 @@ mod tests {
         let module = Object::from_static(&MODULE);
         let again = Object::from_static(&MODULE);
         assert_eq!(module, again);
-        assert_eq!(module[0].0, "f".into());
-        let f = Function::try_from(module[0].1.clone()).unwrap();
+        assert_eq!(module.property_at(0).0, "f".into());
+        let f = Function::try_from(module.property_at(0).1).unwrap();
         assert_eq!(f, Function::from_static(&FUNCTION));
-        assert_eq!(f.to_any(), again[0].1);
+        assert_eq!(f.to_any(), again.property_at(0).1);
         let f = Function::from_static(&FUNCTION);
         assert_eq!(f.length(), 1);
         assert_eq!(f.text(), Ok("x => captured".into()));
@@ -107,6 +107,26 @@ mod tests {
             core::ptr::addr_of!(EMPTY) as usize
         );
         assert_eq!(Array::from_static(&FRAME), Array::from_static(&FRAME));
+    }
+
+    #[test]
+    fn static_object_reads_return_owned_values_with_descriptor_identity() {
+        let key = String::<Naive>::from("f");
+        let (name, value) = Object::from_static(&MODULE).property_at(0);
+        assert_eq!(name, key);
+        assert_eq!(
+            Object::from_static(&MODULE).own_property(&key),
+            Some(value.clone())
+        );
+        assert_eq!(
+            Object::from_static(&MODULE).own_property(&"missing".into()),
+            None
+        );
+        let mut properties = Object::from_static(&MODULE).into_iter();
+        assert_eq!(properties.len(), 1);
+        assert_eq!(properties.next(), Some((name, value)));
+        assert_eq!(properties.len(), 0);
+        assert_eq!(properties.next(), None);
     }
 
     #[test]
