@@ -1101,7 +1101,8 @@ pub fn module(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     static LITERAL_1086: StaticString = StaticString(&[66, 111, 116, 104, 32, 105, 110, 118, 111, 99, 97, 116, 105, 111, 110, 115, 32, 108, 105, 115, 116, 32, 116, 104, 101, 32, 115, 117, 98, 99, 111, 109, 109, 97, 110, 100, 115, 32, 97, 110, 100, 32, 116, 104, 101, 105, 114, 32, 97, 108, 105, 97, 115, 101, 115, 46]);
     static LITERAL_1087: StaticString = StaticString(&[100, 111, 99, 115]);
     static LITERAL_1088: StaticString = StaticString(&[102, 106, 115, 47, 82, 69, 65, 68, 77, 69, 46, 109, 100]);
-    let _b0: Any<A> = { static VALUE: StaticArray<A> = StaticArray(&[]); Array::from_static(&VALUE).to_any() };
+    static ARRAY_0: StaticArray<A> = StaticArray(&[]);
+    let _b0: Any<A> = Array::from_static(&ARRAY_0).to_any();
     static FUNCTION_12: StaticFunction<A> = StaticFunction { code: |_self, _args| {
         let _b103867: Any<A> = _args.rest(1).to_any();
         let _b2: Any<A> = (Any::dot(_b103867.clone(), f64_any(0x0)).end())?;
@@ -3127,7 +3128,8 @@ pub fn module(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             if Any::<A>::to_boolean(&(strict_eq(_b4072.clone(), Nullish::Undefined.to_any()))?) { Ok(Nullish::Null.to_any()) } else { Any::dot(_b4072.clone(), f64_any(0x3ff0000000000000)).end() }
         }, 1, [_args.argument(0), A::frame(_self)[0].clone()].to_array(), Some(String::from_static(&LITERAL_569))).to_any()) }, 1, [runtime.clone()].to_array(), Some(String::from_static(&LITERAL_568))).to_any();
         let _b63608329_2441: Any<A> = A::function_with_text(|_self, _args| { Any::dot(_args.argument(0), String::from_static(&LITERAL_573).to_any()).end_call(&A::frame(_self)[0], || Ok([A::function_with_text(|_self, _args| { Any::dot((Any::dot(A::frame(_self)[0].clone(), String::from_static(&LITERAL_77).to_any()).end_call(&A::frame(_self)[1], || Ok([f64_any(0x0), _args.argument(1)].to_array().to_any())))?, String::from_static(&LITERAL_13).to_any()).end_call(&A::frame(_self)[1], || Ok([A::function_with_text(|_self, _args| { strict_ne(_args.argument(0), A::frame(_self)[0].clone()) }, 1, [_args.argument(0), A::frame(_self)[1].clone()].to_array(), Some(String::from_static(&LITERAL_575))).to_any()].to_array().to_any())) }, 2, [_args.argument(0), A::frame(_self)[0].clone()].to_array(), Some(String::from_static(&LITERAL_574))).to_any()].to_array().to_any())) }, 1, [runtime.clone()].to_array(), Some(String::from_static(&LITERAL_572))).to_any();
-        let _b63608330_2448: Any<A> = { static VALUE: StaticArray<A> = StaticArray(&[]); Array::from_static(&VALUE).to_any() };
+        static ARRAY_63608330_2448: StaticArray<A> = StaticArray(&[]);
+        let _b63608330_2448: Any<A> = Array::from_static(&ARRAY_63608330_2448).to_any();
         let _b63608331: Any<A> = A::function_with_text(|_self, _args| { Ok(A::function_with_text(|_self, _args| { Any::dot(_args.argument(0), String::from_static(&LITERAL_279).to_any()).end_call(&A::frame(_self)[1], || Ok([A::function_with_text(|_self, _args| { if Any::<A>::to_boolean(&(strict_ne(_args.argument(0), Nullish::Null.to_any()))?) { Ok(_args.argument(0)) } else { Any::call(A::frame(_self)[0].clone(), [_args.argument(1), _args.argument(2)].to_array().to_any()) } }, 3, [A::frame(_self)[0].clone(), A::frame(_self)[1].clone()].to_array(), Some(String::from_static(&LITERAL_578))).to_any(), Nullish::Null.to_any()].to_array().to_any())) }, 1, [_args.argument(0), A::frame(_self)[0].clone()].to_array(), Some(String::from_static(&LITERAL_577))).to_any()) }, 1, [runtime.clone()].to_array(), Some(String::from_static(&LITERAL_576))).to_any();
         let _b63608332: Any<A> = A::function_with_text(|_self, _args| { Ok(A::function_with_text(|_self, _args| { Any::dot(A::frame(_self)[0].clone(), String::from_static(&LITERAL_581).to_any()).end_call(&A::frame(_self)[1], || Ok([_args.argument(0)].to_array().to_any())) }, 1, [_args.argument(0), A::frame(_self)[0].clone()].to_array(), Some(String::from_static(&LITERAL_580))).to_any()) }, 1, [runtime.clone()].to_array(), Some(String::from_static(&LITERAL_579))).to_any();
         static FUNCTION_63608333: StaticFunction<A> = StaticFunction { code: |_self, _args| { Ok(A::function_with_text(|_self, _args| { strict_eq((Any::dot(_args.argument(0), String::from_static(&LITERAL_12).to_any()).end())?, A::frame(_self)[0].clone()) }, 1, [_args.argument(0)].to_array(), Some(String::from_static(&LITERAL_583))).to_any()) }, length: 1, frame: &StaticArray(&[]), text: Some(&LITERAL_582) };
@@ -4268,7 +4270,8 @@ pub fn module(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         let _b7421: Any<A> = (Any::dot((Any::call(_b7418.clone(), [[f64_any(0x0)].to_array().to_any()].to_array().to_any()))?, f64_any(0x0)).end())?;
         if Any::<A>::to_boolean(&(strict_eq((Any::dot(_b7421.clone(), f64_any(0x0)).end())?, String::from_static(&LITERAL_61).to_any()))?) { Any::dot(_b7421.clone(), f64_any(0x3ff0000000000000)).end() } else { Ok(Nullish::Null.to_any()) }
     }, 2, [_b5061.clone(), _b3802.clone(), runtime.clone()].to_array(), Some(String::from_static(&LITERAL_975))).to_any();
-    let _b7427: Any<A> = { static VALUE: StaticArray<A> = StaticArray(&[StaticAny::String(&LITERAL_977)]); Array::from_static(&VALUE).to_any() };
+    static ARRAY_7427: StaticArray<A> = StaticArray(&[StaticAny::String(&LITERAL_977)]);
+    let _b7427: Any<A> = Array::from_static(&ARRAY_7427).to_any();
     static FUNCTION_7439: StaticFunction<A> = StaticFunction { code: |_self, _args| {
         let _b7429: Any<A> = (strict_eq(_args.argument(0), String::from_static(&LITERAL_979).to_any()))?;
         let _b7432: Any<A> = if Any::<A>::to_boolean(&_b7429) { _b7429.clone() } else { (strict_eq(_args.argument(1), f64_any(0x4069800000000000)))? };
@@ -4279,7 +4282,8 @@ pub fn module(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         }
     }, length: 2, frame: &StaticArray(&[]), text: Some(&LITERAL_978) };
     let _b7439: Any<A> = Function::from_static(&FUNCTION_7439).to_any();
-    let _b7440: Any<A> = { static VALUE: StaticArray<A> = StaticArray(&[StaticAny::String(&LITERAL_980)]); Array::from_static(&VALUE).to_any() };
+    static ARRAY_7440: StaticArray<A> = StaticArray(&[StaticAny::String(&LITERAL_980)]);
+    let _b7440: Any<A> = Array::from_static(&ARRAY_7440).to_any();
     let _b7454: Any<A> = A::function_with_text(|_self, _args| {
         let _b7443: Any<A> = (Any::call(A::frame(_self)[0].clone(), [_args.argument(0), String::from_static(&LITERAL_982).to_any()].to_array().to_any()))?;
         if Any::<A>::to_boolean(&{
@@ -4291,9 +4295,11 @@ pub fn module(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             if Any::<A>::to_boolean(&(Any::call(_b7449.clone(), [_b7450.clone()].to_array().to_any()))?) { Ok(_b7450.clone()) } else { Ok(Nullish::Null.to_any()) }
         }
     }, 1, [_b7426.clone(), _b3873, runtime.clone()].to_array(), Some(String::from_static(&LITERAL_981))).to_any();
-    let _b7455: Any<A> = { static VALUE: StaticArray<A> = StaticArray(&[StaticAny::String(&LITERAL_983)]); Array::from_static(&VALUE).to_any() };
+    static ARRAY_7455: StaticArray<A> = StaticArray(&[StaticAny::String(&LITERAL_983)]);
+    let _b7455: Any<A> = Array::from_static(&ARRAY_7455).to_any();
     let _b7471: Any<A> = A::function_with_text(|_self, _args| { Any::dot((Any::dot((Any::call(A::frame(_self)[0].clone(), [_args.argument(0)].to_array().to_any()))?, String::from_static(&LITERAL_573).to_any()).end_call(&A::frame(_self)[2], || Ok([A::function_with_text(|_self, _args| { strict_eq((Any::call(A::frame(_self)[0].clone(), [(Any::dot((spread_array([spread_item(_args.argument(0))?]))?, f64_any(0x0)).end())?].to_array().to_any()))?, A::frame(_self)[1].clone()) }, 1, [A::frame(_self)[1].clone(), _args.argument(1), A::frame(_self)[2].clone()].to_array(), Some(String::from_static(&LITERAL_985))).to_any()].to_array().to_any())))?, String::from_static(&LITERAL_12).to_any()).end() }, 2, [_b5061, _b3802, runtime.clone()].to_array(), Some(String::from_static(&LITERAL_984))).to_any();
-    let _b7472: Any<A> = { static VALUE: StaticArray<A> = StaticArray(&[StaticAny::String(&LITERAL_986)]); Array::from_static(&VALUE).to_any() };
+    static ARRAY_7472: StaticArray<A> = StaticArray(&[StaticAny::String(&LITERAL_986)]);
+    let _b7472: Any<A> = Array::from_static(&ARRAY_7472).to_any();
     let _b7502: Any<A> = A::function_with_text(|_self, _args| { if Any::<A>::to_boolean(&(strict_ne((Any::call(A::frame(_self)[0].clone(), [_args.argument(3), String::from_static(&LITERAL_988).to_any()].to_array().to_any()))?, Nullish::Null.to_any()))?) { Ok(A::frame(_self)[1].clone()) } else { if Any::<A>::to_boolean(&(Any::call(A::frame(_self)[2].clone(), [_args.argument(0), _args.argument(2)].to_array().to_any()))?) { Ok(A::frame(_self)[3].clone()) } else {
         let _b7484: Any<A> = (Any::call(A::frame(_self)[4].clone(), [_args.argument(3)].to_array().to_any()))?;
         if Any::<A>::to_boolean(&{
@@ -4453,7 +4459,8 @@ pub fn module(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         Ok(_b7879.clone())
     }, 2, [_b5077, _b5848.clone(), _b7754, _b7717, _b31, _b7665, _b5837, runtime.clone()].to_array(), Some(String::from_static(&LITERAL_1049))).to_any();
     let _b7888: Any<A> = A::function_with_text(|_self, _args| { if Any::<A>::to_boolean(&(strict_eq((Any::typeof_(&_args.argument(0)))?, String::from_static(&LITERAL_107).to_any()))?) { Ok(_args.argument(0)) } else { Any::call(A::frame(_self)[0].clone(), [Function::new(_self.clone()).to_any(), _args.argument(0)].to_array().to_any()) } }, 1, [_b7880, runtime.clone()].to_array(), Some(String::from_static(&LITERAL_1057))).to_any();
-    let _b7889: Any<A> = { static VALUE: StaticArray<A> = StaticArray(&[StaticAny::String(&LITERAL_1058), StaticAny::String(&LITERAL_1059), StaticAny::String(&LITERAL_1060), StaticAny::String(&LITERAL_1061), StaticAny::String(&LITERAL_1062), StaticAny::String(&LITERAL_1063), StaticAny::String(&LITERAL_1064), StaticAny::String(&LITERAL_1065), StaticAny::String(&LITERAL_1066), StaticAny::String(&LITERAL_1067)]); Array::from_static(&VALUE).to_any() };
+    static ARRAY_7889: StaticArray<A> = StaticArray(&[StaticAny::String(&LITERAL_1058), StaticAny::String(&LITERAL_1059), StaticAny::String(&LITERAL_1060), StaticAny::String(&LITERAL_1061), StaticAny::String(&LITERAL_1062), StaticAny::String(&LITERAL_1063), StaticAny::String(&LITERAL_1064), StaticAny::String(&LITERAL_1065), StaticAny::String(&LITERAL_1066), StaticAny::String(&LITERAL_1067)]);
+    let _b7889: Any<A> = Array::from_static(&ARRAY_7889).to_any();
     Ok([(String::from_static(&LITERAL_1068), _b0.clone()), (String::from_static(&LITERAL_1069), {
         let _b7956: Any<A> = {
             let _b63608328_4403: Any<A> = A::function_with_text(|_self, _args| { Ok(A::function_with_text(|_self, _args| { Ok(A::function_with_text(|_self, _args| { if Any::<A>::to_boolean(&(strict_eq((Any::dot((Any::dot(_args.argument(0), String::from_static(&LITERAL_1051).to_any()).end())?, String::from_static(&LITERAL_12).to_any()).end())?, A::frame(_self)[0].clone()))?) { Any::call(A::frame(_self)[1].clone(), [_args.argument(0)].to_array().to_any()) } else {

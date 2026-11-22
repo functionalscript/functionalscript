@@ -21,6 +21,11 @@ export const idAlias = id
 export const functionTable = /** @type {const} */ ({ f: id, alias: idAlias })
 const tableAlias = functionTable
 export const items = /** @type {const} */ ([idAlias, functionTable, tableAlias])
+const itemsAlias = items
+export const nestedItems = /** @type {const} */ ([items, itemsAlias])
+export const itemRecord = /** @type {const} */ ({ items: itemsAlias })
+export const readItems = () => itemsAlias
+export const freshNestedItems = () => [itemsAlias]
 export const freshItems = () => [tableAlias]
 export const tables = /** @type {const} */ ({ table: functionTable, alias: tableAlias })
 export const freshTables = () => ({ table: tableAlias })

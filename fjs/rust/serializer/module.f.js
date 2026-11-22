@@ -396,17 +396,20 @@ const staticItem = (s, v) => {
 }
 
 /** Each literal site owns its descriptor, even when two sites have identical items.
- * @type {(s: _Context, values: readonly _StaticValue[]) => Printed<string>} */
-const staticArray = (s, values) => cat([`{ ${kw('static')} VALUE: `, vm('StaticArray'), '<A> = StaticArray(&[',
+ * @type {(s: _Context, name: string, values: readonly _StaticValue[]) => Printed<string>} */
+const arrayDeclaration = (s, name, values) => cat([`${kw('static')} ${name}: `, vm('StaticArray'), '<A> = StaticArray(&[',
     ...values.flatMap((v, i) => [i === 0 ? '' : ', ', staticItem(s, v)]),
-    ']); ', vm('Array'), '::from_static(&VALUE)', toAny, ' }'])
+    ']);'])
 
 /** @type {(known: _StaticBindings, value: Item<Value>) => _Descriptor | undefined} */
 const referenced = (known, value) => value instanceof Array && value[0] === 'ref' ? mapGet(known, value[1]) : undefined
 
 /** @type {(s: _Context, st: Statement) => _Descriptor | undefined} */
-const namedDescriptor = (s, st) => s.moduleInit && s.names !== undefined && st[0] === 'define' && st[2] instanceof Array && (st[2][0] === 'function' || st[2][0] === 'object')
-    ? mapGet(s.names.staticBindings, st[1]) : undefined
+const namedDescriptor = (s, st) => {
+    if (!s.moduleInit || s.names === undefined || st[0] !== 'define') { return undefined }
+    const ref = mapGet(s.names.staticBindings, st[1])
+    return ref?.id === st[1] ? ref : undefined
+}
 
 /** @type {(s: _Context, fn: PreparedFunction) => Result<Printed<string>, readonly unknown[]>} */
 const functionBody = (s, fn) => {
@@ -460,6 +463,12 @@ const staticEntry = (known, value) => {
     if (!(value instanceof Array)) { return [value] }
     const ref = referenced(known, value)
     return ref === undefined ? [] : [ref]
+}
+
+/** @type {(items: readonly Item<Value>[], known: _StaticBindings) => readonly _StaticValue[] | null} */
+const staticValues = (items, known) => {
+    const values = items.flatMap(v => staticEntry(known, v))
+    return values.length === items.length ? values : null
 }
 
 /** @type {(entries: readonly Entry<Value>[], known: _StaticBindings) => _Fields | null} */
@@ -590,9 +599,9 @@ const operation = (s, n, result) => {
     switch (tag) {
         case 'array': {
             const items = n[1]
-            const values = s.moduleInit ? items.flatMap(v => staticEntry(/** @type {_Names} */ (s.names).staticBindings, v)) : null
-            return values !== null && values.length === items.length
-                ? map1(pure(result))(ok(staticArray(s, values)))
+            const values = s.moduleInit ? staticValues(items, /** @type {_Names} */ (s.names).staticBindings) : null
+            return values !== null
+                ? map1(pure(result))(ok(cat(['{ ', arrayDeclaration(s, 'VALUE', values), ' ', vm('Array'), '::from_static(&VALUE)', toAny, ' }'])))
                 : array(s, items, result)
         }
         case 'object': { return map1(pure(result))(object(s, n[1])) }
@@ -717,7 +726,7 @@ const statementReady = (s, st) => {
     if (ref !== undefined) {
         const name = descriptorName(s, ref)
         const decl = ref.kind === 'Object' ? ok(objectDeclaration(s, name, ref.fields))
-            : functionDeclaration(s, ref.fn, name)
+            : ref.kind === 'Array' ? ok(arrayDeclaration(s, name, ref.items)) : functionDeclaration(s, ref.fn, name)
         return map2((item, local) => [item, local])(decl,
             declaration(binding(s, ref.id), false, ok(cat([vm(ref.kind), `::from_static(&${name})`, toAny]))))
     }
@@ -852,7 +861,7 @@ const children = task => {
             const st = task.statement
             const ref = namedDescriptor(s, st)
             if (ref !== undefined) {
-                if (ref.kind === 'Object') { return [] }
+                if (ref.kind !== 'Function') { return [] }
                 const fn = ref.fn
                 return [blockTask(closureContext(s, fn), fn.body, true, true)]
             }
@@ -1029,6 +1038,9 @@ const namesOf = root => {
                         staticFunctions = mapSet(staticFunctions, v[1], frame)
                         if (def !== null) { staticBindings = mapSet(staticBindings, def, { kind: 'Function', id: def, fn: v[1] }) }
                     }
+                } else if (def !== null && v[0] === 'array') {
+                    const values = staticValues(v[1], staticBindings)
+                    if (values !== null) { staticBindings = mapSet(staticBindings, def, { kind: 'Array', id: def, items: values }) }
                 } else if (def !== null && v[0] === 'object') {
                     const fields = staticFields(v[1], staticBindings)
                     if (fields !== null) { staticBindings = mapSet(staticBindings, def, { kind: 'Object', id: def, fields }) }

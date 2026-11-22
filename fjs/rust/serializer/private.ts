@@ -10,6 +10,7 @@ import type { PersistentMap } from '../../types/map/types.ts'
 export type _StaticValue = Primitive | _Descriptor
 export type _Fields = readonly (readonly [string, _StaticValue])[]
 export type _Descriptor =
+    | { readonly kind: 'Array'; readonly id: BindingId; readonly items: readonly _StaticValue[] }
     | { readonly kind: 'Function'; readonly id: BindingId; readonly fn: Function }
     | { readonly kind: 'Object'; readonly id: BindingId; readonly fields: _Fields }
 export type _StaticBindings = PersistentMap<BindingId, _Descriptor>
