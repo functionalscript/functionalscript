@@ -53,6 +53,12 @@ impl IObject<Naive> for Object {
             }
         }
     }
+    fn key_at(&self, index: u32) -> String<Naive> {
+        match self {
+            Self::Owned(items) => items[index as usize].0.clone(),
+            Self::Static(object) => String::from_static(object.0[index as usize].0),
+        }
+    }
     fn own_property(&self, key: &String<Naive>) -> Option<Any<Naive>> {
         match self {
             Self::Owned(items) => items

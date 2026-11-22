@@ -49,8 +49,8 @@ impl<A: IVm> Object<A> {
         let mut last: Option<u32> = None;
         let mut other = false;
         for i in 0..n {
-            let k = &self[i].0;
-            match array_index_value(k) {
+            let k = self.key_at(i);
+            match array_index_value(&k) {
                 Some(v) => {
                     if other || last.is_some_and(|l| l >= v) {
                         return false;
@@ -58,7 +58,7 @@ impl<A: IVm> Object<A> {
                     last = Some(v);
                 }
                 None => {
-                    if (0..i).any(|j| self[j].0 == *k) {
+                    if (0..i).any(|j| self.key_at(j) == k) {
                         return false;
                     }
                     other = true;
