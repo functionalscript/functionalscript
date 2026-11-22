@@ -549,6 +549,19 @@ export const proof = {
         assertEq(assertError(over(fa, 'export const f = a => a % (b => b)')), 'f: a function as a value is not in this slice')
         assertEq(assertError(over(fa, 'export const f = a => ({ x: a }).z % 2')), 'f: { x: f64 } has no field z')
     },
+    // `>>` and `&` of two floats are L1's native rows `numberShiftRight` and `numberAnd`, which read
+    // each float as a 32-bit integer.
+    bits: () => {
+        assertEq(irOver(fab, 'export const f = (a, b) => (a >> 1) & b'), [
+            'fn f(a: f64, b: f64) -> f64 =',
+            '    Native.numberAnd(Native.numberShiftRight(a, 1.0), b)',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(assertError(over(only([['a', u(8)], ['b', u(8)]], f64), 'export const f = (a, b) => a >> b')), 'f: >> of u(8) and u(8) is not in this slice')
+        assertEq(assertError(over(fab, 'export const f = (a, b) => a & b', null)), "f: & of two floats calls L1's native rows, which a module lowered without the runtime does not import")
+    },
     native: () => {
         const ab = only([['a', any], ['b', any]], bool)
         // A native row of L1 is a call of the interface `Native`: an argument that is a local of

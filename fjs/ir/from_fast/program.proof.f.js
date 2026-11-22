@@ -62,7 +62,7 @@ const standIn = {
     imports: [...l0, ['Native', native]],
     constants: [['#c0', { type: any, value: constant('Any', 'undefined') }]],
     functions: [
-        ...['add', 'subtract', 'multiply', 'divide', 'get'].map(k => /** @type {const} */ ([k, fn(anyTwo, any, get('a'))])),
+        ...['add', 'subtract', 'multiply', 'divide', 'remainder', 'shiftRight', 'bitwiseAnd', 'get'].map(k => /** @type {const} */ ([k, fn(anyTwo, any, get('a'))])),
         ['negate', fn(anyOne, any, get('v'))],
         ['typeOf', fn(anyOne, any, constant('self', '#c0'))],
         ...['lessThan', 'lessThanOrEqual', 'greaterThan', 'greaterThanOrEqual', 'strictEquals'].map(k => /** @type {const} */ ([k, fn(anyTwo, bool, false_)])),
@@ -127,6 +127,30 @@ export const proof = {
             '    a',
             '',
             'fn l1.multiply(a: any, b: any) -> any =',
+            '    a',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // `%`, `>>` and `&` of `any` call L1, and of two floats L1's native rows.
+        assertEq(program('export const f = (a, b) => [a % b, (a >> 1) & b, 7 % 2]'), [
+            'fn f(p0: any, p1: any) -> any =',
+            '    let #0 = l1.remainder(p0, p1)',
+            '    let #1 = l1.bitwiseAnd(l1.shiftRight(p0, Any.from_f64(1.0)), p1)',
+            '    let #2 = Native.numberRemainder(7.0, 2.0)',
+            '    match Containers.seal(Containers.push(Containers.push(Containers.push(Containers.begin_array(3), #0), #1), Any.from_f64(#2)))',
+            '      array as array =>',
+            '        array',
+            '      else =>',
+            "        trap('not array')",
+            '',
+            'fn l1.remainder(a: any, b: any) -> any =',
+            '    a',
+            '',
+            'fn l1.shiftRight(a: any, b: any) -> any =',
+            '    a',
+            '',
+            'fn l1.bitwiseAnd(a: any, b: any) -> any =',
             '    a',
             '',
             'export f',
@@ -1043,8 +1067,8 @@ export const proof = {
         // A capture of a function that calls itself, a refusal in the lifted code, which names the code, and a capture of an
         // import that the module refuses.
         assertEq(assertError(over({}, 'export const f = a => {\n    const g = x => 1 + g(x)\n    return () => g\n}', programRuntime)), 'f: a function that calls itself is not in this slice')
-        assertEq(assertError(over({}, 'export const f = a => b => b % a', programRuntime)), '#f1: % of any and any is not in this slice')
-        assertEq(assertError(over({}, 'export const f = a => {\n    const g = x => x\n    return g % g\n}', programRuntime)), 'f: % of any.only(function) and any.only(function) is not in this slice')
+        assertEq(assertError(over({}, 'export const f = a => b => b >>> a', programRuntime)), '#f1: >>> is not in this slice')
+        assertEq(assertError(over({}, 'export const f = a => {\n    const g = x => x\n    return g >>> g\n}', programRuntime)), 'f: >>> is not in this slice')
         assertEq(assertError(over({}, "import { x } from './y.f.js'\nexport const f = a => b => x", programRuntime)), 'f: an import of ./y.f.js is not in this slice')
         assertEq(assertError(over({}, "import { x } from './y.f.js'\nconst g = () => x\nexport const f = () => g", programRuntime)), '#f0: an import of ./y.f.js is not in this slice')
         // An export as a value is refused: its signature is not the code of a function value.

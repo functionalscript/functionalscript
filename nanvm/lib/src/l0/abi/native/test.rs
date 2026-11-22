@@ -60,6 +60,12 @@ fn numbers() {
     assert_eq!(number_remainder(-7.0, 3.0), -1.0);
     assert!(number_remainder(1.0, 0.0).is_nan());
     assert!(number_remainder(f64::INFINITY, 2.0).is_nan());
+    assert_eq!(number_shift_right(-9.0, 1.0), -5.0);
+    assert_eq!(number_shift_right(4_294_967_304.0, 33.0), 4.0);
+    assert_eq!(number_shift_right(f64::NAN, 1.0), 0.0);
+    assert_eq!(number_and(12.0, 10.0), 8.0);
+    assert_eq!(number_and(-1.0, 4_294_967_301.0), 5.0);
+    assert_eq!(number_and(1.9, f64::INFINITY), 0.0);
     for (n, t) in [
         (0.0, "0"),
         (-0.0, "0"),
@@ -96,16 +102,25 @@ fn numbers() {
 fn bigints() {
     fresh();
     let (a, b) = (big(-10), big(3));
-    let rows: [(Row, i128); 4] = [
+    let rows: [(Row, i128); 7] = [
         (bigint_add, -7),
         (bigint_subtract, -13),
         (bigint_multiply, -30),
         (bigint_divide, -3),
+        (bigint_remainder, -1),
+        (bigint_shift_right, -2),
+        (bigint_and, 2),
     ];
     for (row, expected) in rows {
         let r = row(a, b);
         assert_eq!(value(r), expected);
         drop(r);
+    }
+    let (zero, far) = (big(0), big(-(1 << 70)));
+    let r = bigint_shift_right(zero, far);
+    assert_eq!(value(r), 0);
+    for h in [r, zero, far] {
+        drop(h);
     }
     let n = bigint_negate(a);
     assert_eq!(value(n), 10);
@@ -147,6 +162,29 @@ fn division_by_zero_throws() {
     assert_eq!(text(e), "RangeError: Division by zero");
     assert_eq!(has_thrown(), 0);
     drop(e);
+}
+
+#[test]
+#[cfg(panic = "unwind")]
+fn and_past_the_limit_throws() {
+    use super::super::{catch, has_thrown};
+    // NaNVM's `MAX_WORDS`, which its `vm::bigint` keeps private.
+    const MAX_WORDS: usize = 1 << 14;
+    fresh();
+    // The operands of the carry case of `bitand.rs`, at the last word NaNVM
+    // allows: their `&` is `-(2^(64 * MAX_WORDS))`, one word too long.
+    let at = |w: u64| {
+        let mut words = vec![0; MAX_WORDS];
+        words[MAX_WORDS - 1] = w;
+        make_bigint_of(-1, &words)
+    };
+    let (x, y) = (at(0xFFFF_FFFF_0000_0001), at(0x1_0000_0000));
+    let e = catch(|| bigint_and(x, y)).unwrap_err();
+    assert_eq!(text(e), "RangeError: Maximum BigInt size exceeded");
+    assert_eq!(has_thrown(), 0);
+    for h in [e, x, y] {
+        drop(h);
+    }
 }
 
 #[test]

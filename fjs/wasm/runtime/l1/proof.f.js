@@ -1,7 +1,8 @@
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import {
     call, get, objectSpread, toIterable,
-    add, divide, greaterThan, greaterThanOrEqual, lessThan, lessThanOrEqual, multiply, negate, subtract,
+    add, bitwiseAnd, divide, greaterThan, greaterThanOrEqual, lessThan, lessThanOrEqual, multiply, negate, remainder,
+    shiftRight, subtract,
     functionText, stringEquals, stringLess, strictEquals, toBoolean, toNumber, toNumeric,
     toPrimitive, toPropertyKey, toString, typeOf,
 } from './module.f.js'
@@ -149,15 +150,19 @@ export const proof = {
             }
         }
     },
-    // `subtract`, `multiply` and `divide` are `- * /` on every pair that
-    // does not mix a bigint with a number, nor divide a bigint by `0n`.
+    // `subtract`, `multiply`, `divide`, `remainder`, `shiftRight` and
+    // `bitwiseAnd` are `- * / % >> &` on every pair that does not mix a
+    // bigint with a number, nor divide a bigint by `0n`.
     arithmetic: () => {
         /** @type {readonly (readonly [(a: unknown, b: unknown) => unknown, (x: any, y: any) => unknown])[]} */
-        const ops = [[subtract, (x, y) => x - y], [multiply, (x, y) => x * y], [divide, (x, y) => x / y]]
+        const ops = [
+            [subtract, (x, y) => x - y], [multiply, (x, y) => x * y], [divide, (x, y) => x / y],
+            [remainder, (x, y) => x % y], [shiftRight, (x, y) => x >> y], [bitwiseAnd, (x, y) => x & y],
+        ]
         for (const [x, y] of pairs(operands)) {
             if (!mixed(x, y)) {
                 for (const [op, js] of ops) {
-                    if (op !== divide || y !== 0n) {
+                    if ((op !== divide && op !== remainder) || y !== 0n) {
                         assert(Object.is(op(x, y), js(x, y)), `${String(x)} ${String(y)}`)
                     }
                 }
@@ -236,6 +241,10 @@ export const proof = {
         subtractMixed: () => { subtract(1, 1n) },
         multiplyMixed: () => { multiply(1n, true) },
         divideMixed: () => { divide(null, 1n) },
+        remainderMixed: () => { remainder(1n, 1) },
+        shiftRightMixed: () => { shiftRight(1, 1n) },
+        bitwiseAndMixed: () => { bitwiseAnd(1n, '1') },
+        remainderZero: () => { remainder(1n, 0n) },
         // a bigint divided by zero
         divideZero: () => { divide(1n, 0n) },
         // the left primitive is taken first, and its throw wins

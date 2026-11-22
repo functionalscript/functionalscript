@@ -22,8 +22,8 @@ import { virtualAt } from '../../../../effects/node/virtual/module.f.js'
 import runtimeEdag from '../../../../js/runtime/gen.edag.js'
 import { utf8 } from '../../../../text/module.f.js'
 import {
-    add, divide, get, greaterThan, greaterThanOrEqual, lessThan, lessThanOrEqual, multiply, negate,
-    strictEquals, subtract, toBoolean, toNumber, toString, typeOf,
+    add, bitwiseAnd, divide, get, greaterThan, greaterThanOrEqual, lessThan, lessThanOrEqual, multiply, negate,
+    remainder, shiftRight, strictEquals, subtract, toBoolean, toNumber, toString, typeOf,
 } from '../module.f.js'
 import { keySources, sources, value, withFunction } from './testlib.mjs'
 
@@ -56,6 +56,7 @@ const agree = (a, b) => a[0] === b[0] && Object.is(a[1], b[1])
 /** @type {readonly (readonly [string, (a: unknown, b: unknown) => unknown])[]} */
 const binary = [
     ['+', add], ['-', subtract], ['*', multiply], ['/', divide],
+    ['%', remainder], ['>>', shiftRight], ['&', bitwiseAnd],
     ['<', lessThan], ['>', greaterThan], ['<=', lessThanOrEqual], ['>=', greaterThanOrEqual],
     ['===', strictEquals],
 ]

@@ -171,25 +171,13 @@ import {
     make, match, mul, n, ne, neg, next, not, only, product, return_, signature, sub, terms, throw_, trap, true_, u,
 } from '../module.f.js'
 import { native } from '../native/module.f.js'
-import { isAny, isFloat, numberOps, numberPath } from './numbers/module.f.js'
+import { asAny, boolean, floats, inOrder, isAny, isFloat, nativeRow, numberOps, numberPath, numberRow, numeric, primitive } from './numbers/module.f.js'
 import { records } from '../records/module.f.js'
 import { link, linkedName, uses } from './link/module.f.js'
 import { show } from '../print/module.f.js'
 
 /** A count in a message: `one parameter`, `2 values`. @type {(k: number, noun: string) => string} */
 const count = (k, noun) => k === 1 ? `one ${noun}` : `${k} ${noun}s`
-
-/**
- * A value of `any`, or a float or boolean boxed as one by `from_f64` or
- * `from_bool` ([definition.md's rule 6](../../../doc/sasha-gil/ir/definition.md#from-normalized-fast-to-the-ir)),
- * or `null` where no conversion of this slice fits.
- *
- * @type {(t: Type, x: Term) => Term | null}
- */
-const asAny = (t, x) => isAny(t) ? x
-    : isFloat(t) ? call('Any', 'from_f64', [x])
-    : equal(t, bool) ? call('Any', 'from_bool', [x])
-    : null
 
 /** The static functions that are operators of the IR. @type {(id: string) => OpName | null} */
 const staticOp = id => id === 'Math.sqrt' ? 'sqrt' : id === 'Math.abs' ? 'abs' : null
@@ -1046,23 +1034,6 @@ const nativeCall = (lowerValue, scope, name, vs) => {
         : castCall(lowerValue, scope, 'Native', name, row[1].params, vs)
 }
 
-/**
- * `a % b` of two floats: L1's native row `numberRemainder`, since WASM has
- * no instruction for it, which a module lowered over the runtime imports.
- *
- * @type {(lowerValue: _LowerValue, scope: _Scope, a: Value, b: Value) => Result<Term, string>}
- */
-const remainder = (lowerValue, scope, a, b) => {
-    const xs = values(lowerValue, scope, [a, b])
-    if (xs[0] === 'error') { return xs }
-    const ts = okList(xs[1].map(x => typeOf(scope.ir)(x)))
-    if (ts[0] === 'error') { return ts }
-    const no = refuse(scope)
-    return !ts[1].every(isFloat) ? no(`% of ${ts[1].map(show).join(' and ')} is not in this slice`)
-        : !scope.ir.imports.some(([k]) => k === 'Native') ? no("% of two floats calls L1's native rows, which a module lowered without the runtime does not import")
-        : ok(call('Native', 'numberRemainder', xs[1]))
-}
-
 // records
 
 /**
@@ -1584,27 +1555,6 @@ const swapped = (lowerValue, scope, f, a, b) => {
 }
 
 /**
- * A primitive as a term: a number is a float literal, a bigint the range
- * that holds it alone, a boolean a `bool`, a string a literal of `any` that
- * String makes, and `undefined` and `null` are Any's constants. A module
- * lowered without the runtime imports neither.
- *
- * @type {(imports: Module['imports'], v: Primitive) => Result<Term, string>}
- */
-const primitive = (imports, v) => {
-    if (typeof v === 'number') { return ok(lit(f64c, v)) }
-    if (typeof v === 'bigint') { return ok(n(v)) }
-    if (typeof v === 'boolean') { return ok(v ? true_ : false_) }
-    if (typeof v === 'string') {
-        return imports.some(([k]) => k === 'String') ? ok(lit(string, v))
-            : error('a string is a literal that String makes, which a module lowered without the runtime does not import')
-    }
-    const name = v === null ? 'null' : 'undefined'
-    return imports.some(([k]) => k === 'Any') ? ok(constant('Any', name))
-        : error(`${name} is a constant of Any, which a module lowered without the runtime does not import`)
-}
-
-/**
  * What a capture of a function of the module stands for: what `capture`
  * makes of the module's binding, or the term of a primitive, which the
  * normalization captures where a binding of the module holds one.
@@ -1692,12 +1642,6 @@ const errorOf = (scope, table, key) => {
 
 // operators of a program
 
-/** Whether the operator of the IR takes operands of these types: floats, or integers. @type {(ts: readonly Type[]) => boolean} */
-const numeric = ts => ts.every(isFloat) || ts.every(t => t[0] === 'int')
-
-/** Whether `!` of the IR takes an operand of these types: a boolean. @type {(ts: readonly Type[]) => boolean} */
-const boolean = ts => ts.every(t => equal(t, bool))
-
 /** Whether `===` of the IR takes operands of these types: numbers of one kind, or booleans. @type {(ts: readonly Type[]) => boolean} */
 const comparable = ts => numeric(ts) || boolean(ts)
 
@@ -1726,9 +1670,6 @@ const viaL1 = (lowerValue, scope, name, fits, vs, native, wrap = x => x) => {
     if (!types.every(t => isAny(t) || isFloat(t) || equal(t, bool))) { return refuse(scope)(`${name} of ${types.map(show).join(' and ')} is not in this slice`) }
     return (numberOps.includes(name) ? numberPath(pure, scope, xs[1], types, native, slow) : null) ?? ok(slow(xs[1]))
 }
-
-/** The operator of the IR of two operands, lowered in their order. @type {(f: (a: Term, b: Term) => Term) => (xs: readonly Term[]) => Result<Term, string>} */
-const inOrder = f => xs => ok(f(xs[0], xs[1]))
 
 /**
  * `a > b` as `lt(b, a)`, of its operands lowered in their order: where
@@ -1793,6 +1734,12 @@ const guarded = (lowerValue, scope, receiver, key, step) => {
     })
 }
 
+/** `a % b`, `a >> b` or `a & b` of two floats, as L1's native row `row`, of the operands lowered in their order. @type {(lowerValue: _LowerValue, op: string, row: string, scope: _Scope, vs: readonly Value[]) => Result<Term, string>} */
+const rowOf = (lowerValue, op, row, scope, vs) => {
+    const xs = values(lowerValue, scope, vs)
+    return xs[0] === 'error' ? xs : numberRow(op, row)(scope, xs[1])
+}
+
 /** @type {_LowerValue} */
 const value = (scope, v) => {
     const no = refuse(scope)
@@ -1834,7 +1781,9 @@ const value = (scope, v) => {
         case 'Number': { return unary(value, scope, 'Number', v[1], (t, x) => t[0] === 'int' ? float(x) : isFloat(t) ? x : null) }
         case '*': { return viaL1(value, scope, 'multiply', numeric, [v[1], v[2]], inOrder(mul)) ?? binary(value, scope, mul, v[1], v[2]) }
         case '/': { return viaL1(value, scope, 'divide', numeric, [v[1], v[2]], inOrder(div)) ?? binary(value, scope, div, v[1], v[2]) }
-        case '%': { return remainder(value, scope, v[1], v[2]) }
+        case '%': { return viaL1(value, scope, 'remainder', floats, [v[1], v[2]], nativeRow('numberRemainder')) ?? rowOf(value, '%', 'numberRemainder', scope, [v[1], v[2]]) }
+        case '>>': { return viaL1(value, scope, 'shiftRight', floats, [v[1], v[2]], nativeRow('numberShiftRight')) ?? rowOf(value, '>>', 'numberShiftRight', scope, [v[1], v[2]]) }
+        case '&': { return viaL1(value, scope, 'bitwiseAnd', floats, [v[1], v[2]], nativeRow('numberAnd')) ?? rowOf(value, '&', 'numberAnd', scope, [v[1], v[2]]) }
         case 'object': { return objectLiteral(value, scope, v[1]) }
         case 'array': { return arrayOf(value, scope, v[1]) }
         case '?.': {

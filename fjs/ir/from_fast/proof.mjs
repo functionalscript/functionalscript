@@ -55,8 +55,8 @@
 import { readFileSync } from 'node:fs'
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import {
-    add, call as l1Call, divide, functionText, get as l1GetFn, greaterThan, greaterThanOrEqual, lessThan, lessThanOrEqual,
-    multiply, negate, objectSpread, strictEquals, stringEquals, stringIndex, stringLess, subtract, toBoolean,
+    add, bitwiseAnd, call as l1Call, divide, functionText, get as l1GetFn, greaterThan, greaterThanOrEqual, lessThan, lessThanOrEqual,
+    multiply, negate, objectSpread, remainder, shiftRight, strictEquals, stringEquals, stringIndex, stringLess, subtract, toBoolean,
     toIterable, toNumber, toNumeric, toPrimitive, toPropertyKey, toString as l1ToString, typeOf,
 } from '../../wasm/runtime/l1/module.f.js'
 import { l0 } from '../l0/module.f.js'
@@ -502,14 +502,19 @@ export const proof = {
         "import Native from fjs:l1-native",
         "    fn bigintEquals(a: any.only(bigint), b: any.only(bigint)) -> bool",
         "    fn numberRemainder(a: f64, b: f64) -> f64",
+        "    fn numberShiftRight(a: f64, b: f64) -> f64",
+        "    fn numberAnd(a: f64, b: f64) -> f64",
         "    fn numberToString(n: f64) -> any.only(string)",
         "    fn stringToNumber(s: any.only(string)) -> f64",
         "    fn bigintToString(b: any.only(bigint)) -> any.only(string)",
-        "    fn bigintAdd(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint)",
-        "    fn bigintSubtract(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint)",
-        "    fn bigintMultiply(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint)",
+        "    fn bigintAdd(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint) may fail",
+        "    fn bigintSubtract(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint) may fail",
+        "    fn bigintMultiply(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint) may fail",
         "    fn bigintDivide(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint) may fail",
         "    fn bigintNegate(a: any.only(bigint)) -> any.only(bigint)",
+        "    fn bigintRemainder(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint) may fail",
+        "    fn bigintShiftRight(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint) may fail",
+        "    fn bigintAnd(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint) may fail",
         "    fn bigintLess(a: any, b: any) -> f64",
         "",
         "const #c0: any.only(array) =",
@@ -1642,14 +1647,18 @@ export const proof = {
             subtract: ([a, b]) => ({ any: subtract(held(a), held(b)) }),
             multiply: ([a, b]) => ({ any: multiply(held(a), held(b)) }),
             divide: ([a, b]) => ({ any: divide(held(a), held(b)) }),
+            remainder: ([a, b]) => ({ any: remainder(held(a), held(b)) }),
+            shiftRight: ([a, b]) => ({ any: shiftRight(held(a), held(b)) }),
+            bitwiseAnd: ([a, b]) => ({ any: bitwiseAnd(held(a), held(b)) }),
             negate: ([a]) => ({ any: negate(held(a)) }),
             lessThan: ([a, b]) => lessThan(held(a), held(b)),
             greaterThan: ([a, b]) => greaterThan(held(a), held(b)),
             lessThanOrEqual: ([a, b]) => lessThanOrEqual(held(a), held(b)),
             greaterThanOrEqual: ([a, b]) => greaterThanOrEqual(held(a), held(b)),
         }
-        // `divide` may abandon what it holds when `Native.bigintDivide` throws
-        // for a zero divisor: that throw is a callee's, not `Functions.throw`.
+        // `divide` and `remainder` may abandon what they hold when
+        // `Native.bigintDivide` or `Native.bigintRemainder` throws for a zero
+        // divisor: that throw is a callee's, not `Functions.throw`.
         return run(fromL1Arith(), twins, {
             functionText: [[{ any: 'x' }]],
             toPrimitive: [[{ any: 1 }, false], [{ any: 'a' }, true]],
@@ -1679,6 +1688,24 @@ export const proof = {
                 [{ any: 1 }, { any: 0 }],
                 [{ any: 1n }, { any: 0n }],
             ],
+            remainder: [
+                [{ any: -7 }, { any: 2 }],
+                [{ any: -7n }, { any: 2n }],
+                [{ any: '9' }, { any: 4 }],
+                [{ any: 1n }, { any: 0n }],
+                [{ any: 1n }, { any: 1 }],
+            ],
+            shiftRight: [
+                [{ any: -9 }, { any: 1 }],
+                [{ any: -9n }, { any: 1n }],
+                [{ any: 2 ** 32 + 8 }, { any: 33 }],
+                [{ any: 1n }, { any: 1 }],
+            ],
+            bitwiseAnd: [
+                [{ any: 12 }, { any: 10 }],
+                [{ any: -4n }, { any: -6n }],
+                [{ any: true }, { any: '3' }],
+            ],
             negate: [
                 [{ any: 3 }],
                 [{ any: 3n }],
@@ -1705,7 +1732,7 @@ export const proof = {
                 [{ any: 2 }, { any: 1 }],
                 [{ any: 1n }, { any: 1n }],
             ],
-        }, ['divide'])
+        }, ['divide', 'remainder'])
     },
     // Every export of L1, lowered from its text as one module: each answers
     // what L1's own answers on the values of the parity table.
@@ -1738,6 +1765,9 @@ export const proof = {
             subtract: boxed(subtract),
             multiply: boxed(multiply),
             divide: boxed(divide),
+            remainder: boxed(remainder),
+            shiftRight: boxed(shiftRight),
+            bitwiseAnd: boxed(bitwiseAnd),
             negate: boxed(negate),
             lessThan: plain(lessThan),
             greaterThan: plain(greaterThan),
@@ -1780,6 +1810,9 @@ export const proof = {
             subtract: pairs,
             multiply: pairs,
             divide: pairs,
+            remainder: pairs,
+            shiftRight: pairs,
+            bitwiseAnd: pairs,
             negate: one(values),
             lessThan: pairs,
             greaterThan: pairs,
@@ -1793,7 +1826,7 @@ export const proof = {
             ],
             toIterable: one(values),
             objectSpread: one(values),
-        }, ['divide'])
+        }, ['divide', 'remainder'])
     },
     // Slice 11a: every export of the programs, of `any` alone, and the
     // bodies of L1 that they reach, by their linked names, and no others.
@@ -1811,7 +1844,7 @@ export const proof = {
     // function of two arguments, and throws L1's value of the error that
     // JavaScript throws. A throw of L1 leaves what the caller made for it
     // behind, a boxed key or number, which the host recovers.
-    programsRun: () => runPrograms(fromPrograms(), programs, ['apply', 'called', 'countDown', 'first', 'method', 'mixed', 'pair', 'sum3', 'twice']),
+    programsRun: () => runPrograms(fromPrograms(), programs, ['apply', 'bits', 'called', 'countDown', 'first', 'method', 'mixed', 'pair', 'sum3', 'twice']),
     // The records pass: the objects that a program only reads back by keys
     // that they have are split, so no function that reads one back builds
     // it, and every other object stays one.

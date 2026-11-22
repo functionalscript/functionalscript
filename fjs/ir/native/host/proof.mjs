@@ -10,6 +10,7 @@
 
 import { assert, assertEq } from '../../../asserts/module.f.js'
 import { handles } from '../../l0/host/module.f.js'
+import { error } from '../../../wasm/runtime/l1/error/module.f.js'
 import { host } from './module.mjs'
 
 /** Bigints, one past a word, zero, and a value of another kind. */
@@ -65,9 +66,56 @@ export const proof = {
         const k = h.bigintNegate(0n)
         assertEq(owned[Number(k) - values.length], -1n)
     },
+    numberBits: () => {
+        assertEq(h.numberShiftRight(-9, 1), -5)
+        assertEq(h.numberAnd(6, 3), 2)
+    },
+    bigintRemainder: () => {
+        const k = h.bigintRemainder(3n, 0n)
+        assertEq(owned[Number(k) - values.length], 0n)
+    },
+    bigintShiftRight: () => {
+        const k = h.bigintShiftRight(3n, 0n)
+        assertEq(owned[Number(k) - values.length], 1n << 63n)
+    },
+    bigintAnd: () => {
+        const k = h.bigintAnd(2n, 3n)
+        assertEq(owned[Number(k) - values.length], 1n << 64n)
+    },
     bigintLess: () => {
         assertEq(h.bigintLess(0n, 3n), 1)
         assertEq(h.bigintLess(3n, 0n), 0)
+    },
+    // Division by zero and a bigint past the engine's size limit are FunctionalScript throws, which `fail` records before the rethrow.
+    recorded: () => {
+        /** @type {unknown[]} */
+        const failed = []
+        const r = host(handles([1n, 0n, -(1n << 40n)]), () => 0n, e => { failed.push(e) })
+        /** @type {(f: () => unknown) => unknown} */
+        const thrown = f => {
+            try {
+                f()
+            } catch (e) {
+                return e
+            }
+            return undefined
+        }
+        assertEq(thrown(() => r.bigintShiftRight(0n, 2n)), error.bigintTooLarge)
+        assertEq(thrown(() => r.bigintDivide(0n, 1n)), error.divisionByZero)
+        // Past NaNVM's limit of 2^14 words, which is under the engine's.
+        const s = host(handles([1n, -(64n << 14n), 1n - (64n << 14n)]), () => 0n, e => { failed.push(e) })
+        assertEq(thrown(() => s.bigintShiftRight(0n, 1n)), error.bigintTooLarge)
+        assertEq(thrown(() => s.bigintShiftRight(0n, 2n)), undefined)
+        // Two negatives at NaNVM's last word whose `&` carries one word past it.
+        const top = 64n * ((1n << 14n) - 1n)
+        const t = host(handles([-(0xFFFF_FFFF_0000_0001n << top), -(0x1_0000_0000n << top)]), () => 0n, e => { failed.push(e) })
+        assertEq(thrown(() => t.bigintAnd(0n, 1n)), error.bigintTooLarge)
+        assertEq(thrown(() => r.bigintEquals(0n, 5n)) === undefined, false)
+        assertEq(failed.length, 4)
+        assertEq(failed[0], error.bigintTooLarge)
+        assertEq(failed[1], error.divisionByZero)
+        assertEq(failed[2], error.bigintTooLarge)
+        assertEq(failed[3], error.bigintTooLarge)
     },
     // Kind mismatch traps; division by zero is a FunctionalScript throw (fail records it when wired).
     throw: {
@@ -76,6 +124,7 @@ export const proof = {
         stringToNumber: () => { h.stringToNumber(0n) },
         bigintToString: () => { h.bigintToString(5n) },
         bigintDivideZero: () => { h.bigintDivide(0n, 4n) },
+        bigintRemainderZero: () => { h.bigintRemainder(0n, 4n) },
         bigintLessNoBigint: () => { h.bigintLess(5n, 6n) },
     },
 }

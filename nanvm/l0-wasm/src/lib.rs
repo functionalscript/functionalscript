@@ -389,6 +389,16 @@ pub extern "C" fn number_remainder(a: f64, b: f64) -> f64 {
     native::number_remainder(a, b)
 }
 
+#[unsafe(export_name = "numberShiftRight")]
+pub extern "C" fn number_shift_right(a: f64, b: f64) -> f64 {
+    native::number_shift_right(a, b)
+}
+
+#[unsafe(export_name = "numberAnd")]
+pub extern "C" fn number_and(a: f64, b: f64) -> f64 {
+    native::number_and(a, b)
+}
+
 #[unsafe(export_name = "numberToString")]
 pub extern "C" fn number_to_string(n: f64) -> i64 {
     native::number_to_string(n)
@@ -412,6 +422,21 @@ pub extern "C" fn bigint_add(a: i64, b: i64) -> i64 {
 #[unsafe(export_name = "bigintSubtract")]
 pub extern "C" fn bigint_subtract(a: i64, b: i64) -> i64 {
     native::bigint_subtract(a, b)
+}
+
+#[unsafe(export_name = "bigintRemainder")]
+pub extern "C" fn bigint_remainder(a: i64, b: i64) -> i64 {
+    native::bigint_remainder(a, b)
+}
+
+#[unsafe(export_name = "bigintShiftRight")]
+pub extern "C" fn bigint_shift_right(a: i64, b: i64) -> i64 {
+    native::bigint_shift_right(a, b)
+}
+
+#[unsafe(export_name = "bigintAnd")]
+pub extern "C" fn bigint_and(a: i64, b: i64) -> i64 {
+    native::bigint_and(a, b)
 }
 
 #[unsafe(export_name = "bigintMultiply")]
