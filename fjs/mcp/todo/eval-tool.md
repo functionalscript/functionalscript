@@ -171,7 +171,7 @@ conversion proofs in
 [`value/convert/proof.f.js`](../../edag/value/convert/proof.f.js), explicit
 method proofs in
 [`value/method/proof.f.js`](../../edag/value/method/proof.f.js), and Memo's
-shared corpus in [`nanvm/proof.f.mjs`](../../nanvm/proof.f.mjs).
+shared corpus in [`nanvm/proof.f.js`](../../nanvm/proof.f.js).
 The proposed evaluator keeps these conversions represented until it obtains
 the final data value. The three inputs above remain useful MCP integration
 proofs; a blanket refusal of function syntax is unnecessary.

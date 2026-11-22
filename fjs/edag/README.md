@@ -98,9 +98,11 @@ to the operation/invocation layer.
 [`value/function`](value/function/module.f.js) constructs function values
 from deferred captures and valid body templates. Captures evaluate in order,
 retaining their identities and propagating the first failure unchanged.
-Each function gets a fresh copy of its body graph, including nested function
-templates, while sharing within that graph is preserved. Body code stays
-unevaluated; captured values stay outside the copy. Memo's `invoke` interprets
+A function is made over the body graph it was given, so two made by one
+arrow share it. `ownBodies` gives each function of a value a fresh copy of
+its body, including nested function templates, while sharing within that
+graph is preserved; a value goes through it before it is analysed or
+written. Body code stays unevaluated; captured values stay outside the copy. Memo's `invoke` interprets
 the retained body with a fresh invocation cache.
 
 [`value/call`](value/call/module.f.js) prepares bare calls over represented
@@ -258,9 +260,8 @@ the static tuples and the runtime ones agree exactly, an exact-length
 [TupleTs](../rtti/ts/types.ts) rendering over an exact-length set.
 [proof.f.js](proof.f.js) pins what the schema accepts and rejects, node
 kind by node kind — validation behavior, not execution semantics — with
-`comma` pinned by the compiler that emits it, `fjs/compiler/edag`. Its `ownJs`
-section and the `chainsJs` section of
-[chains_js.proof.f.mjs](chains_js.proof.f.mjs) are the exception that proves the rule: they run the JS
+`comma` pinned by the compiler that emits it, `fjs/compiler/edag`. Its `ownJs` and
+`chainsJs` sections are the exception that proves the rule: they run the JS
 whose behavior the nodes are built around, which is how those semantics were
 pinned before anything executed an EDAG. [amnesia](amnesia/README.md) now
 does — a tree-walking evaluator for testing the semantics, and deliberately
@@ -500,6 +501,15 @@ optional link skips the rest of its chain (`undefined?.a.b` is `undefined`,
 but `(undefined?.a).b` throws). Parentheses move both boundaries, so both are
 part of what a graph means.
 
+The receiver is why `?.` cannot lower to a conditional. The naive desugaring
+of `a?.at`, `a === null || a === undefined ? undefined : a.at`, answers the
+very function `a.at` denotes, and a call of that answer has lost `a`: the
+conditional made a value of it. So `(a?.b)(c)` keeps its receiver through a
+`|!()` step inside the `?.` node instead. FunctionalScript reads no method as
+a value, so no proof runs that desugaring on the host; the node-level half is
+`failures.detachedReceiver` in [amnesia/proof.f.js](amnesia/proof.f.js), where
+calling what `['.', a, 'at']` reads fails.
+
 Neither is ever the result of an `exp`. Evaluating an `exp` produces an
 ordinary value and nothing else, which is what keeps a node
 context-independent and shareable by identity wherever it appears. So the
@@ -611,8 +621,7 @@ its item list: `f(a, b)` has `c = [a, b]`, and `f(...xs)` has
 | `(a?.(...c))(...d)` | `['()', ['?.()', a, c], d]` |
 
 The `chains` section of [proof.f.js](proof.f.js) pins the shape of every
-spelling above, `chainsJs` in [chains_js.proof.f.mjs](chains_js.proof.f.mjs)
-runs them as JS on the host engine, and
+spelling above, `chainsJs` next to it runs them as JS on the host engine, and
 [amnesia/proof.f.js](amnesia/proof.f.js) evaluates them as nodes.
 
 ### What cannot be written

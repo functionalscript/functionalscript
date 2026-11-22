@@ -10,7 +10,7 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         let _b648: Any<A> = _args.rest(0).to_any();
         Ok(A::static_function(|_self, _args| {
             let _b565: Any<A> = _args.rest(0).to_any();
-            (Any::dot(A::frame(_self)[0].clone(), f64_any(0x0000000000000000)).end())? + (Any::dot(_b565.clone(), f64_any(0x0000000000000000)).end())?
+            (Any::dot(A::frame(_self)[0].clone(), f64_any(0x0)).end())? + (Any::dot(_b565.clone(), f64_any(0x0)).end())?
         }, 0, [_b648.clone()].to_array(), Some("(...$1)=>$0[0]+$1[0]")).to_any())
     }, 0, Array::default(), Some("(...$0)=>(...$1)=>$0[0]+$1[0]")).to_any();
     let _b10: Any<A> = [f64_any(0x4024000000000000)].to_array().to_any();
@@ -20,20 +20,20 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             let _b2557: Any<A> = _args.rest(0).to_any();
             Ok(A::static_function(|_self, _args| {
                 let _b2474: Any<A> = _args.rest(0).to_any();
-                Ok([(Any::dot(A::frame(_self)[0].clone(), f64_any(0x0000000000000000)).end())?, (Any::dot(A::frame(_self)[1].clone(), f64_any(0x0000000000000000)).end())?, (Any::dot(_b2474.clone(), f64_any(0x0000000000000000)).end())?, (Any::dot(A::frame(_self)[0].clone(), f64_any(0x0000000000000000)).end())?].to_array().to_any())
+                Ok([(Any::dot(A::frame(_self)[0].clone(), f64_any(0x0)).end())?, (Any::dot(A::frame(_self)[1].clone(), f64_any(0x0)).end())?, (Any::dot(_b2474.clone(), f64_any(0x0)).end())?, (Any::dot(A::frame(_self)[0].clone(), f64_any(0x0)).end())?].to_array().to_any())
             }, 0, [A::frame(_self)[0].clone(), _b2557.clone()].to_array(), Some("(...$2)=>[$0[0],$1[0],$2[0],$0[0]]")).to_any())
         }, 0, [_b2640.clone()].to_array(), Some("(...$1)=>(...$2)=>[$0[0],$1[0],$2[0],$0[0]]")).to_any())
     }, 0, Array::default(), Some("(...$0)=>(...$1)=>(...$2)=>[$0[0],$1[0],$2[0],$0[0]]")).to_any();
     Ok([(string_key("default"), {
         let _b16: Any<A> = A::static_function(|_self, _args| {
             let _b1395: Any<A> = _args.rest(0).to_any();
-            (Any::dot(A::frame(_self)[0].clone(), f64_any(0x0000000000000000)).end())? + (Any::dot(_b1395.clone(), f64_any(0x0000000000000000)).end())?
+            (Any::dot(A::frame(_self)[0].clone(), f64_any(0x0)).end())? + (Any::dot(_b1395.clone(), f64_any(0x0)).end())?
         }, 0, [_b10.clone()].to_array(), Some("(...$1)=>$0[0]+$1[0]")).to_any();
         let _b46: Any<A> = A::static_function(|_self, _args| {
             let _b3885: Any<A> = _args.rest(0).to_any();
             Ok(A::static_function(|_self, _args| {
                 let _b3802: Any<A> = _args.rest(0).to_any();
-                ((Any::dot(A::frame(_self)[0].clone(), f64_any(0x0000000000000000)).end())? + (Any::dot(_b3802.clone(), f64_any(0x0000000000000000)).end())?)? + (Any::dot(A::frame(_self)[1].clone(), f64_any(0x0000000000000000)).end())?
+                ((Any::dot(A::frame(_self)[0].clone(), f64_any(0x0)).end())? + (Any::dot(_b3802.clone(), f64_any(0x0)).end())?)? + (Any::dot(A::frame(_self)[1].clone(), f64_any(0x0)).end())?
             }, 0, [_b3885.clone(), A::frame(_self)[0].clone()].to_array(), Some("(...$2)=>$0[0]+$2[0]+$1[0]")).to_any())
         }, 0, [_b10.clone()].to_array(), Some("(...$1)=>(...$2)=>$1[0]+$2[0]+$0[0]")).to_any();
         [{

@@ -14,7 +14,7 @@
  * The `lock` schema and its semantic check are **imported** from
  * `fjs/media/revision`, not restated: one recursive schema, one hash check,
  * one canonical serialization, so a map means the same thing inline and shared
- * and the two forms cannot drift (`proof.f.mjs` pins the bytes).
+ * and the two forms cannot drift (`proof.f.js` pins the bytes).
  *
  * Like its sibling, this module is the pure format only: the rtti schema, the
  * `dialect` tag, and decode/validate. Whether a referenced blob exists, and

@@ -53,6 +53,8 @@ export const proof = {
         const j = over([['a', '', 'b'], ', '])
         assertEq(j.join(0n, 1n), 'a, , b')
     },
+    // `key` is the key of a property, by its index.
+    key: () => assertEq(h.key(7n, 0), 'a'),
     text: () => assertEq(h.text(8n), values.at(8)?.toString()),
     // Where L0 traps, the import throws: a handle of no value, or a value of another kind.
     throw: {
@@ -73,6 +75,8 @@ export const proof = {
         itemOfNoContainer: () => { h.item(4n, 0) },
         findArray: () => { h.find(6n, 4n) },
         joinPart: () => { over([['a', 1], ',']).join(0n, 1n) },
+        keyPast: () => { h.key(7n, 1) },
+        keyOfArray: () => { h.key(6n, 0) },
         text: () => { h.text(7n) },
     },
 }

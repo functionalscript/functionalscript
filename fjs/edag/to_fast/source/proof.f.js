@@ -8,11 +8,11 @@
  */
 
 import { conditional } from '../../testlib.f.js'
-import { assertEq, assertOk } from '../../../asserts/module.f.js'
+import { assertEq, assertNotNullish, assertOk } from '../../../asserts/module.f.js'
 import { identityAnalysis } from '../../analysis/module.f.js'
 import { fromAnalysis } from '../module.f.js'
 import { fromFast } from '../../from_fast/module.f.js'
-import { sourceReason } from './module.f.js'
+import { sourceReason, sourceRefusal } from './module.f.js'
 import { reverse } from '../../../types/list/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { generate } from '../../../types/array/module.f.js'
@@ -47,6 +47,21 @@ export const proof = {
         const lazyEntry = { statements: [], exit: ['loop', { target, parameters: [binding],
             initial: [['function', { target: owner, parameters: [], rest: null, self: null, captures: [], body: lazyBody }]], results: [], body }] }
         assertEq(sourceReason(table, lazyEntry), refusal)
+        // The refusal names the node the recipe is of, where its binding is
+        // an entry's, and a graph refusal the node it met.
+        /** @type {Exp} */
+        const made = ['[]', [['arg', 0]]]
+        const graph = assertOk(identityAnalysis(['=>', 1, [], made]))
+        /** @type {(index: number) => Block} */
+        const deferred = index => ({ statements: [['define', { index }, ['array', []], 'lazy']], exit: ['yield', [0]] })
+        assertEq(assertNotNullish(sourceRefusal(graph, deferred(1)))[1], made)
+        assertEq(assertNotNullish(sourceRefusal(graph, deferred(100)))[1], null)
+        /** @type {Exp} */
+        const args = ['args']
+        const reading = assertOk(identityAnalysis(['[]', [args]]))
+        const refused = assertNotNullish(sourceRefusal(reading, fromAnalysis(reading)))
+        assertEq(refused[0], 'a args node')
+        assertEq(refused[1], args)
     },
     captures: () => {
         /** @type {Exp} */
@@ -73,7 +88,7 @@ export const proof = {
         assertEq(reason(['()', ['=>', 0, [], 1], [['args']]]), 'a args node')
         assertEq(reason(['+', 1, 2]), null)
         assertEq(reason(['Boolean', ['undefined']]), null)
-        assertEq(reason(['+', 1]), 'a unary + node')
+        assertEq(reason(['+', 1]), null)
         assertEq(reason([',', []]), 'a comma with fewer than two operands')
         assertEq(reason([',', [1]]), 'a comma with fewer than two operands')
         assertEq(reason([',', [1, 2]]), null)
@@ -96,8 +111,8 @@ export const proof = {
     },
     keys: () => {
         assertEq(reason(['.', null, 'length']), null)
-        assertEq(reason(['.', null, 'constructor']), 'a prohibited property name')
-        assertEq(reason(['.', null, 'push', ['|()', [0]]]), 'a prohibited member function')
+        assertEq(reason(['.', null, 'constructor']), 'a read of the prohibited property name "constructor"')
+        assertEq(reason(['.', null, 'push', ['|()', [0]]]), 'a call of the prohibited member function "push"')
         assertEq(reason(['.', null, 0]), null)
         for (const key of [NaN, Infinity, -0]) { assertEq(reason(['.', null, key]), 'a number key no literal reads back') }
         assertEq(reason(['.', null, ['Number', 0]]), null)
@@ -105,8 +120,8 @@ export const proof = {
         assertEq(reason(/** @type {Exp} */ (/** @type {unknown} */ (['=>', 0, [], ['.', ['rest'], ['rest']]]))), 'an access key that is no literal')
         const key = /** @type {const} */ (['Number', 0])
         assertEq(reason(['[]', [['.', null, key], ['.', null, key]]]), 'a shared computed key')
-        assertEq(reason(['?.', null, 'length', ['|.', 'at']]), 'a prohibited property name')
-        assertEq(reason(['?.', null, 'x', ['|.', 'push', ['|()', []]]]), 'a prohibited member function')
+        assertEq(reason(['?.', null, 'length', ['|.', 'at']]), 'a read of the prohibited property name "at"')
+        assertEq(reason(['?.', null, 'x', ['|.', 'push', ['|()', []]]]), 'a call of the prohibited member function "push"')
         assertEq(reason(['?.', null, ['Number', [',', [1, 2]]], ['|.', ['Number', [',', [3, 4]]]]]), null)
         assertEq(reason(['?.()', null, [[',', [1, 2]]], ['|.', 'x', ['|?.()', [[',', [3, 4]]]]]]), null)
         const escaped = /** @type {Exp} */ ([

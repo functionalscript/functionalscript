@@ -1,8 +1,8 @@
 ## Property Accessor
 
 **Priority:** P2
-**Status:** on-hold — only `a[+i]` remains, and unary `+` is outside the
-language with no plan to admit it
+**Status:** on-hold — nothing of its own remains; kept as the record the
+refusals of a runtime key and of a prototype's name cite for their reason
 
 The constant-key read is in the language
 ([spec: property access](../property-access/README.md)): an own-property
@@ -26,13 +26,10 @@ reinterpret. `hasEntry` answers presence beside it
 ([spec: entry](../property-access/entries/README.md)). All such instructions follow
 [statement-aware AST recognition](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md).
 
-What this file still owns is `a[+i]`, beside the numeric index
-`a[Number(i)]` that is in the language, where the program knows no `bigint`
-reaches the index — but unary `+` is outside the language:
-[operators](../operators/README.md) leaves it on the other side of the line, and
-no record plans it ([refused constructs](./refused-constructs.md)). Where a program knows its
-index to be a number, `a[Number(i)]` is the spelling to write, `entry`
-being the read for a key of any type.
+`a[+i]` is in the language too, beside the numeric index `a[Number(i)]`:
+unary `+` is a number or a throw, a `bigint` being what it throws on
+([operators](../operators/README.md)), so it is a numeric key as `Number(i)`
+is. `entry` is the read for a key of any type.
 
 Syntax examples (planned computed/runtime-key forms included):
 

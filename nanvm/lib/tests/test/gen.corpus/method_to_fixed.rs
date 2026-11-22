@@ -5,14 +5,14 @@ use crate::harness::*;
 #[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
     let rt: Any<A> = runtime::<A>().unwrap();
-    check::<A>("half", scope(|| { Any::dot(f64_any(0x3fe0000000000000), string_any("toFixed")).end_call(&rt, || Ok([f64_any(0x0000000000000000)].to_array().to_any())) }), string_any("1"));
-    check::<A>("twoAndAHalf", scope(|| { Any::dot(f64_any(0x4004000000000000), string_any("toFixed")).end_call(&rt, || Ok([f64_any(0x0000000000000000)].to_array().to_any())) }), string_any("3"));
+    check::<A>("half", scope(|| { Any::dot(f64_any(0x3fe0000000000000), string_any("toFixed")).end_call(&rt, || Ok([f64_any(0x0)].to_array().to_any())) }), string_any("1"));
+    check::<A>("twoAndAHalf", scope(|| { Any::dot(f64_any(0x4004000000000000), string_any("toFixed")).end_call(&rt, || Ok([f64_any(0x0)].to_array().to_any())) }), string_any("3"));
     check::<A>("tie", scope(|| { Any::dot(f64_any(0x3ff4000000000000), string_any("toFixed")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())) }), string_any("1.3"));
     check::<A>("belowTheDecimal", scope(|| { Any::dot(f64_any(0x3ff0147ae147ae14), string_any("toFixed")).end_call(&rt, || Ok([f64_any(0x4000000000000000)].to_array().to_any())) }), string_any("1.00"));
     check::<A>("belowTheTie", scope(|| { Any::dot(f64_any(0x3ff7333333333333), string_any("toFixed")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())) }), string_any("1.4"));
-    check::<A>("negative", scope(|| { Any::dot(f64_any(0xbff8000000000000), string_any("toFixed")).end_call(&rt, || Ok([f64_any(0x0000000000000000)].to_array().to_any())) }), string_any("-2"));
-    check::<A>("negativeTie", scope(|| { Any::dot(f64_any(0xc004000000000000), string_any("toFixed")).end_call(&rt, || Ok([f64_any(0x0000000000000000)].to_array().to_any())) }), string_any("-3"));
-    check::<A>("negativeToZero", scope(|| { Any::dot(f64_any(0xbfb999999999999a), string_any("toFixed")).end_call(&rt, || Ok([f64_any(0x0000000000000000)].to_array().to_any())) }), string_any("-0"));
+    check::<A>("negative", scope(|| { Any::dot(f64_any(0xbff8000000000000), string_any("toFixed")).end_call(&rt, || Ok([f64_any(0x0)].to_array().to_any())) }), string_any("-2"));
+    check::<A>("negativeTie", scope(|| { Any::dot(f64_any(0xc004000000000000), string_any("toFixed")).end_call(&rt, || Ok([f64_any(0x0)].to_array().to_any())) }), string_any("-3"));
+    check::<A>("negativeToZero", scope(|| { Any::dot(f64_any(0xbfb999999999999a), string_any("toFixed")).end_call(&rt, || Ok([f64_any(0x0)].to_array().to_any())) }), string_any("-0"));
     check::<A>("negativeZero", scope(|| { Any::dot(f64_any(0x8000000000000000), string_any("toFixed")).end_call(&rt, || Ok([f64_any(0x4000000000000000)].to_array().to_any())) }), string_any("0.00"));
     check::<A>("smallNegative", scope(|| { Any::dot(f64_any(0xbe7ad7f29abcaf48), string_any("toFixed")).end_call(&rt, || Ok([f64_any(0x4000000000000000)].to_array().to_any())) }), string_any("-0.00"));
     check::<A>("noArgument", scope(|| { Any::dot(f64_any(0x3ff8000000000000), string_any("toFixed")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("2"));

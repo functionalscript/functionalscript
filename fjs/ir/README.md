@@ -8,7 +8,7 @@ stages.
 
 It is built in vertical slices, from the least risky to the most
 ([todo/slices.md](./todo/slices.md) — roadmap of done, next and later).
-This directory holds the first eight:
+This directory holds the first ten:
 typed code written by hand, the same code lowered from normalized FAST
 ([`from_fast`](./from_fast/README.md)), values of unknown kind, read
 through [the interfaces of L0](./l0/module.f.js), loops, functions that a
@@ -25,8 +25,13 @@ Containers' builder (8b), and `buildObject` with `{}` and `objectSpread`
 (8c). The first PR of the eighth, 8a, changed the L0 view itself, so
 that it calls a builder's callbacks in the order of that loop. Slice 9a
 adds Any's `from_f64` and `from_bool`, so a number or boolean meets
-`any` and can be an array item. Slice 9b1 adds the `code` type and
-`call_ref`.
+`any` and can be an array item. Slice 9b adds the `code` type and
+`call_ref` (9b1), L0's `Functions.call` (9b2), and the lowering of a
+call of a function value, with L1's coercions and `call` (9b3). Slice
+10 lowers L1's `get` (10a), its arithmetic and relational operators
+(10b), and the whole L1 module as one, run on the parity table (10c).
+Then Any's copy variants leave the counts of `undefined`, `null` and
+`boolean` out.
 
 ## Map of this directory
 
@@ -38,11 +43,13 @@ adds Any's `from_f64` and `from_bool`, so a number or boolean meets
 |[`check/owned`](./check/owned/module.f.js)|the owned-stage check: each owned value consumed once on every path    |
 |[`lifetime`](./lifetime/module.f.js)      |the lifetime pass: a module's plain stage to its owned stage           |
 |[`print`](./print/module.f.js)           |the IR as text, for review and golden proofs                           |
+|[`records`](./records/module.f.js)       |the records pass: an object only read back by its keys, split in locals|
 |[`wasm`](./wasm/module.f.js)             |the emitter, to the AST of [`fjs/media/wasm`](../media/wasm/README.md) |
 |[`from_fast`](./from_fast/README.md)      |the lowering from normalized FAST, with the types from a table         |
 |[`l0`](./l0/module.f.js)                 |the interfaces of L0 as data, and `any`, the type that they seal       |
 |[`l0/host`](./l0/host/module.f.js)        |the `fjs:l0` imports as the L0 view's functions, over handles          |
 |[`l0/host/count`](./l0/host/count/module.mjs)|a host of the `fjs:l0` imports that counts every value, for host proofs|
+|[`l0/host/nanvm`](./l0/host/nanvm/module.mjs)|NaNVM's `.wasm` as the host of the `fjs:l0` imports, for host proofs|
 |[`native`](./native/module.f.js)         |the interface of L1's native rows as data, `Native`                    |
 |[`native/host`](./native/host/module.mjs)|a JavaScript host for the `fjs:l1-native` imports, over L1's rows      |
 
@@ -332,6 +339,35 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   nothing behind. The random comparison gains a form that throws a
   literal, its value or one of L1's errors, by the kind of the value.
 
+## What 8b adds
+
+- **`buildArray(n, s, next, at)` of the L0 view, lowered**
+  ([L0 design §22](../../doc/sasha-gil/wasm/l0-design.md#22-building-in-one-pass)):
+  `begin_array` of `n`, which must hold an index exactly, then one `loop`,
+  labelled `B0`, `B1`, … by depth, of the builder, the state and the count
+  of items pushed. Each round pushes `at` of the state and, before the last
+  item, steps the state by `next`, the view's order since 8a, and the
+  round after the last seals the builder. No term is new.
+- **Callbacks inlined**: `next` and `at` are arrow literals of at most one
+  parameter, written in the call, and the lowering inlines their bodies
+  where the loop reads them, so no closure is made. Any other callback is
+  refused until slice 9, and so are a count that is not a number, a state
+  of an integer range, in a record too, as a loop's parameter is, and an
+  item that is not a value of `any`.
+- **A throw inside a callback is refused**, since it would leave the
+  builder, which is linear, behind. A call there that fails, of an
+  exported function that throws say, abandons the builder, as a trap does,
+  and the host's `recover` frees it.
+- **`asArray`** is a cast to `array`, as `asString` is one to `string`.
+- **Subjects**: the functions of [`builds.f.js`](./from_fast/builds.f.js),
+  which build the units of a string, a value repeated `n` times where `n`
+  may be no index, nested arrays and an array by a state that is a record,
+  and two whose callbacks call functions that throw, which shows the
+  view's order; and L1's `toIterable`, lowered from its text, against L1's
+  own on values of every kind and on strings of code points. Each builds
+  what its original builds and leaves nothing behind. The random
+  comparison gains a form of `buildArray`.
+
 ## What 8c adds
 
 - **Object builders**: Containers' `begin_object`, `push_property` and
@@ -408,34 +444,153 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   `lessThan`, `greaterThan`, `lessThanOrEqual` and `greaterThanOrEqual`,
   lowered from L1's text over its error table, run against L1's own.
 
-## What 8b adds
+## What 10c adds
 
-- **`buildArray(n, s, next, at)` of the L0 view, lowered**
-  ([L0 design §22](../../doc/sasha-gil/wasm/l0-design.md#22-building-in-one-pass)):
-  `begin_array` of `n`, which must hold an index exactly, then one `loop`,
-  labelled `B0`, `B1`, … by depth, of the builder, the state and the count
-  of items pushed. Each round pushes `at` of the state and, before the last
-  item, steps the state by `next`, the view's order since 8a, and the
-  round after the last seals the builder. No term is new.
-- **Callbacks inlined**: `next` and `at` are arrow literals of at most one
-  parameter, written in the call, and the lowering inlines their bodies
-  where the loop reads them, so no closure is made. Any other callback is
-  refused until slice 9, and so are a count that is not a number, a state
-  of an integer range, in a record too, as a loop's parameter is, and an
-  item that is not a value of `any`.
-- **A throw inside a callback is refused**, since it would leave the
-  builder, which is linear, behind. A call there that fails, of an
-  exported function that throws say, abandons the builder, as a trap does,
-  and the host's `recover` frees it.
-- **`asArray`** is a cast to `array`, as `asString` is one to `string`.
-- **Subjects**: the functions of [`builds.f.js`](./from_fast/builds.f.js),
-  which build the units of a string, a value repeated `n` times where `n`
-  may be no index, nested arrays and an array by a state that is a record,
-  and two whose callbacks call functions that throw, which shows the
-  view's order; and L1's `toIterable`, lowered from its text, against L1's
-  own on values of every kind and on strings of code points. Each builds
-  what its original builds and leaves nothing behind. The random
-  comparison gains a form of `buildArray`.
+- **The whole L1 module**: every export of L1 lowered from its text as one
+  module, `toPropertyKey` the last to join, as `toString` of its value.
+- **The parity table**: each export runs against L1's own on the values
+  and keys of
+  [`l1/parity/proof.mjs`](../wasm/runtime/l1/parity/proof.mjs), from
+  its [`testlib.mjs`](../wasm/runtime/l1/parity/testlib.mjs), a function
+  among them: every pair for the binary operators and
+  `strictEquals`, every value with each key for `get`. `divide` alone may
+  abandon what it holds, where `Native.bigintDivide` throws.
+
+## What copy variants add
+
+- **An interface's copy variants**: a counted type may name some of its
+  variants as copy, each once, as Any names `undefined`, `null` and
+  `boolean`. A value of a subset that holds only those, such as Any's
+  constants, is used as a float is: the lifetime pass writes no `dup` and
+  no `drop` of it, and the owned-stage check takes it where a parameter
+  owns its argument.
+- **The counting host** makes such values immediates: Any's constant
+  cells, whose counts a `dup` or a `drop` leaves.
+
+## What 11a adds
+
+- **Untyped programs**: the [lowering](./from_fast/README.md#programs)
+  takes a module that no table types, each export of `any` alone, and
+  writes its operators, member reads, `?.` and calls of values of `any`
+  as calls of L1's bodies, boxing a float or a boolean where it meets
+  `any`.
+- **`link`**: a program and the bodies of L1 that it reaches, by their
+  `l1.` names, in one module, so one WASM module. Nothing new in the IR,
+  the checker or the emitter: a linked name is a name of the module.
+- **The host's judge**: where a program's twin, JavaScript itself, throws
+  an error of its own, a `TypeError` say, the module must throw L1's value
+  that names the same error ([`wasm/testlib.mjs`](./wasm/testlib.mjs)).
+
+## What 11b adds
+
+- **Closures**: in a program, a function as a value is
+  `Functions.make_function` of code that the
+  [lowering](./from_fast/README.md#closures) lifts, `(#self, #args) ->
+  any`, and a frame of the captures that read values of the function
+  around it. The code reads them by L0's new `Functions.frame(self, i)`,
+  and its parameters as items of `#args`.
+- **The table was exported**: a module whose `code` terms fill its table
+  exported it as `table`, so the checker refused an export of that name,
+  until 12d imported it.
+- **The counting host's `make_function`** makes a JavaScript function that
+  calls the module's code through that table, so `call` and JavaScript
+  both call it, and its `frame` reads the frame.
+- **The host's judge**: a function that a call answers agrees with its
+  twin's where both have the same length and agree on probes of their own
+  ([`wasm/testlib.mjs`](./wasm/testlib.mjs)).
+
+## What 11c adds
+
+- **Spread in a program**: `...v` in an array literal or in the arguments
+  of a call is L1's `toIterable` of `v`, and in an object literal L1's
+  `objectSpread` of it, each read where it stands, so that it throws where
+  JavaScript throws before anything after it is read. Containers' builder
+  then pushes every item of each part, in order, with a loop for each
+  spread ([lowering](./from_fast/README.md#spread-and-rest-parameters)).
+- **Rest parameters**: the rest parameter of a closure is an array of the
+  items of `#args` past its other parameters, and that of a function that a
+  call inlines an array of the arguments past them.
+- **L0 gains `Containers.key(o, i)`**: it borrows an object and answers the
+  owned key of its property `i`, which a spread of an object copies.
+
+## What 12a adds
+
+- **NaNVM as the host**: [`nanvm/l0-wasm`](../../nanvm/l0-wasm/src/lib.rs)
+  is NaNVM's L0 ABI built as a `.wasm`, whose exports are a module's
+  `fjs:l0` imports, so a module calls NaNVM with no JavaScript between.
+  The [NaNVM host](./l0/host/nanvm/module.mjs) makes what NaNVM cannot
+  export: Any's constants and `data_base`, a region that NaNVM's
+  `reserve` gives. NaNVM runs a function's code index through an adapter
+  module, a `call_indirect` into a table that the loader fills from the
+  module's `table`, and a JavaScript function that a proof passes from an
+  index past it.
+- **Every host proof on NaNVM**: [`wasm/testlib.mjs`](./wasm/testlib.mjs)'s
+  `onHost` swaps the host that `run` makes, and
+  [`nanvm.test.mjs`](./l0/host/nanvm/nanvm.test.mjs) runs the emitter's,
+  the lifetime pass's, FAST's and the random proofs on NaNVM. NaNVM counts
+  handles, not references, so the judge there tells how many handles a call
+  left over, not which. CI runs it after it builds the `.wasm`.
+
+## What 12b adds
+
+- **A misuse's text on NaNVM**: NaNVM's `.wasm` keeps what a panic said,
+  which its `trap_text_length` and `trap_text_into` give, and the
+  [NaNVM host](./l0/host/nanvm/module.mjs)'s `trap` reads it, so the judge
+  compares a misuse's reason there, `l0.unit: not an index` say, as it
+  does on the counting host.
+
+## What 12c adds
+
+- **L1's native rows in Rust**: the eleven `fjs:l1-native` functions are
+  [NaNVM's](../../nanvm/lib/src/l0/abi/native.rs), computed by its own
+  operators over its handles, and exported by
+  [`nanvm/l0-wasm`](../../nanvm/l0-wasm/src/lib.rs), so on the NaNVM host
+  a module calls them with no JavaScript between.
+  [`nanvm.test.mjs`](./l0/host/nanvm/nanvm.test.mjs) compares them with
+  JavaScript on random floats, texts and bigints.
+
+## What 12d adds
+
+- **The imported table**
+  ([L0 design §5](../../doc/sasha-gil/wasm/l0-design.md#5-memory-and-table-made-by-the-loader-imported-by-both-modules)):
+  the loader makes the table of code, as it does the memory. A module that
+  imports an interface imports `table` and `table_base`, fills the table
+  from `table_base`, and says in `fjs.layout` how many entries it needs.
+  The NaNVM host's adapter calls into that same table, so nothing copies
+  it.
+
+## What the records pass adds
+
+- **Records of `any` stay records**
+  ([benchmark.md, lever 3](../../doc/sasha-gil/ir/benchmark.md#levers)):
+  after [the lowering](./from_fast/module.f.js) links L1, the
+  [records pass](./records/module.f.js) splits each object literal of
+  values of `any` that its function builds and only reads back by keys
+  that it has, a loop's state say, into a local for each value, so
+  nothing builds it and L1's `get` looks nothing up. An object that
+  leaves its function, is read by a key that it has not, or whose
+  values would move past something that does something stays one.
+  Hand-written IR in [its proofs](./records/proof.f.js), and programs run
+  on both hosts against JavaScript in
+  [`from_fast`'s host proof](./from_fast/proof.mjs).
+
+## What the number paths add
+
+- **A number is tested where it stands**
+  ([benchmark.md, next lever 1](../../doc/sasha-gil/ir/benchmark.md#levers)):
+  in a program, an arithmetic or relational operator of `any`, or of
+  `any` and a float, matches each `any` once against `number`, reads it
+  once with `to_f64`, and answers with the operator of the IR where all
+  are numbers, boxed with `from_f64` where it is a float. Only otherwise
+  does it call L1, where a float is boxed. `s.i < n` with `s.i` a float
+  is 2 L0 calls, not 8. An operand that may hold no number, a bigint or a
+  string say, calls L1 alone. The path is
+  [`from_fast/numbers`](./from_fast/numbers/module.f.js).
+- **A read of a split local is that local**: the records pass writes no
+  `let` for a `let` of a read of a split object, so the lifetime pass
+  copies nothing for it.
+
+## What every slice refuses
 
 Everything else is refused with the function's name and the reason, never
 answered with a plausible wrong module
@@ -452,7 +607,8 @@ a module that does not import the interface that makes it, an interface
 whose literals hold none of their type's variants, a constant that one
 ABI imports by the name of a function, or of a constant whose global holds
 another WASM value, a constant or a function named `memory` or `data_base`
-in the ABI of an interface that makes literals, an `own` parameter of a
+in the ABI of an interface that makes literals, or `table` or
+`table_base` in the first interface's ABI, an `own` parameter of a
 type that is not sealed,
 a counted type without both a `dup` and a `drop` of their shapes, a module
 whose owned stage does not consume each owned value once on every path, a
@@ -510,7 +666,7 @@ documentation has the rest.
 
 ## Proofs
 
-Each module's `proof.f.mjs` holds its golden texts and every refusal, over
+Each module's `proof.f.js` holds its golden texts and every refusal, over
 the hand-written modules of [`testlib.f.js`](./testlib.f.js).
 [`wasm/proof.mjs`](./wasm/proof.mjs) runs those modules on the host's
 WebAssembly engine and compares every exported function with a JavaScript

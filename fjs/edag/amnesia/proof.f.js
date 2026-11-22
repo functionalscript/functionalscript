@@ -582,7 +582,7 @@ export const proof = {
                 fails(['.', ['{}', [[':', 'a', 1]]], 'a', ['|()', noArgs]]),
             // A `.` node guards nothing, so a nullish base throws at the
             // access — the operand-evaluation half of the pair
-            // `../chains_js.proof.f.mjs`'s `chainsJs.throw` cannot state in JavaScript:
+            // `../proof.f.js`'s `chainsJs.throw` cannot state in JavaScript:
             // here the arguments are never reached, where
             // `optionRegion.failures.closeStepOnUndefined` evaluates them and
             // then calls `undefined`.
@@ -668,7 +668,7 @@ export const proof = {
             // call's arguments are not evaluated either.
             eq(['?.', undef, 'at', ['|()', [boom]]], undefined)
             // The node's own index is skipped too, which is the operand
-            // `../chains_js.proof.f.mjs`'s `chainsJs.shortCircuit` pins in JavaScript
+            // `../proof.f.js`'s `chainsJs.shortCircuit` pins in JavaScript
             // as `u?.[todo()]`.
             eq(['?.', undef, boomIndex], undefined)
             eq(['?.', null, boomIndex, ['|.', boomIndex]], undefined)
@@ -696,7 +696,7 @@ export const proof = {
             // host. It cannot be pinned in JavaScript at all:
             // JavaScriptCore (so `bun test`) carries the short-circuit
             // through the parentheses and answers `undefined`, which is why
-            // `../chains_js.proof.f.mjs`'s `chainsJs.throw.groupedOptionalCall` is
+            // `../proof.f.js`'s `chainsJs.throw.groupedOptionalCall` is
             // commented out. The node denotes the throw regardless — see
             // "Chains" in `../README.md`.
             closeStepOnUndefined: () =>

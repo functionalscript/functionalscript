@@ -53,6 +53,34 @@ export const _snapshotCases = () => {
 }
 
 export const proof = {
+    // A named import is its module's computations, then the export it
+    // selects. Once those are bound, reading them again does nothing, so the
+    // selection is the export alone. A computation still deferred is
+    // evaluated by that read, and stays.
+    establishedAnchorsAreNotReadAgain: () => {
+        /** @type {Exp} */
+        const made = ['()', ['=>', 0, [], ['[]', [7]]], []]
+        /** @type {Exp} */
+        const exported = ['{}', [[':', 'a', made]]]
+        /** @type {Exp} */
+        const selections = ['[]', [exported, [',', [exported, made]], [',', [exported, 2]]]]
+        const block = assertOk(toFast(selections))
+        const [values] = /** @type {Extract<Block['exit'], readonly ['yield', unknown]>} */ (block.exit)[1]
+        const [, first, second] = /** @type {readonly unknown[]} */ (/** @type {Extract<Value, readonly ['array', unknown]>} */ (values)[1])
+        // the module's object is bound once, before; neither selection is a block that reads it
+        assertEq(/** @type {readonly unknown[]} */ (first)[0], 'ref')
+        assertEq(second, 2)
+        // the graph read back has no comma left, and evaluates to the same value
+        for (const graph of [selections, fromFast(block)]) {
+            assertStructurallySame(assertOk(toData(assertOk(memo(assertOk(identityAnalysis(graph)))({ args: [] })))), [{ a: [7] }, [7], 2])
+        }
+        /** @type {Exp} */
+        const deferred = ['=>', 1, [], ['[]', [['?:', ['arg', 0], [',', [made, 1]], 3], ['?:', ['arg', 0], [',', [made, 2]], 4]]]]
+        roundTrip(deferred)
+        for (const [argument, expected] of /** @type {const} */ ([[true, [1, 2]], [false, [3, 4]]])) {
+            assertStructurallySame(assertOk(toData(assertOk(memo(assertOk(identityAnalysis(['()', fromFast(assertOk(toFast(deferred))), [argument]])))({ args: [] })))), expected)
+        }
+    },
     snapshotsKeepEarlierLazyDependencies: () => {
         for (const initial of _snapshotCases()) {
             const expected = assertOk(toData(assertOk(vm({ frame: [], args: [] })(initial))))
@@ -165,7 +193,12 @@ export const proof = {
         roundTrip([',', [shared, conditional('&&', false, shared)]])
         roundTrip([',', [shared, 2]])
         const call = /** @type {const} */ (['()', ['=>', 0, [], ['throw', 'failure']], []])
-        roundTrip(['=>', 1, [], ['?:', ['arg', 0], [',', [call, 0]], call]])
+        // Both arms read the call, so the function reads it on every path:
+        // it is required before the selection, which the graph reads back as
+        // its anchor.
+        /** @type {Exp} */
+        const selection = ['?:', ['arg', 0], [',', [call, 0]], call]
+        assertStructurallySame(assertOk(analysis(fromFast(assertOk(toFast(['=>', 1, [], selection]))))), assertOk(analysis(['=>', 1, [], [',', [call, selection]]])))
     },
     operandClosuresCaptureComputedValues: () => {
         const computed = /** @type {const} */ (['()', ['=>', 0, [], ['[]', [3]]], []])
@@ -289,12 +322,31 @@ export const proof = {
         ])
         for (const graph of graphs) { roundTrip(graph) }
     },
-    implicitBarriersRetainLaterSharedOwners: () => {
+    // An expansion is no barrier: a shared owner that follows one is
+    // established before it, which the graph reads back as the owner's
+    // anchor. Either order fails here, on the expansion or on the owner.
+    sharedOwnersAreEstablishedBeforeAnExpansion: () => {
         const forever = /** @type {const} */ (['()', ['=>', 0, [], ['()', ['self'], []]], []])
         const another = /** @type {const} */ (['()', forever[1], []])
+        /** @type {Exp} */
+        const shared = ['[]', [['...', null], ['+', 1, 2], ['+', 3, 4], forever, forever]]
+        assertStructurallySame(assertOk(analysis(fromFast(assertOk(toFast(shared))))), assertOk(analysis([',', [forever, shared]])))
+        roundTrip(['[]', [['...', null], forever, another, forever, another]])
+    },
+    // A selected operand is a barrier no snapshot crosses: an owner first
+    // reached inside one, and shared with what follows, keeps its first
+    // demand, whatever its own operands or captures are.
+    selectedOperandsRetainLaterSharedOwners: () => {
+        const forever = /** @type {const} */ (['()', ['=>', 0, [], ['()', ['self'], []]], []])
+        const another = /** @type {const} */ (['()', forever[1], []])
+        const recursive = /** @type {const} */ (['=>', 1, [], ['()', ['self'], [['arg', 0]]]])
+        const first = /** @type {const} */ (['()', recursive, [['+', 1, 2]]])
+        const second = /** @type {const} */ (['()', recursive, [['+', 3, 4]]])
+        const capturing = /** @type {const} */ (['=>', 0, [['arg', 0]], ['frame', 0]])
         const graphs = /** @type {readonly Exp[]} */ ([
-            ['[]', [['...', null], ['+', 1, 2], ['+', 3, 4], forever, forever]],
-            ['[]', [['...', null], forever, another, forever, another]],
+            ['[]', [['?:', 1, forever, 1], ['?:', 1, another, 1], forever, another]],
+            ['[]', [['?:', 1, ['[]', [first, second]], 1], second, first]],
+            ['=>', 1, [], ['[]', [['?:', 1, capturing, 1], capturing]]],
         ])
         for (const graph of graphs) { roundTrip(graph) }
     },

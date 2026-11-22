@@ -17,7 +17,7 @@ import { toData } from '../../edag/value/to_unknown/module.f.js'
 import { isArray } from '../../types/array/module.f.js'
 import { tryModuleStringify } from '../serializer/module.f.js'
 import { analysis } from '../../edag/analysis/module.f.js'
-import { _defaultExport, _moduleExports, _moduleThrows, resolve, resolveOver, unresolved } from './module.f.js'
+import { _defaultExport, _moduleExports, _moduleThrows, _origin, _owner, resolve, resolveOver, unresolved } from './module.f.js'
 import { parse } from '../transpiler/module.f.js'
 import { exp } from '../../edag/module.f.js'
 import { validate } from '../../rtti/validate/module.f.js'
@@ -132,6 +132,37 @@ export const proof = {
             assertEq(assertOk(toData(assertOk(vm({ frame: [], args: [] })(invoked)))), 42)
             // and its source, the call and the arithmetic written out, runs to
             // the same answer
+            /** @type {Exp} */
+            const printed = ['()', ['.', unresolved(unwrap(parse('')(unwrap(tryModuleStringify(graph))))).edag, 'main'], []]
+            assertEq(execute(printed), 42)
+        },
+        // an export is selected as its value under the module's computations,
+        // with no property read: a name a read refuses is written as source.
+        // The object that holds the exports is no computation, and neither
+        // is a literal: what stays is the sequence before the object and
+        // every other export that is a node
+        prototypeNames: () => {
+            expectEdag(
+                program({ main: file('import {map} from "./dep"; export default map;'), dep: file('const z=[0]; export const map=1; export const two=2;') })('main'),
+                [',', [['[]', [0]], 1]])
+            // in the order the module evaluates them: the selection where it
+            // stands among them, and not repeated where it is the last
+            const ordered = /** @type {const} */ ({ main: file('import {map} from "./dep"; export default map;'), dep: file('export const map=[1]; export const two=[2]; export const three=3;') })
+            const first = program(ordered)('main')
+            expectEdag(first, [',', [['[]', [1]], ['[]', [2]], ['[]', [1]]]])
+            const [, [anchor, , selected]] = /** @type {readonly ['', readonly Exp[]]} */ (/** @type {unknown} */ (first))
+            assertEq(anchor, selected)
+            expectEdag(
+                program({ ...ordered, main: file('import {two} from "./dep"; export default two;') })('main'),
+                [',', [['[]', [1]], ['[]', [2]]]])
+            // a module that computes nothing but the value is the value
+            expectEdag(
+                program({ main: file('import {map} from "./dep"; export default map;'), dep: file('export const map=[1]; export const two=2;') })('main'),
+                ['[]', [1]])
+            const graph = unwrap(linked({
+                main: file('import {map,entries} from "./dep"; export const main=()=>map(entries);'),
+                dep: file('export const map=(...args)=>args[0]+1; export const entries=41;'),
+            })('main'))
             /** @type {Exp} */
             const printed = ['()', ['.', unresolved(unwrap(parse('')(unwrap(tryModuleStringify(graph))))).edag, 'main'], []]
             assertEq(execute(printed), 42)
@@ -524,7 +555,7 @@ export const proof = {
     //
     // The plain call over an access is the *detached* receiver,
     // `(0, a.b)(c)` — parentheses alone keep it, which
-    // `chainsJs.receiver` in `fjs/edag/chains_js.proof.f.mjs` pins against JavaScript
+    // `chainsJs.receiver` in `fjs/edag/proof.f.js` pins against JavaScript
     // — so the comma operator is what writes one.
     call: () => {
         expectEdag(compile('const f = (...a) => 1; export default f();').edag, ['()', ['=>', 0, [], 1], []])
@@ -1099,6 +1130,28 @@ export const proof = {
             assertStructurallySame(assertOk(toData(apply(value(compile('export default ({ a }, [b]) => [a, b];').edag), [1, '😀']))), [undefined, '😀'])
             refuses(value(compile('export default ({ a }) => a;').edag), [])
         },
+    },
+    // A node of a linked graph is its module's: the one that reaches it
+    // without passing what its own imports selected. A JSON document has no
+    // file to name, and a node no module made has no owner.
+    owner: () => {
+        const [modules, program] = assertOk(virtualAt({
+            'a.f.js': file('import s, { t } from "./s.f.js"; import one from "./one.f.js"; import j from "./j.json" with { type: "json" }; const own = [s, s, one]; export default [own, () => own, t, j];'),
+            's.f.js': file('const shared = [42]; export const t = { shared }; export default shared;'),
+            'one.f.js': file('export default 1;'),
+            'j.json': file('[7]'),
+        })(resolveOver('a.f.js', null))[1])
+        const [own, held, t, j] = /** @type {readonly Exp[]} */ (/** @type {readonly unknown[]} */ (_defaultExport(program))[1])
+        assertEq(_owner(modules, own), 'a.f.js')
+        assertEq(_owner(modules, held), 'a.f.js')
+        assertEq(_owner(modules, /** @type {Exp} */ (/** @type {readonly (readonly unknown[])[]} */ (own)[1][0])), 's.f.js')
+        assertEq(_owner(modules, t), 's.f.js')
+        assertEq(_owner(modules, j), null)
+        assertEq(_owner(modules, ['[]', []]), null)
+        // what a diagnostic adds for a node: its file, or nothing
+        assertEq(_origin(modules, t), ', in s.f.js')
+        assertEq(_origin(modules, j), '')
+        assertEq(_origin(modules, null), '')
     },
     // The imports bound: the linked program is one EDAG, the imported
     // module's node where the importer's parameter was, and no path in it.

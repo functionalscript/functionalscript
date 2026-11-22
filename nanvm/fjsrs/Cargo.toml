@@ -1,0 +1,12 @@
+[package]
+name = "nanvm-fjsrs"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "fjsrs"
+path = "src/main.rs"
+
+[dependencies]
+nanvm-lib = { path = "../lib" }
+nanvm-effects-node = { path = "../effects-node" }

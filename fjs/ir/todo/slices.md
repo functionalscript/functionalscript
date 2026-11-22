@@ -86,6 +86,17 @@ choices doc.
 | `numberToString` | A new native row, `numberToString(x: f64) -> string`, as slice 5's rows are |
 | How slice 8 is cut | Three PRs: 8a, the view's order; 8b, `buildArray` with `toIterable`; 8c, `buildObject` and `{}` with `objectSpread` |
 
+**Where 8c differs from the first choice (open for the owner).** 8c
+([#3898](https://github.com/functionalscript/functionalscript/pull/3898))
+also lowers an object literal of names and values when every value is of
+`any` and the module imports Containers, as one lowered over a runtime
+does: `{ a, b }` is `Containers.seal` of a `push_property` of each onto
+`begin_object`, cast to `object`. An object literal with a value of
+another type, a float among them, stays a record. So an object literal as
+a value of `any` is in slice 8, not slice 11, which the first row above
+says. Spread in a literal still waits for slice 11. The owner kept this
+with slice 11's plan (2026-11-20; see the decisions for slice 11).
+
 ### Roadmap
 
 Tick a box when its pull request merges. Slice numbers in parentheses are the
@@ -126,7 +137,11 @@ before it and proved end to end on its own.
   few hundred programs a run under
   [`from_fast/random`](../from_fast/random/README.md); extend it as later
   slices land. It found the three defects that example proofs at 100%
-  coverage missed. Since 7a it judges each call by the three outcomes.
+  coverage missed. Since 7a it judges each call by the three outcomes. 8c, 9a and 9b
+  gained their forms after the fact: object literals and `buildObject`,
+  numbers and booleans as items, and calls of function values. Slice 10
+  has none, since a read of an unknown receiver needs L1's `get` in the
+  same module; 10c runs the whole L1 module on the parity table instead.
 - [x] **6a. Owned values, by hand** (#3856). The counted kind, `dup`/`drop`;
   borrow and own parameters and owned results (`concat`, `from_unit`);
   static check of the owned stage, which also holds a linear type's owned
@@ -158,7 +173,8 @@ before it and proved end to end on its own.
   Numbers and booleans as items wait for Any's `from_f64` and `from_bool`,
   in slice 9.
   (`buildArray` and `buildObject` with callbacks are the builders slice
-  below; object literals as values and spread moved to slice 11.)
+  below; spread moved to slice 11, and 8c lowers object literals of values
+  of `any`.)
 - [x] **6f. Reading an array, and `typeOf`** (#3890). `a[k]` of an array at
   a number key by L1's `get` rules for that case; `typeOf` lowered from
   L1's text. A receiver of another kind waits for L1's `get` itself, in
@@ -183,7 +199,7 @@ Slice 7, cut in two as decided above.
   copy, since L1 calls it only from arithmetic, which a later slice
   lowers. The random comparison gains a form that throws.
 
-#### Next — builders
+#### Builders
 
 Slice 8, cut in three as decided above.
 
@@ -201,7 +217,7 @@ Slice 8, cut in three as decided above.
   cast; the `numberToString` row. Subject: `objectSpread`. A `{ ...v }`
   literal waits for a later cut; `objectSpread` is what it copies.
 
-#### Next — function values
+#### Function values
 
 Slice 9, cut in two: boxing first, then `call`. Slice 9b is three stacked
 PRs as decided below.
@@ -217,7 +233,8 @@ PRs as decided below.
   only.
 - [x] **9b2. L0 `Functions.call` / `make_function`** (#3928 / #3932). The interface rows and
   the counting host: call existing function values (`any.only(function)`).
-  `make_function` of an IR `code` waits for slice 11.
+  `make_function` of an IR `code` waits for slice 11; until then the
+  counting host traps on it.
 - [x] **9b3. Lowering and subjects** (#3929). `asFunction(f)(…)` as L0
   `call(f, args)`; `find`, `text`, `join` as needed; subjects `toPrimitive`,
   `toNumber`, `toNumeric`, `toString` and `call`.
@@ -233,24 +250,27 @@ Owner chose option A on each of four choices.
 | How `asFunction(f)(…xs)` lowers | Always L0 `call(f, args)` with an args array ([L0 §12](../../../doc/sasha-gil/wasm/l0-design.md#12-functions-a-code-index-a-frame-a-length-and-a-text)) |
 | Rows the subjects need beside `call` | Bring `find`, `text`, `join` (and whatever the subjects still miss) into 9b3 with them |
 
-#### Next — the whole L1 module
+#### The whole L1 module
 
 Slice 10, cut in three as decided below. Claim: [#3934](https://github.com/functionalscript/functionalscript/pull/3934).
 
-- [ ] **10a. `get`** (#3935). L1's `get` lowered from its text over the
+- [x] **10a. `get`** (#3935). L1's `get` lowered from its text over the
   runtime and its error table, run against L1's own: its throw for
   `undefined` and `null`, and its reads of an object or a string by a
   string, which 6f left out. A member or index of sealed `any` is a call
   of the module's `get` where the table names it; 6f's array-at-number
   path stays.
-- [ ] **10b. Arithmetic and relational subjects** (this PR). L1's `add` /
+- [x] **10b. Arithmetic and relational subjects** (#3936). L1's `add` /
   `subtract` / `multiply` / `divide` / `negate` and the relational bodies,
   lowered and run against L1's own; native bigint arithmetic and
-  `bigintLess`. **Status:** wip
-- [ ] **10c. Remaining L1 exports and parity.** Every remaining export of
-  [`l1/module.f.js`](../../wasm/runtime/l1/module.f.js) that is not already
-  a subject (`toPropertyKey`, …), and the host twin runs extended so each
-  runs against L1's own. Builtins wait.
+  `bigintLess`, with `bigintDivide` of `0n` a row that may fail.
+- [x] **10c. Remaining L1 exports and parity.** Every export of
+  [`l1/module.f.js`](../../wasm/runtime/l1/module.f.js), `toPropertyKey`
+  the last of them, lowered from L1's text as one module, and each run
+  against L1's own on the values and keys of the parity table: every pair
+  for the binary operators and `strictEquals`, every value with a key for
+  `get`, a function among them, since L1's own on the same host renders
+  the same text. Builtins wait.
 
 ### Decisions for slice 10 (2026-11-16)
 
@@ -265,18 +285,157 @@ Owner chose option A on each of four choices.
 
 #### Later
 
-- [ ] **Copy variants of `any`** (after 10). Any marks `undefined`, `null`
+- [x] **Copy variants of `any`** (after 10). Any marks `undefined`, `null`
   and `boolean` as needing no release, as
   [definition.md's open question 6](../../../doc/sasha-gil/ir/definition.md#open-questions)
   recommends, so the lifetime pass writes no `dup` or `drop` of a value
   that holds only those kinds, such as Any's constants. It changes no
-  answer, only counts, so it waits until the whole L1 module shows what it
-  saves.
-- [ ] **Programs** (11). Operators and member reads on unknown types as
-  calls of L1, `get` among them, closures as values, and a program as one
-  module linked with L1. Object literals as values, and spread in array
-  and object literals, moved here from slice 8.
-- [ ] **NaNVM's `.wasm`** (12) in place of the JavaScript host.
+  answer, only counts. Choices:
+  - **An interface names them.** A sealed type's `copy` lists variants of
+    it, each once, and only a counted type may list any: the checker
+    refuses the rest. A subset of the type is copy when each of its
+    variants is listed; `any` itself is still counted.
+  - **Both stages agree.** The lifetime pass binds a copy value as it
+    binds a float, so it writes no `dup` and no `drop` of it, and the
+    owned-stage check takes a copy value where a parameter owns its
+    argument, as nothing owns it.
+  - **The counting host makes them immediates.** A value that it makes of
+    one is the constant's own cell, `-1` to `-4`, a first cell that holds
+    one is kept, and a `dup` or a `drop` of one leaves its count, as a
+    drop of a wider type that holds a copy value does nothing.
+  - **A number is not copy.** The counting host keeps a number in a cell
+    of its own, as `from_f64` makes one, so it stays counted until a
+    runtime says that a float is an immediate.
+  - **What it saves.** In the whole L1 module, 7 of 90 `Any.dup` calls go,
+    each of a constant, and none of its 157 `Any.drop` calls: a value of
+    `any` that L1 drops may hold any kind.
+- **Programs** (11), cut in three as decided below.
+  - [x] **11a. Untyped programs.** A program lowers with no signature
+    table: an export that the table does not name takes and answers
+    `any` alone, its parameters `p0`, `p1`, and so on. Its operators of
+    operands that the IR's operators do not take, a value of `any` or a
+    float and a boolean, are calls of L1: `+ - * /` of `add`,
+    `subtract`, `multiply` and `divide`; `< <= > >=` of the relational
+    bodies; `===` and `!==` of `strictEquals`; `-x` of `negate`; `!x`
+    and a condition of `any` of `toBoolean`; `typeof` of `typeOf`. A
+    member read, a read at an index and `?.` are `get`, of a float or a
+    boolean boxed too, `?.` answering `undefined` for `undefined` and
+    `null` and short-circuiting its whole chain; `o.f(x)` is `(o.f)(x)`,
+    since FunctionalScript has no `this`; a call of a value that may be
+    no function is L1's `call`, which throws where JavaScript throws. A
+    value that a function answers is boxed as `any`, as are arms of two
+    other types and an argument of an untyped export. `link` merges the
+    bodies of L1 that the program reaches, themselves or through others,
+    into the same module under `l1.` names, `l1.add`, L1's constants
+    first. Proved by unit cases, by the programs of
+    [`programs.f.js`](../from_fast/programs.f.js) against JavaScript on
+    the parity table's values, and by random untyped programs: where
+    JavaScript throws a `TypeError`, the program throws L1's value of
+    that error. A spread argument in a program, `+x` of one operand,
+    `%` of `any`, `?.()` and a guarded step after `?.` are refused.
+  - [x] **11b. Closures.** In a program, a function as a value is
+    `make_function(code(#fK), frame, n, undefined)` of its lifted code
+    `#fK(#self, #args) -> any`, which borrows both. The frame is an array
+    of the captures that read values of the function around it, boxed;
+    the code reads each by L0's new `frame(self, i)`, each parameter as an
+    item of `#args`, `undefined` past its length, and each other capture
+    as what it stands for in the module. A function that is only called
+    stays inlined. A function read as a value is one value at each read,
+    as JavaScript's `===` tells: one that a function defines is made where
+    it is defined, and one of the module that it does not export is a
+    constant of the module that `init` makes. The emitter exported the table as `table`, and the
+    checker refused an export of that name, until 12d imports it. The counting host's
+    `make_function` makes a JavaScript function that calls the code
+    through that table, and its `frame` reads the frame. Proved by the
+    closures of [`closures.f.js`](../from_fast/closures.f.js) against
+    JavaScript, by random closure programs, and by the judge, which calls
+    a function that a call answers on probes beside its twin. A function
+    value has no text yet (the owner chose no text for now, 2026-11-20),
+    and one that calls itself, other than as a loop, and an export as a
+    value are refused.
+  - [x] **11c. Spread.** Spread in array and object literals and in
+    arguments, and rest parameters: in a program, L1's `toIterable` or
+    `objectSpread` of each spread, then Containers' builder of every item,
+    a loop for each spread; L0 gains `Containers.key`. A rest parameter is
+    an array of the arguments past the others. A spread into a function
+    that a call inlines and an export with a rest parameter are refused.
+    Proved by the programs of [`spreads.f.js`](../from_fast/spreads.f.js)
+    against JavaScript and by random spread programs.
+- [x] **NaNVM's `.wasm`** (12) in place of the JavaScript host.
+  - [x] **12a. NaNVM as the host.** [`nanvm/l0-wasm`](../../../nanvm/l0-wasm/src/lib.rs)
+    builds NaNVM's L0 ABI as a `.wasm` that exports `fjs:l0` by its
+    names, its memory, and `reserve(size)`, which gives the loader a
+    region for a module's data segments. The
+    [NaNVM host](../l0/host/nanvm/module.mjs) has the counting host's
+    shape: it passes NaNVM's exports to the module as they are, makes
+    Any's constants and `data_base`, and runs a code index through an
+    adapter module, a `call_indirect` into a table that the loader
+    fills from the module's `table`. Every module of the emitter's, the
+    lifetime pass's, FAST's and the random host proofs runs on it too, in
+    [`nanvm.test.mjs`](../l0/host/nanvm/nanvm.test.mjs), which CI runs
+    after it builds the `.wasm`; L1's native rows are still JavaScript's.
+  - [x] **12b. A misuse's text.** NaNVM's `.wasm` traps bare under
+    `panic=abort`, so a panic hook keeps what the panic said, and
+    `trap_text_length` and `trap_text_into` give its units through
+    memory. The hook also ends the change of NaNVM's state that the panic
+    stopped, so the host goes on to `has_thrown` and `recover`.
+    The [NaNVM host](../l0/host/nanvm/module.mjs)'s `trap` reads them: the judge
+    then compares a misuse's reason on NaNVM, `l0.unit: not an index` say,
+    as it does on the counting host. `enter` forgets an earlier text.
+  - [x] **12c. Native rows in Rust.** The eleven `fjs:l1-native`
+    functions are [Rust in NaNVM](../../../nanvm/lib/src/l0/abi/native.rs),
+    over its handles and computed by its own operators, and
+    `nanvm/l0-wasm` exports them by their names, so the NaNVM host passes
+    them to a module in place of JavaScript's. A broken precondition traps
+    with L1's text; a bigint division by zero throws NaNVM's `RangeError`.
+    [`nanvm.test.mjs`](../l0/host/nanvm/nanvm.test.mjs) compares them with
+    JavaScript on random floats, texts and bigints.
+  - [x] **12d. The imported table.** As
+    [L0 design §5](../../../doc/sasha-gil/wasm/l0-design.md#5-memory-and-table-made-by-the-loader-imported-by-both-modules)
+    picks, the loader makes the table: a module that imports an interface
+    imports `table` and `table_base` from the first interface's `abi`,
+    its element segment starts at `table_base`, `code(f)` adds it, and
+    `fjs.layout`'s third number says how many entries it needs. The
+    counting host and the NaNVM host make the table of that size, and
+    NaNVM's adapter `call_indirect`s into the same table, so nothing
+    copies it and `attach` is gone. A module exports no table, so the
+    checker no longer refuses an export named `table`; one that imports no
+    interface hands no code to a host and keeps a table of its own.
+
+### Decisions for slice 11 (2026-11-20)
+
+Owner chose option A on each of five choices from the
+[plan](https://claude.ai/artifact/ULJEiQUuewxmScrA9ipBLq).
+
+| Choice | Decision |
+| --- | --- |
+| How 11 is cut | Three stacked PRs: 11a untyped programs, with operators, member reads and calls of `any` through L1; 11b closures; 11c spread and rest parameters |
+| How a program links L1 | L1 lowered into the same IR module, only the bodies that the program reaches, under prefixed names (`l1.add`), so a program is one WASM module |
+| An export with no signature | Defaults to `any` for each parameter and the result |
+| Closures | Lifted `(self, args)` code and `make_function(code, frame, length, text)`, with a new L0 `frame(self, i)` and the arrow's source text; the counting host implements `make_function` and `frame`; a function that is only called stays inlined |
+| Proof | Sample programs and random untyped program forms, each against the original as JavaScript runs it on the counting host |
+
+Object literals of values of `any` stay Containers objects, as 8c lowers
+them.
+
+### Decisions for slice 12 (2026-11-21)
+
+Owner chose option A on each choice from the
+[plan](https://claude.ai/artifact/X1WXTAmmH2Dba8ATAVudnm), but an adapter
+module for calls, for speed.
+
+| Choice | Decision |
+| --- | --- |
+| Memory | NaNVM exports `memory` and `reserve(size)`; the loader reserves `fjs.layout`'s data size and passes the address as `data_base` |
+| Constants | The loader makes Any's four `i64` globals of NaNVM's handles `0` to `3` |
+| Calls | An adapter module: NaNVM's `fjs:host` `invoke` is the adapter's export, a `call_indirect` into a table that the loader makes, so a call stays in WebAssembly |
+| A misuse's text | A panic hook keeps it for the host, as 12b |
+| Native rows | Rust in NaNVM, as 12c |
+| CI | Builds the `.wasm`, then runs the proofs on it from a file of its own, which fails where the `.wasm` is missing |
+
+In 12a the emitter still exported the module's table, and the loader
+copied it into the adapter's; 12d imports L0 design §5's table, with
+`table_base`, which removes the copy.
 
 ### Related
 

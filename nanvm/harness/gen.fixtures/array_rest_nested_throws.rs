@@ -7,7 +7,7 @@ use nanvm_lib::vm::{Any, IVm, Nullish, ToAny, ToArray, ToObject};
 #[allow(clippy::if_same_then_else)]
 pub fn module<A: IVm>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let _b1: Any<A> = (spread_array([spread_item([Nullish::Null.to_any()].to_array().to_any())?]))?;
-    let _b328: Any<A> = (Any::dot((spread_array([spread_item((Any::dot(_b1.clone(), f64_any(0x0000000000000000)).end())?)?]))?, f64_any(0x0000000000000000)).end())?;
+    let _b328: Any<A> = (Any::dot((spread_array([spread_item((Any::dot(_b1.clone(), f64_any(0x0)).end())?)?]))?, f64_any(0x0)).end())?;
     let _b329: Any<A> = (Any::dot(_b1.clone(), string_any("slice")).end_call(&runtime, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())))?;
     Ok([(string_key("default"), f64_any(0x401c000000000000))].to_object().to_any())
 }

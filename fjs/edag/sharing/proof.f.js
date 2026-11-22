@@ -6,7 +6,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { chainLazy, eagerOperandsOf, isChain, lazy, members, one, operandsOf, sharedNodesOf, visit } from './module.f.js'
+import { chainLazy, eagerOperandsOf, isChain, lazy, members, one, operandsOf, sharedNodesOf, visit, withBodies } from './module.f.js'
 
 /** @type {Exp} */
 const c = ['[]', []]
@@ -71,8 +71,16 @@ export const proof = {
     visit: () => {
         /** @type {Exp} */
         const root = ['[]', [c, c]]
-        assertStructurallySame(visit(operandsOf)([])(root), [[c, 2], [root, 1]])
-        assertStructurallySame(visit(operandsOf)([])(1), [])
+        assertStructurallySame(visit(operandsOf)(root), [[c, 2], [root, 1]])
+        assertStructurallySame(visit(operandsOf)(1), [])
+    },
+    /** A function's body is among its operands for a walk of the whole graph, and of no other node. */
+    withBodies: () => {
+        /** @type {Exp} */
+        const fn = ['=>', 0, [c], ['[]', [c]]]
+        assertStructurallySame(withBodies(fn), [c, ['[]', [c]]])
+        assertStructurallySame(operandsOf(fn), [c])
+        assertStructurallySame(withBodies(['[]', [c, 1]]), [c, 1])
     },
     sharedNodesOf: {
         /** A node reached from only one place is never a binding candidate. */

@@ -115,6 +115,8 @@ export const proof = {
         assertEq(why(withConstants([['k', { type: product([['a', f64]]), value: make([['a', one_]]) }]])), 'k: { a: f64 } is not in this slice')
         assertEq(why(withConstants([['k', { type: f64, value: one_ }], ['k', { type: f64, value: one_ }]])), 'two constants are named k')
         assertEq(why(withConstants([], [['init', fn([], f64, one_)]])), 'init is the function that evaluates the constants, so no function has that name')
+        // The loader makes the table of code, and the module exports none, so a function may be exported as `table`.
+        assertOk(check({ imports: [], functions: [['table', fn([], f64, one_)]], exports: ['table'] }))
         // `init` evaluates the constants in their order, so each reads only those before it, itself or through the functions that it calls.
         assertEq(why(withConstants([['j', { type: f64, value: self('k') }], ['k', { type: f64, value: one_ }]])), 'j: k is read before init evaluates it')
         assertEq(why(withConstants([['k', { type: f64, value: self('k') }]])), 'k: k is read before init evaluates it')
@@ -518,6 +520,12 @@ export const proof = {
         assertEq(why(importing({ abi: 'fjs:l0', types: [], constants: [['make_string', f64]], functions: [] })),
             'the constant Bad.make_string and the function String.make_string are both the import make_string of fjs:l0')
         assertOk(check(importing({ abi: 'test:bad', types: [], constants: [['memory', f64]], functions: [['data_base', signature([], f64)]] })))
+        // The first interface's ABI gives the loader's table and table_base, so no constant or function of it has either name.
+        assertEq(why(importing({ abi: 'fjs:l0', types: [], functions: [['table', signature([], f64)]] })),
+            'the function Bad.table is the import table of fjs:l0, which the loader gives a module that holds code')
+        assertEq(why(importing({ abi: 'fjs:l0', types: [], constants: [['table_base', f64]], functions: [] })),
+            'the constant Bad.table_base is the import table_base of fjs:l0, which the loader gives a module that holds code')
+        assertOk(check(importing({ abi: 'test:bad', types: [], constants: [['table', f64]], functions: [['table_base', signature([], f64)]] })))
         // Two interfaces may make literals of one spelling, each of its own type.
         assertOk(check({ imports: [...l0, ['Label', making('text')]], functions: [['f', fn([], bool, let_('l', lit(only(sealed('Label', 'label'), 'text'), 'a'), () => true_))]], exports: [] }))
         // The emitter imports a maker once for its ABI and its name, so the types whose literals it makes share its carrier.
@@ -576,6 +584,16 @@ export const proof = {
         assertEq(why(importing(counted('d', 'r', [['d', signature([['x', t]], f64)], r]))), miscounted)
         assertEq(why(importing(counted('d', 'r', [d, ['r', signature([['x', t]], unit)]]))), miscounted)
         assertEq(why(importing(counted('d', 'r', [d]))), miscounted)
+        // A counted type may name copy variants, each one of its variants once, and a linear type names none.
+        /** `counted('d', 'r', [d, r])` with `copy` as its copy variants. @type {(copy: readonly string[]) => Interface} */
+        const copying = copy => {
+            const i = counted('d', 'r', [d, r])
+            return { ...i, types: i.types.map(([k, def]) => /** @type {const} */ ([k, { ...def, copy }])) }
+        }
+        assertEq(assertOk(check(importing(copying(['b'])))).imports.length, 6)
+        assertEq(why(importing(copying(['c']))), "Bad: t's copy variants are its variants, each once")
+        assertEq(why(importing(copying(['a', 'a']))), "Bad: t's copy variants are its variants, each once")
+        assertEq(why(importing({ abi: 'test', types: [['t', { variants: ['a'], carrier: 'i32', copy: ['a'] }]], functions: [] })), 'Bad: t names copy variants, and only a counted type has them')
         // A function that gives back a parameter owns it, and the parameter is of the function's result.
         /** An interface of a function `g` of `params` that answers `result` and gives back `x`. @type {(params: readonly Param[], result: Type) => Interface} */
         const giving = (params, result) => ({ abi: 'test', types: [], functions: [['g', signature(params, result, 'x')]] })

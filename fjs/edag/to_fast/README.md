@@ -52,8 +52,14 @@ names.
 Sharing entirely within one operand stays in that operand's region, including
 computed member keys in the normalized operand vocabulary. A shared value used
 across operands becomes required only after its earlier eager work has been
-established. Complete earlier computations receive ordered immutable snapshots;
-implicit spread expansion, key conversion and member lookup remain barriers.
+established. Complete earlier computations receive ordered immutable snapshots.
+Implicit spread expansion, key conversion and a member call's lookup are no
+barriers before the operands that follow them: those operands are evaluated
+whenever the implicit step completes, so establishing one of them first changes
+only which failure is met first
+([failure is one outcome](../../../spec/principles/README.md#failure-is-one-outcome)).
+An operation's own execution, a call or a coercion, and a lazily selected
+operand remain barriers.
 A later snapshot cannot claim a dependency reachable from an earlier planned
 initializer. That earlier initializer may already have demanded the value;
 rewriting its lazy dependencies to the later binding would read an uninitialized
@@ -69,6 +75,11 @@ established operands can keep their prefix names. The shared
 [`demandsInOrder`](../demand/module.f.js) query proves each placement against
 the actual established values. Graph construction uses the same query to remove
 only ordered redundant anchors.
+A comma root before the last that is a node already bound required is not read
+again: the read does nothing, and a named import, its module's computations
+followed by the export it selects, is then the export alone. A node bound
+deferred is evaluated by that read and stays, as does a literal, kept as
+written. A graph read back from such a region has no comma there.
 
 A value shared across otherwise separate lazy regions may instead be repeated
 when every operation reachable from it is `mergeable` and none is a comma.
@@ -178,10 +189,36 @@ branch results in place; a decision that rebinds its own test cannot establish
 the later condition's value. Moved arms and recipes retain their original
 lexical dependencies, including deferred captures. Each normal arm yields an
 immutable joined value.
-A deferred recipe used only within one resulting arm becomes required at its
-first proven demand; the shared graph demand query checks calls, lookups,
-spreads and lazy barriers.
-Earlier work and recipes with other uses keep their original evaluation owner.
+A deferred recipe used only within one arm, or only after a statement, becomes
+required at its first proven demand, in a block that joins nothing as in one
+that does; the shared graph demand query checks calls, coercions
+and lazy barriers.
+A recipe with no such first demand is required where it stands when nothing
+after its declaration ends without having read it: not by completing, and not
+by a `return`, a `break` or a `continue`. Parts evaluated in order add up
+until one cannot complete unread; a selection is its test, then either arm;
+an operand that can be skipped counts for nothing; a `break` completes its
+loop, and a `continue` reached unread is never answered, since that path may
+never end. A path that fails before the read fails either way. A read inside
+a loop's body is no first demand of the value that holds the loop.
+Where one arm of a statement cannot complete, what follows the statement runs
+only after the other, and a recipe the test and the leaving arm never read is
+placed in the arm that goes on, which hands it out as one more result of the
+statement. That holds through statements nested in the arm: each hands the
+recipe out in turn. An ordinary function body is placed this way too; it has no joins to
+recover.
+A recipe every read of which sits in one selected arm is carried into that
+arm, wherever the selection is: a statement, a required initializer or an
+operand of one, the exit's value, or a region inside a value. In the arm it
+stands at its first proven demand, or at the arm's head where the arm reads it
+on every path. A selection reads on every path what its test reads, or what
+both of its arms read.
+Two tests that are the same expression over the same bindings are one test:
+the language is pure, so they decide alike, and a selection on one joins a
+statement on the other. Placing a recipe can put a selection where a join
+reads it, and a join can put one inside an arm, so a block is joined again
+after placement changes it, and a statement's arms after a join.
+Other earlier work and recipes keep their original evaluation owner.
 Demand checks expand visible deferred initializer graphs without evaluating them,
 so transitive closure captures retain their first-read order. Ordinary function
 bodies remain opaque. A closure first demanded after the control join is

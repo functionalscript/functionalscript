@@ -17,11 +17,12 @@ logical not and the type tag, the prefixes neither stage had — and
 the comma operator, written in parentheses ([below](comma/README.md)).
 `==` and `!=` are admitted into syntax and resolved source AST, with explicit refusal at
 AST-to-FAST conversion pending [loose-equality lowering](../todo/loose-equality.md).
-Unary `+` is admitted into the syntax and resolved source AST, including
-numeric-index syntax such as `a[+x]`. Its AST-to-FAST conversion is explicitly
-refused pending [unary-plus lowering](../todo/unary-plus.md). It must not be
-silently replaced with `Number(x)`: unary `+` rejects BigInts, whereas `Number`
-accepts them. The existing `Number(x)` conversion remains available.
+Unary `+` is JavaScript's: the conversion of its operand to a number, a
+string read as one, an object through its `valueOf` and `toString`, with a
+throw on a BigInt, also one an object converts to. It is not `Number(x)`,
+which accepts a BigInt, and is never replaced with it. Since `+x` is a number
+or a throw, it is a numeric index as `Number(x)` is: `a[+x]` and `a?.[+x]`
+([property access](../property-access/README.md)).
 
 Precedence and associativity follow JavaScript's own. From the tightest, the
 levels are the prefixes `+`, `-`, `~`, `!` and `typeof`; `**`; `* / %`; `+ -`;

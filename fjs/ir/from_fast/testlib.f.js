@@ -143,6 +143,10 @@ export const l1Arith = {
     subtract: signature(any2, any),
     multiply: signature(any2, any),
     divide: signature(any2, any),
+    remainder: signature(any2, any),
+    number: signature([['v', any]], f64),
+    shiftRight: signature(any2, any),
+    bitwiseAnd: signature(any2, any),
     negate: signature([['a', any]], any),
     lessThan: signature(any2, bool),
     greaterThan: signature(any2, bool),
@@ -282,4 +286,22 @@ export const objects = {
     empty: signature([], container),
     pair: signature(any2, container),
     nested: signature([['v', any]], any),
+}
+
+/**
+ * The signatures of every export of L1, which slice 10c lowers as one
+ * module over its error table: the subjects of the slices before it, with
+ * `toIterable` answering an array as 8b has it, and `toPropertyKey`, the
+ * last export to be lowered.
+ *
+ * @type {Readonly<Record<string, Signature>>}
+ */
+export const l1Whole = {
+    ...l1,
+    ...l1Builders,
+    ...l1Iterable,
+    ...l1Coerce,
+    ...l1Get,
+    ...l1Arith,
+    toPropertyKey: signature([['v', any]], any),
 }

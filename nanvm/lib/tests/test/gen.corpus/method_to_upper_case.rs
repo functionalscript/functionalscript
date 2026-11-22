@@ -12,7 +12,7 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("kelvinSign", scope(|| { Any::dot(string_any("K"), string_any("toUpperCase")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("K"));
     check::<A>("titlecase", scope(|| { Any::dot(string_any("ǅ"), string_any("toUpperCase")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("Ǆ"));
     check::<A>("pair", scope(|| { Any::dot(string_any("𐐨"), string_any("toUpperCase")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("𐐀"));
-    check::<A>("loneSurrogate", scope(|| { Any::dot(string_any_utf16(&[0x0061, 0xd800, 0x0062, 0xdc00]), string_any("toUpperCase")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any_utf16(&[0x0041, 0xd800, 0x0042, 0xdc00]));
+    check::<A>("loneSurrogate", scope(|| { Any::dot(string_any_utf16(&[97, 55296, 98, 56320]), string_any("toUpperCase")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any_utf16(&[65, 55296, 66, 56320]));
     check::<A>("empty", scope(|| { Any::dot(string_any(""), string_any("toUpperCase")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any(""));
     check::<A>("argumentIgnored", scope(|| { Any::dot(string_any("a"), string_any("toUpperCase")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())) }), string_any("A"));
 }

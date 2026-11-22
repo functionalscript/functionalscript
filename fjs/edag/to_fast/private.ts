@@ -19,5 +19,7 @@ export type Context = {
     readonly result: BindingId
     /** Operand roots whose local owners stay after earlier operand work. */
     readonly regions: readonly number[]
+    /** Nodes an enclosing region binds deferred: a read of one is its evaluation. */
+    readonly deferred: readonly number[]
     readonly functions: OrderedMap<_FunctionBody>
 }

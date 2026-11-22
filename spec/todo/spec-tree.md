@@ -151,7 +151,7 @@ which is refused as a read but accepted as a call) is an included page with a
    - `●` Lazy operators `&& || ??` and `?:`; `●` `!`
    - `●` `typeof`; `●` `instanceof`
    - `●` `in`
-   - `◌` `==` `!=` (refused by design); `◌` unary `+`, comma
+   - `◌` `==` `!=` (refused by design); `●` unary `+`; `◌` comma
 7. **Conversions**
    - `●` `Number(...)`; `○` `String(...)`; `◌` other call shapes ([refused by design](../principles/README.md#operators-and-functions))
 8. **Property access**

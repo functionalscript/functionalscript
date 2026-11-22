@@ -6,7 +6,7 @@ use nanvm_lib::vm::{Any, IVm, ToAny, ToArray, ToObject};
 #[rustfmt::skip]
 #[allow(clippy::if_same_then_else)]
 pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
-    Ok([(string_key("default"), [f64_any(0x4034000000000000), f64_any(0x0000000000000000), f64_any(0x4034000000000000), f64_any(0x4049000000000000), [true.to_any(), true.to_any(), true.to_any(), true.to_any(), f64_any(0x401c000000000000)].to_array().to_any(), [true.to_any(), true.to_any(), true.to_any(), true.to_any(), f64_any(0x4008000000000000)].to_array().to_any(), f64_any(0x0000000000000000), f64_any(0x4024000000000000)].to_array().to_any())].to_object().to_any())
+    Ok([(string_key("default"), [f64_any(0x4034000000000000), f64_any(0x0), f64_any(0x4034000000000000), f64_any(0x4049000000000000), [true.to_any(), true.to_any(), true.to_any(), true.to_any(), f64_any(0x401c000000000000)].to_array().to_any(), [true.to_any(), true.to_any(), true.to_any(), true.to_any(), f64_any(0x4008000000000000)].to_array().to_any(), f64_any(0x0), f64_any(0x4024000000000000)].to_array().to_any())].to_object().to_any())
 }
 
 #[rustfmt::skip]

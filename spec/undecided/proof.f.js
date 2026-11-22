@@ -30,7 +30,6 @@ const refusals = {
     'op.delete': ':2:23 - error: unexpected token',
     'op.void': ':1:21 - error: unexpected token',
     'op.arguments': ':1:23 - error: reserved word',
-    'op.unary-plus': ' - error: unary + AST-to-FAST conversion is not implemented',
     'op.import-call': ':1:16 - error: reserved word',
     'op.import-meta': ':1:16 - error: reserved word',
     'op.tagged-template': ':2:19 - error: unexpected token',

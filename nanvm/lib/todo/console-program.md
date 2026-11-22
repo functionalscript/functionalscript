@@ -44,6 +44,11 @@ Open question (see [mvp-roadmap](./mvp-roadmap.md#open-questions)): is the
 crate's binary named `fjs` (same CLI surface as the npm tool, native) or
 `nanvm`?
 
+**Where it stands:** [`fjsrs`](../../fjsrs/README.md) is the thin `main` and
+its wiring, running a compiled program over the effect runner. It does not
+run the compiler yet, which builds and answers correctly and takes minutes
+to start ([todo](../../fjsrs/todo/whole-compiler.md)).
+
 **Loading and execution:** loading evaluates a module to its complete export
 object without automatically calling exported functions. The CLI then chooses
 what to run or print. Native effect implementations, including `sandbox` for

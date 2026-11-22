@@ -26,6 +26,7 @@ export const proof = /** @type {const} */ ({
         for (const path of ['Cargo.toml', 'Cargo.lock', '.cargo/config.toml',
             'nanvm/lib/src/vm/README.md', 'nanvm/harness/tests/a.rs',
             'nanvm/effects-node/Cargo.toml', 'nanvm/demos/publish/src/lib.rs',
+            'nanvm/fjsrs/Cargo.toml', 'nanvm/fjsrs/src/main.rs',
             'fjs/ci/config.json', '.github/workflows/ci.yml']) {
             assertStructurallySame(select(path), ['rust'])
         }
@@ -40,6 +41,7 @@ export const proof = /** @type {const} */ ({
     },
     overlappingInputs: () => {
         assertStructurallySame(select('nanvm/lib/src/gen.methods.rs'), ['fjs', 'rust'])
+        assertStructurallySame(select('nanvm/fjsrs/src/gen.program.rs'), ['fjs', 'rust'])
         assertStructurallySame(select('nanvm/harness/fixtures/a.mjs'), ['js', 'rust'])
         assertStructurallySame(select('nanvm/demos/a/types.ts'), ['ts', 'rust'])
         assertStructurallySame(select('.github/workflows/gen.ci.yml'), ['fjs', 'rust'])

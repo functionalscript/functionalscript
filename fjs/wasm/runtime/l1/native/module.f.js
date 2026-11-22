@@ -1,13 +1,15 @@
 /**
  * The native rows of L1 that the bodies in [`..`](../module.f.js) call so
- * far, and `numberRemainder`, the row of their `%` on two numbers, each
+ * far, and `numberRemainder`, `numberShiftRight` and `numberAnd`, the rows
+ * of their `%`, `>>` and `&` on two numbers, each
  * with a plain JavaScript body
  * ([`l1-design.md`](../../../../../doc/sasha-gil/wasm/l1-design.md#the-operations)).
  * A native row has no FunctionalScript body over the L0 view: the L0 view
  * cannot read a bigint's words, for example, and WASM has no instruction
  * for `%`. Every runtime implements the rows, and the WASM backend lowers
  * each function here to its `fjs:l1-native` import, as it lowers
- * [`../../l0`](../../l0/module.f.js), and `%` to `numberRemainder`. On a
+ * [`../../l0`](../../l0/module.f.js), and `%`, `>>` and `&` of two numbers
+ * to their rows. On a
  * JavaScript host the bodies run as they are, so the L1 bodies are proved
  * before any WASM exists.
  *
@@ -39,6 +41,23 @@ export const bigintEquals = (a, b) => asBigInt(a) === asBigInt(b)
 export const numberRemainder = (a, b) => asNumber(a) % asNumber(b)
 
 /**
+ * [`Number::signedRightShift`](https://tc39.es/ecma262/#sec-numeric-types-number-signedRightShift),
+ * `>>` on two numbers: the first read as a 32-bit integer, shifted right
+ * by the second's low five bits, with its sign.
+ *
+ * @type {(a: unknown, b: unknown) => number}
+ */
+export const numberShiftRight = (a, b) => asNumber(a) >> asNumber(b)
+
+/**
+ * [`Number::bitwiseAND`](https://tc39.es/ecma262/#sec-numeric-types-number-bitwiseAND),
+ * `&` on two numbers, each read as a 32-bit integer.
+ *
+ * @type {(a: unknown, b: unknown) => number}
+ */
+export const numberAnd = (a, b) => asNumber(a) & asNumber(b)
+
+/**
  * [`Number::toString`](https://tc39.es/ecma262/#sec-numeric-types-number-tostring)
  * in radix 10: the shortest text that reads back as the same number.
  *
@@ -53,6 +72,21 @@ export const numberToString = n => String(asNumber(n))
  * @type {(s: unknown) => number}
  */
 export const stringToNumber = s => Number(asString(s))
+
+/**
+ * The bigint that a decimal integer's text spells, an optional `-` and one
+ * digit or more, which a program's bigint literal is made of: of
+ * [`StringToBigInt`](https://tc39.es/ecma262/#sec-stringtobigint), only
+ * the decimal integers, so that any other text traps without a `catch`.
+ *
+ * @type {(s: unknown) => bigint}
+ */
+export const stringToBigInt = s => {
+    const t = asString(s)
+    const digits = t.startsWith('-') ? t.slice(1) : t
+    if (digits === '' || !digits.split('').every(c => c >= '0' && c <= '9')) { throw 'l1.stringToBigInt: no bigint' }
+    return BigInt(t)
+}
 
 /**
  * [`BigInt::toString`](https://tc39.es/ecma262/#sec-numeric-types-bigint-tostring)
@@ -113,6 +147,48 @@ export const bigintDivide = (a, b) => {
     if (y === 0n) { throw error.divisionByZero }
     return x / y
 }
+
+/**
+ * `%` on two bigints, the dividend's sign. A zero divisor throws NaNVM's
+ * `RangeError`.
+ *
+ * @type {(a: unknown, b: unknown) => bigint}
+ */
+export const bigintRemainder = (a, b) => {
+    const [x, y] = bigints('bigintRemainder', a, b)
+    if (y === 0n) { throw error.divisionByZero }
+    return x % y
+}
+
+/**
+ * `>>` on two bigints: a floor division by a power of two, and a negative
+ * shift a left shift.
+ *
+ * @type {(a: unknown, b: unknown) => bigint}
+ */
+export const bigintShiftRight = (a, b) => {
+    const [x, y] = bigints('bigintShiftRight', a, b)
+    return x >> y
+}
+
+/**
+ * `&` on two bigints, as two's complement of infinite width.
+ *
+ * @type {(a: unknown, b: unknown) => bigint}
+ */
+export const bigintAnd = (a, b) => {
+    const [x, y] = bigints('bigintAnd', a, b)
+    return x & y
+}
+
+/**
+ * [`Number(bigint)`](https://tc39.es/ecma262/#sec-number-constructor-number-value):
+ * the nearest number, a tie to the even significand, and an infinity past
+ * the range.
+ *
+ * @type {(b: unknown) => number}
+ */
+export const bigintToNumber = b => Number(asBigInt(b))
 
 /**
  * Unary `-` on a bigint.

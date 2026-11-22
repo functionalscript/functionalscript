@@ -10,7 +10,8 @@ import { lifetime } from '../lifetime/module.f.js'
 import { bool, f64, i, only as subset, signature, u } from '../module.f.js'
 import { native } from '../native/module.f.js'
 import { print } from '../print/module.f.js'
-import { errorTable, lower } from './module.f.js'
+import { errorTable } from './link/module.f.js'
+import { lower } from './module.f.js'
 import { inner, letter, only as onlyItem, pick } from './reads.f.js'
 import { l1Runtime, runtime, sourceOf } from './testlib.f.js'
 import { bigints, rethrow, sign, textLength } from './throws.f.js'
@@ -254,6 +255,8 @@ export const proof = {
         assertEq(why(only([['a', bool]], bool), fast('export const f = a => -a')), 'f: - of bool is not in this slice')
         assertEq(why(fa, fast('export const f = a => !a')), 'f: ! of f64 is not in this slice')
         assertEq(why(only([['a', bool]], f64), fast('export const f = a => Number(a)')), 'f: Number of bool is not in this slice')
+        // `float` of an integer wider than ±2^53 would not be exact, so it is refused here, where L1 does not round it.
+        assertEq(why(only([['a', u(64)]], f64), fast('export const f = a => Number(a)')), 'f: Number of u(64) is not in this slice')
     },
     functions: () => {
         assertEq(why(fa, fast('export const f = (...xs) => xs')), 'f: a rest parameter is not in this slice')
@@ -328,7 +331,7 @@ export const proof = {
             'export f',
             '',
         ].join('\n'))
-        assertEq(why(fa, calling({ ...g, rest: id(4) })), 'f: a rest parameter is not in this slice')
+        assertEq(why(fa, calling({ ...g, rest: id(4) })), 'f: a rest parameter is an array that Containers builds, which a module lowered without the runtime does not import')
         assertEq(why(fa, module([['define', x, ['()', ['function', g], [['ref', a]]], 'required']], ['ref', x])), 'f: a call of a value uses Functions.call, which a module lowered without the runtime does not import')
         assertEq(why(fa, calling({ ...g, self: id(4) })), 'f: a function that calls itself is not in this slice')
         assertEq(why(fa, calling({ ...g, captures: [{ binding: id(4), value: 1 }] })), 'f: a capture that is no binding of the function is not in this slice')
@@ -547,6 +550,21 @@ export const proof = {
         assertEq(assertError(over(fa, 'export const f = a => a % "s"')), 'f: % of f64 and any.only(string) is not in this slice')
         assertEq(assertError(over(fa, 'export const f = a => a % (b => b)')), 'f: a function as a value is not in this slice')
         assertEq(assertError(over(fa, 'export const f = a => ({ x: a }).z % 2')), 'f: { x: f64 } has no field z')
+    },
+    // `>>` and `&` of two floats are L1's native rows `numberShiftRight` and `numberAnd`, which read
+    // each float as a 32-bit integer.
+    bits: () => {
+        assertEq(irOver(fab, 'export const f = (a, b) => (a >> 1) & b'), [
+            'fn f(a: f64, b: f64) -> f64 =',
+            '    Native.numberAnd(Native.numberShiftRight(a, 1.0), b)',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(assertError(over(only([['a', u(8)], ['b', u(8)]], f64), 'export const f = (a, b) => a >> b')), 'f: >> of u(8) and u(8) is not in this slice')
+        assertEq(assertError(over(fab, 'export const f = (a, b) => a & b', null)), "f: & of two floats calls L1's native rows, which a module lowered without the runtime does not import")
+        // `String(x)` and a template literal call L1, which only a program links.
+        assertEq(assertError(over(fa, 'export const f = a => `${a}`')), 'f: String is not in this slice')
     },
     native: () => {
         const ab = only([['a', any], ['b', any]], bool)
@@ -987,6 +1005,8 @@ export const proof = {
             'export f',
             '',
         ].join('\n'))
+        // A bigint that no word holds stays a literal where the module imports no native rows, which the checker refuses.
+        assertEq(ir(only([], u(8)), fast('export const f = () => 18446744073709551616n')), 'fn f() -> u(8) =\n    18446744073709551616\n\nexport f\n')
         assertEq(ir(only([['a', u(8)]], u(16)), fast('const k = 3n * 2n\nexport const f = a => a + k')), [
             'const #c0: int(6, 6) =',
             '    mul(3, 2)',
@@ -1040,6 +1060,8 @@ export const proof = {
             'export f',
             '',
         ].join('\n'))
+        // An arm that no `any` holds is left unboxed, and the checker refuses the `if`: an arm is never dropped silently.
+        assertEq(assertError(check(assertOk(over(only([['v', any]], any), 'import { STRING, kind } from "../l0/module.f.js"\nexport const f = v => kind(v) === STRING ? v : 1n + 2n')))), 'f: match: its arms are any, int(3, 3), which no one type holds')
         assertEq(irOver(only([['v', any]], any), 'const u = undefined\nexport const f = v => u'), [
             'fn f(v: any) -> any =',
             '    Any.undefined',
@@ -1409,7 +1431,7 @@ export const proof = {
     },
     text: () => {
         assertEq(assertError(sourceOf('export const f = a => {')), 'parse: unexpected end')
-        assertEq(assertError(sourceOf('export const f = a => +a')), 'unary + AST-to-FAST conversion is not implemented')
+        assertEq(assertError(sourceOf('export const f = a => a == 1')), '== AST-to-FAST conversion is not implemented')
     },
     // `buildObject`: arrow callbacks inlined to begin_object / push_property / seal, as `buildArray` is.
     builders: () => {

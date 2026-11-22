@@ -10,7 +10,7 @@ use nanvm_lib::vm::{Any, Array, IStaticFunction, Nullish, ToAny, ToArray, ToObje
 pub fn module<A: IStaticFunction>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let _b1: Any<A> = A::static_function(|_self, _args| { Err(string_any("array rest default")) }, 0, [runtime.clone()].to_array(), Some("()=>{throw \"array rest default\";}")).to_any();
     let _b4: Any<A> = (spread_array([spread_item([Nullish::Undefined.to_any(), f64_any(0x3ff0000000000000)].to_array().to_any())?]))?;
-    let _b5: Any<A> = (Any::dot(_b4.clone(), f64_any(0x0000000000000000)).end())?;
+    let _b5: Any<A> = (Any::dot(_b4.clone(), f64_any(0x0)).end())?;
     let _b599: Any<A> = if Any::<A>::to_boolean(&(strict_eq(_b5.clone(), Nullish::Undefined.to_any()))?) { (Any::call(_b1.clone(), Array::default().to_any()))? } else { _b5.clone() };
     let _b600: Any<A> = (Any::dot(_b4.clone(), string_any("slice")).end_call(&runtime, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())))?;
     Ok([(string_key("default"), f64_any(0x401c000000000000))].to_object().to_any())

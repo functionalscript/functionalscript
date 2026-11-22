@@ -24,6 +24,7 @@ import {
     ubuntuArm
 } from './common/module.f.js'
 import {
+    nanvmWasmCommands,
     rustPlatformSteps,
     shellRustCommands,
     shellRustVersionSteps,
@@ -74,6 +75,7 @@ const shellPlatformSteps = (rust, o, a) => [
         'npm ci',
         ...(rust ? shellRustCommands(o, a) : []),
         ...(a === 'arm' ? ['node --test ./fjs/emergent_testing/js-only.mjs'] : []),
+        ...(rust && o === 'ubuntu' && a === 'arm' ? nanvmWasmCommands : []),
     ]),
 ]
 
@@ -166,22 +168,22 @@ const platformJob = (rust, nodeExtra, mergeQueueOnly) => o => a => {
 }
 
 /**
- * @type {() => Jobs}
+ * @type {(sourceExtra?: readonly MetaStep[]) => Jobs}
  */
-const canonicalJobs = () => ({
+const canonicalJobs = (sourceExtra = []) => ({
     deno: ubuntuArm(denoSteps),
     bun: ubuntuArm(bunSteps),
     spidermonkey: ubuntuArm(spiderMonkeySteps),
-    ...nodeVersionJobs(),
+    ...nodeVersionJobs(sourceExtra),
 })
 
 /** Jobs shared by workflow generation and successful-check initialization.
  * @type {(setup: Setup) => (rust: boolean) => Jobs}
  */
-export const ciJobs = ({ nodeExtra, mergeQueueOnly = [] }) => rust => miseJobs({
+export const ciJobs = ({ nodeExtra, sourceExtra, mergeQueueOnly = [] }) => rust => miseJobs({
     ...Object.fromEntries(os.flatMap(o =>
         architecture.map(a => platformJob(rust, nodeExtra(o, a), mergeQueueOnly.includes(o))(o)(a)))),
-    ...canonicalJobs(),
+    ...canonicalJobs(sourceExtra),
 }, rust)
 
 /**

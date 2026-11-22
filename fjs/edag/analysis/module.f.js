@@ -57,43 +57,38 @@
  * lengths are also errors. Input must be shape-checked FJS data; immutable
  * FunctionalScript construction guarantees that its value graph is acyclic.
  *
- * The entries accumulator is immutable and copied per node, so a build is
- * quadratic in the node count — the sizes compiled today, not a design
- * bound. Its identity index uses the shared persistent map, whose updates
- * copy search paths rather than the whole index.
+ * The walk adds an entry by sharing every entry before it, and finds a twin
+ * by its spelling in its scope's index; both, like the identity index, are
+ * the shared persistent map, whose updates copy search paths and not the
+ * whole. The table's arrays are built once, when the walk ends.
  *
  * @module
  *
  * @import { Arg, Exp, ExpOp, Frame, Index, Items, ItemsOver, Op0, Op1, Op2, Op3, Op12, Primitive, Properties, StepOver, TagMap } from '../types.ts'
  * @import { OptionLambda, OptionPropertyLambda, PropertyLambda } from '../types.ts'
  * @import { Analysis, IndexOperand, ItemOperand, Node, Operand, PropertyOperand, Ref, Step } from './types.ts'
- * @import { _Entry, _Handler, _Handlers, _Scope, _State } from './private.ts'
+ * @import { _Exps, _Handler, _Handlers, _Scope, _State } from './private.ts'
+ * @import { PersistentMap } from '../../types/map/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  */
 
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { isIndex, maxLength } from '../../types/function/length/module.f.js'
-import { empty as noVisited, mapEntries, mapGet, mapSet } from '../../types/map/module.f.js'
+import { empty as noVisited, fromEntries, mapEntries, mapGet, mapHas, mapSet } from '../../types/map/module.f.js'
+import { reverse } from '../../types/list/module.f.js'
+import { toArray } from '../../types/list/alt/module.f.js'
+import { isNegativeZero } from '../../types/number/is_negative_zero/module.f.js'
+import { fromValues, has } from '../../types/set/module.f.js'
 import { entry as ownEntry } from '../../types/object/entry/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { isIntrinsic, isStatic, mapItems, mapSteps, stepOperands as edagStepOperands } from '../module.f.js'
 import { sharedNodesOf } from '../sharing/module.f.js'
 
 /** A walk that has added nothing, and merges twins where `merges` says. @type {(merges: boolean) => _State} */
-const start = merges => ({ visited: noVisited, entries: [], problem: null, merges })
+const start = merges => ({ visited: noVisited, added: null, count: 0, twins: noVisited, problem: null, merges })
 
 /** @type {(i: number) => Ref} */
 const ref = i => ['#', i]
-
-/**
- * Two entries spelled the same over the same inputs: the same tuples, a
- * primitive by `Object.is` — the language's `is` — so `-0` is not `0`.
- *
- * @type {(a: unknown, b: unknown) => boolean}
- */
-const same = (a, b) => a instanceof Array
-    ? b instanceof Array && a.length === b.length && a.every((x, i) => same(x, b[Number(i)]))
-    : Object.is(a, b)
 
 /**
  * Whether an entry may merge with a twin: its result identity is decided by
@@ -112,19 +107,40 @@ export const mergeable = node => {
     }
 }
 
-/** @type {(scope: _Scope, node: Node) => (entry: _Entry) => boolean} */
-const twin = (scope, node) => entry => entry.scope === scope && same(entry.node, node)
+/**
+ * A node's spelling: two nodes are spelled the same exactly where they are
+ * the same tuples over the same inputs, a primitive by `Object.is` — the
+ * language's `is` — so `-0` is not `0`. A tuple is its parts' in brackets; a
+ * string carries its length, so no text inside one reads as structure; a
+ * bigint, and `null` and the booleans, are marked apart from a number.
+ *
+ * @type {(x: unknown) => string}
+ */
+const spelling = x => x instanceof Array ? `${x.reduce((/** @type {string} */ text, part) => `${text}${spelling(part)},`, '[')}]`
+    : typeof x === 'string' ? `s${x.length}:${x}`
+    : typeof x === 'number' ? (isNegativeZero(x) ? 'd-0' : `d${x}`)
+    : typeof x === 'bigint' ? `b${x}` : `k${x}`
 
 /**
  * The node's entry: its twin's, where the walk merges and it has one, or a
  * new one after every entry so far — after its operands, which the walk
- * added first.
+ * added first. The node `e` is then known by that entry.
  *
- * @type {(merges: boolean, scope: _Scope, node: Node) => (entries: readonly _Entry[]) => readonly [readonly _Entry[], number]}
+ * @type {(state: _State, scope: _Scope, e: ExpOp, node: Node) => readonly [_State, number]}
  */
-const entry = (merges, scope, node) => entries => {
-    const found = merges && mergeable(node) ? entries.findIndex(twin(scope, node)) : -1
-    return found === -1 ? [[...entries, { scope, node }], entries.length] : [entries, found]
+const entry = (state, scope, e, node) => {
+    const key = state.merges && mergeable(node) ? spelling(node) : null
+    const twins = mapGet(state.twins, scope) ?? noVisited
+    const found = key === null ? undefined : mapGet(twins, key)
+    if (found !== undefined) { return [{ ...state, visited: mapSet(state.visited, e, [found, scope]) }, found] }
+    const i = state.count
+    return [{
+        ...state,
+        added: { first: { scope, node }, tail: state.added },
+        count: i + 1,
+        visited: mapSet(state.visited, e, [i, scope]),
+        twins: key === null ? state.twins : mapSet(state.twins, scope, mapSet(twins, key, i)),
+    }, i]
 }
 
 /**
@@ -395,13 +411,13 @@ const walk = scope => (state, e) => {
         const handler = /** @type {_Handlers[K]} */ (assertNotNullish(ownEntry(handlers, e[0])))
         // The handler's recursive walk accepts every expression, not only K.
         const [walked, n] = handler(nextScope => (nextState, next) => walk(nextScope)(nextState, next))(scope)(state, e)
-        const [entries, i] = entry(walked.merges, scope, n)(assertNotNullish(ownEntry(walked, 'entries')))
-        return [{ ...walked, entries, visited: mapSet(walked.visited, e, i) }, ref(i)]
+        const [added, i] = entry(walked, scope, e, n)
+        return [added, ref(i)]
     }
-    const checked = assertNotNullish(ownEntry(state, 'entries'))[Number(known)].scope === scope ? state : {
+    const checked = known[1] === scope ? state : {
         ...state, problem: state.problem ?? 'a node shared across a function boundary',
     }
-    return [checked, ref(known)]
+    return [checked, ref(known[0])]
 }
 
 /** The entries an operand names: one, or none for a primitive. @type {(x: Operand) => readonly number[]} */
@@ -480,13 +496,17 @@ const refs = node => operandsOf(node).flatMap(named)
  *
  * @type {(root: Operand, nodes: readonly Node[]) => readonly number[]}
  */
-const places = (root, nodes) => nodes.reduceRight(
-    (counts, node, i) => {
-        const weight = mergeable(node) ? counts[Number(i)] : 1
-        return refs(node).reduce((c, r) => c.with(r, c[Number(r)] + weight), counts)
-    },
-    /** @type {readonly number[]} */ (nodes.map((_, i) => root instanceof Array && root[1] === i ? 1 : 0)),
-)
+const places = (root, nodes) => {
+    const counts = nodes.reduceRight(
+        (counts, node, i) => {
+            // every entry is reached from the root, so its parents counted it
+            const weight = mergeable(node) ? assertNotNullish(mapGet(counts, i)) : 1
+            return refs(node).reduce((c, r) => mapSet(c, r, (mapGet(c, r) ?? 0) + weight), counts)
+        },
+        /** @type {PersistentMap<number, number>} */ (root instanceof Array ? mapSet(noVisited, root[1], 1) : noVisited),
+    )
+    return nodes.map((_, i) => assertNotNullish(mapGet(counts, i)))
+}
 
 /**
  * The entries reached from more than one place, by node identity: every
@@ -499,17 +519,17 @@ const places = (root, nodes) => nodes.reduceRight(
  */
 const sharedByIdentity = (e, visited) => {
     const entries = mapEntries(visited)
-    const shared = [e, ...entries.flatMap(([n]) => n[0] === '=>' ? [n[3]] : [])].flatMap(sharedNodesOf)
-    return entries.flatMap(([n, i]) => shared.includes(n) ? [i] : [])
+    const shared = fromEntries([e, ...entries.flatMap(([n]) => n[0] === '=>' ? [n[3]] : [])].flatMap(sharedNodesOf).map(n => /** @type {const} */ ([n, true])))
+    return entries.flatMap(([n, [i]]) => mapHas(shared, n) ? [i] : [])
 }
 
-/** One operand as an expression, from the expressions of the entries before it. @type {(exps: readonly ExpOp[], operand: Operand) => Exp} */
-const restore = (exps, operand) => operand instanceof Array ? exps[Number(operand[1])] : operand
+/** One operand as an expression, from the expressions of the entries before it. @type {(exps: _Exps, operand: Operand) => Exp} */
+const restore = (exps, operand) => operand instanceof Array ? assertNotNullish(mapGet(exps, operand[1])) : operand
 
-/** @type {(exps: readonly ExpOp[], items: readonly ItemOperand[]) => ItemsOver<Exp>} */
+/** @type {(exps: _Exps, items: readonly ItemOperand[]) => ItemsOver<Exp>} */
 const restoreItems = (exps, items) => mapItems(/** @type {(x: Operand) => Exp} */ (x => restore(exps, x)))(items)
 
-/** @type {(exps: readonly ExpOp[], step: Step) => StepOver<Exp>} */
+/** @type {(exps: _Exps, step: Step) => StepOver<Exp>} */
 const restoreStep = (exps, step) => mapSteps(
     /** @type {(x: IndexOperand) => Exp} */ (x => restore(exps, x)),
     /** @type {(items: ItemsOver<Operand>) => ItemsOver<Exp>} */ (items => restoreItems(exps, items)))(step)
@@ -519,7 +539,7 @@ const restoreStep = (exps, step) => mapSteps(
  * which its operands are: the table's sharing restored, an operand named by
  * one index one node.
  *
- * @type {(exps: readonly ExpOp[], node: Node) => ExpOp}
+ * @type {(exps: _Exps, node: Node) => ExpOp}
  */
 const restoreNode = (exps, node) => {
     switch (node[0]) {
@@ -558,7 +578,7 @@ const restoreNode = (exps, node) => {
  * @type {(merges: boolean, nodes: readonly Node[], visited: _State['visited']) => readonly ExpOp[]}
  */
 const expsOf = (merges, nodes, visited) => merges
-    ? nodes.reduce((/** @type {readonly ExpOp[]} */ prefix, node) => [...prefix, restoreNode(prefix, node)], [])
+    ? mapEntries(nodes.reduce((/** @type {_Exps} */ prefix, node, i) => mapSet(prefix, i, restoreNode(prefix, node)), noVisited)).map(([, exp]) => exp)
     : mapEntries(visited).map(([key]) => key)
 
 /**
@@ -571,13 +591,13 @@ const expsOf = (merges, nodes, visited) => merges
 const table = merges => e => {
     const [walked, root] = walk(null)(start(merges), e)
     const { visited, problem } = walked
-    const entries = assertNotNullish(ownEntry(walked, 'entries'))
+    const entries = toArray(reverse(walked.added))
     if (problem !== null) { return error(problem) }
     const nodes = entries.map(x => x.node)
     return ok({
         root,
         nodes,
-        scope: entries.map(x => x.scope === null ? -1 : assertNotNullish(mapGet(visited, x.scope))),
+        scope: entries.map(x => x.scope === null ? -1 : assertNotNullish(mapGet(visited, x.scope))[0]),
         shared: merges ? places(root, nodes).flatMap((n, i) => n > 1 ? [i] : []) : sharedByIdentity(e, visited),
         exps: expsOf(merges, nodes, visited),
     })
@@ -611,11 +631,16 @@ export const identityAnalysis = table(false)
 /**
  * Whether the function that is entry `i` holds a node of `kind` in its own
  * body's scope — a nested function's body is that function's own. The
- * question every writer asks of a function's `['rest']` and `['self']`.
+ * question every writer asks of a function's `['rest']` and `['self']`,
+ * and of every function in turn: the table is read once for a kind, and
+ * each function is then a lookup.
  *
- * @type {(a: Analysis, i: number, kind: Node[0]) => boolean}
+ * @type {(a: Analysis, kind: Node[0]) => (i: number) => boolean}
  */
-export const scopeHolds = ({ nodes, scope }, i, kind) => nodes.some((n, j) => n[0] === kind && scope[Number(j)] === i)
+export const scopeHolds = ({ nodes, scope }, kind) => {
+    const scopes = fromValues(nodes.flatMap((n, j) => n[0] === kind ? [scope[Number(j)]] : []))
+    return i => has(i)(scopes)
+}
 
 /** Whether an entry belongs to a function or a nested body it creates. @type {(scope: readonly number[], root: number, i: number) => boolean} */
 const withinScope = (scope, root, i) => {

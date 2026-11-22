@@ -13,7 +13,7 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         };
         A::static_function(|_self, _args| {
             let _b704: Any<A> = _args.rest(0).to_any();
-            Ok([(strict_eq((Any::dot(A::frame(_self)[0].clone(), string_any("dev")).end())?, (Any::dot(A::frame(_self)[0].clone(), string_any("prod")).end())?))?, ((Any::dot((Any::dot(A::frame(_self)[0].clone(), string_any("prod")).end())?, string_any("port")).end())? + (Any::dot(_b704.clone(), f64_any(0x0000000000000000)).end())?)?, (Any::dot((Any::dot(A::frame(_self)[0].clone(), string_any("dev")).end())?, string_any("host")).end())?].to_array().to_any())
+            Ok([(strict_eq((Any::dot(A::frame(_self)[0].clone(), string_any("dev")).end())?, (Any::dot(A::frame(_self)[0].clone(), string_any("prod")).end())?))?, ((Any::dot((Any::dot(A::frame(_self)[0].clone(), string_any("prod")).end())?, string_any("port")).end())? + (Any::dot(_b704.clone(), f64_any(0x0)).end())?)?, (Any::dot((Any::dot(A::frame(_self)[0].clone(), string_any("dev")).end())?, string_any("host")).end())?].to_array().to_any())
         }, 0, [_b1.clone()].to_array(), Some("(...$1)=>[$0.dev===$0.prod,$0.prod.port+$1[0],$0.dev.host]")).to_any()
     })].to_object().to_any())
 }

@@ -6,7 +6,8 @@
  *
  * @module
  * @import { Analysis, Node, Operand, Step } from '../../analysis/types.ts'
- * @import { Block, Value } from '../../../js/ast/types.ts'
+ * @import { Block, Definition, Value } from '../../../js/ast/types.ts'
+ * @import { Refusal } from './types.ts'
  * @import { Task } from './private.ts'
  */
 
@@ -21,7 +22,7 @@ import { fromValues, has, size } from '../../../types/set/module.f.js'
 const keyReason = (a, key, method) => {
     if (typeof key === 'string') {
         const why = prohibitedAccess(method)(key)
-        return why === null ? null : `a prohibited ${why}`
+        return why === null ? null : `a ${method ? 'call' : 'read'} of the prohibited ${why} "${key}"`
     }
     if (typeof key === 'number') { return Number.isFinite(key) && !Object.is(key, -0) ? null : 'a number key no literal reads back' }
     const node = key instanceof Array ? a.nodes[Number(key[1])] : null
@@ -56,8 +57,8 @@ const captureReason = (a, index, node) => {
     return slots.some((_, k) => !a.nodes.some((read, j) => a.scope[Number(j)] === index && read[0] === 'frame' && read[1] === k)) ? 'a frame slot the body never reads' : null
 }
 
-/** The graph-specific restrictions which survive the common migration. @type {(a: Analysis, module: boolean) => string | null} */
-const graphReason = (a, module) => {
+/** The graph-specific restrictions which survive the common migration, with the node each is refused at. @type {(a: Analysis, module: boolean) => Refusal | null} */
+const graphRefusal = (a, module) => {
     const shared = fromValues(a.shared)
     /** @type {readonly { value: Operand, module: boolean }[]} */
     let pending = [{ value: a.root, module }]
@@ -74,24 +75,23 @@ const graphReason = (a, module) => {
             seen = [...seen, [index, current.module]]
         }
         const node = a.nodes[Number(index)]
-        if (node[0] === 'args') { return 'a args node' }
-        if (node[0] === 'memberPresent') { return 'an internal member-presence query' }
-        if (node[0] === '+' && node.length === 2) { return 'a unary + node' }
+        if (node[0] === 'args') { return ['a args node', a.exps[Number(index)]] }
+        if (node[0] === 'memberPresent') { return ['an internal member-presence query', a.exps[Number(index)]] }
         if (node[0] === ',') {
-            if (node[1].length < 2) { return 'a comma with fewer than two operands' }
-            if (!current.module && node[1].slice(0, -1).some(value => value instanceof Array && ['rest', 'arg', 'frame', 'self'].includes(a.nodes[Number(value[1])][0]))) { return 'an anchor that is a name' }
+            if (node[1].length < 2) { return ['a comma with fewer than two operands', a.exps[Number(index)]] }
+            if (!current.module && node[1].slice(0, -1).some(value => value instanceof Array && ['rest', 'arg', 'frame', 'self'].includes(a.nodes[Number(value[1])][0]))) { return ['an anchor that is a name', a.exps[Number(index)]] }
             pending = [...node[1].map(value => ({ value, module: current.module })), ...rest]
             continue
         }
         if (node[0] === '=>') {
             const why = captureReason(a, index, node)
-            if (why !== null) { return why }
+            if (why !== null) { return [why, a.exps[Number(index)]] }
             pending = [...node[2].map(value => ({ value, module: false })), { value: node[3], module: false }, ...rest]
             continue
         }
         if (node[0] === '.' || node[0] === '?.' || node[0] === '?.()') {
             const head = node[0] === '?.()' ? null : keyReason(a, node[2], callStep(node[3]))
-            if (head !== null) { return head }
+            if (head !== null) { return [head, a.exps[Number(index)]] }
             let lazy = node[0] !== '.'
             const initialModule = !lazy && current.module
             /** @type {readonly { value: Operand, module: boolean }[]} */
@@ -104,7 +104,7 @@ const graphReason = (a, module) => {
                 lazy = lazy || step[0] === '|?.()'
                 if (step[0] === '|.') {
                     const why = keyReason(a, step[1], callStep(step[2]))
-                    if (why !== null) { return why }
+                    if (why !== null) { return [why, a.exps[Number(index)]] }
                 }
                 const values = step[0] === '|.' ? keyValues(a, step[1]) : step[1].map(itemOperand)
                 const stepModule = !lazy && current.module
@@ -130,16 +130,22 @@ const blockValues = block => [
  * Common placement splits source-spellable pure sharing. Every remaining lazy
  * definition needs memo storage, which current source cannot express. Admission
  * consumes that decision instead of repeating the graph's placement analysis.
- * @type {(fast: Block) => string | null}
+ * The recipe's binding carries its entry's index, where it is an entry's,
+ * and the entry its node.
+ * @type {(a: Analysis, fast: Block) => Refusal | null}
  */
-const lazyReason = fast => {
+const lazyRefusal = (a, fast) => {
     /** @type {readonly Task[]} */
     let pending = [{ block: fast }]
     while (pending.length !== 0) {
         const [task, ...rest] = pending
         if (hasEntry(task, 'block')) {
             const { block } = task
-            if (block.statements.some(statement => statement[0] === 'define' && statement[3] === 'lazy')) { return 'a shared node reached from outside the lazy operand that establishes it' }
+            const lazy = block.statements.find(statement => statement[0] === 'define' && statement[3] === 'lazy')
+            if (lazy !== undefined) {
+                const { index } = /** @type {Definition} */ (lazy)[1]
+                return ['a shared node reached from outside the lazy operand that establishes it', a.exps[Number(index)] ?? null]
+            }
             const blocks = block.statements.flatMap(statement => statement[0] === 'block' ? [statement[2]] : statement[0] === 'if' ? [statement[3], statement[4]] : statement[0] === 'loop' ? [statement[1].body] : [])
             const terminal = block.exit[0] === 'loop' ? [block.exit[1].body] : []
             pending = [...blocks.map(block => ({ block })), ...terminal.map(block => ({ block })), ...blockValues(block).map(value => ({ value })), ...rest]
@@ -155,5 +161,17 @@ const lazyReason = fast => {
     return null
 }
 
-/** Source admission over the same checked graph and placement result. @type {(a: Analysis, fast: Block, module?: boolean) => string | null} */
-export const sourceReason = (a, fast, module = false) => graphReason(a, module) ?? lazyReason(fast)
+/**
+ * Source admission over the same checked graph and placement result: why the
+ * graph has no source spelling, and the node it is refused at where there is
+ * one, for a caller that can say where that node came from.
+ *
+ * @type {(a: Analysis, fast: Block, module?: boolean) => Refusal | null}
+ */
+export const sourceRefusal = (a, fast, module = false) => graphRefusal(a, module) ?? lazyRefusal(a, fast)
+
+/** The reason of {@link sourceRefusal} alone. @type {(a: Analysis, fast: Block, module?: boolean) => string | null} */
+export const sourceReason = (a, fast, module = false) => {
+    const refusal = sourceRefusal(a, fast, module)
+    return refusal === null ? null : refusal[0]
+}

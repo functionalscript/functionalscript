@@ -61,5 +61,5 @@ values is a separate [runtime compilation boundary](../values.md#runtime-compila
 
 This evaluator consumes valid, immutable FJS EDAG and trusts its binding and
 scope invariants. Admission of separately supplied EDAG belongs at its entry
-boundary, not at each recursive step. The [proofs](proof.f.mjs) cover execution
+boundary, not at each recursive step. The [proofs](proof.f.js) cover execution
 and recomputation; schema validation lives elsewhere.

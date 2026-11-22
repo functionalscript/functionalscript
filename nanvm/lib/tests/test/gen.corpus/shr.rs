@@ -4,23 +4,23 @@ use crate::harness::*;
 
 #[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
-    check::<A>("nullShrThree", scope(|| { Nullish::Null.to_any() >> f64_any(0x4008000000000000) }), f64_any(0x0000000000000000));
-    check::<A>("undefinedShrThree", scope(|| { Nullish::Undefined.to_any() >> f64_any(0x4008000000000000) }), f64_any(0x0000000000000000));
-    check::<A>("trueShrThree", scope(|| { true.to_any() >> f64_any(0x4008000000000000) }), f64_any(0x0000000000000000));
-    check::<A>("falseShrThree", scope(|| { false.to_any() >> f64_any(0x4008000000000000) }), f64_any(0x0000000000000000));
+    check::<A>("nullShrThree", scope(|| { Nullish::Null.to_any() >> f64_any(0x4008000000000000) }), f64_any(0x0));
+    check::<A>("undefinedShrThree", scope(|| { Nullish::Undefined.to_any() >> f64_any(0x4008000000000000) }), f64_any(0x0));
+    check::<A>("trueShrThree", scope(|| { true.to_any() >> f64_any(0x4008000000000000) }), f64_any(0x0));
+    check::<A>("falseShrThree", scope(|| { false.to_any() >> f64_any(0x4008000000000000) }), f64_any(0x0));
     check::<A>("stringTenShrThree", scope(|| { string_any("10") >> f64_any(0x4008000000000000) }), f64_any(0x3ff0000000000000));
-    check::<A>("stringLetterShrThree", scope(|| { string_any("a") >> f64_any(0x4008000000000000) }), f64_any(0x0000000000000000));
-    check::<A>("emptyArrayShrThree", scope(|| { Array::default().to_any() >> f64_any(0x4008000000000000) }), f64_any(0x0000000000000000));
+    check::<A>("stringLetterShrThree", scope(|| { string_any("a") >> f64_any(0x4008000000000000) }), f64_any(0x0));
+    check::<A>("emptyArrayShrThree", scope(|| { Array::default().to_any() >> f64_any(0x4008000000000000) }), f64_any(0x0));
     check::<A>("arrayTenShrThree", scope(|| { [f64_any(0x4024000000000000)].to_array().to_any() >> f64_any(0x4008000000000000) }), f64_any(0x3ff0000000000000));
     check::<A>("arrayStringTenShrThree", scope(|| { [string_any("10")].to_array().to_any() >> f64_any(0x4008000000000000) }), f64_any(0x3ff0000000000000));
-    check::<A>("arrayPairShrThree", scope(|| { [f64_any(0x0000000000000000), f64_any(0x0000000000000000)].to_array().to_any() >> f64_any(0x4008000000000000) }), f64_any(0x0000000000000000));
-    check::<A>("emptyObjectShrThree", scope(|| { Object::default().to_any() >> f64_any(0x4008000000000000) }), f64_any(0x0000000000000000));
-    check::<A>("functionShrThree", scope(|| { A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, Array::default(), Some("()=>undefined")).to_any() >> f64_any(0x4008000000000000) }), f64_any(0x0000000000000000));
-    check::<A>("truncatesTowardZero", scope(|| { f64_any(0x400f333333333333) >> f64_any(0x4008000000000000) }), f64_any(0x0000000000000000));
+    check::<A>("arrayPairShrThree", scope(|| { [f64_any(0x0), f64_any(0x0)].to_array().to_any() >> f64_any(0x4008000000000000) }), f64_any(0x0));
+    check::<A>("emptyObjectShrThree", scope(|| { Object::default().to_any() >> f64_any(0x4008000000000000) }), f64_any(0x0));
+    check::<A>("functionShrThree", scope(|| { A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, Array::default(), Some("()=>undefined")).to_any() >> f64_any(0x4008000000000000) }), f64_any(0x0));
+    check::<A>("truncatesTowardZero", scope(|| { f64_any(0x400f333333333333) >> f64_any(0x4008000000000000) }), f64_any(0x0));
     check::<A>("negativeTruncatesTowardZero", scope(|| { f64_any(0xc00f333333333333) >> f64_any(0x4008000000000000) }), f64_any(0xbff0000000000000));
-    check::<A>("nanShrThree", scope(|| { f64_any(0x7ff8000000000000) >> f64_any(0x4008000000000000) }), f64_any(0x0000000000000000));
-    check::<A>("infinityShrThree", scope(|| { f64_any(0x7ff0000000000000) >> f64_any(0x4008000000000000) }), f64_any(0x0000000000000000));
-    check::<A>("negativeInfinityShrThree", scope(|| { f64_any(0xfff0000000000000) >> f64_any(0x4008000000000000) }), f64_any(0x0000000000000000));
+    check::<A>("nanShrThree", scope(|| { f64_any(0x7ff8000000000000) >> f64_any(0x4008000000000000) }), f64_any(0x0));
+    check::<A>("infinityShrThree", scope(|| { f64_any(0x7ff0000000000000) >> f64_any(0x4008000000000000) }), f64_any(0x0));
+    check::<A>("negativeInfinityShrThree", scope(|| { f64_any(0xfff0000000000000) >> f64_any(0x4008000000000000) }), f64_any(0x0));
     check::<A>("shiftCountWrapsAt32", scope(|| { f64_any(0x4030000000000000) >> f64_any(0x4041000000000000) }), f64_any(0x4010000000000000));
     check::<A>("shiftCountNegative", scope(|| { f64_any(0xc030000000000000) >> f64_any(0xbff0000000000000) }), f64_any(0xbff0000000000000));
     check::<A>("valueWrapsAt32Bits", scope(|| { f64_any(0x41f0000000500000) >> f64_any(0x3ff0000000000000) }), f64_any(0x4000000000000000));

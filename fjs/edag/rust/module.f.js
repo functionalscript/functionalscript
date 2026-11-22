@@ -20,7 +20,7 @@ import { fromAnalysis } from '../to_fast/module.f.js'
 import { prepare } from '../../js/ast/prepare/module.f.js'
 import { functionStringify } from '../../js/ast/serializer/module.f.js'
 import { isFunctionNode, isIntrinsic, isStatic } from '../module.f.js'
-import { operandsOf, visit } from '../sharing/module.f.js'
+import { operandsOf, visit, withBodies } from '../sharing/module.f.js'
 import { error, mapOk, ok, okThen } from '../../types/result/module.f.js'
 import { tagged, untagged } from '../../text/marked/module.f.js'
 import { bindingTagged, scopeTagged as preparedScope, valueTagged } from '../../rust/serializer/module.f.js'
@@ -44,14 +44,11 @@ const functionError = a => {
     return null
 }
 
-/** Function bodies participate in module capability metadata. @type {(node: readonly unknown[]) => readonly unknown[]} */
-const withBodies = node => node[0] === '=>' ? [...operandsOf(node), node[3]] : operandsOf(node)
-
 /** @type {(step: StepOver<Exp, Index> | undefined, member: boolean) => boolean} */
 const memberCall = (step, member) => step === undefined ? false : step[0] === '|.' ? memberCall(step[2], true) : member || memberCall(step[2], false)
 
 /** Whether the graph's operation spelling uses the runtime argument. @type {(root: Exp) => boolean} */
-export const needsRuntime = root => visit(withBodies)([])(root).some(([node]) => {
+export const needsRuntime = root => visit(withBodies)(root).some(([node]) => {
     if (isStatic(node)) { return true }
     const operation = /** @type {ExpOp} */ (node)
     switch (operation[0]) {
@@ -116,8 +113,8 @@ export const expExprTagged = (shared, runtime = null) => root => okThen(({ block
 /** The same expression with presentation tags removed. @type {(shared: readonly (readonly [Exp, string])[], runtime?: string | null) => (root: Exp) => Result<string, readonly unknown[]>} */
 export const expExpr = (shared, runtime = null) => root => mapOk(untagged)(expExprTagged(shared, runtime)(root))
 
-/** A graph scope through the common conversion and preparation passes. @type {(root: Exp, text?: (e: Exp) => string | undefined, runtime?: string | null) => Result<Scope, readonly unknown[]>} */
-export const scopeTagged = (root, text = noText, runtime = null) => okThen(({ block, external, options }) => preparedScope(block, options, external))(converted(root, [], text, runtime))
+/** A graph scope through the common conversion and preparation passes. @type {(root: Exp, text?: (e: Exp) => string | undefined, runtime?: string | null, native?: boolean) => Result<Scope, readonly unknown[]>} */
+export const scopeTagged = (root, text = noText, runtime = null, native = false) => okThen(({ block, external, options }) => preparedScope(block, options, external, native))(converted(root, [], text, runtime))
 
 /** A corpus scope over its supplied names, through the same prepared serializer. @type {(shared: readonly (readonly [Exp, string])[], runtime?: string | null) => (root: Exp) => Result<readonly string[], readonly unknown[]>} */
 export const statementsOf = (shared, runtime = null) => root => okThen(({ block, external, options }) => mapOk(({ lines }) => lines.map(untagged))(preparedScope(block, options, external)))(converted(root, shared, noText, runtime))
@@ -126,10 +123,10 @@ export const statementsOf = (shared, runtime = null) => root => okThen(({ block,
 export const bindingLine = (shared, name, runtime = null) => root => okThen(({ block, external, options }) => mapOk(([text]) => untagged(text))(bindingTagged(name, ['block', block], options, external)))(converted(root, shared, noText, runtime))
 
 /** A graph's own-scope read metadata. @type {(tag: string) => (root: Exp) => boolean} */
-const reads = tag => root => visit(operandsOf)([])(root).some(([node]) => node instanceof Array && node[0] === tag)
+const reads = tag => root => visit(operandsOf)(root).some(([node]) => node instanceof Array && node[0] === tag)
 
 /** Whether a fragment reads invocation inputs. @type {(root: Exp) => boolean} */
 export const readsArgs = root => reads('args')(root) || reads('arg')(root) || reads('rest')(root)
 
 /** The public Rust VM capability required by a graph. @type {(root: Exp) => boolean} */
-export const holdsFunction = root => visit(withBodies)([])(root).some(([node]) => isFunctionNode(node))
+export const holdsFunction = root => visit(withBodies)(root).some(([node]) => isFunctionNode(node))

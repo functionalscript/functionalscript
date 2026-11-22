@@ -6,7 +6,7 @@ use crate::{
 };
 
 /// A wrapper newtype over a VM container — `String<A>`, `Array<A>`,
-/// `Object<A>`, `BigInt<A>` — and the container it wraps. Each wrapper
+/// `BigInt<A>` — and the container it wraps. Each wrapper
 /// implements it once, beside its `Index<u32>`, which delegates to
 /// [`item`](Self::item); `SizedIndex<u32>` follows from the blanket impl
 /// below.

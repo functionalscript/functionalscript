@@ -9,10 +9,17 @@
  *   whose cell a `drop` freed.
  * - **`dup` and `drop` count.** `dup` adds one to a cell's count and
  *   answers its handle; `drop` takes one away, and frees the cell at zero.
- * - **`from_unit`, `concat`, `substring`, `item`, `join` and `text` make a
+ * - **`from_unit`, `concat`, `substring`, `item`, `join`, `key` and `text` make a
  *   cell** of the value that the view answers, counted once, and answer its
  *   handle, which the caller owns: an item read from an array is a cell of
  *   its own. `find` answers an `i32`, the property index or `-1`.
+ * - **A copy value is not counted.** Any names `undefined`, `null` and
+ *   `boolean` as its copy variants, so a module writes no `dup` and no
+ *   `drop` of a value that holds only those: a cell that the host makes of
+ *   one is the constant's own cell below, a first cell that holds one is
+ *   kept from the start, and a `dup` or a `drop` of such a cell, or a
+ *   `push` or a `throw` that takes it over, leaves its count, as a drop of
+ *   a wider type that holds a copy value does nothing.
  * - **What a constant holds is kept.** Any's `undefined`, `null`, `true`
  *   and `false` are the cells `-1` to `-4`, each counted once for the
  *   immutable global that holds it, and kept from the start. `keep` keeps
@@ -40,8 +47,19 @@
  *   arguments, and answers a new cell of the result. A throw from the
  *   function keeps its value as `throw` does and traps. A value that is
  *   not a function, or arguments that are not an array, trap as misuse.
- *   `make_function` of an IR `code` waits for slice 11: a call of it
- *   takes over its frame and text and traps.
+ * - **`make_function` makes a JavaScript function of the module's code**
+ *   ([slice 11b](../../../todo/slices.md#decisions-for-slice-11-2026-11-20)):
+ *   it takes over a cell of a sealed frame array and a cell of a text, a
+ *   string or `undefined`, and makes a cell of a function whose `length`
+ *   is the one given. A call of the function, from `call` or from
+ *   JavaScript, makes a cell of the function itself and one of its
+ *   arguments array, calls the code at its index in the table that the
+ *   host makes, with both borrowed, and frees them after. A throw of the code keeps its value, so the
+ *   function throws that value, which `call` keeps again. `frame(self, i)`
+ *   makes a cell of item `i` of the frame, and `text` answers the text
+ *   given. A frame that is not an array, a text that is not a string, a
+ *   `frame` of a function that `make_function` did not make, or past its
+ *   frame, and a call of an index that holds no code, throw.
  * - **A throw keeps its value**
  *   ([L0 design §13](../../../../../doc/sasha-gil/wasm/l0-design.md#13-errors-a-throw-traps)):
  *   `throw` takes over a cell, as `push` does, keeps its value and
@@ -60,7 +78,9 @@
  *   ([L0 design §5](../../../../../doc/sasha-gil/wasm/l0-design.md#5-memory-and-table-made-by-the-loader-imported-by-both-modules)):
  *   the region of a module's data segments starts at `data_base`, past
  *   bytes that the host keeps for itself, and holds as many bytes as the
- *   module's `fjs.layout` asks for. `make_string(ptr, len)` makes a cell of
+ *   module's `fjs.layout` asks for. It makes the table too, of as many
+ *   entries as the layout asks for, which the module fills from
+ *   `table_base`, `0`. `make_string(ptr, len)` makes a cell of
  *   the string of the `len` UTF-16 units at `ptr`, the low byte of each
  *   first, and throws where they reach past the memory.
  *
@@ -76,21 +96,28 @@
 
 import { view } from '../module.f.js'
 
+/** Whether a value is one of Any's copy variants: `undefined`, `null` or a boolean. @type {(value: unknown) => value is undefined | null | boolean} */
+const isCopy = value => value === undefined || value === null || typeof value === 'boolean'
+
+/** The handle of the constant cell that holds a copy value. @type {(value: undefined | null | boolean) => bigint} */
+const constantOf = value => value === undefined ? -1n : value === null ? -2n : value ? -3n : -4n
+
 /** Where the region of a module's data segments starts: past bytes that a runtime would keep for itself. */
 const dataBase = 0x100
 
 /**
  * A counting host whose first cells are `values`, each counted once, and
  * whose memory holds `data` bytes of a module's data segments at
- * `data_base`.
+ * `data_base`, and whose table holds `entries` of its code at
+ * `table_base`.
  *
- * @type {(values: readonly unknown[], data?: number) => Counting}
+ * @type {(values: readonly unknown[], data?: number, entries?: number) => Counting}
  */
-export const counting = (values, data = 0) => {
+export const counting = (values, data = 0, entries = 0) => {
     /** @type {Map<bigint, { readonly value: unknown, readonly count: number }>} */
     const cells = new Map(values.map((value, k) => [BigInt(k), { value, count: 1 }]))
     /** The count at which each kept cell was kept. @type {Map<bigint, number>} */
-    const kept = new Map()
+    const kept = new Map(values.flatMap((value, k) => isCopy(value) ? [/** @type {const} */ ([BigInt(k), 1])] : []))
     let next = BigInt(values.length)
     /** @type {(h: bigint) => { readonly value: unknown, readonly count: number }} */
     const cell = h => {
@@ -102,6 +129,7 @@ export const counting = (values, data = 0) => {
     const read = h => cell(h).value
     /** @type {(value: unknown) => bigint} */
     const make = value => {
+        if (isCopy(value)) { return constantOf(value) }
         const h = next
         next = h + 1n
         cells.set(h, { value, count: 1 })
@@ -110,12 +138,14 @@ export const counting = (values, data = 0) => {
     /** @type {(h: bigint) => bigint} */
     const dup = h => {
         const { value, count } = cell(h)
+        if (isCopy(value)) { return h }
         cells.set(h, { value, count: count + 1 })
         return h
     }
     /** @type {(h: bigint) => void} */
     const drop = h => {
         const { value, count } = cell(h)
+        if (isCopy(value)) { return }
         if (count === 1) {
             cells.delete(h)
         } else {
@@ -152,6 +182,10 @@ export const counting = (values, data = 0) => {
     }
     /** The value that a throw keeps, until `thrown` or `recover` takes it. @type {{ readonly value: unknown } | null} */
     let held = null
+    /** The frame and the text of each function that `make_function` made. @type {WeakMap<object, { readonly items: readonly unknown[], readonly text: string | undefined }>} */
+    const made = new WeakMap()
+    /** The table of the module's code, which it fills from `table_base`. */
+    const table = new WebAssembly.Table({ element: 'anyfunc', initial: entries })
     const v = view(read)
     const memory = new WebAssembly.Memory({ initial: Math.ceil((dataBase + data) / 0x1_0000) })
     /** @type {(ptr: number, len: number) => string} */
@@ -164,6 +198,8 @@ export const counting = (values, data = 0) => {
         imports: {
             memory,
             data_base: new WebAssembly.Global({ value: 'i32', mutable: false }, dataBase),
+            table,
+            table_base: new WebAssembly.Global({ value: 'i32', mutable: false }, 0),
             make_string: (ptr, len) => make(units(ptr, len)),
             undefined: constant(-1n, undefined),
             null: constant(-2n, null),
@@ -222,10 +258,39 @@ export const counting = (values, data = 0) => {
                 return make(Object.fromEntries(order.map(key => [key, last.get(key)])))
             },
             join: (parts, separator) => make(v.join(parts, separator)),
-            make_function: (_code, frame, _length, text) => {
+            key: (o, i) => make(v.key(o, i)),
+            make_function: (code, frame, length, text) => {
+                const items = read(frame)
+                const t = read(text)
+                if (!Array.isArray(items)) { throw 'fjs:l0 host: make_function of a frame that is not an array' }
+                if (t !== undefined && typeof t !== 'string') { throw 'fjs:l0 host: make_function of a text that is not a string' }
                 drop(frame)
                 drop(text)
-                throw 'fjs:l0 host: make_function of an IR code waits for slice 11'
+                /** @type {(...args: unknown[]) => unknown} */
+                const fn = (...args) => {
+                    const c = code >= 0 && code < table.length ? table.get(code) : null
+                    if (typeof c !== 'function') { throw 'fjs:l0 host: make_function of no code' }
+                    const self = make(fn)
+                    const a = make(args)
+                    try {
+                        const r = c(self, a)
+                        const value = read(r)
+                        drop(r)
+                        return value
+                    } catch (e) {
+                        // a throw of the code traps, and the value that it keeps is the function's throw
+                        if (held === null) { throw e }
+                        const { value } = held
+                        held = null
+                        throw value
+                    } finally {
+                        drop(self)
+                        drop(a)
+                    }
+                }
+                Object.defineProperty(fn, 'length', { value: length })
+                made.set(fn, { items, text: t })
+                return make(fn)
             },
             call: (f, args) => {
                 const fn = read(f)
@@ -240,14 +305,24 @@ export const counting = (values, data = 0) => {
                     throw e
                 }
             },
-            text: f => make(v.text(f)),
+            text: f => {
+                const m = made.get(/** @type {object} */ (read(f)))
+                return make(m === undefined ? v.text(f) : m.text)
+            },
             throw: h => {
                 if (held !== null) { throw 'fjs:l0 host: a throw after a throw' }
                 const value = read(h)
                 drop(h)
                 held = { value }
             },
+            frame: (self, i) => {
+                const m = made.get(/** @type {object} */ (read(self)))
+                if (m === undefined) { throw 'fjs:l0 host: frame of a function that make_function did not make' }
+                if (i < 0 || i >= m.items.length) { throw 'fjs:l0 host: frame past its length' }
+                return make(m.items[i])
+            },
         },
+        first: values.map((_, k) => BigInt(k)),
         has_thrown: () => held === null ? 0 : 1,
         thrown: () => {
             if (held === null) { throw 'fjs:l0 host: nothing was thrown' }

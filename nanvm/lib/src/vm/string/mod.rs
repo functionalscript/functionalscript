@@ -45,3 +45,9 @@ use crate::vm::IVm;
 /// ```
 #[derive(Clone)]
 pub struct String<A: IVm>(A::InternalString);
+
+impl<A: crate::vm::IStaticVm> String<A> {
+    pub fn from_static(value: &'static crate::vm::StaticString) -> Self {
+        Self(A::load_string(value))
+    }
+}

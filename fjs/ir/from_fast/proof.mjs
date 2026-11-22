@@ -41,7 +41,11 @@
  * `get`, on receivers and keys of every kind: each answers what L1's own
  * answers, and throws what it throws. So do L1's arithmetic and relational
  * operators, on numbers, bigints and strings: each answers what L1's own
- * answers, and throws what it throws.
+ * answers, and throws what it throws. So do the untyped programs of
+ * [`programs.f.js`](./programs.f.js), lowered with no table and linked with
+ * the bodies of L1 that they reach into one module, on values of every
+ * kind: each answers what JavaScript answers, and where JavaScript throws a
+ * `TypeError`, throws L1's value of that error.
  *
  * @import { StringMap } from '../../types/object/types.ts'
  * @import { Module } from '../types.ts'
@@ -51,17 +55,19 @@
 import { readFileSync } from 'node:fs'
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import {
-    add, call as l1Call, divide, functionText, get as l1GetFn, greaterThan, greaterThanOrEqual, lessThan, lessThanOrEqual,
-    multiply, negate, objectSpread, strictEquals, stringEquals, stringIndex, stringLess, subtract, toBoolean,
-    toIterable, toNumber, toNumeric, toPrimitive, toString as l1ToString, typeOf,
+    add, bitwiseAnd, call as l1Call, divide, functionText, get as l1GetFn, greaterThan, greaterThanOrEqual, lessThan, lessThanOrEqual,
+    multiply, negate, number, objectSpread, remainder, shiftRight, strictEquals, stringEquals, stringIndex, stringLess, subtract, toBoolean,
+    toIterable, toNumber, toNumeric, toPrimitive, toPropertyKey, toString as l1ToString, typeOf,
 } from '../../wasm/runtime/l1/module.f.js'
 import { l0 } from '../l0/module.f.js'
 import { lifetime } from '../lifetime/module.f.js'
 import { native } from '../native/module.f.js'
 import { print } from '../print/module.f.js'
 import { edges, held, product, run, spellings } from '../wasm/testlib.mjs'
+import { keySources, value, withFunction } from '../../wasm/runtime/l1/parity/testlib.mjs'
 import * as helpers from './helpers.f.js'
-import { errorTable, lower } from './module.f.js'
+import { errorTable } from './link/module.f.js'
+import { lower } from './module.f.js'
 import * as sample from './sample.f.js'
 import * as strings from './strings.f.js'
 import * as constants from './constants.f.js'
@@ -70,9 +76,13 @@ import * as arrays from './arrays.f.js'
 import * as reads from './reads.f.js'
 import * as throws from './throws.f.js'
 import * as builds from './builds.f.js'
+import * as closures from './closures.f.js'
+import * as spreads from './spreads.f.js'
+import * as programs from './programs.f.js'
+import * as records from './records.f.js'
 import {
     arrays as arraySignatures, builds as buildSignatures, constants as constantSignatures, helpers as helperSignatures,
-    l1, l1Arith, l1Builders, l1Coerce, l1Get, l1Iterable, l1Runtime, l1Throws, literals as literalSignatures,
+    l1, l1Arith, l1Builders, l1Coerce, l1Get, l1Iterable, l1Runtime, l1Throws, l1Whole, literals as literalSignatures,
     objects as objectSignatures, reads as readSignatures, runtime, signatures, sourceOf, strings as stringSignatures,
     stringsRuntime, throws as throwSignatures, throwsRuntime,
 } from './testlib.f.js'
@@ -136,6 +146,23 @@ const fromL1Get = () => assertOk(lifetime(fromText(new URL('../../wasm/runtime/l
 
 /** The owned stage of L1's arithmetic and relational operators, over the runtime and the table. @type {() => Module} */
 const fromL1Arith = () => assertOk(lifetime(fromText(new URL('../../wasm/runtime/l1/module.f.js', import.meta.url), l1Arith, l1Runtime(errors))))
+
+const fromL1Whole = () => assertOk(lifetime(fromText(new URL('../../wasm/runtime/l1/module.f.js', import.meta.url), l1Whole, l1Runtime(errors))))
+
+/** The plain stage of every export of L1, which a program links. @type {() => Module} */
+const plainL1 = () => fromText(new URL('../../wasm/runtime/l1/module.f.js', import.meta.url), l1Whole, l1Runtime(errors))
+
+/** The owned stage of the programs, which no table types, with the bodies of L1 that they reach linked in. @type {() => Module} */
+const fromPrograms = () => assertOk(lifetime(fromText(new URL('./programs.f.js', import.meta.url), {}, { ...l1Runtime(errors), l1: plainL1() })))
+
+/** The programs of the records pass, lowered as the programs are. @type {() => Module} */
+const fromRecords = () => assertOk(lifetime(fromText(new URL('./records.f.js', import.meta.url), {}, { ...l1Runtime(errors), l1: plainL1() })))
+
+/** The closures of slice 11b, lowered as the programs are. @type {() => Module} */
+const fromClosures = () => assertOk(lifetime(fromText(new URL('./closures.f.js', import.meta.url), {}, { ...l1Runtime(errors), l1: plainL1() })))
+
+/** The spreads and rest parameters of slice 11c, lowered as the programs are. @type {() => Module} */
+const fromSpreads = () => assertOk(lifetime(fromText(new URL('./spreads.f.js', import.meta.url), {}, { ...l1Runtime(errors), l1: plainL1() })))
 
 /** Each function of a module, taking its arguments as a list. @type {(m: object) => StringMap<_Twin>} */
 const twinsOf = m => Object.fromEntries(Object.entries(m).map(([name, f]) => {
@@ -295,6 +322,33 @@ const stringInputs = (() => {
     }
 })()
 
+/**
+ * Runs a program's exports against their originals on the values of the
+ * parity table, an object of a nested object, one of a function and a
+ * function of two arguments; `abandons` names the exports that may leave
+ * what they made for a throw of L1 behind.
+ *
+ * @type {(m: Module, originals: object, abandons: readonly string[]) => void}
+ */
+const runPrograms = (m, originals, abandons) => {
+    /** @type {(f: (...xs: readonly unknown[]) => unknown) => _Twin} */
+    const boxed = f => xs => ({ any: f(...xs.map(held)) })
+    const values = [
+        ...withFunction.map(value),
+        { a: { b: 1 } },
+        { f: (/** @type {unknown} */ x) => x },
+        (/** @type {unknown} */ a, /** @type {unknown} */ b) => [a, b],
+    ]
+    const few = values.filter((_, k) => k % 4 === 0)
+    /** @type {StringMap<_Twin>} */
+    const twins = Object.fromEntries(Object.entries(originals).map(([k, f]) => [k, boxed(/** @type {(...xs: readonly unknown[]) => unknown} */ (f))]))
+    /** @type {(f: Function) => readonly (readonly _Value[])[]} */
+    const rows = f => f.length === 0 ? [[]] : f.length === 1 ? values.map(any => [{ any }])
+        : f.length === 2 ? values.flatMap(a => values.map(b => [{ any: a }, { any: b }]))
+        : values.flatMap(a => few.flatMap(b => few.map(c => [{ any: a }, { any: b }, { any: c }])))
+    run(m, twins, Object.fromEntries(Object.entries(originals).map(([k, f]) => [k, rows(f)])), abandons)
+}
+
 export const proof = {
     ir: () => assertEq(print(lowered()), [
         'fn atLeast(a: f64, b: f64) -> bool =',
@@ -399,7 +453,7 @@ export const proof = {
     l1: () => assertEq(print(fromL1()), [
         "import Any from fjs:l0",
         "    type any = undefined | null | boolean | number | string | bigint | array | object | function",
-        "        kind: kind, carrier: i64, dup: dup, drop: drop, literal: string by String.make_string",
+        "        kind: kind, carrier: i64, dup: dup, drop: drop, copy: undefined | null | boolean, literal: string by String.make_string",
         "    const undefined: any.only(undefined)",
         "    const null: any.only(null)",
         "    const true: any.only(boolean)",
@@ -435,6 +489,7 @@ export const proof = {
         "    fn push_property(own b: builder, own k: any.only(string), own v: any) -> builder, gives back b may fail",
         "    fn seal(own b: builder) -> any.only(array, object) may fail",
         "    fn join(parts: any.only(array), separator: any.only(string)) -> any.only(string) may fail",
+        "    fn key(o: any.only(object), i: u(31)) -> any.only(string) may fail",
         "",
         "import Functions from fjs:l0",
         "    fn length(f: any.only(function)) -> u(31)",
@@ -442,18 +497,26 @@ export const proof = {
         "    fn call(f: any.only(function), args: any.only(array)) -> any may fail",
         "    fn text(f: any.only(function)) -> any.only(string, undefined)",
         "    fn throw(own v: any) -> never may fail",
+        "    fn frame(self: any.only(function), i: u(31)) -> any may fail",
         "",
         "import Native from fjs:l1-native",
         "    fn bigintEquals(a: any.only(bigint), b: any.only(bigint)) -> bool",
         "    fn numberRemainder(a: f64, b: f64) -> f64",
+        "    fn numberShiftRight(a: f64, b: f64) -> f64",
+        "    fn numberAnd(a: f64, b: f64) -> f64",
         "    fn numberToString(n: f64) -> any.only(string)",
         "    fn stringToNumber(s: any.only(string)) -> f64",
+        "    fn stringToBigInt(s: any.only(string)) -> any.only(bigint) may fail",
         "    fn bigintToString(b: any.only(bigint)) -> any.only(string)",
-        "    fn bigintAdd(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint)",
-        "    fn bigintSubtract(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint)",
-        "    fn bigintMultiply(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint)",
+        "    fn bigintAdd(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint) may fail",
+        "    fn bigintSubtract(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint) may fail",
+        "    fn bigintMultiply(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint) may fail",
         "    fn bigintDivide(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint) may fail",
         "    fn bigintNegate(a: any.only(bigint)) -> any.only(bigint)",
+        "    fn bigintRemainder(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint) may fail",
+        "    fn bigintShiftRight(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint) may fail",
+        "    fn bigintAnd(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint) may fail",
+        "    fn bigintToNumber(b: any.only(bigint)) -> f64",
         "    fn bigintLess(a: any, b: any) -> f64",
         "",
         "const #c0: any.only(array) =",
@@ -1034,7 +1097,7 @@ export const proof = {
             '    if self.#c4 then mul(x, self.#c0) else x',
             '',
             'fn numberOrUndefined(v: any) -> any =',
-            '    if eq(float(Any.kind(v)), 3.0) then Any.dup(v) else Any.dup(Any.undefined)',
+            '    if eq(float(Any.kind(v)), 3.0) then Any.dup(v) else Any.undefined',
             '',
             'fn scale(x: f64) -> f64 =',
             '    add(mul(x, self.#c1), self.#c0)',
@@ -1149,7 +1212,7 @@ export const proof = {
             "                trap('not array')",
             "        let $3 = Any.drop($0)",
             "        $2",
-            "    let $1 = Containers.seal(Containers.push(Containers.push(Containers.push(Containers.push(Containers.begin_array(4), #0), Any.dup(\"x\")), Any.dup(Any.undefined)), Any.dup(Any.null)))",
+            "    let $1 = Containers.seal(Containers.push(Containers.push(Containers.push(Containers.push(Containers.begin_array(4), #0), Any.dup(\"x\")), Any.undefined), Any.null))",
             "    let $4 =",
             "        match $1",
             "          array as array =>",
@@ -1243,9 +1306,9 @@ export const proof = {
             "        let #0.index = trunc_sat(u(31), k)",
             "        if eq(float(#0.index), k)",
             "        then",
-            "            if lt(#0.index, Containers.length(#0)) then Containers.item(#0, #0.index) else Any.dup(Any.undefined)",
+            "            if lt(#0.index, Containers.length(#0)) then Containers.item(#0, #0.index) else Any.undefined",
             "        else",
-            "            Any.dup(Any.undefined)",
+            "            Any.undefined",
             "    let $7 = Any.drop(#0)",
             "    $6",
             "",
@@ -1253,9 +1316,9 @@ export const proof = {
             "    let array.index = trunc_sat(u(31), k)",
             "    if eq(float(array.index), k)",
             "    then",
-            "        if lt(array.index, Containers.length(self.#c0)) then Containers.item(self.#c0, array.index) else Any.dup(Any.undefined)",
+            "        if lt(array.index, Containers.length(self.#c0)) then Containers.item(self.#c0, array.index) else Any.undefined",
             "    else",
-            "        Any.dup(Any.undefined)",
+            "        Any.undefined",
             "",
             "fn only(a: any) -> any =",
             "    let #0 =",
@@ -1272,9 +1335,9 @@ export const proof = {
             "        let #0.index = trunc_sat(u(31), 0.0)",
             "        if eq(float(#0.index), 0.0)",
             "        then",
-            "            if lt(#0.index, Containers.length(#0)) then Containers.item(#0, #0.index) else Any.dup(Any.undefined)",
+            "            if lt(#0.index, Containers.length(#0)) then Containers.item(#0, #0.index) else Any.undefined",
             "        else",
-            "            Any.dup(Any.undefined)",
+            "            Any.undefined",
             "    let $4 = Any.drop(#0)",
             "    $3",
             "",
@@ -1293,9 +1356,9 @@ export const proof = {
             "        let #0.index = trunc_sat(u(31), k)",
             "        if eq(float(#0.index), k)",
             "        then",
-            "            if lt(#0.index, Containers.length(#0)) then Containers.item(#0, #0.index) else Any.dup(Any.undefined)",
+            "            if lt(#0.index, Containers.length(#0)) then Containers.item(#0, #0.index) else Any.undefined",
             "        else",
-            "            Any.dup(Any.undefined)",
+            "            Any.undefined",
             "    let $4 = Any.drop(#0)",
             "    $3",
             "",
@@ -1403,7 +1466,58 @@ export const proof = {
         stringIndex: [...spellings, ...[[], ['a'], {}, 1, 0n, undefined].map(any => ({ any }))].map(s => [s]),
     }),
     // Object literals: a record of floats, and Containers objects of values of any.
-    objects: () => assertEq(print({ ...fromObjects(), imports: [] }).includes('Containers.begin_object'), true),
+    // Records of floats stay products; object literals of values of `any` are Containers objects, cast to `object`.
+    objects: () => assertEq(print({ ...fromObjects(), imports: [] }), [
+        'fn area(a: f64, b: f64) -> f64 =',
+        '    let #0 = { x: a, y: b }',
+        '    mul(#0.x, #0.y)',
+        '',
+        'fn empty() -> any.only(array, object) =',
+        '    let $0 = Containers.seal(Containers.begin_object(0))',
+        '    let $1 =',
+        '        match $0',
+        '          object as object =>',
+        '            Any.dup(object)',
+        '          else =>',
+        "            trap('not object')",
+        '    let $2 = Any.drop($0)',
+        '    $1',
+        '',
+        'fn nested(v: any) -> any =',
+        '    let #0 =',
+        '        let $0 = Containers.seal(Containers.push_property(Containers.begin_object(1), Any.dup("v"), Any.dup(v)))',
+        '        let $2 =',
+        '            match $0',
+        '              object as object =>',
+        '                Any.dup(object)',
+        '              else =>',
+        "                trap('not object')",
+        '        let $3 = Any.drop($0)',
+        '        $2',
+        '    let $1 = Containers.seal(Containers.push_property(Containers.begin_object(1), Any.dup("inner"), #0))',
+        '    let $4 =',
+        '        match $1',
+        '          object as object =>',
+        '            Any.dup(object)',
+        '          else =>',
+        "            trap('not object')",
+        '    let $5 = Any.drop($1)',
+        '    $4',
+        '',
+        'fn pair(a: any, b: any) -> any.only(array, object) =',
+        '    let $0 = Containers.seal(Containers.push_property(Containers.push_property(Containers.begin_object(2), Any.dup("a"), Any.dup(a)), Any.dup("b"), Any.dup(b)))',
+        '    let $1 =',
+        '        match $0',
+        '          object as object =>',
+        '            Any.dup(object)',
+        '          else =>',
+        "            trap('not object')",
+        '    let $2 = Any.drop($0)',
+        '    $1',
+        '',
+        'export area, empty, nested, pair',
+        '',
+    ].join('\n')),
     objectsRun: () => run(fromObjects(), {
         area: ([x, y]) => /** @type {number} */ (x) * /** @type {number} */ (y),
         empty: () => ({ any: {} }),
@@ -1529,25 +1643,31 @@ export const proof = {
             toPrimitive: ([v, preferString]) => ({ any: toPrimitive(held(v), preferString === true) }),
             toNumber: ([v]) => toNumber(held(v)),
             toNumeric: ([v]) => ({ any: toNumeric(held(v)) }),
+            number: ([v]) => number(held(v)),
             toString: /** @type {_Twin} */ (xs => ({ any: l1ToString(held(xs[0])) })),
             stringLess: ([a, b]) => stringLess(held(a), held(b)),
             add: ([a, b]) => ({ any: add(held(a), held(b)) }),
             subtract: ([a, b]) => ({ any: subtract(held(a), held(b)) }),
             multiply: ([a, b]) => ({ any: multiply(held(a), held(b)) }),
             divide: ([a, b]) => ({ any: divide(held(a), held(b)) }),
+            remainder: ([a, b]) => ({ any: remainder(held(a), held(b)) }),
+            shiftRight: ([a, b]) => ({ any: shiftRight(held(a), held(b)) }),
+            bitwiseAnd: ([a, b]) => ({ any: bitwiseAnd(held(a), held(b)) }),
             negate: ([a]) => ({ any: negate(held(a)) }),
             lessThan: ([a, b]) => lessThan(held(a), held(b)),
             greaterThan: ([a, b]) => greaterThan(held(a), held(b)),
             lessThanOrEqual: ([a, b]) => lessThanOrEqual(held(a), held(b)),
             greaterThanOrEqual: ([a, b]) => greaterThanOrEqual(held(a), held(b)),
         }
-        // `divide` may abandon what it holds when `Native.bigintDivide` throws
-        // for a zero divisor: that throw is a callee's, not `Functions.throw`.
+        // `divide` and `remainder` may abandon what they hold when
+        // `Native.bigintDivide` or `Native.bigintRemainder` throws for a zero
+        // divisor: that throw is a callee's, not `Functions.throw`.
         return run(fromL1Arith(), twins, {
             functionText: [[{ any: 'x' }]],
             toPrimitive: [[{ any: 1 }, false], [{ any: 'a' }, true]],
             toNumber: [[{ any: 1 }], [{ any: '2' }], [{ any: true }]],
             toNumeric: [[{ any: 1 }], [{ any: 1n }], [{ any: '1' }]],
+            number: [[{ any: 1 }], [{ any: 2n ** 64n }], [{ any: ' 3 ' }], [{ any: [4] }]],
             toString: [[{ any: 1 }], [{ any: 'a' }], [{ any: 1n }]],
             stringLess: [[{ any: 'a' }, { any: 'b' }], [{ any: 'b' }, { any: 'a' }]],
             add: [
@@ -1571,6 +1691,24 @@ export const proof = {
                 [{ any: 8n }, { any: 2n }],
                 [{ any: 1 }, { any: 0 }],
                 [{ any: 1n }, { any: 0n }],
+            ],
+            remainder: [
+                [{ any: -7 }, { any: 2 }],
+                [{ any: -7n }, { any: 2n }],
+                [{ any: '9' }, { any: 4 }],
+                [{ any: 1n }, { any: 0n }],
+                [{ any: 1n }, { any: 1 }],
+            ],
+            shiftRight: [
+                [{ any: -9 }, { any: 1 }],
+                [{ any: -9n }, { any: 1n }],
+                [{ any: 2 ** 32 + 8 }, { any: 33 }],
+                [{ any: 1n }, { any: 1 }],
+            ],
+            bitwiseAnd: [
+                [{ any: 12 }, { any: 10 }],
+                [{ any: -4n }, { any: -6n }],
+                [{ any: true }, { any: '3' }],
             ],
             negate: [
                 [{ any: 3 }],
@@ -1598,6 +1736,153 @@ export const proof = {
                 [{ any: 2 }, { any: 1 }],
                 [{ any: 1n }, { any: 1n }],
             ],
-        }, ['divide'])
+        }, ['divide', 'remainder'])
     },
+    // Every export of L1, lowered from its text as one module: each answers
+    // what L1's own answers on the values of the parity table.
+    l1Whole: () => {
+        const m = fromL1Whole()
+        assertEq([...m.exports].toSorted().join(' '), Object.keys(l1Whole).toSorted().join(' '))
+        const text = print({ ...m, imports: [] })
+        assert(text.includes('fn toPropertyKey('))
+    },
+    l1WholeRun: () => {
+        /** @type {(f: (...xs: readonly unknown[]) => unknown) => _Twin} */
+        const boxed = f => xs => ({ any: f(...xs.map(held)) })
+        /** @type {(f: (...xs: readonly unknown[]) => _Value) => _Twin} */
+        const plain = f => xs => f(...xs.map(held))
+        /** @type {StringMap<_Twin>} */
+        const twins = {
+            typeOf: boxed(typeOf),
+            toBoolean: plain(toBoolean),
+            stringEquals: plain(stringEquals),
+            stringLess: plain(stringLess),
+            strictEquals: plain(strictEquals),
+            stringIndex: plain(stringIndex),
+            functionText: boxed(functionText),
+            toPrimitive: ([v, preferString]) => ({ any: toPrimitive(held(v), preferString === true) }),
+            toNumber: plain(toNumber),
+            toNumeric: boxed(toNumeric),
+            number: plain(number),
+            toString: boxed(l1ToString),
+            toPropertyKey: boxed(toPropertyKey),
+            add: boxed(add),
+            subtract: boxed(subtract),
+            multiply: boxed(multiply),
+            divide: boxed(divide),
+            remainder: boxed(remainder),
+            shiftRight: boxed(shiftRight),
+            bitwiseAnd: boxed(bitwiseAnd),
+            negate: boxed(negate),
+            lessThan: plain(lessThan),
+            greaterThan: plain(greaterThan),
+            lessThanOrEqual: plain(lessThanOrEqual),
+            greaterThanOrEqual: plain(greaterThanOrEqual),
+            get: boxed(l1GetFn),
+            call: boxed(l1Call),
+            toIterable: boxed(toIterable),
+            objectSpread: boxed(objectSpread),
+        }
+        // The values and keys of the parity table, which
+        // `../../wasm/runtime/l1/parity/proof.mjs` runs against the
+        // interpreter. The twin is L1's own on the same host, so a function's
+        // text agrees and joins every table.
+        const values = withFunction.map(value)
+        const keys = keySources.map(value)
+        const f = values[values.length - 1]
+        const strings = values.filter(v => typeof v === 'string')
+        /** @type {(vs: readonly unknown[]) => readonly (readonly _Value[])[]} */
+        const one = vs => vs.map(any => [{ any }])
+        /** @type {(as: readonly unknown[], bs: readonly unknown[]) => readonly (readonly _Value[])[]} */
+        const two = (as, bs) => as.flatMap(a => bs.map(b => [{ any: a }, { any: b }]))
+        const pairs = two(values, values)
+        // `divide` may abandon what it holds when `Native.bigintDivide` throws
+        // for a zero divisor, as in `l1ArithRun`.
+        return run(fromL1Whole(), twins, {
+            typeOf: one(values),
+            toBoolean: one(values),
+            stringEquals: two(strings, strings),
+            stringLess: two(strings, strings),
+            strictEquals: pairs,
+            stringIndex: one(strings),
+            functionText: one(strings),
+            toPrimitive: [false, true].flatMap(p => values.map(any => [{ any }, p])),
+            toNumber: one(values),
+            toNumeric: one(values),
+            number: one(values),
+            toString: one(values),
+            toPropertyKey: one(values),
+            add: pairs,
+            subtract: pairs,
+            multiply: pairs,
+            divide: pairs,
+            remainder: pairs,
+            shiftRight: pairs,
+            bitwiseAnd: pairs,
+            negate: one(values),
+            lessThan: pairs,
+            greaterThan: pairs,
+            lessThanOrEqual: pairs,
+            greaterThanOrEqual: pairs,
+            get: two(values, keys),
+            call: [
+                [{ any: f }, { any: [1] }],
+                [{ any: (/** @type {unknown} */ a, /** @type {unknown} */ b) => /** @type {number} */ (a) + /** @type {number} */ (b) }, { any: [2, 3] }],
+                [{ any: 1 }, { any: [] }],
+            ],
+            toIterable: one(values),
+            objectSpread: one(values),
+        }, ['divide', 'remainder'])
+    },
+    // Slice 11a: every export of the programs, of `any` alone, and the
+    // bodies of L1 that they reach, by their linked names, and no others.
+    programs: () => {
+        const m = fromPrograms()
+        assertEq([...m.exports].toSorted().join(' '), Object.keys(programs).toSorted().join(' '))
+        const names = m.functions.map(([k]) => k)
+        assert(names.includes('l1.add') && names.includes('l1.toPrimitive'))
+        assert(!names.includes('l1.toIterable') && !names.includes('l1.objectSpread'))
+        const text = print({ ...m, imports: [] })
+        assert(text.includes('fn sum3(p0: any, p1: any, p2: any) -> any ='))
+    },
+    // Each program answers what JavaScript answers on the values of the
+    // parity table, an object of a nested object, one of a function and a
+    // function of two arguments, and throws L1's value of the error that
+    // JavaScript throws. A throw of L1 leaves what the caller made for it
+    // behind, a boxed key or number, which the host recovers.
+    programsRun: () => runPrograms(fromPrograms(), programs, ['apply', 'bits', 'called', 'countDown', 'first', 'method', 'mixed', 'pair', 'sum3', 'twice']),
+    // The records pass: the objects that a program only reads back by keys
+    // that they have are split, so no function that reads one back builds
+    // it, and every other object stays one.
+    records: () => {
+        const m = fromRecords()
+        /** @type {(name: string) => string} */
+        const text = name => print({ ...m, imports: [], functions: m.functions.filter(([k]) => k === name) })
+        for (const name of ['pair', 'counted', 'both', 'nested', 'chosen']) { assert(!text(name).includes('begin_object'), name) }
+        for (const name of ['whole', 'missing', 'twice', 'given', 'reordered', 'kept']) { assert(text(name).includes('begin_object'), name) }
+    },
+    // Each answers what JavaScript answers, split or not.
+    recordsRun: () => runPrograms(fromRecords(), records, ['both', 'counted', 'given', 'kept', 'reordered']),
+    // Slice 11b: every export of the closures, and the lifted code of each
+    // function that they make as a value, `(#self, #args) -> any`, which reads
+    // its frame through `#self`.
+    closures: () => {
+        const m = fromClosures()
+        assertEq([...m.exports].toSorted().join(' '), Object.keys(closures).toSorted().join(' '))
+        const text = print({ ...m, imports: [] })
+        assert(text.includes('fn #f1(#self: any.only(function), #args: any.only(array)) -> any ='))
+        assert(text.includes('Functions.make_function('))
+        assert(text.includes('Functions.frame(#self, 0)'))
+    },
+    // Each export of the closures answers what JavaScript answers, as the
+    // programs do, and each function that it answers agrees with
+    // JavaScript's on probes of its own; `given` passes one to a function of
+    // JavaScript, which calls it.
+    closuresRun: () => runPrograms(fromClosures(), closures, ['applied', 'callTwice', 'given', 'sameLocal', 'viaCallback']),
+    // Slice 11c: every export of the spreads, each against JavaScript.
+    spreads: () => {
+        const m = fromSpreads()
+        assertEq([...m.exports].toSorted().join(' '), Object.keys(spreads).toSorted().join(' '))
+    },
+    spreadsRun: () => runPrograms(fromSpreads(), spreads, ['around', 'spreadCall', 'spreadMixed']),
 }

@@ -29,9 +29,17 @@ fresh objects, as JavaScript does.
 invocation, so a function that iterates by calling itself last holds one cache
 and constant host stack.
 
-**It runs the analysis, not the raw graph.** [`analysis`](../analysis/README.md)'s
-`identityAnalysis`, the table the compiler gives it, finds the shared nodes once, so the interpreter needs no identity-keyed map of
-its own.
+**A program is run from its table, a call from the graph.** `memo` takes
+[`analysis`](../analysis/README.md)'s table of the whole program, which finds
+its shared nodes once. A function's body is not read into a table when it is
+called: the call evaluates the body's own nodes and keeps each value under the
+node that answered it, so one shared node is one value, as the identity table
+counts it. The first few values are kept in a list searched with `===` and
+the rest in a [reference map](../../types/ref_map/module.f.js): most calls
+evaluate a handful of nodes, and a map costs more to start than a handful of
+comparisons. A call reads
+the nodes it reaches and no others. A table would be the body, every body
+nested in it and every value the function captured, walked again at each call.
 
 [`amnesia`](../amnesia/README.md) is the other interpreter, which forgets, and
 the demo on [`fjs/edag`](../README.md)'s page shows the two side by side.

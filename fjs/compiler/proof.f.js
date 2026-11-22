@@ -329,6 +329,11 @@ const roundTripCorpus = [
 ]
 
 export const proof = {
+    nativeExportKeySharesValue: () => {
+        const rust = compileSource('export default "default";')('output.native.rs')
+        assertEq(rust.split(' = StaticString(&[').length, 2)
+        assert(rust.includes('StaticObject(&[(&LITERAL_0, StaticAny::String(&LITERAL_0))])'))
+    },
     stringifyTree: () => {
         assertEq(_stringifyTree([null, true, false, 'text', 0, 42n]), '[null,true,false,"text",0,42n]')
         // The proof dump retains undefined leaves and own members while
@@ -1028,6 +1033,19 @@ export const proof = {
         input: () => {
             assertEq(fjsRefused({ 'input.f.js': [utf8('export default @')] }), 'input.f.js:1:16-17 - error: unexpected token')
             assertEq(fjsRefused({ 'input.f.js': [utf8('import m from "./m.f.js"; export default [m];')] }), 'm.f.js - error: file not found')
+            // an accepted module the writer has no spelling for: the line says
+            // the refusal is the output's
+            assertEq(
+                fjsRefused({ 'input.f.js': [utf8('export default (()=>{let n=0;const o={f:x=>x};const r=o.f((()=>{n=n+1;return n;})());return [r,n];})();')] }),
+                'output.f.js - error: cannot write as FunctionalScript: an internal member-presence query, in input.f.js')
+            // and names the file whose module made the node it has none for,
+            // which is not the input where the input imports it
+            assertEq(
+                fjsRefused({
+                    'input.f.js': [utf8('import { fine, refused } from "./m.f.js"; export default [fine, refused];')],
+                    'm.f.js': [utf8('export const refused = (()=>{let n=0;const o={f:x=>x};const r=o.f((()=>{n=n+1;return n;})());return [r,n];})(); export const fine = 1;')],
+                }),
+                'output.f.js - error: cannot write as FunctionalScript: an internal member-presence query, in m.f.js')
         },
         // a `.json` input reaches this route too, as it reaches the others
         jsonInput: () => {
@@ -1214,7 +1232,7 @@ use nanvm_lib::vm::{Any, IVm, ToAny, ToArray, ToObject};
 #[rustfmt::skip]
 #[allow(clippy::if_same_then_else)]
 pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
-    Ok([(string_key("default"), (Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), f64_any(0x0000000000000000)).end())?)].to_object().to_any())
+    Ok([(string_key("default"), (Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), f64_any(0x0)).end())?)].to_object().to_any())
 }
 `)
         },
@@ -1353,7 +1371,7 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         // corpus.
         inlinedCall: () => {
             assert(compileSource('const f = () => [1]; export default (...a) => a[0] ? (() => { const x = f(); return [x, x]; })() : 4;')('output.rs').includes([
-                '        if Any::<A>::to_boolean(&(Any::dot(_b362.clone(), f64_any(0x0000000000000000)).end())?) {',
+                '        if Any::<A>::to_boolean(&(Any::dot(_b362.clone(), f64_any(0x0)).end())?) {',
                 '            let _b5: Any<A> = (Any::call(A::frame(_self)[0].clone(), Array::default().to_any()))?;',
                 '            Ok([_b5.clone(), _b5.clone()].to_array().to_any())',
                 '        } else { Ok(f64_any(0x4010000000000000)) }',

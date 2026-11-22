@@ -22,9 +22,10 @@ import { virtualAt } from '../../../../effects/node/virtual/module.f.js'
 import runtimeEdag from '../../../../js/runtime/gen.edag.js'
 import { utf8 } from '../../../../text/module.f.js'
 import {
-    add, divide, get, greaterThan, greaterThanOrEqual, lessThan, lessThanOrEqual, multiply, negate,
-    strictEquals, subtract, toBoolean, toNumber, toString, typeOf,
+    add, bitwiseAnd, divide, get, greaterThan, greaterThanOrEqual, lessThan, lessThanOrEqual, multiply, negate,
+    number, remainder, shiftRight, strictEquals, subtract, toBoolean, toNumber, toString, typeOf,
 } from '../module.f.js'
+import { keySources, sources, value, withFunction } from './testlib.mjs'
 
 const runtime = /** @type {import('../../../../edag/value/types.ts').Runtime} */ (assertOk(read(
     vm({ frame: [], args: [] })(/** @type {import('../../../../edag/types.ts').Exp} */ (/** @type {unknown} */ (runtimeEdag))),
@@ -49,29 +50,13 @@ const l1 = f => {
     }
 }
 
-/** Values as source, each evaluated by the host for L1 and compiled for the interpreter. */
-const sources = [
-    'undefined', 'null', 'true', 'false', '0', '-0', '1', '-1.5', '0 / 0', '1 / 0',
-    "''", "'a'", "'ab'", "'1'", "'\\u{1F600}'", '0n', '1n', '-2n',
-    '[]', '[1]', '[1, 2]', '{}', '{ a: 1 }', '{ valueOf: () => 2 }', '{ toString: () => "x" }',
-]
-
-/**
- * {@link sources} and a function. A function's text is the runtime's: the
- * interpreter renders its own, where a JavaScript host answers the source,
- * so a function joins only the operations that do not read its text.
- */
-const withFunction = [...sources, 'x => x']
-
-/** The host value of a source. @type {(s: string) => unknown} */
-const value = s => Function(`return ${s}`)()
-
 /** Whether two outcomes agree, `NaN` and the zeros told apart. @type {(a: readonly [string, unknown?], b: readonly [string, unknown?]) => boolean} */
 const agree = (a, b) => a[0] === b[0] && Object.is(a[1], b[1])
 
 /** @type {readonly (readonly [string, (a: unknown, b: unknown) => unknown])[]} */
 const binary = [
     ['+', add], ['-', subtract], ['*', multiply], ['/', divide],
+    ['%', remainder], ['>>', shiftRight], ['&', bitwiseAnd],
     ['<', lessThan], ['>', greaterThan], ['<=', lessThanOrEqual], ['>=', greaterThanOrEqual],
     ['===', strictEquals],
 ]
@@ -83,21 +68,14 @@ const unary = [
 
 /**
  * Unary operations that read a function's text, or that the compiler does
- * not take as an operator: `ToNumber` is written as `Number(...)`, since the
- * compiler has no unary `+` yet.
+ * not take as an operator: `Number(...)`, which is `ToNumber` but for a
+ * bigint, which it converts too.
  *
  * @type {readonly (readonly [string, (a: unknown) => unknown])[]}
  */
 const textual = [
-    ['Number(#)', toNumber], ['`${#}`', toString],
+    ['Number(#)', number], ['`${#}`', toString],
 ]
-
-/**
- * Keys a member read takes: numbers and strings, as the compiler emits
- * them. A computed number key is written `Number(...)`, as the compiler
- * requires.
- */
-const keySources = ['Number(0)', 'Number(1)', 'Number(-0)', 'Number(1.5)', "'0'", "'01'", "'a'", "'length'"]
 
 /** One proof per pair, so a failure names the expression. @type {(pairs: readonly (readonly [string, () => unknown])[]) => { readonly [k in string]: () => void }} */
 const each = pairs => Object.fromEntries(pairs.map(([source, f]) => [source, () => {

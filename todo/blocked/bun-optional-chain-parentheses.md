@@ -46,7 +46,7 @@ One root cause seen at two layers: the parenthesis ceases to end the chain, so
 what holds inside it leaks past.
 
 The cost is that no JavaScript oracle can pin `(u?.b)(...c)` on every supported
-runner. `chainsJs.throw` in [`fjs/edag/chains_js.proof.f.mjs`](../../fjs/edag/chains_js.proof.f.mjs)
+runner. `chainsJs.throw` in [`fjs/edag/proof.f.js`](../../fjs/edag/proof.f.js)
 carries two commented-out cases for it, and the tagged-template one must stay
 commented rather than merely fail, because a parse error takes the whole file
 down. Nothing about the specification is in doubt, and the EDAG is unaffected:

@@ -21,6 +21,7 @@ import { main as rustTests } from '../../nanvm/update/module.f.js'
 import { corpus, main as matrix, modules as corpusModules } from '../../media/datajs/vectors/matrix/module.f.js'
 import { main as fixtures, modulesPath } from '../../nanvm/harness/module.f.js'
 import { main as demos, samples } from '../../nanvm/demos/module.f.js'
+import { main as fjsrs, output as fjsrsOutput } from '../../nanvm/fjsrs/build/module.f.js'
 import { main as cloudflare } from '../../website/cloudflare/module.f.js'
 import { tryStringify } from '../../media/datajs/serializer/module.f.js'
 import { utf8 } from '../../text/module.f.js'
@@ -94,14 +95,20 @@ const root = {
                 [name, { 'data.f.js': [utf8(unwrap(tryStringify(/** @type {Unknown} */ (imported))))] }])),
         },
     },
-    'nanvm': { 'harness': { 'fixtures': {} } },
+    'nanvm': {
+        'harness': { 'fixtures': {} },
+        'fjsrs': { 'tests': { 'static-strings.f.js': [utf8('export default 1;')] } },
+    },
     'fjs': {
         'js': { 'runtime': { 'module.f.js': [utf8('export const statics = {}; export const runtime = {};')] } },
-        'nanvm': { 'demos': {
-            'hello': { 'sample.f.js': [utf8('export default () => 1;')] },
-            'sort': { 'sample.f.js': [utf8('export default () => 2;')] },
-            'collatz': { 'sample.f.js': [utf8('export default () => 3;')] },
-        } },
+        'nanvm': {
+            'demos': {
+                'hello': { 'sample.f.js': [utf8('export default () => 1;')] },
+                'sort': { 'sample.f.js': [utf8('export default () => 2;')] },
+                'collatz': { 'sample.f.js': [utf8('export default () => 3;')] },
+            },
+            'fjsrs': { 'module.f.js': [utf8('export const main = () => 0;')] },
+        },
     },
 }
 
@@ -111,14 +118,15 @@ const says = s => () => exitStep(log(s))
 export const proof = {
     // Source regeneration has a stable order; dependency updates are separate.
     generators: () => {
-        assertEq(generators.length, 7)
+        assertEq(generators.length, 8)
         assert(generators[0] === clean)
         assert(generators[1] === ci)
         assert(generators[2] === rustTests)
         assert(generators[3] === matrix)
         assert(generators[4] === fixtures)
         assert(generators[5] === demos)
-        assert(generators[6] === cloudflare)
+        assert(generators[6] === fjsrs)
+        assert(generators[7] === cloudflare)
     },
     sequence: {
         allSucceed: () => {
@@ -155,6 +163,11 @@ export const proof = {
             const harness = nanvm['harness']
             assert(typeof harness === 'object' && !(harness instanceof Array))
             assert(hasEntry(harness, 'gen.fixtures'), modulesPath)
+            const executable = nanvm['fjsrs']
+            assert(typeof executable === 'object' && !(executable instanceof Array))
+            const source = executable['src']
+            assert(typeof source === 'object' && !(source instanceof Array))
+            assert(hasEntry(source, 'gen.program.native.rs'), fjsrsOutput)
         },
         // A generator that fails stops the regeneration there: the Rust
         // writer cannot compile the runtime from an empty filesystem, and

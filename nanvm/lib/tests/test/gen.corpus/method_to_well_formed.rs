@@ -7,7 +7,7 @@ pub fn run<A: IStaticFunction>() {
     let rt: Any<A> = runtime::<A>().unwrap();
     check::<A>("ascii", scope(|| { Any::dot(string_any("abc"), string_any("toWellFormed")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("abc"));
     check::<A>("pair", scope(|| { Any::dot(string_any("a😀b"), string_any("toWellFormed")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("a😀b"));
-    check::<A>("lone", scope(|| { Any::dot(string_any_utf16(&[0x0061, 0xd800, 0x0062, 0xdc00]), string_any("toWellFormed")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("a�b�"));
-    check::<A>("reversedPair", scope(|| { Any::dot(string_any_utf16(&[0xde00, 0xd83d]), string_any("toWellFormed")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("��"));
+    check::<A>("lone", scope(|| { Any::dot(string_any_utf16(&[97, 55296, 98, 56320]), string_any("toWellFormed")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("a�b�"));
+    check::<A>("reversedPair", scope(|| { Any::dot(string_any_utf16(&[56832, 55357]), string_any("toWellFormed")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("��"));
     check::<A>("empty", scope(|| { Any::dot(string_any(""), string_any("toWellFormed")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any(""));
 }

@@ -1,16 +1,18 @@
 mod icomplex;
 mod icontainer;
 mod ifunction;
+mod iobject;
 mod istatic_function;
 
 pub use icomplex::IComplex;
 pub use icontainer::IContainer;
 pub use ifunction::IFunction;
+pub use iobject::IObject;
 pub use istatic_function::{IStaticFunction, StaticCode};
 
 use crate::{
     sign::Sign,
-    vm::{Any, Array, Function, Property, Unpacked},
+    vm::{Any, Array, Function, Unpacked},
 };
 
 /// A VM's value representation.
@@ -30,7 +32,7 @@ pub trait IVm: Sized + Clone + From<Unpacked<Self>> + 'static {
     // types
     type InternalString: IContainer<Self, Header = (), Item = u16>;
     type InternalBigInt: IContainer<Self, Header = Sign, Item = u64>;
-    type InternalObject: IContainer<Self, Header = (), Item = Property<Self>>;
+    type InternalObject: IObject<Self>;
     type InternalArray: IContainer<Self, Header = (), Item = Any<Self>>;
     type InternalFunction: IFunction<Self>;
     // functions
@@ -66,6 +68,13 @@ pub trait IVm: Sized + Clone + From<Unpacked<Self>> + 'static {
         length: u32,
         frame: Array<Self>,
         text: Option<&'static str>,
+    ) -> Function<Self>;
+    /// Bind a function whose source text is already a VM string.
+    fn function_with_text(
+        code: StaticCode<Self>,
+        length: u32,
+        frame: Array<Self>,
+        text: Option<crate::vm::String<Self>>,
     ) -> Function<Self>;
     /// The frame `static_function` was given, read by the code through its `self_`.
     fn frame(self_: &Self::InternalFunction) -> &Array<Self>;

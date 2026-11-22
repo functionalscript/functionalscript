@@ -97,8 +97,8 @@ const mapItem = (map, offset) => (item, index) => isSpread(item) ? ['...', map(i
 /** @type {<T, U>(map: (value: T, index: number) => U, index: number) => (key: Key<T>) => Key<U>} */
 const mapKey = (map, index) => key => key instanceof Array ? ['Number', map(key[1], index)] : key
 
-/** @type {<T>(key: Key<T>) => readonly T[]} */
-const keyOperands = key => key instanceof Array ? [key[1]] : []
+/** A computed key's operand; a literal key has none. @type {<T>(key: Key<T>) => readonly T[]} */
+export const keyOperands = key => key instanceof Array ? [key[1]] : []
 
 /**
  * @template T, U
@@ -187,8 +187,8 @@ export const mapOperator = map => operator => {
     }
 }
 
-/** @type {<T>(item: Item<T>) => T} */
-const itemOperand = item => isSpread(item) ? item[1] : item
+/** An item's value operand, a spread's as its own. @type {<T>(item: Item<T>) => T} */
+export const itemOperand = item => isSpread(item) ? item[1] : item
 
 /**
  * @template T
@@ -246,4 +246,27 @@ export const operatorOperands = operator => {
         case 'String': { return [operator[1]] }
         default: { return [operator[1], operator[2]] }
     }
+}
+
+/**
+ * How many leading operands of {@link operatorOperands} the operator
+ * evaluates whenever it completes. The rest can be skipped: the arms of a
+ * conditional, what follows the base of an optional access or call, and an
+ * optional or closing step of a chain with every step after it.
+ *
+ * @template T
+ * @param {Operator<T>} operator
+ * @returns {number}
+ */
+export const unskipped = operator => {
+    if (operator[0] === '?:' || operator[0] === '?.' || operator[0] === '?.()') { return 1 }
+    if (operator[0] !== '.' || operator.length === 3) { return operatorOperands(operator).length }
+    let count = 1 + keyOperands(operator[2]).length
+    /** @type {Step<T> | undefined} */
+    let current = operator[3]
+    while (current !== undefined && (current[0] === '|.' || current[0] === '|()')) {
+        count += current[0] === '|.' ? keyOperands(current[1]).length : current[1].length
+        current = current[2]
+    }
+    return count
 }

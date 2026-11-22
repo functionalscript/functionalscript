@@ -21,6 +21,19 @@ value alone ([`../memo/module.f.js`](../memo/module.f.js), `invokeWith`), so
 a table kept there is lost whenever a map is passed to a function or returned
 from one.
 
+### The index outside the value
+
+One of three options, none chosen ([the options](./host-values.md#options)).
+The map's value stays what it is, the runtime's function with its pairs, and
+a host [reference map](../../types/ref_map/module.f.js) kept outside it
+finds a key's pair quickly.
+
+- The pairs have to be a linked list, as they are today. Kept as an array,
+  each write copies it, and `n` writes take `O(n^2)` steps whatever the
+  index does.
+- A map is persistent, so an older map needs the index as it was: one index
+  for each map, not one for all.
+
 ### What a design has to settle
 
 - A store that lasts across invocations, passed through every call of both
@@ -33,14 +46,19 @@ from one.
 
 ### Tasks
 
-- [ ] Measure a program that needs it before designing: the interpreters run
-  the compiler's own tools, and none of them uses a reference map yet.
+- [x] Measure a program that needs it before designing:
+  [`fjs/types/map`](../../types/map/module.f.js) is built on the reference
+  map, and the compiler's analysis on that map. The figures are in
+  [host values](./host-values.md), which proposes a wider answer: with
+  values the host's own, the map is the real one and there is no store.
 - [ ] Propose the store and where it is threaded.
 - [ ] Implement it, and prove the same answers as the runtime's map with the
   bound kept on older and newer maps alike.
 
 ### Related
 
+- [Host values](./host-values.md) — the options side by side; values as the host's own make this store unnecessary.
+- [A map as a value of its own](./reference-map-value.md) — the index kept inside the value.
 - [Reference map](../../../spec/built-ins/reference-map/README.md) — the page, and its [design record](../../../spec/design/object-identity.md#reference-map).
 - [`fjs/js/ref_map`](../../js/ref_map/module.f.js) — the map the interpreters
   use today.

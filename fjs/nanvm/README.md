@@ -15,7 +15,7 @@ lowers it to exactly that: an [EDAG](../edag/README.md) expression. Both
 consumers read the expression rather than each reading the case its own way.
 
 ```text
-                              ┌─> proof.f.mjs ──────────────────────────> a JS engine
+                              ┌─> proof.f.js ───────────────────────────> a JS engine
 module.f.js ──> an EDAG exp ─┤     (amnesia)
  (data + the     per case     └─> rust/module.f.js ──> gen.corpus/ ──────> nanvm-lib
   lowering)                          (print)             (generated)
@@ -29,7 +29,7 @@ module.f.js ──> an EDAG exp ─┤     (amnesia)
 | [`module.f.js`](module.f.js) | **The single source of truth** — every operator case as data, plus the format's constructors, eliminators, and lowering. |
 | [`member/module.f.js`](member/module.f.js) | The member-function cases, one group per method, which `data` appends to the operator groups. A module of its own so that no one file outgrows the repository's 128 KiB file reader. |
 | [`constructors/module.f.js`](constructors/module.f.js) | The format's constructors, re-exported by `module.f.js`; apart so that `member/` can use them without an import cycle. |
-| [`proof.f.mjs`](proof.f.mjs) | Evaluates each case's expression on a JavaScript engine. |
+| [`proof.f.js`](proof.f.js) | Evaluates each case's expression on a JavaScript engine. |
 | [`rust/module.f.js`](rust/module.f.js) | Prints each case's expression as Rust, against the `nanvm-lib` API. |
 | [`methods/module.f.js`](methods/module.f.js) | The member functions `nanvm-lib` does not answer yet, and the completeness table printed from them and [`fjs/js/prototype`](../js/prototype/module.f.js). |
 | [`runtime/module.f.js`](runtime/module.f.js) | Where [`fjs/js/runtime`](../js/runtime/module.f.js) is, where `npm run gen` compiles it to — Rust for `nanvm-lib`, EDAG for the proof here — and the runtime loaded from its source for the harness's expectations. |
@@ -181,7 +181,7 @@ the generated Rust file.
 Two kinds of test stay hand-written, because there is nothing on the other side
 to compare them with.
 
-**JavaScript only** — [`proof.f.mjs`](proof.f.mjs)'s `jsOnly` section:
+**JavaScript only** — [`proof.f.js`](proof.f.js)'s `jsOnly` section:
 `ToPrimitive` consulting an object's `toString` method, and a function's string
 form (engine-specific source text). `nanvm-lib` has no object methods yet.
 

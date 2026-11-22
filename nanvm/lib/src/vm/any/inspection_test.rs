@@ -51,6 +51,14 @@ impl IVm for InspectVm {
         Function::new(InspectFunction(Rc::new(frame)))
     }
 
+    fn function_with_text(
+        _: StaticCode<Self>,
+        _: u32,
+        frame: Array<Self>,
+        _: Option<crate::vm::String<Self>>,
+    ) -> Function<Self> {
+        Function::new(InspectFunction(Rc::new(frame)))
+    }
     fn frame(self_: &Self::InternalFunction) -> &Array<Self> {
         &self_.0
     }
@@ -97,6 +105,31 @@ impl<H: Clone + PartialEq, I: Clone + Debug> IContainer<InspectVm> for InspectCo
     }
 }
 
+impl Debug for InspectContainer<(), Property<InspectVm>> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        crate::vm::container_fmt::container_fmt(self.items.iter(), '{', '}', f)
+    }
+}
+
+impl crate::vm::IObject<InspectVm> for InspectContainer<(), Property<InspectVm>> {
+    fn from_properties(properties: impl IntoIterator<Item = Property<InspectVm>>) -> Self {
+        Self::new_ok((), properties)
+    }
+    fn length(&self) -> u32 {
+        self.items.len() as u32
+    }
+    fn property_at(&self, index: u32) -> Property<InspectVm> {
+        self.items[index as usize].clone()
+    }
+    fn own_property(&self, key: &crate::vm::String<InspectVm>) -> Option<Any<InspectVm>> {
+        self.items
+            .iter()
+            .rev()
+            .find(|(k, _)| k == key)
+            .map(|(_, v)| v.clone())
+    }
+}
+
 struct InspectFunction(Rc<Array<InspectVm>>);
 
 impl Clone for InspectFunction {
@@ -123,7 +156,7 @@ impl IFunction<InspectVm> for InspectFunction {
         0
     }
 
-    fn text(&self) -> Option<&'static str> {
+    fn text(&self) -> Option<crate::vm::String<InspectVm>> {
         None
     }
 }
@@ -241,4 +274,6 @@ fn debug_borrows_the_vm_value() {
     let nested: Any<InspectVm> = [text].to_array().to_any();
     assert_eq!(format!("{nested:?}"), "[\"hello\"]");
     assert!(nested.to_boolean());
+    let obj = [("key".into(), n(7.0))].to_object().to_any();
+    assert_eq!(format!("{obj:?}"), "{(\"key\", 7.0)}");
 }

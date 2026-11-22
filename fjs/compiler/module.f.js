@@ -32,10 +32,10 @@
 
 import { _transpileDefault, noRuntime as transpilerNoRuntime, runtimeAt } from './transpiler/module.f.js'
 import { errorLocation } from './parser/module.f.js'
-import { resolve, resolveOver } from './edag/module.f.js'
+import { _origin, resolve, resolveOver } from './edag/module.f.js'
 import { toRustMarked } from './rust/module.f.js'
 import { _numberSerialize, tryJsonMarked, tryMarked } from '../media/datajs/serializer/module.f.js'
-import { tryMarked as fjsMarked, tryModuleMarked } from './serializer/module.f.js'
+import { tryMarked as fjsMarked, tryModuleLocated, unlocated } from './serializer/module.f.js'
 import { arrayWrap, boolSerialize, colon, nullSerialize, objectWrap, stringSerialize } from '../media/json/serializer/module.f.js'
 import { flat, map } from '../types/list/module.f.js'
 import { error, mapOk, ok, okThen } from '../types/result/module.f.js'
@@ -117,9 +117,9 @@ const edagText = path => mapStep(resolve(path), tryMarked)
  * into one graph, the same as {@link edagText}, and printed against the
  * `nanvm-lib` API by `./rust` rather than serialized as a DataJS document.
  *
- * @type {(path: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, ParseError>}
+ * @type {(native: boolean) => (path: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, ParseError>}
  */
-const rustText = path => mapStep(resolve(path), toRustMarked)
+const rustText = native => path => mapStep(resolve(path), root => toRustMarked(root, native))
 
 /**
  * The program at `path` as the text of the FunctionalScript module it is:
@@ -128,11 +128,18 @@ const rustText = path => mapStep(resolve(path), toRustMarked)
  * graph. This route does not evaluate the module — it rewrites the graph —
  * so a module holding a function compiles, and one whose value the readers
  * would refuse, a read of `null`, compiles too, the failure being the
- * program's to make when it runs.
+ * program's to make when it runs. A refusal says it is the output's, since
+ * the module itself was accepted, and then what the writer has no spelling
+ * for.
  *
  * @type {(path: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, ParseError>}
  */
-const fjsText = path => mapStep(resolve(path), graph => path.endsWith('.json') ? fjsMarked(graph) : tryModuleMarked(graph))
+const fjsText = path => mapStep(resolveOver(path, null), ([linked, graph]) => {
+    const written = path.endsWith('.json') ? unlocated(fjsMarked(graph)) : tryModuleLocated(graph)
+    if (written[0] === 'ok') { return written }
+    const [reason, node] = written[1]
+    return error(`cannot write as FunctionalScript: ${reason}${_origin(linked, node)}`)
+})
 
 /**
  * Write the default export of a module, or the whole document for a direct
@@ -166,7 +173,7 @@ const outputMarked = load => outputFileName => {
     if (isEdag(outputFileName)) { return edagText }
     if (isDataJs(outputFileName)) { return dataText(tryMarked)(load) }
     if (isFjs(outputFileName)) { return fjsText }
-    if (outputFileName.endsWith('.rs')) { return rustText }
+    if (outputFileName.endsWith('.rs')) { return rustText(outputFileName.endsWith('.native.rs')) }
     return null
 }
 

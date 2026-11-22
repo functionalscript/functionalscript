@@ -432,12 +432,14 @@ export const proof = /** @type {const} */ ({
             }
         }
     },
-    genuineLazySharedCommaKeepsPublicRefusal: async () => {
+    // The shared comma is read on every path that completes, in the selected
+    // operand or after it, so it is required where it stands and written.
+    sharedCommaReadOnEveryPathIsWritten: async () => {
         /** @type {Exp} */
         const shared = [',', [['()', ['arg', 1], []], ['[]', []]]]
         /** @type {Exp} */
         const graph = ['=>', 2, [], ['[]', [['?:', ['arg', 0], shared, 0], shared]]]
-        assertEq(assertError(tryStringify(graph)), 'a shared node reached from outside the lazy operand that establishes it')
+        assertEq(assertOk(tryStringify(graph)), 'export default ($0,$1)=>{const $2=(()=>{const $3=$1();return [];})();return [$0?$2:0,$2];};')
         const apply = await load(codeOnly(graph))
         for (const selected of [false, true]) {
             const result = apply(selected, complete)

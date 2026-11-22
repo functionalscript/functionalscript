@@ -31,7 +31,7 @@ import { toArray } from '../../types/list/alt/module.f.js'
 import { invert, ok, unwrap } from '../../types/result/module.f.js'
 import { _defaultExport, unresolved } from '../edag/module.f.js'
 import { parse } from '../transpiler/module.f.js'
-import { _tryModuleSerialize, _trySerialize, functionText, tryFunctionText, trySerialize, tryStringify, tryModuleSerialize, tryModuleStringify, tryMarked, tryModuleMarked } from './module.f.js'
+import { _tryModuleSerialize, _trySerialize, functionText, tryFunctionText, trySerialize, tryStringify, tryModuleSerialize, tryModuleStringify, tryMarked, tryModuleLocated, tryModuleMarked, unlocated } from './module.f.js'
 import { keywords } from '../../js/keywords/module.f.js'
 import { staticIds } from '../../edag/module.f.js'
 import { operandsOf, visit } from '../../edag/sharing/module.f.js'
@@ -71,6 +71,9 @@ const reads = e => {
 /** Include nested function bodies when classifying generated fixtures. @type {(node: readonly unknown[]) => readonly unknown[]} */
 const allOperands = node => node[0] === '=>' ? [...operandsOf(node), node[3]] : operandsOf(node)
 
+/** The nodes a root reaches through its operands, a function's body aside. @type {(root: unknown) => readonly unknown[]} */
+const reached = root => visit(operandsOf)(root).map(([n]) => n)
+
 /**
  * Whether a comma in a graph anchors a node another of its operands
  * reaches, or the total, identity-free literal `undefined`: an anchor the
@@ -81,9 +84,7 @@ const allOperands = node => node[0] === '=>' ? [...operandsOf(node), node[3]] : 
  * @type {(e: Exp) => boolean}
  */
 const redundantAnchor = e => {
-    /** @type {(root: unknown) => readonly unknown[]} */
-    const reached = root => visit(operandsOf)([])(root).map(([n]) => n)
-    return visit(allOperands)([])(e).some(([n]) => {
+    return visit(allOperands)(e).some(([n]) => {
         if (!(n instanceof Array) || n[0] !== ',') { return false }
         /** @type {readonly unknown[]} */
         const all = n[1]
@@ -106,7 +107,7 @@ const redundantAnchor = e => {
  */
 const generatedOperandPrefix = (e, sharedOnly = false) => {
     /** @type {readonly Exp[]} */
-    const shared = sharedOnly ? visit(allOperands)([])(e).filter(([, count]) => count > 1).map(([node]) => node) : []
+    const shared = sharedOnly ? visit(allOperands)(e).filter(([, count]) => count > 1).map(([node]) => node) : []
     /** @type {readonly { readonly value: unknown; readonly region: boolean }[]} */
     let pending = [{ value: e, region: true }]
     while (pending.length !== 0) {
@@ -121,8 +122,25 @@ const generatedOperandPrefix = (e, sharedOnly = false) => {
     return false
 }
 
+/**
+ * `true` for a graph in which both arms of one selection reach the same
+ * node. The function then reads that node on every path, so the writer
+ * requires it before the selection, and the text reads back with the node
+ * as an anchor the graph did not hold: its first parse establishes the graph
+ * the law holds for ({@link rewrites}).
+ *
+ * @type {(e: Exp) => boolean}
+ */
+const sharedByBothArms = e => {
+    return visit(allOperands)(e).some(([n]) => {
+        if (!(n instanceof Array) || n[0] !== '?:') { return false }
+        const otherwise = reached(n[3])
+        return reached(n[2]).some(x => x instanceof Array && otherwise.includes(x))
+    })
+}
+
 /** Newly admitted primitive captures retain semantic readback rather than raw graph identity. @type {(e: Exp) => boolean} */
-const generatedPrimitiveCapture = e => visit(allOperands)([])(e).some(([node]) => node instanceof Array && node[0] === '=>'
+const generatedPrimitiveCapture = e => visit(allOperands)(e).some(([node]) => node instanceof Array && node[0] === '=>'
     && node[2].some(slot => !(slot instanceof Array) || slot[0] === 'undefined'))
 
 /**
@@ -223,14 +241,14 @@ const shapes = p => [
 
 /**
  * Every leaf, a negative number among them, the arguments, both empty
- * containers, `undefined`, and a negation — the prefix, whose operand
- * binds tighter than it does, so every shape below has to say where the
- * negation happens, and whose text opens with `-`, which `**` refuses on
- * its left and a binary `-` cannot touch.
+ * containers, `undefined`, and a negation and a unary plus — the prefixes,
+ * whose operand binds tighter than they do, so every shape below has to say
+ * where the prefix happens, and whose text opens with a sign, which `**`
+ * refuses on its left and a binary operator of that sign cannot touch.
  *
  * @type {readonly Exp[]}
  */
-const atoms = [1, -1, 'a', null, true, 1n, ['rest'], ['[]', []], ['{}', []], ['undefined'], ['-', ['[]', []]]]
+const atoms = [1, -1, 'a', null, true, 1n, ['rest'], ['[]', []], ['{}', []], ['undefined'], ['-', ['[]', []]], ['+', ['[]', []]]]
 
 /** How many tests {@link proof}'s `law` is split into. */
 const lawParts = 8
@@ -255,13 +273,29 @@ const analyzedFunction = e => {
 }
 
 export const proof = {
+    // A refusal carries the node of the graph it is of, for a caller that
+    // linked the graph and can say which file made it; one of the module as
+    // a whole carries none. What is written is what the other writers write.
+    refusedNode: () => {
+        /** @type {Exp} */
+        const args = ['args']
+        const refused = assertError(tryModuleLocated(['{}', [[':', 'a', ['[]', [args]]]]]))
+        assertEq(refused[0], 'a args node')
+        assertEq(refused[1], args)
+        assertStructurallySame(assertError(tryModuleLocated(['{}', []])), ['a module without exports', null])
+        /** @type {Exp} */
+        const written = ['{}', [[':', 'a', 1]]]
+        assertStructurallySame(tryModuleLocated(written), tryModuleMarked(written))
+        assertStructurallySame(unlocated(ok(1)), ['ok', 1])
+        assertStructurallySame(unlocated(invert(ok('why'))), ['error', ['why', null]])
+    },
     deferredLoweringIsDisplayed: () => {
-        for (const source of ['export default +1;', 'export default (a,x)=>a[+x];', 'export default ()=>{return 1;const unused=+2;};']) {
+        for (const source of ['export default 1==1;', 'export default (a,x)=>a==x;', 'export default ()=>{return 1;const unused=2==2;};']) {
             const result = _sourceOf(source)
             assert(result[0] === 'error')
-            assertEq(result[1], 'unary + AST-to-FAST conversion is not implemented')
+            assertEq(result[1], '== AST-to-FAST conversion is not implemented')
             const html = htmlToString(demo.view(source))
-            assert(html.includes('unary + AST-to-FAST conversion is not implemented'), html)
+            assert(html.includes('== AST-to-FAST conversion is not implemented'), html)
             assert(html.includes('data-result="error"'), html)
             assert(!html.includes('<svg'), html)
         }
@@ -344,7 +378,7 @@ export const proof = {
                 ['{}', [[':', 'String', 1]]],
                 ['{}', [[':', 'not-a-name', 1]]],
                 ['{}', [[':', 'a', [',', [1]]]]],
-                ['{}', [[':', 'a', ['+', 1]], [':', 'b', 1]]],
+                ['{}', [[':', 'a', ['memberPresent', null, 'x']], [':', 'b', 1]]],
                 ['{}', [[':', 'a', ['.', 1, 'constructor']]]],
             ])) { assertEq(tryModuleSerialize(graph)[0], 'error') }
         },
@@ -376,6 +410,21 @@ export const proof = {
         // an object's spread, the same way, among its properties
         writes(['{}', [[':', 'a', 1], ['...', ['{}', []]], ['...', 'ab']]], 'export default {"a":1,...{},..."ab"};')
         writes(['{}', [['...', ['?:', true, ['{}', []], 'a']]]], 'export default {...true?{}:"a"};')
+    },
+    // The prefix `+`, `op12` of one operand as the negation is, written by
+    // the same rules: apart from a `+` beside it, inside an access, and in
+    // a group where it is a base. The generated law holds it in every shape.
+    plus: () => {
+        writes(['+', 1], 'export default +1;')
+        writes(['+', 'a'], 'export default +"a";')
+        // `+ +1` and not `++1`, which is the increment token
+        writes(['+', ['+', 1]], 'export default + +1;')
+        writes(['+', 1, ['+', 2]], 'export default 1+ +2;')
+        writes(['-', ['+', 1]], 'export default -+1;')
+        writes(['+', ['.', ['[]', [1]], 0]], 'export default +[1][0];')
+        writes(['.', ['+', ['[]', []]], 'a'], 'export default (+[]).a;')
+        writes(['+', ['=>', 0, [], 1]], 'export default +(()=>1);')
+        writes(['**', ['+', 1], 2], 'export default (+1)**2;')
     },
     // The prefix `-`. It binds looser than a step, so a negation under an
     // access is a base only in a group — `-1[0]` is `-(1[0])` — and a
@@ -509,7 +558,7 @@ export const proof = {
             // `arguments` and `with` are on the prototypes, and an access on
             // either has no text at all.
             if (written[0] === 'error') {
-                assertEq(written[1], 'a prohibited property name', k)
+                assertEq(written[1], `a read of the prohibited property name "${k}"`, k)
                 continue
             }
             assertEq(reads(['=>', 0, [], ['.', ['rest'], k]]), `export default (...$0)=>$0.${k};`)
@@ -748,15 +797,16 @@ export const proof = {
         writes(['[]', [f, f]], 'const $0=[1];const $1=(...$2)=>[$0,$2[0]];export default [$1,$1];')
         // a slot read is a base like any name
         writes(['=>', 0, [c], ['.', slot(0), 0]], 'const $0=[1];export default ()=>$0[0];')
-        // one slot read twice is one name, and two slots are two
+        // one slot read twice is one name, and two slots are two: read in
+        // slot order, they are read as the names they capture
         /** @type {Exp} */
         const d = ['{}', []]
-        writes(['=>', 0, [c, d], ['[]', [slot(0), slot(1), slot(0)]]], 'const $0=[1];const $1={};export default ()=>{const $2=$0;const $3=$1;return [$2,$3,$2];};')
+        writes(['=>', 0, [c, d], ['[]', [slot(0), slot(1), slot(0)]]], 'const $0=[1];const $1={};export default ()=>[$0,$1,$0];')
         // inside a body: a parameter is a name already, and a nested
         // function captures through its parent
         writes(
             ['=>', 0, [], ['=>', 0, [['rest']], ['=>', 0, [slot(0), ['rest']], ['[]', [slot(0), slot(1), slot(0)]]]]],
-            'export default (...$0)=>(...$1)=>()=>{const $2=$0;const $3=$1;return [$2,$3,$2];};')
+            'export default (...$0)=>(...$1)=>()=>[$0,$1,$0];')
         writes(
             ['=>', 0, [], ['=>', 0, [['.', ['rest'], 0]], ['[]', [slot(0), slot(0)]]]],
             'export default (...$0)=>{const $1=$0[0];return ()=>[$1,$1];};')
@@ -764,11 +814,12 @@ export const proof = {
         // value among it: two nodes, which the lowering gives a slot each
         assertEq(
             reads(_defaultExport(moduleGraph('const o=[1]; const x=o[0]; const y=o[0]; export default (...a)=>[x,y];'))),
-            'const $0=[1];const $1=$0[0];const $2=$0[0];export default ()=>{const $3=$1;const $4=$2;return [$3,$4];};')
+            'const $0=[1];const $1=$0[0];const $2=$0[0];export default ()=>[$1,$2];')
         // where the writer's own order would read the slots in another —
         // here the body's text is the frame's order backwards, and a shared
         // function hoisted above the `return` reads the later slot first —
-        // the body names its slots in order before anything else
+        // the body names its slots in order before anything else, so that
+        // the reader, which orders slots by first reference, gives them back
         writes(['=>', 0, [c, d], ['[]', [slot(1), slot(0)]]], 'const $0=[1];const $1={};export default ()=>{const $2=$0;const $3=$1;return [$3,$2];};')
         assertEq(
             reads(_defaultExport(moduleGraph('const x=[1]; const y=[2]; export default (...a)=>{const z=x; const f=(...b)=>y; return [z,f,f];};'))),
@@ -815,8 +866,8 @@ export const proof = {
         // a method call's key is refused by the parser's own list of the
         // member functions a module may not call, not by the one of reads
         writes(f(['.', a, 'at', ['|()', [0]]]), 'export default (...$0)=>$0.at(0);')
-        refuses(f(['.', a, 'push', ['|()', [0]]]), 'a prohibited member function')
-        refuses(f(['.', a, 'at']), 'a prohibited property name')
+        refuses(f(['.', a, 'push', ['|()', [0]]]), 'a call of the prohibited member function "push"')
+        refuses(f(['.', a, 'at']), 'a read of the prohibited property name "at"')
         // one call node is one call, however many edges reach it
         /** @type {Exp} */
         const c = ['()', a, []]
@@ -1098,10 +1149,10 @@ export const proof = {
         // a read and admitted as a call, a member function a module may not
         // call refused at the key — through a step too
         writes(f(['?.', a, 'at', ['|()', [0]]]), 'export default (...$0)=>$0?.at(0);')
-        refuses(f(['?.', a, 'at']), 'a prohibited property name')
-        refuses(f(['?.', a, 'push', ['|()', [0]]]), 'a prohibited member function')
-        refuses(f(['?.', a, 'b', ['|.', 'push', ['|()', []]]]), 'a prohibited member function')
-        refuses(f(['?.()', a, [1], ['|.', 'at']]), 'a prohibited property name')
+        refuses(f(['?.', a, 'at']), 'a read of the prohibited property name "at"')
+        refuses(f(['?.', a, 'push', ['|()', [0]]]), 'a call of the prohibited member function "push"')
+        refuses(f(['?.', a, 'b', ['|.', 'push', ['|()', []]]]), 'a call of the prohibited member function "push"')
+        refuses(f(['?.()', a, [1], ['|.', 'at']]), 'a read of the prohibited property name "at"')
     },
     enclosingLazyBindings: () => {
         for (const condition of [false, true]) {
@@ -1162,9 +1213,8 @@ export const proof = {
     refuses: () => {
         // A node kind this writer has no spelling for, which is how the
         // feature that adds one is made to add its spelling here too: the
-        // unary plus, `op12`'s `+` of one operand, which the language has
-        // no prefix for
-        refuses(['+', 1], 'a unary + node')
+        // internal member-presence query, which no source spells
+        refuses(['memberPresent', null, 'x'], 'an internal member-presence query')
         // A node kind with a spelling, in a position that has none.
         refuses(['rest'], 'the arguments outside a function')
         // An access key no literal spells: a computed one, and the three
@@ -1180,22 +1230,22 @@ export const proof = {
         // refuses it in either spelling, `.k` and `["k"]` alike, so an
         // access on one has no text at all — `length`, which both languages
         // read as an own property, is the one such name that has.
-        refuses(['=>', 0, [], ['.', ['rest'], 'constructor']], 'a prohibited property name')
-        refuses(['=>', 0, [], ['.', ['rest'], '__proto__']], 'a prohibited property name')
-        refuses(['=>', 0, [], ['.', ['rest'], 'toString']], 'a prohibited property name')
+        refuses(['=>', 0, [], ['.', ['rest'], 'constructor']], 'a read of the prohibited property name "constructor"')
+        refuses(['=>', 0, [], ['.', ['rest'], '__proto__']], 'a read of the prohibited property name "__proto__"')
+        refuses(['=>', 0, [], ['.', ['rest'], 'toString']], 'a read of the prohibited property name "toString"')
         // The first refusal is the one reported, and nothing after it is
         // written: among the values a statement hoists, and among the
         // statements of a module.
         refuses(
             (() => {
                 /** @type {Exp} */
-                const bad = ['{}', [[':', 'a', ['+', 1]]]]
+                const bad = ['{}', [[':', 'a', ['memberPresent', null, 'x']]]]
                 /** @type {Exp} */
                 const good = ['{}', []]
                 return ['[]', [bad, bad, good, good]]
             })(),
-            'a unary + node')
-        refuses([',', [['+', 1], 1]], 'a unary + node')
+            'an internal member-presence query')
+        refuses([',', [['memberPresent', null, 'x'], 1]], 'an internal member-presence query')
         // A comma with no anchor to write: with one operand it would read
         // back as that operand alone, and with none it is no scope. Linking
         // emits neither, at a root or in a body — a comma is built only
@@ -1344,9 +1394,9 @@ export const proof = {
             'export default ()=>{const $0=($1,...$2)=>{let $3=[$1,$2];while((()=>{const $4=$3[0];const $5=$3[1];return $5.length;})()){const $6=$3[0];const $7=$3[1];const $8=[0];const $9=[$8[0],(($10,$11,$12)=>$10.slice($11,$12))($8,1)];$3=$9;}const $13=(()=>{const $14=$3[0];const $15=$3[1];return $14;})();return $13;};return $0(0);};')
         // the loop's three parts are written as any value is, each refusal
         // its own; a call of a primitive is a call
-        refuses(['=>', 0, [], ['()', loop([], true, call(0)), [['+', 1]]]], 'a unary + node')
-        refuses(['=>', 0, [], ['()', loop([], ['+', 1], call(0)), [0]]], 'a unary + node')
-        refuses(['=>', 0, [], ['()', loop([], true, call(['+', 1])), [0]]], 'a unary + node')
+        refuses(['=>', 0, [], ['()', loop([], true, call(0)), [['memberPresent', null, 'x']]]], 'an internal member-presence query')
+        refuses(['=>', 0, [], ['()', loop([], ['memberPresent', null, 'x'], call(0)), [0]]], 'an internal member-presence query')
+        refuses(['=>', 0, [], ['()', loop([], true, call(['memberPresent', null, 'x'])), [0]]], 'an internal member-presence query')
         writes(['=>', 0, [], ['()', 'f', [0]]], 'export default ()=>"f"(0);')
         // a condition sharing a value of its own is written as its block,
         // the value established afresh at every test — as the whole
@@ -1809,7 +1859,7 @@ export const proof = {
                 assertEq(imports.length, 0, written[1])
                 continue
             }
-            if (redundantAnchor(e) || generatedOperandPrefix(e)) { rewrites(e) } else { reads(e) }
+            if (redundantAnchor(e) || generatedOperandPrefix(e) || sharedByBothArms(e)) { rewrites(e) } else { reads(e) }
         } },
     ])),
     /**

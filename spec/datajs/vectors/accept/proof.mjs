@@ -11,7 +11,7 @@
  *
  * **It is host code because it has to be.** A proof in the subset cannot
  * call dynamic `import`, so no `.f.mjs` can load a document as a module.
- * That is the whole reason this file exists beside `proof.f.mjs` rather
+ * That is the whole reason this file exists beside `proof.f.js` rather
  * than inside it, and it is not the back door §1.6 forbids: what it proves
  * is a property of the corpus's data, not a FunctionalScript API driven
  * against inputs the subset cannot build.

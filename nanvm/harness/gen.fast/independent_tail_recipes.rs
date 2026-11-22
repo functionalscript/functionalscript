@@ -16,12 +16,12 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         '_loop15: loop {
             let _b1728_8: Any<A> = _b8460.clone();
             let _b1729_9: Any<A> = _b8461.clone();
-            if Any::<A>::to_boolean(&(Any::gt(_b1728_8.clone(), f64_any(0x0000000000000000)))?) {
+            if Any::<A>::to_boolean(&(Any::gt(_b1728_8.clone(), f64_any(0x0)))?) {
                 let mut _b8463: Any<A> = Nullish::Undefined.to_any();
-                if Any::<A>::to_boolean(&_b1729_9.clone()) {
+                if Any::<A>::to_boolean(&_b1729_9) {
                     let mut _b8464: Any<A> = Nullish::Undefined.to_any();
                     if Any::<A>::to_boolean(&(_b1728_8.clone() % f64_any(0x4000000000000000))?) {
-                        let _b8465: Any<A> = f64_any(0x0000000000000000);
+                        let _b8465: Any<A> = f64_any(0x0);
                         _b8464 = _b8465.clone();
                     } else {
                         let _b8466: Any<A> = f64_any(0x3ff0000000000000);
@@ -33,7 +33,7 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
                 } else {
                     let mut _b8468: Any<A> = Nullish::Undefined.to_any();
                     if Any::<A>::to_boolean(&(_b1728_8.clone() % f64_any(0x4008000000000000))?) {
-                        let _b8469: Any<A> = f64_any(0x0000000000000000);
+                        let _b8469: Any<A> = f64_any(0x0);
                         _b8468 = _b8469.clone();
                     } else {
                         let _b8470: Any<A> = f64_any(0x3ff0000000000000);
@@ -44,7 +44,7 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
                     _b8463 = _b8471.clone();
                 }
                 let _b15_21: Any<A> = _b8463.clone();
-                if Any::<A>::to_boolean(&(strict_eq(_b15_21.clone(), f64_any(0x0000000000000000)))?) {
+                if Any::<A>::to_boolean(&(strict_eq(_b15_21.clone(), f64_any(0x0)))?) {
                     let _b8472: Any<A> = (_b1728_8.clone() - f64_any(0x3ff0000000000000))?;
                     let _b8473: Any<A> = false.to_any();
                     _b8460 = _b8472.clone();
@@ -58,7 +58,7 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
                     continue '_loop15;
                 }
             } else {
-                let _b8476: Any<A> = f64_any(0x0000000000000000);
+                let _b8476: Any<A> = f64_any(0x0);
                 _b8462 = _b8476.clone();
                 break '_loop15;
             }
@@ -81,12 +81,12 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             let _b3819_43: Any<A> = _b8482.clone();
             let _b3820_44: Any<A> = _b8483.clone();
             let _b3821_45: Any<A> = _b8484.clone();
-            if Any::<A>::to_boolean(&(Any::gt(_b3818_42.clone(), f64_any(0x0000000000000000)))?) {
+            if Any::<A>::to_boolean(&(Any::gt(_b3818_42.clone(), f64_any(0x0)))?) {
                 let mut _b8486: Any<A> = Nullish::Undefined.to_any();
-                if Any::<A>::to_boolean(&_b3819_43.clone()) {
+                if Any::<A>::to_boolean(&_b3819_43) {
                     let mut _b8487: Any<A> = Nullish::Undefined.to_any();
                     if Any::<A>::to_boolean(&(_b3818_42.clone() % f64_any(0x4000000000000000))?) {
-                        let _b8488: Any<A> = f64_any(0x0000000000000000);
+                        let _b8488: Any<A> = f64_any(0x0);
                         _b8487 = _b8488.clone();
                     } else {
                         let _b8489: Any<A> = f64_any(0x3ff0000000000000);
@@ -98,7 +98,7 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
                 } else {
                     let mut _b8491: Any<A> = Nullish::Undefined.to_any();
                     if Any::<A>::to_boolean(&(_b3818_42.clone() % f64_any(0x4008000000000000))?) {
-                        let _b8492: Any<A> = f64_any(0x0000000000000000);
+                        let _b8492: Any<A> = f64_any(0x0);
                         _b8491 = _b8492.clone();
                     } else {
                         let _b8493: Any<A> = f64_any(0x3ff0000000000000);
@@ -109,7 +109,7 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
                     _b8486 = _b8494.clone();
                 }
                 let _b34_57: Any<A> = _b8486.clone();
-                if Any::<A>::to_boolean(&(strict_eq(_b34_57.clone(), f64_any(0x0000000000000000)))?) {
+                if Any::<A>::to_boolean(&(strict_eq(_b34_57.clone(), f64_any(0x0)))?) {
                     let _b8495: Any<A> = (_b3818_42.clone() - f64_any(0x3ff0000000000000))?;
                     let _b8496: Any<A> = false.to_any();
                     let _b8497: Any<A> = _b3821_45.clone();
@@ -151,12 +151,12 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             let _b6018_79: Any<A> = _b8507.clone();
             let _b6019_80: Any<A> = _b8508.clone();
             let _b6020_81: Any<A> = _b8509.clone();
-            if Any::<A>::to_boolean(&(Any::gt(_b6018_79.clone(), f64_any(0x0000000000000000)))?) {
+            if Any::<A>::to_boolean(&(Any::gt(_b6018_79.clone(), f64_any(0x0)))?) {
                 let mut _b8511: Any<A> = Nullish::Undefined.to_any();
-                if Any::<A>::to_boolean(&_b6019_80.clone()) {
+                if Any::<A>::to_boolean(&_b6019_80) {
                     let mut _b8512: Any<A> = Nullish::Undefined.to_any();
                     if Any::<A>::to_boolean(&(_b6018_79.clone() % f64_any(0x4000000000000000))?) {
-                        let _b8513: Any<A> = f64_any(0x0000000000000000);
+                        let _b8513: Any<A> = f64_any(0x0);
                         _b8512 = _b8513.clone();
                     } else {
                         let _b8514: Any<A> = f64_any(0x3ff0000000000000);
@@ -171,7 +171,7 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
                         let _b8517: Any<A> = f64_any(0x3ff0000000000000);
                         _b8516 = _b8517.clone();
                     } else {
-                        let _b8518: Any<A> = f64_any(0x0000000000000000);
+                        let _b8518: Any<A> = f64_any(0x0);
                         _b8516 = _b8518.clone();
                     }
                     let _b54_91: Any<A> = _b8516.clone();
@@ -179,9 +179,9 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
                     _b8511 = _b8519.clone();
                 }
                 let _b54_93: Any<A> = _b8511.clone();
-                if Any::<A>::to_boolean(&(strict_eq(_b54_93.clone(), f64_any(0x0000000000000000)))?) {
-                    let _b54_94: Any<A> = [(_b6018_79.clone() - f64_any(0x3ff0000000000000))?, false.to_any(), _b6020_81.clone(), if Any::<A>::to_boolean(&_b6020_81.clone()) { (Err::<Any<A>, Any<A>>(f64_any(0x401c000000000000)))? } else { Nullish::Undefined.to_any() }].to_array().to_any();
-                    let _b8520: Any<A> = (Any::dot(_b54_94.clone(), f64_any(0x0000000000000000)).end())?;
+                if Any::<A>::to_boolean(&(strict_eq(_b54_93.clone(), f64_any(0x0)))?) {
+                    let _b54_94: Any<A> = [(_b6018_79.clone() - f64_any(0x3ff0000000000000))?, false.to_any(), _b6020_81.clone(), if Any::<A>::to_boolean(&_b6020_81) { (Err::<Any<A>, Any<A>>(f64_any(0x401c000000000000)))? } else { Nullish::Undefined.to_any() }].to_array().to_any();
+                    let _b8520: Any<A> = (Any::dot(_b54_94.clone(), f64_any(0x0)).end())?;
                     let _b8521: Any<A> = (Any::dot(_b54_94.clone(), f64_any(0x3ff0000000000000)).end())?;
                     let _b8522: Any<A> = (Any::dot(_b54_94.clone(), f64_any(0x4000000000000000)).end())?;
                     _b8507 = _b8520.clone();
@@ -198,7 +198,7 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
                     continue '_loop54;
                 }
             } else {
-                let _b8526: Any<A> = f64_any(0x0000000000000000);
+                let _b8526: Any<A> = f64_any(0x0);
                 _b8510 = _b8526.clone();
                 break '_loop54;
             }
@@ -220,12 +220,12 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             let _b8440_116: Any<A> = _b8532.clone();
             let _b61: Any<A> = [_b8438_114.clone()].to_array().to_any();
             let _b63: Any<A> = A::static_function(|_self, _args| { Ok(A::frame(_self)[0].clone()) }, 0, [_b61.clone()].to_array(), Some("()=>$0")).to_any();
-            if Any::<A>::to_boolean(&(Any::gt(_b8438_114.clone(), f64_any(0x0000000000000000)))?) {
+            if Any::<A>::to_boolean(&(Any::gt(_b8438_114.clone(), f64_any(0x0)))?) {
                 let mut _b8534: Any<A> = Nullish::Undefined.to_any();
-                if Any::<A>::to_boolean(&_b8439_115.clone()) {
+                if Any::<A>::to_boolean(&_b8439_115) {
                     let mut _b8535: Any<A> = Nullish::Undefined.to_any();
                     if Any::<A>::to_boolean(&(_b8438_114.clone() % f64_any(0x4000000000000000))?) {
-                        let _b8536: Any<A> = f64_any(0x0000000000000000);
+                        let _b8536: Any<A> = f64_any(0x0);
                         _b8535 = _b8536.clone();
                     } else {
                         let _b8537: Any<A> = f64_any(0x3ff0000000000000);
@@ -237,7 +237,7 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
                 } else {
                     let mut _b8539: Any<A> = Nullish::Undefined.to_any();
                     if Any::<A>::to_boolean(&(_b8438_114.clone() % f64_any(0x4008000000000000))?) {
-                        let _b8540: Any<A> = f64_any(0x0000000000000000);
+                        let _b8540: Any<A> = f64_any(0x0);
                         _b8539 = _b8540.clone();
                     } else {
                         let _b8541: Any<A> = f64_any(0x3ff0000000000000);
@@ -248,7 +248,7 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
                     _b8534 = _b8542.clone();
                 }
                 let _b76_131: Any<A> = _b8534.clone();
-                if Any::<A>::to_boolean(&(strict_eq(_b76_131.clone(), f64_any(0x0000000000000000)))?) {
+                if Any::<A>::to_boolean(&(strict_eq(_b76_131.clone(), f64_any(0x0)))?) {
                     let _b8543: Any<A> = (_b8438_114.clone() - f64_any(0x3ff0000000000000))?;
                     let _b8544: Any<A> = false.to_any();
                     let _b8545: Any<A> = _b63.clone();

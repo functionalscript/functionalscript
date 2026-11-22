@@ -13,13 +13,20 @@
 export type Host = {
     readonly bigintEquals: (a: bigint, b: bigint) => 0 | 1
     readonly numberRemainder: (a: number, b: number) => number
+    readonly numberShiftRight: (a: number, b: number) => number
+    readonly numberAnd: (a: number, b: number) => number
     readonly numberToString: (n: number) => bigint
     readonly stringToNumber: (s: bigint) => number
+    readonly stringToBigInt: (s: bigint) => bigint
     readonly bigintToString: (b: bigint) => bigint
     readonly bigintAdd: (a: bigint, b: bigint) => bigint
     readonly bigintSubtract: (a: bigint, b: bigint) => bigint
     readonly bigintMultiply: (a: bigint, b: bigint) => bigint
     readonly bigintDivide: (a: bigint, b: bigint) => bigint
     readonly bigintNegate: (a: bigint) => bigint
+    readonly bigintRemainder: (a: bigint, b: bigint) => bigint
+    readonly bigintShiftRight: (a: bigint, b: bigint) => bigint
+    readonly bigintAnd: (a: bigint, b: bigint) => bigint
+    readonly bigintToNumber: (b: bigint) => number
     readonly bigintLess: (a: bigint, b: bigint) => number
 }

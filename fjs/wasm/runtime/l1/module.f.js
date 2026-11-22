@@ -35,8 +35,9 @@ import {
     fromUnit, item, join, kind, length, same, substring, text, unit,
 } from '../l0/module.f.js'
 import {
-    bigintAdd, bigintDivide, bigintEquals, bigintLess, bigintMultiply, bigintNegate, bigintSubtract,
-    bigintToString, numberToString, stringToNumber,
+    bigintAdd, bigintAnd, bigintDivide, bigintEquals, bigintLess, bigintMultiply, bigintNegate, bigintRemainder,
+    bigintShiftRight, bigintSubtract, bigintToNumber, bigintToString, numberAnd, numberRemainder, numberShiftRight, numberToString,
+    stringToNumber,
 } from './native/module.f.js'
 import { error } from './error/module.f.js'
 
@@ -263,6 +264,19 @@ export const toNumeric = v => {
 }
 
 /**
+ * [`Number(value)`](https://tc39.es/ecma262/#sec-number-constructor-number-value),
+ * the conversion `Number(...)`: {@link toNumeric}, and a bigint's nearest
+ * number, where {@link toNumber}, unary `+`, throws on a bigint.
+ *
+ * @type {(v: unknown) => number}
+ */
+export const number = v => {
+    if (kind(v) === NUMBER) { return asNumber(v) }
+    const x = toNumeric(v)
+    return kind(x) === BIGINT ? bigintToNumber(x) : asNumber(x)
+}
+
+/**
  * [`ToPropertyKey`](https://tc39.es/ecma262/#sec-topropertykey): the
  * language has no symbols, so a key is always a string, and the key is
  * {@link toString} of the value, which already prefers a string.
@@ -285,6 +299,16 @@ const bigintPair = (x, y) => {
 }
 
 /**
+ * Whether both operands are numbers: the fast path of each arithmetic and
+ * relational operator, which then answers what its general path would,
+ * since a number is its own primitive and its own numeric, with two
+ * `kind` reads in place of the conversions.
+ *
+ * @type {(a: unknown, b: unknown) => boolean}
+ */
+const numbers = (a, b) => kind(a) === NUMBER && kind(b) === NUMBER
+
+/**
  * The `+` operator: a string when either primitive is a string, else a
  * sum of two numbers or two bigints. Both primitives are taken before
  * either is converted, the left first.
@@ -292,6 +316,7 @@ const bigintPair = (x, y) => {
  * @type {(a: unknown, b: unknown) => unknown}
  */
 export const add = (a, b) => {
+    if (numbers(a, b)) { return asNumber(a) + asNumber(b) }
     const pa = toPrimitive(a, false)
     const pb = toPrimitive(b, false)
     if (kind(pa) === STRING || kind(pb) === STRING) { return concat(toString(pa), toString(pb)) }
@@ -306,6 +331,7 @@ export const add = (a, b) => {
  * @type {(a: unknown, b: unknown) => unknown}
  */
 export const subtract = (a, b) => {
+    if (numbers(a, b)) { return asNumber(a) - asNumber(b) }
     const x = toNumeric(a)
     const y = toNumeric(b)
     return bigintPair(x, y) ? bigintSubtract(x, y) : asNumber(x) - asNumber(y)
@@ -317,6 +343,7 @@ export const subtract = (a, b) => {
  * @type {(a: unknown, b: unknown) => unknown}
  */
 export const multiply = (a, b) => {
+    if (numbers(a, b)) { return asNumber(a) * asNumber(b) }
     const x = toNumeric(a)
     const y = toNumeric(b)
     return bigintPair(x, y) ? bigintMultiply(x, y) : asNumber(x) * asNumber(y)
@@ -329,9 +356,49 @@ export const multiply = (a, b) => {
  * @type {(a: unknown, b: unknown) => unknown}
  */
 export const divide = (a, b) => {
+    if (numbers(a, b)) { return asNumber(a) / asNumber(b) }
     const x = toNumeric(a)
     const y = toNumeric(b)
     return bigintPair(x, y) ? bigintDivide(x, y) : asNumber(x) / asNumber(y)
+}
+
+/**
+ * The `%` operator on values of unknown type: the dividend's sign. A
+ * bigint divided by `0n` throws in the native row.
+ *
+ * @type {(a: unknown, b: unknown) => unknown}
+ */
+export const remainder = (a, b) => {
+    if (numbers(a, b)) { return numberRemainder(asNumber(a), asNumber(b)) }
+    const x = toNumeric(a)
+    const y = toNumeric(b)
+    return bigintPair(x, y) ? bigintRemainder(x, y) : numberRemainder(asNumber(x), asNumber(y))
+}
+
+/**
+ * The `>>` operator on values of unknown type: two numbers as 32-bit
+ * integers, or two bigints.
+ *
+ * @type {(a: unknown, b: unknown) => unknown}
+ */
+export const shiftRight = (a, b) => {
+    if (numbers(a, b)) { return numberShiftRight(asNumber(a), asNumber(b)) }
+    const x = toNumeric(a)
+    const y = toNumeric(b)
+    return bigintPair(x, y) ? bigintShiftRight(x, y) : numberShiftRight(asNumber(x), asNumber(y))
+}
+
+/**
+ * The `&` operator on values of unknown type: two numbers as 32-bit
+ * integers, or two bigints.
+ *
+ * @type {(a: unknown, b: unknown) => unknown}
+ */
+export const bitwiseAnd = (a, b) => {
+    if (numbers(a, b)) { return numberAnd(asNumber(a), asNumber(b)) }
+    const x = toNumeric(a)
+    const y = toNumeric(b)
+    return bigintPair(x, y) ? bigintAnd(x, y) : numberAnd(asNumber(x), asNumber(y))
 }
 
 /**
@@ -340,6 +407,7 @@ export const divide = (a, b) => {
  * @type {(a: unknown) => unknown}
  */
 export const negate = a => {
+    if (kind(a) === NUMBER) { return -asNumber(a) }
     const x = toNumeric(a)
     return kind(x) === BIGINT ? bigintNegate(x) : -asNumber(x)
 }
@@ -373,6 +441,7 @@ const less = (a, b) => {
  * @type {(a: unknown, b: unknown) => boolean}
  */
 export const lessThan = (a, b) => {
+    if (numbers(a, b)) { return asNumber(a) < asNumber(b) }
     const pa = toPrimitive(a, false)
     return less(pa, toPrimitive(b, false)) === 1
 }
@@ -383,6 +452,7 @@ export const lessThan = (a, b) => {
  * @type {(a: unknown, b: unknown) => boolean}
  */
 export const greaterThan = (a, b) => {
+    if (numbers(a, b)) { return asNumber(a) > asNumber(b) }
     const pa = toPrimitive(a, false)
     return less(toPrimitive(b, false), pa) === 1
 }
@@ -393,6 +463,7 @@ export const greaterThan = (a, b) => {
  * @type {(a: unknown, b: unknown) => boolean}
  */
 export const lessThanOrEqual = (a, b) => {
+    if (numbers(a, b)) { return asNumber(a) <= asNumber(b) }
     const pa = toPrimitive(a, false)
     return less(toPrimitive(b, false), pa) === 0
 }
@@ -403,6 +474,7 @@ export const lessThanOrEqual = (a, b) => {
  * @type {(a: unknown, b: unknown) => boolean}
  */
 export const greaterThanOrEqual = (a, b) => {
+    if (numbers(a, b)) { return asNumber(a) >= asNumber(b) }
     const pa = toPrimitive(a, false)
     return less(pa, toPrimitive(b, false)) === 0
 }

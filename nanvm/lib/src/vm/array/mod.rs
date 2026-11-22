@@ -54,3 +54,9 @@ use crate::vm::IVm;
 /// ```
 #[derive(Clone)]
 pub struct Array<A: IVm>(A::InternalArray);
+
+impl<A: crate::vm::IStaticVm> Array<A> {
+    pub fn from_static(value: &'static crate::vm::StaticArray<A>) -> Self {
+        Self(A::load_array(value))
+    }
+}

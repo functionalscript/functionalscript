@@ -4,28 +4,28 @@ use crate::harness::*;
 
 #[allow(clippy::if_same_then_else)]
 pub fn run<A: IStaticFunction>() {
-    check::<A>("null", scope(|| { Any::unary_plus(Nullish::Null.to_any()) }), f64_any(0x0000000000000000));
+    check::<A>("null", scope(|| { Any::unary_plus(Nullish::Null.to_any()) }), f64_any(0x0));
     check::<A>("undefined", scope(|| { Any::unary_plus(Nullish::Undefined.to_any()) }), f64_any(0x7ff8000000000000));
-    check::<A>("booleanFalse", scope(|| { Any::unary_plus(false.to_any()) }), f64_any(0x0000000000000000));
+    check::<A>("booleanFalse", scope(|| { Any::unary_plus(false.to_any()) }), f64_any(0x0));
     check::<A>("booleanTrue", scope(|| { Any::unary_plus(true.to_any()) }), f64_any(0x3ff0000000000000));
-    check::<A>("numberZero", scope(|| { Any::unary_plus(f64_any(0x0000000000000000)) }), f64_any(0x0000000000000000));
+    check::<A>("numberZero", scope(|| { Any::unary_plus(f64_any(0x0)) }), f64_any(0x0));
     check::<A>("numberPositive", scope(|| { Any::unary_plus(f64_any(0x4002666666666666)) }), f64_any(0x4002666666666666));
     check::<A>("numberNegative", scope(|| { Any::unary_plus(f64_any(0xc002666666666666)) }), f64_any(0xc002666666666666));
     check::<A>("numberLarge", scope(|| { Any::unary_plus(f64_any(0xc06de00000000000)) }), f64_any(0xc06de00000000000));
     check::<A>("numberInfinity", scope(|| { Any::unary_plus(f64_any(0x7ff0000000000000)) }), f64_any(0x7ff0000000000000));
     check::<A>("numberNegativeInfinity", scope(|| { Any::unary_plus(f64_any(0xfff0000000000000)) }), f64_any(0xfff0000000000000));
     check::<A>("numberNan", scope(|| { Any::unary_plus(f64_any(0x7ff8000000000000)) }), f64_any(0x7ff8000000000000));
-    check::<A>("stringEmpty", scope(|| { Any::unary_plus(string_any("")) }), f64_any(0x0000000000000000));
-    check::<A>("stringZero", scope(|| { Any::unary_plus(string_any("0")) }), f64_any(0x0000000000000000));
+    check::<A>("stringEmpty", scope(|| { Any::unary_plus(string_any("")) }), f64_any(0x0));
+    check::<A>("stringZero", scope(|| { Any::unary_plus(string_any("0")) }), f64_any(0x0));
     check::<A>("stringNumber", scope(|| { Any::unary_plus(string_any("2.3")) }), f64_any(0x4002666666666666));
     check::<A>("stringExponent", scope(|| { Any::unary_plus(string_any("2.3e2")) }), f64_any(0x406cc00000000000));
     check::<A>("stringNotANumber", scope(|| { Any::unary_plus(string_any("a")) }), f64_any(0x7ff8000000000000));
-    check::<A>("arrayEmpty", scope(|| { Any::unary_plus(Array::default().to_any()) }), f64_any(0x0000000000000000));
+    check::<A>("arrayEmpty", scope(|| { Any::unary_plus(Array::default().to_any()) }), f64_any(0x0));
     check::<A>("arrayNumber", scope(|| { Any::unary_plus([f64_any(0x4002666666666666)].to_array().to_any()) }), f64_any(0x4002666666666666));
     check::<A>("arrayNegativeNumber", scope(|| { Any::unary_plus([f64_any(0xbfd3333333333333)].to_array().to_any()) }), f64_any(0xbfd3333333333333));
     check::<A>("arrayString", scope(|| { Any::unary_plus([string_any("-2.3")].to_array().to_any()) }), f64_any(0xc002666666666666));
     check::<A>("arrayPositiveString", scope(|| { Any::unary_plus([string_any("0.3")].to_array().to_any()) }), f64_any(0x3fd3333333333333));
-    check::<A>("arrayNull", scope(|| { Any::unary_plus([Nullish::Null.to_any()].to_array().to_any()) }), f64_any(0x0000000000000000));
+    check::<A>("arrayNull", scope(|| { Any::unary_plus([Nullish::Null.to_any()].to_array().to_any()) }), f64_any(0x0));
     check::<A>("arrayPair", scope(|| { Any::unary_plus([Nullish::Null.to_any(), Nullish::Null.to_any()].to_array().to_any()) }), f64_any(0x7ff8000000000000));
     check::<A>("objectEmpty", scope(|| { Any::unary_plus(Object::default().to_any()) }), f64_any(0x7ff8000000000000));
     check::<A>("objectOwnValueOf", scope(|| { Any::unary_plus([(string_key("valueOf"), A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, Array::default(), Some("()=>undefined")).to_any())].to_object().to_any()) }), f64_any(0x7ff8000000000000));

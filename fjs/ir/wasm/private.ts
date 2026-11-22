@@ -30,8 +30,9 @@ export type _Target = readonly ['block', Type] | readonly ['loop', readonly (rea
  * module's type section, which gives a block of more than one value its
  * type, the global of each constant, by its module, `self` for the
  * module's own, and its name, the table index of each function that a
- * `code` term names, and the global of each string literal, by its type
- * and its spelling.
+ * `code` term names, the global of `table_base` where the loader makes
+ * the table, and the global of each string literal, by its type and its
+ * spelling.
  */
 export type _Env = {
     readonly locals: OrderedMap<number>
@@ -44,6 +45,7 @@ export type _Env = {
     readonly types: readonly FuncType[]
     readonly globals: OrderedMap<OrderedMap<number>>
     readonly codes: OrderedMap<number>
+    readonly tableBase: number | null
     readonly literals: readonly (readonly [type: Sealed, spelling: string, global: number])[]
 }
 

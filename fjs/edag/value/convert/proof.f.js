@@ -39,6 +39,13 @@ export const proof = {
         assertEq(assertOk(toNumber(' 4 ', skipped)), 4)
         assertStructurallySame(assertError(toNumber(4n, skipped)), undefinedValue)
     },
+    // A function's captures may hold two functions made from one arrow,
+    // which share their body code; its text is the function's own.
+    sharedBody: () => {
+        const body = /** @type {const} */ (['arg', 0])
+        const holder = /** @type {const} */ (['=>', 0, [['=>', 1, [], body], ['=>', 1, [], body]], ['frame', 0]])
+        assertEq(assertOk(toString(holder, skipped)), '()=>$0')
+    },
     arrays: () => {
         const value = /** @type {const} */ (['[]', [null, undefinedValue, ['[]', [1, 2]], fn]])
         assertEq(assertOk(toString(value, skipped)), ',,1,2,()=>5')

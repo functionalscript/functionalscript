@@ -26,7 +26,13 @@
  * it, and no other cell, and no builder that it did not seal: a module that
  * keeps or frees a value that it borrows shows, and so does one that leaves
  * a value over. An array that a module makes is the twin's where their
- * items are, one by one.
+ * items are, one by one. A function that a call answers is the twin's
+ * where both take as many parameters and, after the call's cells are
+ * checked, answer the same or throw the same on each of a few probes, to
+ * a depth of three functions that answer functions
+ * ([slice 11b](../todo/slices.md)). The host makes the module's table too,
+ * of as many entries as its `fjs.layout` asks for, and its
+ * `make_function` calls code through it.
  *
  * @module
  *
@@ -43,6 +49,38 @@ import { counting } from '../l0/host/count/module.mjs'
 import { fits, isOwn } from '../module.f.js'
 import { host as nativeHost } from '../native/host/module.mjs'
 import { emit } from './module.f.js'
+
+/**
+ * The host that `run` makes for each call: the counting host, unless
+ * `onHost` gives another for a while.
+ *
+ * @type {(values: readonly unknown[], data?: number, entries?: number) => Counting}
+ */
+let host = counting
+
+/** How many hosts `run` has made since `onHost` began. */
+let made = 0
+
+/**
+ * Runs `f` with `run` making its hosts with `h`, as the [NaNVM
+ * host](../l0/host/nanvm/module.mjs) does, and answers how many it made.
+ *
+ * @type {(h: (values: readonly unknown[], data?: number, entries?: number) => Counting, f: () => void) => number}
+ */
+export const onHost = (h, f) => {
+    const before = host
+    host = (values, data, entries) => {
+        made += 1
+        return h(values, data, entries)
+    }
+    made = 0
+    try {
+        f()
+        return made
+    } finally {
+        host = before
+    }
+}
 
 /** @type {(v: _Value) => v is _Any} */
 const isAny = v => typeof v === 'object'
@@ -163,7 +201,52 @@ const plainObject = v => v !== null && typeof v === 'object' && !Array.isArray(v
  */
 const givenIn = values => new Set(values.flatMap(v => Array.isArray(v) ? [v, ...givenIn(v)]
     : plainObject(v) ? [v, ...givenIn(Object.values(/** @type {object} */ (v)))]
+    : typeof v === 'function' ? [v]
     : []))
+
+/**
+ * The pairs of functions that `sameHeld` met since `run` last probed them:
+ * a module's function and its twin's, which agree where they agree on
+ * each of the `probes`, after the call's cells are checked.
+ *
+ * @type {(readonly [Function, Function])[]}
+ */
+let pending = []
+
+/** The arguments on which a function that a call answers must agree with its twin's. */
+const probes = [[], [1], ['a', 2], [[3], { b: 4 }]]
+
+/**
+ * Calls each pair of functions that `pending` holds on each of the probes,
+ * and asserts that both answer the same value, or both throw the same
+ * value or error, to the depth of three functions that answer functions.
+ *
+ * @type {(context: unknown, depth?: number) => void}
+ */
+const probe = (context, depth = 0) => {
+    const pairs = pending
+    pending = []
+    for (const [a, b] of pairs) {
+        for (const xs of probes) {
+            /** @type {(f: Function) => readonly ['ok' | 'threw', unknown]} */
+            const outcomeOf = f => {
+                try {
+                    return ['ok', f(...xs)]
+                } catch (e) {
+                    return ['threw', e]
+                }
+            }
+            const got = outcomeOf(a)
+            const expected = outcomeOf(b)
+            const given = givenIn(xs)
+            assert(got[0] === expected[0] && (got[0] === 'ok'
+                ? sameHeld(given)(got[1], expected[1])
+                : throwsAs(given)({ any: got[1] }, { any: expected[1] })), [context, 'a function that the call answers', xs, got, expected])
+        }
+        assert(depth < 3 || pending.length === 0, [context, 'functions that answer functions too deep'])
+        probe(context, depth + 1)
+    }
+}
 
 /**
  * Whether two values that values of `any` hold are the same: by `Object.is`,
@@ -176,6 +259,7 @@ const givenIn = values => new Set(values.flatMap(v => Array.isArray(v) ? [v, ...
  * @type {(given: ReadonlySet<unknown>) => (a: unknown, b: unknown) => boolean}
  */
 const sameHeld = given => (a, b) => Object.is(a, b)
+    || typeof a === 'function' && typeof b === 'function' && !given.has(b) && a.length === b.length && (pending.push([a, b]), true)
     || Array.isArray(a) && Array.isArray(b) && !given.has(b) && a.length === b.length && a.every((x, k) => sameHeld(given)(x, b[k]))
     || plainObject(a) && plainObject(b) && !given.has(b) && (() => {
         const ka = Object.keys(/** @type {object} */ (a))
@@ -224,7 +308,8 @@ const expect = f => {
 /**
  * What a call of a module answers: a value; a throw, whose value the host
  * keeps and which `thrown` hands over, the caller reading it and dropping
- * it; or a trap with nothing thrown, and what the engine threw for it.
+ * it; or a trap with nothing thrown, and what the host's `trap` tells of
+ * it, or else what the engine threw for it.
  *
  * @type {(f: () => _Value, h: Counting) => _Outcome}
  */
@@ -232,7 +317,7 @@ const outcome = (f, h) => {
     try {
         return ['ok', f()]
     } catch (e) {
-        if (h.has_thrown() === 0) { return ['trapped', e] }
+        if (h.has_thrown() === 0) { return ['trapped', h.trap === undefined ? e : h.trap(e)] }
         const t = h.thrown()
         const any = h.read(t)
         h.imports.drop(t)
@@ -241,15 +326,31 @@ const outcome = (f, h) => {
 }
 
 /**
+ * Whether a call throws what its twin throws: the same value, or, where
+ * the twin is a program that JavaScript runs and throws an error of its
+ * own, a `TypeError` say, a value of L1's that names the same error, as
+ * `'TypeError: unexpected type'` does
+ * ([L1's errors](../../wasm/runtime/l1/error/module.f.js)).
+ *
+ * @type {(given: ReadonlySet<unknown>) => (got: _Any, expected: _Any) => boolean}
+ */
+const throwsAs = given => (got, expected) => {
+    const e = expected.any
+    return e instanceof Error ? typeof got.any === 'string' && got.any.startsWith(`${e.name}: `) : same(given)(got, expected)
+}
+
+/**
  * Whether a call's outcome is its twin's: the same value, a throw of the
- * same value, or a trap of both, for the same reason where the module's
- * trap was a throw of an import of the view, whose reason is a string.
+ * same value or of the same error, or a trap of both, for the same reason
+ * where the module's trap was a throw of an import of the view, whose
+ * reason is a string.
  *
  * @type {(given: ReadonlySet<unknown>) => (got: _Outcome, expected: _Outcome) => boolean}
  */
 const agrees = given => (got, expected) => got[0] === 'trapped'
     ? expected[0] === 'trapped' && (typeof got[1] !== 'string' || got[1] === expected[1])
-    : expected[0] !== 'trapped' && got[0] === expected[0] && same(given)(got[1], expected[1])
+    : expected[0] !== 'trapped' && got[0] === expected[0]
+        && (got[0] === 'threw' && expected[0] === 'threw' ? throwsAs(given)(got[1], expected[1]) : same(given)(got[1], expected[1]))
 
 /** The unsigned LEB128 numbers that `bytes` hold, one after another. @type {(bytes: Uint8Array) => readonly number[]} */
 const ulebs = bytes => {
@@ -271,14 +372,15 @@ const ulebs = bytes => {
 }
 
 /**
- * The bytes of data segments that a module's `fjs.layout` asks for, `0`
- * where it has none.
+ * What a module's `fjs.layout` asks for: the bytes of its data segments
+ * and the entries of its table, `0` each where it has none.
  *
- * @type {(m: WebAssembly.Module) => number}
+ * @type {(m: WebAssembly.Module) => { readonly data: number, readonly entries: number }}
  */
-export const dataOf = m => {
+export const layoutOf = m => {
     const [section] = WebAssembly.Module.customSections(m, 'fjs.layout')
-    return section === undefined ? 0 : ulebs(new Uint8Array(section))[0]
+    const [data = 0, , entries = 0] = section === undefined ? [] : ulebs(new Uint8Array(section))
+    return { data, entries }
 }
 
 /**
@@ -303,14 +405,14 @@ export const run = (m, twins, inputs, abandons = []) => {
     const bytes = new Uint8Array(write(emit(checked)))
     assert(WebAssembly.validate(bytes))
     const compiled = new WebAssembly.Module(bytes)
-    const data = dataOf(compiled)
+    const { data, entries } = layoutOf(compiled)
     for (const name of checked.exports) {
         const [, { params, result, fails }] = assertNotNullish(checked.functions.find(([k]) => k === name))
         const twin = assertNotNullish(twins[name], name)
         for (const xs of inputs[name] ?? product(params.map(([, t]) => edges(t)))) {
             const values = xs.flatMap(v => isAny(v) ? [v.any] : [])
-            const h = counting(values, data)
-            const { exports } = new WebAssembly.Instance(compiled, { 'fjs:l0': h.imports, 'fjs:l1-native': nativeHost(h.read, h.own, h.fail) })
+            const h = host(values, data, entries)
+            const { exports } = new WebAssembly.Instance(compiled, { 'fjs:l0': h.imports, 'fjs:l1-native': h.native ?? nativeHost(h.read, h.own, h.fail) })
             const { init } = exports
             if (typeof init === 'function') { init() }
             h.keep()
@@ -319,7 +421,7 @@ export const run = (m, twins, inputs, abandons = []) => {
             /** @type {(v: _Value, k: number) => unknown} */
             const arg = (v, k) => {
                 if (!isAny(v)) { return toHost(params[k][1], v) }
-                const handle = BigInt(xs.slice(0, k).filter(isAny).length)
+                const handle = h.first[xs.slice(0, k).filter(isAny).length]
                 // a parameter that owns its argument takes a count of its own, and the caller keeps the one it holds
                 return isOwn(params[k]) ? h.imports.dup(handle) : handle
             }
@@ -333,6 +435,7 @@ export const run = (m, twins, inputs, abandons = []) => {
             assert(got[0] !== 'threw' || abandoned.length === 0 || abandons.includes(name), [name, xs, 'a throw abandoned', abandoned.join()])
             const cells = [...h.live().map(([k, count]) => `${k}:${count}`), ...(got[0] === 'ok' ? open : [])].join()
             assert(cells === '', [name, xs, cells])
+            probe([name, xs])
         }
     }
 }

@@ -172,6 +172,12 @@ fn magnitude_from_twos_complement(mut words: Vec<u64>) -> Vec<u64> {
 #[derive(Clone)]
 pub struct BigInt<A: IVm>(A::InternalBigInt);
 
+impl<A: crate::vm::IStaticVm> BigInt<A> {
+    pub fn from_static(value: &'static crate::vm::StaticBigInt) -> Self {
+        Self(A::load_bigint(value))
+    }
+}
+
 impl<A: IVm> BigInt<A> {
     /// `self`, or the `RangeError` of a `BigInt` longer than `MAX_WORDS`
     /// words: the check `+`, `-` and `*` make of their results (`<<` checks

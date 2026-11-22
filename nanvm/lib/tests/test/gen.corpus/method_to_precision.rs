@@ -9,7 +9,7 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("small", scope(|| { Any::dot(f64_any(0x3f201f31f46ed246), string_any("toPrecision")).end_call(&rt, || Ok([f64_any(0x4000000000000000)].to_array().to_any())) }), string_any("0.00012"));
     check::<A>("exponent", scope(|| { Any::dot(f64_any(0x40fe240000000000), string_any("toPrecision")).end_call(&rt, || Ok([f64_any(0x4000000000000000)].to_array().to_any())) }), string_any("1.2e+5"));
     check::<A>("noArgument", scope(|| { Any::dot(f64_any(0x3ff8000000000000), string_any("toPrecision")).end_call(&rt, || Ok(Array::default().to_any())) }), string_any("1.5"));
-    check::<A>("zero", scope(|| { Any::dot(f64_any(0x0000000000000000), string_any("toPrecision")).end_call(&rt, || Ok([f64_any(0x4008000000000000)].to_array().to_any())) }), string_any("0.00"));
+    check::<A>("zero", scope(|| { Any::dot(f64_any(0x0), string_any("toPrecision")).end_call(&rt, || Ok([f64_any(0x4008000000000000)].to_array().to_any())) }), string_any("0.00"));
     check::<A>("negativeZero", scope(|| { Any::dot(f64_any(0x8000000000000000), string_any("toPrecision")).end_call(&rt, || Ok([f64_any(0x4000000000000000)].to_array().to_any())) }), string_any("0.0"));
     check::<A>("negativeTie", scope(|| { Any::dot(f64_any(0xc004000000000000), string_any("toPrecision")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())) }), string_any("-3"));
     check::<A>("tiny", scope(|| { Any::dot(f64_any(0x3e7ad7f29abcaf48), string_any("toPrecision")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())) }), string_any("1e-7"));
@@ -20,10 +20,10 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("large", scope(|| { Any::dot(f64_any(0x444b1ae4d6e2ef50), string_any("toPrecision")).end_call(&rt, || Ok([f64_any(0x4008000000000000)].to_array().to_any())) }), string_any("1.00e+21"));
     check::<A>("largest", scope(|| { Any::dot(f64_any(0x7fefffffffffffff), string_any("toPrecision")).end_call(&rt, || Ok([f64_any(0x4000000000000000)].to_array().to_any())) }), string_any("1.8e+308"));
     check::<A>("exact", scope(|| { Any::dot(f64_any(0x405ec00000000000), string_any("toPrecision")).end_call(&rt, || Ok([f64_any(0x4008000000000000)].to_array().to_any())) }), string_any("123"));
-    check::<A>("nanZero", scope(|| { Any::dot(f64_any(0x7ff8000000000000), string_any("toPrecision")).end_call(&rt, || Ok([f64_any(0x0000000000000000)].to_array().to_any())) }), string_any("NaN"));
+    check::<A>("nanZero", scope(|| { Any::dot(f64_any(0x7ff8000000000000), string_any("toPrecision")).end_call(&rt, || Ok([f64_any(0x0)].to_array().to_any())) }), string_any("NaN"));
     check::<A>("stringPrecision", scope(|| { Any::dot(f64_any(0x3ff0000000000000), string_any("toPrecision")).end_call(&rt, || Ok([string_any("2.9")].to_array().to_any())) }), string_any("1.0"));
     check_throws::<A>("bigintOnInfinity", scope(|| { Any::dot(f64_any(0x7ff0000000000000), string_any("toPrecision")).end_call(&rt, || Ok([bigint_any(1)].to_array().to_any())) }));
-    check_throws::<A>("zeroPrecision", scope(|| { Any::dot(f64_any(0x3ff0000000000000), string_any("toPrecision")).end_call(&rt, || Ok([f64_any(0x0000000000000000)].to_array().to_any())) }));
+    check_throws::<A>("zeroPrecision", scope(|| { Any::dot(f64_any(0x3ff0000000000000), string_any("toPrecision")).end_call(&rt, || Ok([f64_any(0x0)].to_array().to_any())) }));
     check_throws::<A>("tooMany", scope(|| { Any::dot(f64_any(0x3ff0000000000000), string_any("toPrecision")).end_call(&rt, || Ok([f64_any(0x4059400000000000)].to_array().to_any())) }));
     check_throws::<A>("bigint", scope(|| { Any::dot(f64_any(0x3ff0000000000000), string_any("toPrecision")).end_call(&rt, || Ok([bigint_any(1)].to_array().to_any())) }));
 }

@@ -979,7 +979,6 @@ export const tryNormalize = (resolved, imports) => {
     const context = { bindings: resolved.bindings, scopes, loop: null, breakRegion: null,
         writes: sourceWrites(resolved.body, fromEntries(scopes.map(scope => /** @type {const} */ ([scope.target, eventFacts(scope.events).writes])))) }
     const nodes = mapEntries(context.writes).map(([node]) => node)
-    if (nodes.some(node => node instanceof Array && node[0] === '+' && node.length === 2)) { return error('unary + AST-to-FAST conversion is not implemented') }
     const equality = nodes.find(node => node instanceof Array && (node[0] === '==' || node[0] === '!='))
     if (equality instanceof Array) { return error(`${equality[0]} AST-to-FAST conversion is not implemented`) }
     const normalized = normalizedBlock(resolved.body, environment, context).block

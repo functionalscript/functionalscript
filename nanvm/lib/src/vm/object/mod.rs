@@ -25,3 +25,15 @@ use crate::vm::IVm;
 /// ```
 #[derive(Clone)]
 pub struct Object<A: IVm>(A::InternalObject);
+
+impl<A: crate::vm::IStaticVm> Object<A> {
+    pub fn from_static(value: &'static crate::vm::StaticObject<A>) -> Self {
+        Self(A::load_object(value))
+    }
+}
+
+impl<A: IVm> core::fmt::Debug for Object<A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        self.0.fmt(f)
+    }
+}

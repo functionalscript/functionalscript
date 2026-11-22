@@ -107,7 +107,7 @@ export const proof = {
         // compiler's message.
         refused: () => {
             assertEq(graphOfText('export default ;')[0], 'error')
-            assertStructurallySame(graphOfText('export default +1;'), ['error', 'unary + AST-to-FAST conversion is not implemented'])
+            assertStructurallySame(graphOfText('export default 1==1;'), ['error', '== AST-to-FAST conversion is not implemented'])
         },
     },
 }

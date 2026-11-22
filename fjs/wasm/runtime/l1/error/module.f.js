@@ -24,4 +24,5 @@ export const error = /** @type {const} */ ({
     mixedNumericOperands: 'TypeError: Cannot mix BigInt and other types, use explicit conversions',
     notIterable: 'TypeError: value is not iterable',
     divisionByZero: 'RangeError: Division by zero',
+    bigintTooLarge: 'RangeError: Maximum BigInt size exceeded',
 })

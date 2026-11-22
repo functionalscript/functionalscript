@@ -1,20 +1,19 @@
 # FunctionalScript and TypeScript (`fjs/`)
 
-Rules for everything under `fjs/` — authored FunctionalScript (`.f.mjs`) and the
+Rules for everything under `fjs/` — authored FunctionalScript (`.f.js`) and the
 type-only TypeScript (`types.ts`) beside it. Repository-wide rules live in the
 root [AGENTS.md](../AGENTS.md), and the design principles both code bases follow
 live in [DESIGN.md](../doc/DESIGN.md).
 
-Authored FunctionalScript has two extensions: `.f.mjs`, and `.f.js` for source
-the current compiler accepts ([`compiler/README.md`](./compiler/README.md) defines
-both). Every rule below stated for `.f.mjs` applies to `.f.js` alike, a proof's
-name included ([§1.2](#12-proof-coverage-is-mandatory)). What to write instead of what the
+Authored FunctionalScript has one extension, `.f.js`: source the current
+compiler accepts whole ([`compiler/README.md`](./compiler/README.md) defines
+it), a module, a proof and a demo alike
+([§1.2](#12-proof-coverage-is-mandatory)). `.f.mjs`, the name the tree used
+for authored FunctionalScript the compiler did not yet accept, is banned: no
+such file exists and none may be added. What to write instead of what the
 compiler refuses, construct by construct, is
-[CONVERTING.md](../doc/CONVERTING.md).
-
-A module the current compiler accepts whole must be `.f.js`, not `.f.mjs`:
-rename it (`git mv`, then fix importers) in the pull request that makes it
-compile, and confirm with `npm start compile` from the repository root. See
+[CONVERTING.md](../doc/CONVERTING.md); `npm start compile` from the repository
+root confirms the result. See
 [AGENTS.md §3](../AGENTS.md#3-functionalscript-and-typescript-fjs).
 
 ## Contents
@@ -32,7 +31,7 @@ compile, and confirm with `npm start compile` from the repository root. See
 - `tsc` — type-check with the selected development environment (`./dev.sh tsc`).
 - `npm start test` (or any equivalent from
   [CONTRIBUTING.md](../CONTRIBUTING.md#ways-to-run-the-functionalscript-test-suite))
-  — test FunctionalScript (`.f.mjs`) files. Run from a directory, it tests
+  — test FunctionalScript (`.f.js`) files. Run from a directory, it tests
   that directory alone, which is what a change under one directory needs;
   coverage scopes the same way
   ([CONTRIBUTING.md](../CONTRIBUTING.md#running-tests-under-a-subtree)).
@@ -42,35 +41,33 @@ compile, and confirm with `npm start compile` from the repository root. See
 New FunctionalScript modules and functions must have **100% proof coverage**
 across every dimension: every exported function called, every line executed, and
 every branch (both sides of each conditional) taken. This applies to authored
-FunctionalScript source, `.f.mjs` and `.f.js`
-([`fjs/compiler/README.md`](./compiler/README.md) defines the extensions). A new
+FunctionalScript source, `.f.js`
+([`fjs/compiler/README.md`](./compiler/README.md) defines the extension). A new
 implementation module ships with a co-located proof (its `proof` export) that
 exercises all of its exports along all code paths — partial coverage of new code
 is not acceptable. If a line or branch genuinely cannot be reached, restructure
 the code so it isn't there rather than leaving it uncovered.
 
-An implementation is `module.f.mjs`, or `module.f.js` once the compiler
-accepts it (stage 2, [`fjs/compiler/README.md`](./compiler/README.md)), and its proof is
-named the same way: `proof.f.mjs`, or `proof.f.js` once the compiler accepts the
-proof itself. Stage 1 of the TypeScript-to-JavaScript migration is
-complete: no authored implementation or proof `.f.ts` remains, so write both
-files as JavaScript with JSDoc. Authored `types.ts` companions may remain
+An implementation is `module.f.js`, which the compiler accepts
+([`fjs/compiler/README.md`](./compiler/README.md)), and its proof is
+`proof.f.js`, which the compiler accepts too. Both migrations are complete:
+no authored implementation or proof `.f.ts` remains, and none is `.f.mjs`, so
+write both files as JavaScript with JSDoc, in the language. Authored `types.ts` companions may remain
 permanently and hold the type-level API.
 
 Proof discovery and coverage follow the same extension: `shouldLoad` in
 [`fjs/dev/module.f.js`](./dev/module.f.js) matches authored
 FunctionalScript source, and both `npm start cov node` and `deno task cov` include
-`module.f.mjs`, `module.f.js`, `demo.f.mjs` and `demo.f.js`. Ordinary (non-FunctionalScript)
-`.mjs` files stay opt-in through the `proof.mjs` filename convention.
+`module.f.js` and `demo.f.js`. Ordinary (non-FunctionalScript)
+`.mjs` files stay opt-in through the `proof.mjs` filename convention, which is
+for effects alone ([§1.6](#16-a-host-proof-is-for-an-effect-and-for-nothing-else)).
 
-A proof is authored FunctionalScript like any other, and is named by what the
-compiler accepts, as a module is: `proof.f.js`, or `name.proof.f.js`, once the
-compiler accepts the proof whole, and `.f.mjs` until then. Rename it in the
-pull request that makes it compile, with its importers. The two names are
-independent — a `module.f.js` may still have a `proof.f.mjs`, where the proof
-uses a construct the compiler refuses — and discovery loads both, since it
-matches authored FunctionalScript by its `.f.` infix. Its relative **runtime**
-imports must target FunctionalScript modules, `.f.mjs` or `.f.js`. A proof's
+A proof is authored FunctionalScript like any other: `proof.f.js`, or
+`name.proof.f.js`, which the compiler accepts whole. A proof that uses a
+construct the compiler refuses is not kept under another name; the case is
+rewritten in the language or removed
+([§1.6](#16-a-host-proof-is-for-an-effect-and-for-nothing-else)). Its relative
+**runtime** imports must target FunctionalScript modules, `.f.js`. A proof's
 assertion calls are call statements the language reads
 ([spec: call statements](../spec/functions/call-statements/README.md)).
 `fjs/asserts` itself is an `.f.js`. Type-only APIs may live in an authored
@@ -201,7 +198,7 @@ loose. See
 
 ### 1.5 Never use `try`/`catch`; test throwing with the `throw` key
 
-Never use `try`/`catch` in `.f.mjs` files — FunctionalScript itself has no
+Never use `try`/`catch` in `.f.js` files — FunctionalScript itself has no
 `try`/`catch` and isn't planning to add it soon. To test that a call throws,
 nest the test function under a `throw` property key instead of wrapping it in
 `try`/`catch` (see `fjs/asserts/proof.f.js`).
@@ -222,19 +219,40 @@ only by a human or external tooling after something has already gone wrong, so
 don't over-invest proof effort in checking its exact value — whether it threw is
 normally the part of the contract that matters.
 
-### 1.6 Use host proofs only for documented host contracts
+### 1.6 A host proof is for an effect, and for nothing else
 
-Prove FunctionalScript APIs with `proof.f.mjs` for every case FunctionalScript
-can construct and observe. A `proof.mjs` normally proves its **sibling
-`module.mjs`** — host code such as the DOM adapter in `emergent_testing/browser`
-or the `node:` bindings in `effects/node/memory`.
+Prove FunctionalScript APIs with `proof.f.js`. A `proof.mjs` proves code that
+performs effects, and only that: its **sibling `module.mjs`** — host code such
+as the DOM adapter in `emergent_testing/browser` or the `node:` bindings in
+`effects/node/memory` — or an effect program observed through the real thing,
+as [`web/proof.mjs`](./web/proof.mjs) observes one through real files and
+sockets. Name the effect in the proof's header.
 
-Host proofs may also exercise an existing host execution or effect integration
-contract, such as the DataJS corpus running documents on a JavaScript host or
-[`web/proof.mjs`](./web/proof.mjs) observing an effect program through real
-files and sockets. Name the actual boundary in the proof's header and explain
-why a FunctionalScript proof cannot observe it. Keep ordinary cases in
-`proof.f.mjs`.
+**A host proof is not a way around the compiler.** When a case will not
+compile in `proof.f.js`, it does not move to `proof.mjs`, and it does not stay
+behind in a file of another name. Each of these has been tried as a reason,
+and none is an effect:
+
+- **the host as the reference** — comparing a body with `Object`, `Math` or a
+  method read off a prototype by a computed name. Name each built-in in a
+  call the language admits (`(a, b) => Object.is(a, b)`), or write the
+  expected values out;
+- **a value FunctionalScript cannot build** — an array hole, a method apart
+  from its receiver, two `const`s that name each other, an object with a
+  replaced prototype. No FunctionalScript caller supplies one, so there is
+  nothing to prove; remove the case;
+- **an observation by mutation** — a counter a closure increments, a list a
+  callback pushes to. Thread the state through the mock runner, or pin the
+  property another way;
+- **a host fact that explains a design** — what JavaScript does with `this`,
+  with a detached method, with a prototype. That is prose for the README,
+  beside the node-level proof of what this repository does about it.
+
+A case that covers no line of any module is the clearest sign: it proves the
+host, which is not ours to prove. Removing it leaves coverage where it was.
+
+Existing `proof.mjs` files that prove no effect are migration debt, not
+precedent ([host proofs for effects only](../todo/host-proofs-for-effects-only.md)).
 
 Derive FunctionalScript API inputs from what FJS can construct. Immutable
 container construction is acyclic, so cycle checks and host-mutated cycle
@@ -263,7 +281,7 @@ framework owns scheduling, and `all.test.mjs` is the entry point `node --test`,
 fails or behaves differently under the two.
 
 This one is a recommendation, not a rule. Both runners see every proof today,
-and `fjs t` stays the reference runner for everything `.f.mjs`.
+and `fjs t` stays the reference runner for everything `.f.js`.
 
 ### 1.7 Name proof keys in camelCase
 
@@ -291,13 +309,13 @@ Verified against the pinned Deno (`fjs/ci/config/module.f.js`), for `.mjs` and
 `.ts` alike; the tag need not be in the first block, only in some block.
 
 **So the tag goes wherever a file has module-level documentation a reader is
-meant to get from `deno doc`** — `module.f.mjs`, `types.ts`, `private.ts` — and a
+meant to get from `deno doc`** — `module.f.js`, `types.ts`, `private.ts` — and a
 `module.*` file always has some. A file whose leading block only holds `@import`
 tags has nothing to attach and wants no `@module`. Where a file's documentation
 reaches no reader, the tag buys nothing; `proof.*` is the clear case.
 
 Which reader differs by file kind, and the tag does not decide it.
-`module.f.mjs` and `types.ts` are public API surface. `private.ts` is not: it
+`module.f.js` and `types.ts` are public API surface. `private.ts` is not: it
 holds implementation-private types outside the public declaration closure, and
 its generated declarations are excluded from the package entirely
 ([`compiler/README.md`](./compiler/README.md)). Its prose is for contributors reading the
@@ -342,7 +360,7 @@ import ... from '...mjs'
 import ... from '...mjs'
 ```
 
-A non-`module.*` file (e.g. `proof.f.mjs`) with `@import` tags but no `@module`
+A non-`module.*` file (e.g. `proof.f.js`) with `@import` tags but no `@module`
 uses the same grouping without the tag:
 
 ```js
@@ -360,11 +378,11 @@ import ... from '...mjs'
 
 Authored TypeScript you write is `types.ts`. Its imports are all type-only, so it
 needs no grouping: `import type` names the same real source paths, whether the
-type comes from another `types.ts` or from a `.f.mjs` module.
+type comes from another `types.ts` or from a `.f.js` module.
 
 ```ts
 import type ... from '../other/types.ts'
-import type ... from './module.f.mjs'
+import type ... from './module.f.js'
 ```
 
 There are no exceptions left: `types.ts`, plus the optional sibling
@@ -418,14 +436,14 @@ context, an iframe, a worker — and never replaces an object's prototype:
 are out, and `__proto__` as a data member is written `{ ['__proto__']: v }`.
 
 The two halves buy the same thing, which is why they are one rule: every value
-an `.f.mjs` function sees was built by this realm's constructors, so
+an `.f.js` function sees was built by this realm's constructors, so
 `instanceof` and the prototype chain are reliable.
 
-**A value that breaks that premise is outside every `.f.mjs` function's domain,
+**A value that breaks that premise is outside every `.f.js` function's domain,
 and behaviour on it is undefined.** An object whose prototype was replaced, one
 from another realm, one built by `Object.create` with a descriptor: no
 FunctionalScript code can construct any of them, so no function owes one a
-refusal, no `proof.f.mjs` owes one a case, and "a host handed this in and the
+refusal, no `proof.f.js` owes one a case, and "a host handed this in and the
 answer was wrong" is not a bug report against this repository. A function's
 contract is over the values FunctionalScript can build, and that is the whole of
 it. Where such a value must be handled, the handling is a host boundary, below.
@@ -437,7 +455,7 @@ predicates disagree exactly on values whose prototype chain was re-pointed or
 that belong to another realm, which is to say exactly on undefined behaviour.
 
 A boundary that does take foreign values is a host boundary: it belongs in a
-thin `.mjs` that converts them before any `.f.mjs` sees them.
+thin `.mjs` that converts them before any `.f.js` sees them.
 
 #### No regular expressions
 
@@ -449,7 +467,7 @@ cases remain explicit and independently testable.
 
 #### JavaScript/JSDoc type declarations
 
-Authored `.mjs` / `.f.mjs` files must remain valid JavaScript. Put named and
+Authored `.mjs` / `.f.js` files must remain valid JavaScript. Put named and
 generic static types in JSDoc rather than TypeScript syntax, and keep public
 assignability and declaration-emission behavior intact when a type's spelling
 changes. A separately useful type-level API may live in an authored sibling
@@ -489,7 +507,7 @@ consumer, so it has nothing to disclaim and takes no prefix: `toNode` and
 ordinary shape, beside the exported `_Frame` and `_UnaryFrame` in its
 [`private.ts`](./compiler/parser/private.ts), which are the rule's. Measured across `fjs/`, module-private constants run about 1,900
 unprefixed to eight prefixed — so reading the rule as reaching them would put
-nearly every `.f.mjs` in the tree in violation, which is the check that the
+nearly every `.f.js` in the tree in violation, which is the check that the
 reading is wrong.
 
 That rule runs in one direction only. Moving a *published public* typedef to a
@@ -509,7 +527,7 @@ up a real present-day API for a discount on a breaking change that should simply
 be explained when it happens.
 
 The intra-directory dependency direction is
-`types.ts <- private.ts <- module.f.mjs <- proof.f.mjs <- module.mjs <- proof.mjs`
+`types.ts <- private.ts <- module.f.js <- proof.f.js <- module.mjs <- proof.mjs`
 (dependency to dependent; a layering guide, not a requirement that every file
 exists). `types.ts` must not depend on `private.ts`, and *runtime*
 verification moves downstream: an assertion that **runs** belongs in a proof
@@ -519,7 +537,7 @@ A compile-time `Assert<…>` goes the other way, and the exception is the whole
 point: a proof is the one place a type-level claim may not be checked at all
 ([§1.4](#14-assert-type-level-facts-with-assertequal)), so it lives at module
 scope in `types.ts` even when what it pins is a value or a signature in
-`module.f.mjs` — reached with a type-only `import type`, which adds no runtime
+`module.f.js` — reached with a type-only `import type`, which adds no runtime
 edge and leaves the file type source. `fjs/edag/types.ts` pins values that
 way and `fjs/effects/types.ts` signatures; `fjs/rtti/ts/types.ts` is the large
 block of the purely type-level kind. The exception reaches no further than
@@ -527,11 +545,11 @@ that: a claim about a *local* inference stays in the proof, with a statement
 after it.
 
 Recursive RTTI whose annotation needs a named public type may stay in
-`module.f.js` or `module.f.mjs` (e.g. `exp` in `fjs/edag/module.f.js`), and
+`module.f.js` (e.g. `exp` in `fjs/edag/module.f.js`), and
 declarative compile-time/runtime constants shared between TypeScript and
 runtime code may be split into a normal subordinate metaprogramming module such
-as `meta/module.f.mjs` when that helps — it is an ordinary module, discovered
-and covered like any other `module.f.mjs`, never a requirement.
+as `meta/module.f.js` when that helps — it is an ordinary module, discovered
+and covered like any other `module.f.js`, never a requirement.
 
 Use `@typedef` (function-local in `.mjs`, or `export type` in `types.ts` /
 `private.ts`) for a named type and `@template` for its type parameters. A
@@ -1351,23 +1369,22 @@ anywhere else as the rule being broken.
 Authored FunctionalScript source is JavaScript with JSDoc. Relative
 repository-owned dependencies follow these source rules:
 
-- `.f.mjs` and `.f.js` are authored FunctionalScript implementation source,
-  and `.f.mjs` is proof source too. A relative runtime import from `.f.mjs`
-  targets a FunctionalScript module, `.f.mjs` or `.f.js`; one from `.f.js`
+- `.f.js` is authored FunctionalScript source, implementation and proof
+  alike, and `.f.mjs` is banned. A relative runtime import from `.f.js`
   targets `.f.js` alone, since the compiler links a module's imports with it
   and `fjs compile` with no arguments holds every `.f.js` to that
   ([spec: checking every `.f.js`](../spec/command-line/checking.md));
 - `types.ts` is authored type-only TypeScript source and carries no runtime
   implementation;
-- `.f.mjs` — and later `.f.js` — consumes `types.ts` through JSDoc `@import`,
+- `.f.js` consumes `types.ts` through JSDoc `@import`,
   and TypeScript consumes it through `import type`, both always naming the real
   `types.ts` file;
 - a declaration-only module belongs in `types.ts` rather than acquiring an
   artificial runtime representation;
 - never add a runtime import/export or runtime value solely to represent a
   TypeScript-only type declaration;
-- a module is renamed `.f.mjs` -> `.f.js` once the compiler of the same
-  revision accepts it whole, its imports included; the packed-package check
+- a `.f.js` module is one the compiler of the same revision accepts whole,
+  its imports included; the packed-package check
   in the `package` CI job imports a published `.f.js` from a clean
   consumer of the packed package, runs it and type-checks a use of its
   declaration with a negative control

@@ -2,7 +2,7 @@
 
 mod ref_map;
 
-pub use ref_map::ref_map;
+pub use ref_map::{ref_map, ref_map_with_text};
 
 use crate::{
     sign::Sign,
@@ -76,11 +76,20 @@ pub fn f64_any<A: IVm>(v: u64) -> Any<A> {
 /// runtime's table is incomplete, and `undefined` would be a plausible
 /// wrong answer. A throw of `static` itself is the read's.
 pub fn static_read<A: IVm>(runtime: &Any<A>, path: &str) -> Result<Any<A>, Any<A>> {
-    let read = runtime.clone().dot(string_any("static")).end()?;
-    let value = read.call([string_any(path)].to_array().to_any())?;
+    static_read_keys(runtime, "static".into(), path.into())
+}
+
+/// The compiled native module supplies both VM strings from its literal pool.
+pub fn static_read_keys<A: IVm>(
+    runtime: &Any<A>,
+    provider: String<A>,
+    path: String<A>,
+) -> Result<Any<A>, Any<A>> {
+    let read = runtime.clone().dot(provider.to_any()).end()?;
+    let value = read.call([path.clone().to_any()].to_array().to_any())?;
     match Function::try_from(value) {
         Ok(f) => Ok(f.to_any()),
-        Err(_) => Err(error::no_static_function(path)),
+        Err(_) => Err(error::no_static_function(&std::string::String::from(path))),
     }
 }
 

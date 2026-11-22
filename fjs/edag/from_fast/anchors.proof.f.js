@@ -38,13 +38,18 @@ export const proof = /** @type {const} */ ({
             ['+', ['.', null, 'x'], earlier],
             [',', [['()', operation, []], earlier]],
             ['?:', condition, earlier, 9],
-            ['[]', [['...', ['arg', 1]], earlier]],
         ])) {
             const graph = anchored({ exp: 7, anchors: [earlier, later] })
             assertStructurallySame(graph, [',', [earlier, later, 7]])
             const invoked = /** @type {Exp} */ (['()', ['=>', 2, [], graph], [false, ['[]', []]]])
             assertEq(assertError(memo(assertOk(identityAnalysis(invoked)))({ args: [] })), 17)
         }
+        // An expansion is no barrier: the later root reaches the earlier one
+        // whenever it completes, so the earlier one is no root of its own.
+        const expanded = /** @type {Exp} */ (['[]', [['...', ['arg', 1]], earlier]])
+        const reached = anchored({ exp: 7, anchors: [earlier, expanded] })
+        assertStructurallySame(reached, [',', [expanded, 7]])
+        assertEq(assertError(memo(assertOk(identityAnalysis(['()', ['=>', 2, [], reached], [false, ['[]', []]]])))({ args: [] })), 17)
         const separate = anchored({ exp: 7, anchors: [earlier, second, earlier] })
         assertStructurallySame(separate, [',', [earlier, second, 7]])
         assertEq(assertError(memo(assertOk(identityAnalysis(separate)))({ args: [] })), 17)

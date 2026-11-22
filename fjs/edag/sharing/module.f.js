@@ -11,9 +11,11 @@
  * @module
  *
  * @import { Exp, StepOver } from '../types.ts'
+ * @import { PersistentMap } from '../../types/map/types.ts'
  */
 
 import { isHelper, stepOperands } from '../module.f.js'
+import { empty, mapEntries, mapGet, mapSet } from '../../types/map/module.f.js'
 
 /**
  * The conditional establishes its condition, then the selected arm. Source
@@ -60,20 +62,19 @@ const isMember = e => e instanceof Array && [':', '...'].includes(e[0])
 export const members = list => list.flatMap(x => isMember(x) ? /** @type {readonly unknown[]} */ (x).slice(1) : [x])
 
 /**
- * `visited` with `root`'s subgraph folded in: every distinct node it reaches
- * — root included — paired with how many places have reached it, visiting a
- * node's own children only the first time that node is met, so a heavily
- * shared graph costs its node count and not the exponential a naive walk
- * would pay; a node met again only has its count bumped. The result lists a
- * node's dependencies before the node itself — full post-order — since a
- * node is only ever appended after the fold over its children returns,
- * which is exactly the order a `let`-binding printer needs: a shared node's
- * own initializer may reference an earlier shared node, and it must already
- * be bound by then.
+ * Every distinct node `root` reaches — root included — paired with how many
+ * places have reached it, visiting a node's own children only the first
+ * time that node is met, so a heavily shared graph costs its node count and
+ * not the exponential a naive walk would pay; a node met again only has its
+ * count bumped. The result lists a node's dependencies before the node
+ * itself — full post-order — since a node is only ever added after the fold
+ * over its children returns, which is exactly the order a `let`-binding
+ * printer needs: a shared node's own initializer may reference an earlier
+ * shared node, and it must already be bound by then.
  *
- * No step here mutates `visited` or anything reached from it — a lookup is
- * `Array#findIndex` and a bump rebuilds the list with `Array#map`, both
- * ordinary expressions over immutable arrays.
+ * The nodes met are held by identity in the shared persistent map, which
+ * keeps a key where it was first added: meeting a node is a lookup, and a
+ * bump copies a search path and not the list.
  *
  * `operands` says which of a node's items the walk descends into: a
  * scope's own, {@link operandsOf}, or more, as a caller asks. The Rust
@@ -81,17 +82,17 @@ export const members = list => list.flatMap(x => isMember(x) ? /** @type {readon
  * `args` read, a function held — since a walk with no memo of the nodes it
  * has met pays that exponential.
  *
- * @type {(operands: (node: readonly unknown[]) => readonly unknown[]) => (visited: readonly (readonly [node: Exp, count: number])[]) => (root: unknown) => readonly (readonly [node: Exp, count: number])[]}
+ * @type {(operands: (node: readonly unknown[]) => readonly unknown[]) => (root: unknown) => readonly (readonly [node: Exp, count: number])[]}
  */
-export const visit = operands => visited => root => {
-    if (!(root instanceof Array)) { return visited }
-    const self = /** @type {unknown} */ (root)
-    const i = visited.findIndex(([n]) => n === self)
-    if (i !== -1) {
-        return visited.map((v, j) => j === i ? /** @type {readonly [Exp, number]} */ ([v[0], v[1] + 1]) : v)
+export const visit = operands => {
+    /** @type {(visited: PersistentMap<Exp, number>, root: unknown) => PersistentMap<Exp, number>} */
+    const met = (visited, root) => {
+        if (!(root instanceof Array)) { return visited }
+        const self = /** @type {Exp} */ (/** @type {unknown} */ (root))
+        const count = mapGet(visited, self)
+        return count !== undefined ? mapSet(visited, self, count + 1) : mapSet(operands(root).reduce(met, visited), self, 1)
     }
-    const withChildren = operands(root).reduce((/** @type {readonly (readonly [Exp, number])[]} */ v, child) => visit(operands)(v)(child), visited)
-    return [...withChildren, /** @type {readonly [Exp, number]} */ ([/** @type {Exp} */ (self), 1])]
+    return root => mapEntries(met(empty, root))
 }
 
 /**
@@ -185,6 +186,15 @@ export const operandsOf = node => isChain(node[0])
     : ordinaryOperandsOf(node)
 
 /**
+ * A node's operands with a function's body among them: what a walk of a
+ * whole graph descends into, where {@link operandsOf} stops at the function
+ * boundary.
+ *
+ * @type {(node: readonly unknown[]) => readonly unknown[]}
+ */
+export const withBodies = node => node[0] === '=>' ? [...operandsOf(node), node[3]] : operandsOf(node)
+
+/**
  * The distinct nodes an EDAG reaches from more than one place, in dependency
  * order — the generalization of a corpus's explicit, named `data.shared` to
  * a linked EDAG, where sharing is implicit: two references to one `const`
@@ -199,6 +209,6 @@ export const operandsOf = node => isChain(node[0])
  *
  * @type {(root: Exp) => readonly Exp[]}
  */
-export const sharedNodesOf = root => visit(operandsOf)([])(root)
+export const sharedNodesOf = root => visit(operandsOf)(root)
     .filter(([, count]) => count >= 2)
     .map(([node]) => node)

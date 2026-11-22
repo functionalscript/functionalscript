@@ -5,14 +5,15 @@
  */
 
 import type { Kind } from '../../../wasm/runtime/l0/types.ts'
+import type { Host as NativeHost } from '../../native/host/types.ts'
 
 /**
  * The functions of the `fjs:l0` imports that [the interfaces of
  * L0](../module.f.js) bind, over the L0 view, each on a handle as the
  * WebAssembly JavaScript API passes an `i64`: a `bigint`. A `bool` goes back
  * as `0` or `1`, and a length and a unit as the numbers they are, as an
- * index comes. `from_unit`, `concat`, `substring`, `item`, `join` and
- * `text` answer the value that they make or read, which a host gives a
+ * index comes. `from_unit`, `concat`, `substring`, `item`, `join`, `key`
+ * and `text` answer the value that they make or read, which a host gives a
  * handle. `find` answers an `i32`.
  */
 export type View = {
@@ -30,6 +31,7 @@ export type View = {
     readonly item: (c: bigint, i: number) => unknown
     readonly find: (o: bigint, k: bigint) => number
     readonly join: (parts: bigint, separator: bigint) => string
+    readonly key: (o: bigint, i: number) => string
     readonly text: (f: bigint) => string | undefined
 }
 
@@ -37,7 +39,7 @@ export type View = {
  * The `fjs:l0` imports of a host that counts: Any's constants, each an
  * immutable global of the handle of a cell that the host keeps, the view's
  * readers, `dup` and `drop`, which count a cell, and `from_unit`, `concat`,
- * `substring`, `item`, `join` and `text`, which make a cell that the caller
+ * `substring`, `item`, `join`, `key` and `text`, which make a cell that the caller
  * owns and answer its handle. `find` answers an `i32`. The memory that the
  * host makes holds a module's data segments at `data_base`, from which
  * `make_string` makes a cell of a string of the UTF-16 units at an address.
@@ -47,12 +49,17 @@ export type View = {
  * `seal` ends it and makes a cell of the array or the object. `call`
  * borrows a function and an arguments array and answers a new cell of the
  * result; a throw from the function keeps the value and traps.
- * `make_function` waits for slice 11. `throw` takes over a cell, keeps its
+ * `make_function` takes over a frame array and a text and makes a cell of
+ * a JavaScript function that calls the module's code through the table
+ * that the host makes, which the module fills from `table_base`, and
+ * `frame` answers a new cell of an item of the frame of such a function. `throw` takes over a cell, keeps its
  * value and returns, so that the `unreachable` after its call traps.
  */
 export type Imports = {
     readonly memory: WebAssembly.Memory
     readonly data_base: WebAssembly.Global
+    readonly table: WebAssembly.Table
+    readonly table_base: WebAssembly.Global
     readonly make_string: (ptr: number, len: number) => bigint
     readonly undefined: WebAssembly.Global
     readonly null: WebAssembly.Global
@@ -79,14 +86,16 @@ export type Imports = {
     readonly push_property: (b: number, k: bigint, v: bigint) => void
     readonly seal: (b: number) => bigint
     readonly join: (parts: bigint, separator: bigint) => bigint
+    readonly key: (o: bigint, i: number) => bigint
     readonly make_function: (code: number, frame: bigint, length: number, text: bigint) => bigint
     readonly call: (f: bigint, args: bigint) => bigint
     readonly text: (f: bigint) => bigint
     readonly throw: (v: bigint) => void
+    readonly frame: (self: bigint, i: number) => bigint
 }
 
 /**
- * A host that counts every value: its imports, the value that a handle
+ * A host that counts every counted value: its imports, the value that a handle
  * names, `keep`, which keeps every cell alive at its count, and the cells
  * that are not as they were kept, each a handle and its count, in the order
  * they were made: a cell alive that is not kept, and a kept one at another
@@ -98,14 +107,34 @@ export type Imports = {
  * value, `thrown` a handle of a new cell of it, which the caller owns, and
  * `recover` frees what the trap abandoned, and answers the cells that it
  * freed, each a handle and the counts it took away.
+ *
+ * A copy value, `undefined`, `null` or a boolean, is not counted: where an
+ * import, `own` or `thrown` would make a new cell of one, it answers the
+ * handle of Any's constant that holds it, `-1` to `-4`, which no one owns,
+ * and a `dup` or a `drop` of a cell that holds one leaves its count.
  */
 export type Counting = {
     readonly imports: Imports
+    /** The handles of the first values, in their order. */
+    readonly first: readonly bigint[]
+    /**
+     * The `fjs:l1-native` imports of a host that has its own, as NaNVM
+     * does; a host without them gets the [JavaScript
+     * rows](../../native/host/module.mjs) over its cells.
+     */
+    readonly native?: NativeHost
     readonly has_thrown: () => 0 | 1
     readonly thrown: () => bigint
+    /**
+     * What a trap with nothing thrown said, of a host whose imports trap
+     * in WebAssembly, as NaNVM's do: the text of `e`, the engine's error,
+     * where the host kept it, and `e` where it did not. A host whose
+     * imports throw their reasons to JavaScript has none.
+     */
+    readonly trap?: (e: unknown) => unknown
     readonly recover: () => readonly (readonly [handle: bigint, count: number])[]
     readonly read: (h: bigint) => unknown
-    /** A cell of `value`, counted once, which the caller owns. */
+    /** A cell of `value`, counted once, which the caller owns; for a copy value, its constant's handle. */
     readonly own: (value: unknown) => bigint
     /**
      * Keep a FunctionalScript throw the way `Functions.call` does when a
