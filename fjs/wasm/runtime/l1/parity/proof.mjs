@@ -23,7 +23,7 @@ import runtimeEdag from '../../../../js/runtime/gen.edag.js'
 import { utf8 } from '../../../../text/module.f.js'
 import {
     add, bitwiseAnd, divide, get, greaterThan, greaterThanOrEqual, lessThan, lessThanOrEqual, multiply, negate,
-    remainder, shiftRight, strictEquals, subtract, toBoolean, toNumber, toString, typeOf,
+    number, remainder, shiftRight, strictEquals, subtract, toBoolean, toNumber, toString, typeOf,
 } from '../module.f.js'
 import { keySources, sources, value, withFunction } from './testlib.mjs'
 
@@ -68,13 +68,13 @@ const unary = [
 
 /**
  * Unary operations that read a function's text, or that the compiler does
- * not take as an operator: `ToNumber` is written as `Number(...)`, since the
- * compiler has no unary `+` yet.
+ * not take as an operator: `Number(...)`, which is `ToNumber` but for a
+ * bigint, which it converts too.
  *
  * @type {readonly (readonly [string, (a: unknown) => unknown])[]}
  */
 const textual = [
-    ['Number(#)', toNumber], ['`${#}`', toString],
+    ['Number(#)', number], ['`${#}`', toString],
 ]
 
 /** One proof per pair, so a failure names the expression. @type {(pairs: readonly (readonly [string, () => unknown])[]) => { readonly [k in string]: () => void }} */
