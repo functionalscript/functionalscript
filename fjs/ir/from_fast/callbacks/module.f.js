@@ -19,12 +19,13 @@
  * @module
  *
  * @import { Term, Type } from '../../types.ts'
+ * @import { RequiredMap } from '../../../types/object/types.ts'
  */
 
 import { any, array, builder } from '../../l0/module.f.js'
 import { add, call, cast, constant, exact, f64, f64c, false_, float, get, if_, let_, lit, loop, lt, match, next, true_, u } from '../../module.f.js'
 
-/** The locals of the loops labelled `label`. @type {(label: string) => { readonly [k in 'n' | 'i' | 'k' | 'x' | 'b' | 'c' | 'keep' | 'pushed' | 'mask' | 'count' | 'kept' | 'j' | 'jk' | 'kb' | 'kp']: string }} */
+/** The locals of the loops labelled `label`. @type {(label: string) => RequiredMap<'n' | 'i' | 'k' | 'x' | 'b' | 'c' | 'keep' | 'pushed' | 'mask' | 'count' | 'kept' | 'j' | 'jk' | 'kb' | 'kp', string>} */
 export const names = label => ({
     n: `${label}.n`, i: `${label}.i`, k: `${label}.k`, x: `${label}.item`, b: `${label}.b`, c: `${label}.count`,
     keep: `${label}.keep`, pushed: `${label}.pushed`, mask: `${label}.mask`, count: `${label}.c`,

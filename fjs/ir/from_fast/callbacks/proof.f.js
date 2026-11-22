@@ -23,7 +23,7 @@ const owned = (result, body) => {
     return print({ imports: [], functions: r.functions, exports: [] })
 }
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     names: () => {
         assertEq(names('E').i, 'E.i')
         assertEq(locals('E', false).map(([k]) => k).join(' '), 'E.i E.item')
@@ -127,4 +127,4 @@ export const proof = {
         '            $14',
         '',
     ].join('\n')),
-}
+})
