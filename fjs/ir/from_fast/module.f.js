@@ -1667,7 +1667,7 @@ const viaL1 = (lowerValue, scope, name, fits, vs, native, wrap = x => x) => {
     const types = ts[1]
     /** L1's call of the operands, each float or boolean boxed. @type {(ys: readonly Term[]) => Term} */
     const slow = ys => wrap(call('self', f, ys.map((y, k) => assertNotNullish(asAny(types[Number(k)], y)))))
-    if (!types.every(t => isAny(t) || isFloat(t) || equal(t, bool))) { return refuse(scope)(`${name} of ${types.map(show).join(' and ')} is not in this slice`) }
+    if (xs[1].some((x, k) => asAny(types[Number(k)], x) === null)) { return refuse(scope)(`${name} of ${types.map(show).join(' and ')} is not in this slice`) }
     return (numberOps.includes(name) ? numberPath(pure, scope, xs[1], types, native, slow) : null) ?? ok(slow(xs[1]))
 }
 
@@ -1778,7 +1778,20 @@ const value = (scope, v) => {
                 return y === null ? null : call('self', f, [y])
             })
         }
-        case 'Number': { return unary(value, scope, 'Number', v[1], (t, x) => t[0] === 'int' ? float(x) : isFloat(t) ? x : null) }
+        case 'Number': {
+            // `float` of an integer is exact within ±2^53 alone, so a wider one is L1's, which rounds it.
+            /** @type {(t: Type) => boolean} */
+            const exactly = t => t[0] === 'int' ? -(2n ** 53n) <= t[1] && t[2] <= 2n ** 53n : isFloat(t)
+            /** @type {(t: Type, x: Term) => Term | null} */
+            const number = (t, x) => !exactly(t) ? null : t[0] === 'int' ? float(x) : x
+            return viaL1(value, scope, 'number', ts => exactly(ts[0]), [v[1]], (xs, ts) => pickedOf(scope, 'Number', ts[0], xs[0], number)) ?? unary(value, scope, 'Number', v[1], number)
+        }
+        // `String(x)`, which a template literal writes for each value that it holds.
+        // A function that a program makes has no text yet, so its text is refused rather than thrown at run time.
+        case 'String': {
+            return viaL1(value, scope, 'toString', ts => equal(ts[0], string) || equal(ts[0], func), [v[1]],
+                (xs, ts) => equal(ts[0], string) ? ok(xs[0]) : no('the text of a function that a program makes is not in this slice')) ?? no('String is not in this slice')
+        }
         case '*': { return viaL1(value, scope, 'multiply', numeric, [v[1], v[2]], inOrder(mul)) ?? binary(value, scope, mul, v[1], v[2]) }
         case '/': { return viaL1(value, scope, 'divide', numeric, [v[1], v[2]], inOrder(div)) ?? binary(value, scope, div, v[1], v[2]) }
         case '%': { return viaL1(value, scope, 'remainder', floats, [v[1], v[2]], nativeRow('numberRemainder')) ?? rowOf(value, '%', 'numberRemainder', scope, [v[1], v[2]]) }

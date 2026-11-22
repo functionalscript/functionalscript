@@ -65,6 +65,8 @@ const standIn = {
         ...['add', 'subtract', 'multiply', 'divide', 'remainder', 'shiftRight', 'bitwiseAnd', 'get'].map(k => /** @type {const} */ ([k, fn(anyTwo, any, get('a'))])),
         ['negate', fn(anyOne, any, get('v'))],
         ['typeOf', fn(anyOne, any, constant('self', '#c0'))],
+        ['number', fn(anyOne, f64, lit(f64c, 0))],
+        ['toString', fn(anyOne, any, get('v'))],
         ...['lessThan', 'lessThanOrEqual', 'greaterThan', 'greaterThanOrEqual', 'strictEquals'].map(k => /** @type {const} */ ([k, fn(anyTwo, bool, false_)])),
         ['toBoolean', fn(anyOne, bool, call('self', 'strictEquals', [get('v'), get('v')]))],
         ['call', fn([['f', any], ['args', any]], any, get('f'))],
@@ -132,6 +134,37 @@ export const proof = {
             'export f',
             '',
         ].join('\n'))
+        // `Number` and `String` of `any` call L1's `number` and `toString`; of a float and of a string, they are it.
+        assertEq(program('export const f = () => Number(2n)'), 'fn f() -> any =\n    Any.from_f64(float(2))\n\nexport f\n')
+        // `String` and a template literal of a bigint literal are L1's `toString` of its value.
+        assertEq(program('export const f = () => String(1n)'), 'fn f() -> any =\n    l1.toString(Native.stringToBigInt("1"))\n\nfn l1.toString(v: any) -> any =\n    v\n\nexport f\n')
+        // A bigint wider than ±2^53 is L1's to convert, which rounds it.
+        assertEq(program('export const f = () => Number(9007199254740993n)'), 'fn f() -> any =\n    Any.from_f64(l1.number(Native.stringToBigInt("9007199254740993")))\n\nfn l1.number(v: any) -> f64 =\n    0.0\n\nexport f\n')
+        assertEq(program('export const f = (a, b) => [Number(a), Number(1), `x${b}`, String("y")]'), [
+            'fn f(p0: any, p1: any) -> any =',
+            '    let #0 = l1.number(p0)',
+            '    let #1 = l1.add(l1.add("x", l1.toString(p1)), "")',
+            '    match Containers.seal(Containers.push(Containers.push(Containers.push(Containers.push(Containers.begin_array(4), Any.from_f64(#0)), Any.from_f64(1.0)), #1), "y"))',
+            '      array as array =>',
+            '        array',
+            '      else =>',
+            "        trap('not array')",
+            '',
+            'fn l1.add(a: any, b: any) -> any =',
+            '    a',
+            '',
+            'fn l1.number(v: any) -> f64 =',
+            '    0.0',
+            '',
+            'fn l1.toString(v: any) -> any =',
+            '    v',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        // The text of a function that the program makes is refused, since it has none yet, in a template literal and in `String`.
+        assertEq(assertError(over({}, 'export const f = () => `${() => 1}`', programRuntime)), 'f: the text of a function that a program makes is not in this slice')
+        assertEq(assertError(over({}, 'export const f = () => String(() => 1)', programRuntime)), 'f: the text of a function that a program makes is not in this slice')
         // `%`, `>>` and `&` of `any` call L1, and of two floats L1's native rows.
         assertEq(program('export const f = (a, b) => [a % b, (a >> 1) & b, 7 % 2]'), [
             'fn f(p0: any, p1: any) -> any =',
@@ -538,7 +571,7 @@ export const proof = {
             'export f',
             '',
         ].join('\n'))
-        assertEq(assertError(over({}, 'export const f = a => 1n(a)', programRuntime)), 'f: a call of int(1, 1) in a program is not in this slice: only one of any, a float or a boolean is')
+        assertEq(assertError(over({}, 'export const f = a => (1n + 2n)(a)', programRuntime)), 'f: a call of int(3, 3) in a program is not in this slice: only one of any, a float or a boolean is')
         assertEq(program('import { asFunction } from \'../l0/module.f.js\'\nexport const f = g => asFunction(g)(1)'), [
             'fn f(p0: any) -> any =',
             '    match p0',
@@ -564,14 +597,44 @@ export const proof = {
             'export f',
             '',
         ].join('\n'))
+        // A bigint literal in a program is a value of `any` that L1's native row makes of its decimal text, a wide one and a negative one too.
         assertEq(program('export const f = () => 1n'), [
             'fn f() -> any =',
-            '    1',
+            '    Native.stringToBigInt("1")',
             '',
             'export f',
             '',
         ].join('\n'))
-        assertEq(refusedProgram('export const f = () => 1n'), 'f: the body is int(1, 1), not any')
+        assertEq(program('export const f = () => [-18446744073709551616n, -1n]'), [
+            'fn f() -> any =',
+            '    let #0 = Native.stringToBigInt("-18446744073709551616")',
+            '    match Containers.seal(Containers.push(Containers.push(Containers.begin_array(2), #0), Native.stringToBigInt("-1")))',
+            '      array as array =>',
+            '        array',
+            '      else =>',
+            "        trap('not array')",
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(refusedProgram('export const f = () => (1n + 2n)'), 'f: the body is int(3, 3), not any')
+        // Two equal bigint arms merge as one integer type, and each arm is boxed where it answers.
+        assertEq(program('export const f = a => a ? 1n : 1n').split('Native.stringToBigInt("1")').length, 3)
+        // A constant that `init` computes is read as itself, so a throw in it is kept.
+        assertEq(program('export const g = () => { throw "x" }\nconst k = g()\nexport const f = () => [k]').includes('self.#c0'), true)
+        // A constant of a bigint literal is read as the literal, which is boxed, and the negation of a sum stays a subtraction.
+        assertEq(program('const k = 1n\nexport const f = () => [k]'), [
+            'fn f() -> any =',
+            '    match Containers.seal(Containers.push(Containers.begin_array(1), Native.stringToBigInt("1")))',
+            '      array as array =>',
+            '        array',
+            '      else =>',
+            "        trap('not array')",
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(program('export const f = () => -(1n + 2n)'), 'fn f() -> any =\n    sub(0, add(1, 2))\n\nexport f\n')
         assertEq(program('export const f = a => ({ a: 1 }).b'), [
             'fn f(p0: any) -> any =',
             '    { a: 1.0 }.b',
@@ -601,7 +664,7 @@ export const proof = {
         assertEq(refusedProgram('export const g = a => a\nexport const f = a => g(({ a: 1 }).b)'), 'f: { a: f64c } has no field b')
         assertEq(program('export const g = a => a\nexport const f = a => g(1n)'), [
             'fn f(p0: any) -> any =',
-            '    g(1)',
+            '    g(Native.stringToBigInt("1"))',
             '',
             'fn g(p0: any) -> any =',
             '    p0',
@@ -609,7 +672,7 @@ export const proof = {
             'export f, g',
             '',
         ].join('\n'))
-        assertEq(refusedProgram('export const g = a => a\nexport const f = a => g(1n)'), 'f: g\'s p0 is any, not int(1, 1)')
+        assertEq(refusedProgram('export const g = a => a\nexport const f = a => g(1n + 2n)'), 'f: g\'s p0 is any, not int(3, 3)')
         assertEq(program('export const g = a => a\nexport const f = a => g(a, 1)'), [
             'fn f(p0: any) -> any =',
             '    g(p0, 1.0)',
@@ -621,17 +684,17 @@ export const proof = {
             '',
         ].join('\n'))
         assertEq(refusedProgram('export const g = a => a\nexport const f = a => g(a, 1)'), 'f: g takes one argument, not 2')
-        assertEq(assertError(over({}, 'export const f = a => typeof 1n', programRuntime)), 'f: typeof of int(1, 1) is not in this slice')
-        assertEq(assertError(over({}, 'export const f = a => 1n + a', programRuntime)), 'f: add of int(1, 1) and any is not in this slice')
+        assertEq(assertError(over({}, 'export const f = a => typeof (1n + 2n)', programRuntime)), 'f: typeof of int(3, 3) is not in this slice')
+        assertEq(assertError(over({}, 'export const f = a => (1n + 2n) + a', programRuntime)), 'f: add of int(3, 3) and any is not in this slice')
         assertEq(assertError(over({}, 'export const f = a => ({ a: 1 }).b + a', programRuntime)), 'f: { a: f64c } has no field b')
-        assertEq(assertError(over({}, 'export const f = a => (1n + a) - a', programRuntime)), 'f: add of int(1, 1) and any is not in this slice')
-        assertEq(assertError(over({}, 'export const f = o => (1n)?.length', programRuntime)), 'f: ?. of int(1, 1) is not in this slice')
+        assertEq(assertError(over({}, 'export const f = a => ((1n + 2n) + a) - a', programRuntime)), 'f: add of int(3, 3) and any is not in this slice')
+        assertEq(assertError(over({}, 'export const f = o => (1n + 2n)?.length', programRuntime)), 'f: ?. of int(3, 3) is not in this slice')
         assertEq(assertError(over({}, 'export const f = o => o?.f?.(1)', programRuntime)), 'f: a guarded or asserted step after ?. is not in this slice')
-        assertEq(assertError(over({}, 'export const f = o => o?.f(1n)', programRuntime)), 'f: an argument of a call is a value of any, and argument 0 is int(1, 1)')
+        assertEq(assertError(over({}, 'export const f = o => o?.f(1n + 2n)', programRuntime)), 'f: an argument of a call is a value of any, and argument 0 is int(3, 3)')
         assertEq(assertError(over({}, 'export const f = o => ({ a: 1 }).b?.c', programRuntime)), 'f: { a: f64c } has no field b')
-        assertEq(assertError(over({}, 'export const f = o => (1n + o)?.c', programRuntime)), 'f: add of int(1, 1) and any is not in this slice')
-        assertEq(assertError(over({}, 'export const f = o => (1n + o)(1)', programRuntime)), 'f: add of int(1, 1) and any is not in this slice')
-        assertEq(assertError(over({}, 'export const f = o => o?.f(...1n)', programRuntime)), 'f: a spread of int(1, 1) is not in this slice')
+        assertEq(assertError(over({}, 'export const f = o => ((1n + 2n) + o)?.c', programRuntime)), 'f: add of int(3, 3) and any is not in this slice')
+        assertEq(assertError(over({}, 'export const f = o => ((1n + 2n) + o)(1)', programRuntime)), 'f: add of int(3, 3) and any is not in this slice')
+        assertEq(assertError(over({}, 'export const f = o => o?.f(...(1n + 2n))', programRuntime)), 'f: a spread of int(3, 3) is not in this slice')
         assertEq(assertError(over({}, 'export const f = o => o.f?.(1)', programRuntime)), 'f: a member read with a further step, such as a call of the member, is not in this slice')
         assertEq(assertError(over({}, 'export const k = 1', programRuntime)), 'k: an export that is not a function is not in this slice')
         assertEq(program('export const f = o => o?.a.b(1)'), [
@@ -659,7 +722,7 @@ export const proof = {
             'export f',
             '',
         ].join('\n'))
-        assertEq(assertError(over({}, 'export const f = o => (1n).f(1)', programRuntime)), 'f: .f of int(1, 1) is not in this slice')
+        assertEq(assertError(over({}, 'export const f = o => (1n + 2n).f(1)', programRuntime)), 'f: .f of int(3, 3) is not in this slice')
         assertEq(program('export const f = o => (1)?.length'), [
             'fn f(p0: any) -> any =',
             '    l1.get(Any.from_f64(1.0), "length")',
@@ -730,9 +793,9 @@ export const proof = {
             'export f',
             '',
         ].join('\n'))
-        assertEq(assertError(over({}, 'export const f = o => !1n', programRuntime)), 'f: toBoolean of int(1, 1) is not in this slice')
-        assertEq(assertError(over({}, 'export const f = o => (1n)[0]', programRuntime)), 'f: a read of int(1, 1) at a number is not in this slice: only an array\'s is')
-        assertEq(assertError(over({}, 'export const f = o => (1n).k', programRuntime)), 'f: .k of int(1, 1) is not in this slice')
+        assertEq(assertError(over({}, 'export const f = o => !(1n + 2n)', programRuntime)), 'f: toBoolean of int(3, 3) is not in this slice')
+        assertEq(assertError(over({}, 'export const f = o => (1n + 2n)[0]', programRuntime)), 'f: a read of int(3, 3) at a number is not in this slice: only an array\'s is')
+        assertEq(assertError(over({}, 'export const f = o => (1n + 2n).k', programRuntime)), 'f: .k of int(3, 3) is not in this slice')
         assertEq(program('export const f = o => (true)?.k'), [
             'fn f(p0: any) -> any =',
             '    l1.get(Any.from_bool(true), "k")',
@@ -1275,14 +1338,14 @@ export const proof = {
         // is no value of any, a computed key, a spread into a function that is
         // inlined, too few arguments for one with a rest parameter, and an export
         // with one, whose signature has no rest.
-        assertEq(assertError(over({}, 'export const f = a => [...1n]', programRuntime)), 'f: a spread of int(1, 1) is not in this slice')
-        assertEq(assertError(over({}, 'export const f = a => [1n, ...a]', programRuntime)), 'f: an item of an array is a value of any, and part 0 is int(1, 1)')
-        assertEq(assertError(over({}, 'export const f = a => ({ ...a, b: 1n })', programRuntime)), 'f: a value of an object is a value of any, and part 1 is int(1, 1)')
+        assertEq(assertError(over({}, 'export const f = a => [...(1n + 2n)]', programRuntime)), 'f: a spread of int(3, 3) is not in this slice')
+        assertEq(assertError(over({}, 'export const f = a => [(1n + 2n), ...a]', programRuntime)), 'f: an item of an array is a value of any, and part 0 is int(3, 3)')
+        assertEq(assertError(over({}, 'export const f = a => ({ ...a, b: (1n + 2n) })', programRuntime)), 'f: a value of an object is a value of any, and part 1 is int(3, 3)')
         assertEq(assertError(over({}, 'export const f = o => ({ [o]: 1, ...o })', programRuntime)), 'f: an entry of an object that is not a name and its value is not in this slice')
-        assertEq(assertError(over({}, 'export const f = a => 1n(...a)', programRuntime)), 'f: a call of int(1, 1) in a program is not in this slice: only one of any, a float or a boolean is')
+        assertEq(assertError(over({}, 'export const f = a => (1n + 2n)(...a)', programRuntime)), 'f: a call of int(3, 3) in a program is not in this slice: only one of any, a float or a boolean is')
         assertEq(assertError(over({}, 'const g = x => x\nexport const f = a => g(...a)', programRuntime)), 'f: a spread argument is not in this slice')
         assertEq(assertError(over({}, 'const g = (x, ...r) => r\nexport const f = () => g()', programRuntime)), 'f: a function that is inlined takes at least one argument, and its call gives 0')
-        assertEq(assertError(over({}, 'const g = (...r) => r\nexport const f = () => g(1n)', programRuntime)), 'f: an item of a rest parameter is a value of any, and item 0 is int(1, 1)')
+        assertEq(assertError(over({}, 'const g = (...r) => r\nexport const f = () => g(1n + 2n)', programRuntime)), 'f: an item of a rest parameter is a value of any, and item 0 is int(3, 3)')
         assertEq(assertError(over({}, 'export const f = (...r) => r', programRuntime)), 'f: a rest parameter is not in this slice')
         // A pure term that does not type-check, as a spread, an item beside one, a rest item and a callee, and a callee that
         // does not lower; and a program whose L1 has no toIterable.
@@ -1290,7 +1353,7 @@ export const proof = {
         assertEq(assertError(over({}, 'export const f = a => [({ a: 1 }).b, ...a]', programRuntime)), 'f: { a: f64c } has no field b')
         assertEq(assertError(over({}, 'const g = (...r) => r\nexport const f = () => g(({ a: 1 }).b)', programRuntime)), 'f: { a: f64c } has no field b')
         assertEq(assertError(over({}, 'export const f = a => (({ a: 1 }).b)(...a)', programRuntime)), 'f: { a: f64c } has no field b')
-        assertEq(assertError(over({}, 'export const f = a => (1n).f(...a)', programRuntime)), 'f: .f of int(1, 1) is not in this slice')
+        assertEq(assertError(over({}, 'export const f = a => (1n + 2n).f(...a)', programRuntime)), 'f: .f of int(3, 3) is not in this slice')
         const noIterable = { ...programRuntime, l1: { ...standIn, functions: standIn.functions.filter(([k]) => k !== 'toIterable') } }
         assertEq(assertError(over({}, 'export const f = a => [...a]', noIterable)), "f: a spread uses L1's toIterable, which the program does not link")
     },

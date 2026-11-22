@@ -36,7 +36,7 @@ import {
 } from '../l0/module.f.js'
 import {
     bigintAdd, bigintAnd, bigintDivide, bigintEquals, bigintLess, bigintMultiply, bigintNegate, bigintRemainder,
-    bigintShiftRight, bigintSubtract, bigintToString, numberAnd, numberRemainder, numberShiftRight, numberToString,
+    bigintShiftRight, bigintSubtract, bigintToNumber, bigintToString, numberAnd, numberRemainder, numberShiftRight, numberToString,
     stringToNumber,
 } from './native/module.f.js'
 import { error } from './error/module.f.js'
@@ -261,6 +261,19 @@ export const toNumeric = v => {
     if (kind(v) === FUNCTION) { return NaN }
     const p = toPrimitive(v, false)
     return kind(p) === BIGINT ? p : toNumber(p)
+}
+
+/**
+ * [`Number(value)`](https://tc39.es/ecma262/#sec-number-constructor-number-value),
+ * the conversion `Number(...)`: {@link toNumeric}, and a bigint's nearest
+ * number, where {@link toNumber}, unary `+`, throws on a bigint.
+ *
+ * @type {(v: unknown) => number}
+ */
+export const number = v => {
+    if (kind(v) === NUMBER) { return asNumber(v) }
+    const x = toNumeric(v)
+    return kind(x) === BIGINT ? bigintToNumber(x) : asNumber(x)
 }
 
 /**
