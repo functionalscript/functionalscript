@@ -2,7 +2,7 @@ import { assert, assertEq, assertStructurallySame } from '../../../asserts/modul
 import {
     call, get, objectSpread, toIterable,
     add, bitwiseAnd, divide, greaterThan, greaterThanOrEqual, lessThan, lessThanOrEqual, multiply, negate, remainder,
-    shiftRight, subtract,
+    number, shiftRight, subtract,
     functionText, stringEquals, stringLess, strictEquals, toBoolean, toNumber, toNumeric,
     toPrimitive, toPropertyKey, toString, typeOf,
 } from './module.f.js'
@@ -114,6 +114,10 @@ export const proof = {
             assert(Object.is(toNumber(v), Number(v)), String(v))
         }
         for (const v of values.filter(v => typeof v === 'bigint')) { assertEq(toString(v), String(v)) }
+        // `number` is `Number(...)`, which converts a bigint, and a primitive that is one, too.
+        for (const v of [...convertible, ...values.filter(v => typeof v === 'bigint'), { valueOf: () => 2n }]) {
+            assert(Object.is(number(v), Number(v)), String(v))
+        }
     },
     // `toPrimitive` keeps a primitive and orders an object's methods by
     // the preferred type, as a template and unary `+` do.

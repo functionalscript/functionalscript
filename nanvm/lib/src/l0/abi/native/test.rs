@@ -95,6 +95,11 @@ fn numbers() {
     let s = string("12a");
     assert!(string_to_number(s).is_nan());
     drop(s);
+    let s = string("-18412322765356148968355179291658");
+    let b = string_to_bigint(s);
+    assert_eq!(value(b), -18412322765356148968355179291658);
+    drop(b);
+    drop(s);
     assert_eq!(live(), 0);
 }
 
@@ -122,6 +127,7 @@ fn bigints() {
     for h in [r, zero, far] {
         drop(h);
     }
+    assert_eq!(bigint_to_number(a), -10.0);
     let n = bigint_negate(a);
     assert_eq!(value(n), 10);
     let wide = big(1 << 70);
@@ -213,4 +219,25 @@ fn less_of_a_non_numeric() {
 fn string_to_number_not_a_string() {
     fresh();
     string_to_number(from_f64(1.0));
+}
+
+#[test]
+#[should_panic(expected = "l1.stringToBigInt: no bigint")]
+fn string_to_bigint_of_no_bigint() {
+    fresh();
+    string_to_bigint(string("1.5"));
+}
+
+#[test]
+#[should_panic(expected = "l1.stringToBigInt: no bigint")]
+fn string_to_bigint_of_hex() {
+    fresh();
+    string_to_bigint(string("0x10"));
+}
+
+#[test]
+#[should_panic(expected = "l1.stringToBigInt: no bigint")]
+fn string_to_bigint_of_a_sign_alone() {
+    fresh();
+    string_to_bigint(string("-"));
 }

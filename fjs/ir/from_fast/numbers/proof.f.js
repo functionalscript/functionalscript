@@ -11,7 +11,7 @@ import { assertEq, assertNotNullish, assertOk, assertStructurallySame } from '..
 import { error, ok } from '../../../types/result/module.f.js'
 import { any, l0, string } from '../../l0/module.f.js'
 import { native as rows } from '../../native/module.f.js'
-import { add, bool, call, constant, f64, f64c, false_, get, let_, lit, loop, lt, match, n, only, sealed, sub, trap, true_, u } from '../../module.f.js'
+import { add, bool, call, constant, f64, f64c, false_, get, int, let_, lit, loop, lt, match, n, only, sealed, sub, trap, true_, u } from '../../module.f.js'
 import {
     asAny, boolean, depthAfter, floats, inOrder, isAny, isFloat, nativeRow, numberOps, numberPath, numberRow, numeric, primitive,
 } from './module.f.js'
@@ -52,11 +52,24 @@ export const proof = {
         assertStructurallySame(asAny(f64c, get('x')), call('Any', 'from_f64', [get('x')]))
         assertStructurallySame(asAny(bool, get('b')), call('Any', 'from_bool', [get('b')]))
         assertEq(asAny(u(8), get('i')), null)
+        // An integer literal is the bigint that L1's native row makes of its text; a constant is not, since its `init` may throw.
+        assertStructurallySame(asAny(int(3n, 3n), n(3n)), call('Native', 'stringToBigInt', [lit(string, '3')]))
+        assertEq(asAny(int(3n, 3n), constant('self', 'k')), null)
+        assertEq(asAny(int(3n, 3n), get('k')), null)
+        // A `let` and a `match` are boxed where they answer, and not where an arm is no literal.
+        assertStructurallySame(asAny(int(3n, 3n), let_('x', get('a'), n(3n))), let_('x', get('a'), call('Native', 'stringToBigInt', [lit(string, '3')])))
+        assertStructurallySame(asAny(int(3n, 3n), match(get('b'), [[['true'], null, n(3n)], [['false'], null, n(3n)]])),
+            match(get('b'), [[['true'], null, call('Native', 'stringToBigInt', [lit(string, '3')])], [['false'], null, call('Native', 'stringToBigInt', [lit(string, '3')])]]))
+        assertEq(asAny(int(3n, 3n), match(get('b'), [[['true'], null, n(3n)], [['false'], null, get('k')]])), null)
+        assertEq(asAny(int(3n, 3n), let_('x', get('a'), get('k'))), null)
     },
     // Each kind of primitive, and those that need the runtime, refused without it.
     primitive: () => {
         assertStructurallySame(assertOk(primitive([], 1.5)), lit(f64c, 1.5))
         assertStructurallySame(assertOk(primitive([], 3n)), n(3n))
+        // A bigint that no word holds is L1's native row of its text, where the module imports the rows.
+        assertStructurallySame(assertOk(primitive([], 2n ** 64n)), n(2n ** 64n))
+        assertStructurallySame(assertOk(primitive([...l0, ['Native', rows]], 2n ** 64n)), call('Native', 'stringToBigInt', [lit(string, '18446744073709551616')]))
         assertStructurallySame(assertOk(primitive([], true)), true_)
         assertStructurallySame(assertOk(primitive([], false)), false_)
         assertStructurallySame(assertOk(primitive(l0, 'x')), lit(string, 'x'))

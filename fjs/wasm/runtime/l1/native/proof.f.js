@@ -2,7 +2,7 @@ import { assert, assertEq } from '../../../../asserts/module.f.js'
 import {
     bigintAdd, bigintDivide, bigintEquals, bigintLess, bigintMultiply, bigintNegate, bigintSubtract,
     bigintToString, numberRemainder, numberToString, stringToNumber,
-    numberShiftRight, numberAnd, bigintRemainder, bigintShiftRight, bigintAnd,
+    numberShiftRight, numberAnd, bigintRemainder, bigintShiftRight, bigintAnd, bigintToNumber, stringToBigInt,
 } from './module.f.js'
 
 export const proof = {
@@ -48,6 +48,12 @@ export const proof = {
         assertEq(stringToNumber('-Infinity'), -Infinity)
         assert(Number.isNaN(stringToNumber('1n')))
     },
+    // `stringToBigInt` is `BigInt` of a decimal integer's text.
+    stringToBigInt: () => {
+        assertEq(stringToBigInt('-18412322765356148968355179291658'), -18412322765356148968355179291658n)
+        assertEq(stringToBigInt('0'), 0n)
+        assertEq(stringToBigInt('-007'), -7n)
+    },
     // `bigintToString` is `String` of a bigint.
     bigintToString: () => {
         assertEq(bigintToString(0n), '0')
@@ -68,6 +74,8 @@ export const proof = {
         assertEq(bigintShiftRight(1n, -70n), 0x40_0000_0000_0000_0000n)
         assertEq(bigintAnd(-1n, 0x1_0000_0000_0000_0005n), 0x1_0000_0000_0000_0005n)
         assertEq(bigintAnd(-4n, -6n), -8n)
+        assertEq(bigintToNumber(-(2n ** 64n) - 1n), -18446744073709552000)
+        assertEq(bigintToNumber(2n ** 1024n), Infinity)
     },
     // `bigintLess` answers `1`, `0` or `-1`, a string read as a bigint and
     // undefined where it spells none, or against `NaN`.
@@ -93,6 +101,12 @@ export const proof = {
         bigintRemainder: () => { bigintRemainder(1, 1n) },
         bigintShiftRight: () => { bigintShiftRight(1n, 1) },
         bigintAnd: () => { bigintAnd(1n, 1) },
+        bigintToNumber: () => { bigintToNumber(1) },
+        stringToBigIntNone: () => { stringToBigInt('1.5') },
+        stringToBigIntHex: () => { stringToBigInt('0x10') },
+        stringToBigIntEmpty: () => { stringToBigInt('') },
+        stringToBigIntSign: () => { stringToBigInt('-') },
+        stringToBigInt: () => { stringToBigInt(1) },
         numberShiftRight: () => { numberShiftRight('1', 1) },
         numberAnd: () => { numberAnd(1, 1n) },
         bigintLessNoBigint: () => { bigintLess(1, '1') },
