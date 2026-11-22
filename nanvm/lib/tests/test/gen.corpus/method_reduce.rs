@@ -8,37 +8,37 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("sum", scope(|| {
         Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any(), string_any("reduce")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
             let _b264: Any<A> = _args.rest(0).to_any();
-            (Any::dot(_b264.clone(), f64_any(0x0000000000000000)).end())? + (Any::dot(_b264.clone(), f64_any(0x3ff0000000000000)).end())?
+            (Any::dot(_b264.clone(), f64_any(0x0)).end())? + (Any::dot(_b264.clone(), f64_any(0x3ff0000000000000)).end())?
         }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0]+$0[1]")).to_any()].to_array().to_any()))
     }), f64_any(0x4018000000000000));
     check::<A>("order", scope(|| {
         Any::dot([string_any("a"), string_any("b"), string_any("c")].to_array().to_any(), string_any("reduce")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
             let _b264: Any<A> = _args.rest(0).to_any();
-            (Any::dot(_b264.clone(), f64_any(0x0000000000000000)).end())? + (Any::dot(_b264.clone(), f64_any(0x3ff0000000000000)).end())?
+            (Any::dot(_b264.clone(), f64_any(0x0)).end())? + (Any::dot(_b264.clone(), f64_any(0x3ff0000000000000)).end())?
         }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0]+$0[1]")).to_any()].to_array().to_any()))
     }), string_any("abc"));
     check::<A>("initial", scope(|| {
         Any::dot([string_any("a"), string_any("b")].to_array().to_any(), string_any("reduce")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
             let _b264: Any<A> = _args.rest(0).to_any();
-            (Any::dot(_b264.clone(), f64_any(0x0000000000000000)).end())? + (Any::dot(_b264.clone(), f64_any(0x3ff0000000000000)).end())?
+            (Any::dot(_b264.clone(), f64_any(0x0)).end())? + (Any::dot(_b264.clone(), f64_any(0x3ff0000000000000)).end())?
         }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0]+$0[1]")).to_any(), string_any(">")].to_array().to_any()))
     }), string_any(">ab"));
     check::<A>("one", scope(|| {
         Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("reduce")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
             let _b264: Any<A> = _args.rest(0).to_any();
-            (Any::dot(_b264.clone(), f64_any(0x0000000000000000)).end())? + (Any::dot(_b264.clone(), f64_any(0x3ff0000000000000)).end())?
+            (Any::dot(_b264.clone(), f64_any(0x0)).end())? + (Any::dot(_b264.clone(), f64_any(0x3ff0000000000000)).end())?
         }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0]+$0[1]")).to_any()].to_array().to_any()))
     }), f64_any(0x3ff0000000000000));
     check::<A>("emptyInitial", scope(|| {
         Any::dot(Array::default().to_any(), string_any("reduce")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
             let _b264: Any<A> = _args.rest(0).to_any();
-            (Any::dot(_b264.clone(), f64_any(0x0000000000000000)).end())? + (Any::dot(_b264.clone(), f64_any(0x3ff0000000000000)).end())?
-        }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0]+$0[1]")).to_any(), f64_any(0x0000000000000000)].to_array().to_any()))
-    }), f64_any(0x0000000000000000));
+            (Any::dot(_b264.clone(), f64_any(0x0)).end())? + (Any::dot(_b264.clone(), f64_any(0x3ff0000000000000)).end())?
+        }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0]+$0[1]")).to_any(), f64_any(0x0)].to_array().to_any()))
+    }), f64_any(0x0));
     check::<A>("emptyUndefinedInitial", scope(|| {
         Any::dot(Array::default().to_any(), string_any("reduce")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
             let _b271: Any<A> = _args.rest(0).to_any();
-            (Any::dot(_b271.clone(), f64_any(0x0000000000000000)).end())? + (Any::dot(_b271.clone(), f64_any(0x3ff0000000000000)).end())?
+            (Any::dot(_b271.clone(), f64_any(0x0)).end())? + (Any::dot(_b271.clone(), f64_any(0x3ff0000000000000)).end())?
         }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0]+$0[1]")).to_any(), Nullish::Undefined.to_any()].to_array().to_any()))
     }), Nullish::Undefined.to_any());
     check::<A>("arguments", scope(|| {
@@ -50,15 +50,15 @@ pub fn run<A: IStaticFunction>() {
     check_throws::<A>("empty", scope(|| {
         Any::dot(Array::default().to_any(), string_any("reduce")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
             let _b264: Any<A> = _args.rest(0).to_any();
-            (Any::dot(_b264.clone(), f64_any(0x0000000000000000)).end())? + (Any::dot(_b264.clone(), f64_any(0x3ff0000000000000)).end())?
+            (Any::dot(_b264.clone(), f64_any(0x0)).end())? + (Any::dot(_b264.clone(), f64_any(0x3ff0000000000000)).end())?
         }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0]+$0[1]")).to_any()].to_array().to_any()))
     }));
     check_throws::<A>("notAFunction", scope(|| { Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("reduce")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())) }));
-    check_throws::<A>("emptyNotAFunction", scope(|| { Any::dot(Array::default().to_any(), string_any("reduce")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000), f64_any(0x0000000000000000)].to_array().to_any())) }));
+    check_throws::<A>("emptyNotAFunction", scope(|| { Any::dot(Array::default().to_any(), string_any("reduce")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000), f64_any(0x0)].to_array().to_any())) }));
     check_throws::<A>("object", scope(|| {
         Any::dot(Object::default().to_any(), string_any("reduce")).end_call(&rt, || Ok([A::static_function(|_self, _args| {
             let _b264: Any<A> = _args.rest(0).to_any();
-            (Any::dot(_b264.clone(), f64_any(0x0000000000000000)).end())? + (Any::dot(_b264.clone(), f64_any(0x3ff0000000000000)).end())?
+            (Any::dot(_b264.clone(), f64_any(0x0)).end())? + (Any::dot(_b264.clone(), f64_any(0x3ff0000000000000)).end())?
         }, 0, [rt.clone()].to_array(), Some("(...$0)=>$0[0]+$0[1]")).to_any()].to_array().to_any()))
     }));
 }

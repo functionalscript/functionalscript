@@ -6,9 +6,9 @@ use crate::harness::*;
 pub fn run<A: IStaticFunction>() {
     let rt: Any<A> = runtime::<A>().unwrap();
     check::<A>("ascii", scope(|| { Any::dot(string_any("abc"), string_any("codePointAt")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())) }), f64_any(0x4058800000000000));
-    check::<A>("pair", scope(|| { Any::dot(string_any("😀"), string_any("codePointAt")).end_call(&rt, || Ok([f64_any(0x0000000000000000)].to_array().to_any())) }), f64_any(0x40ff600000000000));
+    check::<A>("pair", scope(|| { Any::dot(string_any("😀"), string_any("codePointAt")).end_call(&rt, || Ok([f64_any(0x0)].to_array().to_any())) }), f64_any(0x40ff600000000000));
     check::<A>("lowHalf", scope(|| { Any::dot(string_any("😀"), string_any("codePointAt")).end_call(&rt, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())) }), f64_any(0x40ebc00000000000));
-    check::<A>("loneHigh", scope(|| { Any::dot(string_any_utf16(&[0xd83d, 0x0061]), string_any("codePointAt")).end_call(&rt, || Ok([f64_any(0x0000000000000000)].to_array().to_any())) }), f64_any(0x40eb07a000000000));
+    check::<A>("loneHigh", scope(|| { Any::dot(string_any_utf16(&[55357, 97]), string_any("codePointAt")).end_call(&rt, || Ok([f64_any(0x0)].to_array().to_any())) }), f64_any(0x40eb07a000000000));
     check::<A>("pastTheEnd", scope(|| { Any::dot(string_any("abc"), string_any("codePointAt")).end_call(&rt, || Ok([f64_any(0x4008000000000000)].to_array().to_any())) }), Nullish::Undefined.to_any());
     check::<A>("negative", scope(|| { Any::dot(string_any("abc"), string_any("codePointAt")).end_call(&rt, || Ok([f64_any(0xbff0000000000000)].to_array().to_any())) }), Nullish::Undefined.to_any());
     check::<A>("noArgument", scope(|| { Any::dot(string_any("😀"), string_any("codePointAt")).end_call(&rt, || Ok(Array::default().to_any())) }), f64_any(0x40ff600000000000));

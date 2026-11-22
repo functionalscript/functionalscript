@@ -8,6 +8,6 @@ use nanvm_lib::vm::{Any, IVm, ToAny, ToArray, ToObject};
 #[rustfmt::skip]
 #[allow(clippy::if_same_then_else)]
 pub fn module<A: IVm>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
-    let _b190: Any<A> = (Any::dot((spread_array([spread_item(spread_object([property_item((f64_any(0x0000000000000000)).to_string()?, f64_any(0x3ff0000000000000)), property_item(string_key("length"), f64_any(0x3ff0000000000000))]))?]))?, string_any("slice")).end_call(&runtime, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())))?;
+    let _b190: Any<A> = (Any::dot((spread_array([spread_item(spread_object([property_item((f64_any(0x0)).to_string()?, f64_any(0x3ff0000000000000)), property_item(string_key("length"), f64_any(0x3ff0000000000000))]))?]))?, string_any("slice")).end_call(&runtime, || Ok([f64_any(0x3ff0000000000000)].to_array().to_any())))?;
     Ok([(string_key("default"), f64_any(0x401c000000000000))].to_object().to_any())
 }

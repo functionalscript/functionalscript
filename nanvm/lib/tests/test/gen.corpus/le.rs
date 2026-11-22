@@ -13,14 +13,14 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("emptyArrayLessOrEqualFive", scope(|| { Any::le(Array::default().to_any(), f64_any(0x4014000000000000)) }), true.to_any());
     check::<A>("arrayThreeLessOrEqualFive", scope(|| { Any::le([f64_any(0x4008000000000000)].to_array().to_any(), f64_any(0x4014000000000000)) }), true.to_any());
     check::<A>("arrayStringThreeLessOrEqualFive", scope(|| { Any::le([string_any("3")].to_array().to_any(), f64_any(0x4014000000000000)) }), true.to_any());
-    check::<A>("arrayPairLessOrEqualFive", scope(|| { Any::le([f64_any(0x0000000000000000), f64_any(0x0000000000000000)].to_array().to_any(), f64_any(0x4014000000000000)) }), false.to_any());
+    check::<A>("arrayPairLessOrEqualFive", scope(|| { Any::le([f64_any(0x0), f64_any(0x0)].to_array().to_any(), f64_any(0x4014000000000000)) }), false.to_any());
     check::<A>("emptyObjectLessOrEqualFive", scope(|| { Any::le(Object::default().to_any(), f64_any(0x4014000000000000)) }), false.to_any());
     check::<A>("functionLessOrEqualFive", scope(|| { Any::le(A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, Array::default(), Some("()=>undefined")).to_any(), f64_any(0x4014000000000000)) }), false.to_any());
     check::<A>("threeLessOrEqualFive", scope(|| { Any::le(f64_any(0x4008000000000000), f64_any(0x4014000000000000)) }), true.to_any());
     check::<A>("fiveLessOrEqualThree", scope(|| { Any::le(f64_any(0x4014000000000000), f64_any(0x4008000000000000)) }), false.to_any());
     check::<A>("fiveLessOrEqualFive", scope(|| { Any::le(f64_any(0x4014000000000000), f64_any(0x4014000000000000)) }), true.to_any());
-    check::<A>("zeroLessOrEqualNegativeZero", scope(|| { Any::le(f64_any(0x0000000000000000), f64_any(0x8000000000000000)) }), true.to_any());
-    check::<A>("negativeZeroLessOrEqualZero", scope(|| { Any::le(f64_any(0x8000000000000000), f64_any(0x0000000000000000)) }), true.to_any());
+    check::<A>("zeroLessOrEqualNegativeZero", scope(|| { Any::le(f64_any(0x0), f64_any(0x8000000000000000)) }), true.to_any());
+    check::<A>("negativeZeroLessOrEqualZero", scope(|| { Any::le(f64_any(0x8000000000000000), f64_any(0x0)) }), true.to_any());
     check::<A>("nanLessOrEqualOne", scope(|| { Any::le(f64_any(0x7ff8000000000000), f64_any(0x3ff0000000000000)) }), false.to_any());
     check::<A>("oneLessOrEqualNan", scope(|| { Any::le(f64_any(0x3ff0000000000000), f64_any(0x7ff8000000000000)) }), false.to_any());
     check::<A>("nanLessOrEqualNan", scope(|| { Any::le(f64_any(0x7ff8000000000000), f64_any(0x7ff8000000000000)) }), false.to_any());

@@ -8,6 +8,6 @@ use nanvm_lib::vm::{Any, Array, IStaticFunction, ToAny, ToArray, ToObject};
 pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     Ok([(string_key("default"), A::static_function(|_self, _args| {
         let _b468: Any<A> = _args.rest(0).to_any();
-        Ok([((Any::dot(_b468.clone(), f64_any(0x0000000000000000)).end())?.to_string().map(|v| v.to_any()))?, (bigint_any(42).to_string().map(|v| v.to_any()))?, ([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any().to_string().map(|v| v.to_any()))?, ((Any::gt((Any::dot(_b468.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x0000000000000000)))?.to_string().map(|v| v.to_any()))?].to_array().to_any())
+        Ok([((Any::dot(_b468.clone(), f64_any(0x0)).end())?.to_string().map(|v| v.to_any()))?, (bigint_any(42).to_string().map(|v| v.to_any()))?, ([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any().to_string().map(|v| v.to_any()))?, ((Any::gt((Any::dot(_b468.clone(), f64_any(0x0)).end())?, f64_any(0x0)))?.to_string().map(|v| v.to_any()))?].to_array().to_any())
     }, 0, Array::default(), Some("(...$0)=>[String($0[0]),String(42n),String([1,2]),String($0[0]>0)]")).to_any())].to_object().to_any())
 }

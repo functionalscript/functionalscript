@@ -13,7 +13,7 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("emptyArray", scope(|| { Any::bitwise_not(Array::default().to_any()) }), f64_any(0xbff0000000000000));
     check::<A>("arrayTen", scope(|| { Any::bitwise_not([f64_any(0x4024000000000000)].to_array().to_any()) }), f64_any(0xc026000000000000));
     check::<A>("arrayStringTen", scope(|| { Any::bitwise_not([string_any("10")].to_array().to_any()) }), f64_any(0xc026000000000000));
-    check::<A>("arrayPair", scope(|| { Any::bitwise_not([f64_any(0x0000000000000000), f64_any(0x0000000000000000)].to_array().to_any()) }), f64_any(0xbff0000000000000));
+    check::<A>("arrayPair", scope(|| { Any::bitwise_not([f64_any(0x0), f64_any(0x0)].to_array().to_any()) }), f64_any(0xbff0000000000000));
     check::<A>("emptyObject", scope(|| { Any::bitwise_not(Object::default().to_any()) }), f64_any(0xbff0000000000000));
     check::<A>("function", scope(|| { Any::bitwise_not(A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, Array::default(), Some("()=>undefined")).to_any()) }), f64_any(0xbff0000000000000));
     check::<A>("truncatesTowardZero", scope(|| { Any::bitwise_not(f64_any(0x400f333333333333)) }), f64_any(0xc010000000000000));
@@ -22,7 +22,7 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("infinity", scope(|| { Any::bitwise_not(f64_any(0x7ff0000000000000)) }), f64_any(0xbff0000000000000));
     check::<A>("negativeInfinity", scope(|| { Any::bitwise_not(f64_any(0xfff0000000000000)) }), f64_any(0xbff0000000000000));
     check::<A>("wrapsAt32Bits", scope(|| { Any::bitwise_not(f64_any(0x41f0000000500000)) }), f64_any(0xc018000000000000));
-    check::<A>("negativeOne", scope(|| { Any::bitwise_not(f64_any(0xbff0000000000000)) }), f64_any(0x0000000000000000));
+    check::<A>("negativeOne", scope(|| { Any::bitwise_not(f64_any(0xbff0000000000000)) }), f64_any(0x0));
     check::<A>("bigZero", scope(|| { Any::bitwise_not(bigint_any(0)) }), bigint_any(-1));
     check::<A>("bigPositive", scope(|| { Any::bitwise_not(bigint_any(5)) }), bigint_any(-6));
     check::<A>("bigNegative", scope(|| { Any::bitwise_not(bigint_any(-5)) }), bigint_any(4));

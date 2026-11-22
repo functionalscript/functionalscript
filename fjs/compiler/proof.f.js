@@ -1232,7 +1232,7 @@ use nanvm_lib::vm::{Any, IVm, ToAny, ToArray, ToObject};
 #[rustfmt::skip]
 #[allow(clippy::if_same_then_else)]
 pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
-    Ok([(string_key("default"), (Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), f64_any(0x0000000000000000)).end())?)].to_object().to_any())
+    Ok([(string_key("default"), (Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), f64_any(0x0)).end())?)].to_object().to_any())
 }
 `)
         },
@@ -1371,7 +1371,7 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         // corpus.
         inlinedCall: () => {
             assert(compileSource('const f = () => [1]; export default (...a) => a[0] ? (() => { const x = f(); return [x, x]; })() : 4;')('output.rs').includes([
-                '        if Any::<A>::to_boolean(&(Any::dot(_b362.clone(), f64_any(0x0000000000000000)).end())?) {',
+                '        if Any::<A>::to_boolean(&(Any::dot(_b362.clone(), f64_any(0x0)).end())?) {',
                 '            let _b5: Any<A> = (Any::call(A::frame(_self)[0].clone(), Array::default().to_any()))?;',
                 '            Ok([_b5.clone(), _b5.clone()].to_array().to_any())',
                 '        } else { Ok(f64_any(0x4010000000000000)) }',

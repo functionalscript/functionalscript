@@ -21,7 +21,8 @@
  *   decimal spelling of the float, which object spread uses as an index
  *   key. The caller owns the string, as it owns what L0 makes.
  * - **`stringToNumber` takes a string and answers a float**, the number its
- *   text spells. **`bigintToString` takes a bigint and answers an owned
+ *   text spells, and **`stringToBigInt`** the bigint, of which a program's
+ *   bigint literal is made (which may fail past NaNVM's size limit). **`bigintToString` takes a bigint and answers an owned
  *   string**, its decimal spelling. Both join with L1's coercions.
  * - **Bigint arithmetic** takes and answers bigints: `bigintAdd`,
  *   `bigintSubtract`, `bigintMultiply`, `bigintShiftRight` and
@@ -59,6 +60,7 @@ export const native = {
         ['numberAnd', signature([['a', f64], ['b', f64]], f64)],
         ['numberToString', signature([['n', f64]], string)],
         ['stringToNumber', signature([['s', string]], f64)],
+        ['stringToBigInt', mayFail(signature([['s', string]], bigint))],
         ['bigintToString', signature([['b', bigint]], string)],
         ['bigintAdd', mayFail(signature(big2, bigint))],
         ['bigintSubtract', mayFail(signature(big2, bigint))],

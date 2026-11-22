@@ -9,9 +9,9 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("falseOrFalse", scope(|| { if Any::<A>::to_boolean(&false.to_any()) { Ok(false.to_any()) } else { Ok(false.to_any()) } }), false.to_any());
     check::<A>("nullOrOne", scope(|| { if Any::<A>::to_boolean(&Nullish::Null.to_any()) { Ok(Nullish::Null.to_any()) } else { Ok(f64_any(0x3ff0000000000000)) } }), f64_any(0x3ff0000000000000));
     check::<A>("undefinedOrOne", scope(|| { if Any::<A>::to_boolean(&Nullish::Undefined.to_any()) { Ok(Nullish::Undefined.to_any()) } else { Ok(f64_any(0x3ff0000000000000)) } }), f64_any(0x3ff0000000000000));
-    check::<A>("zeroOrOne", scope(|| { if Any::<A>::to_boolean(&f64_any(0x0000000000000000)) { Ok(f64_any(0x0000000000000000)) } else { Ok(f64_any(0x3ff0000000000000)) } }), f64_any(0x3ff0000000000000));
+    check::<A>("zeroOrOne", scope(|| { if Any::<A>::to_boolean(&f64_any(0x0)) { Ok(f64_any(0x0)) } else { Ok(f64_any(0x3ff0000000000000)) } }), f64_any(0x3ff0000000000000));
     check::<A>("nanOrOne", scope(|| { if Any::<A>::to_boolean(&f64_any(0x7ff8000000000000)) { Ok(f64_any(0x7ff8000000000000)) } else { Ok(f64_any(0x3ff0000000000000)) } }), f64_any(0x3ff0000000000000));
-    check::<A>("oneOrZero", scope(|| { if Any::<A>::to_boolean(&f64_any(0x3ff0000000000000)) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(f64_any(0x0000000000000000)) } }), f64_any(0x3ff0000000000000));
+    check::<A>("oneOrZero", scope(|| { if Any::<A>::to_boolean(&f64_any(0x3ff0000000000000)) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(f64_any(0x0)) } }), f64_any(0x3ff0000000000000));
     check::<A>("oneOrTwo", scope(|| { if Any::<A>::to_boolean(&f64_any(0x3ff0000000000000)) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(f64_any(0x4000000000000000)) } }), f64_any(0x3ff0000000000000));
     check::<A>("emptyStringOrOne", scope(|| { if Any::<A>::to_boolean(&string_any("")) { Ok(string_any("")) } else { Ok(f64_any(0x3ff0000000000000)) } }), f64_any(0x3ff0000000000000));
     check::<A>("nonEmptyStringOrOne", scope(|| { if Any::<A>::to_boolean(&string_any("a")) { Ok(string_any("a")) } else { Ok(f64_any(0x3ff0000000000000)) } }), string_any("a"));

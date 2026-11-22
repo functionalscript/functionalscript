@@ -8,7 +8,7 @@ use nanvm_lib::vm::{Any, Array, IStaticFunction, Nullish, ToAny, ToArray, ToObje
 pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let _b63: Any<A> = A::static_function(|_self, _args| {
         let _b7344: Any<A> = _args.rest(0).to_any();
-        Any::dot(if Any::<A>::to_boolean(&(Any::dot(_b7344.clone(), string_any("length")).end())?) { _b7344.clone() } else { _b7344.clone() }, f64_any(0x0000000000000000)).end()
+        Any::dot(if Any::<A>::to_boolean(&(Any::dot(_b7344.clone(), string_any("length")).end())?) { _b7344.clone() } else { _b7344.clone() }, f64_any(0x0)).end()
     }, 0, Array::default(), Some("(...$0)=>($0.length?$0:$0)[0]")).to_any();
     let _b71: Any<A> = A::static_function(|_self, _args| {
         let _b8264: Any<A> = _args.rest(0).to_any();
@@ -23,18 +23,18 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         let _b3: Any<A> = if Any::<A>::to_boolean(&_b1) { (bigint_any(1) / bigint_any(0))? } else { _b1.clone() };
         let _b5: Any<A> = (Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("length")).end())?;
         let _b6: Any<A> = if Any::<A>::to_boolean(&_b5) { f64_any(0x4000000000000000) } else { _b5.clone() };
-        let _b8: Any<A> = (Any::dot([Nullish::Null.to_any(), f64_any(0x3ff0000000000000)].to_array().to_any(), f64_any(0x0000000000000000)).end())?;
+        let _b8: Any<A> = (Any::dot([Nullish::Null.to_any(), f64_any(0x3ff0000000000000)].to_array().to_any(), f64_any(0x0)).end())?;
         [_b3.clone(), _b6.clone(), if Any::<A>::to_boolean(&_b8) { (bigint_any(1) / bigint_any(0))? } else { _b8.clone() }, if Any::<A>::to_boolean(&_b5) { _b5.clone() } else { (bigint_any(1) / bigint_any(0))? }, if Any::<A>::to_boolean(&_b1) { _b1.clone() } else { f64_any(0x4008000000000000) }, {
-            let _b15: Any<A> = (Any::dot([string_any(""), string_any("x")].to_array().to_any(), f64_any(0x0000000000000000)).end())?;
+            let _b15: Any<A> = (Any::dot([string_any(""), string_any("x")].to_array().to_any(), f64_any(0x0)).end())?;
             if Any::<A>::to_boolean(&_b15) { _b15.clone() } else { string_any("x") }
         }, {
-            let _b18: Any<A> = (Any::dot([f64_any(0x0000000000000000), Nullish::Null.to_any()].to_array().to_any(), f64_any(0x0000000000000000)).end())?;
+            let _b18: Any<A> = (Any::dot([f64_any(0x0), Nullish::Null.to_any()].to_array().to_any(), f64_any(0x0)).end())?;
             if Any::<A>::to_boolean(&if Any::<A>::to_boolean(&(strict_eq(_b18.clone(), Nullish::Null.to_any()))?) { true.to_any() } else { (strict_eq(_b18.clone(), Nullish::Undefined.to_any()))? }) { (bigint_any(1) / bigint_any(0))? } else { _b18.clone() }
         }, if Any::<A>::to_boolean(&if Any::<A>::to_boolean(&(strict_eq(_b8.clone(), Nullish::Null.to_any()))?) { true.to_any() } else { (strict_eq(_b8.clone(), Nullish::Undefined.to_any()))? }) { f64_any(0x4010000000000000) } else { _b8.clone() }, {
-            let _b32: Any<A> = (Any::dot([Nullish::Undefined.to_any(), f64_any(0x3ff0000000000000)].to_array().to_any(), f64_any(0x0000000000000000)).end())?;
+            let _b32: Any<A> = (Any::dot([Nullish::Undefined.to_any(), f64_any(0x3ff0000000000000)].to_array().to_any(), f64_any(0x0)).end())?;
             if Any::<A>::to_boolean(&if Any::<A>::to_boolean(&(strict_eq(_b32.clone(), Nullish::Null.to_any()))?) { true.to_any() } else { (strict_eq(_b32.clone(), Nullish::Undefined.to_any()))? }) { f64_any(0x4014000000000000) } else { _b32.clone() }
         }, {
-            let _b39: Any<A> = (Any::dot([false.to_any(), Nullish::Null.to_any()].to_array().to_any(), f64_any(0x0000000000000000)).end())?;
+            let _b39: Any<A> = (Any::dot([false.to_any(), Nullish::Null.to_any()].to_array().to_any(), f64_any(0x0)).end())?;
             if Any::<A>::to_boolean(&if Any::<A>::to_boolean(&(strict_eq(_b39.clone(), Nullish::Null.to_any()))?) { true.to_any() } else { (strict_eq(_b39.clone(), Nullish::Undefined.to_any()))? }) { f64_any(0x4018000000000000) } else { _b39.clone() }
         }, if Any::<A>::to_boolean(&_b5) { f64_any(0x401c000000000000) } else { (bigint_any(1) / bigint_any(0))? }, if Any::<A>::to_boolean(&_b1) { (bigint_any(1) / bigint_any(0))? } else { f64_any(0x4020000000000000) }, {
             let _b49: Any<A> = if Any::<A>::to_boolean(&_b5) { f64_any(0x4000000000000000) } else { _b5.clone() };

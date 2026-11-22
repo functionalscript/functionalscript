@@ -9,7 +9,7 @@ pub fn module<A: IStaticFunction>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     Ok([(string_key("default"), A::static_function(|_self, _args| {
         let _b414: Any<A> = _args.rest(0).to_any();
         let _b0: Any<A> = (static_read(&A::frame(_self)[0], "Object.entries"))?;
-        let _b4: Any<A> = [(string_key("a"), string_any("hello")), (string_key("b"), (Any::dot(_b414.clone(), f64_any(0x0000000000000000)).end())?), (string_key("c"), [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any())].to_object().to_any();
+        let _b4: Any<A> = [(string_key("a"), string_any("hello")), (string_key("b"), (Any::dot(_b414.clone(), f64_any(0x0)).end())?), (string_key("c"), [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any())].to_object().to_any();
         (Any::dot((Any::call(_b0.clone(), [_b4.clone()].to_array().to_any()))?, string_any("length")).end())? + (Any::dot(_b4.clone(), string_any("b")).end())?
     }, 0, [runtime.clone()].to_array(), Some("(...$0)=>{const $1=Object.entries;const $2={\"a\":\"hello\",\"b\":$0[0],\"c\":[1,2]};return $1($2).length+$2.b;}")).to_any())].to_object().to_any())
 }

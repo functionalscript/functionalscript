@@ -13,14 +13,14 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("emptyArrayGreaterThanFive", scope(|| { Any::gt(Array::default().to_any(), f64_any(0x4014000000000000)) }), false.to_any());
     check::<A>("arrayThreeGreaterThanFive", scope(|| { Any::gt([f64_any(0x4008000000000000)].to_array().to_any(), f64_any(0x4014000000000000)) }), false.to_any());
     check::<A>("arrayStringThreeGreaterThanFive", scope(|| { Any::gt([string_any("3")].to_array().to_any(), f64_any(0x4014000000000000)) }), false.to_any());
-    check::<A>("arrayPairGreaterThanFive", scope(|| { Any::gt([f64_any(0x0000000000000000), f64_any(0x0000000000000000)].to_array().to_any(), f64_any(0x4014000000000000)) }), false.to_any());
+    check::<A>("arrayPairGreaterThanFive", scope(|| { Any::gt([f64_any(0x0), f64_any(0x0)].to_array().to_any(), f64_any(0x4014000000000000)) }), false.to_any());
     check::<A>("emptyObjectGreaterThanFive", scope(|| { Any::gt(Object::default().to_any(), f64_any(0x4014000000000000)) }), false.to_any());
     check::<A>("functionGreaterThanFive", scope(|| { Any::gt(A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, Array::default(), Some("()=>undefined")).to_any(), f64_any(0x4014000000000000)) }), false.to_any());
     check::<A>("threeGreaterThanFive", scope(|| { Any::gt(f64_any(0x4008000000000000), f64_any(0x4014000000000000)) }), false.to_any());
     check::<A>("fiveGreaterThanThree", scope(|| { Any::gt(f64_any(0x4014000000000000), f64_any(0x4008000000000000)) }), true.to_any());
     check::<A>("fiveGreaterThanFive", scope(|| { Any::gt(f64_any(0x4014000000000000), f64_any(0x4014000000000000)) }), false.to_any());
-    check::<A>("zeroGreaterThanNegativeZero", scope(|| { Any::gt(f64_any(0x0000000000000000), f64_any(0x8000000000000000)) }), false.to_any());
-    check::<A>("negativeZeroGreaterThanZero", scope(|| { Any::gt(f64_any(0x8000000000000000), f64_any(0x0000000000000000)) }), false.to_any());
+    check::<A>("zeroGreaterThanNegativeZero", scope(|| { Any::gt(f64_any(0x0), f64_any(0x8000000000000000)) }), false.to_any());
+    check::<A>("negativeZeroGreaterThanZero", scope(|| { Any::gt(f64_any(0x8000000000000000), f64_any(0x0)) }), false.to_any());
     check::<A>("nanGreaterThanOne", scope(|| { Any::gt(f64_any(0x7ff8000000000000), f64_any(0x3ff0000000000000)) }), false.to_any());
     check::<A>("oneGreaterThanNan", scope(|| { Any::gt(f64_any(0x3ff0000000000000), f64_any(0x7ff8000000000000)) }), false.to_any());
     check::<A>("nanGreaterThanNan", scope(|| { Any::gt(f64_any(0x7ff8000000000000), f64_any(0x7ff8000000000000)) }), false.to_any());
