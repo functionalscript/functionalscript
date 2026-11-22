@@ -517,6 +517,7 @@ export const proof = {
     // the node is established, under the helper's text, with a runtime in
     // scope or with none.
     referenceMap: () => {
+        assert(text(['structEq']).includes('Any::struct_eq('))
         const written = text(['refMap'])
         assert(written.startsWith('ref_map(Some("(()=>{const $0=($1,$2)=>{const $3=new WeakMap();'), written)
         assert(written.endsWith('return $0;})()"))'), written)

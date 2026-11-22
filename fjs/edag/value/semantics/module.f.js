@@ -88,3 +88,19 @@ export const binary = {
     '===': (a, b) => ok(strictEqual(a, b)),
     '!==': (a, b) => ok(!strictEqual(a, b)),
 }
+
+/** Ordered content comparison over evaluated values. Object metadata is
+ * already in enumeration order. Functions are leaves decided by SameValue.
+ * @type {(a: EdagValue, b: EdagValue) => boolean} */
+export const structEq = (a, b) => {
+    if (is(a, b)) { return true }
+    if (!isArray(a) || !isArray(b)) { return false }
+    if (a[0] === '[]' && b[0] === '[]') {
+        return a[1].length === b[1].length && a[1].every((v, i) => structEq(v, b[1][Number(i)]))
+    }
+    if (a[0] !== '{}' || b[0] !== '{}') { return false }
+    return a[1].length === b[1].length && a[1].every((property, i) => {
+        const other = b[1][Number(i)]
+        return property[1] === other[1] && structEq(property[2], other[2])
+    })
+}

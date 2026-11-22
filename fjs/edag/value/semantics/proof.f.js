@@ -6,7 +6,7 @@
  */
 
 import { assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
-import { tagUndefined, untagUndefined, truthy, typeOf, isUndefined, isNullish, strictEqual, is, unary, binary, instanceOf } from './module.f.js'
+import { tagUndefined, untagUndefined, truthy, typeOf, isUndefined, isNullish, strictEqual, is, structEq, unary, binary, instanceOf } from './module.f.js'
 
 /** @type {readonly (readonly [EdagValue, boolean, string])[]} */
 const classifications = [
@@ -44,6 +44,20 @@ const compare = (a, b, equal, same) => {
 }
 
 export const proof = {
+    ordered: () => {
+        const record = /** @type {const} */ (['{}', [[':', 'x', ['undefined']]]])
+        const array = /** @type {const} */ (['[]', [record, NaN]])
+        assertEq(structEq(array, ['[]', [['{}', [[':', 'x', ['undefined']]]], NaN]]), true)
+        assertEq(structEq(array, ['[]', []]), false)
+        assertEq(structEq(array, record), false)
+        assertEq(structEq(record, array), false)
+        assertEq(structEq(record, ['{}', []]), false)
+        assertEq(structEq(record, ['{}', [[':', 'y', ['undefined']]]]), false)
+        assertEq(structEq(record, ['{}', [[':', 'x', 0]]]), false)
+        assertEq(structEq(record, null), false)
+        assertEq(structEq(0, -0), false)
+        assertEq(structEq(['=>', 0, [], 1], ['=>', 0, [], 1]), false)
+    },
     arrayConstructor: () => {
         assertEq(instanceOf.Array(['[]', []]), true)
         assertEq(instanceOf.Array(['[]', [1]]), true)

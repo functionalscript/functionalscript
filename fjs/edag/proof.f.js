@@ -101,7 +101,7 @@ const vOptionPropertyLambda = value => validate(optionPropertyLambda)(value)
 /** Every id `op0` currently accepts — kept as a literal list, not derived
  * from `op0Id`, so deleting one from the schema reddens exactly its own
  * assertion below rather than silently shrinking this list too. */
-const op0Ids = /** @type {const} */ (['undefined', 'args', 'rest', 'self', 'entry', 'hasEntry', 'refMap', 'slice', 'charCodeAt', 'encodeURIComponent', 'Object.is', 'Object.entries', 'Object.keys', 'Object.values', 'String.fromCharCode', 'Object.fromEntries', 'Number.isInteger', 'Number.isSafeInteger', 'Number.isNaN', 'Number.isFinite', 'Math.log2', 'Math.trunc', 'Math.floor', 'Math.abs', 'Math.sqrt', 'Math.ceil', 'Math.imul', 'Math.max', 'Math.min', 'Math.fround', 'Math.clz32', 'Math.round'])
+const op0Ids = /** @type {const} */ (['undefined', 'args', 'rest', 'self', 'entry', 'hasEntry', 'structEq', 'refMap', 'slice', 'charCodeAt', 'encodeURIComponent', 'Object.is', 'Object.entries', 'Object.keys', 'Object.values', 'String.fromCharCode', 'Object.fromEntries', 'Number.isInteger', 'Number.isSafeInteger', 'Number.isNaN', 'Number.isFinite', 'Math.log2', 'Math.trunc', 'Math.floor', 'Math.abs', 'Math.sqrt', 'Math.ceil', 'Math.imul', 'Math.max', 'Math.min', 'Math.fround', 'Math.clz32', 'Math.round'])
 
 /** Same purpose as `op0Ids`, for `op1`. */
 const op1Ids = /** @type {const} */ (['String', 'Number', 'BigInt', 'Boolean', '!', '~', 'typeof', 'throw'])
@@ -239,8 +239,8 @@ export const proof = {
     // reference map, of `length` `2`, and the intrinsics; a function node is a lambda or a helper, and a static
     // function is neither.
     helpers: () => {
-        assertStructurallySame(helpers, [['entry', 2], ['hasEntry', 2], ['refMap', 2], ['slice', 3], ['charCodeAt', 2]])
-        assertStructurallySame(helperIds, ['entry', 'hasEntry', 'refMap', 'slice', 'charCodeAt'])
+        assertStructurallySame(helpers, [['entry', 2], ['hasEntry', 2], ['structEq', 2], ['refMap', 2], ['slice', 3], ['charCodeAt', 2]])
+        assertStructurallySame(helperIds, ['entry', 'hasEntry', 'structEq', 'refMap', 'slice', 'charCodeAt'])
         assertEq(helperLength('entry'), 2)
         assertEq(helperLength('hasEntry'), 2)
         assertEq(helperLength('refMap'), 2)
@@ -248,7 +248,7 @@ export const proof = {
         assertEq(helperLength('charCodeAt'), 2)
         for (const id of helperIds) { assert(isHelper([id]), id) }
         for (const node of [['Object.is'], ['entry', 1], ['=>', 0], 'entry', [], null]) { assert(!isHelper(node), node) }
-        for (const node of [['=>', 0, [], 1], ['entry'], ['hasEntry'], ['refMap'], ['slice'], ['charCodeAt']]) { assert(isFunctionNode(node), node) }
+        for (const node of [['=>', 0, [], 1], ['entry'], ['hasEntry'], ['structEq'], ['refMap'], ['slice'], ['charCodeAt']]) { assert(isFunctionNode(node), node) }
         for (const node of [['Object.is'], ['slice', 1], ['[]', []], 'entry', [], null]) { assert(!isFunctionNode(node), node) }
     },
     staticIds: () => {

@@ -542,6 +542,7 @@ const operation = (s, n, result) => {
         const length = helperLength(id)
         const args = generate(length - 1, k => argRead(k + 1))
         const native = id === 'entry' ? ['Any::entry(', argRead(0), ', ', argRead(1), ')']
+            : id === 'structEq' ? ['Ok(Any::struct_eq(&', argRead(0), ', &', argRead(1), ').to_any())']
             : id === 'hasEntry' ? ['Any::has_entry(', argRead(0), ', ', argRead(1), ').map(|v| v.to_any())']
             : ['Any::dot(', argRead(0), ', ', stringAny(s, id), ').end_call_native(|| Ok([', ...args.flatMap((x, k) => k === 0 ? [x] : [', ', x]), ']', toArray, toAny, '))']
         return map1(pure(result))(ok(cat([staticFunction(s), '(|_self, _args| ', ...native, ', ', num(`${length}`), ', ', vm('Array'), '::default(), ', represented(s, helperText(_helperText(id)('helper'))), ')', toAny])))

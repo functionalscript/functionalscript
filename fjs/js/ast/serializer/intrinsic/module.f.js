@@ -3,6 +3,7 @@
  * @import { Chunk } from '../../../../text/marked/types.ts'
  */
 
+import { structEqSource } from '../../../intrinsic/module.f.js'
 import { chunksText, keyword, literal } from '../../../../text/marked/module.f.js'
 import { helperLength } from '../../../../edag/module.f.js'
 import { _name as name, _binding as binding, _arg as argName } from '../names/module.f.js'
@@ -179,7 +180,7 @@ export const _intrinsicText = id => path => chunksText(_intrinsicChunks(id)(path
  *
  * @type {(id: HelperId) => (path: string) => readonly Chunk[]}
  */
-export const _helperChunks = id => id === 'entry' ? _entryChunks : id === 'hasEntry' ? _hasEntryChunks : id === 'refMap' ? _refMapChunks : _intrinsicChunks(id)
+export const _helperChunks = id => id === 'entry' ? _entryChunks : id === 'hasEntry' ? _hasEntryChunks : id === 'structEq' ? () => [`(()=>{${structEqSource};return structEq;})()`] : id === 'refMap' ? _refMapChunks : _intrinsicChunks(id)
 
 /** {@link _helperChunks} as text. @type {(id: HelperId) => (path: string) => string} */
 export const _helperText = id => path => chunksText(_helperChunks(id)(path))

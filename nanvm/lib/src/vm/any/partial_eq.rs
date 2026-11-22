@@ -1,3 +1,4 @@
+use crate::common::sized_index::SizedIndex;
 use crate::vm::{Any, IVm, Unpacked};
 
 /// Same as `===` in ECMAScript.
@@ -26,6 +27,30 @@ impl<A: IVm> Any<A> {
                     f64::from(*a).to_bits() == f64::from(*b).to_bits()
                 }
                 _ => a == b,
+            })
+        })
+    }
+
+    /// Ordered structural equality over FJS values, with SameValue at leaves.
+    pub fn struct_eq(&self, other: &Self) -> bool {
+        if self.same_value(other) {
+            return true;
+        }
+        self.with_unpacked(|a| {
+            other.with_unpacked(|b| match (a, b) {
+                (Unpacked::Array(a), Unpacked::Array(b)) => {
+                    a.length() == b.length() && (0..a.length()).all(|i| a[i].struct_eq(&b[i]))
+                }
+                (Unpacked::Object(a), Unpacked::Object(b)) => {
+                    let left = a.own_entries();
+                    let right = b.own_entries();
+                    left.len() == right.len()
+                        && left
+                            .iter()
+                            .zip(right)
+                            .all(|((k, v), (key, value))| *k == key && v.struct_eq(&value))
+                }
+                _ => false,
             })
         })
     }

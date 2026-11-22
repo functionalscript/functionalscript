@@ -9,7 +9,8 @@ import { assert, assertEq, assertOk, assertStructurallySame } from '../../../ass
 import { stringToList } from '../../../text/utf16/module.f.js'
 import { tokenize } from '../../tokenizer/module.f.js'
 import { nameOf, parseSyntax } from '../syntax/module.f.js'
-import { blocks, isRefMap, names, source } from './module.f.js'
+import { structEqSource } from '../../../js/intrinsic/module.f.js'
+import { blocks, isStructEq, isRefMap, names, source } from './module.f.js'
 
 /** The function a module's first statement declares, and the name it is declared under. @type {(text: string) => readonly [Extract<Node, readonly ['=>', ParameterList, Node]>, string]} */
 const declared = text => {
@@ -25,6 +26,13 @@ const is = text => isRefMap(...declared(text))
 const canonical = `${source}export default empty\n`
 
 export const proof = {
+    orderedComparison: () => {
+        const source = `${structEqSource}\nexport default structEq`
+        assert(isStructEq(...declared(source)))
+        assert(!isStructEq(...declared(source.replace('item[0]', 'item[1]'))))
+        assert(!isStructEq(...declared('const f = a => a; export default f')))
+        assert(!isStructEq(...declared(canonical)))
+    },
     // The canonical body is the map, under the name it is declared with
     // and no other; a function no declaration names is not.
     canonical: () => {

@@ -101,7 +101,7 @@ const ref = i => ['#', i]
 export const mergeable = node => {
     if (isIntrinsic(node)) { return false }
     switch (node[0]) {
-        case '[]': case '{}': case '=>': case 'entry': case 'hasEntry': case 'refMap': case '()': case '?.()': { return false }
+        case '[]': case '{}': case '=>': case 'entry': case 'hasEntry': case 'structEq': case 'refMap': case '()': case '?.()': { return false }
         case '.': case '?.': { return node.length === 3 }
         default: { return true }
     }
@@ -261,6 +261,7 @@ const handlers = {
     self: o0,
     entry: o0,
     hasEntry: o0,
+    structEq: o0,
     refMap: o0,
     // the intrinsics, a row each, as the static functions below
     slice: o0,
@@ -448,7 +449,7 @@ export const operandsOf = node => {
     // their parameters alone
     if (isStatic(node) || isIntrinsic(node)) { return [] }
     switch (node[0]) {
-        case 'undefined': case 'args': case 'frame': case 'rest': case 'arg': case 'self': case 'entry': case 'hasEntry': case 'refMap': { return [] }
+        case 'undefined': case 'args': case 'frame': case 'rest': case 'arg': case 'self': case 'entry': case 'hasEntry': case 'structEq': case 'refMap': { return [] }
         case '[]': { return node[1].map(itemOperand) }
         case '{}': { return node[1].flatMap(propertyOperands) }
         case ',': { return node[1] }

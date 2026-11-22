@@ -40,7 +40,7 @@ export type Intrinsic = readonly [IntrinsicId]
 /** A static function as a value, the EDAG's node: the built-in by its name, one function however often read, its call and `length` the executor's to answer. */
 export type Static = readonly [StaticId]
 
-export type Function = Closure | EntryFunction | HasEntryFunction | Intrinsic | Static
+export type Function = Closure | EntryFunction | HasEntryFunction | readonly ['structEq'] | Intrinsic | Static
 
 /**
  * The runtime an executor answers member, static and runtime-backed

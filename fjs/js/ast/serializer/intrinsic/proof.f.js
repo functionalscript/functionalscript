@@ -24,6 +24,7 @@ export const proof = {
     },
     // Each helper's text by its tag is the text its own writer gives.
     helper: () => {
+        assertEq(_helperText('structEq')('h').endsWith(';return structEq;})()'), true)
         assertEq(_helperText('entry')('h'), _entryText('h'))
         assertEq(_helperText('hasEntry')('h'), _hasEntryText('h'))
         assertEq(_helperText('refMap')('h'), _refMapText('h'))
