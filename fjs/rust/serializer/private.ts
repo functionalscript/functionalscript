@@ -9,6 +9,11 @@ import type { PersistentMap } from '../../types/map/types.ts'
 export type _Context = Options & {
     readonly native?: boolean
     readonly bindings: readonly (readonly [BindingId, Printed<string>])[]
+    readonly ownership?: undefined | {
+        readonly aliases: PersistentMap<BindingId, BindingId>
+        readonly moves: PersistentMap<BindingId, Statement | null>
+    }
+    readonly owner?: Statement
     readonly names?: _Names
     readonly ready?: readonly PersistentMap<unknown, _Output>[]
 }

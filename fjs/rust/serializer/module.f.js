@@ -538,7 +538,10 @@ const expressionReady = (s, v, result) => {
     switch (v[0]) {
         case 'ref': {
             const found = s.bindings.find(([id]) => id === v[1])
-            return map1(pure(result))(ok(found === undefined ? code(`${binding(s, v[1])}.clone()`) : found[1]))
+            if (found !== undefined) { return map1(pure(result))(ok(found[1])) }
+            const id = s.ownership === undefined ? v[1] : mapGet(s.ownership.aliases, v[1]) ?? v[1]
+            const move = s.owner !== undefined && s.ownership !== undefined && mapGet(s.ownership.moves, id) === s.owner
+            return map1(pure(result))(ok(code(`${binding(s, id)}${move ? '' : '.clone()'}`)))
         }
         case 'demand': { return plain(fallible(result)(`${binding(s, v[1])}()`)) }
         case 'function': { return map1(pure(result))(closure(s, v[1])) }
@@ -595,6 +598,7 @@ const declaration = (name, mutable, value) => map1(text => `${kw('let')} ${mutab
 
 /** @type {(s: _Context, st: Statement) => Result<Printed<readonly string[]>, readonly unknown[]>} */
 const statementReady = (s, st) => {
+    if (st[0] === 'define' && s.ownership !== undefined && mapHas(s.ownership.aliases, st[1])) { return ok(code([])) }
     switch (st[0]) {
         case 'define': case 'slot': { return map1(text => [text])(declaration(binding(s, st[1]), st[0] === 'slot' && st[3], expression(s, st[2], false))) }
         case 'write': { return map1(text => [`${binding(s, st[1])} = ${text};`])(expression(s, st[2], false)) }
@@ -721,7 +725,7 @@ const children = task => {
         case 'statement': {
             const st = task.statement
             switch (st[0]) {
-                case 'define': case 'slot': case 'write': { return [valueTask(s, st[2])] }
+                case 'define': case 'slot': case 'write': { return [valueTask({ ...s, owner: st }, st[2])] }
                 case 'memo': { return [blockTask(s, st[1].initializer, false, false, true)] }
                 case 'block': { return [blockTask(s, st[1])] }
                 case 'if': { return [valueTask(s, st[1]), blockTask(s, st[2]), blockTask(s, st[3])] }
@@ -877,6 +881,56 @@ const names = uses => ({
     unstable: setValues(fromValues(uses.filter(([m]) => m === 'unstable').map(([, n]) => n))).toSorted(),
 })
 
+/** Immutable module locals can share a name. Transfer ownership at a final,
+ * unconditional capture, array item or call operand. Reads in other regions still count
+ * against earlier moves. A module-level memo may keep a borrow alive.
+ * @type {(root: _Task) => NonNullable<_Context['ownership']>} */
+const moduleOwnership = root => {
+    /** @type {PersistentMap<BindingId, BindingId>} */
+    let aliases = empty
+    /** @type {PersistentMap<BindingId, Statement | null>} */
+    let moves = empty
+    let borrowed = false
+    for (const child of children(root)) {
+        const st = child.kind === 'statement' ? child.statement : null
+        const def = st !== null && st[0] === 'define' ? st : null
+        const value = def?.[2]
+        if (def !== null && value instanceof Array && value[0] === 'ref' && mapHas(moves, mapGet(aliases, value[1]) ?? value[1])) {
+            aliases = mapSet(aliases, def[1], mapGet(aliases, value[1]) ?? value[1])
+            continue
+        }
+        if (st?.[0] === 'memo') { borrowed = true }
+        const operands = value instanceof Array && value[0] === 'function' ? value[1].captures.map(c => c.value)
+            : value instanceof Array && value[0] === 'array' ? value[1]
+                : value instanceof Array && value[0] === '()' ? [value[1], ...value[2]] : []
+        const currentAliases = aliases
+        const direct = fromValues(operands.flatMap(v => v instanceof Array && v[0] === 'ref' ? [mapGet(currentAliases, v[1]) ?? v[1]] : []))
+        /** @type {PersistentMap<BindingId, boolean>} */
+        let seen = empty
+        /** @type {Stack<_Task>} */
+        let pending = { top: child, rest: null }
+        while (pending !== null) {
+            /** @type {NonNullable<Stack<_Task>>} */
+            const { top, rest } = pending
+            const v = top.kind === 'value' ? top.value : undefined
+            if (v instanceof Array && v[0] === 'ref') {
+                const id = mapGet(aliases, v[1]) ?? v[1]
+                if (mapHas(moves, id)) {
+                    moves = mapSet(moves, id, !borrowed && mapHas(direct, id) && !mapHas(seen, id) ? def : null)
+                    seen = mapSet(seen, id, true)
+                }
+            }
+            // A function reads the outer locals only while constructing its frame.
+            /** @type {readonly _Task[]} */
+            const next = v instanceof Array && v[0] === 'function'
+                ? v[1].captures.map(c => valueTask(top.context, c.value)) : children(top)
+            pending = pushAll(next, rest)
+        }
+        if (def !== null) { moves = mapSet(moves, def[1], null) }
+    }
+    return { aliases, moves }
+}
+
 /** A prepared module/function body, retaining tagged text and import metadata. @type {(b: Block, options: Options, external?: readonly External[], native?: boolean) => Result<Scope, readonly unknown[]>} */
 export const scopeTagged = (b, options, external = [], native = false) => {
     const task = blockTask({ ...options, native, bindings: external.map(e => [e.binding, [e.text, e.uses ?? []]]) }, b, true)
@@ -888,7 +942,7 @@ export const scopeTagged = (b, options, external = [], native = false) => {
             : cat([prefix, vm('StaticBigInt'), ` = StaticBigInt { sign: nanvm_lib::sign::Sign::${value < 0n ? 'Negative' : 'Positive'}, words: ${slice(u64WordItems(value))} };`])
     })
     const rendered = /** @type {Result<Printed<readonly string[]>, readonly unknown[]>} */ (
-        spellingWalk({ ...task, context: { ...task.context, names: ids } }))
+        spellingWalk({ ...task, context: { ...task.context, names: ids, ownership: native ? moduleOwnership(task) : undefined } }))
     return mapOk((/** @type {Printed<readonly string[]>} */ [parts, uses]) => ({
         lines: [...declarations.map(([text]) => text), ...parts.flatMap(p => p.split('\n'))],
         uses: names([...uses, ...declarations.flatMap(([, imports]) => imports)]),
