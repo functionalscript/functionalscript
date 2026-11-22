@@ -237,6 +237,48 @@ mod tests {
         }
     }
 
+    #[test]
+    fn struct_eq_resumes_siblings() {
+        let nested = |field: bool, element: bool| -> Any<A> {
+            let record = [("a".into(), true.to_any()), ("b".into(), field.to_any())].to_object();
+            [record.to_any(), element.to_any()].to_array().to_any()
+        };
+        let compare = at(&runtime::<A>().unwrap(), "structEq");
+        let left = nested(true, true);
+        for (field, element) in [(true, true), (false, true), (true, false)] {
+            let args = [left.clone(), nested(field, element)].to_array().to_any();
+            assert_eq!(compare.clone().call(args), Ok((field && element).to_any()));
+        }
+    }
+
+    #[test]
+    fn struct_eq_at_depth() {
+        fn nested(leaf: f64) -> Vec<Any<A>> {
+            let mut levels = [leaf.to_any()].to_vec();
+            for _ in 0..10_000 {
+                let array = [levels.last().unwrap().clone()].to_array().to_any();
+                levels.push([("next".into(), array)].to_object().to_any());
+            }
+            levels
+        }
+        let compare = at(&runtime::<A>().unwrap(), "structEq");
+        let mut left = nested(0.0);
+        for leaf in [0.0, -0.0] {
+            let mut right = nested(leaf);
+            assert_eq!(
+                compare.clone().call(
+                    [left.last().unwrap().clone(), right.last().unwrap().clone()]
+                        .to_array()
+                        .to_any()
+                ),
+                Ok(leaf.is_sign_positive().to_any())
+            );
+            // Release outer levels first to keep fixture teardown shallow too.
+            while right.pop().is_some() {}
+        }
+        while left.pop().is_some() {}
+    }
+
     /// The generated FJS body rounds to binary32 precision, then answers
     /// an ordinary Number. It retains the static's metadata and has no
     /// native fallback when the common runtime omits its binding.

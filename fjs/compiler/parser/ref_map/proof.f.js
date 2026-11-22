@@ -9,7 +9,7 @@ import { assert, assertEq, assertOk, assertStructurallySame } from '../../../ass
 import { stringToList } from '../../../text/utf16/module.f.js'
 import { tokenize } from '../../tokenizer/module.f.js'
 import { nameOf, parseSyntax } from '../syntax/module.f.js'
-import { structEqSource } from '../../../js/intrinsic/module.f.js'
+import { structEqSource } from '../../../types/object/struct_eq/source.f.js'
 import { blocks, isStructEq, isRefMap, names, source } from './module.f.js'
 
 /** The function a module's first statement declares, and the name it is declared under. @type {(text: string) => readonly [Extract<Node, readonly ['=>', ParameterList, Node]>, string]} */

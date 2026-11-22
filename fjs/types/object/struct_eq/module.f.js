@@ -1,20 +1,20 @@
 /** Ordered equality for FunctionalScript values. @module
- * @import { StructEqStack } from './private.ts'
+ * @import { _StructEqStack } from './private.ts'
  * @import { Entry } from '../types.ts'
  */
 
 /** @type {(a: unknown, b: unknown) => boolean} */
 export const structEq = (a, b) => {
-    /** @type {StructEqStack<unknown, Entry<unknown>>} */
+    /** @type {_StructEqStack<unknown, Entry<unknown>>} */
     let pending = { tag: 'value', a, b, n: undefined }
     while (pending !== undefined) {
-        /** @type {NonNullable<StructEqStack<unknown, Entry<unknown>>>} */
+        /** @type {NonNullable<_StructEqStack<unknown, Entry<unknown>>>} */
         const frame = pending
         pending = frame.n
         if (frame.tag !== 'value') {
             const i = frame.i
             if (i === frame.a.length) { continue }
-            /** @type {StructEqStack<unknown, Entry<unknown>>} */
+            /** @type {_StructEqStack<unknown, Entry<unknown>>} */
             const next = i + 1 === frame.a.length ? pending : { ...frame, i: i + 1 }
             if (frame.tag === 'array') {
                 pending = { tag: 'value', a: frame.a[Number(i)], b: frame.b[Number(i)], n: next }

@@ -438,6 +438,7 @@ export const proof = {
         // `entry` is, needing no runtime
         assert(printed(['refMap']).startsWith('ref_map(Some("(()=>{const $0=($1,$2)=>{'))
         assertEq(needsRuntime(['refMap']), false)
+        assertEq(needsRuntime(['structEq']), true)
         // an intrinsic: the closure answering the member call of the name
         // on its first argument with the rest, the library's call step
         assertEq(printed(['charCodeAt']), "A::static_function(|_self, _args| Any::dot(_args.argument(0), string_any(\"charCodeAt\")).end_call_native(|| Ok([_args.argument(1)].to_array().to_any())), 2, Array::default(), Some(\"($0,$1)=>$0.charCodeAt($1)\")).to_any()")

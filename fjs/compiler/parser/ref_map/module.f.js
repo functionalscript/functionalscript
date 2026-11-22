@@ -13,7 +13,7 @@
  * @import { BindingTarget, Node, ParameterList } from '../syntax/types.ts'
  */
 
-import { structEqSource } from '../../../js/intrinsic/module.f.js'
+import { structEqSource } from '../../../types/object/struct_eq/source.f.js'
 import { assertNotNullish, assertOk } from '../../../asserts/module.f.js'
 import { structurallySame } from '../../../types/object/structurally_same/module.f.js'
 import { entry, hasEntry } from '../../../types/object/entry/module.f.js'

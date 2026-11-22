@@ -1,11 +1,11 @@
 import { assert, assertEq, assertOk } from '../../asserts/module.f.js'
 import { vm } from '../../edag/amnesia/module.f.js'
 import { parse } from '../transpiler/module.f.js'
-import { structEqSource } from '../../js/intrinsic/module.f.js'
+import { structEqSource } from '../../types/object/struct_eq/source.f.js'
 import { _helperText } from '../../js/ast/serializer/intrinsic/module.f.js'
 import { compile, execute, expectEdag } from '../edag/proof.f.js'
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     pattern: () => {
         const renamed = structEqSource.replaceAll('structEq', 'compare').replaceAll('pending', 'todo')
         expectEdag(compile(`${renamed}\nexport default compare`).edag, ['structEq'])
@@ -29,4 +29,4 @@ return structEq }`
         assertEq(execute(graph), true)
         assertEq(assertOk(vm({ frame: [], args: [] })(graph)), true)
     },
-}
+})

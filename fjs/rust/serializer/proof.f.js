@@ -74,7 +74,7 @@ export const proof = {
         const arrow = v => ['function', { ...fn, body: yielding([v]) }]
         /** @type {readonly Value[]} */
         const reads = [
-            ['Object.is'], ['Boolean', 1], ['in', 'x', 1], ['memberPresent', 1, 'x'],
+            ['Object.is'], ['structEq'], ['Boolean', 1], ['in', 'x', 1], ['memberPresent', 1, 'x'],
             ['.', 1, 'a', ['|.', 'b', ['|()', []]]],
         ]
         for (const value of reads) {
@@ -112,7 +112,7 @@ export const proof = {
         const values = [
             ['.', ['object', []], 'a', ['|.', 'b']],
             ['?.', ['object', []], '\ud800'], ['memberPresent', ['object', []], 'a'],
-            ['Boolean', 1], ['in', 'b', ['object', []]], ['slice'], ['refMap'], ['Object.is'],
+            ['Boolean', 1], ['in', 'b', ['object', []]], ['slice'], ['refMap'], ['structEq'], ['Object.is'],
         ]
         const printed = unwrap(scopeTagged(yielding([['array', values]]), options, [], true))
         assert(printed.uses.unstable.includes('static_read_keys'))
@@ -513,11 +513,14 @@ export const proof = {
         ]
         for (const value of values) { assert(text(value).includes('Any::')) }
     },
+    structuralEquality: () => {
+        assert(text(['structEq']).includes('Any::call(A::frame(_self)[0].clone()'))
+        assertEq(valueTagged(['structEq'], { ...options, runtime: null })[0], 'error')
+    },
     // The empty reference map is NaNVM's own: a new native map wherever
     // the node is established, under the helper's text, with a runtime in
     // scope or with none.
     referenceMap: () => {
-        assert(text(['structEq']).includes('Any::struct_eq('))
         const written = text(['refMap'])
         assert(written.startsWith('ref_map(Some("(()=>{const $0=($1,$2)=>{const $3=new WeakMap();'), written)
         assert(written.endsWith('return $0;})()"))'), written)

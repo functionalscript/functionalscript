@@ -1,4 +1,5 @@
 import { assert } from '../../../asserts/module.f.js'
+import { structEqBody, structEqSource } from './source.f.js'
 import { structEq } from './module.f.js'
 
 /** @type {(value: unknown) => unknown} */
@@ -9,7 +10,17 @@ const deep = value => {
     return value
 }
 
+/** @param {number} x */
+const make = x => () => x
+
 export const proof = /** @type {const} */ ({
+    source: () => {
+        assert(structEqSource === `const structEq = ${structEqBody(false)}`)
+        const core = structEqBody(true)
+        assert(core.includes('sameValue(x, y)'))
+        assert(core.includes('entries(x)'))
+        assert(core.includes('entries(y)'))
+    },
     depth: () => {
         const left = deep(0)
         assert(structEq(left, deep(0)))
@@ -36,7 +47,6 @@ export const proof = /** @type {const} */ ({
         assert(!structEq({}, null))
         assert(!structEq(null, {}))
         assert(!structEq({}, 0))
-        const make = /** @param {number} x */ x => () => x
         const f = make(1)
         assert(structEq([f], [f]))
         assert(!structEq([f], [make(2)]))

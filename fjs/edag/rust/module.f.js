@@ -54,7 +54,7 @@ export const needsRuntime = root => visit(withBodies)(root).some(([node]) => {
     switch (operation[0]) {
         case 'memberPresent': { return true }
         // Entry checks and boolean conversion call their shared runtime bodies.
-        case 'in': case 'Boolean': { return true }
+        case 'in': case 'structEq': case 'Boolean': { return true }
         case '.': case '?.': { return memberCall(operation[3], true) }
         case '?.()': { return memberCall(operation[3], false) }
         default: { return false }

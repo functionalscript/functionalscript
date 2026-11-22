@@ -11,7 +11,7 @@
  *
  * @module
  * @import { EdagValue, Property, Function as ValueFunction } from '../types.ts'
- * @import { StructEqStack } from '../../../types/object/struct_eq/private.ts'
+ * @import { _StructEqStack } from '../../../types/object/struct_eq/private.ts'
  * @import { ConstructorId } from '../../types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  */
@@ -94,16 +94,16 @@ export const binary = {
  * already in enumeration order. Functions are leaves decided by SameValue.
  * @type {(a: EdagValue, b: EdagValue) => boolean} */
 export const structEq = (a, b) => {
-    /** @type {StructEqStack<EdagValue, Property>} */
+    /** @type {_StructEqStack<EdagValue, Property>} */
     let pending = { tag: 'value', a, b, n: undefined }
     while (pending !== undefined) {
-        /** @type {NonNullable<StructEqStack<EdagValue, Property>>} */
+        /** @type {NonNullable<_StructEqStack<EdagValue, Property>>} */
         const frame = pending
         pending = frame.n
         if (frame.tag !== 'value') {
             const i = frame.i
             if (i === frame.a.length) { continue }
-            /** @type {StructEqStack<EdagValue, Property>} */
+            /** @type {_StructEqStack<EdagValue, Property>} */
             const next = i + 1 === frame.a.length ? pending : { ...frame, i: i + 1 }
             if (frame.tag === 'array') {
                 pending = { tag: 'value', a: frame.a[Number(i)], b: frame.b[Number(i)], n: next }
