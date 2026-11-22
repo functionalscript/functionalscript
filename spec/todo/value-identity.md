@@ -40,7 +40,7 @@ For example, build two separate graphs by starting with a leaf and wrapping each
 
 At any instant, identity is an equivalence relation. Its classes can join and never split. `Object.is` treats `NaN` as equal to itself and distinguishes `0` from `-0`. On every executor a true `Object.is(a, b)` implies `structEq(a, b)`. The converse is guaranteed on a CAVM.
 
-One sequence of permanent merges must explain all observations. With `p = [a]` and `q = [b]`, merging `p` and `q` also makes `a` and `b` one value. The [reference-map example below](#what-is-the-canonical-content-of-a-reference-map) shows how a key merge affects earlier and later versions of the same map.
+One sequence of permanent merges must explain all observations. With `p = [a]` and `q = [b]`, merging `p` and `q` also makes `a` and `b` one value. The [reference-map example below](#reference-map) shows how a key merge affects earlier and later versions of the same map.
 
 For reference operands, the same choice reaches `===`, `!==`, reference-map reads and updates, array `indexOf` and `includes`, `switch`, and downstream data, branches and failures. If module initialization observes true, an exported function comparing the same live pair must also observe true. An initial false may later become true. Calls that construct fresh pairs can also yield different booleans. [Module evaluation](../../fjs/edag/memo/README.md) · [Switch](../control-flow/switch/README.md)
 
@@ -67,7 +67,7 @@ Define canonical code per semantics version, before discretionary optimizer rewr
 
 Given `const wrap = x => () => x`, two calls to `wrap(1)` may coalesce and a CAVM must give them one identity. `wrap(1)` and `wrap(2)` remain distinct. If the captured values are references `a` and `b`, folding `wrap(a)` with `wrap(b)` must preserve what calls return. Their common result would have to alias both `a` and `b`. While `a` and `b` are distinct, their closures must also be distinct. A later merge of the closures requires their captures to have merged by then.
 
-### What is the canonical content of a reference map?
+### Reference map
 
 For lookup, treat each persistent map version as a list of writes with object or function keys. Search newest first and take the value of the first key for which `Object.is(storedKey, key)` is true, or `undefined` on a miss. A read `m(key)` returns that value and the same map. A write `m(key, value)` returns the previous value and a new version with the write prepended. Passing `undefined` as the value is a read. The EDAG list implementation uses `===`, which agrees with `Object.is` for its object and function keys. [Reference-map API](../built-ins/reference-map/README.md) · [EDAG implementation](../../fjs/js/ref_map/module.f.js) · [Designer's lookup rule](https://github.com/functionalscript/functionalscript/pull/4076#issuecomment-7077249934)
 
@@ -87,7 +87,13 @@ The EDAG interpreters scan up to all the writes in a version. Production VMs mus
 
 The single-key case must succeed. Save `empty({}, 7)[1]` alone, reload it on a CAVM, then look up a newly constructed `{}`. The lookup must return `7`. The existing native-map serialization proposal can omit a key found nowhere else in the graph or insert a dummy binding. A CAVM can reconstruct the lookup key by content, so its import format must preserve the binding. [Map serialization design](../design/object-identity.md#serialization)
 
-**The map's own CAVM identity is open.** One candidate uses the unordered set of current canonical key/value bindings. Under that rule, writing `a → 1` then `a → 2` gives the same map as writing only `a → 2`. A closure-based definition would have to say which frame differences count. On a VM that can still merge keys, two maps with the same current bindings can be distinguished later. If one wrote `a → 1` last and the other wrote `b → 2` last, merging the keys makes the two maps answer differently.
+#### Map identity
+
+The map's own identity remains an open language-design decision. One candidate gives two map versions equal content if no key lookup can distinguish them now or after any permitted sequence of identity merges. Query both versions with the same key under the same merges. They must both miss or return bound values that compare equal with `Object.is` at that point. This compares the first element of a read result. A caller can observe which reference it received even when two possible results have equal structure. [Proposed identity criterion](https://github.com/functionalscript/functionalscript/pull/4076#issuecomment-7077397030)
+
+For example, let `M` write `a → 1` then `b → 2`, and let `N` write the same bindings in reverse order. While the keys are distinct, both maps answer every lookup alike. If the keys later merge, `M` answers `2` and `N` answers `1`. The candidate therefore keeps these maps distinct. If both writes store `7`, either order still returns `7` after the merge. Adjacent writes to keys of different content can be swapped because those keys can never match the same lookup. An earlier write to the same established key can be dropped from that version.
+
+On a CAVM the keys already have their canonical identities, so the candidate reduces to the unordered set of current canonical key/value bindings. Writing `a → 1` then `a → 2` gives the same map as writing only `a → 2`. A selective VM may keep separate maps whenever it cannot prove the criterion. A closure-based alternative would need to specify which differences in the captured representation contribute to map content.
 
 ### Testing identity-dependent results
 
@@ -103,10 +109,12 @@ const agree = () => Object.is(Object.is(a, b), Object.is(c, d))
 
 The two content classes can merge independently. The fresh and fully shared policies both make `agree()` true. Merging only one pair makes it false. For this fixture enumerate all four choices and, across two checkpoints, all nine combinations of per-pair histories (stays false, becomes true, starts true). For larger cases, try adversarial schedules and seeded random merges between eligible pairs, recording the seed for replay. Each merge must respect transitivity and child/capture aliases. A sampled run can disprove independence. Certifying it requires an argument covering all permitted schedules. [Execution models](../../fjs/edag/execution-models.md)
 
+Amnesia serves as a proof evaluator outside the FJS identity-conformance suite. It can evaluate a shared array node twice and return false when both reads denote the same logical value. The same-value rule requires true. [Amnesia's shared-node example](../../fjs/edag/amnesia/README.md#recomputed-code-retained-values)
+
 ### Tasks
 
-- [ ] **Allocation identity (language decision).** Record the language designer's explicit approval and link it here before implementing the allocation-identity exception. Check fresh allocation, selective sharing (including global memoization) and full content identity against the rules. Exclude Amnesia from VM conformance tests. Its proof evaluator can recompute a shared array as two allocations and return false for the same logical value. [Amnesia's shared-node example](../../fjs/edag/amnesia/README.md#recomputed-code-retained-values) · [Compatibility tracker](../../todo/fjs-javascript-compatibility.md)
-- [ ] **Closure folding (language decision).** Decide the versioned canonical code/frame rules and reference-map content. Record which prior identity decisions this supersedes and publish pairs that must and must not merge.
+- [ ] **Allocation identity (language decision).** Record the language designer's explicit approval and link it here before implementing the allocation-identity exception. Check fresh allocation, selective sharing (including global memoization) and full content identity against the rules. [Compatibility tracker](../../todo/fjs-javascript-compatibility.md)
+- [ ] **Closure folding (language decision).** Decide the versioned canonical code/frame rules and the separate [map identity question](#map-identity). Record which prior identity decisions this supersedes and publish pairs that must and must not merge.
 - [ ] **Library change.** Implement the ordered helper and migrate content assertions. Include reordered keys, shared children, missing entries, signed zeros and function leaves.
 - [ ] **Backend optimization.** Recognize the helper as a pattern instruction after its semantics are tested. Compare the instruction with the executable definition under the same identity choices. Verify the constant-time identity fast path on a reference-comparing VM and the shared equality operation on a CAVM.
 - [ ] Implement the selective-schedule tests above. Include a false at initialization followed by true on the same live pair, repeat the comparison through a warm cache to catch a stale negative, reject a later split, and cover nested aliases and captures. Run the three-version map example with a direct key merge and with a merge induced through `[a]` and `[b]`. Check both keys in every saved version. Reverse the first two writes and verify that the two-write version now returns `1` for both keys.
