@@ -2,8 +2,6 @@
  * Proofs of [the boxed-literals pass](./module.f.js): which terms box a
  * number, each shape of term walked, and the constants that a module gets.
  *
- * @module
- *
  * @import { Module, Term } from '../../types.ts'
  */
 
