@@ -171,7 +171,7 @@ import {
     make, match, mul, n, ne, neg, next, not, only, product, return_, signature, sub, terms, throw_, trap, u,
 } from '../module.f.js'
 import { native } from '../native/module.f.js'
-import { asAny, boolean, floats, inOrder, isAny, isFloat, nativeRow, numberOps, numberPath, numberRow, numeric, primitive } from './numbers/module.f.js'
+import { asAny, boolean, floats, inOrder, isAny, isFloat, nativeRow, numbered, numberPath, numberRow, numeric, primitive } from './numbers/module.f.js'
 import { records } from '../records/module.f.js'
 import { bindTerm, castCall, casts, getOf, isPure, isSpread, l1Of, linking, pure, refuse, settled, settledParts, standsFor, values } from './scope/module.f.js'
 import { link, linkedName, uses } from './link/module.f.js'
@@ -1568,7 +1568,7 @@ const viaL1 = (lowerValue, scope, name, fits, vs, native, wrap = x => x) => {
     /** L1's call of the operands, each float or boolean boxed. @type {(ys: readonly Term[]) => Term} */
     const slow = ys => wrap(call('self', f, ys.map((y, k) => assertNotNullish(asAny(types[Number(k)], y)))))
     if (xs[1].some((x, k) => asAny(types[Number(k)], x) === null)) { return refuse(scope)(`${name} of ${types.map(show).join(' and ')} is not in this slice`) }
-    return (numberOps.includes(name) ? numberPath(pure, scope, xs[1], types, native, slow) : null) ?? ok(slow(xs[1]))
+    return (numbered(name, types) ? numberPath(pure, scope, xs[1], types, native, slow) : null) ?? ok(slow(xs[1]))
 }
 
 /**
