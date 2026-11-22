@@ -37,7 +37,7 @@ export const source = runtimeSource('.')
  * it by `#[path]`, since a `gen.` name is not a Rust identifier.
  */
 export const rustPath = 'nanvm/lib/src/vm/gen.runtime.rs'
-export const nativeRustPath = 'nanvm/fjsrs/src/gen.runtime.native.rs'
+export const nativeRustPath = /** @type {const} */ ('nanvm/fjsrs/src/gen.runtime.native.rs')
 
 /**
  * Where its EDAG goes as ordinary JavaScript, beside its source, for the corpus proof
