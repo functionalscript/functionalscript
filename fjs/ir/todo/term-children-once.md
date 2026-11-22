@@ -11,21 +11,21 @@ are identical line for line; only the JSDoc type differs.
 
 Around them, passes re-spell the child table for one node kind's sake:
 
-- `bound` in [`lifetime`](../lifetime/module.f.js) is a twelve-case
-  switch that answers a node's binders and the `bound` of each child.
+- `bound` in [`lifetime`](../lifetime/module.f.js) is a switch over
+  every kind that answers a node's binders and the `bound` of each child.
   Only `let`, `match` and `loop` have binders; the other cases restate
   `inside`. Its answer is used as a set, so it is
   `[...binders(t), ...inside(t).flatMap(bound)]`.
 - `linkedTerm` in [`from_fast/link`](../from_fast/link/module.f.js)
-  rebuilds every node kind to change three: `call`, `code` and
+  rebuilds every node kind to change a few: `call`, `code` and
   `constant`.
 - `named` in `lifetime` threads a counter through the children of
   `let`, `op`, `make`, `field`, `variant` and `block` and rebuilds the
   node unchanged.
 - `emit` in [`wasm`](../wasm/module.f.js) writes "every function's body,
-  then every constant's term" five times, once per collector
+  then every constant's term" once per collector
   (`literalsOf`, `codesOf`, `hasCallRef`, `blockTypes`, `callRefTypes`).
-- "What a term names of its own module" is collected three times:
+- "What a term names of its own module" is collected separately by
   `uses` in `from_fast/link`, `reads` in `from_fast`, `uses` in
   [`check`](../check/module.f.js).
 
@@ -39,11 +39,11 @@ Beside `terms`:
 - one child table, generic over the child, so `terms` and `inside` are
   one function;
 - its inverse, `withTerms(t, parts)`: the node rebuilt over new
-  children. `linkedTerm` is then its three cases and
+  children. `linkedTerm` is then the cases it changes and
   `withTerms(t, terms(t).map(linkedTerm))`, and `named`'s pass-through
   cases are its default;
-- `binders(t)`, so `bound` is two lines;
-- in `emit`, one `bodies` list that the five collectors map over.
+- `binders(t)`, so `bound` is one expression;
+- in `emit`, one `bodies` list that the collectors map over.
 
 `free` in `lifetime` knows scopes and stays as it is.
 

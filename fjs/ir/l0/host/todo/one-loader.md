@@ -25,8 +25,8 @@ needed:
 
 - `onHost` in
   [`doc/sasha-gil/ir/benchmark.run.mjs`](../../../../../doc/sasha-gil/ir/benchmark.run.mjs),
-  the same five lines, and a `compile` beside it that is `run`'s first
-  four: `check`, `emit`, `write`, `new WebAssembly.Module`.
+  the same lines, and a `compile` beside it that is `run`'s opening:
+  `check`, `emit`, `write`, `new WebAssembly.Module`.
 - `load` in [`count/proof.mjs`](../count/proof.mjs) and `leftAfter` in
   [`fjs/ir/lifetime/proof.mjs`](../../../lifetime/proof.mjs), the short
   form: no layout, no native rows, no `init`. A subject that grows a
@@ -47,7 +47,7 @@ and its reader share nothing: the writer emits
 twice, in two languages' worth of files, and a fourth number is an edit to
 both.
 
-LEB128 itself is written four times: `leb` in
+LEB128 itself is written in each of these: `leb` in
 [`media/wasm/binary/write`](../../../../media/wasm/binary/write/module.f.js)
 and in [`media/wasm/binary/parse`](../../../../media/wasm/binary/parse/module.f.js),
 both private, `uleb` in `fjs/ir/wasm/module.f.js`, and `ulebs` in the test
@@ -73,7 +73,7 @@ writer and reader that it already has, and `uleb` and `ulebs` go.
 
 It reads the layout through `decode`, makes the host, picks the native
 rows, instantiates, runs `init` and keeps. `run`, the benchmark's `onHost`
-and the two short proofs call it. The benchmark then imports a loader
+and the short proofs call it. The benchmark then imports a loader
 rather than a test library, which is the dependency a script under `doc/`
 should have.
 

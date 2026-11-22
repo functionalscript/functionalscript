@@ -5,8 +5,8 @@
 
 ### Problem
 
-[`module.mjs`](../module.mjs) is the counting host: about 270 lines of
-plain JavaScript under a module comment of ninety. The comment gives the
+[`module.mjs`](../module.mjs) is the counting host: a few hundred lines
+of plain JavaScript under a module comment a third as long. The comment gives the
 reason it is not FunctionalScript: "Counting is state, and a WebAssembly
 import has nowhere else to keep it." That is a reason for the state to
 live at the boundary. It is not a reason for the rules to, and

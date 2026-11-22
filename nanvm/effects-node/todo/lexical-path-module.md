@@ -33,7 +33,7 @@ skips `""` and `"."`; `decode_specifier` keeps `""` and knows the `%2e`
 spellings. A correction to what `..` does at a root is two edits, and
 nothing fails on one.
 
-The test for a drive-letter root is written three times: in `normalize`
+The test for a drive-letter root is written at each of: in `normalize`
 (`is_ascii_alphabetic`, `:`, `/`), in `windows_path` with a backslash,
 and in `file_url_to_path` offset by the leading slash. And
 `if cfg!(windows) { windows_path(&x).map(str::to_string) } else { Ok(x) }`

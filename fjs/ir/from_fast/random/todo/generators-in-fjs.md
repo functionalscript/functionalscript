@@ -5,7 +5,8 @@
 
 ### Problem
 
-[`module.mjs`](../module.mjs) is 1,033 lines of plain JavaScript and does
+[`module.mjs`](../module.mjs) is plain JavaScript — about a thousand
+lines at `e4cd5b3e` — and does
 three unrelated things.
 
 1. **A generator of numbers.** `rng` is Mulberry32 behind a closure that
@@ -13,7 +14,7 @@ three unrelated things.
 2. **Generators of programs.** `floatExpr`, `boolExpr`, `intExpr`,
    `typedInputs`, `floatConstants`, `typedProgram`, `anyForm`,
    `programExpr`, `untypedProgram`, `closureProgram` and `spreadProgram`
-   — some nine hundred lines — build a program's text, its signatures,
+   — most of the file — build a program's text, its signatures,
    its inputs and its twin. They read no file and touch no WebAssembly;
    the only impurity is that calling `rnd()` advances it.
 3. **The comparison.** `compareOne` and `compare` take a program through
@@ -49,10 +50,10 @@ matching that
 [AGENTS.md §6](../../../../../AGENTS.md#6-external-tools) warns against,
 applied to our own output.
 
-**A twin is made two ways.** Fifteen sites build the twin from the
+**A twin is made two ways.** Over a dozen sites build the twin from the
 program's own body with `new Function`, which only a host can do. The
 others write the body a second time by hand, as form 8 of `anyForm` does:
-the loop is seven lines of text for the lowering and the same loop as a
+the loop is written as text for the lowering and the same loop as a
 closure beside it, and the two agree because they were kept in step.
 
 ### Proposal
@@ -65,8 +66,8 @@ closure beside it, and the two agree because they were kept in step.
   a program and the seed after it. The grammar tables (`programAtoms`,
   `anySamples`, `literalSamples`, the operator lists) become data that
   the generators fold over rather than branches of `if (r < 0.3)`.
-- **`module.mjs` keeps `compareOne`, `compare` and `linkedL1`**: under a
-  hundred lines.
+- **`module.mjs` keeps `compareOne`, `compare` and `linkedL1`**, a small
+  fraction of what it is now.
 - **The checker's refusal carries what it is.** Where `check` and `lower`
   answer `Result<_, string>`, the range refusal gets a kind that
   `expectedRefusal` reads, or the generators stop writing bodies whose
@@ -74,7 +75,7 @@ closure beside it, and the two agree because they were kept in step.
   simpler if the first reads as API growth for one test.
 - **A generator answers the recipe of a twin, not the twin.** The body's
   text and the names it closes over are data; `module.mjs` makes the
-  closure with `new Function`, in one place rather than fifteen. The
+  closure with `new Function`, in one place rather than at each site. The
   hand-written twins can take the same road, since each is the text
   evaluated over the L0 view's functions, which leaves one spelling of
   each body. If an independent spelling is the point of those, the module

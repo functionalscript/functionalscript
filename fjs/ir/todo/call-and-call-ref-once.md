@@ -23,8 +23,8 @@ const leaving = minus(all, borrowed)
 
 the same `okList(leaving.map(x => dropOf(env, x)))`, and the same
 reducer that gives each part that is not a value a fresh local. That
-reducer is in `brStep` a third time. The mode and `lent` lists are built
-twice in `go` and twice more in `namedCall` and `named`, differing in
+reducer is in `brStep` as well. The mode and `lent` lists are built
+for each kind of call in `go` and again in `namedCall` and `named`, differing in
 `isOwn(params[k])` against `params[k][0] === 'own'`.
 
 **[`check/owned`](../check/owned/module.f.js).** `callTerm` and
@@ -35,7 +35,7 @@ and their refusals differ in the label, `${full}` against `call_ref`.
 **[`check`](../check/module.f.js).** The arity and argument-subtype
 check has the same shape for both, and
 `xs.findIndex(([x], k) => !sub(env, x, params[Number(k)][1]))` is written
-four times.
+at each such check.
 
 This is P2 and not P3 because the lifetime copy is a soundness rule: a
 correction to what is dropped before a failing call has to be made in

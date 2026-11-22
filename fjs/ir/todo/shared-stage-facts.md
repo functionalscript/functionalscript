@@ -55,7 +55,7 @@ stage after the checker. `minus` and `union` go beside `dedup` in
 - `fjs/types/string_set` is no substitute for the two set operations: it
   sorts, and the order of these lists shows — the lifetime pass writes
   its drops in list order.
-- About thirty lines go. Eight helpers go from two to four definitions
-  each to one, which is the point.
+- Few lines go. Each helper goes from several definitions to one,
+  which is the point.
 - Each export needs its cases in [`proof.f.js`](../proof.f.js), where
   today the stages' proofs reach them indirectly.

@@ -25,12 +25,12 @@ const externKinds = { 0: 'func', 1: 'table', 2: 'memory', 3: 'global' }
 const nameIds = ['module', 'function', 'local', 'label', 'type', 'table', 'memory', 'global', 'elem', 'data', 'field', 'tag']
 ```
 
-The sections are written three times: `known` in the writer, as rows of
+The sections are written in each of the three: `known` in the writer, as rows of
 id, name and payload in the order the format wants (`…, 9 elem, 12
 datacount, 10 code, 11 data`); `known` in the parser, keyed by id, with a
 separate `order = [1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 10, 11]`; and `place`'s
-`present` list in [`wat`](../wat/module.f.js), the twelve names in that
-order again. [`types.ts`](../types.ts) lists the names a fourth time, as
+`present` list in [`wat`](../wat/module.f.js), the names in that
+order again. [`types.ts`](../types.ts) lists the names once more, as
 `SectionName`.
 
 Smaller rules ride the same split:
@@ -41,7 +41,7 @@ Smaller rules ride the same split:
   writer and in `wat`;
 - a block opener is `block`, `loop` or `if` in the parser and in `wat`,
   which are the rows of kind `'block'` in the instruction table;
-- the preamble is eight literal bytes in the writer and `magic` and
+- the preamble is literal bytes in the writer and `magic` and
   `version` in the parser.
 
 That the parser reads what the writer writes rests on each pair having
@@ -64,7 +64,7 @@ the parser its reader, `wat` its presence test — three maps by name over
 one shared order.
 
 The unsigned LEB128 writer and reader belong to the same module; see
-[one loader](../../../ir/l0/host/todo/one-loader.md), which counts four
+[one loader](../../../ir/l0/host/todo/one-loader.md), which lists the
 spellings of it.
 
 ### Drawbacks
@@ -73,5 +73,4 @@ spellings of it.
   lookups and for `nameIds.module`, so the rows are `@type {const}` and
   the derivation needs a mapped type rather than `Object.fromEntries`'s
   loose one.
-- About thirty to forty lines go. The size is not the argument; the
-  hand-inversion is.
+- Few lines go. The size is not the argument; the hand-inversion is.

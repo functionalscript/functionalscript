@@ -22,12 +22,12 @@ The mapping from an `io::Error` is a closure spelled at every call:
 .map_err(|e| failure(&e, "close", path))
 ```
 
-about thirty times in `files.rs` and three in `resolve.rs`.
+at tens of sites in `files.rs` and a few in `resolve.rs`.
 
 ### Proposal
 
 `src/error.rs` owns `IoError`, `code`, `raw_code` and `failure`, with
-the four tests that pin them, and one extension method on
+the tests that pin them, and one extension method on
 `io::Result<T>`:
 
 ```rust
@@ -35,7 +35,7 @@ File::open(path).at("open", path)?
 ```
 
 `lib.rs` re-exports `IoError` from there, so nothing public moves.
-`files.rs` loses about two hundred lines, and
+`files.rs` loses the channel and its tests, and
 [filesystem error codes](./filesystem-error-codes.md), which grows
 `raw_code`, gets a file to grow in.
 

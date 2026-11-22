@@ -19,9 +19,9 @@ with(|s| s.memory[r].as_chunks::<2>().0.iter().map(|&c| u16::from_le_bytes(c)).c
 
 and `read_units` and `read_words` are one body the same way.
 
-[`nanvm/l0-wasm/src/lib.rs`](../../l0-wasm/src/lib.rs) repeats all four
+[`nanvm/l0-wasm/src/lib.rs`](../../l0-wasm/src/lib.rs) repeats them
 over its own memory — `make_string`, `make_bigint`, `read_units`,
-`read_words` — and `trap_text_into` is a fifth copy of the encode loop.
+`read_words` — and `trap_text_into` is one more copy of the encode loop.
 
 The bounds arithmetic is in both crates too: `bytes` in `abi.rs` and
 `region` in `l0-wasm` each compute `start`, `len.checked_mul(size)` and
@@ -52,7 +52,7 @@ same generics on the slice `region` gives it.
 ### Related
 
 - [string units](./string-units.md)
-- `l0-wasm` also hand-copies the eleven `fjs:l1-native` rows that
+- `l0-wasm` also hand-copies the `fjs:l1-native` rows that
   [`fjs/ir/native`](../../../fjs/ir/native/module.f.js) holds as a
   table. [`fjs/nanvm/commands`](../../../fjs/nanvm/commands) printing
   `gen.commands.rs` is the precedent for generating such a list, and
