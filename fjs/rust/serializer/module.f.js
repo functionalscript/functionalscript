@@ -421,6 +421,14 @@ const array = (s, values, result = false) => {
 
 /** @type {(s: _Context, entries: readonly (readonly [':', Value, Value] | readonly ['...', Value])[]) => Result<Printed<string>, readonly unknown[]>} */
 const object = (s, entries) => {
+    if (s.moduleInit && entries.every(e => e[0] === ':' && typeof e[1] === 'string' && !(e[2] instanceof Array))) {
+        const fields = /** @type {readonly (readonly [':', string, Primitive])[]} */ (entries)
+        // Keep the last value at each key's first position and enumerate index keys first.
+        const properties = Object.entries(Object.fromEntries(fields.map(([, k, v]) => /** @type {const} */ ([k, v]))))
+        return ok(cat([`{ ${kw('static')} VALUE: `, vm('StaticObject'), '<A> = StaticObject(&[',
+            ...properties.flatMap(([k, v], i) => [i === 0 ? '(' : ', (', `&LITERAL_${mapGet(/** @type {_Names} */ (s.names).literals, k)}, `, staticItem(s, v), ')']),
+            ']); ', vm('Object'), '::from_static(&VALUE)', toAny, ' }']))
+    }
     if (entries.length === 0) { return ok(cat([vm('Object'), '::default()', toAny])) }
     const spread = entries.some(e => e[0] === '...' || typeof e[1] !== 'string')
     const members = entries.map(e => e[0] === '...'

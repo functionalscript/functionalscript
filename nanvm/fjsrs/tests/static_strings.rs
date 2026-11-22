@@ -56,3 +56,27 @@ fn primitive_arrays_preserve_identity_and_contents() {
         "18446744073709551618"
     );
 }
+
+#[test]
+fn primitive_objects_preserve_properties_and_identity() {
+    let module = exports(fixture::module).unwrap();
+    let get = |name: &str| module.own_property(&name.into()).unwrap();
+    assert_eq!(get("record"), get("recordAlias"));
+    assert_ne!(get("left"), get("right"));
+    let record = nanvm_lib::vm::Object::try_from(get("record")).unwrap();
+    assert_eq!(
+        record.own_property(&"name".into()).unwrap(),
+        Any::from("very long string")
+    );
+    assert_eq!(
+        BigInt::try_from(record.own_property(&"count".into()).unwrap())
+            .unwrap()
+            .to_string(),
+        "18446744073709551618"
+    );
+    let fresh = Function::try_from(get("emptyObject")).unwrap();
+    assert_ne!(
+        fresh.call([].to_array()).unwrap(),
+        fresh.call([].to_array()).unwrap()
+    );
+}

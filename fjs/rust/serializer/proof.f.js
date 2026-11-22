@@ -72,7 +72,7 @@ export const proof = {
         const output = unwrap(scopeTagged(yielding([['object', [[':', 'default', 'default']]]]), options, [], true))
         const lines = output.lines.map(untagged)
         assertEq(lines.filter(line => line.startsWith('static ')).length, 1)
-        assert(lines[1].includes('(String::from_static(&LITERAL_0), String::from_static(&LITERAL_0).to_any())'))
+        assert(lines[1].includes('(&LITERAL_0, StaticAny::String(&LITERAL_0))'))
         /** @type {readonly Value[]} */
         const values = [
             ['.', ['object', []], 'a', ['|.', 'b']],
@@ -87,6 +87,17 @@ export const proof = {
         const core = unwrap(scopeTagged(yielding([['Math.abs']]), { ...options, runtime: null }, [], true))
         assert(core.lines.join('').includes('StaticString'))
         assert(!rust.includes('\"') && !core.lines.map(untagged).join('').includes('\"'))
+    },
+    nativePrimitiveObjects: () => {
+        /** @type {Value} */
+        const object = ['object', [[':', 'x', 0], [':', '2', true], [':', '1', false], [':', 'x', undefined]]]
+        const output = unwrap(scopeTagged(yielding([object]), options, [], true))
+        assert(output.lines.map(untagged).join('\n').includes('StaticObject(&[(&LITERAL_2, StaticAny::Boolean(false)), (&LITERAL_1, StaticAny::Boolean(true)), (&LITERAL_0, StaticAny::Nullish(Nullish::Undefined))])'))
+        /** @type {readonly Value[]} */
+        const dynamic = [['object', [[':', ['ref', x], 1]]], ['object', [['...', ['ref', x]]]], ['object', [[':', 'x', ['ref', x]]]]]
+        for (const value of dynamic) {
+            assert(!unwrap(scopeTagged(yielding([value]), options, [], true)).uses.vm.includes('StaticObject'))
+        }
     },
     nativePrimitiveArrays: () => {
         /** @type {Value} */
