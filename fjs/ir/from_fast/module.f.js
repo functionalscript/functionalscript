@@ -1249,8 +1249,8 @@ const indexed = (lowerValue, scope, receiver, key) => settled(lowerValue, scope,
     if (y === null || g === null) { return refuse(s)(`a read of ${show(t)} at a number is not in this slice: only an array's is`) }
     /** L1's `get` of the key, boxed. @type {(z: Term) => Term} */
     const slow = z => call('self', g, [z, call('Any', 'from_f64', [k])])
-    // In a program, a value of `any` that may be an array is read as one where it is, and by `get` else.
-    if (!isAny(t) || !linking(s) || !(held ?? kinds).includes('array')) { return ok(slow(y)) }
+    // In a program, a value of `any` that may be an array is read as one where it is, and by `get` else, where `get` is L1's own.
+    if (!isAny(t) || g !== 'l1.get' || !(held ?? kinds).includes('array')) { return ok(slow(y)) }
     const [b, other] = [`${base}.array`, `${base}.other`]
     return ok(match(a, [[['array'], b, item(get(b))], [null, other, slow(get(other))]]))
 })
@@ -1774,8 +1774,8 @@ const value = (scope, v) => {
                     if (y === null || g === null) { return null }
                     /** L1's `get` of the key. @type {(z: Term) => Term} */
                     const slow = z => call('self', g, [z, lit(string, key)])
-                    // An array's or a string's length is read in place.
-                    return (key === 'length' && linking(scope) ? lengthRead(x, t, slow, localOf(x, 'length')) : null) ?? slow(y)
+                    // An array's or a string's length is read in place, where `get` is L1's own.
+                    return (key === 'length' && g === 'l1.get' ? lengthRead(x, t, slow, localOf(x, 'length')) : null) ?? slow(y)
                 })
                 : indexed(value, scope, v[1], key)
         }

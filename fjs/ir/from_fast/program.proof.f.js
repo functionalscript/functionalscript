@@ -82,6 +82,9 @@ const standIn = {
 /** The runtime of a program, which links the stand-in for L1. */
 const programRuntime = { ...runtime, l1: standIn }
 
+/** The IR of a program's text over an L1 without `get`, where the program exports its own, printed without the interfaces that it imports. @type {(text: string) => string} */
+const ownGet = text => print({ ...assertOk(over({}, text, { ...programRuntime, l1: { ...standIn, functions: standIn.functions.filter(([k]) => k !== 'get') } })), imports: [] })
+
 /** The IR of a program's text, which no table types, printed without the interfaces that it imports. @type {(text: string) => string} */
 const program = text => print({ ...assertOk(over({}, text, programRuntime)), imports: [] })
 
@@ -212,6 +215,30 @@ export const proof = {
             '    a',
             '',
             'export f',
+            '',
+        ].join('\n'))
+        // Where `get` is the program's own, not L1's, `.length` and a number-key read are its call for every kind.
+        assertEq(ownGet('export const get = (a, k) => a\nexport const f = a => a[0]'), [
+            'const #n0: any.only(number) =',
+            '    Any.from_f64(0.0)',
+            '',
+            'fn f(p0: any) -> any =',
+            '    get(p0, self.#n0)',
+            '',
+            'fn get(p0: any, p1: any) -> any =',
+            '    p0',
+            '',
+            'export f, get',
+            '',
+        ].join('\n'))
+        assertEq(ownGet('export const get = (a, k) => a\nexport const f = a => a.length'), [
+            'fn f(p0: any) -> any =',
+            '    get(p0, "length")',
+            '',
+            'fn get(p0: any, p1: any) -> any =',
+            '    p0',
+            '',
+            'export f, get',
             '',
         ].join('\n'))
         // `===` and `!==` of `any` and a float take the number path, `eq` or `ne`; of two values of `any` they call L1 alone.
