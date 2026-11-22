@@ -2,8 +2,6 @@
  * Proofs of [the reads in place](./module.f.js): `.length` of each kind of
  * `any` that it reads, and what it leaves to `get`.
  *
- * @module
- *
  * @import { Term } from '../../types.ts'
  */
 
