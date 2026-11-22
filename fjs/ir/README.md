@@ -584,7 +584,11 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   are numbers, boxed with `from_f64` where it is a float. Only otherwise
   does it call L1, where a float is boxed. `s.i < n` with `s.i` a float
   is 2 L0 calls, not 8. An operand that may hold no number, a bigint or a
-  string say, calls L1 alone. The path is
+  string say, calls L1 alone. `%`, `>>` and `&` take the same path, to
+  L1's native rows of numbers, and so do `===` and `!==` where an operand
+  is a float, as in `x === 1`, which `eq` answers: collatz below 30,000
+  on NaNVM's `.wasm` went from 1.37 s to 0.66 s. `===` of two values of
+  `any` calls L1 alone. The path is
   [`from_fast/numbers`](./from_fast/numbers/module.f.js).
 - **A read of a split local is that local**: the records pass writes no
   `let` for a `let` of a read of a split object, so the lifetime pass
