@@ -18,6 +18,8 @@ export const right = /** @type {const} */ ({})
 /** @type {(x: unknown) => unknown} */
 export const id = x => x
 export const idAlias = id
+export const capturedId = () => idAlias
+export const capturedWrapper = () => capturedId
 /** @type {() => (x: unknown) => unknown} */
 export const make = () => x => x
 /** @type {() => (x: unknown) => boolean} */
