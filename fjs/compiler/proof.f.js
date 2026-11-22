@@ -332,7 +332,7 @@ export const proof = {
     nativeExportKeySharesValue: () => {
         const rust = compileSource('export default "default";')('output.native.rs')
         assertEq(rust.split(' = StaticString(&[').length, 2)
-        assert(rust.includes('(String::from_static(&LITERAL_0), String::from_static(&LITERAL_0).to_any())'))
+        assert(rust.includes('StaticObject(&[(&LITERAL_0, StaticAny::String(&LITERAL_0))])'))
     },
     stringifyTree: () => {
         assertEq(_stringifyTree([null, true, false, 'text', 0, 42n]), '[null,true,false,"text",0,42n]')
