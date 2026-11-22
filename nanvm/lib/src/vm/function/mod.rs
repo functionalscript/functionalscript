@@ -38,10 +38,7 @@ impl<A: IVm> Function<A> {
     /// `String(f)`: the text the function was given, or the refusal of a
     /// function without one (`error::function_text`).
     pub fn text(&self) -> Result<String<A>, Any<A>> {
-        self.0
-            .text()
-            .map(Into::into)
-            .ok_or_else(error::function_text)
+        self.0.text().ok_or_else(error::function_text)
     }
     /// The VM's own value.
     pub(crate) fn internal(&self) -> &A::InternalFunction {

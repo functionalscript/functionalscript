@@ -5,6 +5,11 @@ use crate::{
     vm::{Any, Array, IComplex, IFunction, StaticCode, StaticFunction},
 };
 
+pub(super) enum Text {
+    Utf8(&'static str),
+    Vm(crate::vm::String<Naive>),
+}
+
 /// What a `naive` function holds: its code, its `length`, the frame it
 /// captured, and its text, where it has one.
 struct Closure {
@@ -12,7 +17,7 @@ struct Closure {
     code: StaticCode<Naive>,
     length: u32,
     frame: Array<Naive>,
-    text: Option<&'static str>,
+    text: Option<Text>,
 }
 
 /// Dynamic closures use their allocation for identity. A loaded constant
@@ -21,11 +26,11 @@ struct Closure {
 pub struct Function(Rc<Closure>);
 
 impl Function {
-    pub fn new(
+    pub(super) fn new(
         code: StaticCode<Naive>,
         length: u32,
         frame: Array<Naive>,
-        text: Option<&'static str>,
+        text: Option<Text>,
     ) -> Self {
         Function(Rc::new(Closure {
             descriptor: None,
@@ -42,7 +47,9 @@ impl Function {
             code: value.code,
             length: value.length,
             frame: Array::from_static(value.frame),
-            text: value.text,
+            text: value
+                .text
+                .map(|text| Text::Vm(crate::vm::String::from_static(text))),
         }))
     }
 
@@ -72,7 +79,10 @@ impl IFunction<Naive> for Function {
         self.0.length
     }
 
-    fn text(&self) -> Option<&'static str> {
-        self.0.text
+    fn text(&self) -> Option<crate::vm::String<Naive>> {
+        self.0.text.as_ref().map(|text| match text {
+            Text::Utf8(s) => (*s).into(),
+            Text::Vm(s) => s.clone(),
+        })
     }
 }

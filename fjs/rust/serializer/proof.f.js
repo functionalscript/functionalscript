@@ -29,27 +29,90 @@ const rest = { index: 2 }
 /** @type {PreparedFunction} */
 const fn = { target: { kind: 'function', index: 0 }, parameters: [x], rest, self: y, captures: [], body: { statements: [], exit: ['return', { kind: 'function', index: 0 }, ['array', [['ref', x], ['ref', y], ['ref', rest]]]] } }
 
+/** @type {(statements: Block['statements'], end: Value) => string} */
+const print = (statements, end) => unwrap(scopeTagged({ statements, exit: ['yield', [end]] }, options, [], true)).lines.map(untagged).join('\n')
+
 export const proof = {
+    nativeOwnership: () => {
+        /** @type {Block['statements']} */
+        const aliases = [['define', x, 1], ['define', y, ['ref', x]]]
+        const inspected = print([...aliases, ['define', rest, ['if', ['ref', y], yielding([['ref', x]]), yielding([null])]]], ['ref', rest])
+        assert(inspected.includes('if Any::<A>::to_boolean(&_b0) { _b0.clone() }'))
+        const once = print([...aliases, ['define', rest, ['array', [['ref', y]]]]], ['ref', rest])
+        assert(!once.includes('let _b1:'))
+        assert(once.includes('[_b0].to_array()'))
+        const closure = print([...aliases, ['define', rest, ['function', { ...fn, captures: [{ binding: { index: 9 }, value: ['ref', y] }] }]]], ['ref', rest])
+        assert(closure.includes('[_b0, runtime.clone()]'))
+        const chain = print([...aliases, ['define', rest, ['ref', y]]], ['ref', rest])
+        assert(!chain.includes('let _b2:'))
+        const mixed = print([...aliases, ['define', rest, ['array', [0, ['ref', x]]]]], ['ref', rest])
+        assert(mixed.includes(', _b0].to_array()'))
+        const twice = print([...aliases, ['define', rest, ['array', [['ref', y], ['ref', x]]]]], ['ref', rest])
+        assert(twice.includes('[_b0.clone(), _b0.clone()]'))
+        const later = print([...aliases, ['define', rest, ['array', [['ref', y]]]]], ['ref', x])
+        assert(later.includes('[_b0.clone()]'))
+        const slot = print([['slot', x, 1, true], ['define', y, ['ref', x]], ['write', x, 2]], ['ref', y])
+        assert(slot.includes('let _b1: Any<A> = _b0.clone();'))
+        const memo = print([['define', x, 1], ['memo', { binding: y, valueSlot: { index: 3 }, doneSlot: { index: 4 }, initializer: yielding([['ref', x]]) }], ['define', rest, ['array', [['ref', x]]]]], ['demand', y])
+        assert(memo.includes('[_b0.clone()]'))
+        const call = print([...aliases, ['define', rest, ['()', ['ref', y], []]]], ['ref', rest])
+        assert(call.includes('Any::call(_b0,'))
+    },
     nativeStrings: () => {
         const body = yielding([['array', ['hi', 'hi', ['function', fn]]]])
-        const output = unwrap(scopeTagged(body, options, [], true))
+        const output = unwrap(scopeTagged(body, { ...options, text: () => 'hi' }, [], true))
         const lines = output.lines.map(untagged)
         assertEq(lines[0], 'static LITERAL_0: StaticString = StaticString(&[0x0068, 0x0069]);')
         assertEq(lines.join('\n').split('String::from_static(&LITERAL_0)').length, 3)
-        assert(output.uses.vm.includes('IVm'))
+        assert(lines.join('\n').includes('text: Some(&LITERAL_0)'))
+        assert(output.uses.vm.includes('StaticFunction'))
         assert(output.uses.vm.includes('StaticString'))
         assertEq(useLines(output.uses, null).join('\n').includes('null'), false)
+    },
+    nativeFunctions: () => {
+        /** @type {(v: Value) => Value} */
+        const arrow = v => ['function', { ...fn, body: yielding([v]) }]
+        /** @type {readonly Value[]} */
+        const reads = [
+            ['Object.is'], ['Boolean', 1], ['in', 'x', 1], ['memberPresent', 1, 'x'],
+            ['.', 1, 'a', ['|.', 'b', ['|()', []]]],
+        ]
+        for (const value of reads) {
+            const rust = print([], arrow(arrow(value)))
+            assert(!rust.includes('StaticFunction'))
+            assert(rust.includes('[runtime.clone()]'))
+        }
+        const simple = arrow(['.', 1, 'x'])
+        const nested = print([], arrow(simple))
+        assertEq(nested.split('Function::from_static(&VALUE)').length, 2)
+        assert(nested.includes('A::function_with_text'))
+        const core = unwrap(scopeTagged(yielding([arrow(['Math.floor'])]), { ...options, runtime: null }, [], true))
+        assert(core.uses.vm.includes('StaticFunction'))
+    },
+    nativeFunctionFrames: () => {
+        /** @type {(captures: readonly Value[]) => Value} */
+        const arrow = captures => ['function', {
+            ...fn, captures: captures.map((value, i) => ({ binding: { index: i + 8 }, value })), body: yielding([1]),
+        }]
+        /** @type {Block['statements']} */
+        const defs = [['define', x, arrow([])], ['define', y, ['ref', x]], ['define', rest, arrow([['ref', y]])]]
+        const rust = print(defs, arrow([['ref', rest], ['ref', y]]))
+        assert(rust.includes('static FUNCTION_0: StaticFunction<A>'))
+        assert(rust.includes('frame: &StaticArray(&[StaticAny::Function(&FUNCTION_0)])'))
+        assert(rust.includes('frame: &StaticArray(&[StaticAny::Function(&FUNCTION_2), StaticAny::Function(&FUNCTION_0)])'))
+        const mixed = print(defs, arrow([['ref', x], 1]))
+        assert(mixed.includes('A::function_with_text'))
     },
     nativeKeys: () => {
         const output = unwrap(scopeTagged(yielding([['object', [[':', 'default', 'default']]]]), options, [], true))
         const lines = output.lines.map(untagged)
         assertEq(lines.filter(line => line.startsWith('static ')).length, 1)
-        assert(lines[1].includes('(String::from_static(&LITERAL_0), String::from_static(&LITERAL_0).to_any())'))
+        assert(lines[1].includes('(&LITERAL_0, StaticAny::String(&LITERAL_0))'))
         /** @type {readonly Value[]} */
         const values = [
             ['.', ['object', []], 'a', ['|.', 'b']],
             ['?.', ['object', []], '\ud800'], ['memberPresent', ['object', []], 'a'],
-            ['Boolean', 1], ['in', 'b', ['object', []]], ['slice'], ['Object.is'],
+            ['Boolean', 1], ['in', 'b', ['object', []]], ['slice'], ['refMap'], ['Object.is'],
         ]
         const printed = unwrap(scopeTagged(yielding([['array', values]]), options, [], true))
         assert(printed.uses.unstable.includes('static_read_keys'))
@@ -57,7 +120,46 @@ export const proof = {
         assert(!rust.includes('string_any') && !rust.includes('LITERAL_undefined'))
         assert(rust.includes('StaticString(&[0xd800])'))
         const core = unwrap(scopeTagged(yielding([['Math.abs']]), { ...options, runtime: null }, [], true))
-        assert(!core.lines.join('').includes('StaticString'))
+        assert(core.lines.join('').includes('StaticString'))
+        assert(!rust.includes('\"') && !core.lines.map(untagged).join('').includes('\"'))
+    },
+    nativePrimitiveObjects: () => {
+        /** @type {Value} */
+        const object = ['object', [[':', 'x', 0], [':', '2', true], [':', '1', false], [':', 'x', undefined]]]
+        const output = unwrap(scopeTagged(yielding([object]), options, [], true))
+        assert(output.lines.map(untagged).join('\n').includes('StaticObject(&[(&LITERAL_2, StaticAny::Boolean(false)), (&LITERAL_1, StaticAny::Boolean(true)), (&LITERAL_0, StaticAny::Nullish(Nullish::Undefined))])'))
+        /** @type {readonly Value[]} */
+        const dynamic = [['object', [[':', ['ref', x], 1]]], ['object', [['...', ['ref', x]]]], ['object', [[':', 'x', ['ref', x]]]]]
+        for (const value of dynamic) {
+            assert(!unwrap(scopeTagged(yielding([value]), options, [], true)).uses.vm.includes('StaticObject'))
+        }
+    },
+    nativePrimitiveArrays: () => {
+        /** @type {Value} */
+        const items = ['array', [null, undefined, false, -0, 'x', 2n]]
+        const body = yielding([['array', [items, ['array', []], ['array', []], ['function', { ...fn, body: yielding([items]) }]]]])
+        const output = unwrap(scopeTagged(body, options, [], true))
+        const rust = output.lines.map(untagged).join('\n')
+        assertEq(rust.split('static VALUE: StaticArray<A>').length - 1, 3)
+        assert(rust.includes('StaticArray(&[StaticAny::Nullish(Nullish::Null), StaticAny::Nullish(Nullish::Undefined), StaticAny::Boolean(false), StaticAny::Number(f64::from_bits(0x8000000000000000)), StaticAny::String(&LITERAL_0), StaticAny::BigInt(&LITERAL_1)])'))
+        assertEq(rust.split('StaticArray(&[]); Array::from_static(&VALUE)').length - 1, 2)
+        assert(output.uses.vm.includes('StaticAny'))
+        assert(!unwrap(scopeTagged(body, options)).uses.vm.includes('StaticArray'))
+    },
+    nativeRepeatedArraySites: () => {
+        const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        /** @type {Value} */
+        const array = ['array', []]
+        /** @type {Block} */
+        const loopBody = { statements: [['define', rest, array]], exit: ['break', target] }
+        /** @type {Block} */
+        const body = {
+            statements: [['while', { target, slot: x, initial: array, condition: array, body: loopBody, result: y, mutable: false }]],
+            exit: ['loop', target, loopBody],
+        }
+        const rust = unwrap(scopeTagged(body, options, [], true)).lines.map(untagged).join('\n')
+        assert(!rust.includes('StaticArray'))
+        assertEq(rust.split('Array::default().to_any()').length - 1, 4)
     },
     nativeBigInts: () => {
         const wide = /** @type {const} */ (0x1_0000_0000_0000_0002n)
@@ -68,7 +170,7 @@ export const proof = {
         assert(lines.some(line => line.includes('Sign::Positive, words: &[]')))
         assert(lines.some(line => line.includes('Sign::Negative, words: &[0x0000000000000001]')))
         assert(lines.some(line => line.includes('Sign::Positive, words: &[0x0000000000000002, 0x0000000000000001]')))
-        assertEq(lines.join('\n').split('BigInt::from_static(&LITERAL_2)').length, 3)
+        assertEq(lines.join('\n').split('StaticAny::BigInt(&LITERAL_2)').length, 3)
     },
     primitives: () => {
         for (const value of [undefined, null, true, false, 0, -0, 1, NaN, Infinity, -Infinity, '', 'a\ud800b', '\u{1f600}', 0n, -(2n ** 63n), 2n ** 64n]) {
@@ -110,7 +212,10 @@ export const proof = {
     },
     /** Inspection borrows the complete operand, including fallible and conditional expressions. */
     borrowedInspectionOperands: () => {
-        assertEq(text(['typeof', ['ref', x]], true), 'Any::typeof_(&_b0.clone())')
+        const supplied = unwrap(valueTagged(['typeof', ['ref', x]], options, [{ binding: x, text: 'supplied()', uses: [['vm', 'ToAny']] }], true))
+        assertEq(untagged(supplied[0]), 'Any::typeof_(&supplied())')
+        assertStructurallySame(supplied[1], [['vm', 'ToAny']])
+        assertEq(text(['typeof', ['ref', x]], true), 'Any::typeof_(&_b0)')
         assertEq(text(['typeof', ['Number', null]], true), 'Any::typeof_(&(Any::number(Nullish::Null.to_any()))?)')
         assertEq(text(['typeof', ['if', true, yielding([1]), yielding([2])]], true),
             'Any::typeof_(&if Any::<A>::to_boolean(&true.to_any()) { f64_any(0x3ff0000000000000) } else { f64_any(0x4000000000000000) })')

@@ -5,12 +5,15 @@
 ```rust
 /// A heap value: cloned by reference, compared by identity.
 trait IComplex;
-/// A sequence with a header: a string, a bigint, an array, an object.
+/// A sequence with a header: a string, a bigint, or an array.
 trait IContainer: IComplex;
+/// Object storage with owned property reads and lookup by key.
+trait IObject: IComplex;
 /// A function: `call`, `length`, and nothing a program cannot observe.
 trait IFunction: IComplex;
 trait IVm {
     type InternalString: IContainer;
+    type InternalObject: IObject;
     type InternalFunction: IFunction;
     // ...
 }

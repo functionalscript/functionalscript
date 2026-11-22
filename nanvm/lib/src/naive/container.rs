@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use crate::{
     naive::Naive,
-    vm::{Any, IComplex, IContainer, Property, StaticArray, StaticObject, String},
+    vm::{Any, IComplex, IContainer, StaticArray},
 };
 
 /// Runtime indexing lends a reference to a VM value. Materialize the immediate
@@ -15,15 +15,6 @@ trait Project<I> {
 impl Project<Any<Naive>> for StaticArray<Naive> {
     fn project(&self) -> Box<[Any<Naive>]> {
         self.0.iter().map(|item| item.load()).collect()
-    }
-}
-
-impl Project<Property<Naive>> for StaticObject<Naive> {
-    fn project(&self) -> Box<[Property<Naive>]> {
-        self.0
-            .iter()
-            .map(|(key, item)| (String::from_static(key), item.load()))
-            .collect()
     }
 }
 
@@ -69,12 +60,6 @@ impl<H, I> Container<H, I> {
 
 impl Container<(), Any<Naive>> {
     pub(super) fn array(value: &'static StaticArray<Naive>) -> Self {
-        Self::projected((), value)
-    }
-}
-
-impl Container<(), Property<Naive>> {
-    pub(super) fn object(value: &'static StaticObject<Naive>) -> Self {
         Self::projected((), value)
     }
 }

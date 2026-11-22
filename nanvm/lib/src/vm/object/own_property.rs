@@ -1,8 +1,5 @@
 use super::Object;
-use crate::{
-    common::sized_index::SizedIndex,
-    vm::{Any, IVm, String},
-};
+use crate::vm::{Any, IObject, IVm, String};
 
 impl<A: IVm> Object<A> {
     /// `Object.getOwnPropertyDescriptor(self, key)?.value` — a flat lookup
@@ -32,11 +29,7 @@ impl<A: IVm> Object<A> {
     /// own_property_test::<Naive>();
     /// ```
     pub fn own_property(&self, key: &String<A>) -> Option<Any<A>> {
-        (0..self.length())
-            .rev()
-            .map(|i| &self[i])
-            .find(|(k, _)| k == key)
-            .map(|(_, v)| v.clone())
+        self.0.own_property(key)
     }
 }
 

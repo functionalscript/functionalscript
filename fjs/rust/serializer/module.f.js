@@ -4,6 +4,7 @@
  * this module only spells those instructions and runtime operations.
  *
  * @module
+ * @import { Primitive } from '../../media/datajs/types.ts'
  * @import { Block, Function as PreparedFunction, Memo, Statement, Value } from '../../js/ast/prepare/types.ts'
  * @import { BindingId, FunctionTarget, LoopTarget, Key, Step, Operator } from '../../js/ast/types.ts'
  * @import { Options, Printed, Scope, Use, Uses, External } from './types.ts'
@@ -102,7 +103,7 @@ const undefinedAny = cat([vm('Nullish'), '::Undefined', toAny])
 export const op1Rust = {
     '+': a => `Any::unary_plus(${a})`,
     '-': a => `<Any<A> as core::ops::Neg>::neg(${a})`,
-    '!': a => `<Any<A> as core::ops::Not>::not(${a})`,
+    '!': a => `<&Any<A> as core::ops::Not>::not(&${a})`,
     '~': a => `Any::bitwise_not(${a})`,
     typeof: a => `Any::typeof_(&${a})`,
     Number: a => `Any::number(${a})`,
@@ -306,6 +307,24 @@ const loadLiteral = (s, v) => {
     return cat([vm(typeof v === 'string' ? 'String' : 'BigInt'), `::from_static(&LITERAL_${id})`])
 }
 
+/** @type {(s: _Context, v: Primitive) => Printed<string>} */
+const staticItem = (s, v) => {
+    const item = vm('StaticAny')
+    if (v === undefined || v === null) {
+        return cat([item, '::Nullish(', vm('Nullish'), v === null ? '::Null)' : '::Undefined)'])
+    }
+    if (typeof v === 'boolean') { return cat([item, `::Boolean(${lit(`${v}`)})`]) }
+    if (typeof v === 'number') { return cat([item, `::Number(f64::from_bits(${num(f64Bits(v))}))`]) }
+    const id = mapGet(/** @type {_Names} */ (s.names).literals, v)
+    return cat([item, `::${typeof v === 'string' ? 'String' : 'BigInt'}(&LITERAL_${id})`])
+}
+
+/** Each literal site owns its descriptor, even when two sites have identical items.
+ * @type {(s: _Context, values: readonly Primitive[]) => Printed<string>} */
+const staticArray = (s, values) => cat([`{ ${kw('static')} VALUE: `, vm('StaticArray'), '<A> = StaticArray(&[',
+    ...values.flatMap((v, i) => [i === 0 ? '' : ', ', staticItem(s, v)]),
+    ']); ', vm('Array'), '::from_static(&VALUE)', toAny, ' }'])
+
 /** @type {(s: _Context, v: string) => Printed<string>} */
 const stringKey = (s, v) => s.native ? loadLiteral(s, v) : stringCall('string_key')(v)
 
@@ -341,37 +360,75 @@ const valueKey = value => Object.is(value, -0) ? negativeZero : value
 /** Read a child completed by the spelling stack. @type {(s: _Context, v: Value, result: boolean) => Result<Printed<string>, readonly unknown[]>} */
 const expression = (s, v, result) => ok(/** @type {Printed<string>} */ (mapGet(/** @type {NonNullable<_Context['ready']>} */ (s.ready)[Number(result ? 1 : 0)], valueKey(v))))
 
-/** Rust representation text for a callable. @type {(text: string) => string} */
-const represented = text => `Some(${str(unwrap(stringLiteral(text)))})`
+/** @type {(s: _Context, id: BindingId) => BindingId} */
+const originalBinding = (s, id) => s.ownership === undefined ? id : mapGet(s.ownership.aliases, id) ?? id
+
+/** A local can be inspected in place. Supplied bindings may be arbitrary value expressions.
+ * @type {(s: _Context, v: Value) => Result<Printed<string>, readonly unknown[]>} */
+const inspectionOperand = (s, v) => v instanceof Array && v[0] === 'ref' && !s.bindings.some(([id]) => id === v[1])
+    ? plain(binding(s, originalBinding(s, v[1])))
+    : expression(s, v, false)
+
+/** Source text retained by a callable. @type {(s: _Context, text: string) => Printed<string>} */
+const represented = (s, text) => s.native
+    ? cat(['Some(', loadLiteral(s, text), ')'])
+    : code(`Some(${str(unwrap(stringLiteral(text)))})`)
+
+/** @type {(s: _Context, fn: PreparedFunction) => boolean} */
+const isStaticClosure = (s, fn) => s.moduleInit === true && s.names !== undefined && mapHas(s.names.staticFunctions, fn)
 
 /** One callable's explicit invocation environment. @type {(s: _Context, fn: PreparedFunction) => _Context} */
 const closureContext = (s, fn) => {
-    const held = s.runtime === null ? null : `A::frame(_self)[${num(`${fn.captures.length}`)}]`
+    const held = s.runtime === null || isStaticClosure(s, fn) ? null : `A::frame(_self)[${num(`${fn.captures.length}`)}]`
     const bindings = [
         ...fn.parameters.map((id, i) => /** @type {const} */ ([id, argRead(i)])),
-        ...fn.captures.map((c, i) => /** @type {const} */ ([c.binding, code(`A::frame(_self)[${num(`${i}`)}].clone()`)])),
+        ...fn.captures.map((c, i) => /** @type {const} */ ([c.binding, cat([['A::frame', s.native ? [['vm', 'IVm']] : []], `(_self)[${num(`${i}`)}].clone()`])])),
         ...(fn.self === null ? [] : [/** @type {const} */ ([fn.self, cat([vm('Function'), '::new(_self.clone())', toAny])])]),
     ]
-    return { ...s, runtime: held, bindings }
+    return { ...s, moduleInit: false, runtime: held, bindings }
 }
 
 /** The concrete VM needs the trait in scope for its associated functions. @type {(s: _Context) => Printed<string>} */
-const staticFunction = s => ['A::static_function', s.native ? [['vm', 'IVm']] : []]
+const staticFunction = s => [s.native ? 'A::function_with_text' : 'A::static_function', s.native ? [['vm', 'IVm']] : []]
 
 /** Block transfers use the targets already selected by preparation. @type {(s: _Context, b: Block, result: boolean, functionBody?: boolean, valueBlock?: boolean) => Result<Printed<readonly string[]>, readonly unknown[]>} */
 const block = (s, b, result, functionBody = false, valueBlock = false) => ok(/** @type {Printed<readonly string[]>} */ (mapGet(/** @type {NonNullable<_Context['ready']>} */ (s.ready)[Number(2 + (result ? 1 : 0) + (functionBody ? 2 : 0) + (valueBlock ? 4 : 0))], b)))
 
+/** @type {(s: _Context, id: BindingId) => string} */
+const functionName = (s, id) => `FUNCTION_${binding(s, id).slice(2).toUpperCase()}`
+
+/** @type {(s: _Context, st: Statement) => PreparedFunction | null} */
+const namedFunction = (s, st) => st[0] === 'define' && st[2] instanceof Array && st[2][0] === 'function' && isStaticClosure(s, st[2][1]) ? st[2][1] : null
+
+/** @type {(s: _Context, fn: PreparedFunction) => Result<Printed<string>, readonly unknown[]>} */
+const functionBody = (s, fn) => {
+    const rest = fn.rest === null ? [] : [`${kw('let')} ${binding(s, fn.rest)}: Any<A> = _args.rest(${num(`${fn.parameters.length}`)}).to_any();`]
+    return map1(lines => braced([...rest, ...lines]))(block(closureContext(s, fn), fn.body, true, true))
+}
+
+/** @type {(s: _Context, fn: PreparedFunction, name: string) => Result<Printed<string>, readonly unknown[]>} */
+const functionDeclaration = (s, fn, name) => {
+    const names = /** @type {_Names} */ (s.names)
+    const frame = /** @type {readonly BindingId[]} */ (mapGet(names.staticFunctions, fn))
+    const id = mapGet(names.literals, s.text(fn))
+    return flat(map1(body => cat([`${kw('static')} ${name}: `, vm('StaticFunction'),
+        `<A> = StaticFunction { code: |_self, _args| ${body}, length: ${num(`${fn.parameters.length}`)}, frame: &`, vm('StaticArray'), '(&[',
+        ...frame.flatMap((binding, i) => [i === 0 ? '' : ', ', vm('StaticAny'), `::Function(&${functionName(s, binding)})`]),
+        `]), text: Some(&LITERAL_${id}) };`]))(functionBody(s, fn)))
+}
+
 /** @type {(s: _Context, fn: PreparedFunction) => Result<Printed<string>, readonly unknown[]>} */
 const closure = (s, fn) => {
+    if (isStaticClosure(s, fn)) {
+        return flat(map1(decl => cat([`{ ${decl} `, vm('Function'), '::from_static(&VALUE)', toAny, ' }']))(functionDeclaration(s, fn, 'VALUE')))
+    }
     const captured = fn.captures.map(c => expression(s, c.value, false))
     const values = s.runtime === null ? captured : [...captured, plain(`${s.runtime}.clone()`)]
-    const inner = closureContext(s, fn)
-    const rest = fn.rest === null ? [] : [`${kw('let')} ${binding(s, fn.rest)}: Any<A> = _args.rest(${num(`${fn.parameters.length}`)}).to_any();`]
-    return flat(map2((/** @type {readonly string[]} */ captures, /** @type {readonly string[]} */ body) => cat([
-        staticFunction(s), `(|_self, _args| ${braced([...rest, ...body])}, ${num(`${fn.parameters.length}`)}, `,
+    return flat(map2((/** @type {readonly string[]} */ captures, /** @type {string} */ body) => cat([
+        staticFunction(s), `(|_self, _args| ${body}, ${num(`${fn.parameters.length}`)}, `,
         captures.length === 0 ? cat([vm('Array'), '::default()']) : cat([`[${captures.join(', ')}]`, toArray]),
-        `, ${represented(s.text(fn))})`, toAny,
-    ]))(all(values), block(inner, fn.body, true, true)))
+        ', ', represented(s, s.text(fn)), ')', toAny,
+    ]))(all(values), functionBody(s, fn)))
 }
 
 /** Resolve helper presentation symbols without introducing graph inspection. @type {(text: string) => string} */
@@ -391,6 +448,14 @@ const array = (s, values, result = false) => {
 
 /** @type {(s: _Context, entries: readonly (readonly [':', Value, Value] | readonly ['...', Value])[]) => Result<Printed<string>, readonly unknown[]>} */
 const object = (s, entries) => {
+    if (s.moduleInit && entries.every(e => e[0] === ':' && typeof e[1] === 'string' && !(e[2] instanceof Array))) {
+        const fields = /** @type {readonly (readonly [':', string, Primitive])[]} */ (entries)
+        // Keep the last value at each key's first position and enumerate index keys first.
+        const properties = Object.entries(Object.fromEntries(fields.map(([, k, v]) => /** @type {const} */ ([k, v]))))
+        return ok(cat([`{ ${kw('static')} VALUE: `, vm('StaticObject'), '<A> = StaticObject(&[',
+            ...properties.flatMap(([k, v], i) => [i === 0 ? '(' : ', (', `&LITERAL_${mapGet(/** @type {_Names} */ (s.names).literals, k)}, `, staticItem(s, v), ')']),
+            ']); ', vm('Object'), '::from_static(&VALUE)', toAny, ' }']))
+    }
     if (entries.length === 0) { return ok(cat([vm('Object'), '::default()', toAny])) }
     const spread = entries.some(e => e[0] === '...' || typeof e[1] !== 'string')
     const members = entries.map(e => e[0] === '...'
@@ -449,21 +514,21 @@ const operation = (s, n, result) => {
         }
         if (tag !== 'Object.entries' && tag !== 'String.fromCharCode' && tag !== 'Math.trunc' && tag !== 'Math.floor' && tag !== 'Math.abs' && tag !== 'Math.sqrt' && tag !== 'Math.ceil' && tag !== 'Math.imul' && tag !== 'Math.max' && tag !== 'Math.min' && tag !== 'Math.clz32') { return error(['a static function read with no runtime in scope; the core may not use what it defines', tag]) }
         if (tag === 'String.fromCharCode') {
-            return map1(pure(result))(ok(cat([staticFunction(s), '(|_self, _args| ', vm('String'), `::from_char_code(_args).map(|v| v.to_any()), 1, `, vm('Array'), `::default(), ${represented(staticText(tag))})`, toAny])))
+            return map1(pure(result))(ok(cat([staticFunction(s), '(|_self, _args| ', vm('String'), `::from_char_code(_args).map(|v| v.to_any()), 1, `, vm('Array'), '::default(), ', represented(s, staticText(tag)), ')', toAny])))
         }
         if (tag === 'Math.trunc' || tag === 'Math.floor' || tag === 'Math.abs' || tag === 'Math.sqrt' || tag === 'Math.ceil' || tag === 'Math.clz32') {
             const method = tag.slice(5)
-            return map1(pure(result))(ok(cat([staticFunction(s), '(|_self, _args| ', argRead(0), `.to_number().map(|v| v.${method}().to_any()), 1, `, vm('Array'), `::default(), ${represented(staticText(tag))})`, toAny])))
+            return map1(pure(result))(ok(cat([staticFunction(s), '(|_self, _args| ', argRead(0), `.to_number().map(|v| v.${method}().to_any()), 1, `, vm('Array'), '::default(), ', represented(s, staticText(tag)), ')', toAny])))
         }
         if (tag === 'Math.imul') {
-            return map1(pure(result))(ok(cat([staticFunction(s), '(|_self, _args| ', argRead(0), '.to_number().and_then(|a| ', argRead(1), `.to_number().map(|b| a.imul(b).to_any())), 2, `, vm('Array'), `::default(), ${represented(staticText(tag))})`, toAny])))
+            return map1(pure(result))(ok(cat([staticFunction(s), '(|_self, _args| ', argRead(0), '.to_number().and_then(|a| ', argRead(1), `.to_number().map(|b| a.imul(b).to_any())), 2, `, vm('Array'), '::default(), ', represented(s, staticText(tag)), ')', toAny])))
         }
         if (tag === 'Math.max' || tag === 'Math.min') {
             const method = tag.slice(5)
             const initial = tag === 'Math.min' ? 'INFINITY' : 'NEG_INFINITY'
-            return map1(pure(result))(ok(cat([staticFunction(s), '(|_self, _args| _args.into_iter().try_fold(', vm('Number'), `::from(f64::${initial}), |current, value| value.to_number().map(|value| current.${method}(value))).map(|value| value.to_any()), 2, `, vm('Array'), `::default(), ${represented(staticText(tag))})`, toAny])))
+            return map1(pure(result))(ok(cat([staticFunction(s), '(|_self, _args| _args.into_iter().try_fold(', vm('Number'), `::from(f64::${initial}), |current, value| value.to_number().map(|value| current.${method}(value))).map(|value| value.to_any()), 2, `, vm('Array'), '::default(), ', represented(s, staticText(tag)), ')', toAny])))
         }
-        return map1(pure(result))(ok(cat([staticFunction(s), '(|_self, _args| Any::entries(', argRead(0), '), ', num('1'), ', ', vm('Array'), `::default(), ${represented(staticText('Object.entries'))})`, toAny])))
+        return map1(pure(result))(ok(cat([staticFunction(s), '(|_self, _args| Any::entries(', argRead(0), '), ', num('1'), ', ', vm('Array'), '::default(), ', represented(s, staticText('Object.entries')), ')', toAny])))
     }
     if (isHelper([tag])) {
         // the arity and the text are the helper table's; only the native
@@ -472,17 +537,22 @@ const operation = (s, n, result) => {
         // the empty reference map is NaNVM's own, a new map wherever
         // the node is established, under the text the writer gives it
         if (id === 'refMap') {
-            return map1(pure(result))(ok(cat([unstable('ref_map'), `(${represented(helperText(_helperText(id)('helper')))})`])))
+            return map1(pure(result))(ok(cat([unstable(s.native ? 'ref_map_with_text' : 'ref_map'), '(', represented(s, helperText(_helperText(id)('helper'))), ')'])))
         }
         const length = helperLength(id)
         const args = generate(length - 1, k => argRead(k + 1))
         const native = id === 'entry' ? ['Any::entry(', argRead(0), ', ', argRead(1), ')']
             : id === 'hasEntry' ? ['Any::has_entry(', argRead(0), ', ', argRead(1), ').map(|v| v.to_any())']
             : ['Any::dot(', argRead(0), ', ', stringAny(s, id), ').end_call_native(|| Ok([', ...args.flatMap((x, k) => k === 0 ? [x] : [', ', x]), ']', toArray, toAny, '))']
-        return map1(pure(result))(ok(cat([staticFunction(s), '(|_self, _args| ', ...native, ', ', num(`${length}`), ', ', vm('Array'), `::default(), ${represented(helperText(_helperText(id)('helper')))})`, toAny])))
+        return map1(pure(result))(ok(cat([staticFunction(s), '(|_self, _args| ', ...native, ', ', num(`${length}`), ', ', vm('Array'), '::default(), ', represented(s, helperText(_helperText(id)('helper'))), ')', toAny])))
     }
     switch (tag) {
-        case 'array': { return array(s, n[1], result) }
+        case 'array': {
+            const items = n[1]
+            return s.moduleInit && items.every(v => !(v instanceof Array))
+                ? map1(pure(result))(ok(staticArray(s, /** @type {readonly Primitive[]} */ (items))))
+                : array(s, items, result)
+        }
         case 'object': { return map1(pure(result))(object(s, n[1])) }
         case '()': { return map1(fallible(result))(map2((fn, args) => `Any::call(${fn}, ${args})`)(expression(s, n[1], false), array(s, n[2]))) }
         case 'memberPresent': {
@@ -495,7 +565,7 @@ const operation = (s, n, result) => {
                 : map2((v, args) => `Any::option_call(${v}, ${args})`)(expression(s, n[1], false), argumentThunk(s, /** @type {readonly (Value | readonly ['...', Value])[]} */ (n[2])))
             return map1(fallible(result))(map2((start, rest) => `${start}${rest}`)(open, steps(s, /** @type {Step<Value> | undefined} */ (n[3]), tag === '.', tag !== '?.()')))
         }
-        case 'instanceof': { return map1(fallible(result))(flat(map1(v => cat([`Any::instanceof_(&${v}, `, vm('Constructor'), `::${n[2]})`]))(expression(s, n[1], false)))) }
+        case 'instanceof': { return map1(fallible(result))(flat(map1(v => cat([`Any::instanceof_(&${v}, `, vm('Constructor'), `::${n[2]})`]))(inspectionOperand(s, n[1])))) }
         // the naive spelling: the runtime's `in` body called with the key
         // and the value, which a VM may substitute natively (DESIGN.md §13)
         case 'in': {
@@ -520,7 +590,7 @@ const operation = (s, n, result) => {
             const infix = n.length === 3 && ['+', '-', '*', '/', '%', '&', '|', '^', '<<', '>>'].includes(tag)
             const eager = (/** @type {Value} */ v) => infix || tag === 'String' ? grouped(s, v) : expression(s, v, false)
             const rest = (/** @type {Value} */ v) => lazy ? thunk(s, v) : eager(v)
-            return map1(fallible(result))(flat(n.length === 2 ? map2((fn, v) => fn(v))(op1(tag), eager(n[1]))
+            return map1(fallible(result))(flat(n.length === 2 ? map2((fn, v) => fn(v))(op1(tag), tag === 'typeof' || tag === '!' ? inspectionOperand(s, n[1]) : eager(n[1]))
                 : n.length === 3 ? map3((fn, a, b) => fn(a, b))(op2(tag), eager(n[1]), rest(n[2]))
                     : map4((fn, a, b, c) => fn(a, b, c))(op3(tag), expression(s, n[1], false), rest(n[2]), rest(n[3]))))
         }
@@ -536,7 +606,10 @@ const expressionReady = (s, v, result) => {
     switch (v[0]) {
         case 'ref': {
             const found = s.bindings.find(([id]) => id === v[1])
-            return map1(pure(result))(ok(found === undefined ? code(`${binding(s, v[1])}.clone()`) : found[1]))
+            if (found !== undefined) { return map1(pure(result))(ok(found[1])) }
+            const id = originalBinding(s, v[1])
+            const move = s.owner !== undefined && s.ownership !== undefined && mapGet(s.ownership.moves, id) === s.owner
+            return map1(pure(result))(ok(code(`${binding(s, id)}${move ? '' : '.clone()'}`)))
         }
         case 'demand': { return plain(fallible(result)(`${binding(s, v[1])}()`)) }
         case 'function': { return map1(pure(result))(closure(s, v[1])) }
@@ -552,7 +625,7 @@ const expressionReady = (s, v, result) => {
         case 'if': {
             return flat(map3((/** @type {string} */ condition, /** @type {readonly string[]} */ yes, /** @type {readonly string[]} */ no) =>
                 `${kw('if')} ${truth(condition)} ${braced(yes)} ${kw('else')} ${braced(no)}`)(
-                expression(s, v[1], false), block(s, v[2], result, false, true), block(s, v[3], result, false, true)))
+                inspectionOperand(s, v[1]), block(s, v[2], result, false, true), block(s, v[3], result, false, true)))
         }
         default: { return operation(s, v, result) }
     }
@@ -593,12 +666,19 @@ const declaration = (name, mutable, value) => map1(text => `${kw('let')} ${mutab
 
 /** @type {(s: _Context, st: Statement) => Result<Printed<readonly string[]>, readonly unknown[]>} */
 const statementReady = (s, st) => {
+    if (st[0] === 'define' && s.ownership !== undefined && mapHas(s.ownership.aliases, st[1])) { return ok(code([])) }
+    const fn = namedFunction(s, st)
+    if (fn !== null && st[0] === 'define') {
+        const name = functionName(s, st[1])
+        return map2((decl, local) => [decl, local])(functionDeclaration(s, fn, name),
+            declaration(binding(s, st[1]), false, ok(cat([vm('Function'), `::from_static(&${name})`, toAny]))))
+    }
     switch (st[0]) {
         case 'define': case 'slot': { return map1(text => [text])(declaration(binding(s, st[1]), st[0] === 'slot' && st[3], expression(s, st[2], false))) }
         case 'write': { return map1(text => [`${binding(s, st[1])} = ${text};`])(expression(s, st[2], false)) }
         case 'memo': { return memo(s, st[1]) }
         case 'block': { return map1(parts => [braced(parts)])(block(s, st[1], false)) }
-        case 'if': { return map3((condition, yes, no) => [`${kw('if')} ${truth(condition)} ${braced(yes)}${no.length === 0 ? '' : ` ${kw('else')} ${braced(no)}`}`])(expression(s, st[1], false), block(s, st[2], false), block(s, st[3], false)) }
+        case 'if': { return map3((condition, yes, no) => [`${kw('if')} ${truth(condition)} ${braced(yes)}${no.length === 0 ? '' : ` ${kw('else')} ${braced(no)}`}`])(inspectionOperand(s, st[1]), block(s, st[2], false), block(s, st[3], false)) }
         case 'loop': { return loopText(s, st) }
         // `'while'`, the one statement left: `children` refuses any other
         default: {
@@ -607,7 +687,7 @@ const statementReady = (s, st) => {
                 `${kw('let')} ${w.mutable ? `${kw('mut')} ` : ''}${binding(s, w.slot)}: Any<A> = ${initial};`,
                 `'${loopLabel(s, w.target)}: ${kw('while')} ${truth(condition)} ${braced(body)}`,
                 `${kw('let')} ${binding(s, w.result)}: Any<A> = ${binding(s, w.slot)};`,
-            ])(expression(s, w.initial, false), expression(s, w.condition, false), block(s, w.body, false))
+            ])(expression(s, w.initial, false), inspectionOperand(s, w.condition), block(s, w.body, false))
         }
     }
 }
@@ -656,7 +736,7 @@ const valueTask = (context, value, result = false) => ({ kind: 'value', context,
 const blockTask = (context, b, result = false, functionBody = false, valueBlock = false) => ({ kind: 'block', context, block: b, result, functionBody, valueBlock })
 
 /** @type {(context: _Context, loop: readonly ['loop', LoopTarget, Block]) => readonly _Task[]} */
-const loopTasks = (context, loop) => [blockTask(context, loop[2])]
+const loopTasks = (context, loop) => [blockTask({ ...context, moduleInit: false }, loop[2])]
 
 /** @type {(context: _Context, step: Step<Value> | undefined, property: boolean, member: boolean) => _Task} */
 const stepTask = (context, step, property, member) => ({ kind: 'steps', context, step, property, member })
@@ -718,13 +798,18 @@ const children = task => {
         }
         case 'statement': {
             const st = task.statement
+            const fn = namedFunction(s, st)
+            if (fn !== null) { return [blockTask(closureContext(s, fn), fn.body, true, true)] }
             switch (st[0]) {
-                case 'define': case 'slot': case 'write': { return [valueTask(s, st[2])] }
-                case 'memo': { return [blockTask(s, st[1].initializer, false, false, true)] }
+                case 'define': case 'slot': case 'write': { return [valueTask({ ...s, owner: st }, st[2])] }
+                case 'memo': { return [blockTask({ ...s, moduleInit: false }, st[1].initializer, false, false, true)] }
                 case 'block': { return [blockTask(s, st[1])] }
                 case 'if': { return [valueTask(s, st[1]), blockTask(s, st[2]), blockTask(s, st[3])] }
                 case 'loop': { return loopTasks(s, st) }
-                case 'while': { return [valueTask(s, st[1].initial), valueTask(s, st[1].condition), blockTask(s, st[1].body)] }
+                case 'while': {
+                    const repeated = { ...s, moduleInit: false }
+                    return [valueTask(repeated, st[1].initial), valueTask(repeated, st[1].condition), blockTask(repeated, st[1].body)]
+                }
                 default: { throw ['not a statement', st] }
             }
         }
@@ -827,9 +912,33 @@ const instructionLiterals = task => {
     if (typeof v === 'string' || typeof v === 'bigint') { return [v] }
     if (!(v instanceof Array)) { return [] }
     const tag = v[0]
-    if (isStatic([tag]) && task.context.runtime !== null) { return ['static', tag] }
-    if (isIntrinsic([tag]) || tag === 'Boolean') { return [tag] }
+    if (tag === 'function') { return [task.context.text(v[1])] }
+    if (isStatic(v)) { return task.context.runtime === null ? [staticText(v[0])] : ['static', tag] }
+    if (isHelper(v)) {
+        const text = helperText(_helperText(v[0])('helper'))
+        return isIntrinsic([tag]) ? [tag, text] : [text]
+    }
+    if (tag === 'Boolean') { return [tag] }
     return tag === 'in' ? [tag, v[1]] : []
+}
+
+/** A nested function may need its enclosing function to pass the runtime on to it.
+ * @type {(s: _Context, fn: PreparedFunction) => boolean} */
+const bodyNeedsRuntime = (s, fn) => {
+    if (s.runtime === null) { return false }
+    /** @type {Stack<_Task>} */
+    let pending = { top: blockTask(s, fn.body), rest: null }
+    while (pending !== null) {
+        /** @type {NonNullable<Stack<_Task>>} */
+        const { top, rest } = pending
+        if (top.kind === 'steps' && top.member && top.step !== undefined && top.step[0] !== '|.') { return true }
+        if (top.kind === 'value' && top.value instanceof Array) {
+            const v = top.value
+            if (isStatic(v) || v[0] === 'in' || v[0] === 'Boolean' || v[0] === 'memberPresent') { return true }
+        }
+        pending = pushAll(children(top), rest)
+    }
+    return false
 }
 
 /** Target naming walks the prepared instructions, never the source graph. @type {(root: _Task) => _Names} */
@@ -842,10 +951,30 @@ const namesOf = root => {
     let loops = null
     /** @type {PersistentMap<string | bigint, number>} */
     let literals = empty
+    /** @type {PersistentMap<PreparedFunction, readonly BindingId[]>} */
+    let staticFunctions = empty
+    /** @type {PersistentMap<BindingId, BindingId>} */
+    let functionBindings = empty
     while (pending !== null) {
         /** @type {NonNullable<Stack<_Task>>} */
         const { top, rest } = pending
         if (root.context.native) {
+            const v = top.kind === 'value' ? top.value : null
+            if (top.context.moduleInit && v instanceof Array) {
+                const owner = top.context.owner
+                const def = owner?.[0] === 'define' && owner[2] === v ? owner[1] : null
+                if (v[0] === 'function') {
+                    const known = functionBindings
+                    const frame = v[1].captures.flatMap(({ value }) => value instanceof Array && value[0] === 'ref' ? mapGet(known, value[1]) ?? [] : [])
+                    if (frame.length === v[1].captures.length && !bodyNeedsRuntime(top.context, v[1])) {
+                        staticFunctions = mapSet(staticFunctions, v[1], frame)
+                        if (def !== null) { functionBindings = mapSet(functionBindings, def, def) }
+                    }
+                } else if (def !== null && v[0] === 'ref') {
+                    const source = mapGet(functionBindings, v[1])
+                    if (source !== undefined) { functionBindings = mapSet(functionBindings, def, source) }
+                }
+            }
             for (const value of instructionLiterals(top)) {
                 if (!mapHas(literals, value)) { literals = mapSet(literals, value, size(literals)) }
             }
@@ -855,7 +984,7 @@ const namesOf = root => {
         pending = pushAll(children(top), rest)
     }
     return {
-        literals,
+        literals, staticFunctions,
         bindings: identityNames(setValues(fromValues(listToArray(bindings).toReversed().flat())), '_b'),
         loops: identityNames(setValues(fromValues(listToArray(loops).toReversed().flat())), '_loop'),
     }
@@ -870,9 +999,59 @@ const names = uses => ({
     unstable: setValues(fromValues(uses.filter(([m]) => m === 'unstable').map(([, n]) => n))).toSorted(),
 })
 
+/** Immutable module locals can share a name. Transfer ownership at a final,
+ * unconditional capture, array item or call operand. Reads in other regions still count
+ * against earlier moves. A module-level memo may keep a borrow alive.
+ * @type {(root: _Task) => NonNullable<_Context['ownership']>} */
+const moduleOwnership = root => {
+    /** @type {PersistentMap<BindingId, BindingId>} */
+    let aliases = empty
+    /** @type {PersistentMap<BindingId, Statement | null>} */
+    let moves = empty
+    let borrowed = false
+    for (const child of children(root)) {
+        const st = child.kind === 'statement' ? child.statement : null
+        const def = st !== null && st[0] === 'define' ? st : null
+        const value = def?.[2]
+        if (def !== null && value instanceof Array && value[0] === 'ref' && mapHas(moves, mapGet(aliases, value[1]) ?? value[1])) {
+            aliases = mapSet(aliases, def[1], mapGet(aliases, value[1]) ?? value[1])
+            continue
+        }
+        if (st?.[0] === 'memo') { borrowed = true }
+        const operands = value instanceof Array && value[0] === 'function' ? value[1].captures.map(c => c.value)
+            : value instanceof Array && value[0] === 'array' ? value[1]
+                : value instanceof Array && value[0] === '()' ? [value[1], ...value[2]] : []
+        const currentAliases = aliases
+        const direct = fromValues(operands.flatMap(v => v instanceof Array && v[0] === 'ref' ? [mapGet(currentAliases, v[1]) ?? v[1]] : []))
+        /** @type {PersistentMap<BindingId, boolean>} */
+        let seen = empty
+        /** @type {Stack<_Task>} */
+        let pending = { top: child, rest: null }
+        while (pending !== null) {
+            /** @type {NonNullable<Stack<_Task>>} */
+            const { top, rest } = pending
+            const v = top.kind === 'value' ? top.value : undefined
+            if (v instanceof Array && v[0] === 'ref') {
+                const id = mapGet(aliases, v[1]) ?? v[1]
+                if (mapHas(moves, id)) {
+                    moves = mapSet(moves, id, !borrowed && mapHas(direct, id) && !mapHas(seen, id) ? def : null)
+                    seen = mapSet(seen, id, true)
+                }
+            }
+            // A function reads the outer locals only while constructing its frame.
+            /** @type {readonly _Task[]} */
+            const next = v instanceof Array && v[0] === 'function'
+                ? v[1].captures.map(c => valueTask(top.context, c.value)) : children(top)
+            pending = pushAll(next, rest)
+        }
+        if (def !== null) { moves = mapSet(moves, def[1], null) }
+    }
+    return { aliases, moves }
+}
+
 /** A prepared module/function body, retaining tagged text and import metadata. @type {(b: Block, options: Options, external?: readonly External[], native?: boolean) => Result<Scope, readonly unknown[]>} */
 export const scopeTagged = (b, options, external = [], native = false) => {
-    const task = blockTask({ ...options, native, bindings: external.map(e => [e.binding, [e.text, e.uses ?? []]]) }, b, true)
+    const task = blockTask({ ...options, native, moduleInit: native, bindings: external.map(e => [e.binding, [e.text, e.uses ?? []]]) }, b, true)
     const ids = namesOf(task)
     const declarations = mapEntries(ids.literals).map(([value, id]) => {
         const prefix = `${kw('static')} LITERAL_${id}: `
@@ -881,7 +1060,7 @@ export const scopeTagged = (b, options, external = [], native = false) => {
             : cat([prefix, vm('StaticBigInt'), ` = StaticBigInt { sign: nanvm_lib::sign::Sign::${value < 0n ? 'Negative' : 'Positive'}, words: ${slice(u64WordItems(value))} };`])
     })
     const rendered = /** @type {Result<Printed<readonly string[]>, readonly unknown[]>} */ (
-        spellingWalk({ ...task, context: { ...task.context, names: ids } }))
+        spellingWalk({ ...task, context: { ...task.context, names: ids, ownership: native ? moduleOwnership(task) : undefined } }))
     return mapOk((/** @type {Printed<readonly string[]>} */ [parts, uses]) => ({
         lines: [...declarations.map(([text]) => text), ...parts.flatMap(p => p.split('\n'))],
         uses: names([...uses, ...declarations.flatMap(([, imports]) => imports)]),

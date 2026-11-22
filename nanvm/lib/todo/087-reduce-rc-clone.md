@@ -54,8 +54,8 @@ making performance claims.
       `cargo clippy -- -D warnings`, and `cargo fmt -- --check`.
 - [ ] Extend borrowing to coercions and arithmetic where it simplifies their
       ownership contract; assess borrowed binary operators and verify errors.
-- [ ] Let the Rust serializer print borrowed local reads for inspection,
-      avoiding its current clone of a binding before borrowing the result.
+- [x] Emit direct local borrows for conditions, logical negation, `typeof`,
+      and `instanceof` in the Rust serializer.
 - [ ] Compare representative workloads if claiming a performance improvement,
       including callers that retain operands and callers that can move them.
 
@@ -63,9 +63,12 @@ The first implementation uses `IVm::with_unpacked` for inspection callbacks.
 `is_nullish`, `is_nan`, truthiness, type checks, equality, and formatting
 borrow through this interface; `defined` checks without cloning before it
 returns ownership. Consuming coercions and arithmetic remain available for
-ownership transfers. The Rust serializer's inspection calls now borrow their
-arguments, while its ordinary local-read emission still clones; that needs a
-structural borrowed-expression mode rather than rewriting emitted text.
+ownership transfers. The Rust serializer borrows a local in place when an
+inspection reads it and evaluates other inspection operands once.
+
+Native Rust now elides top-level aliases of immutable locals and moves a final
+unconditional read into a closure frame, array or call. Slot snapshots, repeated
+operands and reads after a module-level memo retain their clones.
 
 ### Related
 

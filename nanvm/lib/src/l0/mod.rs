@@ -394,7 +394,7 @@ pub fn key<A: IVm>(o: &Any<A>, i: u32) -> Any<A> {
 
 fn property<A: IVm>(name: &str, o: &Object<A>, i: u32) -> Property<A> {
     if o.lists_own_entries() {
-        return o[index(name, i, o.length())].clone();
+        return o.property_at(index(name, i, o.length()));
     }
     let mut entries = o.own_entries();
     let i = index(name, i, entries.len() as u32);
@@ -408,7 +408,7 @@ pub fn find<A: IVm>(o: &Any<A>, key: &Any<A>) -> i32 {
     let key = as_string("find", key);
     if o.lists_own_entries() {
         return (0..o.length())
-            .position(|i| o[i].0 == key)
+            .position(|i| o.key_at(i) == key)
             .map_or(-1, |i| i as i32);
     }
     o.own_entries()
@@ -452,7 +452,7 @@ pub fn text<A: IVm>(f: &Any<A>) -> Any<A> {
     as_function("text", f)
         .internal()
         .text()
-        .map_or_else(Any::undefined, Any::from)
+        .map_or_else(Any::undefined, |s| s.to_any())
 }
 
 // Identity.

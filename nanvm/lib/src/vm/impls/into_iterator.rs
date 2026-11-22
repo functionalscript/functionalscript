@@ -13,11 +13,32 @@ impl<A: IVm> IntoIterator for Array<A> {
     }
 }
 
+pub struct ObjectIter<A: IVm> {
+    object: Object<A>,
+    indices: core::ops::Range<u32>,
+}
+
+impl<A: IVm> Iterator for ObjectIter<A> {
+    type Item = Property<A>;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.indices.next().map(|i| self.object.property_at(i))
+    }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.indices.size_hint()
+    }
+}
+
+impl<A: IVm> ExactSizeIterator for ObjectIter<A> {}
+impl<A: IVm> core::iter::FusedIterator for ObjectIter<A> {}
+
 impl<A: IVm> IntoIterator for Object<A> {
     type Item = Property<A>;
-    type IntoIter = Iter<Object<A>>;
+    type IntoIter = ObjectIter<A>;
     fn into_iter(self) -> Self::IntoIter {
-        self.index_iter()
+        ObjectIter {
+            indices: 0..self.length(),
+            object: self,
+        }
     }
 }
 

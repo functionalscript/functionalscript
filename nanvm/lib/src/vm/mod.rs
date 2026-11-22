@@ -3,7 +3,7 @@ mod array;
 mod bigint;
 mod bigint_coercion;
 mod boolean_coercion;
-mod container_fmt;
+pub(crate) mod container_fmt;
 mod dispatch;
 mod ecma_whitespace;
 mod error;
@@ -37,7 +37,7 @@ pub use crate::vm::{
     array::{Array, to_array::ToArray},
     bigint::BigInt,
     function::Function,
-    internal::{IComplex, IContainer, IFunction, IStaticFunction, IVm, StaticCode},
+    internal::{IComplex, IContainer, IFunction, IObject, IStaticFunction, IVm, StaticCode},
     iterator_record::IteratorRecord,
     lambda::{OptionLambda, OptionPropertyLambda, PropertyLambda},
     nullish::Nullish,

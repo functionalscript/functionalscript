@@ -73,7 +73,8 @@ and the same data is a data segment in WebAssembly.
   not a slice by contract. What it answers is a reference, `&Item`, as
   `Index<u32> for Array<A>` does, and an item wrapped on request is a new
   value with nothing to refer to. The naive VM retains borrowed indexing by
-  caching the immediate items on first access.
+  caching array items on first access. Object property reads return owned pairs,
+  so static objects can retain just their descriptor and load properties individually.
 - **Functions.** A compiled function is generic over its VM, since its
   body calls the VM's operations, and its code is `StaticCode<A>`. A
   `static` cannot name `A`, so it cannot hold a reference to that code.
@@ -144,7 +145,12 @@ and the same data is a data segment in WebAssembly.
   statics.
 - [x] Share native string descriptors across literal values, property keys and runtime lookups.
 - [x] Emit big integer literals in native application output.
-- [ ] Emit arrays, objects and functions in the serializer.
+- [x] Emit native module-level arrays of primitive literals, preserving a distinct
+  descriptor per array literal site.
+- [x] Emit native module-level objects with literal string keys and primitive values.
+- [x] Emit static native module-level functions with an empty frame.
+- [x] Emit static frames for module-level functions capturing other static functions.
+- [ ] Extend static containers to composite members and function frames to other static values.
 - [ ] Have the Rust serializer write constants as statics.
 
 ### Related

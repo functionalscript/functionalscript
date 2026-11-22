@@ -1,10 +1,14 @@
 mod container;
 mod function;
+mod object;
 
 use crate::{
-    naive::{container::Container, function::Function},
+    naive::{
+        container::Container,
+        function::{Function, Text},
+    },
     sign::Sign,
-    vm::{Any, Array, IVm, Property, StaticCode, Unpacked},
+    vm::{Any, Array, IVm, StaticCode, Unpacked},
 };
 
 /// Note: we can't use `type InternalAny = Unpacked<InternalAny>;` because Rust doesn't support
@@ -21,7 +25,7 @@ impl<T: Into<Unpacked<Naive>>> From<T> for Naive {
 impl IVm for Naive {
     type InternalString = Container<(), u16>;
     type InternalBigInt = Container<Sign, u64>;
-    type InternalObject = Container<(), Property<Naive>>;
+    type InternalObject = object::Object;
     type InternalArray = Container<(), Any<Naive>>;
     type InternalFunction = Function;
 
@@ -40,9 +44,17 @@ impl IVm for Naive {
         frame: Array<Naive>,
         text: Option<&'static str>,
     ) -> crate::vm::Function<Naive> {
-        crate::vm::Function::new(Function::new(code, length, frame, text))
+        crate::vm::Function::new(Function::new(code, length, frame, text.map(Text::Utf8)))
     }
 
+    fn function_with_text(
+        code: StaticCode<Self>,
+        length: u32,
+        frame: Array<Self>,
+        text: Option<crate::vm::String<Self>>,
+    ) -> crate::vm::Function<Self> {
+        crate::vm::Function::new(Function::new(code, length, frame, text.map(Text::Vm)))
+    }
     fn frame(self_: &Function) -> &Array<Naive> {
         self_.frame()
     }
@@ -61,7 +73,7 @@ impl IStaticVm for Naive {
         Container::array(value)
     }
     fn load_object(value: &'static StaticObject<Self>) -> Self::InternalObject {
-        Container::object(value)
+        object::Object::Static(value)
     }
     fn load_function(value: &'static StaticFunction<Self>) -> Self::InternalFunction {
         Function::from_static(value)
