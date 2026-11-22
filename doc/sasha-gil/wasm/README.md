@@ -52,8 +52,9 @@ rest of L1 natively, or by linking the reference bodies.
 
 A runtime may also offer small WASM fragments that the compiler inlines in
 place of a call to it: [inline-fragments.md](./inline-fragments.md).
-NaNVM's handle may become the NaN box's bits, so scalars need no slot and
-their L0 calls can be inlined: [nan-boxed-handles.md](./nan-boxed-handles.md).
+NaNVM's handle could become the NaN box's bits, so scalars need no slot and
+their L0 calls can be inlined: [nan-boxed-handles.md](./nan-boxed-handles.md),
+superseded on 2026-11-21 by a runtime written in the code IR.
 A runtime can be assembled from pluggable runtime modules, each with a
 manifest, so that, for example, a string representation can be chosen
 apart from the rest: [modular-runtime.md](./modular-runtime.md).
@@ -73,9 +74,15 @@ and [L2](./l2-design.md). Step 3 is mostly done, in `fjs/wasm/runtime` (#3615 to
 #3655): the L0 view, today's natives and a first slice of L1 bodies. L1
 rows such as `instanceof`, `resolveMember`, `**`, the integer operators
 and `nativeMember` are still to come; `%` of two numbers is the native row
-`numberRemainder`. Step 4 is under way in `fjs/ir`, a slice at a time
-([slices.md](../../../fjs/ir/todo/slices.md)), and its notes are in
-[`../ir`](../ir/README.md). The aim since 2026-11-03 is to write as much of
+`numberRemainder`. Step 4 is done in its portable mode: `fjs/ir` lowers
+the L1 module and untyped programs to WASM, and runs them on a JavaScript
+host and on NaNVM built as its own `.wasm`, in slices 1 to 12 (#3806 to
+#4043, [slices.md](../../../fjs/ir/todo/slices.md)). The program
+specialized for NaNVM, with fragments inlined, is not built. Its notes
+are in [`../ir`](../ir/README.md). The next task, since 2026-11-21, is a
+runtime written in the code IR itself, in the style of the
+[modular runtime](./modular-runtime.md), with the NaN box of
+[Sergey's design](../../sergey-shandar/nanvm/README.md) coded by hand. The aim since 2026-11-03 is to write as much of
 the runtime as possible in FunctionalScript first, and to make it faster
 later by substitution.
 
@@ -125,6 +132,7 @@ inliner.
 | 2026-11-16 | Slice 10, the whole L1 module: a member or index of `any` is a call of L1's `get`, keeping the array-at-number path of slice 6; "the whole L1 module" means every export of L1, each run against L1's own on the parity cases since 10c, and its builtins wait ([slices.md](../../../fjs/ir/todo/slices.md#decisions-for-slice-10-2026-11-16)). |
 | 2026-11-20 | Copy variants: Any names `undefined`, `null` and `boolean` as needing no release, so the lifetime pass writes no `dup` or `drop` of a value that holds only those. A number stays counted until a runtime makes floats immediates ([slices.md](../../../fjs/ir/todo/slices.md#later)). |
 | 2026-11-20 | Slice 11, programs: cut in three, untyped programs (11a), closures (11b) and spread (11c). A program is one module: the bodies of L1 that it reaches are lowered into it under `l1.` names, so it is one WASM module. An export with no signature takes and answers `any`. A closure is lifted `(self, args)` code with `make_function(code, frame, length, text)` and a new L0 `frame(self, i)`. Object literals of values of `any` stay Containers objects, as 8c lowers them ([slices.md](../../../fjs/ir/todo/slices.md#decisions-for-slice-11-2026-11-20)). |
+| 2026-11-21 | Slice 12, NaNVM's `.wasm` as the host: NaNVM exports its memory and `reserve`, the loader makes Any's constants and the table, calls go through an adapter module's `call_indirect`, a panic hook keeps a misuse's text, and L1's native rows are Rust in NaNVM ([slices.md](../../../fjs/ir/todo/slices.md#decisions-for-slice-12-2026-11-21)). |
 
 ## Open questions
 
