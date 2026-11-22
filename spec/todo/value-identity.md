@@ -50,6 +50,8 @@ With `const make = x => () => x`, two evaluations of `make(1)` may compare equal
 
 This is the other observable deviation from JavaScript execution. FJS VMs can render function text from the EDAG. Even Node and Bun can produce different text for the same ordinary function in the same `.mjs` file. With `const scale = 3` and `const f = (x) => x * scale`, Node 24.19.0 printed `(x) => x * scale`. Bun 1.4.2 printed `(x) => x * 3` after its runtime transpiler inlined the constant. A program can observe this through `String(f)`, comparisons, keys or branches. [Bun/Node example](https://github.com/oven-sh/bun/issues/43460) · [Bun documentation](https://bun.com/docs/compiler/compatibility) · [FJS function text](../../fjs/edag/function-text.md)
 
+Two decisions about default function text remain open. May a VM choose any stable string, and must a CAVM give closures with different captured frames different text? A single specified string for all CAVM functions would preserve determinism while allowing different functions to render identically. The existing code-only renderer and the proposed full-closure hash make different promises. [Function-text design questions](./cavm-function-to-string.md#what-must-default-function-text-guarantee)
+
 ### Tasks
 
 - [ ] Record the language designer's decision. If accepted, update the language principles, execution models, JS-compatibility tracker and reference-map contract to describe one evolution path. Keep the existing function-text exception explicit. [Language principles](../principles/README.md) · [Compatibility tracker](../../todo/fjs-javascript-compatibility.md)
