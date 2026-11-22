@@ -74,11 +74,13 @@ and [L2](./l2-design.md). Step 3 is mostly done, in `fjs/wasm/runtime` (#3615 to
 #3655): the L0 view, today's natives and a first slice of L1 bodies. L1
 rows such as `instanceof`, `resolveMember`, `**`, the integer operators
 and `nativeMember` are still to come; `%` of two numbers is the native row
-`numberRemainder`. Step 4 is done in its portable mode: `fjs/ir` lowers
-the L1 module and untyped programs to WASM, and runs them on a JavaScript
-host and on NaNVM built as its own `.wasm`, in slices 1 to 12 (#3806 to
-#4043, [slices.md](../../../fjs/ir/todo/slices.md)). The program
-specialized for NaNVM, with fragments inlined, is not built. Its notes
+`numberRemainder`. Step 4 is in progress: `fjs/ir` lowers the L1 module
+and untyped programs to WASM, and runs them on a JavaScript host and on
+NaNVM built as its own `.wasm`, in slices 1 to 12 (#3806 to #4043,
+[slices.md](../../../fjs/ir/todo/slices.md)). Not built yet: the stock
+module, since L2 has not joined `fjs/wasm/runtime` and nothing imports
+`l1/builtin`, and the program specialized for NaNVM, with fragments
+inlined. Its notes
 are in [`../ir`](../ir/README.md). The next task, since 2026-11-21, is a
 runtime written in the code IR itself, in the style of the
 [modular runtime](./modular-runtime.md), with the NaN box of
