@@ -58,8 +58,9 @@ for L1's native rows.
 The owner's direction of 2026-11-12 put the IR's role between FAST and
 WASM first. That role is built: slices 1 to 12 of
 [`fjs/ir/todo/slices.md`](../../../fjs/ir/todo/slices.md) are merged, so
-steps 1 to 6 of definition.md's [order of work](./definition.md#order-of-work)
-are done, and untyped programs run on NaNVM's `.wasm`
+steps 2 to 6 of definition.md's [order of work](./definition.md#order-of-work)
+are done, and untyped programs run on NaNVM's `.wasm`. Step 1 still lacks
+its proof that every function of the L0 view has a row
 ([What fjs/ir builds](./definition.md#what-fjsir-builds)).
 
 The owner's next task (2026-11-21) is the IR's other role: a runtime
