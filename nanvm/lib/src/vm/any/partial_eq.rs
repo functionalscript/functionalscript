@@ -33,14 +33,47 @@ impl<A: IVm> Any<A> {
 
     /// Ordered structural equality over FJS values, with SameValue at leaves.
     pub fn struct_eq(&self, other: &Self) -> bool {
-        let mut pending = vec![(self.clone(), other.clone())];
-        while let Some((x, y)) = pending.pop() {
+        use crate::vm::{Array, Property};
+        use std::{iter::Zip, vec::IntoIter};
+
+        enum Frame<A: IVm> {
+            Value(Any<A>, Any<A>),
+            Array(Array<A>, Array<A>, u32),
+            Object(Zip<IntoIter<Property<A>>, IntoIter<Property<A>>>),
+        }
+
+        let mut pending = vec![Frame::Value(self.clone(), other.clone())];
+        while let Some(frame) = pending.pop() {
+            let (x, y) = match frame {
+                Frame::Value(x, y) => (x, y),
+                Frame::Array(a, b, i) => {
+                    let pair = (a[i].clone(), b[i].clone());
+                    if i + 1 < a.length() {
+                        pending.push(Frame::Array(a, b, i + 1));
+                    }
+                    pair
+                }
+                Frame::Object(mut entries) => {
+                    let Some(((key, x), (other_key, y))) = entries.next() else {
+                        continue;
+                    };
+                    if key != other_key {
+                        return false;
+                    }
+                    if entries.len() != 0 {
+                        pending.push(Frame::Object(entries));
+                    }
+                    (x, y)
+                }
+            };
             if x.same_value(&y) {
                 continue;
             }
             match (Unpacked::from(x), Unpacked::from(y)) {
                 (Unpacked::Array(a), Unpacked::Array(b)) if a.length() == b.length() => {
-                    pending.extend((0..a.length()).rev().map(|i| (a[i].clone(), b[i].clone())));
+                    if !a.is_empty() {
+                        pending.push(Frame::Array(a, b, 0));
+                    }
                 }
                 (Unpacked::Object(a), Unpacked::Object(b)) => {
                     let left = a.own_entries();
@@ -48,14 +81,7 @@ impl<A: IVm> Any<A> {
                     if left.len() != right.len() {
                         return false;
                     }
-                    for ((key, value), (other_key, other_value)) in
-                        left.into_iter().zip(right).rev()
-                    {
-                        if key != other_key {
-                            return false;
-                        }
-                        pending.push((value, other_value));
-                    }
+                    pending.push(Frame::Object(left.into_iter().zip(right)));
                 }
                 _ => return false,
             }
@@ -78,6 +104,18 @@ mod tests {
     };
 
     type A = Naive;
+
+    #[test]
+    fn struct_eq_resumes_siblings() {
+        let nested = |field: bool, element: bool| -> Any<A> {
+            let record = [("a".into(), true.to_any()), ("b".into(), field.to_any())].to_object();
+            [record.to_any(), element.to_any()].to_array().to_any()
+        };
+        let left = nested(true, true);
+        assert!(left.struct_eq(&nested(true, true)));
+        assert!(!left.struct_eq(&nested(false, true)));
+        assert!(!left.struct_eq(&nested(true, false)));
+    }
 
     #[test]
     fn struct_eq_at_depth() {

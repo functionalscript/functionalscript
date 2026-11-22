@@ -15,6 +15,14 @@ export const proof = /** @type {const} */ ({
         assert(structEq(left, deep(0)))
         assert(!structEq(left, deep(-0)))
     },
+    resumeSiblings: () => {
+        const left = /** @type {const} */ ([{ a: [1, 2], b: 3 }, 4])
+        assert(structEq(left, [{ a: [1, 2], b: 3 }, 4]))
+        assert(!structEq(left, [{ a: [1, 2], b: 0 }, 4]))
+        assert(!structEq(left, [{ a: [1, 2], b: 3 }, 0]))
+        assert(structEq([], []))
+        assert(structEq({}, {}))
+    },
     ordered: () => {
         const child = /** @type {const} */ ({ x: NaN })
         assert(structEq([child, child], [{ x: NaN }, { x: NaN }]))

@@ -35,8 +35,10 @@ structurallySame({ a: [1] }, { a: [1] }) // true
 |[`structEq(a, b)`](./struct_eq/module.f.js) |deep equality in array and own enumerable record-entry order |
 |`structurallySame(a, b)`               |deep equality over plain data with unordered record keys                                                  |
 
-`structEq` visits child pairs using an explicit stack. Deeply nested arrays
-and records use heap space for pending siblings and keep the call stack flat.
+`structEq` visits one child at a time and stops at the first mismatch. Each
+unfinished container keeps one cursor, so the stack grows with nesting depth.
+The JavaScript helper also materializes the entries of each open record in
+enumeration order. Array cursors read directly from their inputs.
 
 ## Own-property lookup
 

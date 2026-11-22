@@ -57,6 +57,15 @@ export const proof = {
         assertEq(structEq(left, deep(0)), true)
         assertEq(structEq(left, deep(-0)), false)
     },
+    resumeSiblings: () => {
+        const fields = /** @type {const} */ (['{}', [[':', 'a', 1], [':', 'b', 2]]])
+        const left = /** @type {const} */ (['[]', [fields, 3]])
+        assertEq(structEq(left, ['[]', [['{}', [[':', 'a', 1], [':', 'b', 2]]], 3]]), true)
+        assertEq(structEq(left, ['[]', [['{}', [[':', 'a', 1], [':', 'b', 0]]], 3]]), false)
+        assertEq(structEq(left, ['[]', [fields, 0]]), false)
+        assertEq(structEq(['[]', []], ['[]', []]), true)
+        assertEq(structEq(['{}', []], ['{}', []]), true)
+    },
     ordered: () => {
         const record = /** @type {const} */ (['{}', [[':', 'x', ['undefined']]]])
         const array = /** @type {const} */ (['[]', [record, NaN]])
