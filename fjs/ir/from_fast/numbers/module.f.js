@@ -19,7 +19,7 @@ import { entry } from '../../../types/object/entry/module.f.js'
 import { error, ok, okList, unwrap } from '../../../types/result/module.f.js'
 import { typeOf } from '../../check/module.f.js'
 import { any, kinds, string } from '../../l0/module.f.js'
-import { bool, call, constant, equal, f64, f64c, false_, get, let_, lit, match, n, only, terms, true_ } from '../../module.f.js'
+import { bool, call, constant, equal, f64, f64c, false_, fits, get, int, let_, lit, match, n, only, terms, true_ } from '../../module.f.js'
 import { show } from '../../print/module.f.js'
 
 /** What the number paths read of the lowering's scope: the IR's scope and the depth that names the next local `#k`. @typedef {{ readonly ir: Scope, readonly depth: number }} Depth */
@@ -110,28 +110,57 @@ export const numberPath =
     }
 
 /**
+ * A term of an integer type of the one value `v` as a bigint of `any`: a
+ * literal is made by L1's native row `stringToBigInt` of its decimal text,
+ * and a `let` or a `match` whose every arm answers such a term, as two
+ * equal arms of `a ? 1n : 1n` merge, has each boxed where it answers, so
+ * what is done before is kept. Anything else, a constant say, is `null`.
+ *
+ * @type {(v: bigint, x: Term) => Term | null}
+ */
+const bigintOf = (v, x) => {
+    if (x[0] === 'lit') { return call('Native', 'stringToBigInt', [lit(string, String(v))]) }
+    if (x[0] === 'let') {
+        const body = bigintOf(v, x[3])
+        return body === null ? null : let_(x[1], x[2], body)
+    }
+    if (x[0] !== 'match') { return null }
+    const arms = x[2].map(([ks, binder, body]) => /** @type {const} */ ([ks, binder, bigintOf(v, body)]))
+    return arms.some(([, , b]) => b === null) ? null : match(x[1], arms.map(([ks, binder, b]) => [ks, binder, assertNotNullish(b)]))
+}
+
+/**
  * A value of `any`, or a float or boolean boxed as one by `from_f64` or
  * `from_bool` ([definition.md's rule 6](../../../../doc/sasha-gil/ir/definition.md#from-normalized-fast-to-the-ir)),
- * or `null` where no conversion of this slice fits.
+ * or a bigint literal, a term of an integer type of one value, as
+ * {@link bigintOf} boxes it, or `null` where no conversion of this slice
+ * fits. A constant of such a type is not boxed, as reading its literal
+ * instead would skip its `init`, which may throw.
  *
  * @type {(t: Type, x: Term) => Term | null}
  */
 export const asAny = (t, x) => isAny(t) ? x
     : isFloat(t) ? call('Any', 'from_f64', [x])
     : equal(t, bool) ? call('Any', 'from_bool', [x])
+    : t[0] === 'int' && t[1] === t[2] ? bigintOf(t[1], x)
     : null
 
 /**
  * A primitive as a term: a number is a float literal, a bigint the range
  * that holds it alone, a boolean a `bool`, a string a literal of `any` that
  * String makes, and `undefined` and `null` are Any's constants. A module
- * lowered without the runtime imports neither.
+ * lowered without the runtime imports neither. A bigint that no word holds
+ * is a value of `any` that L1's native row `stringToBigInt` makes of its
+ * decimal text, where the module imports the rows.
  *
  * @type {(imports: Module['imports'], v: Primitive) => Result<Term, string>}
  */
 export const primitive = (imports, v) => {
     if (typeof v === 'number') { return ok(lit(f64c, v)) }
-    if (typeof v === 'bigint') { return ok(n(v)) }
+    if (typeof v === 'bigint') {
+        return fits(64)(int(v, v)) || !imports.some(([k]) => k === 'Native') ? ok(n(v))
+            : ok(call('Native', 'stringToBigInt', [lit(string, String(v))]))
+    }
     if (typeof v === 'boolean') { return ok(v ? true_ : false_) }
     if (typeof v === 'string') {
         return imports.some(([k]) => k === 'String') ? ok(lit(string, v))

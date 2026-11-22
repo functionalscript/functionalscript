@@ -409,6 +409,11 @@ pub extern "C" fn string_to_number(s: i64) -> f64 {
     native::string_to_number(s)
 }
 
+#[unsafe(export_name = "stringToBigInt")]
+pub extern "C" fn string_to_bigint(s: i64) -> i64 {
+    native::string_to_bigint(s)
+}
+
 #[unsafe(export_name = "bigintToString")]
 pub extern "C" fn bigint_to_string(b: i64) -> i64 {
     native::bigint_to_string(b)
@@ -437,6 +442,11 @@ pub extern "C" fn bigint_shift_right(a: i64, b: i64) -> i64 {
 #[unsafe(export_name = "bigintAnd")]
 pub extern "C" fn bigint_and(a: i64, b: i64) -> i64 {
     native::bigint_and(a, b)
+}
+
+#[unsafe(export_name = "bigintToNumber")]
+pub extern "C" fn bigint_to_number(b: i64) -> f64 {
+    native::bigint_to_number(b)
 }
 
 #[unsafe(export_name = "bigintMultiply")]

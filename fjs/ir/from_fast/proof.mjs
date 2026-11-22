@@ -56,7 +56,7 @@ import { readFileSync } from 'node:fs'
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import {
     add, bitwiseAnd, call as l1Call, divide, functionText, get as l1GetFn, greaterThan, greaterThanOrEqual, lessThan, lessThanOrEqual,
-    multiply, negate, objectSpread, remainder, shiftRight, strictEquals, stringEquals, stringIndex, stringLess, subtract, toBoolean,
+    multiply, negate, number, objectSpread, remainder, shiftRight, strictEquals, stringEquals, stringIndex, stringLess, subtract, toBoolean,
     toIterable, toNumber, toNumeric, toPrimitive, toPropertyKey, toString as l1ToString, typeOf,
 } from '../../wasm/runtime/l1/module.f.js'
 import { l0 } from '../l0/module.f.js'
@@ -506,6 +506,7 @@ export const proof = {
         "    fn numberAnd(a: f64, b: f64) -> f64",
         "    fn numberToString(n: f64) -> any.only(string)",
         "    fn stringToNumber(s: any.only(string)) -> f64",
+        "    fn stringToBigInt(s: any.only(string)) -> any.only(bigint) may fail",
         "    fn bigintToString(b: any.only(bigint)) -> any.only(string)",
         "    fn bigintAdd(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint) may fail",
         "    fn bigintSubtract(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint) may fail",
@@ -515,6 +516,7 @@ export const proof = {
         "    fn bigintRemainder(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint) may fail",
         "    fn bigintShiftRight(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint) may fail",
         "    fn bigintAnd(a: any.only(bigint), b: any.only(bigint)) -> any.only(bigint) may fail",
+        "    fn bigintToNumber(b: any.only(bigint)) -> f64",
         "    fn bigintLess(a: any, b: any) -> f64",
         "",
         "const #c0: any.only(array) =",
@@ -1641,6 +1643,7 @@ export const proof = {
             toPrimitive: ([v, preferString]) => ({ any: toPrimitive(held(v), preferString === true) }),
             toNumber: ([v]) => toNumber(held(v)),
             toNumeric: ([v]) => ({ any: toNumeric(held(v)) }),
+            number: ([v]) => number(held(v)),
             toString: /** @type {_Twin} */ (xs => ({ any: l1ToString(held(xs[0])) })),
             stringLess: ([a, b]) => stringLess(held(a), held(b)),
             add: ([a, b]) => ({ any: add(held(a), held(b)) }),
@@ -1664,6 +1667,7 @@ export const proof = {
             toPrimitive: [[{ any: 1 }, false], [{ any: 'a' }, true]],
             toNumber: [[{ any: 1 }], [{ any: '2' }], [{ any: true }]],
             toNumeric: [[{ any: 1 }], [{ any: 1n }], [{ any: '1' }]],
+            number: [[{ any: 1 }], [{ any: 2n ** 64n }], [{ any: ' 3 ' }], [{ any: [4] }]],
             toString: [[{ any: 1 }], [{ any: 'a' }], [{ any: 1n }]],
             stringLess: [[{ any: 'a' }, { any: 'b' }], [{ any: 'b' }, { any: 'a' }]],
             add: [
@@ -1759,6 +1763,7 @@ export const proof = {
             toPrimitive: ([v, preferString]) => ({ any: toPrimitive(held(v), preferString === true) }),
             toNumber: plain(toNumber),
             toNumeric: boxed(toNumeric),
+            number: plain(number),
             toString: boxed(l1ToString),
             toPropertyKey: boxed(toPropertyKey),
             add: boxed(add),
@@ -1804,6 +1809,7 @@ export const proof = {
             toPrimitive: [false, true].flatMap(p => values.map(any => [{ any }, p])),
             toNumber: one(values),
             toNumeric: one(values),
+            number: one(values),
             toString: one(values),
             toPropertyKey: one(values),
             add: pairs,

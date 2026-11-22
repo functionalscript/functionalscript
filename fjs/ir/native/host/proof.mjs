@@ -82,6 +82,7 @@ export const proof = {
         const k = h.bigintAnd(2n, 3n)
         assertEq(owned[Number(k) - values.length], 1n << 64n)
     },
+    bigintToNumber: () => assertEq(h.bigintToNumber(3n), 18446744073709552000),
     bigintLess: () => {
         assertEq(h.bigintLess(0n, 3n), 1)
         assertEq(h.bigintLess(3n, 0n), 0)
@@ -122,6 +123,8 @@ export const proof = {
         notBigint: () => { h.bigintEquals(0n, 5n) },
         notHandle: () => { h.bigintEquals(0n, 7n) },
         stringToNumber: () => { h.stringToNumber(0n) },
+        // 'a' spells no bigint
+        stringToBigInt: () => { h.stringToBigInt(6n) },
         bigintToString: () => { h.bigintToString(5n) },
         bigintDivideZero: () => { h.bigintDivide(0n, 4n) },
         bigintRemainderZero: () => { h.bigintRemainder(0n, 4n) },

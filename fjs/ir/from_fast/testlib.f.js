@@ -144,6 +144,7 @@ export const l1Arith = {
     multiply: signature(any2, any),
     divide: signature(any2, any),
     remainder: signature(any2, any),
+    number: signature([['v', any]], f64),
     shiftRight: signature(any2, any),
     bitwiseAnd: signature(any2, any),
     negate: signature([['a', any]], any),
