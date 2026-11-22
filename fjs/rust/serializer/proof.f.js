@@ -29,10 +29,11 @@ const rest = { index: 2 }
 /** @type {PreparedFunction} */
 const fn = { target: { kind: 'function', index: 0 }, parameters: [x], rest, self: y, captures: [], body: { statements: [], exit: ['return', { kind: 'function', index: 0 }, ['array', [['ref', x], ['ref', y], ['ref', rest]]]] } }
 
+/** @type {(statements: Block['statements'], end: Value) => string} */
+const print = (statements, end) => unwrap(scopeTagged({ statements, exit: ['yield', [end]] }, options, [], true)).lines.map(untagged).join('\n')
+
 export const proof = {
     nativeOwnership: () => {
-        /** @type {(statements: Block['statements'], end: Value) => string} */
-        const print = (statements, end) => unwrap(scopeTagged({ statements, exit: ['yield', [end]] }, options, [], true)).lines.map(untagged).join('\n')
         /** @type {Block['statements']} */
         const aliases = [['define', x, 1], ['define', y, ['ref', x]]]
         const inspected = print([...aliases, ['define', rest, ['if', ['ref', y], yielding([['ref', x]]), yielding([null])]]], ['ref', rest])
