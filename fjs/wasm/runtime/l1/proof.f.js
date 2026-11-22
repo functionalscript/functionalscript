@@ -247,7 +247,7 @@ export const proof = {
                 assertEq(at(s, k), s.at(/** @type {number} */ (k)), `${s}.at(${String(k)})`)
             }
         }
-        const list = [10, 'b', null, 30]
+        const list = /** @type {const} */ ([10, 'b', null, 30])
         for (const k of [...keys, -4, -5, -0.5, -Infinity]) {
             assertEq(at(list, k), list.at(/** @type {number} */ (k)), `.at(${String(k)})`)
         }
@@ -260,7 +260,7 @@ export const proof = {
         assertStructurallySame(filter([], f), [])
         assertEq(every([], f), true)
         // an object's own member is called
-        const own = { charCodeAt: f, at: f, every: f, filter: f }
+        const own = /** @type {const} */ ({ charCodeAt: f, at: f, every: f, filter: f })
         assertEq(charCodeAt(own, 'x'), 'x')
         assertEq(at(own, 'y'), 'y')
         assertEq(every(own, 1), 1)
