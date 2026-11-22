@@ -1,25 +1,17 @@
 # EDAG execution models
 
-The table below describes the current EDAG execution models. The strategies in
-[§2](#2-js-compatible-execution) share JavaScript's allocation contract.
-Amnesia, global memoization and the CAVM each specify how they handle identity.
-
-The [value-identity proposal](../../spec/todo/value-identity.md) would bring
-fresh allocation, global memoization and full content identity under one
-contract. Equal-content values may merge, and a positive identity observation
-is permanent. A global memoizer must honor earlier merges on every cache hit.
-The CAVM gives equal content one identity from the first observation. Amnesia
-currently re-evaluates a shared node and can compare its two allocations as
-unequal, as the example in [§1](#1-amnesia) shows. It could keep the same
-evaluation strategy and conform by observing logical content identity
-consistently, including for reference-map lookups and function comparisons.
+EDAG can be executed under different identity and memoization models. They are
+not just progressively faster implementations. The strategies in
+[§2](#2-js-compatible-execution) share one allocation/identity contract;
+Amnesia, global memoization and CAVM use the distinct models below. None grants
+an unspecified exception merely because an executor is not content-addressable.
 
 The table describes **identity compatibility**. The
 [language principles](../../spec/principles/README.md) separately define
 indistinguishable failures and the adopted
 [function-text exception](../../spec/principles/README.md#function-source-representation-exception).
-Under the current JS-compatible contract, successful observations must agree
-for the same declared rendering rules. Resource limits may differ; A2's interruption freedom in the stage-1
+Within the same declared identity and rendering contract, successful observations
+must agree. Resource limits may differ; A2's interruption freedom in the stage-1
 discussion does not authorize a different successful answer.
 
 | model | reuse | JavaScript identity-compatible |
@@ -28,6 +20,17 @@ discussion does not authorize a different successful answer.
 | [JS-compatible](#2-js-compatible-execution) | node identity, per function invocation | yes |
 | [Global memoization](#3-global-memoization) | node identity, across invocations | no |
 | [Content-addressable VM](#4-content-addressable-vm) | content identity | no |
+
+**Proposed identity contract.** The [value-identity proposal](../../spec/todo/value-identity.md)
+would bring fresh allocation, global memoization and full content identity under
+one contract. A global memoizer must honor permanent identity merges on every
+cache hit. The CAVM gives equal content one identity from the first observation.
+Amnesia currently re-evaluates a shared node and can compare its two allocations
+as unequal, as the example in [§1](#1-amnesia) shows. It could retain that
+evaluation strategy if all identity observers, including reference maps, used a
+consistent content comparison. Conformance for functions depends on first
+specifying [canonical closure content](../../spec/todo/value-identity.md#what-is-the-canonical-content-of-a-closure)
+for the semantics version and implementing that comparison for bodies and frames.
 
 ## 1. Amnesia
 
