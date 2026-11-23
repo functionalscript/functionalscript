@@ -29,7 +29,7 @@ import { func } from '../value/function/module.f.js'
 import { bind, call, invoker, prepare, settle } from '../value/call/module.f.js'
 import { entry, findProperty, functionAt, hasEntry, read } from '../value/property/module.f.js'
 import { throwValue } from '../value/control/module.f.js'
-import { isNullish, truthy, instanceOf, unary as semanticUnary, binary as semanticBinary } from '../value/semantics/module.f.js'
+import { isNullish, truthy, structEq, instanceOf, unary as semanticUnary, binary as semanticBinary } from '../value/semantics/module.f.js'
 import { unary as numericUnary, binary as numericBinary } from '../value/numeric/module.f.js'
 import { binary as relational } from '../value/relational/module.f.js'
 import { toPrimitive, toString, toNumber } from '../value/convert/module.f.js'
@@ -186,6 +186,7 @@ export const invokerWith = run => runtime => {
         /** @type {Body} */
         const body = (callee, bound, remaining) => callee[0] === 'entry' ? entryCall(bound, invoke)
             : callee[0] === 'hasEntry' ? hasEntryCall(bound, invoke)
+            : callee[0] === 'structEq' ? ok(structEq(bound[0], bound[1]))
             : isIntrinsic(callee) ? intrinsicCall(callee, bound, invoke)
             : isStatic(callee) ? staticCall(runtime, callee, remaining, closure, invoke)
             : closure(callee, bound, remaining, callee)
@@ -371,6 +372,7 @@ export const operation = evaluator => {
             // the helper as a value: a fresh function each time, as `=>` makes one
             case 'entry': { return [state, ok(['entry'])] }
             case 'hasEntry': { return [state, ok(['hasEntry'])] }
+            case 'structEq': { return [state, ok(['structEq'])] }
             // the empty reference map: a new map of the runtime's, an
             // ordinary function, asked for wherever the node is
             // established; with no runtime the read fails naming it

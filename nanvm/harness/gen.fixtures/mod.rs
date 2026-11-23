@@ -163,6 +163,7 @@ pub mod string_from_char_code;
 pub mod string_from_char_code_coercion_throws;
 pub mod string_from_char_code_throws;
 pub mod string_methods;
+pub mod struct_eq;
 pub mod throw;
 pub mod throws;
 pub mod to_string;

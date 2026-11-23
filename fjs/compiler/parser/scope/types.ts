@@ -32,6 +32,7 @@ export type _Scope = {
     readonly origins: OrderedMap<BindingId>
     readonly trace: _Trace
     readonly sourceOrigins: readonly BindingOrigin[]
+    readonly structEq?: boolean
     readonly region: boolean
     /** Regions retain whether their owner is an ordinary function, not a module. */
     readonly inFunction: boolean

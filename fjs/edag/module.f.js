@@ -56,7 +56,7 @@ const intrinsicNames = intrinsicDefinitions.map(([id]) => id)
 
 const intrinsicIdSchema = or(...intrinsicNames)
 
-const op0IdSchema = or('undefined', 'args', 'rest', 'self', 'entry', 'hasEntry', 'refMap', intrinsicIdSchema, staticIdSchema)
+const op0IdSchema = or('undefined', 'args', 'rest', 'self', 'entry', 'hasEntry', 'structEq', 'refMap', intrinsicIdSchema, staticIdSchema)
 
 const op1IdSchema = or('String', 'Number', 'BigInt', 'Boolean', '!', '~', 'typeof', 'throw')
 
@@ -831,7 +831,7 @@ export const isIntrinsic = node => node instanceof Array && node.length === 1 &&
  * whole set (is this a helper, what is its arity, what is its text) asks
  * this one table instead of listing the tags again.
  */
-export const helpers = /** @type {const} */ ([['entry', 2], ['hasEntry', 2], ['refMap', 2], ...intrinsics])
+export const helpers = /** @type {const} */ ([['entry', 2], ['hasEntry', 2], ['structEq', 2], ['refMap', 2], ...intrinsics])
 
 /** The helpers' tags, {@link helpers}: `entry`, `hasEntry`, `refMap` and the intrinsics'. */
 export const helperIds = helpers.map(([id]) => id)
@@ -909,6 +909,11 @@ export const isFunctionNode = node => node instanceof Array && (node[0] === '=>'
  * `hasEntry` is the helper beside it, the presence as a boolean, `true`
  * for an entry holding `undefined`: `['()', ['hasEntry'], [a, b]]`
  * ([spec: why two helpers](../../spec/property-access/entries/README.md#why-two-helpers)).
+ *
+ * `structEq` compares two values by ordered content. Arrays use index order
+ * and records use their own enumerable entry order. SameValue decides
+ * primitive and function leaves. The helper is a first-class function of
+ * length two, so aliases and callbacks use the usual call instruction.
  *
  * `refMap` is the empty reference map
  * ([reference map](../../spec/built-ins/reference-map/README.md)), as a value: a function of

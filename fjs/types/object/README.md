@@ -32,7 +32,13 @@ structurallySame({ a: [1] }, { a: [1] }) // true
 |`fromMap(map)`                         |an object from an [`ordered_map`](../ordered_map/module.f.js)                 |
 |`isObject(value)`                      |whether `value` is a non-null object that is not an array                      |
 |`definedEntries(o)`, `definedValues(o)`|the entries or values whose value is not `undefined`                           |
-|`structurallySame(a, b)`               |deep equality over plain data                                                  |
+|[`structEq(a, b)`](./struct_eq/module.f.js) |deep equality in array and own enumerable record-entry order |
+|`structurallySame(a, b)`               |deep equality over plain data with unordered record keys                                                  |
+
+`structEq` visits one child at a time and stops at the first mismatch. Each
+unfinished container keeps one cursor, so the stack grows with nesting depth.
+The JavaScript helper also materializes the entries of each open record in
+enumeration order. Array cursors read directly from their inputs.
 
 ## Own-property lookup
 
