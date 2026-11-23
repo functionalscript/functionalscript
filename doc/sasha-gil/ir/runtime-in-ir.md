@@ -34,8 +34,9 @@ which this slice leaves in NaNVM.
   ABI is a NaN box, and a reference carries NaNVM's handle in the box's
   payload bits.
 - **The IR gains the integer bit operators and `to_bits` / `from_bits`**
-  that [definition.md](./definition.md#terms) already lists, and a way for
-  the module that declares a sealed type to see its carrier.
+  that [definition.md](./definition.md#terms) already lists (checkpoint 2,
+  #4095), and a way for the module that declares a sealed type to see its
+  carrier.
 - **Short strings, short bigints and a Heap in the IR come later.** Slice 1
   makes no string or bigint inline, so nothing that reads one changes.
 - **Four checkpoints**, each a PR that keeps every proof green: this
@@ -164,14 +165,14 @@ handle for the same value, so two boxes of one array can differ in bits.
 Each is one PR that leaves every proof green, so it can merge on its own.
 
 1. **This note.**
-2. **The IR operators** (choice 3) and `seal`/`unseal` (choice 4): types,
-   checker, printer, WASM emitter and proofs. Nothing uses them yet.
+2. **The IR operators** (choice 3): types, checker, printer, WASM
+   emitter and proofs. Nothing uses them yet.
 3. **NaNVM speaks the box** (choices 1 and 2): `put`/`get` in
    `nanvm/lib/src/l0/abi.rs`, the counting host in the same encoding,
    `dup_ref`, `drop_ref` and `same_ref` exported. Programs still import
    Any, so the demos run as before; their timings show what the encoding
    alone costs or saves.
-4. **Any in the IR** (choices 5 and 6): `fjs/ir/runtime/any`, its proofs
+4. **Any in the IR** (choices 4 to 6): `seal`/`unseal`, `fjs/ir/runtime/any`, its proofs
    against the L0 view on the parity tables, linking it into programs,
    and the demos measured.
 
