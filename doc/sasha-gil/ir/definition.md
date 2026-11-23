@@ -731,8 +731,8 @@ the runtime language and can start beside step 2.
 
 [`fjs/ir`](../../../fjs/ir/README.md) builds this definition in the
 slices of [`fjs/ir/todo/slices.md`](../../../fjs/ir/todo/slices.md), each
-proved against its FunctionalScript original. Slices 1 to 10 are merged. They run in import form, on a
-JavaScript host that counts every value.
+proved against its FunctionalScript original. Slices 1 to 12 are merged. They run in import form, on a
+JavaScript host that counts every value and on NaNVM built as a `.wasm`.
 
 | Step of the order of work | In fjs/ir |
 | --- | --- |
@@ -740,8 +740,9 @@ JavaScript host that counts every value.
 | 2. Terms and the checker | built: [`check`](../../../fjs/ir/check/module.f.js), [`print`](../../../fjs/ir/print/module.f.js), the effect since slice 7, `code` and `call_ref` since 9b1 |
 | 3. The lifetime pass | built: [`lifetime`](../../../fjs/ir/lifetime/module.f.js), and the owned-stage check |
 | 4. The WASM emitter for import form | built: [`wasm`](../../../fjs/ir/wasm/module.f.js), and the counting host in [`l0/host/count`](../../../fjs/ir/l0/host/count/module.mjs); every export of L1 runs against L1's own on the values of the parity table since 10c, each subject on its own inputs, and the random comparison on its programs |
-| 5. The lowering from normalized FAST | in progress: [`from_fast`](../../../fjs/ir/from_fast/README.md) lowers every export of L1, as one module since 10c, and refuses the rest |
-| 6 to 11 | not started; slices 11 and 12 are step 6 |
+| 5. The lowering from normalized FAST | built for L1 and for programs: [`from_fast`](../../../fjs/ir/from_fast/README.md) lowers every export of L1, as one module since 10c, and untyped programs linked with L1 since slice 11, with closures and spread; it refuses the rest |
+| 6. One small program | built: slice 11's programs on the counting host, and on NaNVM's `.wasm` since slice 12, with L1's native rows in Rust |
+| 7 to 11 | not started; the owner's next task (2026-11-21) is a runtime written in the IR, steps 7 to 10 |
 
 The slices take up the recommendation of open questions 2 to 8: the
 lowering reads normalized FAST, interfaces come first, `next`, `return_`
