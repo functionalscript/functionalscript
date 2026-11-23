@@ -82,14 +82,17 @@ make them ([choice 6](#6-the-tests-are-the-frames)).
 
 - **Pick:** the payload `p…p`, bits 2 to 47, holds NaNVM's handle. A
   handle is 32 bits of slot index and 32 of generation today, so it
-  shrinks to 32 and 14: a stale handle is still caught unless its slot
-  was reused 16,384 times in between. `tttt` holds L0's kind (4 string, 5 bigint, 6 array,
-  7 object, 8 function), so `kind` of a reference is `(x >> 48) & 0xF`.
+  shrinks to 32 and 14. A slot whose 16,383 generations are spent is
+  retired and never reused, as `Slab::take` does today, so a stale handle
+  never names another value; only the number of times one slot can be
+  reused drops. `tttt` holds L0's kind (4 string, 5 bigint, 6 array,
+  7 object, 8 function), and NaNVM checks it against the kind it stored
+  for the handle.
 - **Alternative:** the README's `Type` numbering (object 3, string 4,
   bigint 5, function 6). It has no array, which L0's `kind` needs, and
   maps `null` to object, as `typeof` does.
-- **Why:** L0 and L1 test L0's kinds, so the nibble answers `kind`
-  without a table. This is a deviation from the README's numbering for
+- **Why:** L0 and L1 test L0's kinds, so the nibble needs no table
+  once NaNVM has checked the handle. This is a deviation from the README's numbering for
   Sergey to confirm.
 
 ### 3. The IR gains the bit operators
@@ -129,8 +132,9 @@ make them ([choice 6](#6-the-tests-are-the-frames)).
   `Any.kind` and the rest become calls of the program's own functions,
   and slice 5's rule inlines a helper that is not exported at each call.
   Any's constants (`undefined`, `null`, `true`, `false`) become literals.
-  The calls that stay imports are NaNVM's: `dup_ref`, `drop_ref` and
-  `same_ref`, which take a box that is a reference.
+  The calls that stay imports are NaNVM's: `kind_ref`, `dup_ref`,
+  `drop_ref` and `same_ref`, which take a box that is a reference and
+  trap on a dropped or forged one.
 - **Alternative:** Any as a separate `.wasm` in import form, the modular
   L0's portable mode. Each call stays a call across modules, which is
   today's cost.
@@ -151,11 +155,31 @@ proposes: from the frame, not from what slice 1 happens to make. With
 | `from_f64(f)` | `f != f ? NAN : to_bits(f)` |
 | `to_bool(x)` | `x >> 63` |
 | `from_bool(b)` | `b ? TRUE : FALSE` |
-| `kind(x)` | number, then `x & 3`: `2` reads `tttt`, `0` reads the scalar tag, `1` is a bigint |
+| `kind(x)` | below |
 | `is_ref(x)` | `x & 0xFFF0_0000_0000_0003 == 0x7FF0_0000_0000_0002`, the README's `is_dyn_ref` |
 | `dup(x)` | `is_ref(x) ? dup_ref(x) : x` |
 | `drop(x)` | `if is_ref(x) then drop_ref(x)` |
 | `same(a, b)` | `a == b`, or `same_ref(a, b)` where both are references |
+
+`kind` answers L0's numbering (undefined 0, null 1, boolean 2, number 3,
+string 4, bigint 5, array 6, object 7, function 8), not the README's
+`Type`, so the scalar tags are mapped:
+
+| Box | `kind` |
+| --- | --- |
+| a number (`is_number`) | 3 |
+| `x & 1 == 1`, a short bigint | 5 (a later slice) |
+| `x & 2 == 2`, a reference | `kind_ref(x)`: NaNVM checks the handle is live and returns its `tttt` |
+| a scalar with `x & 0xC != 0`, a short string | 4 (a later slice) |
+| a scalar with tag `(x >> 4) & 3` = 1, boolean | 2 |
+| tag 2, undefined | 0 |
+| tag 3, null | 1 |
+
+The last three are `((x >> 4) + 1) % 3` over the tag. Reading `tttt`
+straight from the bits would answer a plausible kind for a dropped
+reference, where NaNVM's `kind` traps today, so the reference branch
+stays a checked call. A later slice can drop the check where the IR
+proves the reference is live.
 
 `same` calls NaNVM for two references because NaNVM's `dup` makes a new
 handle for the same value, so two boxes of one array can differ in bits.
@@ -168,13 +192,14 @@ Each is one PR that leaves every proof green, so it can merge on its own.
 2. **The IR operators** (choice 3): types, checker, printer, WASM
    emitter and proofs. Nothing uses them yet.
 3. **NaNVM speaks the box** (choices 1 and 2): `put`/`get` in
-   `nanvm/lib/src/l0/abi.rs`, the counting host in the same encoding,
-   `dup_ref`, `drop_ref` and `same_ref` exported. Programs still import
+   `nanvm/lib/src/l0/abi.rs` and the NaNVM host's constants. Programs still import
    Any, so the demos run as before; their timings show what the encoding
    alone costs or saves.
-4. **Any in the IR** (choices 4 to 6): `seal`/`unseal`, `fjs/ir/runtime/any`, its proofs
-   against the L0 view on the parity tables, linking it into programs,
-   and the demos measured.
+4. **Any in the IR** (choices 4 to 6): `seal`/`unseal`, the counting
+   host in the box encoding, NaNVM's `kind_ref`, `dup_ref`, `drop_ref`
+   and `same_ref` exported, `fjs/ir/runtime/any`, its proofs against the
+   L0 view on the parity tables, linking it into programs, and the demos
+   measured. It may land as several PRs.
 
 Short strings come after: String's group of the box, and its functions
 inline for a short string and NaNVM's for a long one.
@@ -184,7 +209,7 @@ inline for a short string and NaNVM's for a long one.
 1. **Choice 2's numbering** of `tttt` departs from the README. Is L0's
    kind numbering fine, or should the README's `Type` gain an array?
 2. **The counting host** must speak the box too, or the lifetime proofs
-   cannot run programs that inline Any. Checkpoint 3 proposes that it
+   cannot run programs that inline Any. Checkpoint 4 proposes that it
    does, with its cells as the reference payload.
 3. **The `s` bit** (a static reference) stays unused until literals live
    in a data segment.
