@@ -221,3 +221,21 @@ fn nested_static_objects_preserve_identity_across_module_loads() {
     let first = nanvm_lib::vm::Object::try_from(first).unwrap();
     assert_eq!(first.own_property(&"table".into()).unwrap(), table);
 }
+
+#[test]
+fn static_array_entries_share_the_exported_function_and_object() {
+    let load = || exports_with_runtime(fixture::module, nanvm_fjsrs::runtime().unwrap()).unwrap();
+    let module = load();
+    let items = module.own_property(&"items".into()).unwrap();
+    assert_eq!(load().own_property(&"items".into()).unwrap(), items);
+    let items = Array::try_from(items).unwrap();
+    let table = module.own_property(&"functionTable".into()).unwrap();
+    assert_eq!(items[0], module.own_property(&"id".into()).unwrap());
+    assert_eq!(items[1], table);
+    assert_eq!(items[2], table);
+    let factory = Function::try_from(module.own_property(&"freshItems".into()).unwrap()).unwrap();
+    let fresh = || factory.call([].to_array()).unwrap();
+    let first = fresh();
+    assert_ne!(first, fresh());
+    assert_eq!(Array::try_from(first).unwrap()[0], table);
+}
