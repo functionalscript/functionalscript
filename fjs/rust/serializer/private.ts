@@ -10,11 +10,11 @@ import type { PersistentMap } from '../../types/map/types.ts'
 export type _StaticValue = Primitive | _Descriptor
 export type _ContainerLiteral = Extract<Value, readonly ['array' | 'object', unknown]>
 export type _ContainerVisit = { readonly kind: 'container'; readonly value: _ContainerLiteral; readonly id: BindingId | null }
-export type _ContainerItem = _StaticValue | (_Container & { readonly id: null })
+export type _ContainerItem = _StaticValue | { readonly id: null; readonly definition: _Container }
 export type _Container =
     | { readonly kind: 'Array'; readonly items: readonly _ContainerItem[] }
     | { readonly kind: 'Object'; readonly fields: readonly (readonly [string, _ContainerItem])[] }
-export type _Descriptor = (_Container | { readonly kind: 'Function'; readonly fn: Function }) & { readonly id: BindingId }
+export type _Descriptor = { readonly id: BindingId; readonly definition: _Container | { readonly kind: 'Function'; readonly fn: Function } }
 export type _StaticBindings = PersistentMap<BindingId, _StaticValue>
 
 export type _Context = Options & {
