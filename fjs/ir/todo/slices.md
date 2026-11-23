@@ -1,7 +1,7 @@
 ## Build the IR in vertical slices
 
 **Priority:** P3
-**Status:** wip
+**Status:** done — slices 1 to 12 merged by 2026-11-21; what came after them is under [After slice 12](#after-slice-12)
 
 ### Problem
 
@@ -266,7 +266,7 @@ Slice 10, cut in three as decided below. Claim: [#3934](https://github.com/funct
   `bigintLess`, with `bigintDivide` of `0n` a row that may fail.
 - [x] **10c. Remaining L1 exports and parity.** Every export of
   [`l1/module.f.js`](../../wasm/runtime/l1/module.f.js), `toPropertyKey`
-  the last of them, lowered from L1's text as one module, and each run
+  the last of them, lowered from L1's text as one module (#4002), and each run
   against L1's own on the values and keys of the parity table: every pair
   for the binary operators and `strictEquals`, every value with a key for
   `get`, a function among them, since L1's own on the same host renders
@@ -285,7 +285,7 @@ Owner chose option A on each of four choices.
 
 #### Later
 
-- [x] **Copy variants of `any`** (after 10). Any marks `undefined`, `null`
+- [x] **Copy variants of `any`** (after 10, #4011). Any marks `undefined`, `null`
   and `boolean` as needing no release, as
   [definition.md's open question 6](../../../doc/sasha-gil/ir/definition.md#open-questions)
   recommends, so the lifetime pass writes no `dup` or `drop` of a value
@@ -309,8 +309,8 @@ Owner chose option A on each of four choices.
   - **What it saves.** In the whole L1 module, 7 of 90 `Any.dup` calls go,
     each of a constant, and none of its 157 `Any.drop` calls: a value of
     `any` that L1 drops may hold any kind.
-- **Programs** (11), cut in three as decided below.
-  - [x] **11a. Untyped programs.** A program lowers with no signature
+- [x] **Programs** (11), cut in three as decided below.
+  - [x] **11a. Untyped programs** (#4023). A program lowers with no signature
     table: an export that the table does not name takes and answers
     `any` alone, its parameters `p0`, `p1`, and so on. Its operators of
     operands that the IR's operators do not take, a value of `any` or a
@@ -333,7 +333,7 @@ Owner chose option A on each of four choices.
     JavaScript throws a `TypeError`, the program throws L1's value of
     that error. A spread argument in a program, `+x` of one operand,
     `%` of `any`, `?.()` and a guarded step after `?.` are refused.
-  - [x] **11b. Closures.** In a program, a function as a value is
+  - [x] **11b. Closures** (#4025). In a program, a function as a value is
     `make_function(code(#fK), frame, n, undefined)` of its lifted code
     `#fK(#self, #args) -> any`, which borrows both. The frame is an array
     of the captures that read values of the function around it, boxed;
@@ -352,8 +352,9 @@ Owner chose option A on each of four choices.
     a function that a call answers on probes beside its twin. A function
     value has no text yet (the owner chose no text for now, 2026-11-20),
     and one that calls itself, other than as a loop, and an export as a
-    value are refused.
-  - [x] **11c. Spread.** Spread in array and object literals and in
+    value are refused. A module function that calls itself is lowered
+    since #4059, as [After slice 12](#after-slice-12) says.
+  - [x] **11c. Spread** (#4028). Spread in array and object literals and in
     arguments, and rest parameters: in a program, L1's `toIterable` or
     `objectSpread` of each spread, then Containers' builder of every item,
     a loop for each spread; L0 gains `Containers.key`. A rest parameter is
@@ -362,7 +363,7 @@ Owner chose option A on each of four choices.
     Proved by the programs of [`spreads.f.js`](../from_fast/spreads.f.js)
     against JavaScript and by random spread programs.
 - [x] **NaNVM's `.wasm`** (12) in place of the JavaScript host.
-  - [x] **12a. NaNVM as the host.** [`nanvm/l0-wasm`](../../../nanvm/l0-wasm/src/lib.rs)
+  - [x] **12a. NaNVM as the host** (#4035). [`nanvm/l0-wasm`](../../../nanvm/l0-wasm/src/lib.rs)
     builds NaNVM's L0 ABI as a `.wasm` that exports `fjs:l0` by its
     names, its memory, and `reserve(size)`, which gives the loader a
     region for a module's data segments. The
@@ -370,11 +371,11 @@ Owner chose option A on each of four choices.
     shape: it passes NaNVM's exports to the module as they are, makes
     Any's constants and `data_base`, and runs a code index through an
     adapter module, a `call_indirect` into a table that the loader
-    fills from the module's `table`. Every module of the emitter's, the
+    filled from the module's `table` until 12d. Every module of the emitter's, the
     lifetime pass's, FAST's and the random host proofs runs on it too, in
     [`nanvm.test.mjs`](../l0/host/nanvm/nanvm.test.mjs), which CI runs
     after it builds the `.wasm`; L1's native rows are still JavaScript's.
-  - [x] **12b. A misuse's text.** NaNVM's `.wasm` traps bare under
+  - [x] **12b. A misuse's text** (#4041). NaNVM's `.wasm` traps bare under
     `panic=abort`, so a panic hook keeps what the panic said, and
     `trap_text_length` and `trap_text_into` give its units through
     memory. The hook also ends the change of NaNVM's state that the panic
@@ -382,7 +383,7 @@ Owner chose option A on each of four choices.
     The [NaNVM host](../l0/host/nanvm/module.mjs)'s `trap` reads them: the judge
     then compares a misuse's reason on NaNVM, `l0.unit: not an index` say,
     as it does on the counting host. `enter` forgets an earlier text.
-  - [x] **12c. Native rows in Rust.** The eleven `fjs:l1-native`
+  - [x] **12c. Native rows in Rust** (#4038). The eleven `fjs:l1-native`
     functions are [Rust in NaNVM](../../../nanvm/lib/src/l0/abi/native.rs),
     over its handles and computed by its own operators, and
     `nanvm/l0-wasm` exports them by their names, so the NaNVM host passes
@@ -390,7 +391,7 @@ Owner chose option A on each of four choices.
     with L1's text; a bigint division by zero throws NaNVM's `RangeError`.
     [`nanvm.test.mjs`](../l0/host/nanvm/nanvm.test.mjs) compares them with
     JavaScript on random floats, texts and bigints.
-  - [x] **12d. The imported table.** As
+  - [x] **12d. The imported table** (#4043). As
     [L0 design §5](../../../doc/sasha-gil/wasm/l0-design.md#5-memory-and-table-made-by-the-loader-imported-by-both-modules)
     picks, the loader makes the table: a module that imports an interface
     imports `table` and `table_base` from the first interface's `abi`,
@@ -401,6 +402,30 @@ Owner chose option A on each of four choices.
     copies it and `attach` is gone. A module exports no table, so the
     checker no longer refuses an export named `table`; one that imports no
     interface hands no code to a host and keeps a table of its own.
+
+### After slice 12
+
+Work on the lowering and on NaNVM since the twelve slices, mostly from
+the [benchmark](../../../doc/sasha-gil/ir/benchmark.md), which measures
+each step.
+
+- [x] **NaNVM's read-only L0 calls borrow** (#4049) and **L1's number
+  fast paths** (#4050).
+- [x] **The records pass** (#4052): an object literal of values of `any`
+  that its function only reads back by keys that it has stays one local
+  per value ([`records`](../records/module.f.js)).
+- [x] **Number paths** (#4055): an arithmetic or relational operator of
+  `any` tests each operand for a number where it stands, and calls L1
+  only otherwise ([`from_fast/numbers`](../from_fast/numbers/module.f.js)).
+- [x] **NaNVM's object reads in place** (#4056) and **bulk `concat`**
+  (#4057).
+- [x] **A module function that calls itself** (#4059): in a program, one
+  that the module does not export is a function of the IR, `#h0`, `#h1`,
+  …, of `any` alone, where 11b refused it.
+- [ ] **The perf demos' programs**, stacked: `%`, `>>` and `&` of `any`
+  (#4060), `Number(x)` and template literals (#4061), bigint literals
+  (#4062), and `charCodeAt`, `at`, `every` and `filter` as L1 operations
+  (#4063).
 
 ### Decisions for slice 11 (2026-11-20)
 

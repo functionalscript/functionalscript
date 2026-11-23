@@ -1,5 +1,12 @@
 # NaN-boxed handles for NaNVM's ABI
 
+**Superseded, 2026-11-21.** The owner chose to write a new runtime in
+the code IR itself, with the NaN box of
+[Sergey's design](../../sergey-shandar/nanvm/README.md) coded by hand in
+`f64` bits, rather than change NaNVM's Rust ABI as this note proposes
+([IR README](../ir/README.md#next)). The measurements and the analysis
+of the handle layer below still hold.
+
 **Proposed, 2026-11-21.** The last lever of
 [the benchmark](../ir/benchmark.md#levers): NaNVM's `i64` handle becomes
 the NaN box's bits, so a number or a constant needs no slot, and `kind`,

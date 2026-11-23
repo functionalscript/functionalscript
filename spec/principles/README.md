@@ -54,6 +54,9 @@ more convenient meaning. The valid JavaScript the compiler refuses is
 catalogued in [refused constructs](../todo/refused-constructs.md), each marked
 as refused by design, planned or undecided.
 
+[Designing new language guarantees](../../doc/DESIGN.md#leave-unsettled-language-behavior-open) explains
+how proposals handle unsettled questions and bounded, unspecified results.
+
 ## Function-source representation exception
 
 **Adopted:** in FunctionalScript VM execution, the default string representation

@@ -55,7 +55,7 @@
 import { readFileSync } from 'node:fs'
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import {
-    add, bitwiseAnd, call as l1Call, divide, functionText, get as l1GetFn, greaterThan, greaterThanOrEqual, lessThan, lessThanOrEqual,
+    add, at as l1At, bitwiseAnd, call as l1Call, charCodeAt, every, filter, requireObjectCoercible, toIntegerOrInfinity, divide, functionText, get as l1GetFn, greaterThan, greaterThanOrEqual, lessThan, lessThanOrEqual,
     multiply, negate, number, objectSpread, remainder, shiftRight, strictEquals, stringEquals, stringIndex, stringLess, subtract, toBoolean,
     toIterable, toNumber, toNumeric, toPrimitive, toPropertyKey, toString as l1ToString, typeOf,
 } from '../../wasm/runtime/l1/module.f.js'
@@ -1782,6 +1782,12 @@ export const proof = {
             call: boxed(l1Call),
             toIterable: boxed(toIterable),
             objectSpread: boxed(objectSpread),
+            toIntegerOrInfinity: ([x]) => toIntegerOrInfinity(/** @type {number} */ (x)),
+            requireObjectCoercible: boxed(requireObjectCoercible),
+            charCodeAt: boxed(charCodeAt),
+            at: boxed(l1At),
+            every: boxed(every),
+            filter: boxed(filter),
         }
         // The values and keys of the parity table, which
         // `../../wasm/runtime/l1/parity/proof.mjs` runs against the
@@ -1796,6 +1802,12 @@ export const proof = {
         /** @type {(as: readonly unknown[], bs: readonly unknown[]) => readonly (readonly _Value[])[]} */
         const two = (as, bs) => as.flatMap(a => bs.map(b => [{ any: a }, { any: b }]))
         const pairs = two(values, values)
+        // The receivers of `every` and `filter`: arrays, and values of each
+        // other kind; and callbacks, the last of them no function.
+        /** @type {readonly unknown[]} */
+        const lists = [[], [1, 'a', 0, null], [[], ''], ...values]
+        /** @type {readonly unknown[]} */
+        const callbacks = [f, (/** @type {unknown} */ x) => x, () => 0, (/** @type {unknown} */ _, /** @type {number} */ i) => i % 2, 1]
         // `divide` may abandon what it holds when `Native.bigintDivide` throws
         // for a zero divisor, as in `l1ArithRun`.
         return run(fromL1Whole(), twins, {
@@ -1832,6 +1844,12 @@ export const proof = {
             ],
             toIterable: one(values),
             objectSpread: one(values),
+            toIntegerOrInfinity: [NaN, 1.9, -1.9, Infinity, -Infinity, -0, 0].map(x => [x]),
+            requireObjectCoercible: one(values),
+            charCodeAt: two(values, keys),
+            at: two(values, keys),
+            every: two(lists, callbacks),
+            filter: two(lists, callbacks),
         }, ['divide', 'remainder'])
     },
     // Slice 11a: every export of the programs, of `any` alone, and the

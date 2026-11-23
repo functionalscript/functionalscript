@@ -21,6 +21,18 @@ discussion does not authorize a different successful answer.
 | [Global memoization](#3-global-memoization) | node identity, across invocations | no |
 | [Content-addressable VM](#4-content-addressable-vm) | content identity | no |
 
+**Proposed identity contract.** The [value-identity proposal](../../spec/todo/value-identity.md)
+gives non-CAVM reference comparisons one bound. A `true` answer from
+`Object.is` implies equal content. Whether an alias splits stays unspecified.
+Amnesia's [shared-array example](#1-amnesia) illustrates a permitted `false`
+result under this proposal. Amnesia remains an execution model for proofs.
+
+On a CAVM, content determines identity. Executing a serialized comparison on a
+CAVM can yield `true` after a JS-hosted interpreter yielded `false`.
+Conversely, independently loading two modules containing copies of the same
+CAVM value can yield distinct references on a non-CAVM. A serialized boolean
+keeps its value. [Program and value outputs](../../spec/command-line/output.md#evaluation-and-projection)
+
 ## 1. Amnesia
 
 [Amnesia](amnesia/README.md) is a tree-walking evaluator. It remembers no node
