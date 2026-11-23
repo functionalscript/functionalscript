@@ -1046,6 +1046,9 @@ const spreadArray = (lowerValue, scope, items, what) => settledParts(lowerValue,
     ))
 })
 
+/** Each key and value of a spread object, pushed one by one. */
+const pushEntries = itemByItem((b, x, k) => call('Containers', 'push_property', [b, call('Containers', 'key', [x, k]), call('Containers', 'item', [x, k])]))
+
 /**
  * An object of entries, one or more of them spread, as a program builds
  * one: L1's `objectSpread` of each spread, then Containers' builder of
@@ -1069,7 +1072,7 @@ const spreadObject = (lowerValue, scope, entries) => {
             boxed[1],
             k => call('Containers', 'begin_object', [k]),
             (b, x, j) => call('Containers', 'push_property', [b, lit(string, names[Number(j)]), x]),
-            itemByItem((b, x, k) => call('Containers', 'push_property', [b, call('Containers', 'key', [x, k]), call('Containers', 'item', [x, k])])),
+            pushEntries,
             // `seal` answers array|object; `begin_object` makes an object alone, so narrow.
             b => cast(object, call('Containers', 'seal', [b]), 'object', o => o),
         ))
