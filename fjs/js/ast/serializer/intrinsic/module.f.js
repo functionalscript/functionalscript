@@ -173,6 +173,9 @@ export const _intrinsicChunks = id => path => {
  */
 export const _intrinsicText = id => path => chunksText(_intrinsicChunks(id)(path))
 
+/** The portable structEq definition binds its own name. @type {() => readonly Chunk[]} */
+const structEqChunks = () => [`(()=>{${structEqSource};return structEq;})()`]
+
 /**
  * A helper's text by its tag, {@link _entryChunks}, {@link _hasEntryChunks},
  * {@link _refMapChunks} or {@link _intrinsicChunks}: the one dispatch from a helper node to its
@@ -180,7 +183,7 @@ export const _intrinsicText = id => path => chunksText(_intrinsicChunks(id)(path
  *
  * @type {(id: HelperId) => (path: string) => readonly Chunk[]}
  */
-export const _helperChunks = id => id === 'entry' ? _entryChunks : id === 'hasEntry' ? _hasEntryChunks : id === 'structEq' ? () => [`(()=>{${structEqSource};return structEq;})()`] : id === 'refMap' ? _refMapChunks : _intrinsicChunks(id)
+export const _helperChunks = id => id === 'entry' ? _entryChunks : id === 'hasEntry' ? _hasEntryChunks : id === 'structEq' ? structEqChunks : id === 'refMap' ? _refMapChunks : _intrinsicChunks(id)
 
 /** {@link _helperChunks} as text. @type {(id: HelperId) => (path: string) => string} */
 export const _helperText = id => path => chunksText(_helperChunks(id)(path))

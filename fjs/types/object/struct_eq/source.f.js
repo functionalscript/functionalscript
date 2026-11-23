@@ -1,5 +1,6 @@
 /** The core supplies its own SameValue while bootstrapping the runtime.
  * @param {boolean} core
+ * @returns {string}
  */
 export const structEqBody = core => `(a, b) => {${core ? '\n    /** @type {_StructEqStack<unknown, Entry<unknown>>} */' : ''}
     let pending = { tag: 'value', a, b, n: undefined }
