@@ -54,17 +54,20 @@
  *   ([L0 design §8](../../../doc/sasha-gil/wasm/l0-design.md#8-containers-a-builder-handle-then-seal)):
  *   `begin_array(n)` answers a builder of `n` items and `begin_object(n)`
  *   one of `n` properties; each `push` or `push_property` owns it and the
- *   value (and the key, a string) and gives it back, and `seal` owns it
+ *   value (and the key, a string) and gives it back, `push_all` owns it,
+ *   borrows an array and gives it back with each item of the array pushed
+ *   in its order, a count more of each, and `seal` owns it
  *   and answers the array or the object, owned
  *   ([§9](../../../doc/sasha-gil/wasm/l0-design.md#9-objects-the-runtime-keeps-keys-unique-and-ordered):
  *   a repeated key keeps its first position and its last value). A builder
  *   is linear
  *   ([definition.md](../../../doc/sasha-gil/ir/definition.md#ownership-is-two-capabilities)):
  *   Containers names no `dup` and no `drop` for it, so each path consumes
- *   it once, by a `push`, a `push_property` or a `seal`, and no `kind`, so
- *   nothing branches on it. An `i32` carries it. `push` and `push_property`
- *   give back the builder they own, so their imports take it once and
- *   answer nothing. Pushing more items than `n`, sealing with fewer, or a
+ *   it once, by a `push`, a `push_all`, a `push_property` or a `seal`, and
+ *   no `kind`, so nothing branches on it. An `i32` carries it. `push`,
+ *   `push_all` and `push_property` give back the builder they own, so their imports take it once and
+ *   answer nothing. Pushing more items than `n`, a `push_all` of what is
+ *   no array, sealing with fewer, or a
  *   builder that is sealed already traps.
  * - **`find` is an object's property index**, or `-1` where it has no such
  *   key ([L0 design §9](../../../doc/sasha-gil/wasm/l0-design.md#9-objects-the-runtime-keeps-keys-unique-and-ordered)):
@@ -96,7 +99,7 @@
  *   ([definition.md: One effect](../../../doc/sasha-gil/ir/definition.md#one-effect)):
  *   `throw`, `call`, and the functions that trap where the view throws, which
  *   definition.md marks: String's `unit` and `substring`, and Containers'
- *   `item`, `push`, `push_property`, `seal`, `join` and `key`, and Functions'
+ *   `item`, `push`, `push_all`, `push_property`, `seal`, `join` and `key`, and Functions'
  *   `frame`, which traps for a function that `make_function` did not make
  *   or past its frame, as `item` does past its end. Every other function
  *   of L0 completes on the values of its parameters' types.
@@ -205,7 +208,8 @@ const strings = [
  * array's string items with a separator; and the builder's: `begin_array`
  * and `begin_object`, a builder of `n` items or properties, `push` and
  * `push_property`, which own the builder and an item or a key and a value
- * and give the builder back, and `seal`, which owns the builder and answers
+ * and give the builder back, `push_all`, which owns the builder, borrows an
+ * array and gives the builder back with each item of the array pushed, and `seal`, which owns the builder and answers
  * the array or the object; and `key`, the owned string key of the
  * property `i` of an object, which a spread of one copies.
  *
@@ -217,6 +221,7 @@ const containers = [
     ['begin_array', signature([['n', index]], builder)],
     ['begin_object', signature([['n', index]], builder)],
     ['push', mayFail(signature([own('b', builder), own('v', any)], builder, 'b'))],
+    ['push_all', mayFail(signature([own('b', builder), ['a', array]], builder, 'b'))],
     ['push_property', mayFail(signature([own('b', builder), own('k', string), own('v', any)], builder, 'b'))],
     ['seal', mayFail(signature([own('b', builder)], container))],
     ['join', mayFail(signature([['parts', array], ['separator', string]], string))],

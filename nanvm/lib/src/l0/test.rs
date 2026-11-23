@@ -140,6 +140,21 @@ fn keys() {
     assert_eq!(find(&object([]), &s("z")), -1);
 }
 
+/// `push_all` appends an array's items after what is pushed already.
+#[test]
+fn push_all_appends() {
+    let mut b = begin_array(4);
+    b.push(n(0.0));
+    b.push_all(&array([n(1.0), n(2.0)]));
+    b.push_all(&array([]));
+    b.push(n(3.0));
+    let a = b.seal();
+    assert_eq!(length(&a), 4);
+    for i in 0..4 {
+        assert_eq!(to_f64(&item(&a, i)), f64::from(i));
+    }
+}
+
 /// A repeated key keeps its first position and its last value, and an
 /// array-index key comes first, as `Object.entries` lists them.
 #[test]
@@ -536,6 +551,27 @@ mod traps {
     fn push_object() {
         let mut b = begin_object::<A>(1);
         b.push(n(1.0));
+    }
+
+    #[test]
+    #[should_panic(expected = "l0.push_all: full")]
+    fn push_all_past() {
+        let mut b = begin_array::<A>(1);
+        b.push_all(&array([n(1.0), n(2.0)]));
+    }
+
+    #[test]
+    #[should_panic(expected = "l0.push_all: not an array builder")]
+    fn push_all_object() {
+        let mut b = begin_object::<A>(1);
+        b.push_all(&array([n(1.0)]));
+    }
+
+    #[test]
+    #[should_panic(expected = "l0.push_all: not an array")]
+    fn push_all_not_array() {
+        let mut b = begin_array::<A>(1);
+        b.push_all(&s("a"));
     }
 
     #[test]

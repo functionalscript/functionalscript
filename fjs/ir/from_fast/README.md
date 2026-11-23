@@ -435,7 +435,7 @@ as `any`, or a spread, which L1 makes the array or the object to copy.
 | --- | --- |
 | `...v` in an array literal or in the arguments of a call | `l1.toIterable(v)`, which throws JavaScript's `TypeError` where `v` is no array or string, and answers a string's code points |
 | `...v` in an object literal | `l1.objectSpread(v)`, cast to an object: an object's own properties, an array's items or a string's units under their index keys, nothing from any other value |
-| the literal or the arguments | `begin_array` or `begin_object` of the count of the items that stand alone and of each spread's length, then a `push` or `push_property` of each item that stands alone, and a loop `S<depth>.<j>` over each spread, `Containers.item` and, for an object, the new `Containers.key`, then `seal`; a repeated key keeps its first place and its last value, as `seal` does |
+| the literal or the arguments | `begin_array` or `begin_object` of the count of the items that stand alone and of each spread's length, then a `push` or `push_property` of each item that stands alone, and each spread: an array's items by one `Containers.push_all`, an object's by a loop `S<depth>.<j>` of `Containers.key` and `Containers.item`, then `seal`; a repeated key keeps its first place and its last value, as `seal` does |
 | a call with a spread | the call of a value of slice 11a on that array: `Functions.call` or `l1.call` |
 | a rest parameter of a closure | an array, a loop `R`, of the items of `#args` past the other parameters, none where it has no more, in a local after them |
 | a rest parameter of a function that a call inlines | an array of the arguments past the others, each boxed as `any`, in a local |

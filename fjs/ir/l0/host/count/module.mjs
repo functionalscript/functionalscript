@@ -34,11 +34,12 @@
  *   `begin_array(n)` begins one of `n` items and `begin_object(n)` one of
  *   `n` properties, `push` or `push_property` takes over a cell as its next
  *   item or property (and the key, a string), a count of it that a `drop`
- *   would take away, and `seal` ends the builder and makes a cell of the
+ *   would take away, `push_all` borrows a cell of an array and adds each
+ *   of its items, and `seal` ends the builder and makes a cell of the
  *   array or the object, which the caller owns
  *   ([§9](../../../../../doc/sasha-gil/wasm/l0-design.md#9-objects-the-runtime-keeps-keys-unique-and-ordered):
  *   a repeated key keeps its first position and its last value). A push
- *   past `n` items, a seal of fewer, and a handle of no builder, or of one
+ *   or a `push_all` past `n` items, a seal of fewer, and a handle of no builder, or of one
  *   that is sealed, throw. `builders` tells which are not sealed.
  * - **`call` invokes an existing function value**
  *   ([L0 design §12](../../../../../doc/sasha-gil/wasm/l0-design.md#12-functions-a-code-index-a-frame-a-length-and-a-text)):
@@ -229,6 +230,14 @@ export const counting = (values, data = 0, entries = 0) => {
                 const value = read(h)
                 drop(h)
                 builders.set(b, { kind, length, items: [...items, value] })
+            },
+            push_all: (b, a) => {
+                const { kind, length, items } = builder(b)
+                if (kind !== 'array') { throw 'fjs:l0 host: push_all of an object builder' }
+                const all = read(a)
+                if (!Array.isArray(all)) { throw 'fjs:l0 host: push_all of a value that is not an array' }
+                if (items.length + all.length > length) { throw 'fjs:l0 host: push_all past the length of a builder' }
+                builders.set(b, { kind, length, items: [...items, ...all] })
             },
             push_property: (b, k, h) => {
                 const { kind, length, items } = builder(b)

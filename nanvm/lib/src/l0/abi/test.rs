@@ -150,6 +150,25 @@ fn push_takes_its_value() {
     assert_eq!(live(), 0);
 }
 
+#[test]
+fn push_all_borrows_its_array() {
+    fresh();
+    let a = array(&[from_f64(1.0), TRUE]);
+    let b = begin_array(3);
+    push(b, NULL);
+    push_all(b, a);
+    assert_eq!(live(), 1);
+    let c = seal(b);
+    assert_eq!(length(c), 3);
+    let one = item(c, 1);
+    assert_eq!(to_f64(one), 1.0);
+    assert_eq!(item(c, 2), TRUE);
+    drop(one);
+    drop(a);
+    drop(c);
+    assert_eq!(live(), 0);
+}
+
 /// `self => [frame[0], args]`: borrows both and answers an owned array.
 fn first_and_args(self_: i64, args: i64) -> i64 {
     array(&[frame(self_, 0), dup(args)])

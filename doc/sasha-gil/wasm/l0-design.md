@@ -32,6 +32,7 @@ values are reference counted, and a throw traps, so a call returns one value.
 | | `join` | `(parts, separator) -> any` |
 | Containers | `begin_array`, `begin_object` | `(len) -> builder` |
 | | `push`, `push_property` | `(builder, v)`, `(builder, key, v)` |
+| | `push_all` | `(builder, a)`, each item of the array `a` |
 | | `seal` | `(builder) -> any` |
 | | `length`, `item`, `key` | `(v) -> i32`, `(v, i) -> any`, `(o, i) -> any` |
 | | `find` | `(o, key) -> i32`, the index or -1 |
@@ -138,8 +139,10 @@ Each choice gives the pick first, then the alternatives and the reason.
 - **Pick:** `begin_array(len)` or `begin_object(len)` returns an `i32`
   builder, `push` or `push_property` adds one item, and `seal` returns the
   value. Builders nest, so a frame or an argument list can be built while
-  another builder is open. Pushing more or fewer items than `len`, or using a
-  sealed builder, traps.
+  another builder is open. `push_all(builder, a)` adds each item of the
+  array `a` in one call, as a spread `[...a]` does. Pushing more or fewer
+  items than `len`, a `push_all` of what is not an array, or using a sealed
+  builder, traps.
 - **Alternative:** the program writes `i64` items into memory and one call
   copies them. That needs a shadow stack in the program.
 - **Why:** version 1 then needs no memory protocol for values. The bulk call
@@ -159,6 +162,7 @@ Each choice gives the pick first, then the alternatives and the reason.
 - **Pick:** an L0 function borrows its value arguments, with four
   exceptions. `push` and `push_property` take ownership of the values they
   store, `make_function` of its frame and text, and `drop` of its argument.
+  `push_all` borrows its array and counts each item it stores once more.
   `seal` consumes its builder. Every returned value is owned, so `item`,
   `key` and `frame` return a `dup`. The program emits `drop` at a value's
   last use. A value read from a global, an imported constant or a literal,

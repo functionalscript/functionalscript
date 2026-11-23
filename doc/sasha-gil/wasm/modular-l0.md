@@ -17,7 +17,7 @@ of one variant of each module.
 | Any | the constants, `kind`, `to_f64`, `from_f64`, `to_bool`, `from_bool`, `dup`, `drop`, `same`; in template form also the import `free` (choice 7) | `undefined`, `null`, boolean, number | none |
 | String | `make_string`, `read_units`, `unit`, `from_unit`, `concat`, `substring`, `length`; in template form also `unpack` | string | Any |
 | BigInt | `make_bigint`, `sign`, `read_words`, `length` | bigint | Any |
-| Containers | `begin_array`, `begin_object`, `push`, `push_property`, `seal`, `length`, `item`, `key`, `find`, `join` | array, object | Any, String |
+| Containers | `begin_array`, `begin_object`, `push`, `push_all`, `push_property`, `seal`, `length`, `item`, `key`, `find`, `join` | array, object | Any, String |
 | Functions | `make_function`, `call`, `throw`, `frame`, `text`, `length` | function | Any, Containers |
 
 Every module comes in two forms:
