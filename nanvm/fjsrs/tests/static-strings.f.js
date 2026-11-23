@@ -38,4 +38,6 @@ export const capturedWrapper = () => capturedId
 export const make = () => x => x
 /** @type {() => (x: unknown) => boolean} */
 export const makeBoolean = () => x => Boolean(x)
+export const grid = /** @type {const} */ ({ rows: [[1], [1]], options: { enabled: true } })
+export const freshGrid = () => ({ rows: [[1], [1]], options: { enabled: true } })
 export default () => f()

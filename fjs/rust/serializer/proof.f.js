@@ -173,7 +173,7 @@ export const proof = {
         assert(rust.includes('StaticObject(&['))
         assertEq(rust.split('StaticAny::Function(&FUNCTION_0)').length, 3)
         const mixed = print(defs, ['object', [[':', 'f', ['ref', x]], [':', 'value', ['array', []]]]])
-        assert(!mixed.includes('StaticObject'))
+        assert(mixed.includes('StaticAny::Array(&ITEM_0)'))
     },
     nativePrimitiveArrays: () => {
         /** @type {Value} */
@@ -186,6 +186,20 @@ export const proof = {
         assertEq(rust.split('StaticArray(&[]); Array::from_static(&VALUE)').length - 1, 2)
         assert(output.uses.vm.includes('StaticAny'))
         assert(!unwrap(scopeTagged(body, options)).uses.vm.includes('StaticArray'))
+    },
+    nativeInlineContainers: () => {
+        /** @type {Value} */
+        const child = ['object', []]
+        const pair = print([], ['array', [child, child]])
+        assert(pair.includes('StaticArray(&[StaticAny::Object(&ITEM_0), StaticAny::Object(&ITEM_1)])'))
+        const dynamic = print([], ['object', [[':', 'x', ['()', ['ref', x], []]], [':', 'x', child]]])
+        assert(dynamic.includes('Any::call(') && dynamic.includes('.to_object()'))
+        /** @type {Value} */
+        let deep = 1
+        for (let i = 0; i < 2048; i += 1) { deep = ['array', [deep]] }
+        const rust = print([], deep)
+        assertEq(rust.split(': StaticArray<A>').length - 1, 2048)
+        assert(!rust.includes('.to_array()'))
     },
     nativeNamedArrays: () => {
         /** @type {Block['statements']} */
