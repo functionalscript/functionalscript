@@ -1,3 +1,4 @@
+```ts
 type StructEqStack =
 undefined |
 {
@@ -40,3 +41,4 @@ const structEq = (a: unknown, b: unknown): boolean => {
         }
     }
 }
+```
