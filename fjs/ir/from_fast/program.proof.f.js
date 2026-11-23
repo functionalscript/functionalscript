@@ -1118,6 +1118,84 @@ export const proof = {
             assertEq(t.includes(`l1.${name}(`), true, text)
             assertEq(t.includes('requireObjectCoercible'), false, text)
         }
+        // An arrow callback of `every` or `filter` is inlined into the loop over an array, and L1 is called for the other kinds.
+        assertEq(program('export const f = a => a.every((x, i) => i < 1)'), [
+            'const #n0: any.only(number) =',
+            '    Any.from_f64(1.0)',
+            '',
+            'fn f(p0: any) -> any =',
+            '    match p0',
+            '      array as E0.array =>',
+            '        Any.from_bool(',
+            '            let E0.n = Containers.length(E0.array)',
+            '            loop E0 (E0.i: f64 = 0.0)',
+            '                if lt(E0.i, float(E0.n))',
+            '                then',
+            '                    let E0.k = trunc_sat(u(31), E0.i)',
+            '                    if eq(float(E0.k), E0.i)',
+            '                    then',
+            '                        let E0.item = Containers.item(E0.array, E0.k)',
+            '                        if lt(E0.i, 1.0) then br E0 { E0.i: add(E0.i, 1.0) } else false',
+            '                    else',
+            "                        trap('inexact')",
+            '                else',
+            '                    true',
+            '        )',
+            '      else as E0.other =>',
+            '        let #0 =',
+            '            Functions.make_function(',
+            '                code(#f1),',
+            '                match Containers.seal(Containers.begin_array(0))',
+            '                  array as array =>',
+            '                    array',
+            '                  else =>',
+            "                    trap('not array'),",
+            '                2,',
+            '                Any.undefined',
+            '            )',
+            '        l1.every(E0.other, #0)',
+            '',
+            'fn #f1(#self: any.only(function), #args: any.only(array)) -> any =',
+            '    let #0 = if lt(0, Containers.length(#args)) then Containers.item(#args, 0) else Any.undefined',
+            '    let #1 = if lt(1, Containers.length(#args)) then Containers.item(#args, 1) else Any.undefined',
+            '    Any.from_bool(',
+            '        match #1',
+            '          number as #2 =>',
+            '            let #3 = Any.to_f64(#2)',
+            '            lt(#3, 1.0)',
+            '          else =>',
+            '            l1.lessThan(#1, self.#n0)',
+            '    )',
+            '',
+            'fn l1.lessThan(a: any, b: any) -> bool =',
+            '    false',
+            '',
+            'fn l1.every(a: any, b: any) -> any =',
+            '    a',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        const kept = program('export const f = (a, p) => a.filter((x, i, xs) => x < p)')
+        assertEq(kept.includes('loop F0 (') && kept.includes('loop F0.kept (') && kept.includes('l1.filter(F0.other, '), true)
+        // A receiver that holds an array alone has no other arm; a callback that is refused refuses the call.
+        const only = program('export const f = () => [1, 2].every(x => x === 1)')
+        assertEq(only.includes('loop E1 (') && !only.includes('l1.every('), true)
+        assertEq(assertError(over({}, 'export const f = a => a.every(x => x ** 2)', programRuntime)).includes('**'), true)
+        // A receiver that holds no array, or a callback of more than three parameters, calls L1 alone.
+        assertEq(program("export const f = () => 'ab'.every(x => x)").includes('loop E'), false)
+        assertEq(program('export const f = a => a.every((x, i, xs, y) => y)').includes('loop E'), false)
+        assertEq(program('export const f = a => a.every((...xs) => xs)').includes('loop E'), false)
+        assertEq(program('export const f = () => (1.5).every(x => x)').includes('loop E'), false)
+        assertEq(program('export const f = a => a.at(x => x)').includes('loop E'), false)
+        // A callback that answers a record, which no condition reads, is L1's call.
+        for (const m of ['every', 'filter']) {
+            const text = program(`export const f = a => a.${m}((x, i) => ({ i }))`)
+            assertEq(text.includes('loop E') || text.includes('loop F'), false)
+            assertEq(text.includes(`l1.${m}(`), true)
+        }
+        // A throw in `filter`'s callback would leave its mask's builder behind.
+        assertEq(assertError(over({}, 'export const f = a => a.filter(x => { throw x })', programRuntime)), "f: a throw inside a callback of buildArray or buildObject is not in this slice: it would leave the builder of F0, which is linear, behind")
         // A receiver of no `any` is read and called as any callee is.
         assertEq(assertError(over({}, 'export const f = () => (1n + 2n).at(0)', programRuntime)), 'f: .at of int(3, 3) is not in this slice')
         assertEq(program('export const f = () => ({ at: 1 }).at(0)').includes('l1.call(\n        self.#n0,'), true)
