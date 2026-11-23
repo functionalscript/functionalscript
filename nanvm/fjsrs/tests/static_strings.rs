@@ -298,3 +298,36 @@ fn inline_containers_preserve_literal_identity() {
         assert_ne!(first, &second);
     }
 }
+
+#[test]
+fn inline_function_sites_preserve_identity_and_captures() {
+    let load = || exports_with_runtime(fixture::module, nanvm_fjsrs::runtime().unwrap()).unwrap();
+    let module = load();
+    let handlers = module.own_property(&"handlers".into()).unwrap();
+    assert_eq!(load().own_property(&"handlers".into()).unwrap(), handlers);
+    let handlers = nanvm_lib::vm::Object::try_from(handlers).unwrap();
+    let call = |value| {
+        Function::try_from(value)
+            .unwrap()
+            .call([].to_array())
+            .unwrap()
+    };
+    assert_eq!(
+        call(handlers.own_property(&"read".into()).unwrap()),
+        module.own_property(&"functionTable".into()).unwrap()
+    );
+    let check_pair = |value| {
+        let list = Array::try_from(value).unwrap();
+        assert_ne!(list[0], list[1]);
+        for i in [0, 1] {
+            assert_eq!(call(list[i].clone()), 1.0.to_any());
+        }
+        list
+    };
+    check_pair(handlers.own_property(&"list".into()).unwrap());
+    let factory = || check_pair(call(module.own_property(&"freshHandlers".into()).unwrap()));
+    let first = factory();
+    let second = factory();
+    assert_ne!(first[0], second[0]);
+    assert_ne!(first[1], second[1]);
+}

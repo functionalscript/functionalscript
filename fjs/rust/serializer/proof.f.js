@@ -63,7 +63,7 @@ export const proof = {
         const output = unwrap(scopeTagged(body, { ...options, text: () => 'hi' }, [], true))
         const lines = output.lines.map(untagged)
         assertEq(lines[0], 'static LITERAL_0: StaticString = StaticString(&[104, 105]);')
-        assertEq(lines.join('\n').split('String::from_static(&LITERAL_0)').length, 3)
+        assertEq(lines.join('\n').split('StaticAny::String(&LITERAL_0)').length, 3)
         assert(lines.join('\n').includes('text: Some(&LITERAL_0)'))
         assert(output.uses.vm.includes('StaticFunction'))
         assert(output.uses.vm.includes('StaticString'))
@@ -181,11 +181,21 @@ export const proof = {
         const body = yielding([['array', [items, ['array', []], ['array', []], ['function', { ...fn, body: yielding([items]) }]]]])
         const output = unwrap(scopeTagged(body, options, [], true))
         const rust = output.lines.map(untagged).join('\n')
-        assertEq(rust.split('static VALUE: StaticArray<A>').length - 1, 3)
+        assertEq(rust.split(': StaticArray<A>').length - 1, 4)
         assert(rust.includes('StaticArray(&[StaticAny::Nullish(Nullish::Null), StaticAny::Nullish(Nullish::Undefined), StaticAny::Boolean(false), StaticAny::Number(f64::from_bits(0x8000000000000000)), StaticAny::String(&LITERAL_0), StaticAny::BigInt(&LITERAL_1)])'))
-        assertEq(rust.split('StaticArray(&[]); Array::from_static(&VALUE)').length - 1, 2)
+        assertEq(rust.split('= StaticArray(&[]);').length - 1, 2)
         assert(output.uses.vm.includes('StaticAny'))
         assert(!unwrap(scopeTagged(body, options)).uses.vm.includes('StaticArray'))
+    },
+    nativeInlineFunctions: () => {
+        const body = yielding([['ref', x]])
+        /** @type {(parameters: readonly BindingId[]) => Value} */
+        const reader = parameters => ['function', { ...fn, self: null, rest: null, parameters, body }]
+        const rust = print([], ['array', [reader([x, y]), reader([y, x])]])
+        assert(rust.includes('StaticArray(&[StaticAny::Function(&ITEM_0), StaticAny::Function(&ITEM_1)])'))
+        assert(rust.includes('_args.argument(0)') && rust.includes('_args.argument(1)'))
+        const dynamic = print([], ['object', [[':', 'f', ['function', { ...fn, body: yielding([['Boolean', 1]]) }]]]])
+        assert(dynamic.includes('A::function_with_text') && dynamic.includes('.to_object()'))
     },
     nativeInlineContainers: () => {
         /** @type {Value} */

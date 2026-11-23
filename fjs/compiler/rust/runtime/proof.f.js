@@ -113,7 +113,7 @@ export const proof = {
         const rust = assertOk(generateRuntime(module(object([['Object.x', fn(0, [], 1)]])), true))
         assert(rust.includes('pub fn runtime() -> Result<Any<A>, Any<A>>'))
         assert(rust.includes('StaticFunction<A> = StaticFunction'))
-        assert(rust.includes('Function::from_static('))
+        assert(rust.includes('StaticAny::Function(&ITEM_0)'))
     },
     /**
      * The repository's runtime, from its compiled EDAG: one item, the

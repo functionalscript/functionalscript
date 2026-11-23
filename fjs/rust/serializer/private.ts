@@ -10,11 +10,12 @@ import type { PersistentMap } from '../../types/map/types.ts'
 export type _StaticValue = Primitive | _Descriptor
 export type _ContainerLiteral = Extract<Value, readonly ['array' | 'object', unknown]>
 export type _ContainerVisit = { readonly kind: 'container'; readonly value: _ContainerLiteral; readonly id: BindingId | null }
-export type _ContainerItem = _StaticValue | { readonly id: null; readonly definition: _Container }
+export type _ContainerItem = _StaticValue | { readonly id: null; readonly definition: _Definition }
 export type _Container =
     | { readonly kind: 'Array'; readonly items: readonly _ContainerItem[] }
     | { readonly kind: 'Object'; readonly fields: readonly (readonly [string, _ContainerItem])[] }
-export type _Descriptor = { readonly id: BindingId; readonly definition: _Container | { readonly kind: 'Function'; readonly fn: Function } }
+export type _Definition = _Container | { readonly kind: 'Function'; readonly fn: Function }
+export type _Descriptor = { readonly id: BindingId; readonly definition: _Definition }
 export type _StaticBindings = PersistentMap<BindingId, _StaticValue>
 
 export type _Context = Options & {
@@ -43,7 +44,7 @@ export type _Names = {
 /** A suspended spelling operation; each child is completed before its parent. */
 export type _Task =
     | { readonly kind: 'value'; readonly context: _Context; readonly value: Value; readonly result: boolean }
-    | { readonly kind: 'block'; readonly context: _Context; readonly block: Block; readonly result: boolean; readonly functionBody: boolean; readonly valueBlock: boolean }
+    | { readonly kind: 'block'; readonly callable?: Function; readonly context: _Context; readonly block: Block; readonly result: boolean; readonly functionBody: boolean; readonly valueBlock: boolean }
     | { readonly kind: 'statement'; readonly context: _Context; readonly statement: Statement }
     | { readonly kind: 'steps'; readonly context: _Context; readonly step: Step<Value> | undefined; readonly property: boolean; readonly member: boolean }
 

@@ -157,6 +157,7 @@ and the same data is a data segment in WebAssembly.
 - [x] Reuse named native static arrays and their aliases in arrays, objects, and function frames.
 - [x] Emit native static function frames with primitive captures and immutable aliases.
 - [x] Emit inline nested array and object literals as native static containers.
+- [x] Emit inline static functions as entries in native static arrays and objects.
 - [ ] Extend static containers to composite members and function frames to other static values.
 - [ ] Have the Rust serializer write constants as statics.
 
