@@ -7,7 +7,7 @@
  * @import { Block, Function as PreparedFunction, Memo, Statement, Value } from '../../js/ast/prepare/types.ts'
  * @import { BindingId, FunctionTarget, LoopTarget, Entry, Item, Key, Step, Operator } from '../../js/ast/types.ts'
  * @import { Options, Printed, Scope, Use, Uses, External } from './types.ts'
- * @import { _Context, _Descriptor, _Fields, _StaticBindings, _StaticValue, _Frame, _Names, _Output, _Task } from './private.ts'
+ * @import { _Context, _Descriptor, _Container, _ContainerItem, _ContainerLiteral, _ContainerVisit, _StaticBindings, _StaticValue, _Frame, _Names, _Output, _Task } from './private.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Stack } from '../../types/stack_walk/types.ts'
@@ -377,10 +377,10 @@ const staticFunction = s => [s.native ? 'A::function_with_text' : 'A::static_fun
 const block = (s, b, result, functionBody = false, valueBlock = false) => ok(/** @type {Printed<readonly string[]>} */ (mapGet(/** @type {NonNullable<_Context['ready']>} */ (s.ready)[Number(2 + (result ? 1 : 0) + (functionBody ? 2 : 0) + (valueBlock ? 4 : 0))], b)))
 
 /** @type {(s: _Context, ref: _Descriptor) => string} */
-const descriptorName = (s, ref) => `${ref.kind.toUpperCase()}_${binding(s, ref.id).slice(2).toUpperCase()}`
+const descriptorName = (s, ref) => `${ref.definition.kind.toUpperCase()}_${binding(s, ref.id).slice(2).toUpperCase()}`
 
 /** @type {(s: _Context, ref: _Descriptor) => Printed<string>} */
-const descriptorItem = (s, ref) => cat([vm('StaticAny'), `::${ref.kind}(&${descriptorName(s, ref)})`])
+const descriptorItem = (s, ref) => cat([vm('StaticAny'), `::${ref.definition.kind}(&${descriptorName(s, ref)})`])
 
 /** @type {(v: _StaticValue) => v is _Descriptor} */
 const isDescriptor = v => typeof v === 'object' && v !== null
@@ -397,12 +397,6 @@ const staticItem = (s, v) => {
     const id = mapGet(/** @type {_Names} */ (s.names).literals, v)
     return cat([item, `::${typeof v === 'string' ? 'String' : 'BigInt'}(&LITERAL_${id})`])
 }
-
-/** Each literal site owns its descriptor, even when two sites have identical items.
- * @type {(s: _Context, name: string, values: readonly _StaticValue[]) => Printed<string>} */
-const arrayDeclaration = (s, name, values) => cat([`${kw('static')} ${name}: `, vm('StaticArray'), '<A> = StaticArray(&[',
-    ...values.flatMap((v, i) => [i === 0 ? '' : ', ', staticItem(s, v)]),
-    ']);'])
 
 /** @type {(s: _Context, st: Statement) => _Descriptor | undefined} */
 const namedDescriptor = (s, st) => {
@@ -464,37 +458,69 @@ const staticEntry = (known, value) => {
     return value[0] === 'ref' && mapHas(known, value[1]) ? [mapGet(known, value[1])] : []
 }
 
-/** @type {(items: readonly Item<Value>[], known: _StaticBindings) => readonly _StaticValue[] | null} */
-const staticValues = (items, known) => {
-    const values = items.flatMap(v => staticEntry(known, v))
-    return values.length === items.length ? values : null
-}
-
-/** @type {(entries: readonly Entry<Value>[], known: _StaticBindings) => _Fields | null} */
-const staticFields = (entries, known) => {
-    const fields = entries.flatMap(/** @returns {_Fields} */ e => {
+/** Analyze immediate entries after any nested literal has been visited.
+ * @type {(v: _ContainerLiteral, known: _StaticBindings, containers: _Names['containers']) => _Container | null} */
+const containerOf = (v, known, containers) => {
+    /** @type {(value: Item<Value>) => readonly _ContainerItem[]} */
+    const item = value => {
+        const nested = mapGet(containers, value)
+        return nested === undefined ? staticEntry(known, value) : [{ definition: nested, id: null }]
+    }
+    if (v[0] === 'array') {
+        const items = v[1].flatMap(item)
+        return items.length === v[1].length ? { kind: 'Array', items } : null
+    }
+    const entries = v[1]
+    const fields = entries.flatMap(e => {
         if (e[0] !== ':' || typeof e[1] !== 'string') { return [] }
         const key = e[1]
-        return staticEntry(known, e[2]).map(v => /** @type {const} */ ([key, v]))
+        return item(e[2]).map(value => /** @type {const} */ ([key, value]))
     })
-    return fields.length === entries.length ? fields : null
+    return fields.length === entries.length ? { kind: 'Object', fields } : null
 }
 
-/** @type {(s: _Context, name: string, fields: _Fields) => Printed<string>} */
-const objectDeclaration = (s, name, fields) => {
-    // Keep the last value at each key's first position and enumerate index keys first.
-    const properties = Object.entries(Object.fromEntries(fields))
-    return cat([`${kw('static')} ${name}: `, vm('StaticObject'), '<A> = StaticObject(&[',
-        ...properties.flatMap(([k, v], i) => [i === 0 ? '(' : ', (', `&LITERAL_${mapGet(/** @type {_Names} */ (s.names).literals, k)}, `,
-            staticItem(s, v), ')']), ']);'])
+/** Emit a separate local static per inline occurrence. Keeping declarations side by side
+ * bounds Rust expression depth even for deeply nested literal trees.
+ * @type {(s: _Context, name: string, root: _Container) => Printed<string>} */
+const containerDeclaration = (s, name, root) => {
+    /** @type {Stack<readonly [string, _Container]>} */
+    let pending = { top: [name, root], rest: null }
+    /** @type {List<Printed<string>>} */
+    let declarations = null
+    let initializer = code('')
+    let next = 0
+    while (pending !== null) {
+        /** @type {NonNullable<Stack<readonly [string, _Container]>>} */
+        const { top: [local, container], rest } = pending
+        pending = rest
+        // Object.fromEntries retains the last value at the first position of each key.
+        /** @type {readonly (readonly [string | null, _ContainerItem])[]} */
+        const fields = container.kind === 'Array' ? container.items.map(v => /** @type {const} */ ([null, v]))
+            : Object.entries(Object.fromEntries(container.fields))
+        /** @type {List<Printed<string>>} */
+        let items = null
+        for (const [key, value] of fields) {
+            let item
+            if (typeof value === 'object' && value !== null && value.id === null) {
+                const child = `ITEM_${next}`
+                next += 1
+                pending = { top: [child, value.definition], rest: pending }
+                item = cat([vm('StaticAny'), `::${value.definition.kind}(&${child})`])
+            } else { item = staticItem(s, value) }
+            const field = key === null ? item : cat([`(&LITERAL_${mapGet(/** @type {_Names} */ (s.names).literals, key)}, `, item, ')'])
+            items = { first: cat([items === null ? '' : ', ', field]), tail: items }
+        }
+        const ty = vm(`Static${container.kind}`)
+        const body = cat([ty, '(&[', ...listToArray(items).toReversed(), '])'])
+        if (local === name) { initializer = body }
+        else { declarations = { first: cat([`${kw('static')} ${local}: `, ty, '<A> = ', body, '; ']), tail: declarations } }
+    }
+    return cat([`${kw('static')} ${name}: `, vm(`Static${root.kind}`), '<A> = ',
+        ...(declarations === null ? [initializer] : ['{ ', ...listToArray(declarations), initializer, ' }']), ';'])
 }
 
 /** @type {(s: _Context, entries: readonly Entry<Value>[]) => Result<Printed<string>, readonly unknown[]>} */
 const object = (s, entries) => {
-    const fields = s.moduleInit ? staticFields(entries, /** @type {_Names} */ (s.names).staticBindings) : null
-    if (fields !== null) {
-        return ok(cat(['{ ', objectDeclaration(s, 'VALUE', fields), ' ', vm('Object'), '::from_static(&VALUE)', toAny, ' }']))
-    }
     if (entries.length === 0) { return ok(cat([vm('Object'), '::default()', toAny])) }
     const spread = entries.some(e => e[0] === '...' || typeof e[1] !== 'string')
     const members = entries.map(e => e[0] === '...'
@@ -548,7 +574,7 @@ const ownCallArgs = (s, n) => {
     const step = /** @type {Step<Value> | undefined} */ (n[3])
     if (step?.length !== 2 || (step[0] !== '|()' && step[0] !== '|!()')) { return undefined }
     const [ref] = staticEntry(s.captures, n[1])
-    return isDescriptor(ref) && ref.kind === 'Object' && ref.fields.some(([key]) => key === n[2]) ? step[1] : undefined
+    return isDescriptor(ref) && ref.definition.kind === 'Object' && ref.definition.fields.some(([key]) => key === n[2]) ? step[1] : undefined
 }
 
 /** The target's runtime operation spelling; no placement or graph walk occurs here. @type {(s: _Context, n: Operator<Value>, result: boolean) => Result<Printed<string>, readonly unknown[]>} */
@@ -605,13 +631,7 @@ const operation = (s, n, result) => {
         return map1(pure(result))(ok(cat([staticFunction(s), '(|_self, _args| ', ...native, ', ', num(`${length}`), ', ', vm('Array'), '::default(), ', represented(s, helperText(_helperText(id)('helper'))), ')', toAny])))
     }
     switch (tag) {
-        case 'array': {
-            const items = n[1]
-            const values = s.moduleInit ? staticValues(items, /** @type {_Names} */ (s.names).staticBindings) : null
-            return values !== null
-                ? map1(pure(result))(ok(cat(['{ ', arrayDeclaration(s, 'VALUE', values), ' ', vm('Array'), '::from_static(&VALUE)', toAny, ' }'])))
-                : array(s, items, result)
-        }
+        case 'array': { return array(s, n[1], result) }
         case 'object': { return map1(pure(result))(object(s, n[1])) }
         case '()': { return map1(fallible(result))(map2((fn, args) => `Any::call(${fn}, ${args})`)(expression(s, n[1], false), array(s, n[2]))) }
         case 'memberPresent': {
@@ -666,6 +686,10 @@ const expressionReady = (s, v, result) => {
         return map1(pure(result))(ok(cat([loadLiteral(s, v), toAny])))
     }
     if (!(v instanceof Array)) { return map1(pure(result))(primitiveExpr(v)) }
+    const container = s.moduleInit ? mapGet(/** @type {_Names} */ (s.names).containers, v) : undefined
+    if (container !== undefined) {
+        return map1(pure(result))(ok(cat(['{ ', containerDeclaration(s, 'VALUE', container), ' ', vm(container.kind), '::from_static(&VALUE)', toAny, ' }'])))
+    }
     switch (v[0]) {
         case 'ref': {
             const found = s.bindings.find(([id]) => id === v[1])
@@ -733,10 +757,9 @@ const statementReady = (s, st) => {
     const ref = namedDescriptor(s, st)
     if (ref !== undefined) {
         const name = descriptorName(s, ref)
-        const decl = ref.kind === 'Object' ? ok(objectDeclaration(s, name, ref.fields))
-            : ref.kind === 'Array' ? ok(arrayDeclaration(s, name, ref.items)) : functionDeclaration(s, ref.fn, name)
+        const decl = ref.definition.kind === 'Function' ? functionDeclaration(s, ref.definition.fn, name) : ok(containerDeclaration(s, name, ref.definition))
         return map2((item, local) => [item, local])(decl,
-            declaration(binding(s, ref.id), false, ok(cat([vm(ref.kind), `::from_static(&${name})`, toAny]))))
+            declaration(binding(s, ref.id), false, ok(cat([vm(ref.definition.kind), `::from_static(&${name})`, toAny]))))
     }
     switch (st[0]) {
         case 'define': case 'slot': { return map1(text => [text])(declaration(binding(s, st[1]), st[0] === 'slot' && st[3], expression(s, st[2], false))) }
@@ -844,6 +867,7 @@ const children = task => {
         case 'value': {
             const v = task.value
             if (!(v instanceof Array)) { return [] }
+            if (s.moduleInit && s.names !== undefined && mapHas(s.names.containers, v)) { return [] }
             switch (v[0]) {
                 case 'ref': case 'demand': { return [] }
                 case 'function': { return [...v[1].captures.map(c => valueTask(s, c.value)), blockTask(closureContext(s, v[1]), v[1].body, true, true)] }
@@ -869,8 +893,8 @@ const children = task => {
             const st = task.statement
             const ref = namedDescriptor(s, st)
             if (ref !== undefined) {
-                if (ref.kind !== 'Function') { return [] }
-                const fn = ref.fn
+                if (ref.definition.kind !== 'Function') { return [] }
+                const fn = ref.definition.fn
                 return [blockTask(closureContext(s, fn), fn.body, true, true)]
             }
             switch (st[0]) {
@@ -1016,7 +1040,7 @@ const bodyNeedsRuntime = (s, fn) => {
 
 /** Target naming walks the prepared instructions, never the source graph. @type {(root: _Task) => _Names} */
 const namesOf = root => {
-    /** @type {Stack<_Task>} */
+    /** @type {Stack<_Task | _ContainerVisit>} */
     let pending = { top: root, rest: null }
     /** @type {List<readonly BindingId[]>} */
     let bindings = null
@@ -1028,9 +1052,21 @@ const namesOf = root => {
     let staticFunctions = empty
     /** @type {_StaticBindings} */
     let staticBindings = empty
+    /** @type {_Names['containers']} */
+    let containers = empty
     while (pending !== null) {
-        /** @type {NonNullable<Stack<_Task>>} */
+        /** @type {NonNullable<Stack<_Task | _ContainerVisit>>} */
         const { top, rest } = pending
+        if (top.kind === 'container') {
+            const container = containerOf(top.value, staticBindings, containers)
+            if (container !== null) {
+                containers = mapSet(containers, top.value, container)
+                if (top.id !== null) { staticBindings = mapSet(staticBindings, top.id, { definition: container, id: top.id }) }
+            }
+            pending = rest
+            continue
+        }
+        let tail = rest
         if (root.context.native) {
             if (top.context.moduleInit && top.kind === 'statement' && top.statement[0] === 'define') {
                 const [, id, value] = top.statement
@@ -1048,14 +1084,10 @@ const namesOf = root => {
                         staticEntry(known, value).map(item => /** @type {const} */ ([binding, item]))))
                     if (size(frame) === v[1].captures.length && !bodyNeedsRuntime({ ...top.context, captures: frame }, v[1])) {
                         staticFunctions = mapSet(staticFunctions, v[1], frame)
-                        if (def !== null) { staticBindings = mapSet(staticBindings, def, { kind: 'Function', id: def, fn: v[1] }) }
+                        if (def !== null) { staticBindings = mapSet(staticBindings, def, { id: def, definition: { kind: 'Function', fn: v[1] } }) }
                     }
-                } else if (def !== null && v[0] === 'array') {
-                    const values = staticValues(v[1], staticBindings)
-                    if (values !== null) { staticBindings = mapSet(staticBindings, def, { kind: 'Array', id: def, items: values }) }
-                } else if (def !== null && v[0] === 'object') {
-                    const fields = staticFields(v[1], staticBindings)
-                    if (fields !== null) { staticBindings = mapSet(staticBindings, def, { kind: 'Object', id: def, fields }) }
+                } else if (v[0] === 'array' || v[0] === 'object') {
+                    tail = { top: { kind: 'container', value: v, id: def }, rest }
                 }
             }
             for (const value of instructionLiterals(top)) {
@@ -1064,10 +1096,10 @@ const namesOf = root => {
         }
         bindings = { first: instructionBindings(top), tail: bindings }
         loops = { first: instructionLoops(top), tail: loops }
-        pending = pushAll(children(top), rest)
+        pending = pushAll(children(top), tail)
     }
     return {
-        literals, staticFunctions, staticBindings,
+        literals, staticFunctions, staticBindings, containers,
         bindings: identityNames(setValues(fromValues(listToArray(bindings).toReversed().flat())), '_b'),
         loops: identityNames(setValues(fromValues(listToArray(loops).toReversed().flat())), '_loop'),
     }

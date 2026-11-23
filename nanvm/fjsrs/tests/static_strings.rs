@@ -267,3 +267,34 @@ fn containers_and_function_frames_share_the_named_array() {
         assert_eq!(Array::try_from(fresh).unwrap()[0], items);
     }
 }
+
+#[test]
+fn inline_containers_preserve_literal_identity() {
+    let load = || exports_with_runtime(fixture::module, nanvm_fjsrs::runtime().unwrap()).unwrap();
+    let module = load();
+    let parts = |value| {
+        let grid = nanvm_lib::vm::Object::try_from(value).unwrap();
+        let rows = grid.own_property(&"rows".into()).unwrap();
+        let options = grid.own_property(&"options".into()).unwrap();
+        let entries = Array::try_from(rows.clone()).unwrap();
+        assert_ne!(entries[0], entries[1]);
+        assert_eq!(
+            Array::try_from(entries[0].clone()).unwrap()[0],
+            1.0.to_any()
+        );
+        [
+            grid.to_any(),
+            rows,
+            entries[0].clone(),
+            entries[1].clone(),
+            options,
+        ]
+    };
+    let grid = parts(module.own_property(&"grid".into()).unwrap());
+    assert_eq!(grid, parts(load().own_property(&"grid".into()).unwrap()));
+    let factory = Function::try_from(module.own_property(&"freshGrid".into()).unwrap()).unwrap();
+    let fresh = || parts(factory.call([].to_array()).unwrap());
+    for (first, second) in fresh().iter().zip(fresh()) {
+        assert_ne!(first, &second);
+    }
+}

@@ -8,11 +8,13 @@ import type { List } from '../../types/list/types.ts'
 import type { PersistentMap } from '../../types/map/types.ts'
 
 export type _StaticValue = Primitive | _Descriptor
-export type _Fields = readonly (readonly [string, _StaticValue])[]
-export type _Descriptor =
-    | { readonly kind: 'Array'; readonly id: BindingId; readonly items: readonly _StaticValue[] }
-    | { readonly kind: 'Function'; readonly id: BindingId; readonly fn: Function }
-    | { readonly kind: 'Object'; readonly id: BindingId; readonly fields: _Fields }
+export type _ContainerLiteral = Extract<Value, readonly ['array' | 'object', unknown]>
+export type _ContainerVisit = { readonly kind: 'container'; readonly value: _ContainerLiteral; readonly id: BindingId | null }
+export type _ContainerItem = _StaticValue | { readonly id: null; readonly definition: _Container }
+export type _Container =
+    | { readonly kind: 'Array'; readonly items: readonly _ContainerItem[] }
+    | { readonly kind: 'Object'; readonly fields: readonly (readonly [string, _ContainerItem])[] }
+export type _Descriptor = { readonly id: BindingId; readonly definition: _Container | { readonly kind: 'Function'; readonly fn: Function } }
 export type _StaticBindings = PersistentMap<BindingId, _StaticValue>
 
 export type _Context = Options & {
@@ -30,6 +32,7 @@ export type _Context = Options & {
 }
 
 export type _Names = {
+    readonly containers: PersistentMap<Value, _Container>
     readonly staticBindings: _StaticBindings
     readonly staticFunctions: PersistentMap<Function, _StaticBindings>
     readonly literals: PersistentMap<string | bigint, number>
