@@ -7,7 +7,7 @@
  * @import { Block, Function as PreparedFunction, Memo, Statement, Value } from '../../js/ast/prepare/types.ts'
  * @import { BindingId, FunctionTarget, LoopTarget, Entry, Item, Key, Step, Operator } from '../../js/ast/types.ts'
  * @import { Options, Printed, Scope, Use, Uses, External } from './types.ts'
- * @import { _Context, _Descriptor, _Container, _ContainerItem, _ContainerLiteral, _ContainerVisit, _StaticBindings, _StaticValue, _Frame, _Names, _Output, _Task } from './private.ts'
+ * @import { _Context, _Descriptor, _Definition, _Container, _ContainerItem, _ContainerLiteral, _ContainerVisit, _StaticBindings, _StaticValue, _Frame, _Names, _Output, _Task } from './private.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Stack } from '../../types/stack_walk/types.ts'
@@ -373,8 +373,11 @@ const closureContext = (s, fn) => {
 /** The concrete VM needs the trait in scope for its associated functions. @type {(s: _Context) => Printed<string>} */
 const staticFunction = s => [s.native ? 'A::function_with_text' : 'A::static_function', s.native ? [['vm', 'IVm']] : []]
 
-/** Block transfers use the targets already selected by preparation. @type {(s: _Context, b: Block, result: boolean, functionBody?: boolean, valueBlock?: boolean) => Result<Printed<readonly string[]>, readonly unknown[]>} */
-const block = (s, b, result, functionBody = false, valueBlock = false) => ok(/** @type {Printed<readonly string[]>} */ (mapGet(/** @type {NonNullable<_Context['ready']>} */ (s.ready)[Number(2 + (result ? 1 : 0) + (functionBody ? 2 : 0) + (valueBlock ? 4 : 0))], b)))
+/** Block transfers use the targets already selected by preparation. @type {(s: _Context, b: Block | PreparedFunction, result: boolean, functionBody?: boolean, valueBlock?: boolean) => Printed<readonly string[]>} */
+const completedBlock = (s, b, result, functionBody = false, valueBlock = false) => /** @type {Printed<readonly string[]>} */ (mapGet(/** @type {NonNullable<_Context['ready']>} */ (s.ready)[Number(2 + (result ? 1 : 0) + (functionBody ? 2 : 0) + (valueBlock ? 4 : 0))], b))
+
+/** @type {(s: _Context, b: Block, result: boolean, functionBody?: boolean, valueBlock?: boolean) => Result<Printed<readonly string[]>, readonly unknown[]>} */
+const block = (s, b, result, functionBody, valueBlock) => ok(completedBlock(s, b, result, functionBody, valueBlock))
 
 /** @type {(s: _Context, ref: _Descriptor) => string} */
 const descriptorName = (s, ref) => `${ref.definition.kind.toUpperCase()}_${binding(s, ref.id).slice(2).toUpperCase()}`
@@ -405,27 +408,28 @@ const namedDescriptor = (s, st) => {
     return isDescriptor(ref) && ref.id === st[1] ? ref : undefined
 }
 
-/** @type {(s: _Context, fn: PreparedFunction) => Result<Printed<string>, readonly unknown[]>} */
+/** @type {(s: _Context, fn: PreparedFunction) => Printed<string>} */
 const functionBody = (s, fn) => {
     const rest = fn.rest === null ? [] : [`${kw('let')} ${binding(s, fn.rest)}: Any<A> = _args.rest(${num(`${fn.parameters.length}`)}).to_any();`]
-    return map1(lines => braced([...rest, ...lines]))(block(closureContext(s, fn), fn.body, true, true))
+    const [lines, uses] = completedBlock(s, fn, true, true)
+    return [braced([...rest, ...lines]), uses]
 }
 
-/** @type {(s: _Context, fn: PreparedFunction, name: string) => Result<Printed<string>, readonly unknown[]>} */
+/** @type {(s: _Context, fn: PreparedFunction, name: string) => Printed<string>} */
 const functionDeclaration = (s, fn, name) => {
     const names = /** @type {_Names} */ (s.names)
     const frame = /** @type {_StaticBindings} */ (mapGet(names.staticFunctions, fn))
     const id = mapGet(names.literals, s.text(fn))
-    return flat(map1(body => cat([`${kw('static')} ${name}: `, vm('StaticFunction'),
-        `<A> = StaticFunction { code: |_self, _args| ${body}, length: ${num(`${fn.parameters.length}`)}, frame: &`, vm('StaticArray'), '(&[',
+    return cat([`${kw('static')} ${name}: `, vm('StaticFunction'),
+        `<A> = StaticFunction { code: |_self, _args| `, functionBody(s, fn), `, length: ${num(`${fn.parameters.length}`)}, frame: &`, vm('StaticArray'), '(&[',
         ...fn.captures.flatMap((c, i) => [i === 0 ? '' : ', ', staticItem(s, mapGet(frame, c.binding))]),
-        `]), text: Some(&LITERAL_${id}) };`]))(functionBody(s, fn)))
+        `]), text: Some(&LITERAL_${id}) };`])
 }
 
 /** @type {(s: _Context, fn: PreparedFunction) => Result<Printed<string>, readonly unknown[]>} */
 const closure = (s, fn) => {
     if (staticFrame(s, fn) !== undefined) {
-        return flat(map1(decl => cat([`{ ${decl} `, vm('Function'), '::from_static(&VALUE)', toAny, ' }']))(functionDeclaration(s, fn, 'VALUE')))
+        return ok(cat(['{ ', functionDeclaration(s, fn, 'VALUE'), ' ', vm('Function'), '::from_static(&VALUE)', toAny, ' }']))
     }
     const captured = fn.captures.map(c => expression(s, c.value, false))
     const values = s.runtime === null ? captured : [...captured, plain(`${s.runtime}.clone()`)]
@@ -433,7 +437,7 @@ const closure = (s, fn) => {
         staticFunction(s), `(|_self, _args| ${body}, ${num(`${fn.parameters.length}`)}, `,
         captures.length === 0 ? cat([vm('Array'), '::default()']) : cat([`[${captures.join(', ')}]`, toArray]),
         ', ', represented(s, s.text(fn)), ')', toAny,
-    ]))(all(values), functionBody(s, fn)))
+    ]))(all(values), ok(functionBody(s, fn))))
 }
 
 /** Resolve helper presentation symbols without introducing graph inspection. @type {(text: string) => string} */
@@ -459,10 +463,13 @@ const staticEntry = (known, value) => {
 }
 
 /** Analyze immediate entries after any nested literal has been visited.
- * @type {(v: _ContainerLiteral, known: _StaticBindings, containers: _Names['containers']) => _Container | null} */
-const containerOf = (v, known, containers) => {
+ * @type {(v: _ContainerLiteral, known: _StaticBindings, containers: _Names['containers'], functions: _Names['staticFunctions']) => _Container | null} */
+const containerOf = (v, known, containers, functions) => {
     /** @type {(value: Item<Value>) => readonly _ContainerItem[]} */
     const item = value => {
+        if (value instanceof Array && value[0] === 'function' && mapHas(functions, value[1])) {
+            return [{ id: null, definition: { kind: 'Function', fn: value[1] } }]
+        }
         const nested = mapGet(containers, value)
         return nested === undefined ? staticEntry(known, value) : [{ definition: nested, id: null }]
     }
@@ -504,7 +511,9 @@ const containerDeclaration = (s, name, root) => {
             if (typeof value === 'object' && value !== null && value.id === null) {
                 const child = `ITEM_${next}`
                 next += 1
-                pending = { top: [child, value.definition], rest: pending }
+                if (value.definition.kind === 'Function') {
+                    declarations = { first: cat([functionDeclaration(s, value.definition.fn, child), ' ']), tail: declarations }
+                } else { pending = { top: [child, value.definition], rest: pending } }
                 item = cat([vm('StaticAny'), `::${value.definition.kind}(&${child})`])
             } else { item = staticItem(s, value) }
             const field = key === null ? item : cat([`(&LITERAL_${mapGet(/** @type {_Names} */ (s.names).literals, key)}, `, item, ')'])
@@ -748,8 +757,8 @@ const statementReady = (s, st) => {
     const ref = namedDescriptor(s, st)
     if (ref !== undefined) {
         const name = descriptorName(s, ref)
-        const decl = ref.definition.kind === 'Function' ? functionDeclaration(s, ref.definition.fn, name) : ok(containerDeclaration(s, name, ref.definition))
-        return map2((item, local) => [item, local])(decl,
+        const decl = ref.definition.kind === 'Function' ? functionDeclaration(s, ref.definition.fn, name) : containerDeclaration(s, name, ref.definition)
+        return map2((item, local) => [item, local])(ok(decl),
             declaration(binding(s, ref.id), false, ok(cat([vm(ref.definition.kind), `::from_static(&${name})`, toAny]))))
     }
     switch (st[0]) {
@@ -851,6 +860,36 @@ const operationTasks = (context, n, result) => {
     }
 }
 
+/** The same block may use different argument or capture slots in two functions.
+ * @type {(s: _Context, fn: PreparedFunction) => _Task} */
+const functionTask = (s, fn) => ({ kind: 'block', context: closureContext(s, fn), block: fn.body, callable: fn, result: true, functionBody: true, valueBlock: false })
+
+/** Compile only the bodies owned by this literal. A named reference already has its declaration.
+ * @type {(s: _Context, root: _Definition) => readonly _Task[]} */
+const definitionTasks = (s, root) => {
+    /** @type {List<_Task>} */
+    let tasks = null
+    /** @type {Stack<_Definition>} */
+    let pending = { top: root, rest: null }
+    while (pending !== null) {
+        /** @type {NonNullable<Stack<_Definition>>} */
+        const { top, rest } = pending
+        pending = rest
+        if (top.kind === 'Function') {
+            const fn = top.fn
+            tasks = { first: functionTask(s, fn), tail: tasks }
+        } else {
+            const items = top.kind === 'Array' ? top.items : top.fields.map(([, value]) => value)
+            for (const value of items) {
+                if (typeof value === 'object' && value !== null && value.id === null) {
+                    pending = { top: value.definition, rest: pending }
+                }
+            }
+        }
+    }
+    return listToArray(tasks)
+}
+
 /** Every dependency is target spelling, with no binding or placement decisions. @type {(task: _Task) => readonly _Task[]} */
 const children = task => {
     const s = task.context
@@ -858,10 +897,11 @@ const children = task => {
         case 'value': {
             const v = task.value
             if (!(v instanceof Array)) { return [] }
-            if (s.moduleInit && s.names !== undefined && mapHas(s.names.containers, v)) { return [] }
+            const container = s.moduleInit && s.names !== undefined ? mapGet(s.names.containers, v) : undefined
+            if (container !== undefined) { return definitionTasks(s, container) }
             switch (v[0]) {
                 case 'ref': case 'demand': { return [] }
-                case 'function': { return [...v[1].captures.map(c => valueTask(s, c.value)), blockTask(closureContext(s, v[1]), v[1].body, true, true)] }
+                case 'function': { return [...v[1].captures.map(c => valueTask(s, c.value)), functionTask(s, v[1])] }
                 case 'block': {
                     const b = v[1]
                     if (b.statements.length === 0 && b.exit[0] === 'throw') { return [valueTask(s, b.exit[1])] }
@@ -883,11 +923,7 @@ const children = task => {
         case 'statement': {
             const st = task.statement
             const ref = namedDescriptor(s, st)
-            if (ref !== undefined) {
-                if (ref.definition.kind !== 'Function') { return [] }
-                const fn = ref.definition.fn
-                return [blockTask(closureContext(s, fn), fn.body, true, true)]
-            }
+            if (ref !== undefined) { return definitionTasks(s, ref.definition) }
             switch (st[0]) {
                 case 'define': case 'slot': case 'write': { return [valueTask({ ...s, owner: st }, st[2])] }
                 case 'memo': { return [blockTask({ ...s, moduleInit: false }, st[1].initializer, false, false, true)] }
@@ -919,7 +955,7 @@ const taskKind = task => task.kind === 'value' ? task.result ? 1 : 0
         : task.kind === 'statement' ? 10 : 11 + (task.property ? 1 : 0) + (task.member ? 2 : 0)
 
 /** @type {(task: _Task) => unknown} */
-const taskInput = task => task.kind === 'value' ? valueKey(task.value) : task.kind === 'block' ? task.block : task.kind === 'statement' ? task.statement : task.step
+const taskInput = task => task.kind === 'value' ? valueKey(task.value) : task.kind === 'block' ? task.callable ?? task.block : task.kind === 'statement' ? task.statement : task.step
 
 /** Render one completed frame using only local child lookups. @type {(task: _Task, dependencies: readonly _Task[], values: readonly _Output[]) => Result<_Output, readonly unknown[]>} */
 const completed = (task, dependencies, values) => {
@@ -1049,7 +1085,7 @@ const namesOf = root => {
         /** @type {NonNullable<Stack<_Task | _ContainerVisit>>} */
         const { top, rest } = pending
         if (top.kind === 'container') {
-            const container = containerOf(top.value, staticBindings, containers)
+            const container = containerOf(top.value, staticBindings, containers, staticFunctions)
             if (container !== null) {
                 containers = mapSet(containers, top.value, container)
                 if (top.id !== null) { staticBindings = mapSet(staticBindings, top.id, { definition: container, id: top.id }) }
