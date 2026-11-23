@@ -1,12 +1,13 @@
 ## ASCII static string
 
 **Priority:** P3
-**Status:** wip — the design is settled but for the points under To decide; no code yet
+**Status:** wip — the VM loads both forms; the serializer still writes UTF-16
 
 ### Problem
 
-A [static string](../src/vm/static_value.rs) is its UTF-16 code units,
-`StaticString(pub &'static [u16])`. Most of the strings a compiled module
+A [static string](../src/vm/static_value.rs) was only its UTF-16 code
+units, `StaticString(pub &'static [u16])`, and the serializer still writes
+every string that way. Most of the strings a compiled module
 holds are ASCII: property keys, method names, a function's text. Each of
 them takes two bytes per character in the binary, and reads in the generated
 Rust as a list of numbers, `StaticString(&[104, 105])` for `'hi'`.
@@ -18,26 +19,27 @@ packed VM's short strings start from
 
 ### Proposal
 
-- **A second descriptor, beside the first.** `StaticString` stays as it is.
+- **`StaticString` is an enum of the two forms.**
 
   ```rust
-  /// One code unit per byte. Every byte is below `0x80`.
-  pub struct StaticAsciiString(pub &'static [u8]);
+  pub enum StaticString {
+      Utf16(&'static [u16]),
+      /// One code unit per byte. Every byte is below `0x80`.
+      Ascii(&'static [u8]),
+  }
   ```
 
-  `StaticAny` gains a variant for it, `AsciiString(&'static
-  StaticAsciiString)`, and `IStaticVm` a conversion, `load_ascii_string`,
-  answering the VM's `InternalString`; `String::from_static_ascii` is its
-  `String<A>` form. Nothing that exists changes, so the serializer, its
-  proofs and the generated files stay valid.
+  Everything that refers to a `StaticString` takes either form with no
+  change of its own: `StaticAny::String`, a `StaticObject`'s keys, a
+  `StaticFunction`'s `text`, and `IStaticVm::load_string`, which stays the
+  one conversion a VM writes. It is a breaking change to the tuple struct:
+  the Rust serializer's `StaticString(` becomes `StaticString::Utf16(`, and
+  its proofs and the generated files follow.
 
-  A `StaticObject`'s keys and a `StaticFunction`'s `text` name
-  `StaticString` and stay UTF-16. Giving them the choice is a later step
-  with its own design, not this issue's.
-
-  Not taken: `StaticString` as an enum of the two forms, which gives keys
-  and function text ASCII through the one `load_string` and breaks the
-  tuple struct for the serializer and every generated file.
+  Not taken: a second type, `StaticAsciiString`, beside the first. It
+  breaks nothing, and a key or a function text, which name `StaticString`
+  and are where ASCII is most common, could not hold one without a third
+  type that is this enum under another name.
 
 - **Bytes, not `str`.** `&'static [u8]`, written `b"hi"`: a byte string
   literal refuses a non-ASCII character when it is compiled, and only an
@@ -62,29 +64,18 @@ packed VM's short strings start from
   are for every operation, which is a faster VM's choice and not this
   issue's ([string slices](./string-slices.md) says the same of sharing).
 
-- **The serializer.** A string literal value whose units are all below
-  `0x80` is written as a `StaticAsciiString(b"…")` and referred to as
-  `StaticAny::AsciiString`; the rest, and every key and function text, as
-  `StaticString`. It is a second pull request, stacked on the VM's.
-
-### To decide
-
-- The names: `StaticAsciiString`, `StaticAny::AsciiString`,
-  `IStaticVm::load_ascii_string`, `String::from_static_ascii`.
-- The serializer shares one `LITERAL_n` descriptor between a literal value,
-  a property key and a runtime lookup of the same text. A key has to be a
-  `StaticString`, so an ASCII text used both ways is either written once as
-  UTF-16, or twice, once in each form. This issue would write it once, as
-  UTF-16, and use the ASCII form only for a text no key or function text
-  needs.
+- **The serializer.** A string whose units are all below `0x80` is written
+  as `StaticString::Ascii(b"…")`, the rest as `Utf16`: a literal value, a
+  key and a function text alike, since they share one `LITERAL_n`. It is a
+  second step, after the VM loads both forms.
 
 ### Tasks
 
-- [ ] `StaticAsciiString`, `StaticAny::AsciiString`,
-  `IStaticVm::load_ascii_string` and the naive VM's implementation, with
-  the panic on a byte of `0x80` or above.
-- [ ] The Rust serializer writes an ASCII string literal value as a
-  `StaticAsciiString`; `npm run gen`.
+- [x] `StaticString` as the enum, the naive VM loading both forms with the
+  panic on a byte of `0x80` or above, and the serializer writing
+  `StaticString::Utf16(` where it wrote `StaticString(`.
+- [ ] The Rust serializer writes an ASCII string as `StaticString::Ascii`;
+  `npm run gen`.
 
 ### Related
 

@@ -1207,7 +1207,7 @@ export const scopeTagged = (b, options, external = [], native = false) => {
     const declarations = mapEntries(ids.literals).map(([value, id]) => {
         const prefix = `${kw('static')} LITERAL_${id}: `
         return typeof value === 'string'
-            ? cat([prefix, vm('StaticString'), ` = StaticString(${slice(utf16Units(value))});`])
+            ? cat([prefix, vm('StaticString'), ` = StaticString::Utf16(${slice(utf16Units(value))});`])
             : cat([prefix, vm('StaticBigInt'), ` = StaticBigInt { sign: nanvm_lib::sign::Sign::${value < 0n ? 'Negative' : 'Positive'}, words: ${slice(u64WordItems(value))} };`])
     })
     const rendered = /** @type {Result<Printed<readonly string[]>, readonly unknown[]>} */ (

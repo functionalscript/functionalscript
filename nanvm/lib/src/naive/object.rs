@@ -71,7 +71,7 @@ impl IObject<Naive> for Object {
                 object
                     .0
                     .iter()
-                    .find(|(k, _)| k.0 == units)
+                    .find(|(k, _)| **k == *units)
                     .map(|(_, v)| v.load())
             }
         }

@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use crate::{
     naive::Naive,
-    vm::{Any, IComplex, IContainer, StaticArray},
+    vm::{Any, IComplex, IContainer, StaticArray, StaticString},
 };
 
 /// Runtime indexing lends a reference to a VM value. Materialize the immediate
@@ -15,6 +15,13 @@ trait Project<I> {
 impl Project<Any<Naive>> for StaticArray<Naive> {
     fn project(&self) -> Box<[Any<Naive>]> {
         self.0.iter().map(|item| item.load()).collect()
+    }
+}
+
+/// Widens ASCII bytes to the code units the VM's string lends.
+impl Project<u16> for &'static [u8] {
+    fn project(&self) -> Box<[u16]> {
+        self.iter().map(|byte| u16::from(*byte)).collect()
     }
 }
 
@@ -54,6 +61,18 @@ impl<H, I> Container<H, I> {
                 source,
                 items: Rc::default(),
             },
+        }
+    }
+}
+
+impl Container<(), u16> {
+    pub(super) fn string(value: &'static StaticString) -> Self {
+        match value {
+            StaticString::Utf16(units) => Self::borrowed((), value, units),
+            StaticString::Ascii(bytes) => {
+                assert!(bytes.is_ascii(), "a non-ASCII byte in an ASCII string");
+                Self::projected((), bytes)
+            }
         }
     }
 }

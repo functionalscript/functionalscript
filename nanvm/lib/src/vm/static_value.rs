@@ -3,7 +3,21 @@ use crate::{
     vm::{Any, Array, BigInt, Function, IVm, Nullish, Object, StaticCode, String, ToAny},
 };
 
-pub struct StaticString(pub &'static [u16]);
+pub enum StaticString {
+    Utf16(&'static [u16]),
+    /// One code unit per byte. Every byte is below `0x80`; a VM refuses any other.
+    Ascii(&'static [u8]),
+}
+
+/// Equality with a run of code units, in either form.
+impl PartialEq<[u16]> for StaticString {
+    fn eq(&self, units: &[u16]) -> bool {
+        match self {
+            Self::Utf16(v) => *v == units,
+            Self::Ascii(v) => v.iter().map(|b| u16::from(*b)).eq(units.iter().copied()),
+        }
+    }
+}
 
 /// Canonical little-endian magnitude with no high zero word. Zero has no words and a positive sign.
 pub struct StaticBigInt {
@@ -63,7 +77,7 @@ mod tests {
     use super::*;
     use crate::{
         naive::Naive,
-        vm::{IComplex, ToArray},
+        vm::{IComplex, ToArray, ToString},
     };
 
     fn capture(
@@ -78,12 +92,12 @@ mod tests {
         code: capture,
         frame: &FRAME,
         length: 1,
-        text: Some(&StaticString(&[
-            0x78, 0x20, 0x3d, 0x3e, 0x20, 0x63, 0x61, 0x70, 0x74, 0x75, 0x72, 0x65, 0x64,
-        ])),
+        text: Some(&StaticString::Ascii(b"x => captured")),
     };
-    static MODULE: StaticObject<Naive> =
-        StaticObject(&[(&StaticString(&[0x66]), StaticAny::Function(&FUNCTION))]);
+    static MODULE: StaticObject<Naive> = StaticObject(&[(
+        &StaticString::Utf16(&[0x66]),
+        StaticAny::Function(&FUNCTION),
+    )]);
     static EMPTY: StaticObject<Naive> = StaticObject(&[]);
     static OTHER_EMPTY: StaticObject<Naive> = StaticObject(&[]);
 
@@ -124,6 +138,14 @@ mod tests {
             Object::from_static(&MODULE).own_property(&"missing".into()),
             None
         );
+        static ASCII: StaticObject<Naive> =
+            StaticObject(&[(&StaticString::Ascii(b"ab"), StaticAny::Number(1.0))]);
+        let ascii = Object::from_static(&ASCII);
+        assert_eq!(ascii.property_at(0).0, "ab".into());
+        assert_eq!(ascii.own_property(&"ab".into()), Some(1.0.to_any()));
+        for missing in ["a", "abc", "ac"] {
+            assert_eq!(ascii.own_property(&missing.into()), None);
+        }
         let mut properties = Object::from_static(&MODULE).into_iter();
         assert_eq!(properties.len(), 1);
         assert_eq!(properties.next(), Some((name, value)));
@@ -137,9 +159,17 @@ mod tests {
             sign: Sign::Negative,
             words: &[42],
         };
-        let fixtures: [(StaticAny<Naive>, Any<Naive>); 5] = [
+        let fixtures: [(StaticAny<Naive>, Any<Naive>); 7] = [
             (StaticAny::BigInt(&BIG), BigInt::from(-42_i64).to_any()),
-            (StaticAny::String(&StaticString(&[0x61])), "a".into()),
+            (
+                StaticAny::String(&StaticString::Utf16(&[0x61, 0xd800])),
+                [0x61, 0xd800].to_string().to_any(),
+            ),
+            (
+                StaticAny::String(&StaticString::Ascii(b"a\x7f")),
+                "a\x7f".into(),
+            ),
+            (StaticAny::String(&StaticString::Ascii(b"")), "".into()),
             (StaticAny::Number(-0.0), (-0.0).to_any()),
             (StaticAny::Boolean(false), false.to_any()),
             (StaticAny::Nullish(Nullish::Undefined), Any::undefined()),
@@ -147,5 +177,11 @@ mod tests {
         for (descriptor, expected) in fixtures {
             assert!(descriptor.load().same_value(&expected));
         }
+    }
+
+    #[test]
+    #[should_panic(expected = "ASCII")]
+    fn ascii_string_refuses_a_byte_above_0x7f() {
+        String::<Naive>::from_static(&StaticString::Ascii(b"\x80"));
     }
 }

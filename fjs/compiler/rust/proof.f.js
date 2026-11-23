@@ -27,10 +27,10 @@ export const proof = {
     nativeStrings: () => {
         const value = /** @type {const} */ ('x\ud800')
         const rust = toText(unwrap(toRustMarked(['[]', [value, ['=>', 0, [], value], '']], true)))
-        assertEq(rust.split('StaticString(&[120, 55296])').length, 2)
+        assertEq(rust.split('StaticString::Utf16(&[120, 55296])').length, 2)
         assert(rust.includes('StaticAny::String(&LITERAL_0)'))
         assert(rust.includes('String::from_static(&LITERAL_0)'))
-        assert(rust.includes('StaticString(&[])'))
+        assert(rust.includes('StaticString::Utf16(&[])'))
         assert(rust.includes('pub fn module(_runtime: Any<A>)'))
     },
     deferredLoweringIsDisplayed: () => {
