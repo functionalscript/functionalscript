@@ -230,30 +230,8 @@ const least = xs => xs.reduce((a, b) => a < b ? a : b)
 /** @type {(xs: readonly bigint[]) => bigint} */
 const greatest = xs => xs.reduce((a, b) => a > b ? a : b)
 
-/** @type {(name: OpName, a: Int, b: Int) => Result<Type, string>} */
-const intOp = (name, a, b) => {
-    /** @type {(lo: bigint, hi: bigint) => Result<Type, string>} */
-    const range = (lo, hi) => {
-        const t = int(lo, hi)
-        return fits(64)(t) ? ok(t) : error(`${name} of ${show(a)} and ${show(b)} is ${show(t)}, which needs more than one word`)
-    }
-    switch (name) {
-        case 'add': { return range(a[1] + b[1], a[2] + b[2]) }
-        case 'sub': { return range(a[1] - b[2], a[2] - b[1]) }
-        case 'mul': {
-            const ends = [a[1] * b[1], a[1] * b[2], a[2] * b[1], a[2] * b[2]]
-            return range(least(ends), greatest(ends))
-        }
-        case 'eq': case 'lt': case 'le': {
-            return compareIn(a, b) === null ? error(`${name} of ${show(a)} and ${show(b)} needs more than one word`) : ok(bool)
-        }
-        case 'and': case 'or': case 'xor': case 'shl': case 'shr': { return bitOp(name, a, b) }
-        default: { return error(`${name} of two integers is not in this slice`) }
-    }
-}
-
 /** The least `2^k - 1` at or above `n`, for `n >= 0`. @type {(n: bigint) => bigint} */
-const ones = n => (1n << BigInt(n.toString(2).length)) - 1n
+const ones = n => n === 0n ? 0n : (1n << BigInt(n.toString(2).length)) - 1n
 
 /**
  * A bit operator's type, of two unsigned integers: `and` within the smaller
@@ -278,13 +256,35 @@ const bitOp = (name, a, b) => {
     }
 }
 
+/** @type {(name: OpName, a: Int, b: Int) => Result<Type, string>} */
+const intOp = (name, a, b) => {
+    /** @type {(lo: bigint, hi: bigint) => Result<Type, string>} */
+    const range = (lo, hi) => {
+        const t = int(lo, hi)
+        return fits(64)(t) ? ok(t) : error(`${name} of ${show(a)} and ${show(b)} is ${show(t)}, which needs more than one word`)
+    }
+    switch (name) {
+        case 'add': { return range(a[1] + b[1], a[2] + b[2]) }
+        case 'sub': { return range(a[1] - b[2], a[2] - b[1]) }
+        case 'mul': {
+            const ends = [a[1] * b[1], a[1] * b[2], a[2] * b[1], a[2] * b[2]]
+            return range(least(ends), greatest(ends))
+        }
+        case 'eq': case 'lt': case 'le': {
+            return compareIn(a, b) === null ? error(`${name} of ${show(a)} and ${show(b)} needs more than one word`) : ok(bool)
+        }
+        case 'and': case 'or': case 'xor': case 'shl': case 'shr': { return bitOp(name, a, b) }
+        default: { return error(`${name} of two integers is not in this slice`) }
+    }
+}
+
 /** A float operator's type: `abs` keeps `f64c`, and every other result is an `f64`. @type {(name: OpName, a: Type) => Result<Type, string>} */
 const floatOp = (name, a) => {
     switch (name) {
         case 'abs': { return ok(a) }
         case 'eq': case 'lt': case 'le': { return ok(bool) }
         case 'float': { return error(`float of ${show(a)}: float takes an integer`) }
-        case 'to_bits': { return ok(u(64)) }
+        case 'to_bits': { return a[0] === 'f64c' ? ok(u(64)) : error(`to_bits of ${show(a)}: to_bits takes an f64c, whose one NaN has one bit pattern`) }
         case 'from_bits': { return error(`from_bits of ${show(a)}: from_bits takes an unsigned integer`) }
         case 'and': case 'or': case 'xor': case 'shl': case 'shr': { return error(`${name} of ${show(a)}: a bit operator takes unsigned integers`) }
         default: { return ok(f64) }

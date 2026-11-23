@@ -366,7 +366,9 @@ const operator = (emitTerm, env, type, name, args) => {
         return sequence(emitTerm, env, inWord(bits), [integer(name, bits, isSigned)])
     }
     const words = [type, ...ints].map(t => carrier(env.interfaces, t)[0])
-    const bits = words.includes('i64') ? 64 : 32
+    // WASM reads an `i32` shift's count modulo 32, so a count that may reach 32 shifts an `i64`.
+    const wideShift = (name === 'shl' || name === 'shr') && ints[1][2] >= 32n
+    const bits = words.includes('i64') || wideShift ? 64 : 32
     /** @type {Expr} */
     const wrap = bits === 64 && words[0] === 'i32' ? [['i32.wrap_i64']] : []
     return sequence(emitTerm, env, inWord(bits), [integer(name, bits, false), ...wrap])

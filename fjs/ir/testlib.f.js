@@ -106,7 +106,9 @@ export const corners = {
 
 /**
  * The bit operators and a float's bits: `and`, `or` and `xor` in each word
- * and across two, shifts by a literal count and by a parameter, and `to_bits` and `from_bits`,
+ * and across two, shifts by a literal count and by a parameter (`drained` by one that
+ * may reach 32, which WASM's `i32` shifts would read modulo 32), and
+ * `to_bits` of an `f64c` and `from_bits`,
  * which a runtime written in the IR reads a NaN box with: `reference` builds a
  * reference's bits, `nibble` reads its kind back, and `signOf` reads a
  * float's sign bit.
@@ -121,12 +123,13 @@ export const bits = {
         ['flip', fn([['a', u(64)], ['b', u(64)]], u(64), (a, b) => xor(a, b))],
         ['reference', fn([['k', u(4)], ['p', u(32)]], u(64), (k, p) => or(shl(k, n(48n)), shl(p, n(2n))))],
         ['shifted', fn([['a', u(8)], ['k', u(3)]], u(16), (a, k) => xor(shl(a, k), shr(a, k)))],
+        ['drained', fn([['a', u(32)], ['k', u(6)]], u(32), (a, k) => shr(a, k))],
         ['nibble', fn([['x', u(64)]], u(4), x => and(shr(x, n(48n)), n(15n)))],
-        ['bitsOf', fn([['x', f64]], u(64), x => to_bits(x))],
+        ['bitsOf', fn([['x', f64c]], u(64), x => to_bits(x))],
         ['ofBits', fn([['b', u(64)]], f64, b => from_bits(b))],
-        ['signOf', fn([['x', f64]], u(1), x => shr(to_bits(x), n(63n)))],
+        ['signOf', fn([['x', f64c]], u(1), x => shr(to_bits(x), n(63n)))],
     ],
-    exports: ['mask', 'either', 'flip', 'reference', 'shifted', 'nibble', 'bitsOf', 'ofBits', 'signOf'],
+    exports: ['mask', 'either', 'flip', 'reference', 'shifted', 'drained', 'nibble', 'bitsOf', 'ofBits', 'signOf'],
 }
 
 /** A call of an L0 function, by its interface and its name. @type {(module: string, name: string) => (...args: readonly Term[]) => Term} */

@@ -254,6 +254,7 @@ const twins = {
     flip: ([a, b]) => int(a) ^ int(b),
     reference: ([k, p]) => int(k) << 48n | int(p) << 2n,
     shifted: ([a, k]) => int(a) << int(k) ^ int(a) >> int(k),
+    drained: ([a, k]) => int(a) >> int(k),
     nibble: ([x]) => int(x) >> 48n & 15n,
     bitsOf: ([x]) => bitsOf(num(x)),
     ofBits: ([b]) => ofBits(int(b)),
