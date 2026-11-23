@@ -46,8 +46,26 @@ export const depthAfter = t => {
     return [...here, ...terms(t).map(depthAfter)].reduce((a, b) => a < b ? b : a, 0)
 }
 
-/** L1's numeric operators, which the IR's operators answer where every operand is a number. @type {readonly string[]} */
-export const numberOps = ['add', 'subtract', 'multiply', 'divide', 'negate', 'lessThan', 'lessThanOrEqual', 'greaterThan', 'greaterThanOrEqual']
+/**
+ * L1's operators that the IR answers where every operand is a number: the
+ * numeric ones, and `remainder`, `shiftRight` and `bitwiseAnd`, which L1's
+ * native rows of numbers answer.
+ *
+ * @type {readonly string[]}
+ */
+export const numberOps = ['add', 'subtract', 'multiply', 'divide', 'negate', 'lessThan', 'lessThanOrEqual', 'greaterThan', 'greaterThanOrEqual', 'remainder', 'shiftRight', 'bitwiseAnd']
+
+/**
+ * Whether L1's operator `name` of operands of these types takes a number
+ * path ({@link numberPath}) before its call: an operator of
+ * {@link numberOps}, or `strictEquals` where an operand is a float, as in
+ * `x === 1`, which `eq` answers where `x` is a number too, `===` of two
+ * numbers being `==` of floats. `===` of two values of `any` calls L1
+ * alone, as either may hold anything, and L1 reads both kinds anyway.
+ *
+ * @type {(name: string, ts: readonly Type[]) => boolean}
+ */
+export const numbered = (name, ts) => numberOps.includes(name) || (name === 'strictEquals' && ts.some(isFloat))
 
 /**
  * A numeric operator of L1 with a path for numbers before its call
