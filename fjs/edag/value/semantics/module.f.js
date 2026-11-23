@@ -10,7 +10,8 @@
  * failure propagation.
  *
  * @module
- * @import { EdagValue, Function as ValueFunction } from '../types.ts'
+ * @import { EdagValue, Property, Function as ValueFunction } from '../types.ts'
+ * @import { _StructEqStack } from '../../../types/object/struct_eq/private.ts'
  * @import { ConstructorId } from '../../types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  */
@@ -87,4 +88,44 @@ export const instanceOf = {
 export const binary = {
     '===': (a, b) => ok(strictEqual(a, b)),
     '!==': (a, b) => ok(!strictEqual(a, b)),
+}
+
+/** Ordered content comparison over evaluated values. Object metadata is
+ * already in enumeration order. Functions are leaves decided by SameValue.
+ * @type {(a: EdagValue, b: EdagValue) => boolean} */
+export const structEq = (a, b) => {
+    /** @type {_StructEqStack<EdagValue, Property>} */
+    let pending = { tag: 'value', a, b, n: undefined }
+    while (pending !== undefined) {
+        /** @type {NonNullable<_StructEqStack<EdagValue, Property>>} */
+        const frame = pending
+        pending = frame.n
+        if (frame.tag !== 'value') {
+            const i = frame.i
+            if (i === frame.a.length) { continue }
+            /** @type {_StructEqStack<EdagValue, Property>} */
+            const next = i + 1 === frame.a.length ? pending : { ...frame, i: i + 1 }
+            if (frame.tag === 'array') {
+                pending = { tag: 'value', a: frame.a[Number(i)], b: frame.b[Number(i)], n: next }
+            } else {
+                const left = frame.a[Number(i)]
+                const right = frame.b[Number(i)]
+                if (left[1] !== right[1]) { return false }
+                pending = { tag: 'value', a: left[2], b: right[2], n: next }
+            }
+            continue
+        }
+        const x = frame.a
+        const y = frame.b
+        if (is(x, y)) { continue }
+        if (!isArray(x) || !isArray(y)) { return false }
+        if (x[0] === '[]' && y[0] === '[]') {
+            if (x[1].length !== y[1].length) { return false }
+            pending = { tag: 'array', a: x[1], b: y[1], i: 0, n: pending }
+        } else {
+            if (x[0] !== '{}' || y[0] !== '{}' || x[1].length !== y[1].length) { return false }
+            pending = { tag: 'object', a: x[1], b: y[1], i: 0, n: pending }
+        }
+    }
+    return true
 }

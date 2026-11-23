@@ -28,6 +28,7 @@ import { array as rttiArray, number, string } from '../../rtti/module.f.js'
 
 const entrySchema = /** @type {const} */ (['entry'])
 const hasEntrySchema = /** @type {const} */ (['hasEntry'])
+const structEqSchema = /** @type {const} */ (['structEq'])
 const intrinsicSchema = /** @type {const} */ ([intrinsicId])
 const staticSchema = /** @type {const} */ ([staticId])
 
@@ -51,12 +52,12 @@ const schemasFor = recursiveValue => {
  * The raw recursive schema, pinned separately from its phantom annotation.
  * Undefined is tagged just as in EDAG, rather than a bare missing position.
  * @type {() => readonly ['or', typeof primitive, readonly ['undefined'],
- *  typeof array, typeof object, typeof func, typeof entryFunction, typeof hasEntryFunction, typeof intrinsicFunction, typeof staticFunction]}
+ *  typeof array, typeof object, typeof func, typeof entryFunction, typeof hasEntryFunction, typeof structEqSchema, typeof intrinsicFunction, typeof staticFunction]}
  */
 export const _value = () => {
     const schemas = schemasFor(_value)
     return ['or', primitive, ['undefined'], schemas.array, schemas.object, schemas.func,
-        entrySchema, hasEntrySchema, intrinsicSchema, staticSchema]
+        entrySchema, hasEntrySchema, structEqSchema, intrinsicSchema, staticSchema]
 }
 
 /** Shape of an evaluated value, excluding computation outside function bodies. @type {Phantom<typeof _value, EdagValue>} */

@@ -13,6 +13,7 @@
  * @import { StringMap, Entry } from './types.ts'
  */
 
+import { structEq as orderedEqual } from './struct_eq/module.f.js'
 import { isArray } from '../array/module.f.js'
 import { toArray } from '../list/alt/module.f.js'
 import { entries as mapEntries, fromEntries as mapFromEntries } from '../ordered_map/module.f.js'
@@ -24,6 +25,9 @@ import { structurallySame as importedStructurallySame } from './structurally_sam
  * `./structurally_same/README.md`. This module is its public home.
  */
 export const structurallySame = importedStructurallySame
+
+/** Compares arrays and record entries in enumeration order. */
+export const structEq = orderedEqual
 
 const { fromEntries: objectFromEntries } = Object
 

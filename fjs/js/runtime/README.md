@@ -1,9 +1,9 @@
 # The runtime
 
 The built-in functions, defined once. [`module.f.js`](./module.f.js)
-holds two tables and exports `runtime`, five functions an executor asks:
-two over the tables, the bodies of the `in` and `Boolean` operators, and
-the maker of a reference map.
+holds two tables and exports `runtime`, six functions an executor can call. Two look up table entries, two implement
+the `in` and `Boolean` operators, one makes a reference map, and one compares
+values in structural order.
 The `member` table holds, by name, the member
 functions whose **body** is written, `startsWith`, `codePointAt`, `map` and `concat`: each a
 FunctionalScript function of the receiver alone, answering `undefined`
@@ -41,6 +41,11 @@ native table. The proposal and the steps still to take are
 FunctionalScript alone, a list of pairs searched with `===`, which an
 executor with no map of its own answers the EDAG's `['refMap']` with,
 calling it wherever the node is established.
+
+`runtime.structEq(a, b)` compares arrays by index and records in own entry order.
+The Rust backend captures this FJS function when it creates a `['structEq']`
+helper. The common runtime supplies its SameValue function and native entry
+enumerator when building the comparator.
 
 `runtime.Boolean` is `value => !!value`. Every `Boolean` conversion evaluates
 its operand and invokes this body, including the zero-argument spelling whose
