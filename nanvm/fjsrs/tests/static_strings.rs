@@ -239,3 +239,31 @@ fn static_array_entries_share_the_exported_function_and_object() {
     assert_ne!(first, fresh());
     assert_eq!(Array::try_from(first).unwrap()[0], table);
 }
+
+#[test]
+fn containers_and_function_frames_share_the_named_array() {
+    let load = || exports_with_runtime(fixture::module, nanvm_fjsrs::runtime().unwrap()).unwrap();
+    let first = load();
+    let items = first.own_property(&"items".into()).unwrap();
+    for module in [first.clone(), load()] {
+        let get = |name: &str| module.own_property(&name.into()).unwrap();
+        for key in ["nestedItems", "itemRecord", "readItems"] {
+            assert_eq!(get(key), first.own_property(&key.into()).unwrap());
+        }
+        let nested = Array::try_from(get("nestedItems")).unwrap();
+        assert_eq!(nested[0], items);
+        assert_eq!(nested[1], items);
+        let record = nanvm_lib::vm::Object::try_from(get("itemRecord")).unwrap();
+        assert_eq!(record.own_property(&"items".into()).unwrap(), items);
+        let call = |name| {
+            Function::try_from(get(name))
+                .unwrap()
+                .call([].to_array())
+                .unwrap()
+        };
+        assert_eq!(call("readItems"), items);
+        let fresh = call("freshNestedItems");
+        assert_ne!(fresh, call("freshNestedItems"));
+        assert_eq!(Array::try_from(fresh).unwrap()[0], items);
+    }
+}

@@ -175,6 +175,17 @@ export const proof = {
         assert(output.uses.vm.includes('StaticAny'))
         assert(!unwrap(scopeTagged(body, options)).uses.vm.includes('StaticArray'))
     },
+    nativeNamedArrays: () => {
+        /** @type {Block['statements']} */
+        const defs = [['define', x, ['array', [1]]], ['define', y, ['ref', x]]]
+        const nested = print(defs, ['array', [['ref', x], ['ref', y]]])
+        assert(nested.includes('static ARRAY_0: StaticArray<A>'))
+        assert(nested.includes('StaticArray(&[StaticAny::Array(&ARRAY_0), StaticAny::Array(&ARRAY_0)])'))
+        const record = print(defs, ['object', [[':', 'items', ['ref', y]]]])
+        assert(record.includes('StaticObject(&[(&LITERAL_0, StaticAny::Array(&ARRAY_0))])'))
+        const read = print(defs, ['function', { ...fn, captures: [{ binding: rest, value: ['ref', y] }], body: yielding([['ref', rest]]) }])
+        assert(read.includes('frame: &StaticArray(&[StaticAny::Array(&ARRAY_0)])'))
+    },
     nativeRepeatedArraySites: () => {
         const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
         /** @type {Value} */
