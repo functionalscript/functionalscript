@@ -28,7 +28,8 @@ export const proof = {
         const value = /** @type {const} */ ('x\ud800')
         const rust = toText(unwrap(toRustMarked(['[]', [value, ['=>', 0, [], value], '']], true)))
         assertEq(rust.split('StaticString(&[120, 55296])').length, 2)
-        assertEq(rust.split('String::from_static(&LITERAL_0)').length, 3)
+        assert(rust.includes('StaticAny::String(&LITERAL_0)'))
+        assert(rust.includes('String::from_static(&LITERAL_0)'))
         assert(rust.includes('StaticString(&[])'))
         assert(rust.includes('pub fn module(_runtime: Any<A>)'))
     },

@@ -34,7 +34,7 @@ export const proof = {
         assert(assertOk(rust).includes('(string_key("Object.x"), A::static_function(') && assertOk(rust).includes('Some("function x() { [native code] }")'))
         const [, native] = virtual(state)(readUtf8File(nativeRustPath))
         assert(assertOk(native).includes('pub fn runtime()'))
-        assert(assertOk(native).includes('Function::from_static('))
+        assert(assertOk(native).includes('StaticAny::Function(&ITEM_0)'))
         const [, edag] = virtual(state)(readUtf8File(edagPath))
         const data = assertOk(edag)
         assert(data.includes('\n/** @type {unknown} */\nconst $') && data.includes('[":","Object.x",["=>",0,[],1]]') && data.includes('[":","static",["=>",1,'))
