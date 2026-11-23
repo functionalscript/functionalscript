@@ -98,11 +98,15 @@ make them ([choice 6](#6-the-tests-are-the-frames)).
 ### 3. The IR gains the bit operators
 
 - **Pick:** the integer operators `and`, `or`, `xor`, `shl` and `shr`
-  (logical, on an unsigned range), and `to_bits(f64) -> u(64)` and
+  (logical, on an unsigned range), and `to_bits(f64c) -> u(64)` and
   `from_bits(u(64)) -> f64`, as [definition.md](./definition.md#terms)
   lists them. Each is one WASM instruction: `i64.and` and the others, and
   `i64.reinterpret_f64` / `f64.reinterpret_i64`. The checker types a
-  shift's result by the interval rules it uses for `add`.
+  shift's result by the interval rules it uses for `add`. `to_bits` takes
+  an `f64c` only, as [type-system.md](./type-system.md#floats) says, so
+  no program can read which NaN an `f64` holds; `canon(f64) -> f64c`,
+  which replaces any NaN by the one NaN, comes with checkpoint 4, where
+  `from_f64` first needs it.
 - **Alternative:** host imports for the bit work. A call per operation is
   what this slice removes.
 
@@ -152,7 +156,7 @@ proposes: from the frame, not from what slice 1 happens to make. With
 | --- | --- |
 | `is_number(x)` | `x & EXP != EXP` or `x & TAG8 == NON_FINITE` (`TAG8 = 0x7FF0…00FF`) |
 | `to_f64(x)` | `from_bits(x)` |
-| `from_f64(f)` | `f != f ? NAN : to_bits(f)` |
+| `from_f64(f)` | `to_bits(canon(f))` |
 | `to_bool(x)` | `x >> 63` |
 | `from_bool(b)` | `b ? TRUE : FALSE` |
 | `kind(x)` | below |
@@ -195,7 +199,7 @@ Each is one PR that leaves every proof green, so it can merge on its own.
    `nanvm/lib/src/l0/abi.rs` and the NaNVM host's constants. Programs still import
    Any, so the demos run as before; their timings show what the encoding
    alone costs or saves.
-4. **Any in the IR** (choices 4 to 6): `seal`/`unseal`, the counting
+4. **Any in the IR** (choices 4 to 6): `seal`/`unseal`, `canon`, the counting
    host in the box encoding, NaNVM's `kind_ref`, `dup_ref`, `drop_ref`
    and `same_ref` exported, `fjs/ir/runtime/any`, its proofs against the
    L0 view on the parity tables, linking it into programs, and the demos
