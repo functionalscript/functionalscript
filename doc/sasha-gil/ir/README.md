@@ -23,7 +23,7 @@ has its own table.
 | [pointer-width.md](./pointer-width.md) | Decided: how a heap reference fits the NaN box on Rust, where pointers may be wider than 48 bits. Rust's heap is one buffer read in safe code, and a reference is an offset into it, as on WASM |
 | [nan-box-patterns.md](./nan-box-patterns.md) | The 23 bit patterns of the NaN box that type-system.md's layout proof checks, with what each holds, and the check that ran on them |
 | [nan-box-in-ir.md](./nan-box-in-ir.md) | A check of type-system.md: the whole NaN box and nineteen functions over it, written in its eDSL and run by a prototype. Its two main points and thirteen smaller rules are now in type-system.md, still proposed |
-| [benchmark.md](./benchmark.md) | A measurement after slice 12 and again after the first three levers: untyped programs lowered to WASM run on NaNVM's `.wasm` 13× to 450× slower than JavaScript, a string loop about 1,500× (50× to 1,400× before), where the time goes (still NaNVM's handle layer, now also object lookups and `concat`), and the remaining levers, re-ranked |
+| [benchmark.md](./benchmark.md) | A measurement of untyped programs lowered to WASM on NaNVM's `.wasm`, beside JavaScript and the counting host: after slice 12, after the first three levers, and after the number paths, object reads in place and bulk `concat` (#4055 to #4057). Where the time goes (still NaNVM's handle layer), and the levers left |
 
 A note's companion files are named after it: `definition.check.mjs` and
 the other `definition.*.mjs` files belong to
@@ -55,24 +55,28 @@ for L1's native rows.
 
 ## Next
 
-The owner's direction of 2026-11-12 puts the IR's role between FAST and
-WASM first, and keeps its role as the language of the runtime.
+The owner's direction of 2026-11-12 put the IR's role between FAST and
+WASM first. That role is built: slices 1 to 12 of
+[`fjs/ir/todo/slices.md`](../../../fjs/ir/todo/slices.md) are merged, so
+steps 2 to 6 of definition.md's [order of work](./definition.md#order-of-work)
+are done, and untyped programs run on NaNVM's `.wasm`. Step 1 still lacks
+its proof that every function of the L0 view has a row
+([What fjs/ir builds](./definition.md#what-fjsir-builds)).
 
-1. **The owner's review of [definition.md](./definition.md).** Its
+The owner's next task (2026-11-21) is the IR's other role: a runtime
+written in the IR itself, in the style of the
+[modular runtime](../wasm/modular-runtime.md) and
+[modular L0](../wasm/modular-l0.md), with the NaN box of
+[Sergey's design](../../sergey-shandar/nanvm/README.md) coded by hand in
+`f64` bits. That is steps 7 to 10 of the order of work, and the
+[open questions](./type-system.md#open-questions) of type-system.md are
+about it.
+
+Still waiting for the owner:
+
+1. **The review of [definition.md](./definition.md).** Its
    [open questions](./definition.md#open-questions) each carry a
-   recommendation. The first is whether the note becomes the reference,
-   and the second, which FAST the lowering reads, also needs the view of
-   the compiler's owner.
+   recommendation; `fjs/ir` already follows most of them.
 2. **The edits that follow from it**, which
    [definition.md](./definition.md#what-changes-in-the-other-notes) and
    [TODO_DESIGN.md](./TODO_DESIGN.md) list.
-3. **The core**, in the [order of work](./definition.md#order-of-work)
-   that ends at step 4 of the [WASM plan](../wasm/README.md#plan). The
-   [open questions](./type-system.md#open-questions) of type-system.md
-   are about the runtime language, and can be decided beside it.
-
-The first two wait for the owner's go-ahead. The third is under way in
-[`fjs/ir`](../../../fjs/ir/README.md), in the slices of
-[`fjs/ir/todo/slices.md`](../../../fjs/ir/todo/slices.md):
-[What fjs/ir builds](./definition.md#what-fjsir-builds) says how far it
-has come.

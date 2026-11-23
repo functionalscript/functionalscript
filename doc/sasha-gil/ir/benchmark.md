@@ -1,7 +1,9 @@
 # Benchmark: IR programs on NaNVM's `.wasm`
 
 Measured 2026-11-21, first after slice 12 ([`fjs/ir/todo/slices.md`](../../../fjs/ir/todo/slices.md))
-and again after the first three levers (#4049, #4050, #4052): how fast
+and again after the first three levers (#4049, #4050, #4052), then on
+2026-11-22 on `main` after the next three (#4055 to #4057,
+[third run](#after-the-next-three-levers)): how fast
 untyped FunctionalScript programs run when the IR lowers them to WASM and
 NaNVM's `.wasm` is their runtime, beside the counting host and JavaScript
 itself, and where the time goes. This is a measurement, not a decision.
@@ -13,6 +15,9 @@ typed twins, and [benchmark.run.mjs](./benchmark.run.mjs) the runner. See
 [Running it](#running-it).
 
 ## Summary
+
+The first four points are from the second run; the
+[third run](#after-the-next-three-levers) changes them as it says.
 
 - **The three levers made six of the seven untyped programs on NaNVM's
   `.wasm` 4.7× to 24× faster.** Those six now run 13× to 450× slower than
@@ -104,6 +109,41 @@ The first run's table, for the record:
 | `callMany` | 5.2 µs | | 6.17 ms | 10.2 ms | 1,187× | 1.6× |
 | `repeat` | 5.4 µs | | 7.80 ms | 8.78 ms | 1,444× | 1.1× |
 | `bigSum` | 12 µs | | 7.06 ms | 10.1 ms | 603× | 1.4× |
+
+### After the next three levers
+
+On `main` at `192dbe7`, 2026-11-22, after #4055 (number paths), #4056
+(object reads in place) and #4057 (bulk `concat`), the median of three
+runs. This container ran JavaScript about 2× slower than the one of the
+second run (56 to 67 µs for `sumTo`), so compare the ratios, and the
+WASM columns only roughly.
+
+| Program | JavaScript | Typed IR as WASM | IR on NaNVM's `.wasm` | IR on the counting host | NaNVM / JavaScript | Counting / NaNVM |
+| --- | --- | --- | --- | --- | --- | --- |
+| `sumTo` | 63 µs | 6.1 µs | 310 µs | 434 µs | 5× | 1.4× |
+| `sumToAny` | 62 µs | | 2.07 ms | 6.71 ms | 36× | 3.2× |
+| `fib` | 0.72 µs | 54 ns | 2.3 µs | 3.5 µs | 3× | 1.5× |
+| `readFields` | 60 µs | | 10.3 ms | 35.4 ms | 171× | 3.4× |
+| `callMany` | 5.1 µs | | 1.29 ms | 1.31 ms | 258× | 1.0× |
+| `repeat` | 8.5 µs | | 0.94 ms | 1.29 ms | 108× | 1.4× |
+| `bigSum` | 19 µs | | 2.50 ms | 3.96 ms | 127× | 1.6× |
+
+L0 calls per program, from the `calls` mode:
+
+| Program | L0 calls | Most called |
+| --- | --- | --- |
+| `sumTo` | 20,004 | `kind` 10,001, `to_f64` 10,001 |
+| `sumToAny` | 140,012 | `kind` 50,004, `to_f64` 50,004, `drop` 20,002, `from_f64` 20,001 |
+| `fib` | 144 | `kind` 71, `to_f64` 71 |
+| `readFields` | 440,012 | `kind` 170,004, `drop` 90,002, `to_f64` 70,004, `dup` 40,001, `from_f64` 30,001 |
+| `callMany` | 21,012 | `kind` 7,004, `to_f64` 3,004, `drop` 3,002, `dup` 2,001, `push` 2,000 |
+| `repeat` | 26,051 | `kind` 11,018, `drop` 6,007, `dup` 4,004, `to_f64` 3,004, `from_f64` 1,002 |
+| `bigSum` | 77,029 | `kind` 50,018, `drop` 15,006, `dup` 12,005 |
+
+Against the second run: the numeric loops are now 3× to 36× slower than
+JavaScript (13× to 67×), `repeat` about 100× (1,550×), and `readFields`
+about 170× (450×). `kind` is still a third to two thirds of every
+program's calls.
 
 ## Where the time goes
 
@@ -217,33 +257,27 @@ The first profile, before the levers, had the handle layer at 94% of
    about 2× to 3×. `bigSum` pays one `kind` more for each operand, which
    is a bigint and so goes on to L1, which reads it again.
 
-### Next, by gain for cost
+### Done after the re-profile
 
-1. **Object lookups without a copy** (NaNVM, small). `find`, `item`, `key`
-   and `length` would read the object's entries in place, in the order
-   that `own_entries` gives, with no `Vec`. That removes most of the 40%
-   of `readFields` in objects and the allocator, about 1.5× to 2×. It stays
-   inside `l0/mod.rs`.
-2. **NaN-boxed handles** (NaNVM's ABI, large). The handle would be the NaN
-   box's bits, as [type-system.md](./type-system.md) and
-   [nan-box-in-ir.md](./nan-box-in-ir.md) lay them out, so a number or a
-   constant needs no slot, and `kind`, `to_f64` and `from_f64` become a
-   few instructions that the module can inline. The handle layer is still
-   53% to 92% of every program but `repeat`, so this is still the largest
-   gain: up to about 10× on numeric loops. It is the largest change too:
-   NaNVM's ABI, its misuse checks and the inline fragments of
-   [`../wasm/inline-fragments.md`](../wasm/inline-fragments.md). Lever 1
-   does not depend on it.
-3. **A `concat` that copies in bulk** (NaNVM, small to medium). Copying
-   both strings' units with one slice copy each, straight into the new
-   string, would make `repeat` several times faster but still quadratic.
-   A rope, as JavaScript's engines use, would make it linear, and is a
-   larger change to NaNVM's strings.
-4. **Cancel `dup`/`drop` pairs in the lifetime pass** (medium). After the
-   records pass, `dup` is at most 1 in 6 of the calls (12,005 of 73,027 in
-   `bigSum`, 40,001 of 560,016 in `readFields`), so this lever gains less
-   than it would have before: a few percent, not the 20% that the first
-   profile suggested.
+5. **Object lookups without a copy** (#4056): `find`, `item`, `key` and
+   `length` read the object's entries in place. With #4055, `readFields`
+   went from 450× to about 170× JavaScript's time.
+6. **A `concat` that copies in bulk** (#4057): each string's units in
+   one copy, straight into the new string. `repeat` went from 1,550× to
+   about 100× JavaScript's time, 7.4 to 0.94 ms, and is still quadratic.
+
+### Left
+
+1. **NaN-boxed handles**, the largest lever, as the second profile
+   ranked it: a number or a constant needs no slot, and `kind`, `to_f64`
+   and `from_f64` become a few instructions. The NaNVM route of
+   [nan-boxed-handles.md](../wasm/nan-boxed-handles.md) is superseded by
+   the owner's next task (2026-11-21): a runtime written in the IR, with
+   the NaN box coded by hand ([README](./README.md#next)).
+2. **Cancel `dup`/`drop` pairs in the lifetime pass** (medium): a few
+   percent, since `dup` is at most 1 in 6 of the calls after the records
+   pass (12,005 of 77,029 in `bigSum`).
+3. **A rope for `concat`** (NaNVM, larger): would make `repeat` linear.
 
 One limit stays as it was: a loop whose state starts as `f64` and becomes
 `any` is still refused (below). The records pass runs after the lowering,
@@ -264,7 +298,8 @@ benchmark program, and a user, would meet:
   `1n` as an argument.
 - An index of `any`: FunctionalScript requires `a[Number(i)]`, and the
   lowering refuses `Number` of `any`. `.at(i)` is no member that L1 knows,
-  so it throws. No program here can index an array in a loop.
+  so it throws. No program here can index an array in a loop. `Number(x)`
+  (#4061) and `.at` (#4063) are open pull requests.
 - A value that the checker refuses after the lifetime pass, where the
   lowering inlined a `const` into a record field: `l1.subtract answers an
   owned value that nothing takes over: bind it first`. And with `a[Number(s.i)]`

@@ -289,6 +289,23 @@ export const objects = {
 }
 
 /**
+ * The signatures of L1's method calls, which a program lowers `o.name(x)`
+ * to where `name` is one of them, and of what they read: each takes and
+ * answers values of `any`, since a receiver of another kind calls its own
+ * member.
+ *
+ * @type {Readonly<Record<string, Signature>>}
+ */
+export const l1Methods = {
+    toIntegerOrInfinity: signature([['x', f64]], f64),
+    requireObjectCoercible: signature([['v', any]], any),
+    charCodeAt: signature([['o', any], ['pos', any]], any),
+    at: signature([['o', any], ['i', any]], any),
+    every: signature([['o', any], ['f', any]], any),
+    filter: signature([['o', any], ['f', any]], any),
+}
+
+/**
  * The signatures of every export of L1, which slice 10c lowers as one
  * module over its error table: the subjects of the slices before it, with
  * `toIterable` answering an array as 8b has it, and `toPropertyKey`, the
@@ -303,5 +320,6 @@ export const l1Whole = {
     ...l1Coerce,
     ...l1Get,
     ...l1Arith,
+    ...l1Methods,
     toPropertyKey: signature([['v', any]], any),
 }

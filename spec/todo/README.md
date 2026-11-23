@@ -20,6 +20,8 @@ successful-result agreement, purity and indistinguishable execution failures.
 tracks the current and proposed P1 violations and their root-cause corrections.
 These rules apply at every stage, regardless of a feature's priority below.
 
+[Value identity](./value-identity.md) proposes a rule 2 exception for identity-dependent results on every FJS executor. It separates the decisions on allocation identity and closure folding from the ordered comparison helper and its pattern instruction. The existing compatibility rules apply pending approval.
+
 [Refused constructs](./refused-constructs.md) lists the valid JavaScript the
 compiler refuses, and why.
 
