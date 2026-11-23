@@ -59,6 +59,11 @@ const under = (runtime, node) => vm({ ...context, runtime })(node)
 const throws = ['{}', [[':', 'valueOf', ['=>', 0, [], ['throw', 'conversion']]]]]
 
 export const proof = /** @type {const} */ ({
+    structuralEquality: () => {
+        eq(['()', ['structEq'], []], true)
+        eq(['.', ['structEq'], 'length'], 2)
+        failure(['()', ['structEq'], [0, 0, ['throw', 'extra']]], 'extra')
+    },
     booleanConversion: () => {
         const echo = booleanRuntime(['arg', 0])
         assertStructurallySame(under(echo, ['Boolean', 7]), ['ok', 7])

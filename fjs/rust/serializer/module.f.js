@@ -588,6 +588,15 @@ const operation = (s, n, result) => {
         if (id === 'refMap') {
             return map1(pure(result))(ok(cat([unstable(s.native ? 'ref_map_with_text' : 'ref_map'), '(', represented(s, helperText(_helperText(id)('helper'))), ')'])))
         }
+        if (id === 'structEq') {
+            if (s.runtime === null) { return error(['structEq requires the common runtime', tag]) }
+            // Each helper has its own identity and source text, and captures the shared body.
+            return map1(pure(result))(ok(cat([
+                staticFunction(s), '(|_self, _args| Any::call(A::frame(_self)[0].clone(), _args', toAny,
+                '), ', num('2'), `, [(Any::dot(${s.runtime}.clone(), `, stringAny(s, id), ').end())?]', toArray,
+                ', ', represented(s, helperText(_helperText(id)('helper'))), ')', toAny,
+            ])))
+        }
         const length = helperLength(id)
         const args = generate(length - 1, k => argRead(k + 1))
         const native = id === 'entry' ? ['Any::entry(', argRead(0), ', ', argRead(1), ')']
@@ -980,7 +989,7 @@ const instructionLiterals = task => {
     if (isStatic(v)) { return task.context.runtime === null ? [staticText(v[0])] : ['static', tag] }
     if (isHelper(v)) {
         const text = helperText(_helperText(v[0])('helper'))
-        return isIntrinsic([tag]) ? [tag, text] : [text]
+        return tag === 'structEq' || isIntrinsic([tag]) ? [tag, text] : [text]
     }
     if (tag === 'Boolean') { return [tag] }
     return tag === 'in' ? [tag, v[1]] : []
@@ -998,7 +1007,7 @@ const bodyNeedsRuntime = (s, fn) => {
         if (top.kind === 'steps' && top.member && top.step !== undefined && top.step[0] !== '|.') { return true }
         if (top.kind === 'value' && top.value instanceof Array) {
             const v = top.value
-            if (isStatic(v) || v[0] === 'in' || v[0] === 'Boolean' || v[0] === 'memberPresent') { return true }
+            if (isStatic(v) || v[0] === 'structEq' || v[0] === 'in' || v[0] === 'Boolean' || v[0] === 'memberPresent') { return true }
         }
         pending = pushAll(children(top), rest)
     }
