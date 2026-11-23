@@ -31,7 +31,7 @@ import { maxLength } from '../../types/function/length/module.f.js'
 import { isKeyword, isReservedGlobal } from '../../js/keywords/module.f.js'
 import { prohibitedAccess } from '../../js/prototype/module.f.js'
 import { nameOf, parseSyntax, textOf } from './syntax/module.f.js'
-import { blocks, isRefMap, names as boundNames } from './ref_map/module.f.js'
+import { blocks, isRefMap, isStructEq, names as boundNames } from './ref_map/module.f.js'
 import { isBinary, isUnary } from '../ast/module.f.js'
 import { helperLength, intrinsics, staticIds, staticPath } from '../../edag/module.f.js'
 import { entry, hasEntry } from '../../types/object/entry/module.f.js'
@@ -1562,6 +1562,9 @@ const entered = (stack, scope, node, self) => {
     const target = /** @type {const} */ ({ kind: 'function', index: scope.trace.count + 1 })
     /** @type {_Scope} */
     const inner = {
+        // Mark the whole definition, then resolve its body normally. Object,
+        // Array and Number are reserved globals checked by ordinary admission.
+        structEq: self !== null && !self[2] && isStructEq(node, self[0]),
         names, count, parameters, rest, enclosing: null, outer: scope, self: self?.[0] ?? null, selfBinding: self?.[1] ?? null, selfVariable: self?.[2] ?? false, captures: [], region: false, inFunction: true,
         blockCall: stack !== null && hasEntry(stack.top, 'call') && stack.top.index === 0 && assertNotNullish(entry(stack.top, 'call'))[2].length === 0
             && count === 0 && late.length === 0 && rest === null,
@@ -1799,7 +1802,7 @@ const closed = (stack, scope, body) => {
     const externalWrite = scope.captures.find(capture => capture.written && !scope.trace.bindings.includes(capture.id))
     if (!scope.region && externalWrite !== undefined && hasRetainedReturn(returnedBlock(body))) { return [stack, scope, error(externalWrite.refusal)] }
     /** @type {SourceValue} */
-    const value = scope.region ? ['block', body] : ['function', {
+    const value = scope.region ? ['block', body] : scope.structEq ? ['structEq'] : ['function', {
         target: scope.trace.target, length: scope.count, parameters: scope.parameters, rest: scope.rest === null ? null : expansion(scope.rest), self: scope.selfBinding, body,
     }]
     return [stack, restoredScope(scope, !scope.region && !isCalledWhereWritten(stack)), ok(value)]

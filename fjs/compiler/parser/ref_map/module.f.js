@@ -13,6 +13,7 @@
  * @import { BindingTarget, Node, ParameterList } from '../syntax/types.ts'
  */
 
+import { structEqSource } from '../../../types/object/struct_eq/source.f.js'
 import { assertNotNullish, assertOk } from '../../../asserts/module.f.js'
 import { structurallySame } from '../../../types/object/structurally_same/module.f.js'
 import { entry, hasEntry } from '../../../types/object/entry/module.f.js'
@@ -155,17 +156,24 @@ const shape = (scope, depth) => tree => {
         .map(([key, value]) => [key, shape(scope, inside)(value)]))
 }
 
-/** The canonical body's declaration, read from a module that exports it, the least a module is: its name and its function. */
-const canonical = (() => {
-    const { statements } = assertOk(parseSyntax(tokenize(stringToList(`${source}export default empty\n`))('ref_map')))
-    const { target, value } = /** @type {{ readonly declaration: { readonly target: readonly ['name', ModuleTokenWithMetadata], readonly value: Node } }} */ (statements[0][1]).declaration
-    return /** @type {const} */ ([nameOf(target[1]), value])
-})()
-
-/** {@link shape} of a function declared under `self`, the name its body may read as itself. @type {(node: unknown, self: string) => unknown} */
+/** @type {(node: unknown, self: string) => unknown} */
 const shapeOf = (node, self) => shape([self], limit)(node)
 
-const canonicalShape = shapeOf(canonical[1], canonical[0])
+/** Parse a complete named definition once, using the ordinary module grammar.
+ * @type {(source: string, self: string) => unknown} */
+const definitionShape = (source, self) => {
+    const { statements } = assertOk(parseSyntax(tokenize(stringToList(`${source}\nexport default ${self}\n`))(self)))
+    const { value } = /** @type {{ readonly declaration: { readonly value: Node } }} */ (statements[0][1]).declaration
+    return shapeOf(value, self)
+}
+
+const canonicalShape = definitionShape(source, 'empty')
+const equalityShape = definitionShape(structEqSource, 'structEq')
+
+/** A candidate still goes through ordinary resolution and statement checks.
+ * @type {(node: Extract<Node, readonly ['=>', ParameterList, Node]>, self: string) => boolean} */
+export const isStructEq = (node, self) => node[2][0] === 'block' && node[2][1].length === 3
+    && structurallySame(shapeOf(node, self), equalityShape)
 
 /**
  * Whether a function is the empty reference map: the canonical body under

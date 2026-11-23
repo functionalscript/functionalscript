@@ -244,7 +244,7 @@ export type Comma = readonly[',', Exps]
 // Op0Ids
 
 export type Op0Id =
-    | 'undefined' | 'args' | 'rest' | 'self' | 'entry' | 'hasEntry' | 'refMap' | IntrinsicId | StaticId
+    | 'undefined' | 'args' | 'rest' | 'self' | 'entry' | 'hasEntry' | 'structEq' | 'refMap' | IntrinsicId | StaticId
 
 /** An intrinsic's tag, the member's name: `'slice'`, `'charCodeAt'`. The list is `intrinsics` in `module.f.js`. */
 export type IntrinsicId = (typeof intrinsics)[number][0]

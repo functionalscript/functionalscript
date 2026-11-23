@@ -6,7 +6,7 @@
  */
 
 import { assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
-import { tagUndefined, untagUndefined, truthy, typeOf, isUndefined, isNullish, strictEqual, is, unary, binary, instanceOf } from './module.f.js'
+import { tagUndefined, untagUndefined, truthy, typeOf, isUndefined, isNullish, strictEqual, is, structEq, unary, binary, instanceOf } from './module.f.js'
 
 /** @type {readonly (readonly [EdagValue, boolean, string])[]} */
 const classifications = [
@@ -43,7 +43,43 @@ const compare = (a, b, equal, same) => {
     assertEq(assertOk(binary['!=='](b, a)), !equal)
 }
 
+/** @type {(value: EdagValue) => EdagValue} */
+const deep = value => {
+    for (let i = 0; i < 10_000; i += 1) {
+        value = ['[]', [['{}', [[':', 'next', value]]]]]
+    }
+    return value
+}
+
 export const proof = {
+    depth: () => {
+        const left = deep(0)
+        assertEq(structEq(left, deep(0)), true)
+        assertEq(structEq(left, deep(-0)), false)
+    },
+    resumeSiblings: () => {
+        const fields = /** @type {const} */ (['{}', [[':', 'a', 1], [':', 'b', 2]]])
+        const left = /** @type {const} */ (['[]', [fields, 3]])
+        assertEq(structEq(left, ['[]', [['{}', [[':', 'a', 1], [':', 'b', 2]]], 3]]), true)
+        assertEq(structEq(left, ['[]', [['{}', [[':', 'a', 1], [':', 'b', 0]]], 3]]), false)
+        assertEq(structEq(left, ['[]', [fields, 0]]), false)
+        assertEq(structEq(['[]', []], ['[]', []]), true)
+        assertEq(structEq(['{}', []], ['{}', []]), true)
+    },
+    ordered: () => {
+        const record = /** @type {const} */ (['{}', [[':', 'x', ['undefined']]]])
+        const array = /** @type {const} */ (['[]', [record, NaN]])
+        assertEq(structEq(array, ['[]', [['{}', [[':', 'x', ['undefined']]]], NaN]]), true)
+        assertEq(structEq(array, ['[]', []]), false)
+        assertEq(structEq(array, record), false)
+        assertEq(structEq(record, array), false)
+        assertEq(structEq(record, ['{}', []]), false)
+        assertEq(structEq(record, ['{}', [[':', 'y', ['undefined']]]]), false)
+        assertEq(structEq(record, ['{}', [[':', 'x', 0]]]), false)
+        assertEq(structEq(record, null), false)
+        assertEq(structEq(0, -0), false)
+        assertEq(structEq(['=>', 0, [], 1], ['=>', 0, [], 1]), false)
+    },
     arrayConstructor: () => {
         assertEq(instanceOf.Array(['[]', []]), true)
         assertEq(instanceOf.Array(['[]', [1]]), true)

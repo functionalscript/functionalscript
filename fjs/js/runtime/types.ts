@@ -20,7 +20,7 @@ import type { member, runtime, statics } from './module.f.js'
 /** The runtime: table lookups `static` and `dot`, operator bodies `in` and `Boolean`, and the reference map's maker, `refMap`. */
 export type Runtime = typeof runtime
 
-type _Sections = Assert<Equal<keyof Runtime, 'Boolean' | 'dot' | 'in' | 'refMap' | 'static'>>
+type _Sections = Assert<Equal<keyof Runtime, 'Boolean' | 'dot' | 'in' | 'refMap' | 'static' | 'structEq'>>
 
 /** The Boolean conversion operator's body. */
 export type BooleanConversion = Runtime['Boolean']

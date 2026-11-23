@@ -16,6 +16,7 @@
 
 import { exitStep, writeFiles } from '../../effects/node/module.f.js'
 import { step } from '../../effects/module.f.js'
+import { structEqBody } from '../../types/object/struct_eq/source.f.js'
 import { data } from '../module.f.js'
 import { directory, generate } from '../rust/module.f.js'
 import { generate as generateCommands, path as commandsPath } from '../commands/module.f.js'
@@ -36,6 +37,14 @@ import { generate as generateRuntime } from '../runtime/module.f.js'
  */
 const rustFiles = () => [
     ...generate(data).map(([name, content]) => /** @type {const} */ ([`${directory}/${name}`, content])),
+    ['fjs/js/runtime/gen.struct_eq.f.js', `/** Generated common-runtime specialization. @module
+ * @import { _StructEqStack } from '../../types/object/struct_eq/private.ts'
+ * @import { Entry } from '../../types/object/types.ts'
+ */
+
+/** @type {(sameValue: (a: unknown, b: unknown) => boolean, entries: typeof Object.entries) => (a: unknown, b: unknown) => boolean} */
+export const makeStructEq = (sameValue, entries) => ${structEqBody(true)}
+`],
     [methodsPath, generateMethods()],
     [valuesPath, generateValues()],
     [deferredTailCallsPath, generateDeferredTailCalls()],

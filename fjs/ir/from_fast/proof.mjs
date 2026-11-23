@@ -1868,7 +1868,7 @@ export const proof = {
     // function of two arguments, and throws L1's value of the error that
     // JavaScript throws. A throw of L1 leaves what the caller made for it
     // behind, a boxed key or number, which the host recovers.
-    programsRun: () => runPrograms(fromPrograms(), programs, ['apply', 'bits', 'called', 'countDown', 'first', 'method', 'mixed', 'pair', 'sum3', 'twice']),
+    programsRun: () => runPrograms(fromPrograms(), programs, ['allBelow', 'apply', 'below', 'bits', 'called', 'countDown', 'first', 'method', 'mixed', 'pair', 'sum3', 'twice']),
     // The records pass: the objects that a program only reads back by keys
     // that they have are split, so no function that reads one back builds
     // it, and every other object stays one.

@@ -54,7 +54,7 @@ export const needsRuntime = root => visit(withBodies)(root).some(([node]) => {
     switch (operation[0]) {
         case 'memberPresent': { return true }
         // Entry checks and boolean conversion call their shared runtime bodies.
-        case 'in': case 'Boolean': { return true }
+        case 'in': case 'structEq': case 'Boolean': { return true }
         case '.': case '?.': { return memberCall(operation[3], true) }
         case '?.()': { return memberCall(operation[3], false) }
         default: { return false }
@@ -100,7 +100,7 @@ const converted = (root, shared, text, runtime) => {
 
 /** The primitive/constructor cases expose values; operations expose Results. @type {(root: Exp) => boolean} */
 const resultRoot = root => root instanceof Array && !isStatic(root) && !isIntrinsic(root)
-    && !['undefined', 'args', 'arg', 'rest', 'frame', 'self', 'entry', 'hasEntry', 'refMap', '=>', '{}'].includes(root[0])
+    && !['undefined', 'args', 'arg', 'rest', 'frame', 'self', 'entry', 'hasEntry', 'structEq', 'refMap', '=>', '{}'].includes(root[0])
     && (root[0] !== '[]' || root[1].some(v => v instanceof Array && v[0] === '...'))
 
 /**
