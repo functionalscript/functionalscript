@@ -63,7 +63,7 @@ import { error, ok, okList, unwrap } from '../../types/result/module.f.js'
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
 import { at, empty, fromEntries, setReplace } from '../../types/ordered_map/module.f.js'
-import { bool, compareIn, equal, f64, f64c, fits, inside, int, isOwn, never, product, unit } from '../module.f.js'
+import { bool, compareIn, equal, f64, f64c, fits, inside, int, isOwn, never, product, u, unit } from '../module.f.js'
 import { quote, show } from '../print/module.f.js'
 import { checkOwned } from './owned/module.f.js'
 
@@ -247,7 +247,34 @@ const intOp = (name, a, b) => {
         case 'eq': case 'lt': case 'le': {
             return compareIn(a, b) === null ? error(`${name} of ${show(a)} and ${show(b)} needs more than one word`) : ok(bool)
         }
+        case 'and': case 'or': case 'xor': case 'shl': case 'shr': { return bitOp(name, a, b) }
         default: { return error(`${name} of two integers is not in this slice`) }
+    }
+}
+
+/** The least `2^k - 1` at or above `n`, for `n >= 0`. @type {(n: bigint) => bigint} */
+const ones = n => (1n << BigInt(n.toString(2).length)) - 1n
+
+/**
+ * A bit operator's type, of two unsigned integers: `and` within the smaller
+ * bound, `or` and `xor` within the ones of the larger, and a shift by a
+ * count below 64 exact at both ends, as `mul` is.
+ *
+ * @type {(name: 'and' | 'or' | 'xor' | 'shl' | 'shr', a: Int, b: Int) => Result<Type, string>}
+ */
+const bitOp = (name, a, b) => {
+    if (a[1] < 0n || b[1] < 0n) { return error(`${name} of ${show(a)} and ${show(b)}: a bit operator takes unsigned integers`) }
+    /** @type {(hi: bigint) => Result<Type, string>} */
+    const upTo = hi => fits(64)(int(0n, hi)) ? ok(int(0n, hi)) : error(`${name} of ${show(a)} and ${show(b)} is ${show(int(0n, hi))}, which needs more than one word`)
+    switch (name) {
+        case 'and': { return upTo(a[2] < b[2] ? a[2] : b[2]) }
+        case 'or': case 'xor': { return upTo(ones(a[2] > b[2] ? a[2] : b[2])) }
+        default: {
+            if (b[2] >= 64n) { return error(`${name} of ${show(a)} by ${show(b)}: a shift count is below 64`) }
+            if (name === 'shr') { return ok(int(a[1] >> b[2], a[2] >> b[1])) }
+            const hi = upTo(a[2] << b[2])
+            return hi[0] === 'error' ? hi : ok(int(a[1] << b[1], a[2] << b[2]))
+        }
     }
 }
 
@@ -257,6 +284,9 @@ const floatOp = (name, a) => {
         case 'abs': { return ok(a) }
         case 'eq': case 'lt': case 'le': { return ok(bool) }
         case 'float': { return error(`float of ${show(a)}: float takes an integer`) }
+        case 'to_bits': { return ok(u(64)) }
+        case 'from_bits': { return error(`from_bits of ${show(a)}: from_bits takes an unsigned integer`) }
+        case 'and': case 'or': case 'xor': case 'shl': case 'shr': { return error(`${name} of ${show(a)}: a bit operator takes unsigned integers`) }
         default: { return ok(f64) }
     }
 }
@@ -268,7 +298,7 @@ const floatOp = (name, a) => {
  * @type {(name: OpName, args: readonly Type[]) => Result<Type, string>}
  */
 const opType = (name, args) => {
-    const unary = name === 'neg' || name === 'abs' || name === 'sqrt' || name === 'float'
+    const unary = name === 'neg' || name === 'abs' || name === 'sqrt' || name === 'float' || name === 'to_bits' || name === 'from_bits'
     if (args.length !== (unary ? 1 : 2)) {
         return error(`${name} takes ${count(unary ? 1 : 2, 'operand')}, not ${args.length}`)
     }
@@ -277,6 +307,8 @@ const opType = (name, args) => {
     if (ints.length === args.length) {
         return name === 'float'
             ? (-(1n << 53n) <= a[1] && a[2] <= 1n << 53n ? ok(f64c) : error(`float of ${show(a)}: a float holds the integers within ±2^53 only`))
+            : name === 'from_bits' ? (0n <= a[1] && fits(64)(a) ? ok(f64) : error(`from_bits of ${show(a)}: from_bits takes an unsigned integer`))
+            : name === 'to_bits' ? error(`to_bits of ${show(a)}: to_bits takes a float`)
             : unary ? error(`${name} of an integer is not in this slice`)
             : intOp(name, a, b)
     }

@@ -26,7 +26,7 @@ import { ARRAY, FUNCTION, OBJECT, STRING, asNumber, kind, length } from '../../w
 import { stringEquals, stringIndex, stringLess, toBoolean } from '../../wasm/runtime/l1/module.f.js'
 import { any, array, container, func, l0 } from '../l0/module.f.js'
 import { add, call, call_ref, code, codeOf, f64, fn, get, n } from '../module.f.js'
-import { arrays, constants, corners, literals, loops, records, samples, unknown } from '../testlib.f.js'
+import { arrays, bits, constants, corners, literals, loops, records, samples, unknown } from '../testlib.f.js'
 import { edges, held, product, run, spellings, trap } from './testlib.mjs'
 
 // arrays
@@ -55,6 +55,20 @@ const bit = v => (assert(typeof v === 'boolean', v), v)
 
 /** @type {(x: number, k: number) => number} */
 const pow = (x, k) => k <= 0 ? 1 : x * pow(x, k - 1)
+
+/** The 64 bits of a float. @type {(x: number) => bigint} */
+const bitsOf = x => {
+    const view = new DataView(new ArrayBuffer(8))
+    view.setFloat64(0, x)
+    return view.getBigUint64(0)
+}
+
+/** The float of 64 bits. @type {(b: bigint) => number} */
+const ofBits = b => {
+    const view = new DataView(new ArrayBuffer(8))
+    view.setBigUint64(0, b)
+    return view.getFloat64(0)
+}
 
 /** @type {(a: number, b: number) => number} */
 const hypot = (a, b) => Math.sqrt(a * a + b * b)
@@ -235,6 +249,15 @@ const twins = {
     bound: ([v]) => ({ any: [held(v)] }),
     repeated: ([v, k]) => ({ any: Array.from({ length: Number(int(k)) }, () => held(v)) }),
     itemCount: () => 1n,
+    mask: ([a, b]) => int(a) & int(b),
+    either: ([a, b]) => int(a) | int(b),
+    flip: ([a, b]) => int(a) ^ int(b),
+    reference: ([k, p]) => int(k) << 48n | int(p) << 2n,
+    shifted: ([a, k]) => int(a) << int(k) ^ int(a) >> int(k),
+    nibble: ([x]) => int(x) >> 48n & 15n,
+    bitsOf: ([x]) => bitsOf(num(x)),
+    ofBits: ([b]) => ofBits(int(b)),
+    signOf: ([x]) => bitsOf(num(x)) >> 63n,
 }
 
 /** Values of `any` for the string comparisons: strings that share a prefix, the two ends of a unit, a pair of surrogates, and values of other kinds, which trap. */
@@ -287,6 +310,8 @@ const inputs = {
 export const proof = {
     samples: () => run(samples, twins, inputs),
     corners: () => run(corners, twins, inputs),
+    // The bit operators and a float's bits, on the edges of their types.
+    bits: () => run(bits, twins, inputs),
     unknown: () => run(unknown, twins, inputs),
     loops: () => run(loops, twins, inputs),
     records: () => run(records, twins, inputs),

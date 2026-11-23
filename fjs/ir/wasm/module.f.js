@@ -209,6 +209,11 @@ const integer = (name, bits, isSigned) => {
         case 'sub': { return i32 ? ['i32.sub'] : ['i64.sub'] }
         case 'mul': { return i32 ? ['i32.mul'] : ['i64.mul'] }
         case 'eq': { return i32 ? ['i32.eq'] : ['i64.eq'] }
+        case 'and': { return i32 ? ['i32.and'] : ['i64.and'] }
+        case 'or': { return i32 ? ['i32.or'] : ['i64.or'] }
+        case 'xor': { return i32 ? ['i32.xor'] : ['i64.xor'] }
+        case 'shl': { return i32 ? ['i32.shl'] : ['i64.shl'] }
+        case 'shr': { return i32 ? ['i32.shr_u'] : ['i64.shr_u'] }
         case 'lt': { return i32 ? (isSigned ? ['i32.lt_s'] : ['i32.lt_u']) : isSigned ? ['i64.lt_s'] : ['i64.lt_u'] }
         default: { return i32 ? (isSigned ? ['i32.le_s'] : ['i32.le_u']) : isSigned ? ['i64.le_s'] : ['i64.le_u'] }
     }
@@ -224,6 +229,7 @@ const float = name => {
         case 'neg': { return ['f64.neg'] }
         case 'abs': { return ['f64.abs'] }
         case 'sqrt': { return ['f64.sqrt'] }
+        case 'to_bits': { return ['i64.reinterpret_f64'] }
         case 'eq': { return ['f64.eq'] }
         case 'lt': { return ['f64.lt'] }
         default: { return ['f64.le'] }
@@ -352,6 +358,7 @@ const operator = (emitTerm, env, type, name, args) => {
     const own = args.map(x => /** @type {const} */ ([x, x[0]]))
     if (ints.length === 0) { return sequence(emitTerm, env, own, [float(name)]) }
     if (name === 'float') { return sequence(emitTerm, env, own, [convert(ints[0])]) }
+    if (name === 'from_bits') { return sequence(emitTerm, env, [[args[0], u(64)]], [['f64.reinterpret_i64']]) }
     /** The operands as values of `bits`. @type {(bits: 32 | 64) => readonly (readonly [Typed, Type])[]} */
     const inWord = bits => args.map((x, k) => [x, word(ints[Number(k)], bits)])
     if (name === 'eq' || name === 'lt' || name === 'le') {

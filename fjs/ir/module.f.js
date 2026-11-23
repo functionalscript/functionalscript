@@ -137,6 +137,23 @@ export const eq = op('eq')
 export const lt = op('lt')
 export const le = op('le')
 
+/**
+ * The bit operators of two unsigned integers: `and`, `or`, `xor`, and the
+ * shifts, `shl` and `shr`, by a count below 64. A shift is exact, as `mul`
+ * is: `shl` is refused where its result needs more than one word.
+ */
+export const and = op('and')
+export const or = op('or')
+export const xor = op('xor')
+export const shl = op('shl')
+export const shr = op('shr')
+
+/** The 64 bits of a float, as a `u(64)`. */
+export const to_bits = op('to_bits')
+
+/** The float of 64 bits: an `f64`, since the bits may be any NaN. */
+export const from_bits = op('from_bits')
+
 /** An integer, within ±2^53, as the float of its value. */
 export const float = op('float')
 
