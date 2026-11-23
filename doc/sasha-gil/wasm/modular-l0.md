@@ -3,7 +3,7 @@
 **Proposed** on 2026-11-09, from the owner's idea while writing the
 [modular runtime](./modular-runtime.md) memo. Nothing here is decided yet.
 
-The [L0 design](./l0-design.md) is one list of 32 functions and 4
+The [L0 design](./l0-design.md) is one list of 33 functions and 4
 constants, imported from one module, `fjs:l0`. The modular runtime adds a
 String module whose functions are inlined over slots that the module
 chooses. This note takes the next step: L0 itself becomes a set of runtime
@@ -83,7 +83,7 @@ The calls between modules form a runtime-internal interface (choice 7).
   owns the kind. Any would then depend on every other module.
 - **Why:** the dependencies stay a tree with Any at the root. Each `length`
   also reads a layout that only its own module knows. The branch costs one
-  test on the `kind` already in a local. L0 grows from 32 functions to 35
+  test on the `kind` already in a local. L0 grows from 33 functions to 36
   in import form.
 
 ### 3. Each module has an import name and a version

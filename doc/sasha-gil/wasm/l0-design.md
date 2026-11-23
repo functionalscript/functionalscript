@@ -12,7 +12,7 @@ runtime modules, cut by kind.
 
 ## Summary
 
-L0 is 32 imported functions and 4 imported constants in one import module,
+L0 is 33 imported functions and 4 imported constants in one import module,
 `fjs:l0`. A value is an opaque `i64`. Bytes cross through a memory both
 modules share. Containers are built through a builder handle and then sealed,
 values are reference counted, and a throw traps, so a call returns one value.
@@ -145,8 +145,9 @@ Each choice gives the pick first, then the alternatives and the reason.
   builder, traps.
 - **Alternative:** the program writes `i64` items into memory and one call
   copies them. That needs a shadow stack in the program.
-- **Why:** version 1 then needs no memory protocol for values. The bulk call
-  can be added later as a faster path beside this one.
+- **Why:** version 1 then needs no memory protocol for values. `push_all`
+  is the one bulk call so far, and it copies from an array that already
+  exists, so it needs no memory protocol either.
 
 ### 9. Objects: the runtime keeps keys unique and ordered
 
