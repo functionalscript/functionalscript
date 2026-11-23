@@ -441,6 +441,12 @@ and another body by reading it as a value. `gen.runtime.rs` is included
 into the crate by `#[path]`, which is why it says `use nanvm_lib::…` and
 the crate declares `extern crate self as nanvm_lib`.
 
+The same generator writes `nanvm/fjsrs/src/gen.runtime.native.rs` for
+`fjsrs`. Its `runtime()` uses the application’s concrete VM alias. Eligible
+module-level functions use static descriptors, including frames that capture
+other static functions. A member factory still creates a closure for each
+receiver when called.
+
 Nothing is held by the library and no VM binds anything: a VM is a value
 representation, and the runtime is a value a module is given. A VM that
 wants a native implementation of a name that has a body substitutes it by

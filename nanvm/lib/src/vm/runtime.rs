@@ -41,7 +41,15 @@ pub type Module<A> = fn(Any<A>) -> Result<Any<A>, Any<A>>;
 /// runs a module reads its exports through this, so the refusal is said
 /// once.
 pub fn exports<A: IVm>(module: Module<A>) -> Result<Object<A>, Any<A>> {
-    Object::try_from(module(compiled::runtime::<A>()?)?).map_err(|_| error::not_an_export_object())
+    exports_with_runtime(module, compiled::runtime::<A>()?)
+}
+
+/// Evaluate a module with the runtime selected by its host.
+pub fn exports_with_runtime<A: IVm>(
+    module: Module<A>,
+    runtime: Any<A>,
+) -> Result<Object<A>, Any<A>> {
+    Object::try_from(module(runtime)?).map_err(|_| error::not_an_export_object())
 }
 
 #[cfg(test)]

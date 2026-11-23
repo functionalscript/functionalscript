@@ -1,6 +1,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import {
     call, get, objectSpread, toIterable,
+    at, charCodeAt, every, filter, requireObjectCoercible, toIntegerOrInfinity,
     add, bitwiseAnd, divide, greaterThan, greaterThanOrEqual, lessThan, lessThanOrEqual, multiply, negate, remainder,
     number, shiftRight, subtract,
     functionText, stringEquals, stringLess, strictEquals, toBoolean, toNumber, toNumeric,
@@ -225,6 +226,46 @@ export const proof = {
             assertStructurallySame(Object.entries(objectSpread(v)), Object.entries({ .../** @type {object} */ (v) }), String(v))
         }
     },
+    // `ToIntegerOrInfinity` truncates toward zero, and `NaN` is `0`.
+    toIntegerOrInfinity: () => {
+        for (const [x, y] of /** @type {const} */ ([[NaN, 0], [1.9, 1], [-1.9, -1], [Infinity, Infinity], [-Infinity, -Infinity], [-0, 0]])) {
+            assertEq(toIntegerOrInfinity(x), y)
+        }
+    },
+    // A value other than `undefined` and `null` passes as it is.
+    requireObjectCoercible: () => {
+        for (const v of values.filter(v => v !== undefined && v !== null)) { assert(Object.is(requireObjectCoercible(v), v)) }
+    },
+    // Each method call is JavaScript's for a string or an array, and the
+    // call of the receiver's own member for an object.
+    methods: () => {
+        for (const s of strings) {
+            for (const k of keys) {
+                const js = s.charCodeAt(/** @type {number} */ (k))
+                const r = charCodeAt(s, k)
+                assert(r === js || (r !== r && js !== js), `${s}.charCodeAt(${String(k)})`)
+                assertEq(at(s, k), s.at(/** @type {number} */ (k)), `${s}.at(${String(k)})`)
+            }
+        }
+        const list = /** @type {const} */ ([10, 'b', null, 30])
+        for (const k of [...keys, -4, -5, -0.5, -Infinity]) {
+            assertEq(at(list, k), list.at(/** @type {number} */ (k)), `.at(${String(k)})`)
+        }
+        /** Callbacks of every kind of answer, and one that reads the array it is given. @type {readonly ((x: unknown, i: number, a: unknown) => unknown)[]} */
+        const callbacks = [() => true, () => 0, x => x, (_, i) => i % 2, (_, i, a) => a === list && i < 2]
+        for (const g of callbacks) {
+            assertStructurallySame(filter(list, g), list.filter(g))
+            assertEq(every(list, g), list.every(g))
+        }
+        assertStructurallySame(filter([], f), [])
+        assertEq(every([], f), true)
+        // an object's own member is called
+        const own = /** @type {const} */ ({ charCodeAt: f, at: f, every: f, filter: f })
+        assertEq(charCodeAt(own, 'x'), 'x')
+        assertEq(at(own, 'y'), 'y')
+        assertEq(every(own, 1), 1)
+        assertEq(filter(own, 2), 2)
+    },
     // Each throw is JavaScript's, with NaNVM's text.
     throw: {
         // both operands of a string comparison must be strings
@@ -262,6 +303,19 @@ export const proof = {
         toNumberNoPrimitive: () => { toNumber({ toString: () => ({}) }) },
         // a method's throw passes through
         method: () => { toString({ toString: () => { throw 'x' } }) },
+        // a nullish receiver is no object
+        requireObjectCoercibleUndefined: () => { requireObjectCoercible(undefined) },
+        requireObjectCoercibleNull: () => { requireObjectCoercible(null) },
+        // a method call of a nullish receiver reads its member first
+        charCodeAtNull: () => { charCodeAt(null, 0) },
+        // a receiver without the method has no function to call
+        charCodeAtArray: () => { charCodeAt([1], 0) },
+        atNumber: () => { at(5, 0) },
+        everyString: () => { every('ab', f) },
+        filterObject: () => { filter({}, f) },
+        // a callback must be a function, even for an empty array
+        everyNotFunction: () => { every([], 1) },
+        filterNotFunction: () => { filter([], undefined) },
         // a function without text, which only a WASM runtime can hold
         functionText: () => { functionText(undefined) },
     },

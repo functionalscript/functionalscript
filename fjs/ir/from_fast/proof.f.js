@@ -1178,11 +1178,25 @@ export const proof = {
             'export f',
             '',
         ].join('\n'))
+        // A boxed literal's constant keeps `from_f64`'s type, so it meets a result of numbers alone.
+        assertEq(checked(only([], subset(any, 'number')), 'export const f = () => 1'), [
+            'const #n0: any.only(number) =',
+            '    Any.from_f64(1.0)',
+            '',
+            'fn f() -> any.only(number) =',
+            '    self.#n0',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
         const av = only([['v', any]], any)
         // A number or a boolean meets `any` through `from_f64` or `from_bool`.
         assertEq(checked(av, 'export const f = v => [v, 1]'), [
+            'const #n0: any.only(number) =',
+            '    Any.from_f64(1.0)',
+            '',
             'fn f(v: any) -> any =',
-            '    match Containers.seal(Containers.push(Containers.push(Containers.begin_array(2), v), Any.from_f64(1.0)))',
+            '    match Containers.seal(Containers.push(Containers.push(Containers.begin_array(2), v), self.#n0))',
             '      array as array =>',
             '        array',
             '      else =>',
@@ -1332,6 +1346,9 @@ export const proof = {
             '',
         ].join('\n'))
         assertEq(checked(withGet, `${getStub}export const f = v => ({ a: v })[0]`), [
+            'const #n0: any.only(number) =',
+            '    Any.from_f64(0.0)',
+            '',
             'fn f(v: any) -> any =',
             '    let #0 =',
             '        match Containers.seal(Containers.push_property(Containers.begin_object(1), "a", v))',
@@ -1339,7 +1356,7 @@ export const proof = {
             '            object',
             '          else =>',
             "            trap('not object')",
-            '    get(#0, Any.from_f64(0.0))',
+            '    get(#0, self.#n0)',
             '',
             'fn get(a: any, k: any) -> any =',
             '    a',

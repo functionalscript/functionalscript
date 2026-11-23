@@ -37,6 +37,7 @@ export const source = runtimeSource('.')
  * it by `#[path]`, since a `gen.` name is not a Rust identifier.
  */
 export const rustPath = 'nanvm/lib/src/vm/gen.runtime.rs'
+export const nativeRustPath = /** @type {const} */ ('nanvm/fjsrs/src/gen.runtime.native.rs')
 
 /**
  * Where its EDAG goes as ordinary JavaScript, beside its source, for the corpus proof
@@ -70,9 +71,15 @@ const numericalNotice = `/*
 export const generate = () => resultStep(resolve(source), result => {
     const [kind, value] = result
     if (kind === 'error') { return pureError(ioError({ message: `${source}: ${value.message}` })) }
-    const [tag, rust] = generateRuntime(value)
-    return tag === 'error' ? pureError(ioError({ message: `${rustPath}: ${rust}` })) : writeFiles([
-        [rustPath, `${rust}\n${numericalNotice}`],
+    /** @type {(readonly [string, string])[]} */
+    let files = []
+    for (const path of [rustPath, nativeRustPath]) {
+        const [tag, rust] = generateRuntime(value, path === nativeRustPath)
+        if (tag === 'error') { return pureError(ioError({ message: `${path}: ${rust}` })) }
+        files = [...files, [path, `${rust}\n${numericalNotice}`]]
+    }
+    return writeFiles([
+        ...files,
         [edagPath, `${numericalNotice}${unwrap(_tryUnknownStringify(value))}\n`],
     ])
 })
