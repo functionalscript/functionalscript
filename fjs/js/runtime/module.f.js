@@ -52,6 +52,7 @@
 import { isNegativeZero } from '../../types/number/is_negative_zero/module.f.js'
 import { entry, hasEntry } from '../../types/object/entry/module.f.js'
 import { charCodeAt, slice } from '../intrinsic/module.f.js'
+import { makeStructEq } from './gen.struct_eq.f.js'
 import { refMap } from '../ref_map/module.f.js'
 import { map as arrayMap } from '../members/array/map/module.f.js'
 import { concat as arrayConcat } from '../members/array/concat/module.f.js'
@@ -528,4 +529,5 @@ export const runtime = {
      * `['refMap']` with, calling this wherever the node is established.
      */
     refMap,
+    structEq: makeStructEq(is, ownEntries),
 }

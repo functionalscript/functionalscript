@@ -99,3 +99,17 @@ export const called = (a, b) => {
     const c = a < b
     return c()
 }
+
+/**
+ * `every` of an arrow literal, inlined into one loop over an array, and L1's call for any other receiver.
+ *
+ * @type {(a: any, b: any) => any}
+ */
+export const allBelow = (a, b) => a.every((/** @type {any} */ x, /** @type {number} */ i) => i < 3 && x !== b)
+
+/**
+ * `filter` of an arrow literal of all three parameters, inlined into the loops over an array.
+ *
+ * @type {(a: any, b: any) => any}
+ */
+export const below = (a, b) => a.filter((/** @type {any} */ x, /** @type {number} */ i, /** @type {any} */ xs) => x < b || i === xs.length - 1)

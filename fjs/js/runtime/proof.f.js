@@ -602,9 +602,11 @@ export const proof = /** @type {const} */ ({
         const [, map] = runtime.refMap()(key, 1)
         assertEq(map(key)[0], 1)
         assert(runtime.refMap() !== runtime.refMap())
+        assert(runtime.structEq([{ x: NaN }], [{ x: NaN }]))
+        assert(!runtime.structEq({ x: 0 }, { x: -0 }))
     },
     keys: () => {
-        assertEq(Object.keys(runtime).toSorted().join(), 'Boolean,dot,in,refMap,static')
+        assertEq(Object.keys(runtime).toSorted().join(), 'Boolean,dot,in,refMap,static,structEq')
         for (const [name, entry] of entries(members)) {
             assert(allowed.includes(name), name)
             assertEq(entry.length, 1)

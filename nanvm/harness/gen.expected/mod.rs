@@ -155,6 +155,7 @@ pub mod string_from_char_code;
 pub mod string_from_char_code_coercion_throws;
 pub mod string_from_char_code_throws;
 pub mod string_methods;
+pub mod struct_eq;
 pub mod throw;
 pub mod throws;
 pub mod to_string;
@@ -320,6 +321,7 @@ pub const CASES: &[crate::Case] = &[
     crate::Case { name: "string_from_char_code_coercion_throws", fixture: crate::fixtures::string_from_char_code_coercion_throws::module::<Naive>, expected: string_from_char_code_coercion_throws::module::<Naive>, json: string_from_char_code_coercion_throws::JSON, throws: string_from_char_code_coercion_throws::THROWS },
     crate::Case { name: "string_from_char_code_throws", fixture: crate::fixtures::string_from_char_code_throws::module::<Naive>, expected: string_from_char_code_throws::module::<Naive>, json: string_from_char_code_throws::JSON, throws: string_from_char_code_throws::THROWS },
     crate::Case { name: "string_methods", fixture: crate::fixtures::string_methods::module::<Naive>, expected: string_methods::module::<Naive>, json: string_methods::JSON, throws: string_methods::THROWS },
+    crate::Case { name: "struct_eq", fixture: crate::fixtures::struct_eq::module::<Naive>, expected: struct_eq::module::<Naive>, json: struct_eq::JSON, throws: struct_eq::THROWS },
     crate::Case { name: "throw", fixture: crate::fixtures::throw::module::<Naive>, expected: throw::module::<Naive>, json: throw::JSON, throws: throw::THROWS },
     crate::Case { name: "throws", fixture: crate::fixtures::throws::module::<Naive>, expected: throws::module::<Naive>, json: throws::JSON, throws: throws::THROWS },
     crate::Case { name: "to_string", fixture: crate::fixtures::to_string::module::<Naive>, expected: to_string::module::<Naive>, json: to_string::JSON, throws: to_string::THROWS },
