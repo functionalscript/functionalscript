@@ -6,9 +6,9 @@
  * @module
  * @import { Primitive } from '../../media/datajs/types.ts'
  * @import { Block, Function as PreparedFunction, Memo, Statement, Value } from '../../js/ast/prepare/types.ts'
- * @import { BindingId, FunctionTarget, LoopTarget, Key, Step, Operator } from '../../js/ast/types.ts'
+ * @import { BindingId, FunctionTarget, LoopTarget, Entry, Item, Key, Step, Operator } from '../../js/ast/types.ts'
  * @import { Options, Printed, Scope, Use, Uses, External } from './types.ts'
- * @import { _Context, _Frame, _Names, _Output, _Task } from './private.ts'
+ * @import { _Context, _Descriptor, _Fields, _StaticBindings, _Frame, _Names, _Output, _Task } from './private.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Stack } from '../../types/stack_walk/types.ts'
@@ -374,18 +374,19 @@ const represented = (s, text) => s.native
     ? cat(['Some(', loadLiteral(s, text), ')'])
     : code(`Some(${str(unwrap(stringLiteral(text)))})`)
 
-/** @type {(s: _Context, fn: PreparedFunction) => boolean} */
-const isStaticClosure = (s, fn) => s.moduleInit === true && s.names !== undefined && mapHas(s.names.staticFunctions, fn)
+/** @type {(s: _Context, fn: PreparedFunction) => _StaticBindings | undefined} */
+const staticFrame = (s, fn) => s.moduleInit === true && s.names !== undefined ? mapGet(s.names.staticFunctions, fn) : undefined
 
 /** One callable's explicit invocation environment. @type {(s: _Context, fn: PreparedFunction) => _Context} */
 const closureContext = (s, fn) => {
-    const held = s.runtime === null || isStaticClosure(s, fn) ? null : `A::frame(_self)[${num(`${fn.captures.length}`)}]`
+    const captures = staticFrame(s, fn)
+    const held = s.runtime === null || captures !== undefined ? null : `A::frame(_self)[${num(`${fn.captures.length}`)}]`
     const bindings = [
         ...fn.parameters.map((id, i) => /** @type {const} */ ([id, argRead(i)])),
         ...fn.captures.map((c, i) => /** @type {const} */ ([c.binding, cat([['A::frame', s.native ? [['vm', 'IVm']] : []], `(_self)[${num(`${i}`)}].clone()`])])),
         ...(fn.self === null ? [] : [/** @type {const} */ ([fn.self, cat([vm('Function'), '::new(_self.clone())', toAny])])]),
     ]
-    return { ...s, moduleInit: false, runtime: held, bindings }
+    return { ...s, moduleInit: false, runtime: held, bindings, captures }
 }
 
 /** The concrete VM needs the trait in scope for its associated functions. @type {(s: _Context) => Printed<string>} */
@@ -394,17 +395,18 @@ const staticFunction = s => [s.native ? 'A::function_with_text' : 'A::static_fun
 /** Block transfers use the targets already selected by preparation. @type {(s: _Context, b: Block, result: boolean, functionBody?: boolean, valueBlock?: boolean) => Result<Printed<readonly string[]>, readonly unknown[]>} */
 const block = (s, b, result, functionBody = false, valueBlock = false) => ok(/** @type {Printed<readonly string[]>} */ (mapGet(/** @type {NonNullable<_Context['ready']>} */ (s.ready)[Number(2 + (result ? 1 : 0) + (functionBody ? 2 : 0) + (valueBlock ? 4 : 0))], b)))
 
-/** @type {(s: _Context, id: BindingId) => string} */
-const functionName = (s, id) => `FUNCTION_${binding(s, id).slice(2).toUpperCase()}`
+/** @type {(s: _Context, ref: _Descriptor) => string} */
+const descriptorName = (s, ref) => `${ref.kind.toUpperCase()}_${binding(s, ref.id).slice(2).toUpperCase()}`
 
-/** @type {(s: _Context, id: BindingId) => Printed<string>} */
-const functionItem = (s, id) => cat([vm('StaticAny'), `::Function(&${functionName(s, id)})`])
+/** @type {(s: _Context, ref: _Descriptor) => Printed<string>} */
+const descriptorItem = (s, ref) => cat([vm('StaticAny'), `::${ref.kind}(&${descriptorName(s, ref)})`])
 
-/** @type {(known: PersistentMap<BindingId, BindingId>, value: Value) => BindingId | undefined} */
-const referencedFunction = (known, value) => value instanceof Array && value[0] === 'ref' ? mapGet(known, value[1]) : undefined
+/** @type {(known: _StaticBindings, value: Value) => _Descriptor | undefined} */
+const referenced = (known, value) => value instanceof Array && value[0] === 'ref' ? mapGet(known, value[1]) : undefined
 
-/** @type {(s: _Context, st: Statement) => PreparedFunction | null} */
-const namedFunction = (s, st) => st[0] === 'define' && st[2] instanceof Array && st[2][0] === 'function' && isStaticClosure(s, st[2][1]) ? st[2][1] : null
+/** @type {(s: _Context, st: Statement) => _Descriptor | undefined} */
+const namedDescriptor = (s, st) => s.moduleInit && s.names !== undefined && st[0] === 'define' && st[2] instanceof Array && (st[2][0] === 'function' || st[2][0] === 'object')
+    ? mapGet(s.names.staticBindings, st[1]) : undefined
 
 /** @type {(s: _Context, fn: PreparedFunction) => Result<Printed<string>, readonly unknown[]>} */
 const functionBody = (s, fn) => {
@@ -415,17 +417,17 @@ const functionBody = (s, fn) => {
 /** @type {(s: _Context, fn: PreparedFunction, name: string) => Result<Printed<string>, readonly unknown[]>} */
 const functionDeclaration = (s, fn, name) => {
     const names = /** @type {_Names} */ (s.names)
-    const frame = /** @type {readonly BindingId[]} */ (mapGet(names.staticFunctions, fn))
+    const frame = /** @type {_StaticBindings} */ (mapGet(names.staticFunctions, fn))
     const id = mapGet(names.literals, s.text(fn))
     return flat(map1(body => cat([`${kw('static')} ${name}: `, vm('StaticFunction'),
         `<A> = StaticFunction { code: |_self, _args| ${body}, length: ${num(`${fn.parameters.length}`)}, frame: &`, vm('StaticArray'), '(&[',
-        ...frame.flatMap((binding, i) => [i === 0 ? '' : ', ', functionItem(s, binding)]),
+        ...fn.captures.flatMap((c, i) => [i === 0 ? '' : ', ', descriptorItem(s, /** @type {_Descriptor} */ (mapGet(frame, c.binding)))]),
         `]), text: Some(&LITERAL_${id}) };`]))(functionBody(s, fn)))
 }
 
 /** @type {(s: _Context, fn: PreparedFunction) => Result<Printed<string>, readonly unknown[]>} */
 const closure = (s, fn) => {
-    if (isStaticClosure(s, fn)) {
+    if (staticFrame(s, fn) !== undefined) {
         return flat(map1(decl => cat([`{ ${decl} `, vm('Function'), '::from_static(&VALUE)', toAny, ' }']))(functionDeclaration(s, fn, 'VALUE')))
     }
     const captured = fn.captures.map(c => expression(s, c.value, false))
@@ -452,21 +454,32 @@ const array = (s, values, result = false) => {
         : flat(map1((/** @type {readonly string[]} */ items) => cat([`[${items.join(', ')}]`, toArray, toAny]))(all(values.map(v => expression(s, /** @type {Value} */ (v), false))))))
 }
 
-/** @type {(s: _Context, entries: readonly (readonly [':', Value, Value] | readonly ['...', Value])[]) => Result<Printed<string>, readonly unknown[]>} */
-const object = (s, entries) => {
-    const fields = s.moduleInit ? entries.flatMap(e => {
+/** @type {(entries: readonly Entry<Value>[], known: _StaticBindings) => _Fields | null} */
+const staticFields = (entries, known) => {
+    const fields = entries.flatMap(/** @returns {_Fields} */ e => {
         if (e[0] !== ':' || typeof e[1] !== 'string') { return [] }
         const value = e[2]
-        if (!(value instanceof Array)) { return [/** @type {const} */ ([e[1], staticItem(s, value)])] }
-        const id = referencedFunction(/** @type {_Names} */ (s.names).functionBindings, value)
-        return id === undefined ? [] : [/** @type {const} */ ([e[1], functionItem(s, id)])]
-    }) : null
-    if (fields !== null && fields.length === entries.length) {
-        // Keep the last value at each key's first position and enumerate index keys first.
-        const properties = Object.entries(Object.fromEntries(fields))
-        return ok(cat([`{ ${kw('static')} VALUE: `, vm('StaticObject'), '<A> = StaticObject(&[',
-            ...properties.flatMap(([k, v], i) => [i === 0 ? '(' : ', (', `&LITERAL_${mapGet(/** @type {_Names} */ (s.names).literals, k)}, `, v, ')']),
-            ']); ', vm('Object'), '::from_static(&VALUE)', toAny, ' }']))
+        if (!(value instanceof Array)) { return [/** @type {const} */ ([e[1], value])] }
+        const ref = referenced(known, value)
+        return ref?.kind === 'Function' ? [/** @type {const} */ ([e[1], ref])] : []
+    })
+    return fields.length === entries.length ? fields : null
+}
+
+/** @type {(s: _Context, name: string, fields: _Fields) => Printed<string>} */
+const objectDeclaration = (s, name, fields) => {
+    // Keep the last value at each key's first position and enumerate index keys first.
+    const properties = Object.entries(Object.fromEntries(fields))
+    return cat([`${kw('static')} ${name}: `, vm('StaticObject'), '<A> = StaticObject(&[',
+        ...properties.flatMap(([k, v], i) => [i === 0 ? '(' : ', (', `&LITERAL_${mapGet(/** @type {_Names} */ (s.names).literals, k)}, `,
+            typeof v === 'object' && v !== null ? descriptorItem(s, v) : staticItem(s, v), ')']), ']);'])
+}
+
+/** @type {(s: _Context, entries: readonly Entry<Value>[]) => Result<Printed<string>, readonly unknown[]>} */
+const object = (s, entries) => {
+    const fields = s.moduleInit ? staticFields(entries, /** @type {_Names} */ (s.names).staticBindings) : null
+    if (fields !== null) {
+        return ok(cat(['{ ', objectDeclaration(s, 'VALUE', fields), ' ', vm('Object'), '::from_static(&VALUE)', toAny, ' }']))
     }
     if (entries.length === 0) { return ok(cat([vm('Object'), '::default()', toAny])) }
     const spread = entries.some(e => e[0] === '...' || typeof e[1] !== 'string')
@@ -513,6 +526,16 @@ const argumentThunk = (s, values) => map1(text => `|| ${text}`)(array(s, values,
 
 /** Member/call continuation spelling follows its already resolved chain scope. @type {(s: _Context, step: Step<Value> | undefined, property: boolean, member: boolean) => Result<Printed<string>, readonly unknown[]>} */
 const steps = (s, step, property, member) => ok(/** @type {Printed<string>} */ (mapGet(/** @type {NonNullable<_Context['ready']>} */ (s.ready)[Number(11 + (property ? 1 : 0) + (member ? 2 : 0))], step)))
+
+/** An immutable object's own literal key wins before runtime member dispatch.
+ * @type {(s: _Context, n: Operator<Value>) => readonly Item<Value>[] | undefined} */
+const ownCallArgs = (s, n) => {
+    if (s.captures === undefined || n[0] !== '.' || typeof n[2] !== 'string') { return undefined }
+    const step = /** @type {Step<Value> | undefined} */ (n[3])
+    if (step?.length !== 2 || (step[0] !== '|()' && step[0] !== '|!()')) { return undefined }
+    const ref = referenced(s.captures, n[1])
+    return ref?.kind === 'Object' && ref.fields.some(([key]) => key === n[2]) ? step[1] : undefined
+}
 
 /** The target's runtime operation spelling; no placement or graph walk occurs here. @type {(s: _Context, n: Operator<Value>, result: boolean) => Result<Printed<string>, readonly unknown[]>} */
 const operation = (s, n, result) => {
@@ -575,6 +598,10 @@ const operation = (s, n, result) => {
             const open = tag === '.' ? map2((v, k) => `Any::dot(${v}, ${k})`)(expression(s, n[1], false), key(s, /** @type {Key<Value>} */ (n[2])))
                 : tag === '?.' ? map2((v, k) => `Any::option_dot(${v}, ${k})`)(expression(s, n[1], false), keyThunk(s, /** @type {Key<Value>} */ (n[2])))
                 : map2((v, args) => `Any::option_call(${v}, ${args})`)(expression(s, n[1], false), argumentThunk(s, /** @type {readonly (Value | readonly ['...', Value])[]} */ (n[2])))
+            const args = ownCallArgs(s, n)
+            if (args !== undefined) {
+                return map1(fallible(result))(map2((start, thunk) => `${start}.end_call_native(${thunk})`)(open, argumentThunk(s, args)))
+            }
             return map1(fallible(result))(map2((start, rest) => `${start}${rest}`)(open, steps(s, /** @type {Step<Value> | undefined} */ (n[3]), tag === '.', tag !== '?.()')))
         }
         case 'instanceof': { return map1(fallible(result))(flat(map1(v => cat([`Any::instanceof_(&${v}, `, vm('Constructor'), `::${n[2]})`]))(inspectionOperand(s, n[1])))) }
@@ -679,11 +706,13 @@ const declaration = (name, mutable, value) => map1(text => `${kw('let')} ${mutab
 /** @type {(s: _Context, st: Statement) => Result<Printed<readonly string[]>, readonly unknown[]>} */
 const statementReady = (s, st) => {
     if (st[0] === 'define' && s.ownership !== undefined && mapHas(s.ownership.aliases, st[1])) { return ok(code([])) }
-    const fn = namedFunction(s, st)
-    if (fn !== null && st[0] === 'define') {
-        const name = functionName(s, st[1])
-        return map2((decl, local) => [decl, local])(functionDeclaration(s, fn, name),
-            declaration(binding(s, st[1]), false, ok(cat([vm('Function'), `::from_static(&${name})`, toAny]))))
+    const ref = namedDescriptor(s, st)
+    if (ref !== undefined) {
+        const name = descriptorName(s, ref)
+        const decl = ref.kind === 'Object' ? ok(objectDeclaration(s, name, ref.fields))
+            : functionDeclaration(s, ref.fn, name)
+        return map2((item, local) => [item, local])(decl,
+            declaration(binding(s, ref.id), false, ok(cat([vm(ref.kind), `::from_static(&${name})`, toAny]))))
     }
     switch (st[0]) {
         case 'define': case 'slot': { return map1(text => [text])(declaration(binding(s, st[1]), st[0] === 'slot' && st[3], expression(s, st[2], false))) }
@@ -770,7 +799,11 @@ const operationTasks = (context, n, result) => {
         case 'object': { return n[1].flatMap(e => e[0] === '...' ? [valueTask(context, e[1])] : [valueTask(context, e[1]), valueTask(context, e[2])]) }
         case '()': { return [valueTask(context, n[1]), ...itemTasks(context, n[2])] }
         case 'memberPresent': { return [valueTask(context, n[1]), valueTask(context, n[2])] }
-        case '.': case '?.': { return [valueTask(context, n[1]), valueTask(context, n[2]), stepTask(context, /** @type {Step<Value> | undefined} */ (n[3]), n[0] === '.', true)] }
+        case '.': case '?.': {
+            const args = ownCallArgs(context, n)
+            return [valueTask(context, n[1]), valueTask(context, n[2]), ...(args === undefined
+                ? [stepTask(context, /** @type {Step<Value> | undefined} */ (n[3]), n[0] === '.', true)] : itemTasks(context, args))]
+        }
         case '?.()': { return [valueTask(context, n[1]), ...itemTasks(context, n[2]), stepTask(context, /** @type {Step<Value> | undefined} */ (n[3]), false, false)] }
         case 'instanceof': { return [valueTask(context, n[1])] }
         case 'in': { return [valueTask(context, n[2])] }
@@ -810,8 +843,12 @@ const children = task => {
         }
         case 'statement': {
             const st = task.statement
-            const fn = namedFunction(s, st)
-            if (fn !== null) { return [blockTask(closureContext(s, fn), fn.body, true, true)] }
+            const ref = namedDescriptor(s, st)
+            if (ref !== undefined) {
+                if (ref.kind === 'Object') { return [] }
+                const fn = ref.fn
+                return [blockTask(closureContext(s, fn), fn.body, true, true)]
+            }
             switch (st[0]) {
                 case 'define': case 'slot': case 'write': { return [valueTask({ ...s, owner: st }, st[2])] }
                 case 'memo': { return [blockTask({ ...s, moduleInit: false }, st[1].initializer, false, false, true)] }
@@ -963,10 +1000,10 @@ const namesOf = root => {
     let loops = null
     /** @type {PersistentMap<string | bigint, number>} */
     let literals = empty
-    /** @type {PersistentMap<PreparedFunction, readonly BindingId[]>} */
+    /** @type {PersistentMap<PreparedFunction, _StaticBindings>} */
     let staticFunctions = empty
-    /** @type {PersistentMap<BindingId, BindingId>} */
-    let functionBindings = empty
+    /** @type {_StaticBindings} */
+    let staticBindings = empty
     while (pending !== null) {
         /** @type {NonNullable<Stack<_Task>>} */
         const { top, rest } = pending
@@ -976,15 +1013,21 @@ const namesOf = root => {
                 const owner = top.context.owner
                 const def = owner?.[0] === 'define' && owner[2] === v ? owner[1] : null
                 if (v[0] === 'function') {
-                    const known = functionBindings
-                    const frame = v[1].captures.flatMap(({ value }) => referencedFunction(known, value) ?? [])
-                    if (frame.length === v[1].captures.length && !bodyNeedsRuntime(top.context, v[1])) {
+                    const known = staticBindings
+                    const frame = fromEntries(v[1].captures.flatMap(({ binding, value }) => {
+                        const ref = referenced(known, value)
+                        return ref === undefined ? [] : [/** @type {const} */ ([binding, ref])]
+                    }))
+                    if (size(frame) === v[1].captures.length && !bodyNeedsRuntime({ ...top.context, captures: frame }, v[1])) {
                         staticFunctions = mapSet(staticFunctions, v[1], frame)
-                        if (def !== null) { functionBindings = mapSet(functionBindings, def, def) }
+                        if (def !== null) { staticBindings = mapSet(staticBindings, def, { kind: 'Function', id: def, fn: v[1] }) }
                     }
+                } else if (def !== null && v[0] === 'object') {
+                    const fields = staticFields(v[1], staticBindings)
+                    if (fields !== null) { staticBindings = mapSet(staticBindings, def, { kind: 'Object', id: def, fields }) }
                 } else if (def !== null && v[0] === 'ref') {
-                    const source = mapGet(functionBindings, v[1])
-                    if (source !== undefined) { functionBindings = mapSet(functionBindings, def, source) }
+                    const source = mapGet(staticBindings, v[1])
+                    if (source !== undefined) { staticBindings = mapSet(staticBindings, def, source) }
                 }
             }
             for (const value of instructionLiterals(top)) {
@@ -996,7 +1039,7 @@ const namesOf = root => {
         pending = pushAll(children(top), rest)
     }
     return {
-        literals, staticFunctions, functionBindings,
+        literals, staticFunctions, staticBindings,
         bindings: identityNames(setValues(fromValues(listToArray(bindings).toReversed().flat())), '_b'),
         loops: identityNames(setValues(fromValues(listToArray(loops).toReversed().flat())), '_loop'),
     }

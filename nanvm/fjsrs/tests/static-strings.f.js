@@ -19,6 +19,9 @@ export const right = /** @type {const} */ ({})
 export const id = x => x
 export const idAlias = id
 export const functionTable = /** @type {const} */ ({ f: id, alias: idAlias })
+const tableAlias = functionTable
+export const readTable = () => tableAlias
+export const callTable = () => tableAlias.f(7)
 export const freshTable = () => ({ f: id })
 export const capturedId = () => idAlias
 export const capturedWrapper = () => capturedId

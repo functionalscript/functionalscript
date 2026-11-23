@@ -169,6 +169,18 @@ fn static_object_members_share_the_exported_function() {
     let module = load();
     let table = module.own_property(&"functionTable".into()).unwrap();
     assert_eq!(load().own_property(&"functionTable".into()).unwrap(), table);
+    let reload = load();
+    for (key, expected) in [("readTable", table.clone()), ("callTable", 7.0.to_any())] {
+        let wrapper = module.own_property(&key.into()).unwrap();
+        assert_eq!(wrapper, reload.own_property(&key.into()).unwrap());
+        assert_eq!(
+            Function::try_from(wrapper)
+                .unwrap()
+                .call([].to_array())
+                .unwrap(),
+            expected
+        );
+    }
     let table = nanvm_lib::vm::Object::try_from(table).unwrap();
     let id = module.own_property(&"id".into()).unwrap();
     for key in ["f", "alias"] {
