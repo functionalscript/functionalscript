@@ -13,7 +13,7 @@ import { any, l0, string } from '../../l0/module.f.js'
 import { native as rows } from '../../native/module.f.js'
 import { add, bool, call, constant, f64, f64c, false_, get, int, let_, lit, loop, lt, match, n, only, sealed, sub, trap, true_, u } from '../../module.f.js'
 import {
-    asAny, boolean, depthAfter, floats, inOrder, isAny, isFloat, nativeRow, numberOps, numberPath, numberRow, numeric, primitive,
+    asAny, boolean, depthAfter, floats, inOrder, isAny, isFloat, nativeRow, numberOps, numbered, numberPath, numberRow, numeric, primitive,
 } from './module.f.js'
 
 /** A scope of the lowering at a depth, with locals of these types. @type {(depth: number, locals: readonly Param[]) => _Scope} */
@@ -113,6 +113,13 @@ export const proof = {
         assertEq(isAny(f64), false)
     },
     numberOps: () => assertEq(numberOps.includes('add') && !numberOps.includes('concat'), true),
+    numbered: () => {
+        assertEq(numbered('remainder', [any, any]), true)
+        assertEq(numbered('strictEquals', [any, f64c]), true)
+        assertEq(numbered('strictEquals', [f64, any]), true)
+        assertEq(numbered('strictEquals', [any, any]), false)
+        assertEq(numbered('concat', [any, f64c]), false)
+    },
     // The depth after `#k` that a `let`, a loop or a match binds, at any depth; other names do not count.
     depthAfter: () => {
         assertEq(depthAfter(get('x')), 0)

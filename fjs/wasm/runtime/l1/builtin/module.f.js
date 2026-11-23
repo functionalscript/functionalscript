@@ -19,18 +19,9 @@ import {
     ARRAY, NULL, OBJECT, STRING, UNDEFINED,
     asArray, asString, buildArray, find, fromUnit, item, join, key, kind, length, substring, unit,
 } from '../../l0/module.f.js'
-import { stringIndex, toNumber, toPropertyKey } from '../module.f.js'
+import { stringIndex, toIntegerOrInfinity, toNumber, toPropertyKey } from '../module.f.js'
 import { error } from '../error/module.f.js'
 import { numberToString } from '../native/module.f.js'
-
-/**
- * [`ToIntegerOrInfinity`](https://tc39.es/ecma262/#sec-tointegerorinfinity)
- * of a number: `0` for `NaN`, an infinity as it is, anything else
- * truncated toward zero.
- *
- * @type {(x: number) => number}
- */
-const integer = x => x !== x ? 0 : x === Infinity || x === -Infinity ? x : x - x % 1
 
 /**
  * [`String.prototype.charCodeAt`](https://tc39.es/ecma262/#sec-string.prototype.charcodeat):
@@ -41,7 +32,7 @@ const integer = x => x !== x ? 0 : x === Infinity || x === -Infinity ? x : x - x
  */
 export const charCodeAt = (s, at) => {
     const n = length(asString(s))
-    const p = integer(toNumber(at))
+    const p = toIntegerOrInfinity(toNumber(at))
     return p >= 0 && p < n ? unit(s, p) : NaN
 }
 
@@ -53,7 +44,7 @@ export const charCodeAt = (s, at) => {
  * @type {(x: number, n: number) => number}
  */
 const position = (x, n) => {
-    const p = integer(x)
+    const p = toIntegerOrInfinity(x)
     return p < 0 ? (n + p < 0 ? 0 : n + p) : (p < n ? p : n)
 }
 
@@ -77,7 +68,7 @@ export const slice = (s, start, end) => {
  * @type {(x: number) => number}
  */
 const uint16 = x => {
-    const m = x === Infinity || x === -Infinity ? 0 : integer(x) % 0x1_0000
+    const m = x === Infinity || x === -Infinity ? 0 : toIntegerOrInfinity(x) % 0x1_0000
     return m < 0 ? m + 0x1_0000 : m + 0
 }
 

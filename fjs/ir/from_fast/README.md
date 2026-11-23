@@ -389,7 +389,8 @@ const program = unwrap(lower({}, { ...l1Runtime(errors), l1 })(fast, imports))
 | a condition, of `?:`, `if`, `&&`, `\|\|` and `??`, that is not a `bool` | `l1.toBoolean` of it |
 | `o.k`, `o[0]`, of `any`, a float or a boolean | `l1.get` |
 | `o?.k` and the steps after it | a `match` of `o`: `undefined` where it is `undefined` or `null`, which short-circuits the whole chain, and the read and the steps of `o.value` else |
-| `o.f(x)` | `(o.f)(x)`: FunctionalScript has no `this` |
+| `o.charCodeAt(x)`, `o.at(x)`, `o.every(x)`, `o.filter(x)`, of a receiver of `any`, a float or a boolean | `l1.charCodeAt(o, x)`, `l1.at`, `l1.every`, `l1.filter`, which answer JavaScript's for a string or an array and call `o`'s own member otherwise; `l1.requireObjectCoercible(o)` first where `o` may be `undefined` or `null` and `x` is no literal, binding or arrow; refused with other than one argument |
+| `o.f(x)` of any other method | `(o.f)(x)`: FunctionalScript has no `this` |
 | `f(x)` of a value that may be no function | `l1.call(f, args)`, which throws where JavaScript throws; of a function, `Functions.call` |
 | a value that a function answers, arms of two other types, an argument of an untyped export | boxed as `any` |
 

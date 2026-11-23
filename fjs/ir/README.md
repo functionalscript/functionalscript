@@ -8,8 +8,8 @@ stages.
 
 It is built in vertical slices, from the least risky to the most
 ([todo/slices.md](./todo/slices.md) — roadmap of done, next and later).
-This directory holds the first ten:
-typed code written by hand, the same code lowered from normalized FAST
+This directory holds all twelve, and the work after them that the
+[roadmap](./todo/slices.md#after-slice-12) lists: typed code written by hand, the same code lowered from normalized FAST
 ([`from_fast`](./from_fast/README.md)), values of unknown kind, read
 through [the interfaces of L0](./l0/module.f.js), loops, functions that a
 module does not export, with records and
@@ -31,7 +31,13 @@ call of a function value, with L1's coercions and `call` (9b3). Slice
 10 lowers L1's `get` (10a), its arithmetic and relational operators
 (10b), and the whole L1 module as one, run on the parity table (10c).
 Then Any's copy variants leave the counts of `undefined`, `null` and
-`boolean` out.
+`boolean` out. Slice 11 lowers whole programs with no signature table:
+their operators and member reads through L1, linked into the same module
+(11a), closures (11b), and spread and rest parameters (11c). Slice 12 runs
+every host proof on NaNVM built as a `.wasm`: the host (12a), a misuse's
+text (12b), L1's native rows in Rust (12c) and the table that the loader
+makes (12d). After them, the records pass and the number paths make
+programs faster, and a program's module functions may call themselves.
 
 ## Map of this directory
 
@@ -201,8 +207,9 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
 - **`init`** ([L0 design §20](../../doc/sasha-gil/wasm/l0-design.md#20-a-program-is-one-module-with-an-init-export)):
   a module with constants exports `init`, which sets each constant's
   global in their order, and no function of a module may have that name.
-  The host calls it before anything else. It answers nothing yet: the
-  program's value that L0's `init` answers waits for programs.
+  The host calls it before anything else. It answers nothing: a program
+  is called by its named exports, and L0 §20's `init`, which answers the
+  main module's default export, is not built yet.
 - **Constants on the host**: the [counting host](./l0/host/count/module.mjs)
   makes Any's four constants as cells `-1` to `-4`, each counted once for
   its global, and keeps what `init` makes, since nothing drops a constant.
@@ -290,8 +297,9 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   a float that holds no integer, a trap unless it is given.
 - **Only an array's** (until 10a): a receiver of any other kind was refused,
   since `get` throws for `undefined` and `null` and reads an object or a
-  string by a string. Slice 10a opens those through L1's `get`. So is a
-  member read that goes on to a call.
+  string by a string. Slice 10a opens those through L1's `get`. So was a
+  member read that goes on to a call, until 11a lowers `o.f(x)` in a
+  program.
 - **L1's `typeOf`**, lowered from its text: `typeNames` is a constant that
   `init` builds, and `typeOf` reads it at `kind(v)`. It runs against L1's
   own on values of every kind, and four FunctionalScript functions of
@@ -412,8 +420,8 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   values (`any.only(function)`).
 - **`Functions.make_function`**: the interface row
   ([L0 design §12](../../doc/sasha-gil/wasm/l0-design.md#12-functions-a-code-index-a-frame-a-length-and-a-text));
-  a host that builds a function from an IR `code` waits for slice 11. This
-  host takes the owned frame and text and traps.
+  a host that builds a function from an IR `code` waited for slice 11.
+  Until 11b this host took the owned frame and text and trapped.
 
 ## What 9b3 adds
 
@@ -433,7 +441,7 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
 - **A member or index of sealed `any`** is a call of the module's `get`
   where the signature table names it. 6f's array-at-number specialization
   stays. Without `get` in the table, that read is still refused. A member
-  read that goes on to a call stays refused.
+  read that goes on to a call stays refused outside a program (11a).
 
 ## What 10b adds
 
@@ -521,8 +529,8 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   The [NaNVM host](./l0/host/nanvm/module.mjs) makes what NaNVM cannot
   export: Any's constants and `data_base`, a region that NaNVM's
   `reserve` gives. NaNVM runs a function's code index through an adapter
-  module, a `call_indirect` into a table that the loader fills from the
-  module's `table`, and a JavaScript function that a proof passes from an
+  module, a `call_indirect` into a table that the loader filled from the
+  module's `table` until 12d, and a JavaScript function that a proof passes from an
   index past it.
 - **Every host proof on NaNVM**: [`wasm/testlib.mjs`](./wasm/testlib.mjs)'s
   `onHost` swaps the host that `run` makes, and
@@ -584,11 +592,36 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   are numbers, boxed with `from_f64` where it is a float. Only otherwise
   does it call L1, where a float is boxed. `s.i < n` with `s.i` a float
   is 2 L0 calls, not 8. An operand that may hold no number, a bigint or a
-  string say, calls L1 alone. The path is
+  string say, calls L1 alone. `%`, `>>` and `&` take the same path, to
+  L1's native rows of numbers, and so do `===` and `!==` where an operand
+  is a float, as in `x === 1`, which `eq` answers: collatz below 30,000
+  on NaNVM's `.wasm` went from 1.37 s to 0.66 s. `===` of two values of
+  `any` calls L1 alone. The path is
   [`from_fast/numbers`](./from_fast/numbers/module.f.js).
+- **`.length` of `any` is read in place**: in a program, `x.length` of a
+  value of `any` that may be an array or a string matches it once and
+  reads Containers' or String's `length`, and calls L1's `get` only for
+  the other kinds, which would compare its key with `"length"` unit by
+  unit. The read is [`from_fast/reads`](./from_fast/reads/module.f.js).
+- **A boxed number literal is made once**: a program's functions read
+  each number that they box as `any`, as `l1.strictEquals(x, 1)` does on
+  the slow path, from a constant of the module, `#n0` first, which `init`
+  boxes once, instead of a `from_f64` and a `drop` at each use. The pass
+  is [`from_fast/literals`](./from_fast/literals/module.f.js), and runs
+  last.
 - **A read of a split local is that local**: the records pass writes no
   `let` for a `let` of a read of a split object, so the lifetime pass
   copies nothing for it.
+
+## What recursive helpers add
+
+- **A module function that calls itself** (#4059): in a program, one that
+  calls itself, not last, and that the module does not export is a
+  function of the IR, `#h0`, `#h1`, … in the order of its definitions, of
+  `any` alone, as an untyped export is
+  ([lowering](./from_fast/README.md#functions-that-the-module-does-not-export)).
+  It is lowered only where something calls it. Outside a program the
+  refusal stays.
 
 ## What every slice refuses
 

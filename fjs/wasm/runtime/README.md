@@ -20,4 +20,5 @@ Every body runs on a JavaScript host, so each layer is proved before WASM
 runs it. [`fjs/ir`](../../ir/README.md), the code IR and its WASM
 backend, compiles L1's bodies a slice at a time
 ([todo/slices.md](../../ir/todo/slices.md)) and runs each as WASM against
-its body here, over a JavaScript host of the L0 imports.
+its body here, over a JavaScript host of the L0 imports, and since
+slice 12 over NaNVM built as a `.wasm`.
