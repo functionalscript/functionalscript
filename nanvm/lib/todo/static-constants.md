@@ -155,6 +155,7 @@ and the same data is a data segment in WebAssembly.
 - [x] Emit static objects with properties that refer to named static objects and their aliases.
 - [x] Emit native module-level arrays with entries that refer to named static functions and objects.
 - [x] Reuse named native static arrays and their aliases in arrays, objects, and function frames.
+- [x] Emit native static function frames with primitive captures and immutable aliases.
 - [ ] Extend static containers to composite members and function frames to other static values.
 - [ ] Have the Rust serializer write constants as statics.
 

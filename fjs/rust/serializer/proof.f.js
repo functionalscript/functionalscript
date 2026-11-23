@@ -35,7 +35,7 @@ const print = (statements, end) => unwrap(scopeTagged({ statements, exit: ['yiel
 export const proof = {
     nativeOwnership: () => {
         /** @type {Block['statements']} */
-        const aliases = [['define', x, 1], ['define', y, ['ref', x]]]
+        const aliases = [['define', x, ['+', 1]], ['define', y, ['ref', x]]]
         const inspected = print([...aliases, ['define', rest, ['if', ['ref', y], yielding([['ref', x]]), yielding([null])]]], ['ref', rest])
         assert(inspected.includes('if Any::<A>::to_boolean(&_b0) { _b0.clone() }'))
         const once = print([...aliases, ['define', rest, ['array', [['ref', y]]]]], ['ref', rest])
@@ -53,7 +53,7 @@ export const proof = {
         assert(later.includes('[_b0.clone()]'))
         const slot = print([['slot', x, 1, true], ['define', y, ['ref', x]], ['write', x, 2]], ['ref', y])
         assert(slot.includes('let _b1: Any<A> = _b0.clone();'))
-        const memo = print([['define', x, 1], ['memo', { binding: y, valueSlot: { index: 3 }, doneSlot: { index: 4 }, initializer: yielding([['ref', x]]) }], ['define', rest, ['array', [['ref', x]]]]], ['demand', y])
+        const memo = print([['define', x, ['+', 1]], ['memo', { binding: y, valueSlot: { index: 3 }, doneSlot: { index: 4 }, initializer: yielding([['ref', x]]) }], ['define', rest, ['array', [['ref', x]]]]], ['demand', y])
         assert(memo.includes('[_b0.clone()]'))
         const call = print([...aliases, ['define', rest, ['()', ['ref', y], []]]], ['ref', rest])
         assert(call.includes('Any::call(_b0,'))
@@ -101,7 +101,19 @@ export const proof = {
         assert(rust.includes('frame: &StaticArray(&[StaticAny::Function(&FUNCTION_0)])'))
         assert(rust.includes('frame: &StaticArray(&[StaticAny::Function(&FUNCTION_2), StaticAny::Function(&FUNCTION_0)])'))
         const mixed = print(defs, arrow([['ref', x], 1]))
-        assert(mixed.includes('A::function_with_text'))
+        assert(mixed.includes('frame: &StaticArray(&[StaticAny::Function(&FUNCTION_0), StaticAny::Number(f64::from_bits(0x3ff0000000000000))])'))
+        const dynamic = print(defs, arrow([['ref', x], ['+', 1]]))
+        assert(dynamic.includes('A::function_with_text'))
+    },
+    nativePrimitiveFrames: () => {
+        /** @type {Block['statements']} */
+        const defs = [['define', x, undefined], ['define', y, ['ref', x]]]
+        /** @type {readonly Value[]} */
+        const values = ['very long string', 0x10000000000000002n, ['ref', y], -0, 'very long string', 0x10000000000000002n, null, true]
+        const captures = values.map((value, i) => ({ binding: { index: i + 8 }, value }))
+        const rust = print(defs, ['function', { ...fn, captures, body: yielding([['ref', captures[0].binding]]) }])
+        assert(rust.includes('frame: &StaticArray(&[StaticAny::String(&LITERAL_1), StaticAny::BigInt(&LITERAL_2), StaticAny::Nullish(Nullish::Undefined), StaticAny::Number(f64::from_bits(0x8000000000000000)), StaticAny::String(&LITERAL_1), StaticAny::BigInt(&LITERAL_2), StaticAny::Nullish(Nullish::Null), StaticAny::Boolean(true)])'))
+        assert(rust.includes('A::frame(_self)[0].clone()'))
     },
     nativeObjectFrames: () => {
         /** @type {Block['statements']} */

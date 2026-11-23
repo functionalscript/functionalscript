@@ -13,7 +13,7 @@ export type _Descriptor =
     | { readonly kind: 'Array'; readonly id: BindingId; readonly items: readonly _StaticValue[] }
     | { readonly kind: 'Function'; readonly id: BindingId; readonly fn: Function }
     | { readonly kind: 'Object'; readonly id: BindingId; readonly fields: _Fields }
-export type _StaticBindings = PersistentMap<BindingId, _Descriptor>
+export type _StaticBindings = PersistentMap<BindingId, _StaticValue>
 
 export type _Context = Options & {
     readonly captures?: _StaticBindings | undefined

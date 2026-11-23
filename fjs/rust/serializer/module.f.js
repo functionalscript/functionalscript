@@ -382,9 +382,12 @@ const descriptorName = (s, ref) => `${ref.kind.toUpperCase()}_${binding(s, ref.i
 /** @type {(s: _Context, ref: _Descriptor) => Printed<string>} */
 const descriptorItem = (s, ref) => cat([vm('StaticAny'), `::${ref.kind}(&${descriptorName(s, ref)})`])
 
+/** @type {(v: _StaticValue) => v is _Descriptor} */
+const isDescriptor = v => typeof v === 'object' && v !== null
+
 /** @type {(s: _Context, v: _StaticValue) => Printed<string>} */
 const staticItem = (s, v) => {
-    if (typeof v === 'object' && v !== null) { return descriptorItem(s, v) }
+    if (isDescriptor(v)) { return descriptorItem(s, v) }
     const item = vm('StaticAny')
     if (v === undefined || v === null) {
         return cat([item, '::Nullish(', vm('Nullish'), v === null ? '::Null)' : '::Undefined)'])
@@ -401,14 +404,11 @@ const arrayDeclaration = (s, name, values) => cat([`${kw('static')} ${name}: `, 
     ...values.flatMap((v, i) => [i === 0 ? '' : ', ', staticItem(s, v)]),
     ']);'])
 
-/** @type {(known: _StaticBindings, value: Item<Value>) => _Descriptor | undefined} */
-const referenced = (known, value) => value instanceof Array && value[0] === 'ref' ? mapGet(known, value[1]) : undefined
-
 /** @type {(s: _Context, st: Statement) => _Descriptor | undefined} */
 const namedDescriptor = (s, st) => {
     if (!s.moduleInit || s.names === undefined || st[0] !== 'define') { return undefined }
     const ref = mapGet(s.names.staticBindings, st[1])
-    return ref?.id === st[1] ? ref : undefined
+    return isDescriptor(ref) && ref.id === st[1] ? ref : undefined
 }
 
 /** @type {(s: _Context, fn: PreparedFunction) => Result<Printed<string>, readonly unknown[]>} */
@@ -424,7 +424,7 @@ const functionDeclaration = (s, fn, name) => {
     const id = mapGet(names.literals, s.text(fn))
     return flat(map1(body => cat([`${kw('static')} ${name}: `, vm('StaticFunction'),
         `<A> = StaticFunction { code: |_self, _args| ${body}, length: ${num(`${fn.parameters.length}`)}, frame: &`, vm('StaticArray'), '(&[',
-        ...fn.captures.flatMap((c, i) => [i === 0 ? '' : ', ', descriptorItem(s, /** @type {_Descriptor} */ (mapGet(frame, c.binding)))]),
+        ...fn.captures.flatMap((c, i) => [i === 0 ? '' : ', ', staticItem(s, mapGet(frame, c.binding))]),
         `]), text: Some(&LITERAL_${id}) };`]))(functionBody(s, fn)))
 }
 
@@ -461,8 +461,7 @@ const array = (s, values, result = false) => {
  * @type {(known: _StaticBindings, value: Item<Value>) => readonly _StaticValue[]} */
 const staticEntry = (known, value) => {
     if (!(value instanceof Array)) { return [value] }
-    const ref = referenced(known, value)
-    return ref === undefined ? [] : [ref]
+    return value[0] === 'ref' && mapHas(known, value[1]) ? [mapGet(known, value[1])] : []
 }
 
 /** @type {(items: readonly Item<Value>[], known: _StaticBindings) => readonly _StaticValue[] | null} */
@@ -548,8 +547,8 @@ const ownCallArgs = (s, n) => {
     if (s.captures === undefined || n[0] !== '.' || typeof n[2] !== 'string') { return undefined }
     const step = /** @type {Step<Value> | undefined} */ (n[3])
     if (step?.length !== 2 || (step[0] !== '|()' && step[0] !== '|!()')) { return undefined }
-    const ref = referenced(s.captures, n[1])
-    return ref?.kind === 'Object' && ref.fields.some(([key]) => key === n[2]) ? step[1] : undefined
+    const [ref] = staticEntry(s.captures, n[1])
+    return isDescriptor(ref) && ref.kind === 'Object' && ref.fields.some(([key]) => key === n[2]) ? step[1] : undefined
 }
 
 /** The target's runtime operation spelling; no placement or graph walk occurs here. @type {(s: _Context, n: Operator<Value>, result: boolean) => Result<Printed<string>, readonly unknown[]>} */
@@ -1033,16 +1032,20 @@ const namesOf = root => {
         /** @type {NonNullable<Stack<_Task>>} */
         const { top, rest } = pending
         if (root.context.native) {
+            if (top.context.moduleInit && top.kind === 'statement' && top.statement[0] === 'define') {
+                const [, id, value] = top.statement
+                for (const item of staticEntry(staticBindings, value)) {
+                    staticBindings = mapSet(staticBindings, id, item)
+                }
+            }
             const v = top.kind === 'value' ? top.value : null
             if (top.context.moduleInit && v instanceof Array) {
                 const owner = top.context.owner
                 const def = owner?.[0] === 'define' && owner[2] === v ? owner[1] : null
                 if (v[0] === 'function') {
                     const known = staticBindings
-                    const frame = fromEntries(v[1].captures.flatMap(({ binding, value }) => {
-                        const ref = referenced(known, value)
-                        return ref === undefined ? [] : [/** @type {const} */ ([binding, ref])]
-                    }))
+                    const frame = fromEntries(v[1].captures.flatMap(({ binding, value }) =>
+                        staticEntry(known, value).map(item => /** @type {const} */ ([binding, item]))))
                     if (size(frame) === v[1].captures.length && !bodyNeedsRuntime({ ...top.context, captures: frame }, v[1])) {
                         staticFunctions = mapSet(staticFunctions, v[1], frame)
                         if (def !== null) { staticBindings = mapSet(staticBindings, def, { kind: 'Function', id: def, fn: v[1] }) }
@@ -1053,9 +1056,6 @@ const namesOf = root => {
                 } else if (def !== null && v[0] === 'object') {
                     const fields = staticFields(v[1], staticBindings)
                     if (fields !== null) { staticBindings = mapSet(staticBindings, def, { kind: 'Object', id: def, fields }) }
-                } else if (def !== null && v[0] === 'ref') {
-                    const source = mapGet(staticBindings, v[1])
-                    if (source !== undefined) { staticBindings = mapSet(staticBindings, def, source) }
                 }
             }
             for (const value of instructionLiterals(top)) {
