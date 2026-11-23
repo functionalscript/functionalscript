@@ -163,7 +163,7 @@ proposes: from the frame, not from what slice 1 happens to make. With
 | `is_ref(x)` | `x & 0xFFF0_0000_0000_0003 == 0x7FF0_0000_0000_0002`, the README's `is_dyn_ref` |
 | `dup(x)` | `is_ref(x) ? dup_ref(x) : x` |
 | `drop(x)` | `if is_ref(x) then drop_ref(x)` |
-| `same(a, b)` | `a == b`, or `same_ref(a, b)` where both are references |
+| `same(a, b)` | `same_ref(a, b)` where either is a reference, else `a == b` |
 
 `kind` answers L0's numbering (undefined 0, null 1, boolean 2, number 3,
 string 4, bigint 5, array 6, object 7, function 8), not the README's
@@ -186,7 +186,9 @@ stays a checked call. A later slice can drop the check where the IR
 proves the reference is live.
 
 `same` calls NaNVM for two references because NaNVM's `dup` makes a new
-handle for the same value, so two boxes of one array can differ in bits.
+handle for the same value, so two boxes of one array can differ in bits. It
+calls NaNVM even when the bits are equal, so a dropped or forged
+reference traps, as `abi::same` does today.
 
 ## Checkpoints
 
