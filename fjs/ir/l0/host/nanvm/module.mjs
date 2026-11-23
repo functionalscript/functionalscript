@@ -10,7 +10,9 @@
  *   cannot export: `data_base`, the address of a region that NaNVM's
  *   `reserve` gives for the module's data segments, as many bytes as its
  *   `fjs.layout` asks for, and Any's four constants, immutable `i64`
- *   globals of NaNVM's handles `0` to `3`.
+ *   globals of their NaN boxes: NaNVM's ABI speaks the box, so a number,
+ *   `undefined`, `null` or a boolean is its own bits and only a reference
+ *   holds a handle.
  * - **A code index runs through an adapter.** NaNVM hands every code
  *   index to its `fjs:host` import `invoke(code, self, args)`, which is
  *   the export of a small adapter module, `adapter`, so a call stays in
@@ -106,8 +108,18 @@ const ARRAY = 6
 const OBJECT = 7
 const FUNCTION = 8
 
-/** NaNVM's handle of a copy value: Any's constants `0` to `3`. @type {(value: undefined | null | boolean) => bigint} */
-const constantOf = value => value === undefined ? 0n : value === null ? 1n : value ? 3n : 2n
+/**
+ * NaNVM's box of a copy value: Any's constants, as the NaN box spells them
+ * ([runtime-in-ir.md](../../../../../doc/sasha-gil/ir/runtime-in-ir.md#the-box-in-slice-1)),
+ * each read as a signed `i64`.
+ */
+const UNDEFINED = 0x7FF0_0000_0000_0020n
+const NULL = 0x7FF0_0000_0000_0030n
+const FALSE = 0x7FF0_0000_0000_0010n
+const TRUE = BigInt.asIntN(64, 0xFFF0_0000_0000_0010n)
+
+/** @type {(value: undefined | null | boolean) => bigint} */
+const constantOf = value => value === undefined ? UNDEFINED : value === null ? NULL : value ? TRUE : FALSE
 
 /** Whether a value is one of Any's copy variants: `undefined`, `null` or a boolean. @type {(value: unknown) => value is undefined | null | boolean} */
 const isCopy = value => value === undefined || value === null || typeof value === 'boolean'
@@ -199,7 +211,7 @@ export const nanvmHost = nanvm => (values, data = 0, entries = 0) => {
     const read = h => {
         const kind = n.kind(h)
         // a boolean is always one of Any's constants
-        if (kind <= 3) { return kind === 0 ? undefined : kind === 1 ? null : kind === 2 ? h === 3n : n.to_f64(h) }
+        if (kind <= 3) { return kind === 0 ? undefined : kind === 1 ? null : kind === 2 ? h === TRUE : n.to_f64(h) }
         if (kind === 4) {
             const len = n.length(h)
             const ptr = n.reserve(2 * len)
@@ -292,10 +304,10 @@ export const nanvmHost = nanvm => (values, data = 0, entries = 0) => {
             data_base: new WebAssembly.Global({ value: 'i32', mutable: false }, dataBase),
             table,
             table_base: new WebAssembly.Global({ value: 'i32', mutable: false }, 0),
-            undefined: constant(0n),
-            null: constant(1n),
-            false: constant(2n),
-            true: constant(3n),
+            undefined: constant(UNDEFINED),
+            null: constant(NULL),
+            false: constant(FALSE),
+            true: constant(TRUE),
         }),
         first,
         native: /** @type {NativeHost} */ (/** @type {unknown} */ (instance.exports)),

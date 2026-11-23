@@ -30,8 +30,8 @@
 //! their row names (`bigintAdd`, `numberToString`, ...), from
 //! [`abi::native`].
 //!
-//! The four constants are the handles `0` to `3`, which a loader makes the
-//! program's immutable `i64` globals. The code is all for `wasm32`:
+//! Every `i64` is a NaN box ([`abi`]): the four constants are their boxes,
+//! which a loader makes the program's immutable `i64` globals. The code is all for `wasm32`:
 //! natively the crate is empty.
 
 #![cfg(target_arch = "wasm32")]
