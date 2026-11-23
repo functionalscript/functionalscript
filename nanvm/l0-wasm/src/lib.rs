@@ -256,6 +256,11 @@ pub extern "C" fn push(b: i32, v: i64) {
     abi::push(b, v)
 }
 
+#[unsafe(export_name = "push_all")]
+pub extern "C" fn push_all(b: i32, a: i64) {
+    abi::push_all(b, a)
+}
+
 #[unsafe(export_name = "push_property")]
 pub extern "C" fn push_property(b: i32, key: i64, v: i64) {
     abi::push_property(b, key, v)

@@ -486,6 +486,7 @@ export const proof = {
         "    fn begin_array(n: u(31)) -> builder",
         "    fn begin_object(n: u(31)) -> builder",
         "    fn push(own b: builder, own v: any) -> builder, gives back b may fail",
+        "    fn push_all(own b: builder, a: any.only(array)) -> builder, gives back b may fail",
         "    fn push_property(own b: builder, own k: any.only(string), own v: any) -> builder, gives back b may fail",
         "    fn seal(own b: builder) -> any.only(array, object) may fail",
         "    fn join(parts: any.only(array), separator: any.only(string)) -> any.only(string) may fail",

@@ -534,6 +534,12 @@ pub fn push(b: i32, v: i64) {
     on_builder("push", b, |b| b.push(v))
 }
 
+/// L0 `push_all`. It borrows `a`.
+pub fn push_all(b: i32, a: i64) {
+    let a = get("push_all", a);
+    on_builder("push_all", b, |b| b.push_all(&a))
+}
+
 /// L0 `push_property`. It takes `key` and `v`.
 pub fn push_property(b: i32, key: i64, v: i64) {
     let key = take("push_property", key);

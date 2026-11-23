@@ -137,6 +137,13 @@ export const proof = {
         h.imports.push(c, r)
         const t = h.imports.seal(c)
         assertEq(`${JSON.stringify(h.read(t))} ${cells(h)}`, `[["a","b"]] 1:1,${t}:1`)
+        // push_all borrows an array cell and adds each of its items after what is pushed already.
+        const all = h.imports.begin_array(2)
+        h.imports.push(all, h.imports.from_unit(0x63))
+        h.imports.push_all(all, t)
+        const u = h.imports.seal(all)
+        assertEq(`${JSON.stringify(h.read(u))} ${cells(h)}`, `["c",["a","b"]] 1:1,${t}:1,${u}:1`)
+        h.imports.drop(u)
         const emptyArray = h.imports.seal(h.imports.begin_array(0))
         assertEq(JSON.stringify(h.read(emptyArray)), '[]')
         h.imports.drop(emptyArray)
@@ -258,7 +265,7 @@ export const proof = {
         assertEq(`${h.recover().length} ${cells(h)}`, '0 1:0')
     },
     // A handle of no cell throws, and so does one whose cell a drop freed, units past the memory, a handle of no builder or of
-    // a sealed one, a push past a builder's length, a seal of fewer items, a throw after a throw and `thrown` after none.
+    // a sealed one, a push past a builder's length, a push_all past it, of an object builder or of no array, a seal of fewer items, a throw after a throw and `thrown` after none.
     // `call` of a non-function or non-array, `make_function` of a frame that is not an array or a text that is not a
     // string, a call of its function at an index past the table or of no code, and `frame` of a function that it did not
     // make or past its frame,
@@ -284,6 +291,18 @@ export const proof = {
         full: () => {
             const h = counting([])
             h.imports.push(h.imports.begin_array(0), -1n)
+        },
+        allFull: () => {
+            const h = counting([['x']])
+            h.imports.push_all(h.imports.begin_array(0), 0n)
+        },
+        allObject: () => {
+            const h = counting([[]])
+            h.imports.push_all(h.imports.begin_object(0), 0n)
+        },
+        allNotArray: () => {
+            const h = counting(['x'])
+            h.imports.push_all(h.imports.begin_array(1), 0n)
         },
         short: () => {
             const h = counting([])

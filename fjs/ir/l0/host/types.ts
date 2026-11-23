@@ -45,7 +45,8 @@ export type View = {
  * `make_string` makes a cell of a string of the UTF-16 units at an address.
  * A builder is an `i32` handle: `begin_array` makes one of a number of
  * items, `begin_object` one of a number of properties, `push` or
- * `push_property` takes over a cell as its next item or property, and
+ * `push_property` takes over a cell as its next item or property,
+ * `push_all` borrows a cell of an array and adds each of its items, and
  * `seal` ends it and makes a cell of the array or the object. `call`
  * borrows a function and an arguments array and answers a new cell of the
  * result; a throw from the function keeps the value and traps.
@@ -83,6 +84,7 @@ export type Imports = {
     readonly begin_array: (n: number) => number
     readonly begin_object: (n: number) => number
     readonly push: (b: number, v: bigint) => void
+    readonly push_all: (b: number, a: bigint) => void
     readonly push_property: (b: number, k: bigint, v: bigint) => void
     readonly seal: (b: number) => bigint
     readonly join: (parts: bigint, separator: bigint) => bigint

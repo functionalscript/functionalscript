@@ -278,7 +278,7 @@ pub fn join<A: IVm>(parts: &Any<A>, separator: &Any<A>) -> Any<A> {
 // Containers.
 
 /// An open container: what L0's `begin_array` and `begin_object` answer,
-/// filled by `push` or `push_property` with exactly the number of items it
+/// filled by `push`, `push_all` or `push_property` with exactly the number of items it
 /// was begun with, then sealed.
 pub struct Builder<A: IVm> {
     len: u32,
@@ -310,6 +310,18 @@ impl<A: IVm> Builder<A> {
         match &mut self.items {
             Items::Array(items) => items.push(v),
             Items::Object(_) => trap("push", "not an array builder"),
+        }
+    }
+
+    /// L0 `push_all`: each item of the array `a`, in its order, as the next
+    /// items of an array. It borrows `a`.
+    pub fn push_all(&mut self, a: &Any<A>) {
+        let a = as_array("push_all", a);
+        let room = self.len as usize - self.count();
+        match &mut self.items {
+            Items::Array(items) if a.length() as usize <= room => items.extend(a.index_iter()),
+            Items::Array(_) => trap("push_all", "full"),
+            Items::Object(_) => trap("push_all", "not an array builder"),
         }
     }
 

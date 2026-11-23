@@ -38,6 +38,7 @@ export const proof = {
         'Containers.begin_array(n: u(31)) -> builder',
         'Containers.begin_object(n: u(31)) -> builder',
         'Containers.push(own b: builder, own v: any) -> builder may fail',
+        'Containers.push_all(own b: builder, a: any.only(array)) -> builder may fail',
         'Containers.push_property(own b: builder, own k: any.only(string), own v: any) -> builder may fail',
         'Containers.seal(own b: builder) -> any.only(array, object) may fail',
         'Containers.join(parts: any.only(array), separator: any.only(string)) -> any.only(string) may fail',

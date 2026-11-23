@@ -90,7 +90,7 @@
  *   `from_bool`. An array in a module lowered without the runtime is
  *   refused, and so is a spread outside a program; in one, a spread in an
  *   array or in the arguments of a call is L1's `toIterable` of its value,
- *   and each item of it is pushed in a loop, as `spreadArray` builds it
+ *   and Containers' `push_all` pushes its items, as `spreadArray` builds it
  *   ([slice 11c](../todo/slices.md#decisions-for-slice-11-2026-11-20)).
  * - **`buildArray(n, s, next, at)` of the L0 view is one loop of
  *   Containers' builder**
@@ -968,36 +968,45 @@ const spreadBy = name => (s, x) => {
     return ok(name === 'toIterable' ? made : cast(object, made, 'object', o => o))
 }
 
+/** The length of a spread array or object, as a float. @type {(x: Term) => Term} */
+const spreadLength = x => float(call('Containers', 'length', [x]))
+
+/**
+ * A spread array or object pushed item by item, to the builder `b`: a
+ * loop, labelled `at`, which pushes each of its items by `each`.
+ *
+ * @type {(each: (b: Term, x: Term, k: Term) => Term) => (b: Term, x: Term, at: string) => Term}
+ */
+const itemByItem = each => (b, x, at) => {
+    const [lb, li, pushed] = ['b', 'i', 'pushed'].map(k => `${at}.${k}`)
+    return loop(
+        at,
+        [[lb, builder, b], [li, f64, lit(f64c, 0)]],
+        if_(
+            lt(get(li), spreadLength(x)),
+            exact(u(31), get(li), `${at}.k`, k => let_(pushed, each(get(lb), x, k), next(at, [[lb, get(pushed)], [li, add(get(li), lit(f64c, 1))]]))),
+            get(lb),
+        ),
+    )
+}
+
 /**
  * An array or an object built of parts, one or more of them spread:
  * `begin` of the count of their items, the items that stand alone and the
  * length of each spread array or object, which must be an index, then each
- * part in its order, an item by `one` and a spread by a loop, labelled
- * `label.j` for the part's place, which pushes each of its items by `each`,
- * then `seal` of the builder.
+ * part in its order, an item by `one` and a spread by `many`, given the
+ * label `label.j` for the part's place, then `seal` of the builder.
  *
- * @type {(label: string, parts: readonly _Part[], begin: (k: Term) => Term, one: (b: Term, x: Term, j: number) => Term, each: (b: Term, x: Term, k: Term) => Term, seal: (b: Term) => Term) => Term}
+ * @type {(label: string, parts: readonly _Part[], begin: (k: Term) => Term, one: (b: Term, x: Term, j: number) => Term, many: (b: Term, x: Term, at: string) => Term, seal: (b: Term) => Term) => Term}
  */
-const builtOf = (label, parts, begin, one, each, seal) => {
-    const lengthTerm = /** @type {(x: Term) => Term} */ (x => float(call('Containers', 'length', [x])))
-    const total = parts.reduce((t, [many, x]) => many ? add(t, lengthTerm(x)) : t, lit(f64c, parts.filter(([many]) => !many).length))
+const builtOf = (label, parts, begin, one, many, seal) => {
+    const total = parts.reduce((t, [spread, x]) => spread ? add(t, spreadLength(x)) : t, lit(f64c, parts.filter(([spread]) => !spread).length))
     /** @type {(j: number, b: Term) => Term} */
     const from = (j, b) => {
         if (j === parts.length) { return seal(b) }
-        const [many, x] = parts[Number(j)]
+        const [spread, x] = parts[Number(j)]
         const name = `${label}.b${j}`
-        if (!many) { return let_(name, one(b, x, j), from(j + 1, get(name))) }
-        const at = `${label}.${j}`
-        const [lb, li, pushed] = ['b', 'i', 'pushed'].map(k => `${at}.${k}`)
-        return let_(name, loop(
-            at,
-            [[lb, builder, b], [li, f64, lit(f64c, 0)]],
-            if_(
-                lt(get(li), lengthTerm(x)),
-                exact(u(31), get(li), `${at}.k`, k => let_(pushed, each(get(lb), x, k), next(at, [[lb, get(pushed)], [li, add(get(li), lit(f64c, 1))]]))),
-                get(lb),
-            ),
-        ), from(j + 1, get(name)))
+        return let_(name, spread ? many(b, x, `${label}.${j}`) : one(b, x, j), from(j + 1, get(name)))
     }
     return exact(u(31), total, `${label}.n`, k => from(0, begin(k)))
 }
@@ -1018,8 +1027,9 @@ const boxedParts = (s, parts, what) => okList(parts.map(([many, x], k) => {
 
 /**
  * An array of parts, one or more of them spread, as a program builds one:
- * L1's `toIterable` of each spread, then Containers' builder of every item
- * of each part, in their order, labelled `S` and the depth.
+ * L1's `toIterable` of each spread, then Containers' builder of each
+ * part, in their order, an item by `push` and a spread by one `push_all`,
+ * labelled `S` and the depth.
  *
  * @type {(lowerValue: _LowerValue, scope: _Scope, items: readonly Item<Value>[], what: string) => Result<Term, string>}
  */
@@ -1030,11 +1040,14 @@ const spreadArray = (lowerValue, scope, items, what) => settledParts(lowerValue,
         boxed[1],
         k => call('Containers', 'begin_array', [k]),
         (b, x) => call('Containers', 'push', [b, x]),
-        (b, x, k) => call('Containers', 'push', [b, call('Containers', 'item', [x, k])]),
+        (b, x) => call('Containers', 'push_all', [b, x]),
         // `seal` answers array|object; `begin_array` makes an array alone, so narrow.
         b => cast(array, call('Containers', 'seal', [b]), 'array', a => a),
     ))
 })
+
+/** Each key and value of a spread object, pushed one by one. */
+const pushEntries = itemByItem((b, x, k) => call('Containers', 'push_property', [b, call('Containers', 'key', [x, k]), call('Containers', 'item', [x, k])]))
 
 /**
  * An object of entries, one or more of them spread, as a program builds
@@ -1059,7 +1072,7 @@ const spreadObject = (lowerValue, scope, entries) => {
             boxed[1],
             k => call('Containers', 'begin_object', [k]),
             (b, x, j) => call('Containers', 'push_property', [b, lit(string, names[Number(j)]), x]),
-            (b, x, k) => call('Containers', 'push_property', [b, call('Containers', 'key', [x, k]), call('Containers', 'item', [x, k])]),
+            pushEntries,
             // `seal` answers array|object; `begin_object` makes an object alone, so narrow.
             b => cast(object, call('Containers', 'seal', [b]), 'object', o => o),
         ))
