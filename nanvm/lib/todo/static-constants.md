@@ -151,6 +151,7 @@ and the same data is a data segment in WebAssembly.
 - [x] Emit static native module-level functions with an empty frame.
 - [x] Emit static frames for module-level functions capturing other static functions.
 - [x] Generate the common runtime for the native application with the same static descriptors.
+- [x] Emit static objects with properties that refer to named static functions.
 - [ ] Extend static containers to composite members and function frames to other static values.
 - [ ] Have the Rust serializer write constants as statics.
 

@@ -162,3 +162,29 @@ fn native_dot_creates_fresh_functions_bound_to_the_receiver() {
     assert_eq!(starts_with_a(first), true.to_any());
     assert_eq!(starts_with_a(bind("bcd")), false.to_any());
 }
+
+#[test]
+fn static_object_members_share_the_exported_function() {
+    let load = || exports_with_runtime(fixture::module, nanvm_fjsrs::runtime().unwrap()).unwrap();
+    let module = load();
+    let table = module.own_property(&"functionTable".into()).unwrap();
+    assert_eq!(load().own_property(&"functionTable".into()).unwrap(), table);
+    let table = nanvm_lib::vm::Object::try_from(table).unwrap();
+    let id = module.own_property(&"id".into()).unwrap();
+    for key in ["f", "alias"] {
+        let value = table.own_property(&key.into()).unwrap();
+        assert_eq!(value, id);
+        assert_eq!(
+            Function::try_from(value)
+                .unwrap()
+                .call([42.0.to_any()].to_array())
+                .unwrap(),
+            42.0.to_any()
+        );
+    }
+    let fresh = Function::try_from(module.own_property(&"freshTable".into()).unwrap()).unwrap();
+    assert_ne!(
+        fresh.call([].to_array()).unwrap(),
+        fresh.call([].to_array()).unwrap()
+    );
+}

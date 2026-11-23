@@ -134,6 +134,17 @@ export const proof = {
             assert(!unwrap(scopeTagged(yielding([value]), options, [], true)).uses.vm.includes('StaticObject'))
         }
     },
+    nativeFunctionProperties: () => {
+        /** @type {Block['statements']} */
+        const defs = [['define', x, ['function', fn]], ['define', y, ['ref', x]]]
+        /** @type {Value} */
+        const table = ['object', [[':', 'f', ['ref', x]], [':', 'alias', ['ref', y]], [':', 'count', 1]]]
+        const rust = print(defs, table)
+        assert(rust.includes('StaticObject(&['))
+        assertEq(rust.split('StaticAny::Function(&FUNCTION_0)').length, 3)
+        const mixed = print(defs, ['object', [[':', 'f', ['ref', x]], [':', 'value', ['array', []]]]])
+        assert(!mixed.includes('StaticObject'))
+    },
     nativePrimitiveArrays: () => {
         /** @type {Value} */
         const items = ['array', [null, undefined, false, -0, 'x', 2n]]

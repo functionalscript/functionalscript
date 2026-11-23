@@ -18,6 +18,8 @@ export const right = /** @type {const} */ ({})
 /** @type {(x: unknown) => unknown} */
 export const id = x => x
 export const idAlias = id
+export const functionTable = /** @type {const} */ ({ f: id, alias: idAlias })
+export const freshTable = () => ({ f: id })
 export const capturedId = () => idAlias
 export const capturedWrapper = () => capturedId
 /** @type {() => (x: unknown) => unknown} */

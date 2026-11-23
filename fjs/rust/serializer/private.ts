@@ -20,6 +20,7 @@ export type _Context = Options & {
 }
 
 export type _Names = {
+    readonly functionBindings: PersistentMap<BindingId, BindingId>
     readonly staticFunctions: PersistentMap<Function, readonly BindingId[]>
     readonly literals: PersistentMap<string | bigint, number>
     readonly bindings: PersistentMap<BindingId, string>

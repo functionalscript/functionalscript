@@ -397,6 +397,12 @@ const block = (s, b, result, functionBody = false, valueBlock = false) => ok(/**
 /** @type {(s: _Context, id: BindingId) => string} */
 const functionName = (s, id) => `FUNCTION_${binding(s, id).slice(2).toUpperCase()}`
 
+/** @type {(s: _Context, id: BindingId) => Printed<string>} */
+const functionItem = (s, id) => cat([vm('StaticAny'), `::Function(&${functionName(s, id)})`])
+
+/** @type {(known: PersistentMap<BindingId, BindingId>, value: Value) => BindingId | undefined} */
+const referencedFunction = (known, value) => value instanceof Array && value[0] === 'ref' ? mapGet(known, value[1]) : undefined
+
 /** @type {(s: _Context, st: Statement) => PreparedFunction | null} */
 const namedFunction = (s, st) => st[0] === 'define' && st[2] instanceof Array && st[2][0] === 'function' && isStaticClosure(s, st[2][1]) ? st[2][1] : null
 
@@ -413,7 +419,7 @@ const functionDeclaration = (s, fn, name) => {
     const id = mapGet(names.literals, s.text(fn))
     return flat(map1(body => cat([`${kw('static')} ${name}: `, vm('StaticFunction'),
         `<A> = StaticFunction { code: |_self, _args| ${body}, length: ${num(`${fn.parameters.length}`)}, frame: &`, vm('StaticArray'), '(&[',
-        ...frame.flatMap((binding, i) => [i === 0 ? '' : ', ', vm('StaticAny'), `::Function(&${functionName(s, binding)})`]),
+        ...frame.flatMap((binding, i) => [i === 0 ? '' : ', ', functionItem(s, binding)]),
         `]), text: Some(&LITERAL_${id}) };`]))(functionBody(s, fn)))
 }
 
@@ -448,12 +454,18 @@ const array = (s, values, result = false) => {
 
 /** @type {(s: _Context, entries: readonly (readonly [':', Value, Value] | readonly ['...', Value])[]) => Result<Printed<string>, readonly unknown[]>} */
 const object = (s, entries) => {
-    if (s.moduleInit && entries.every(e => e[0] === ':' && typeof e[1] === 'string' && !(e[2] instanceof Array))) {
-        const fields = /** @type {readonly (readonly [':', string, Primitive])[]} */ (entries)
+    const fields = s.moduleInit ? entries.flatMap(e => {
+        if (e[0] !== ':' || typeof e[1] !== 'string') { return [] }
+        const value = e[2]
+        if (!(value instanceof Array)) { return [/** @type {const} */ ([e[1], staticItem(s, value)])] }
+        const id = referencedFunction(/** @type {_Names} */ (s.names).functionBindings, value)
+        return id === undefined ? [] : [/** @type {const} */ ([e[1], functionItem(s, id)])]
+    }) : null
+    if (fields !== null && fields.length === entries.length) {
         // Keep the last value at each key's first position and enumerate index keys first.
-        const properties = Object.entries(Object.fromEntries(fields.map(([, k, v]) => /** @type {const} */ ([k, v]))))
+        const properties = Object.entries(Object.fromEntries(fields))
         return ok(cat([`{ ${kw('static')} VALUE: `, vm('StaticObject'), '<A> = StaticObject(&[',
-            ...properties.flatMap(([k, v], i) => [i === 0 ? '(' : ', (', `&LITERAL_${mapGet(/** @type {_Names} */ (s.names).literals, k)}, `, staticItem(s, v), ')']),
+            ...properties.flatMap(([k, v], i) => [i === 0 ? '(' : ', (', `&LITERAL_${mapGet(/** @type {_Names} */ (s.names).literals, k)}, `, v, ')']),
             ']); ', vm('Object'), '::from_static(&VALUE)', toAny, ' }']))
     }
     if (entries.length === 0) { return ok(cat([vm('Object'), '::default()', toAny])) }
@@ -965,7 +977,7 @@ const namesOf = root => {
                 const def = owner?.[0] === 'define' && owner[2] === v ? owner[1] : null
                 if (v[0] === 'function') {
                     const known = functionBindings
-                    const frame = v[1].captures.flatMap(({ value }) => value instanceof Array && value[0] === 'ref' ? mapGet(known, value[1]) ?? [] : [])
+                    const frame = v[1].captures.flatMap(({ value }) => referencedFunction(known, value) ?? [])
                     if (frame.length === v[1].captures.length && !bodyNeedsRuntime(top.context, v[1])) {
                         staticFunctions = mapSet(staticFunctions, v[1], frame)
                         if (def !== null) { functionBindings = mapSet(functionBindings, def, def) }
@@ -984,7 +996,7 @@ const namesOf = root => {
         pending = pushAll(children(top), rest)
     }
     return {
-        literals, staticFunctions,
+        literals, staticFunctions, functionBindings,
         bindings: identityNames(setValues(fromValues(listToArray(bindings).toReversed().flat())), '_b'),
         loops: identityNames(setValues(fromValues(listToArray(loops).toReversed().flat())), '_loop'),
     }

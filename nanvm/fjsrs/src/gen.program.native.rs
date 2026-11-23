@@ -2121,7 +2121,7 @@ pub fn module(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         let _b1945: Any<A> = (static_read_keys(&A::frame(_self)[1], String::from_static(&LITERAL_5), String::from_static(&LITERAL_263)))?;
         if Any::<A>::to_boolean(&(<&Any<A> as core::ops::Not>::not(&(Any::call(_b1945.clone(), [_args.argument(0)].to_array().to_any()))?))?) { Err(String::from_static(&LITERAL_264).to_any()) } else { if Any::<A>::to_boolean(&(Any::lt(_args.argument(0), f64_any(0x0)))?) { <Any<A> as core::ops::Neg>::neg((Any::call(A::frame(_self)[0].clone(), [(<Any<A> as core::ops::Neg>::neg(_args.argument(0)))?].to_array().to_any()))?) } else { Any::call(A::frame(_self)[0].clone(), [_args.argument(0)].to_array().to_any()) } }
     }, 1, [_b1944, runtime.clone()].to_array(), Some(String::from_static(&LITERAL_262))).to_any();
-    let _b1960: Any<A> = (Any::call(_b1575.clone(), [[(String::from_static(&LITERAL_192), f64_any(0x0)), (String::from_static(&LITERAL_193), _b420.clone()), (String::from_static(&LITERAL_198), _b1911.clone())].to_object().to_any()].to_array().to_any()))?;
+    let _b1960: Any<A> = (Any::call(_b1575.clone(), [{ static VALUE: StaticObject<A> = StaticObject(&[(&LITERAL_192, StaticAny::Number(f64::from_bits(0x0))), (&LITERAL_193, StaticAny::Function(&FUNCTION_420)), (&LITERAL_198, StaticAny::Function(&FUNCTION_1911))]); Object::from_static(&VALUE).to_any() }].to_array().to_any()))?;
     let _b1961: Any<A> = (Any::call(_b971.clone(), [_b411.clone()].to_array().to_any()))?;
     let _b1962: Any<A> = (Any::call(_b1961, [Nullish::Null.to_any()].to_array().to_any()))?;
     let _b1963: Any<A> = (Any::call(_b971.clone(), [_b400.clone()].to_array().to_any()))?;
