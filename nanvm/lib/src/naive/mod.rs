@@ -64,7 +64,7 @@ use crate::vm::{IStaticVm, StaticArray, StaticBigInt, StaticFunction, StaticObje
 
 impl IStaticVm for Naive {
     fn load_string(value: &'static StaticString) -> Self::InternalString {
-        Container::string(value)
+        Container::borrowed((), value, value.0)
     }
     fn load_bigint(value: &'static StaticBigInt) -> Self::InternalBigInt {
         Container::borrowed(value.sign, value, value.words)

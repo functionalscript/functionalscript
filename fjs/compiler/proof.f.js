@@ -331,7 +331,7 @@ const roundTripCorpus = [
 export const proof = {
     nativeExportKeySharesValue: () => {
         const rust = compileSource('export default "default";')('output.native.rs')
-        assertEq(rust.split(' = StaticString::Utf16(&[').length, 2)
+        assertEq(rust.split(' = StaticString(&[').length, 2)
         assert(rust.includes('StaticObject(&[(&LITERAL_0, StaticAny::String(&LITERAL_0))])'))
     },
     stringifyTree: () => {
