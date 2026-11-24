@@ -109,42 +109,78 @@ The benchmark is not in the tree. It needed one thing the first prototype
 lacked: a capture the body no longer reads has to go, since the
 FunctionalScript writer refuses a slot no read reaches.
 
+### A module written from its value
+
+`fjs compile` writes `.js` and `.rs` from the program's graph, so every
+module-level definition is evaluated again at start. The same writers take
+an evaluated value, which is an `Exp`: the module interpreted, its
+functions given bodies of their own (`ownBodies`), then written. Tried from
+a script outside the tree, at `9a0b2367`:
+
+| | from the graph | from the value | value, precomputed |
+| --- | --- | --- | --- |
+| `fjs/nanvm/fjsrs/module.f.js` as FunctionalScript | 88.8 KB | 18.3 KB | 19.9 KB |
+| the same as Rust | 573 KB | 121 KB | 119 KB |
+| `fjs/module.f.js`, the whole compiler, as Rust | 8.57 MB | 8.65 MB | not tried |
+| the whole compiler, `Naive`, unoptimized (`debug = false`), `help` | 355 s | 0.40 s | not tried |
+
+Both builds of the compiler print the same help and exit `0`. The start-up
+[`whole-compiler.md`](../../../nanvm/fjsrs/todo/whole-compiler.md) asks
+about is module initialization, and a module written from its value has
+none.
+
+What does not work yet for the whole compiler: interpreting it takes about
+five minutes on Node, each writer several more, and the FunctionalScript
+writer refuses the value with `a frame slot that repeats another`, since two
+captures of an evaluated closure may hold one value.
+
+A curried function, `k => i => k * squares(64)[Number(i % 64)]`, measured as
+the table above was: 75.9 ms to 0.14 ms on Node 22 and 1394 ms to 14.7 ms
+on NaNVM, the same as the uncurried one.
+
 ### Open questions
 
 1. **`self`.** A closure is defined when it is called, so `['self']` is as
    constant as its frame, and a closed `self(1)` could be made once. The
    prototype treats it as open: the value `self` reads is the closure being
    rebuilt.
-2. **An open nested function.** In `x => y => [x, y, [1, 2]]` the inner
-   body is left as written, since the inner frame is defined only when the
-   outer function is called. The `[1, 2]` reaches no binding of either
-   function and could lift through a new inner slot into the outer
-   captures. Curried functions are common in this repository, so this is
-   likely where the rest of the gain is.
+2. **A conditional with a known test.** `c ? a : b` is open when any
+   operand is. With `c` closed the node is the arm chosen, the other
+   dropped, whatever the arms read; the same for a guarded chain on a known
+   receiver.
 3. **Values a precomputation answers.** A lifted closure is not precomputed
    in turn. Doing so without a bound does not end on
    `const mk = n => () => mk(n + 1)`, where each closure's body closes over
    a call that answers the next.
-4. **What consumes it.** The identity change is approved
+4. **A known failure.** A closed node that fails is left to fail at every
+   call. It could become a `throw` of the value it failed with.
+5. **What asks for it.** The identity change is approved
    ([approval](https://github.com/functionalscript/functionalscript/pull/4111#issuecomment-7135356529)
    of the [value-identity proposal](../../../spec/todo/value-identity.md)).
-   Wiring the module into the compiler, and under which output name or
-   flag, is still to decide
-   ([`070-compiler-flags.md`](../../compiler/todo/070-compiler-flags.md)).
+   How `fjs compile` is asked for an output written from the value, with or
+   without `precompute` — an output name, a flag
+   ([`070-compiler-flags.md`](../../compiler/todo/070-compiler-flags.md)),
+   or the default — is still to decide.
 
 ### Tasks
 
 - [x] Settle calls and frames (above).
 - [x] `fjs/edag/precompute`: closedness, evaluation and lifting over an
-      evaluated value, with proofs — a primitive result, a lifted
-      container, a failing node left in place, a captured function called,
-      a shared closed node, nested functions, a refused body.
-- [ ] Settle open questions 1 to 3, and implement what they decide.
-- [ ] Measure over the repository's own modules how many nodes lift, pinned
-      to a commit.
+      evaluated value, with proofs.
+- [x] Drop a capture the body no longer reads, and a comma operand already
+      evaluated: both are what the FunctionalScript writer refuses.
+- [x] Reduce a nested function over its known slots.
+- [ ] Decide what asks for it, and write `.js` and `.rs` from the value in
+      `fjs compile`.
+- [ ] Merge captures holding one value, so the whole compiler has a
+      FunctionalScript spelling.
+- [ ] Release builds of the whole compiler from the graph and from the
+      value, and the start-up of each.
+- [ ] Profile the interpreter and the writers on the whole compiler.
+- [ ] Open questions 1 to 4.
 - [ ] A bound on a closed call
       ([`bound-edag-interpreter-resources.md`](../../compiler/todo/bound-edag-interpreter-resources.md)).
-- [ ] Decide what consumes it, and record §3's new standing in
+- [ ] Record §3's new standing in
       [`../execution-models.md`](../execution-models.md).
 
 ### Related
