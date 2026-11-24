@@ -101,6 +101,14 @@ export const proof = {
         same(result, ['=>', 0, [['[]', [1]]], ['frame', 0]])
         agree(fn, result)
     },
+    comma: () => {
+        // `x => ([1], x)` is `x => x`: an operand evaluated ahead is done
+        same(closure(['=>', 1, [], [',', [['[]', [1]], ['arg', 0]]]]), ['=>', 1, [], ['arg', 0]])
+        // `f => ([1], f(), 5)` keeps the call
+        same(
+            closure(['=>', 1, [], [',', [['[]', [1]], ['()', ['arg', 0], []], 5]]]),
+            ['=>', 1, [], [',', [['()', ['arg', 0], []], 5]]])
+    },
     renumbered: () => {
         // `x => [x, make(1), seven]`: the captures left are read by their new slots
         /** @type {Closure} */

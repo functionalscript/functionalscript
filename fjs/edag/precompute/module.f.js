@@ -15,7 +15,8 @@
  * - an array, an object or a function becomes one more capture, and the
  *   body reads it as `['frame', k]`.
  *
- * A capture the body no longer reads is dropped.
+ * A capture the body no longer reads is dropped, and so is an operand of
+ * a comma that was there to be evaluated and has been.
  *
  * The answer is an ordinary value every executor runs. It differs from the
  * one given only in what the
@@ -102,6 +103,9 @@ const closure = runtime => fn => {
     const points = nodes.flatMap((node, i) => closed[Number(i)] && computes(node) && read.includes(i) ? [i] : [])
     const results = eachWith(runtime)(captures, points.map(i => exps[Number(i)]))
 
+    /** The nodes evaluated. */
+    const done = points.filter((_, p) => results[Number(p)][0] === 'ok')
+
     /** @type {PersistentMap<number, Exp>} */
     let built = noExps
     /** @type {Values} */
@@ -123,7 +127,21 @@ const closure = runtime => fn => {
                 lifted = [...lifted, value]
             }
         } else {
-            built = mapSet(built, i, scope[Number(i)] === self && !closed[Number(i)] ? restoreNode(built, nodes[Number(i)]) : exps[Number(i)])
+            const node = nodes[Number(i)]
+            if (scope[Number(i)] !== self || closed[Number(i)]) {
+                built = mapSet(built, i, exps[Number(i)])
+            } else if (node[0] === ',') {
+                // An operand before the last is there to be evaluated, and
+                // one that has been is done: it goes, and a comma left with
+                // its last operand alone is that operand.
+                const before = built
+                const left = node[1]
+                    .filter((x, j, all) => j === all.length - 1 || !(x instanceof Array && done.includes(x[1])))
+                    .map(x => x instanceof Array ? assertNotNullish(mapGet(before, x[1])) : x)
+                built = mapSet(built, i, left.length === 1 ? left[0] : [',', left])
+            } else {
+                built = mapSet(built, i, restoreNode(built, node))
+            }
         }
     }
     return changed ? prune(['=>', length, [...captures, ...lifted], assertNotNullish(mapGet(built, root))]) : fn
