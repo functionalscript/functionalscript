@@ -74,6 +74,9 @@ const scalarKind = b => let_('tag', and(shr(b, n(4n)), n(3n)), tag =>
  *
  * @type {Interface}
  */
+/** String literals of `any`, as L0's Any makes them. */
+const stringLiteral = { variant: 'string', module: 'String', member: 'make_string' }
+
 export const iface = {
     abi: 'fjs:l0',
     types: [['any', {
@@ -83,6 +86,7 @@ export const iface = {
         dup: 'dup',
         drop: 'drop',
         copy: ['undefined', 'null', 'boolean', 'number'],
+        literal: stringLiteral,
     }]],
     constants: [
         ['undefined', only(any, 'undefined')],
@@ -119,6 +123,7 @@ export const module = {
             dup: 'dup',
             drop: 'drop',
             copy: ['undefined', 'null', 'boolean', 'number'],
+            literal: stringLiteral,
         }]],
     },
     constants: [

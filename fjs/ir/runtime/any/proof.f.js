@@ -8,9 +8,9 @@
 import { assert, assertEq, assertOk } from '../../../asserts/module.f.js'
 import { wat } from '../../../media/wasm/wat/module.f.js'
 import { check, checkPlain } from '../../check/module.f.js'
-import { l0 } from '../../l0/module.f.js'
+import { l0, string } from '../../l0/module.f.js'
 import { lifetime } from '../../lifetime/module.f.js'
-import { definedBy } from '../../module.f.js'
+import { definedBy, fn, lit } from '../../module.f.js'
 import { print } from '../../print/module.f.js'
 import { emit } from '../../wasm/module.f.js'
 import { iface, module } from './module.f.js'
@@ -29,15 +29,27 @@ export const proof = {
         assertEq(name, 'any')
         assertEq(def.copy?.join(), 'undefined,null,boolean,number')
         assertEq(`${def.kind} ${def.carrier} ${def.dup} ${def.drop}`, 'kind i64 dup drop')
+        assertEq(`${def.literal?.module}.${def.literal?.member}`, 'String.make_string')
     },
-    // The importer interface is L0's Any with number in copy.
+    // The importer interface is L0's Any with number in copy, and the same string-literal maker.
     iface: () => {
         const [, def] = iface.types[0]
         assertEq(def.copy?.join(), 'undefined,null,boolean,number')
+        assertEq(`${def.literal?.module}.${def.literal?.member}`, 'String.make_string')
         assertEq(iface.functions.map(([k]) => k).join(), 'kind,to_f64,from_f64,to_bool,from_bool,same,dup,drop')
         const [, l0Iface] = l0[0]
         assertEq(l0Iface.functions.map(([k]) => k).join(), iface.functions.map(([k]) => k).join())
         assertEq(l0Iface.constants?.map(([k]) => k).join(), iface.constants?.map(([k]) => k).join())
+        assertEq(l0Iface.types[0][1].literal?.member, def.literal?.member)
+        // a module that imports iface in place of L0 Any still accepts a string literal
+        const stringEntry = l0.find(([k]) => k === 'String')
+        assert(stringEntry !== undefined)
+        const [, stringIface] = stringEntry
+        assertOk(checkPlain({
+            imports: [['Any', iface], ['String', stringIface]],
+            functions: [['hello', fn([], string, () => lit(string, 'hi'))]],
+            exports: ['hello'],
+        }))
     },
     // The plain stage types every function; the owned stage after the lifetime pass does too.
     checked: () => {
