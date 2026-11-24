@@ -62,6 +62,7 @@ export type OpName =
     | 'eq' | 'lt' | 'le'
     | 'and' | 'or' | 'xor' | 'shl' | 'shr'
     | 'float' | 'trunc_sat' | 'to_bits' | 'from_bits'
+    | 'seal' | 'unseal'
 
 /** A `match` arm: the variants it takes, `null` for the rest; a name for the operand there; its body. */
 export type ArmOf<T> = readonly [variants: readonly string[] | null, binder: string | null, body: T]
@@ -80,8 +81,11 @@ export type Get = readonly ['get', string]
 /** A value bound to a name in a body. */
 export type Let = readonly ['let', string, Term, Term]
 
-/** An operator and its operands, and for `trunc_sat` alone, the range that it saturates to. */
-export type Op = readonly ['op', OpName, readonly Term[], target?: Int]
+/**
+ * An operator and its operands, and for `trunc_sat` the range that it
+ * saturates to, for `seal` the sealed type that it makes.
+ */
+export type Op = readonly ['op', OpName, readonly Term[], target?: Int | Sealed]
 
 /** A function of a module, `self` for the module itself. */
 export type Call = readonly ['call', module: string, name: string, args: readonly Term[]]
@@ -252,6 +256,18 @@ export type Interface = {
 }
 
 /**
+ * The sealed types that a module implements, under the name that its types
+ * and the modules that import it call it by, as `['sealed', name, type, v]`.
+ * The function that a type's `kind` names is the module's own, another
+ * module makes its literals, and no type is counted yet: it names no `dup`
+ * and no `drop`, since a drop of its own could not give up its value.
+ */
+export type Defines = {
+    readonly name: string
+    readonly types: readonly (readonly [name: string, SealedDef])[]
+}
+
+/**
  * A constant of a module: its type and the term that `init` evaluates once,
  * which reads only the constants before it, itself or through a function
  * that it calls, and which the constant owns.
@@ -265,9 +281,13 @@ export type ConstantOf<T> = {
  * A module: the interfaces it imports, by their names, its constants and
  * its functions in their order, and the names of the functions that it
  * exports. The module exports `init` too, which evaluates the constants.
+ * `defines` names the sealed types that the module itself implements, as
+ * Any's own module implements `any`: only there may `seal` and `unseal`
+ * convert between such a type and its carrier's bits.
  */
 export type ModuleOf<T> = {
     readonly imports: readonly (readonly [name: string, Interface])[]
+    readonly defines?: Defines
     readonly constants?: readonly (readonly [name: string, ConstantOf<T>])[]
     readonly functions: readonly (readonly [name: string, FunctionOf<T>])[]
     readonly exports: readonly string[]
@@ -291,6 +311,7 @@ export type CheckedFn = FunctionOf<Typed> & { readonly fails: boolean }
  */
 export type Checked = {
     readonly imports: readonly (readonly [name: string, Interface])[]
+    readonly defines?: Defines
     readonly constants: readonly (readonly [name: string, ConstantOf<Typed>])[]
     readonly functions: readonly (readonly [name: string, CheckedFn])[]
     readonly exports: readonly string[]

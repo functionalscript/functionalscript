@@ -10,10 +10,10 @@
 import { assertEq, assertOk } from '../../asserts/module.f.js'
 import { functions, wat } from '../../media/wasm/wat/module.f.js'
 import { assert } from '../../asserts/module.f.js'
-import { add, bool, call, call_ref, code, codeOf, f64, f64c, fn, get, i, if_, int, let_, lit, n, never, only, own, sealed, signature, throw_, trap, true_, u } from '../module.f.js'
+import { add, bool, call, call_ref, code, codeOf, f64, f64c, fn, get, i, if_, int, let_, lit, n, never, only, own, seal, sealed, signature, throw_, trap, true_, u, unseal } from '../module.f.js'
 import { check } from '../check/module.f.js'
 import { any, l0, string } from '../l0/module.f.js'
-import { arrays, bits, constants, corners, literals, loops, records, samples, unknown } from '../testlib.f.js'
+import { arrays, bits, constants, corners, literals, loops, records, samples, sealing, tagging, unknown } from '../testlib.f.js'
 import { emit } from './module.f.js'
 import { toJson } from '../../media/json/module.f.js'
 import { nameOf } from '../../types/object/name/module.f.js'
@@ -388,6 +388,73 @@ export const proof = {
     ")",
     "",
     ].join('\n')),
+    // A type that the module defines, whose kind is a function of its own.
+    // A type whose carrier is an `i32` is made of a `u(32)`.
+    narrow: () => assertEq(wat(emitted({
+        imports: [],
+        defines: { name: 'T', types: [['small', { variants: ['a'], carrier: 'i32' }]] },
+        functions: [['roundTrip', fn([['b', u(32)]], u(32), b => unseal(seal(sealed('T', 'small'), b)))]],
+        exports: ['roundTrip'],
+    })), [
+    '(module',
+    '  (type (;0;) (func (param i32) (result i32)))',
+    '  (export "roundTrip" (func $roundTrip))',
+    '  (func $roundTrip (;0;) (type 0) (param $b i32) (result i32)',
+    '    local.get $b',
+    '  )',
+    ')',
+    '',
+].join('\n')),
+    tagging: () => assertEq(wat(emitted(tagging)), [
+    '(module',
+    '  (type (;0;) (func (param i64) (result i32)))',
+    '  (export "size" (func $size))',
+    '  (func $tag (;0;) (type 0) (param $v i64) (result i32)',
+    '    local.get $v',
+    '    i64.const 1',
+    '    i64.and',
+    '    i32.wrap_i64',
+    '  )',
+    '  (func $size (;1;) (type 0) (param $v i64) (result i32)',
+    '    local.get $v',
+    '    call $tag',
+    '    i32.const 0',
+    '    i32.eq',
+    '    if (result i32) ;; label = @1',
+    '      i32.const 1',
+    '    else',
+    '      i32.const 2',
+    '    end',
+    '  )',
+    ')',
+    '',
+].join('\n')),
+    // Any's carrier, which only the module that defines Any sees.
+    sealing: () => assertEq(wat(emitted(sealing)), [
+    "(module",
+    "  (type (;0;) (func (param i64) (result i64)))",
+    "  (type (;1;) (func (param i64) (result i32)))",
+    "  (type (;2;) (func (param f64) (result i64)))",
+    "  (export \"carrierOf\" (func $carrierOf))",
+    "  (export \"isReference\" (func $isReference))",
+    "  (export \"boxOf\" (func $boxOf))",
+    "  (func $carrierOf (;0;) (type 0) (param $v i64) (result i64)",
+    "    local.get $v",
+    "  )",
+    "  (func $isReference (;1;) (type 1) (param $v i64) (result i32)",
+    "    local.get $v",
+    "    i64.const -4503599627370493",
+    "    i64.and",
+    "    i64.const 9218868437227405314",
+    "    i64.eq",
+    "  )",
+    "  (func $boxOf (;2;) (type 2) (param $x f64) (result i64)",
+    "    local.get $x",
+    "    i64.reinterpret_f64",
+    "  )",
+    ")",
+    "",
+].join('\n')),
     bits: () => assertEq(wat(emitted(bits)), [
     "(module",
     "  (type (;0;) (func (param i64 i32) (result i32)))",

@@ -653,6 +653,31 @@ which reads and builds a NaN box:
 The `bits` module of [`testlib.f.js`](./testlib.f.js) runs each of them
 against JavaScript's `&`, `|`, `^`, `<<`, `>>` and a `DataView`.
 
+## What a module that defines its types adds
+
+Checkpoint 4c of the runtime written in the IR: the module that implements
+a sealed type, as Any's own module will implement `any`, sees the bits
+that carry its values.
+
+- **`defines`**: a module may name the sealed types that it implements,
+  under the name that their type terms carry, `['sealed', name, type, v]`,
+  with each type's variants and carrier as an interface gives them. The
+  function that a type's `kind` names is the module's own, so a `match`
+  calls `self`, and another module makes its literals. The module does not
+  import that name, nor call it but as `self`. No such type is counted
+  yet: a `dup` or a `drop` is refused, since a drop written in the module
+  could not give up the value that it owns.
+- **`unseal(v)`**, the bits of a value of a type that the module defines,
+  `u(64)` for an `i64` carrier and `u(32)` for an `i32`, and
+  **`seal(t, b)`**, a value of `t` from bits within them. Both are no
+  instruction at all: the value and its carrier's bits are one WASM value.
+  The checker refuses both in any other module, so a program still sees
+  `any` only through Any's functions.
+
+The `sealing` module of [`testlib.f.js`](./testlib.f.js) defines Any and
+runs on NaNVM's `.wasm`, against NaN boxes laid out as Sergey's README
+lays them out; `tagging` answers a `match` with a `kind` of its own.
+
 ## What every slice refuses
 
 Everything else is refused with the function's name and the reason, never

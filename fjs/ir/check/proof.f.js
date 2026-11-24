@@ -2,15 +2,15 @@
  * @import { Interface, Module, Param, Term, Type } from '../types.ts'
  */
 
-import { assert, assertEq, assertError, assertOk } from '../../asserts/module.f.js'
+import { assert, assertEq, assertError, assertNotNullish, assertOk } from '../../asserts/module.f.js'
 import { any, builder, l0, string } from '../l0/module.f.js'
 import {
-    add, and, block, bool, br, call, call_ref, cast, code, codeOf, constant, div, eq, f64, f64c, field, float, fn, from_bits, get, i, if_, int,
-    let_, lit, loop, lt, make, match, mayFail, mul, n, neg, never, next, only, or, own, product, return_, sealed, shl, shr, signature, sub,
-    throw_, to_bits, trap, true_, trunc_sat, u, unit, variant, xor,
+    add, and, block, bool, br, call, call_ref, cast, code, codeOf, constant, definedBy, div, eq, f64, f64c, field, float, fn, from_bits, get, i, if_, int,
+    let_, lit, loop, lt, make, match, mayFail, mul, n, neg, never, next, only, or, own, product, return_, seal, sealed, shl, shr, signature, sub,
+    throw_, to_bits, trap, true_, trunc_sat, u, unit, unseal, variant, xor,
 } from '../module.f.js'
 import { show } from '../print/module.f.js'
-import { bits, constants, corners, loops, records, samples, throws, unknown } from '../testlib.f.js'
+import { bits, constants, corners, loops, records, samples, sealing, tagging, throws, unknown } from '../testlib.f.js'
 import { check, checkPlain, typeOf } from './module.f.js'
 
 /** A module of one function, `f`. @type {(params: readonly Param[], result: Type, body: Term) => Module} */
@@ -710,6 +710,40 @@ export const proof = {
         assertEq(why(one(p, f64, from_bits(get('x')))), 'f: from_bits of f64: from_bits takes an unsigned integer')
         assertEq(why(one(p, f64, from_bits(n(-1n)))), 'f: from_bits of int(-1, -1): from_bits takes an unsigned integer')
         assertEq(why(one(p, f64, ['op', 'to_bits', [get('x'), get('x')]])), 'f: to_bits takes one operand, not 2')
+    },
+    // Only the module that defines Any sees `any`'s carrier, and `seal`
+    // makes a value of a type that it may write from its carrier's bits.
+    seal: () => {
+        assertEq(assertOk(check(sealing)).functions.map(([k, f]) => `${k}: ${show(f.body[0])}`).join(', '),
+            'carrierOf: u(64), isReference: bool, boxOf: any.only(number)')
+        assertEq(definedBy(assertOk(check(sealing))), 'Any')
+        assertEq(assertOk(check(tagging)).functions.map(([k, f]) => `${k}: ${show(f.body[0])}`).join(', '), 'tag: u(1), size: int(1, 2)')
+        const defines = assertNotNullish(sealing.defines)
+        /** A module of one function, `f`, that defines Any as `sealing` does. @type {(params: readonly Param[], result: Type, body: Term) => Module} */
+        const sealed = (params, result, body) => ({ ...one(params, result, body), defines })
+        const v = get('v')
+        const p = /** @type {const} */ ([['v', any], ['b', u(64)], ['x', f64]])
+        const num = only(any, 'number')
+        assertEq(why(overL0(p, u(64), unseal(v))), 'f: unseal of any: only the module that defines Any sees its carrier')
+        assertEq(why(overL0(p, num, seal(num, get('b')))), 'f: seal of any.only(number): only the module that defines Any sees its carrier')
+        assertEq(why({ ...overL0(p, u(64), unseal(v)), defines }), 'the module defines Any, so it does not import Any')
+        assertEq(why({ ...sealed([], u(8), n(0n)), defines: { name: 'Any', types: [['any', { variants: ['string'], carrier: 'i64', literal: { variant: 'string', module: 'Any', member: 'make' } }]] } }),
+            'Any.any: the module that defines it does not make its literals')
+        assertEq(why({ ...sealed([], u(8), n(0n)), defines: { name: 'Any', types: [['any', { variants: ['string'], carrier: 'i64', dup: 'dup', drop: 'drop' }]] } }),
+            'Any.any: a type that the module defines is not counted yet, since its drop could not give up the value that it owns')
+        assertEq(bodyType({ ...one([['v', any]], u(32), unseal(v)), defines: { name: 'Any', types: [['any', { variants: ['string'], carrier: 'i32' }]] } }), 'u(32)')
+        assertEq(why({ ...sealed([], u(8), n(0n)), defines: { name: 'self', types: [] } }), 'self is the module itself, so no interface has that name')
+        assertEq(why(sealed(p, u(64), call('Any', 'kind', [v]))), 'f: Any is the module itself, which names its function self.kind')
+        assertEq(why(sealed(p, u(64), unseal(get('b')))), 'f: unseal of u(64): unseal takes a value of a sealed type')
+        assertEq(why(sealed(p, u(64), ['op', 'unseal', [v, v]])), 'f: unseal takes one operand, not 2')
+        assertEq(why(sealed(p, num, ['op', 'seal', [get('b')]])), 'f: seal takes the sealed type that it makes')
+        assertEq(why(sealed(p, num, ['op', 'seal', [get('b')], u(8)])), 'f: seal takes the sealed type that it makes')
+        assertEq(why(sealed(p, num, ['op', 'seal', [get('b'), get('b')], num])), 'f: seal takes one operand, not 2')
+        assertEq(why(sealed(p, num, seal(only(any, 'nothing'), get('b')))), 'f: any has no variant nothing')
+        assertEq(why(sealed(p, num, seal(num, get('x')))), 'f: seal of f64: any.only(number) is made of u(64)')
+        assertEq(why(sealed(p, num, seal(num, n(-1n)))), 'f: seal of int(-1, -1): any.only(number) is made of u(64)')
+        assertEq(why(sealed(p, u(64), ['op', 'unseal', [v], u(8)])), 'f: unseal takes no range')
+        assertEq(why(sealed(p, u(8), ['op', 'trunc_sat', [get('x')], num])), 'f: trunc_sat takes the range that it saturates to')
     },
     br: () => {
         assertEq(why(one([], f64, br('l', one_))), 'f: no label l')

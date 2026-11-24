@@ -114,7 +114,7 @@ import { bitsOf } from '../../types/number/module.f.js'
 import { stringToList } from '../../text/utf16/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { at, empty, fromEntries, setReplace } from '../../types/ordered_map/module.f.js'
-import { compareIn, equal, fits, i, inside, never, u } from '../module.f.js'
+import { compareIn, definedBy, equal, fits, i, inside, interfacesOf, never, u } from '../module.f.js'
 
 // values
 
@@ -354,6 +354,9 @@ const operator = (emitTerm, env, type, name, args) => {
         assert(type[0] === 'int', type)
         return truncSat(emitTerm, env, type, args[0])
     }
+    // A sealed value and the bits of its carrier are one WASM value.
+    if (name === 'unseal') { return sequence(emitTerm, env, [[args[0], args[0][0]]], []) }
+    if (name === 'seal') { return sequence(emitTerm, env, [[args[0], carrier(env.interfaces, type)[0] === 'i64' ? u(64) : u(32)]], []) }
     const ints = args.flatMap(([t]) => t[0] === 'int' ? [t] : [])
     const own = args.map(x => /** @type {const} */ ([x, x[0]]))
     if (ints.length === 0) { return sequence(emitTerm, env, own, [float(name)]) }
@@ -695,7 +698,7 @@ const zero = t => t === 'f64' ? ['f64.const', 0n] : t === 'i64' ? ['i64.const', 
  * @type {(m: Checked) => WasmModule}
  */
 export const emit = m => {
-    const interfaces = fromEntries(m.imports)
+    const interfaces = fromEntries(interfacesOf(m))
     const imported = m.imports.flatMap(([module, { abi, functions }]) => functions.map(([member, s]) => ({ module, abi, member, s })))
     const importedConstants = m.imports.flatMap(([module, { abi, constants = [] }]) => constants.map(([member, t]) => ({ module, abi, member, t })))
     const { constants } = m
@@ -738,10 +741,6 @@ export const emit = m => {
     ]
     const types = signatures.filter((s, k) => signatures.findIndex(x => same(x, s)) === k)
     const typeOf = /** @type {(k: number) => number} */ (k => types.findIndex(x => same(x, signatures[Number(k)])))
-    const imports = fromEntries(m.imports.map(([module]) => /** @type {const} */ ([
-        module,
-        fromEntries(imported.flatMap((x, k) => x.module === module ? [/** @type {const} */ ([x.member, callee(k, x.s)])] : [])),
-    ])))
     const dataBase = importedConstants.length
     const tableBase = dataBase + (memoryAbi === null ? 0 : 1)
     const literalBase = tableBase + (tableAbi === null ? 0 : 1)
@@ -755,6 +754,14 @@ export const emit = m => {
     ])
     const own = imported.length + makers.length
     const functions = fromEntries(m.functions.map(([name, f], k) => /** @type {const} */ ([name, callee(own + k, f)])))
+    // A type that the module defines names its own functions, as `kind`, where an imported one names its interface's.
+    const imports = fromEntries([
+        ...m.imports.map(([module]) => /** @type {const} */ ([
+            module,
+            fromEntries(imported.flatMap((x, k) => x.module === module ? [/** @type {const} */ ([x.member, callee(k, x.s)])] : [])),
+        ])),
+        ...(m.defines === undefined ? [] : [/** @type {const} */ ([assertNotNullish(definedBy(m)), functions])]),
+    ])
     const codeIndex = fromEntries(referenced.map((name, k) => /** @type {const} */ ([name, k])))
     /** @type {_Env} */
     const base = {

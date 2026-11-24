@@ -7,8 +7,11 @@
  *
  * @module
  *
- * @import { ArmOf, Code, CodeParam, F64, F64c, Fn, Int, LoopParamOf, OpName, Param, Parts, Product, Sealed, SealedDef, Signature, Sum, Term, Type, Typed, TypedTerm } from './types.ts'
+ * @import { ArmOf, Code, CodeParam, Defines, F64, F64c, Fn, Int, Interface, LoopParamOf, OpName, Param, Parts, Product, Sealed, SealedDef, Signature, Sum, Term, Type, Typed, TypedTerm } from './types.ts'
  */
+
+import { assertNotNullish } from '../asserts/module.f.js'
+import { entry } from '../types/object/entry/module.f.js'
 
 // types
 
@@ -164,6 +167,42 @@ export const float = op('float')
  * @type {(t: Int, x: Term) => Term}
  */
 export const trunc_sat = (t, x) => ['op', 'trunc_sat', [x], t]
+
+/**
+ * The bits that carry a value of a sealed type, `u(64)` for an `i64`
+ * carrier and `u(32)` for an `i32`: only in the module that defines
+ * the type. It borrows the value.
+ *
+ * @type {(x: Term) => Term}
+ */
+export const unseal = x => ['op', 'unseal', [x]]
+
+/**
+ * A value of the sealed type `t` from the bits that carry it: only in the
+ * module that defines `t`.
+ *
+ * @type {(t: Sealed, x: Term) => Term}
+ */
+export const seal = (t, x) => ['op', 'seal', [x], t]
+
+/** The name of the sealed types that a module defines, or `null` where it defines none. @type {(m: { readonly defines?: Defines }) => string | null} */
+export const definedBy = ({ defines }) => defines === undefined ? null : assertNotNullish(entry(defines, 'name'))
+
+/**
+ * The interfaces whose types a module's terms name: those it imports, then
+ * the one it defines, if any, whose functions are those of the module that
+ * its types' `kind` names.
+ *
+ * @type {(m: { readonly imports: readonly (readonly [string, Interface])[], readonly defines?: Defines, readonly functions: readonly (readonly [string, Signature])[] }) => readonly (readonly [string, Interface])[]}
+ */
+export const interfacesOf = ({ imports, defines, functions }) => {
+    if (defines === undefined) { return imports }
+    const hooks = defines.types.flatMap(([, { kind }]) => kind === undefined ? [] : [kind])
+    const name = assertNotNullish(definedBy({ defines }))
+    /** @type {Interface} */
+    const own = { abi: name, types: defines.types, functions: functions.filter(([k], j) => hooks.includes(k) && functions.findIndex(([x]) => x === k) === j).map(([k, { params, result }]) => /** @type {const} */ ([k, { params, result }])) }
+    return [...imports, [name, own]]
+}
 
 /** A function of a module, `self` for the module itself. @type {(module: string, name: string, args: readonly Term[]) => Term} */
 export const call = (module, name, args) => ['call', module, name, args]

@@ -39,13 +39,13 @@
  *
  * @module
  *
- * @import { ArmOf, ConstantOf, Fn, Int, Interface, Module, Parts, Sealed, Signature, Term, Type } from '../types.ts'
+ * @import { ArmOf, ConstantOf, Fn, Int, Interface, Module, Parts, Sealed, SealedDef, Signature, Term, Type } from '../types.ts'
  */
 
 import { encodeScalar } from '../../basen/base16/module.f.js'
 import { codeUnitToString, stringToList } from '../../text/utf16/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
-import { bool, equal, never, unit } from '../module.f.js'
+import { bool, definedBy, equal, never, unit } from '../module.f.js'
 
 // types
 
@@ -152,7 +152,7 @@ const showTrap = reason => {
     return `trap('${quoted}')`
 }
 
-/** The range that `trunc_sat` saturates to, as the first of its parts, and nothing for any other operator. @type {(t: Int | undefined) => readonly string[]} */
+/** The range that `trunc_sat` saturates to or the type that `seal` makes, as the first of its parts, and nothing for any other operator. @type {(t: Int | Sealed | undefined) => readonly string[]} */
 const target = t => t === undefined ? [] : [show(t)]
 
 /**
@@ -298,27 +298,31 @@ const showFn = (name, f) => [`${showSignature(name, f)} =`, ...lines(f.body, '  
 /** A constant as its type and its term. @type {(name: string, c: ConstantOf<Term>) => readonly string[]} */
 const showConstant = (name, { type, value }) => [`const ${name}: ${show(type)} =`, ...lines(value, '    ')]
 
+/** The sealed types of an interface or of a module that defines them, a line for each and one for its parts. @type {(types: readonly (readonly [string, SealedDef])[]) => readonly string[]} */
+const showTypes = types => types.flatMap(([type, { variants, kind, carrier, dup, drop, copy, literal }]) => [
+    `    type ${type} = ${variants.join(' | ')}`,
+    `        ${kind === undefined ? '' : `kind: ${kind}, `}carrier: ${carrier}${dup === undefined ? '' : `, dup: ${dup}`}${drop === undefined ? '' : `, drop: ${drop}`}${copy === undefined ? '' : `, copy: ${copy.join(' | ')}`}${literal === undefined ? '' : `, literal: ${literal.variant} by ${literal.module}.${literal.member}`}`,
+])
+
 /** An interface as its binding, its sealed types, its constants and its functions' signatures. @type {(name: string, i: Interface) => readonly string[]} */
 const showInterface = (name, { abi, types, constants = [], functions }) => [
     `import ${name} from ${abi}`,
-    ...types.flatMap(([type, { variants, kind, carrier, dup, drop, copy, literal }]) => [
-        `    type ${type} = ${variants.join(' | ')}`,
-        `        ${kind === undefined ? '' : `kind: ${kind}, `}carrier: ${carrier}${dup === undefined ? '' : `, dup: ${dup}`}${drop === undefined ? '' : `, drop: ${drop}`}${copy === undefined ? '' : `, copy: ${copy.join(' | ')}`}${literal === undefined ? '' : `, literal: ${literal.variant} by ${literal.module}.${literal.member}`}`,
-    ]),
+    ...showTypes(types),
     ...constants.map(([k, t]) => `    const ${k}: ${show(t)}`),
     ...functions.map(([k, s]) => `    ${showSignature(k, s)}`),
 ]
 
 /**
- * A module as text: the interfaces it imports, then its constants and its
- * functions, in their order, each after a blank line but the first, and its
- * exports last.
+ * A module as text: the interfaces it imports, the types it defines, then
+ * its constants and its functions, in their order, each after a blank line
+ * but the first, and its exports last.
  *
  * @type {(m: Module) => string}
  */
 export const print = m => [
     ...[
         ...m.imports.map(([name, i]) => showInterface(name, i)),
+        ...(m.defines === undefined ? [] : [[`define ${definedBy(m)}`, ...showTypes(m.defines.types)]]),
         ...(m.constants ?? []).map(([name, c]) => showConstant(name, c)),
         ...m.functions.map(([name, f]) => showFn(name, f)),
     ].flatMap((paragraph, k) => [...(k === 0 ? [] : ['']), ...paragraph]),

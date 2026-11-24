@@ -57,7 +57,7 @@ import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { error, ok, okList } from '../../../types/result/module.f.js'
 import { entry } from '../../../types/object/entry/module.f.js'
 import { at, empty, fromEntries, setReplace } from '../../../types/ordered_map/module.f.js'
-import { equal, isCopy, isOwn, leaves, never } from '../../module.f.js'
+import { equal, interfacesOf, isCopy, isOwn, leaves, never } from '../../module.f.js'
 
 // sets of owned locals, as lists of their names
 
@@ -502,7 +502,7 @@ const checkConstant = (functions, imports) => ([name, { type, value }]) => {
  */
 export const checkOwned = m => {
     const functions = fromEntries(m.functions)
-    const imports = fromEntries(m.imports)
+    const imports = fromEntries(interfacesOf(m))
     const failed = [...m.constants.map(checkConstant(functions, imports)), ...m.functions.map(checkFn(functions, imports))].find(r => r[0] === 'error')
     return failed === undefined ? ok(null) : failed
 }
