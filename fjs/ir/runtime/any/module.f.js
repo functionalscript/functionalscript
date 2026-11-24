@@ -158,7 +158,7 @@ export const module = {
         ['trueOf', fn([], boolean, () => constant('self', 'true'))],
     ],
     exports: [
-        'isRef', 'kind', 'to_f64', 'from_f64', 'to_bool', 'from_bool', 'same',
+        'isRef', 'kind', 'to_f64', 'from_f64', 'to_bool', 'from_bool', 'same', 'dup', 'drop',
         'keep', 'take', 'forget', 'undefinedOf', 'nullOf', 'falseOf', 'trueOf',
     ],
 }
