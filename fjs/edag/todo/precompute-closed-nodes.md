@@ -32,6 +32,33 @@ is `false` with an array per call and `true` with one array. The
 answers: a `true` implies equal content, and both arrays have it. That makes
 the reduction a transformation a compiler may apply, not a separate model.
 
+### Principles
+
+Decided by the task owner:
+
+1. **Every module is precomputed, as early as it can be.** A module's
+   value is computed once, when the module is loaded, and what imports it
+   takes the precomputed value. Modules are to be cached across CI builds,
+   so the precomputed value is what a cache holds, and the next consumer
+   does not walk the graph again.
+2. **Everything that can be computed is.** There is no separate
+   metaprogramming: a computation whose inputs are known is done ahead,
+   whatever kind it is.
+
+What they ask of the design:
+
+- The place is where a module's initializer answers its export object —
+  `interpreting` in
+  [`../../compiler/transpiler`](../../compiler/transpiler/module.f.js) —
+  so an importer's initializer already runs over precomputed functions.
+- A value precomputed once is not walked again. `precompute` builds a new
+  value throughout and remembers nothing between calls; it has to leave a
+  value it did not change as the value it was, and carry what it has
+  answered from one module to the next.
+- A cached value has to be the same on every run, so what stops a closed
+  call that does not end is a count of steps, not a clock.
+- Each open question below is a computation not yet applied, and so owed.
+
 ### Design
 
 `precompute(runtime)(value)` answers an evaluated value with every closure
