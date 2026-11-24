@@ -79,6 +79,36 @@ answered two. A successful result has the same ordered content
 evaluation fails is not touched. Function text changes with the body; that
 exception is already adopted ([`../function-text.md`](../function-text.md)).
 
+### Measurement
+
+At `eee50e43`, one module with two functions that each compute the same thing
+in every call, summed in a loop:
+
+```js
+const lookup = i => squares(64)[Number(i % 64)]             // builds a 64-item table per call
+const weight = i => [3, 1, 4, 1, 5, 9, 2, 6][Number(i % 8)] // a literal array per call
+```
+
+The module was interpreted, written from its evaluated value as
+FunctionalScript and as Rust, and written again after `precompute`. Best
+of several runs, the same results from all four:
+
+| | as written | precomputed |
+| --- | --- | --- |
+| Node 22, `lookup` × 20 000 | 73.6 ms | 0.13 ms |
+| Node 22, `weight` × 200 000 | 1.78 ms | 1.74 ms |
+| NaNVM `naive`, release, `lookup` × 20 000 | 1450 ms | 13.9 ms |
+| NaNVM `naive`, release, `weight` × 200 000 | 161 ms | 144 ms |
+
+A closed call is the whole gain: the table is built once and not at all at
+run time. A small literal array is about a tenth on NaNVM and nothing a JIT
+does not already do. In the precomputed text the table, the literal array
+and each loop's initial `[0, 0]` are module-level constants.
+
+The benchmark is not in the tree. It needed one thing the first prototype
+lacked: a capture the body no longer reads has to go, since the
+FunctionalScript writer refuses a slot no read reaches.
+
 ### Open questions
 
 1. **`self`.** A closure is defined when it is called, so `['self']` is as
