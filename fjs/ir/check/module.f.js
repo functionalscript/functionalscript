@@ -1033,7 +1033,9 @@ export const checkPlain = m => {
         : assertNotNullish(m.defines).types.map(([type, { literal, dup, drop }]) => literal?.module === own ? `${own}.${type}: the module that defines it does not make its literals`
             : dup !== undefined || drop !== undefined ? `${own}.${type}: a type that the module defines is not counted yet, since its drop could not give up the value that it owns`
             : null).find(x => x !== null) ?? null
-    const why = mine ?? unscoped(env, interfaces, m.functions, [], [], m.imports)
+    // The loader links what the module imports, and the makers of the literals of the types that it defines, but none of its own functions.
+    const loaded = own === null ? m.imports : [...m.imports, /** @type {const} */ ([own, { abi: own, types: assertNotNullish(m.defines).types, functions: [] }])]
+    const why = mine ?? unscoped(env, interfaces, m.functions, [], [], loaded)
     const names = m.functions.map(([name]) => name)
     const missing = m.exports.find(k => !names.includes(k))
     const again = twiceIn(m.exports)

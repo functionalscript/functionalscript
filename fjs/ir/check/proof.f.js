@@ -738,6 +738,21 @@ export const proof = {
                 ['mask', { type: int(0n, 1n), value: n(1n) }],
             ],
         }), 'size0: mask is read before init evaluates it')
+        // a value that seal makes is owned, so two parameters that own it do not both take it
+        const taker = tagged('tag', v => and(unseal(v), n(1n)))
+        assertEq(why({ ...taker, functions: [...taker.functions,
+            ['eat', fn([own('v', cellOf)], cellOf, v => v)],
+            ['twice', fn([['b', u(64)]], cellOf, b => let_('x', seal(cellOf, b), x => let_('y', call('self', 'eat', [x]), () => call('self', 'eat', [x]))))],
+        ] }), 'twice: x is used after it was consumed')
+        assertEq(why({ ...taker, functions: [...taker.functions, ['peek', fn([['b', u(64)]], u(64), b => unseal(seal(cellOf, b)))]] }),
+            'peek: seal answers an owned value that nothing takes over: bind it first')
+        // the makers of a defined type's literals are linked as imports are
+        assertEq(why({
+            imports: [['M', { abi: 'm', types: [], functions: [['memory', signature([], u(8))], ['make', signature([['p', u(32)], ['n', u(32)]], ['sealed', 'T', 'cell', null])]] }]],
+            defines: { name: 'T', types: [['cell', { variants: ['small'], carrier: 'i64', literal: { variant: 'small', module: 'M', member: 'make' } }]] },
+            functions: [],
+            exports: [],
+        }), 'the function M.memory is the import memory of m, which the loader gives a module that makes literals')
         // the loader's names are for what a module imports, not for its own functions
         assertEq(assertOk(check(tagged('table', v => and(unseal(v), n(1n))))).functions.map(([k]) => k).join(), 'table,size')
         const defines = assertNotNullish(sealing.defines)
