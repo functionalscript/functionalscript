@@ -114,7 +114,7 @@ import { bitsOf } from '../../types/number/module.f.js'
 import { stringToList } from '../../text/utf16/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { at, empty, fromEntries, setReplace } from '../../types/ordered_map/module.f.js'
-import { compareIn, equal, fits, i, inside, never, u } from '../module.f.js'
+import { compareIn, definedBy, equal, fits, i, inside, interfacesOf, never, u } from '../module.f.js'
 
 // values
 
@@ -209,6 +209,11 @@ const integer = (name, bits, isSigned) => {
         case 'sub': { return i32 ? ['i32.sub'] : ['i64.sub'] }
         case 'mul': { return i32 ? ['i32.mul'] : ['i64.mul'] }
         case 'eq': { return i32 ? ['i32.eq'] : ['i64.eq'] }
+        case 'and': { return i32 ? ['i32.and'] : ['i64.and'] }
+        case 'or': { return i32 ? ['i32.or'] : ['i64.or'] }
+        case 'xor': { return i32 ? ['i32.xor'] : ['i64.xor'] }
+        case 'shl': { return i32 ? ['i32.shl'] : ['i64.shl'] }
+        case 'shr': { return i32 ? ['i32.shr_u'] : ['i64.shr_u'] }
         case 'lt': { return i32 ? (isSigned ? ['i32.lt_s'] : ['i32.lt_u']) : isSigned ? ['i64.lt_s'] : ['i64.lt_u'] }
         default: { return i32 ? (isSigned ? ['i32.le_s'] : ['i32.le_u']) : isSigned ? ['i64.le_s'] : ['i64.le_u'] }
     }
@@ -224,6 +229,7 @@ const float = name => {
         case 'neg': { return ['f64.neg'] }
         case 'abs': { return ['f64.abs'] }
         case 'sqrt': { return ['f64.sqrt'] }
+        case 'to_bits': { return ['i64.reinterpret_f64'] }
         case 'eq': { return ['f64.eq'] }
         case 'lt': { return ['f64.lt'] }
         default: { return ['f64.le'] }
@@ -336,6 +342,24 @@ const truncSat = (emitTerm, env, t, x) => {
     return { code: [...c.code, ...low, ...high], locals: [...c.locals, ...kept] }
 }
 
+/** The bits of the one NaN of an `f64c`. */
+const NAN = 0x7FF8_0000_0000_0000n
+
+/**
+ * `canon`: the float, or the one NaN where it is a NaN, which is the one
+ * float that is not equal to itself.
+ *
+ * @type {(emitTerm: _EmitTerm, env: _Env, x: Typed) => _Code}
+ */
+const canon = (emitTerm, env, x) => {
+    const c = sequence(emitTerm, env, [[x, x[0]]], [])
+    const slot = env.next + c.locals.length
+    return {
+        code: [...c.code, ['local.set', slot], ['f64.const', NAN], ['local.get', slot], ['local.get', slot], ['local.get', slot], ['f64.ne'], ['select']],
+        locals: [...c.locals, ['canon', 'f64']],
+    }
+}
+
 /**
  * An operator: its operands, each made a value of the word that it runs in,
  * then its instruction, and a wrap where its result's word is narrower.
@@ -348,10 +372,15 @@ const operator = (emitTerm, env, type, name, args) => {
         assert(type[0] === 'int', type)
         return truncSat(emitTerm, env, type, args[0])
     }
+    // A sealed value and the bits of its carrier are one WASM value.
+    if (name === 'unseal') { return sequence(emitTerm, env, [[args[0], args[0][0]]], []) }
+    if (name === 'seal') { return sequence(emitTerm, env, [[args[0], carrier(env.interfaces, type)[0] === 'i64' ? u(64) : u(32)]], []) }
     const ints = args.flatMap(([t]) => t[0] === 'int' ? [t] : [])
     const own = args.map(x => /** @type {const} */ ([x, x[0]]))
+    if (name === 'canon') { return canon(emitTerm, env, args[0]) }
     if (ints.length === 0) { return sequence(emitTerm, env, own, [float(name)]) }
     if (name === 'float') { return sequence(emitTerm, env, own, [convert(ints[0])]) }
+    if (name === 'from_bits') { return sequence(emitTerm, env, [[args[0], u(64)]], [['f64.reinterpret_i64']]) }
     /** The operands as values of `bits`. @type {(bits: 32 | 64) => readonly (readonly [Typed, Type])[]} */
     const inWord = bits => args.map((x, k) => [x, word(ints[Number(k)], bits)])
     if (name === 'eq' || name === 'lt' || name === 'le') {
@@ -359,7 +388,9 @@ const operator = (emitTerm, env, type, name, args) => {
         return sequence(emitTerm, env, inWord(bits), [integer(name, bits, isSigned)])
     }
     const words = [type, ...ints].map(t => carrier(env.interfaces, t)[0])
-    const bits = words.includes('i64') ? 64 : 32
+    // WASM reads an `i32` shift's count modulo 32, so a count that may reach 32 shifts an `i64`.
+    const wideShift = (name === 'shl' || name === 'shr') && ints[1][2] >= 32n
+    const bits = words.includes('i64') || wideShift ? 64 : 32
     /** @type {Expr} */
     const wrap = bits === 64 && words[0] === 'i32' ? [['i32.wrap_i64']] : []
     return sequence(emitTerm, env, inWord(bits), [integer(name, bits, false), ...wrap])
@@ -686,7 +717,7 @@ const zero = t => t === 'f64' ? ['f64.const', 0n] : t === 'i64' ? ['i64.const', 
  * @type {(m: Checked) => WasmModule}
  */
 export const emit = m => {
-    const interfaces = fromEntries(m.imports)
+    const interfaces = fromEntries(interfacesOf(m))
     const imported = m.imports.flatMap(([module, { abi, functions }]) => functions.map(([member, s]) => ({ module, abi, member, s })))
     const importedConstants = m.imports.flatMap(([module, { abi, constants = [] }]) => constants.map(([member, t]) => ({ module, abi, member, t })))
     const { constants } = m
@@ -729,10 +760,6 @@ export const emit = m => {
     ]
     const types = signatures.filter((s, k) => signatures.findIndex(x => same(x, s)) === k)
     const typeOf = /** @type {(k: number) => number} */ (k => types.findIndex(x => same(x, signatures[Number(k)])))
-    const imports = fromEntries(m.imports.map(([module]) => /** @type {const} */ ([
-        module,
-        fromEntries(imported.flatMap((x, k) => x.module === module ? [/** @type {const} */ ([x.member, callee(k, x.s)])] : [])),
-    ])))
     const dataBase = importedConstants.length
     const tableBase = dataBase + (memoryAbi === null ? 0 : 1)
     const literalBase = tableBase + (tableAbi === null ? 0 : 1)
@@ -746,6 +773,14 @@ export const emit = m => {
     ])
     const own = imported.length + makers.length
     const functions = fromEntries(m.functions.map(([name, f], k) => /** @type {const} */ ([name, callee(own + k, f)])))
+    // A type that the module defines names its own functions, as `kind`, where an imported one names its interface's.
+    const imports = fromEntries([
+        ...m.imports.map(([module]) => /** @type {const} */ ([
+            module,
+            fromEntries(imported.flatMap((x, k) => x.module === module ? [/** @type {const} */ ([x.member, callee(k, x.s)])] : [])),
+        ])),
+        ...(m.defines === undefined ? [] : [/** @type {const} */ ([assertNotNullish(definedBy(m)), functions])]),
+    ])
     const codeIndex = fromEntries(referenced.map((name, k) => /** @type {const} */ ([name, k])))
     /** @type {_Env} */
     const base = {

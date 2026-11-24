@@ -23,6 +23,8 @@ export type _Env = {
     readonly functions: OrderedMap<Signature>
     readonly imports: OrderedMap<Interface>
     readonly constants: OrderedMap<Type>
+    /** The name of the sealed types' interface that the module defines, or `null`. */
+    readonly own: string | null
 }
 
 /** Check one term in its current scope. */

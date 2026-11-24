@@ -8,8 +8,8 @@
 import { assertEq, assertError, assertOk } from '../../../asserts/module.f.js'
 import { any, l0, string } from '../../l0/module.f.js'
 import {
-    add, block, bool, br, call, call_ref, code, codeOf, constant, f64, field, float, fn, get, if_, let_, lit, loop, lt, make, match, never, next, only, own, return_, trap, true_, u, unit,
-    variant,
+    add, block, bool, br, call, call_ref, code, codeOf, constant, f64, field, float, fn, get, if_, let_, lit, loop, lt, make, match, never, next, only, own, return_, seal, trap, true_, u, unit,
+    unseal, variant,
 } from '../../module.f.js'
 import { check } from '../module.f.js'
 
@@ -228,6 +228,20 @@ export const proof = {
     },
     // One refusal per rule.
     refuse: {
+        // A value that `seal` makes is owned, as a call's result is: once taken, it is gone, and a term that only reads it leaves it over.
+        sealed: () => {
+            const cell = /** @type {const} */ (['sealed', 'T', 'cell', null])
+            /** A module that defines `T.cell`, a linear type, with `f`. @type {(f: Fn) => Module} */
+            const defining = f => ({
+                imports: [],
+                defines: { name: 'T', types: [['cell', { variants: ['small'], carrier: 'i64' }]] },
+                functions: [['eat', fn([own('v', cell)], cell, v => v)], ['f', f]],
+                exports: ['f'],
+            })
+            fine(defining(fn([['b', u(64)]], cell, b => let_('x', seal(cell, b), x => call('self', 'eat', [x])))))
+            assertEq(why(defining(fn([['b', u(64)]], cell, b => let_('x', seal(cell, b), x => let_('y', call('self', 'eat', [x]), () => call('self', 'eat', [x])))))), 'f: x is used after it was consumed')
+            assertEq(why(defining(fn([['b', u(64)]], u(64), b => unseal(seal(cell, b))))), 'f: seal answers an owned value that nothing takes over: bind it first')
+        },
         // A constant owns its value, which a borrow is not, and its term leaves nothing over.
         constantBorrowed: () => assertEq(why(withConstants([['a', { type: string, value: fromUnit(letterA) }], ['k', { type: string, value: self('a') }]])), 'k: the value is borrowed, and the constant would own it'),
         constantLeft: () => assertEq(why(withConstants([['k', { type: f64, value: leak(one) }]])), 'k: s is left over'),

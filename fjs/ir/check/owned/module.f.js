@@ -57,7 +57,7 @@ import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { error, ok, okList } from '../../../types/result/module.f.js'
 import { entry } from '../../../types/object/entry/module.f.js'
 import { at, empty, fromEntries, setReplace } from '../../../types/ordered_map/module.f.js'
-import { equal, isCopy, isOwn, leaves, never } from '../../module.f.js'
+import { equal, interfacesOf, isCopy, isOwn, leaves, never } from '../../module.f.js'
 
 // sets of owned locals, as lists of their names
 
@@ -439,7 +439,10 @@ const walk = (env, alive, [type, t], mode) => {
         case 'let': { return letTerm(walk, env, alive, mode, t[1], t[2], t[3]) }
         case 'op': {
             const r = sequence(walk, env, alive, t[2].map(x => [x, 'read']))
-            return r[0] === 'error' ? r : ok(out(r[1].owned, plain, r[1].exits))
+            if (r[0] === 'error') { return r }
+            // `seal` makes a value of the type that it names, which its context owns, as a call's result is
+            if (r[1].owned === null || !holds(env.imports)(type)) { return ok(out(r[1].owned, plain, r[1].exits)) }
+            return mode === 'read' ? no(env, `${t[1]} answers an owned value that nothing takes over: bind it first`) : ok(out(r[1].owned, owned, r[1].exits))
         }
         case 'call': { return callTerm(walk, env, alive, type, mode, t[1], t[2], t[3]) }
         case 'call_ref': { return callRefTerm(walk, env, alive, type, mode, t[1], t[2]) }
@@ -502,7 +505,7 @@ const checkConstant = (functions, imports) => ([name, { type, value }]) => {
  */
 export const checkOwned = m => {
     const functions = fromEntries(m.functions)
-    const imports = fromEntries(m.imports)
+    const imports = fromEntries(interfacesOf(m))
     const failed = [...m.constants.map(checkConstant(functions, imports)), ...m.functions.map(checkFn(functions, imports))].find(r => r[0] === 'error')
     return failed === undefined ? ok(null) : failed
 }

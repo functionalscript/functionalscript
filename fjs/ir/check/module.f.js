@@ -55,7 +55,7 @@
  *
  * @import { Result } from '../../types/result/types.ts'
  * @import { OrderedMap } from '../../types/ordered_map/types.ts'
- * @import { ArmOf, Checked, CheckedFn, Code, ConstantOf, FunctionOf, Int, Interface, Module, OpName, Param, Product, Scope, Sealed, SealedDef, Signature, Term, Type, Typed } from '../types.ts'
+ * @import { ArmOf, Checked, CheckedFn, Code, ConstantOf, FunctionOf, Int, Interface, Module, OpName, Param, Product, Scope, Sealed, SealedDef, Signature, Term, Type, Typed, TypedTerm } from '../types.ts'
  * @import { _CheckTerm, _Env, _Join, _Label } from './private.ts'
  */
 
@@ -63,7 +63,7 @@ import { error, ok, okList, unwrap } from '../../types/result/module.f.js'
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
 import { at, empty, fromEntries, setReplace } from '../../types/ordered_map/module.f.js'
-import { bool, compareIn, equal, f64, f64c, fits, inside, int, isOwn, never, product, unit } from '../module.f.js'
+import { bool, compareIn, definedBy, equal, f64, f64c, fits, inside, int, interfacesOf, isOwn, never, product, u, unit } from '../module.f.js'
 import { quote, show } from '../print/module.f.js'
 import { checkOwned } from './owned/module.f.js'
 
@@ -230,6 +230,32 @@ const least = xs => xs.reduce((a, b) => a < b ? a : b)
 /** @type {(xs: readonly bigint[]) => bigint} */
 const greatest = xs => xs.reduce((a, b) => a > b ? a : b)
 
+/** The least `2^k - 1` at or above `n`, for `n >= 0`. @type {(n: bigint) => bigint} */
+const ones = n => n === 0n ? 0n : (1n << BigInt(n.toString(2).length)) - 1n
+
+/**
+ * A bit operator's type, of two unsigned integers: `and` within the smaller
+ * bound, `or` and `xor` within the ones of the larger, and a shift by a
+ * count below 64 exact at both ends, as `mul` is.
+ *
+ * @type {(name: 'and' | 'or' | 'xor' | 'shl' | 'shr', a: Int, b: Int) => Result<Type, string>}
+ */
+const bitOp = (name, a, b) => {
+    if (a[1] < 0n || b[1] < 0n) { return error(`${name} of ${show(a)} and ${show(b)}: a bit operator takes unsigned integers`) }
+    /** @type {(hi: bigint) => Result<Type, string>} */
+    const upTo = hi => fits(64)(int(0n, hi)) ? ok(int(0n, hi)) : error(`${name} of ${show(a)} and ${show(b)} is ${show(int(0n, hi))}, which needs more than one word`)
+    switch (name) {
+        case 'and': { return upTo(a[2] < b[2] ? a[2] : b[2]) }
+        case 'or': case 'xor': { return upTo(ones(a[2] > b[2] ? a[2] : b[2])) }
+        default: {
+            if (b[2] >= 64n) { return error(`${name} of ${show(a)} by ${show(b)}: a shift count is below 64`) }
+            if (name === 'shr') { return ok(int(a[1] >> b[2], a[2] >> b[1])) }
+            const hi = upTo(a[2] << b[2])
+            return hi[0] === 'error' ? hi : ok(int(a[1] << b[1], a[2] << b[2]))
+        }
+    }
+}
+
 /** @type {(name: OpName, a: Int, b: Int) => Result<Type, string>} */
 const intOp = (name, a, b) => {
     /** @type {(lo: bigint, hi: bigint) => Result<Type, string>} */
@@ -247,6 +273,7 @@ const intOp = (name, a, b) => {
         case 'eq': case 'lt': case 'le': {
             return compareIn(a, b) === null ? error(`${name} of ${show(a)} and ${show(b)} needs more than one word`) : ok(bool)
         }
+        case 'and': case 'or': case 'xor': case 'shl': case 'shr': { return bitOp(name, a, b) }
         default: { return error(`${name} of two integers is not in this slice`) }
     }
 }
@@ -257,6 +284,10 @@ const floatOp = (name, a) => {
         case 'abs': { return ok(a) }
         case 'eq': case 'lt': case 'le': { return ok(bool) }
         case 'float': { return error(`float of ${show(a)}: float takes an integer`) }
+        case 'canon': { return ok(f64c) }
+        case 'to_bits': { return a[0] === 'f64c' ? ok(u(64)) : error(`to_bits of ${show(a)}: to_bits takes an f64c, whose one NaN has one bit pattern`) }
+        case 'from_bits': { return error(`from_bits of ${show(a)}: from_bits takes an unsigned integer`) }
+        case 'and': case 'or': case 'xor': case 'shl': case 'shr': { return error(`${name} of ${show(a)}: a bit operator takes unsigned integers`) }
         default: { return ok(f64) }
     }
 }
@@ -268,7 +299,7 @@ const floatOp = (name, a) => {
  * @type {(name: OpName, args: readonly Type[]) => Result<Type, string>}
  */
 const opType = (name, args) => {
-    const unary = name === 'neg' || name === 'abs' || name === 'sqrt' || name === 'float'
+    const unary = name === 'neg' || name === 'abs' || name === 'sqrt' || name === 'float' || name === 'canon' || name === 'to_bits' || name === 'from_bits'
     if (args.length !== (unary ? 1 : 2)) {
         return error(`${name} takes ${count(unary ? 1 : 2, 'operand')}, not ${args.length}`)
     }
@@ -277,6 +308,8 @@ const opType = (name, args) => {
     if (ints.length === args.length) {
         return name === 'float'
             ? (-(1n << 53n) <= a[1] && a[2] <= 1n << 53n ? ok(f64c) : error(`float of ${show(a)}: a float holds the integers within ±2^53 only`))
+            : name === 'from_bits' ? (0n <= a[1] && fits(64)(a) ? ok(f64) : error(`from_bits of ${show(a)}: from_bits takes an unsigned integer`))
+            : name === 'to_bits' || name === 'canon' ? error(`${name} of ${show(a)}: ${name} takes a float`)
             : unary ? error(`${name} of an integer is not in this slice`)
             : intOp(name, a, b)
     }
@@ -284,6 +317,44 @@ const opType = (name, args) => {
     return args.every(isFloat) ? floatOp(name, args[0])
         : args.every(t => t[0] === 'int' || isFloat(t)) ? error(`${name} of ${texts}: the operands are integers or floats, not both`)
         : error(`${name} of ${texts}: an operator takes integers or floats`)
+}
+
+/** Why a module may not see the carrier of `t`, or `null` where it defines `t`. @type {(env: _Env, name: string, t: Sealed) => string | null} */
+const unsealable = (env, name, t) => env.own === t[1] ? null : `${name} of ${show(t)}: only the module that defines ${t[1]} sees its carrier`
+
+/** The bits that carry a sealed type's value. @type {(env: _Env, t: Sealed) => Int} */
+const carrierBits = (env, t) => unwrap(definition(env, t)).carrier === 'i64' ? u(64) : u(32)
+
+/**
+ * `unseal`'s type: the bits of its carrier, of one value of a sealed type
+ * that the module defines.
+ *
+ * @type {(env: _Env, args: readonly Type[]) => Result<Type, string>}
+ */
+const unsealType = (env, args) => {
+    if (args.length !== 1) { return error(`unseal takes one operand, not ${args.length}`) }
+    const [a] = args
+    if (a[0] !== 'sealed') { return error(`unseal of ${show(a)}: unseal takes a value of a sealed type`) }
+    const why = unsealable(env, 'unseal', a)
+    return why !== null ? error(why) : ok(carrierBits(env, a))
+}
+
+/**
+ * `seal`'s type: the sealed type that it makes, which a module may write
+ * and that it defines, of one integer within its carrier's bits.
+ *
+ * @type {(env: _Env, target: Sealed | undefined, args: readonly Type[]) => Result<Type, string>}
+ */
+const sealType = (env, target, args) => {
+    if (target === undefined) { return error('seal takes the sealed type that it makes') }
+    const bad = unsealed(env, target)
+    if (bad !== null) { return error(bad) }
+    const why = unsealable(env, 'seal', target)
+    if (why !== null) { return error(why) }
+    if (args.length !== 1) { return error(`seal takes one operand, not ${args.length}`) }
+    const [a] = args
+    const bits = carrierBits(env, target)
+    return a[0] === 'int' && sub(env, a, bits) ? ok(target) : error(`seal of ${show(a)}: ${show(target)} is made of ${show(bits)}`)
 }
 
 /**
@@ -338,6 +409,7 @@ const member = (env, module, name, noun, own, of) => {
         const x = at(name)(own)
         return x === null ? error(`no ${noun} ${name}`) : ok(x)
     }
+    if (module === env.own) { return error(`${module} is the module itself, which names its ${noun} self.${name}`) }
     const i = at(module)(env.imports)
     const x = i === null ? undefined : of(i).find(([k]) => k === name)
     return i === null ? error(`no interface ${module}`)
@@ -450,8 +522,10 @@ const term = (env, t) => {
             const args = values(term, env, xs)
             if (args[0] === 'error') { return args }
             const types = args[1].map(([x]) => x)
-            const type = name === 'trunc_sat' ? truncType(env, target, types)
+            const type = name === 'trunc_sat' ? truncType(env, target?.[0] === 'int' ? target : undefined, types)
+                : name === 'seal' ? sealType(env, target?.[0] === 'sealed' ? target : undefined, types)
                 : target !== undefined ? error(`${name} takes no range`)
+                : name === 'unseal' ? unsealType(env, types)
                 : opType(name, types)
             return type[0] === 'error' ? no(type[1]) : ok([type[1], ['op', name, args[1]]])
         }
@@ -469,7 +543,7 @@ const term = (env, t) => {
                 return no(`${full}'s ${params[Number(wrong)][0]} is ${show(params[Number(wrong)][1])}, not ${show(args[1][Number(wrong)][0])}`)
             }
             // a `dup` answers the type of its argument, so a refined value stays refined
-            const iface = module === 'self' ? null : at(module)(env.imports)
+            const iface = at(module === 'self' ? env.own ?? 'self' : module)(env.imports)
             const isDup = iface !== null && iface.types.some(([, d]) => d.dup === name)
             return ok([isDup ? args[1][0][0] : result, ['call', module, name, args[1]]])
         }
@@ -636,7 +710,7 @@ const unkept = (env, t) => isNever(t) ? 'a constant of never holds no value' : u
  */
 const checkInterface = imports => ([name, { types, constants = [], functions }]) => {
     /** @type {_Env} */
-    const env = { name, locals: empty, labels: empty, functions: empty, imports, constants: empty }
+    const env = { name, locals: empty, labels: empty, functions: empty, imports, constants: empty, own: null }
     const type = twiceIn(types.map(([k]) => k))
     const constant = twiceIn(constants.map(([k]) => k))
     const named = twiceIn(functions.map(([k]) => k))
@@ -742,17 +816,19 @@ const shared = (env, imports) => {
  * it may: the interfaces and the signatures that the environment sees are
  * ones a module may have, the types of its locals are ones a local may
  * hold, and `results`, those of its functions, ones a module may write.
- * Every type that reaches the rules of a term has passed this.
+ * The import checks read `loaded`, the interfaces that the loader links,
+ * which leave out the one that a module defines. Every type that reaches
+ * the rules of a term has passed this.
  *
- * @type {(env: _Env, imports: readonly (readonly [string, Interface])[], functions: readonly (readonly [string, Signature])[], locals: readonly Type[], results: readonly Type[]) => string | null}
+ * @type {(env: _Env, imports: readonly (readonly [string, Interface])[], functions: readonly (readonly [string, Signature])[], locals: readonly Type[], results: readonly Type[], loaded?: readonly (readonly [string, Interface])[]) => string | null}
  */
-const unscoped = (env, imports, functions, locals, results) => {
+const unscoped = (env, imports, functions, locals, results, loaded = imports) => {
     const interfaces = imports.map(([name]) => name)
     const imported = interfaces.find((k, j) => interfaces.indexOf(k) !== j || k === 'self')
     const names = functions.map(([name]) => name)
     const twice = names.find((k, j) => names.indexOf(k) !== j)
     const iface = imports.map(checkInterface(env.imports)).find(x => x !== null)
-    const field = shared(env, imports)
+    const field = shared(env, loaded)
     const signature = functions.map(([name, s]) => {
         const why = unsigned(env, s)
         return why === null ? null : `${name}: ${why}`
@@ -768,10 +844,10 @@ const unscoped = (env, imports, functions, locals, results) => {
         : null
 }
 
-/** A function whose signature the checker took: a body of its result's type. @type {(functions: OrderedMap<Signature>, imports: OrderedMap<Interface>, constants: OrderedMap<Type>) => (entry: readonly [string, FunctionOf<Term>]) => Result<readonly [string, FunctionOf<Typed>], string>} */
-const checkFn = (functions, imports, constants) => ([name, { params, result, body }]) => {
+/** A function whose signature the checker took: a body of its result's type. @type {(functions: OrderedMap<Signature>, imports: OrderedMap<Interface>, constants: OrderedMap<Type>, own: string | null) => (entry: readonly [string, FunctionOf<Term>]) => Result<readonly [string, FunctionOf<Typed>], string>} */
+const checkFn = (functions, imports, constants, own) => ([name, { params, result, body }]) => {
     /** @type {_Env} */
-    const env = { name, locals: localsOf(params), labels: label_('return', ['block', result])(empty), functions, imports, constants }
+    const env = { name, locals: localsOf(params), labels: label_('return', ['block', result])(empty), functions, imports, constants, own }
     const b = term(env, body)
     if (b[0] === 'error') { return b }
     return sub(env, b[1][0], result) ? ok([name, { params, result, body: b[1] }])
@@ -783,11 +859,11 @@ const checkFn = (functions, imports, constants) => ([name, { params, result, bod
  * type, with no local and no label in scope, since it is no function's
  * body.
  *
- * @type {(functions: OrderedMap<Signature>, imports: OrderedMap<Interface>, constants: OrderedMap<Type>) => (entry: readonly [string, ConstantOf<Term>]) => Result<readonly [string, ConstantOf<Typed>], string>}
+ * @type {(functions: OrderedMap<Signature>, imports: OrderedMap<Interface>, constants: OrderedMap<Type>, own: string | null) => (entry: readonly [string, ConstantOf<Term>]) => Result<readonly [string, ConstantOf<Typed>], string>}
  */
-const checkConstant = (functions, imports, constants) => ([name, { type, value: e }]) => {
+const checkConstant = (functions, imports, constants, own) => ([name, { type, value: e }]) => {
     /** @type {_Env} */
-    const env = { name, locals: empty, labels: empty, functions, imports, constants }
+    const env = { name, locals: empty, labels: empty, functions, imports, constants, own }
     const v = value(term, env, e)
     if (v[0] === 'error') { return v }
     return sub(env, v[1][0], type) ? ok([name, { type, value: v[1] }])
@@ -800,23 +876,39 @@ const checkConstant = (functions, imports, constants) => ([name, { type, value: 
 const union = (a, b) => [...a, ...b.filter(x => !a.includes(x))]
 
 /**
+ * The kind that a typed `match` calls, by its interface and its name, or
+ * `null` where it calls none: a `match` of a sealed type tests a tag where
+ * an arm before its last takes a variant, as the emitter writes it.
+ *
+ * @type {(imports: OrderedMap<Interface>, t: TypedTerm) => readonly [string, string] | null}
+ */
+const kindCall = (imports, t) => {
+    if (t[0] !== 'match' || t[1][0][0] !== 'sealed' || t[2].slice(0, -1).every(([vs]) => vs.length === 0)) { return null }
+    const [, module, name] = t[1][0]
+    return [module, assertNotNullish(assertNotNullish(assertNotNullish(at(module)(imports)).types.find(([k]) => k === name))[1].kind)]
+}
+
+/**
  * The module's constants that a typed term reads itself, and the module's
  * functions that it calls, each once. A `call_ref` of a known `code(f)`
- * counts as a call of `f`; `code(f)` alone does not.
+ * counts as a call of `f`; `code(f)` alone does not. A `match` of a type
+ * that the module defines, `own`, calls its kind where it tests a tag.
  *
- * @type {(x: Typed) => readonly [readonly string[], readonly string[]]}
+ * @type {(imports: OrderedMap<Interface>, own: string | null) => (x: Typed) => readonly [readonly string[], readonly string[]]}
  */
-const uses = ([, t]) => {
+const uses = (imports, own) => ([, t]) => {
     const known = t[0] === 'call_ref' && t[1][1][0] === 'code' ? t[1][1][1] : null
+    const kind = kindCall(imports, t)
     /** @type {readonly [readonly string[], readonly string[]]} */
-    const own = t[0] === 'constant' && t[1] === 'self' ? [[t[2]], []]
+    const start = t[0] === 'constant' && t[1] === 'self' ? [[t[2]], []]
         : t[0] === 'call' && t[1] === 'self' ? [[], [t[2]]]
         : known !== null ? [[], [known]]
+        : kind !== null && kind[0] === own ? [[], [kind[1]]]
         : [[], []]
     return inside(t).reduce(([cs, fs], x) => {
-        const [c, f] = uses(x)
+        const [c, f] = uses(imports, own)(x)
         return [union(cs, c), union(fs, f)]
-    }, own)
+    }, start)
 }
 
 /** Whether a typed term has a `call_ref` whose callee is not a known `code(f)`. @type {(x: Typed) => boolean} */
@@ -846,15 +938,15 @@ const readings = direct => {
  * it may: the term of each reads only the constants before it, itself or
  * through the functions that it calls.
  *
- * @type {(constants: readonly (readonly [string, ConstantOf<Typed>])[], functions: readonly (readonly [string, FunctionOf<Typed>])[]) => string | null}
+ * @type {(imports: OrderedMap<Interface>, own: string | null, constants: readonly (readonly [string, ConstantOf<Typed>])[], functions: readonly (readonly [string, FunctionOf<Typed>])[]) => string | null}
  */
-const unordered = (constants, functions) => {
+const unordered = (imports, own, constants, functions) => {
     const all = functions.map(([f]) => f)
     // An unresolved code value may run any function: in an initializer and in
     // any function body, take every function as a callee so readings grow.
     /** @type {(x: Typed) => readonly [readonly string[], readonly string[]]} */
     const deps = x => {
-        const [cs, fs] = uses(x)
+        const [cs, fs] = uses(imports, own)(x)
         return [cs, unresolvedCallRef(x) ? all : fs]
     }
     const reading = readings(functions.map(([f, { body }]) => /** @type {const} */ ([f, deps(body)])))
@@ -876,18 +968,22 @@ const declared = (imports, module, name) => assertNotNullish(assertNotNullish(at
  * `trap` or by a call of a function of an interface that may fail, and the
  * module's functions that it calls, each once.
  *
- * @type {(imports: OrderedMap<Interface>) => (x: Typed) => readonly [boolean, readonly string[]]}
+ * @type {(imports: OrderedMap<Interface>, own: string | null) => (x: Typed) => readonly [boolean, readonly string[]]}
  */
-const failures = imports => ([, t]) => {
+const failures = (imports, own) => ([, t]) => {
     // A `call_ref` of a known `code(f)` fails as `f` does; any other code value may fail.
     const known = t[0] === 'call_ref' && t[1][1][0] === 'code' ? t[1][1][1] : null
+    // A `match` that tests a tag calls its kind: the module's own, for a type that it defines.
+    const kind = kindCall(imports, t)
+    const mine = kind !== null && kind[0] === own ? kind[1] : null
     const itself = t[0] === 'trap'
         || (t[0] === 'call' && t[1] !== 'self' && declared(imports, t[1], t[2]))
         || (t[0] === 'call_ref' && known === null)
+        || (kind !== null && mine === null && declared(imports, kind[0], kind[1]))
     /** @type {readonly [boolean, readonly string[]]} */
-    const start = [itself, t[0] === 'call' && t[1] === 'self' ? [t[2]] : known !== null ? [known] : []]
+    const start = [itself, t[0] === 'call' && t[1] === 'self' ? [t[2]] : known !== null ? [known] : mine !== null ? [mine] : []]
     return inside(t).reduce(([f, fs], x) => {
-        const [g, gs] = failures(imports)(x)
+        const [g, gs] = failures(imports, own)(x)
         return [f || g, union(fs, gs)]
     }, start)
 }
@@ -897,10 +993,10 @@ const failures = imports => ([, t]) => {
  * themselves, then those that call one that may, again until no function
  * changes. A function that calls itself and nothing that may fail cannot.
  *
- * @type {(imports: OrderedMap<Interface>, functions: readonly (readonly [string, FunctionOf<Typed>])[]) => readonly string[]}
+ * @type {(imports: OrderedMap<Interface>, own: string | null, functions: readonly (readonly [string, FunctionOf<Typed>])[]) => readonly string[]}
  */
-const failing = (imports, functions) => {
-    const direct = functions.map(([f, { body }]) => /** @type {const} */ ([f, failures(imports)(body)]))
+const failing = (imports, own, functions) => {
+    const direct = functions.map(([f, { body }]) => /** @type {const} */ ([f, failures(imports, own)(body)]))
     /** @type {(known: readonly string[]) => readonly string[]} */
     const grow = known => {
         const next = direct.flatMap(([f, [itself, calls]]) => itself || calls.some(g => known.includes(g)) ? [f] : [])
@@ -925,13 +1021,22 @@ const withEffect = fails => ([name, f]) => [name, { ...f, fails: fails.includes(
  * @type {(m: Module) => Result<Checked, string>}
  */
 export const checkPlain = m => {
-    const imports = fromEntries(m.imports)
+    const interfaces = interfacesOf(m)
+    const imports = fromEntries(interfaces)
     const functions = fromEntries(m.functions)
     const declared = m.constants ?? []
     const constants = fromEntries(declared.map(([k, { type }]) => /** @type {const} */ ([k, type])))
+    const own = definedBy(m)
     /** @type {_Env} */
-    const env = { name: '', locals: empty, labels: empty, functions, imports, constants }
-    const why = unscoped(env, m.imports, m.functions, [], [])
+    const env = { name: '', locals: empty, labels: empty, functions, imports, constants, own }
+    const mine = own === null ? null
+        : m.imports.some(([k]) => k === own) ? `the module defines ${own}, so it does not import ${own}`
+        : assertNotNullish(m.defines).types.map(([type, { literal, dup, drop }]) => literal?.module === own ? `${own}.${type}: the module that defines it does not make its literals`
+            : dup !== undefined || drop !== undefined ? `${own}.${type}: a type that the module defines is not counted yet, since its drop could not give up the value that it owns`
+            : null).find(x => x !== null) ?? null
+    // The loader links what the module imports, and the makers of the literals of the types that it defines, but none of its own functions.
+    const loaded = own === null ? m.imports : [...m.imports, /** @type {const} */ ([own, { abi: own, types: assertNotNullish(m.defines).types, functions: [] }])]
+    const why = mine ?? unscoped(env, interfaces, m.functions, [], [], loaded)
     const names = m.functions.map(([name]) => name)
     const missing = m.exports.find(k => !names.includes(k))
     const again = twiceIn(m.exports)
@@ -946,14 +1051,14 @@ export const checkPlain = m => {
     if (names.includes('init')) { return error('init is the function that evaluates the constants, so no function has that name') }
     if (constant !== undefined) { return error(`two constants are named ${constant}`) }
     if (typeof kept === 'string') { return error(kept) }
-    const typed = okList(m.functions.map(checkFn(functions, imports, constants)))
+    const typed = okList(m.functions.map(checkFn(functions, imports, constants, own)))
     if (typed[0] === 'error') { return typed }
-    const values = okList(declared.map(checkConstant(functions, imports, constants)))
+    const values = okList(declared.map(checkConstant(functions, imports, constants, own)))
     if (values[0] === 'error') { return values }
-    const late = unordered(values[1], typed[1])
+    const late = unordered(imports, own, values[1], typed[1])
     if (late !== null) { return error(late) }
-    const fails = failing(imports, typed[1])
-    return ok({ imports: m.imports, constants: values[1], functions: typed[1].map(withEffect(fails)), exports: m.exports })
+    const fails = failing(imports, own, typed[1])
+    return ok({ imports: m.imports, ...(m.defines === undefined ? {} : { defines: m.defines }), constants: values[1], functions: typed[1].map(withEffect(fails)), exports: m.exports })
 }
 
 /**
@@ -991,6 +1096,7 @@ export const typeOf = scope => {
         functions: fromEntries(functions),
         imports: fromEntries(imports),
         constants: fromEntries(constants),
+        own: null,
     }
     const why = unscoped(env, imports, functions, locals.map(([, x]) => x), [...results, ...constants.map(([, x]) => x)])
     return t => {

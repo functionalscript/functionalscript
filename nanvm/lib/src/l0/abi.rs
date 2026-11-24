@@ -7,12 +7,18 @@
 //! [`nanvm/l0-wasm`](../../../l0-wasm/src/lib.rs), exports it from a
 //! `.wasm`.
 //!
-//! - **A value is an `i64` handle,** an index into a table of `naive`
-//!   values, with the slot's generation in the high 32 bits, so a handle
-//!   used after its `drop` traps even when its slot holds a new value. The four constants are the handles `0` to `3`, which `dup`
-//!   answers as they are and `drop` leaves alone, and every `undefined`,
-//!   `null` or boolean an L0 function answers is one of them. Every other handle is one
-//!   owned reference: `dup` makes a new handle and `drop` frees one.
+//! - **A value is an `i64` NaN box** of
+//!   [Sergey's layout](../../../../doc/sergey-shandar/nanvm/README.md), as
+//!   [`runtime-in-ir.md`](../../../../doc/sasha-gil/ir/runtime-in-ir.md)
+//!   choices 1 and 2 say. A number is its own `f64` bits, with one NaN,
+//!   and `undefined`, `null`, `false` and `true` are the four constants:
+//!   these take no slot, `dup` answers them as they are and `drop` leaves
+//!   them alone. Every other value is a reference,
+//!   `0x7FF | kind << 48 | handle << 2`: `kind` is L0's kind, and the
+//!   handle is an index into a table of `naive` values, 32 bits, with the
+//!   slot's generation in the 14 above, so a handle used after its `drop`
+//!   traps even when its slot holds a new value. A reference is one owned
+//!   handle: `dup` makes a new one and `drop` frees one.
 //! - **A builder is an `i32` handle,** an index into a table of open
 //!   builders, with a generation the same way.
 //! - **Bytes** cross through [`with_memory`], which stands in for the
@@ -70,16 +76,78 @@ pub type Code = fn(self_: i64, args: i64) -> i64;
 /// every code index to the host this way.
 pub type HostCode = fn(code: i32, self_: i64, args: i64) -> i64;
 
-/// The constant `undefined`.
-pub const UNDEFINED: i64 = 0;
-/// The constant `null`.
-pub const NULL: i64 = 1;
-/// The constant `false`.
-pub const FALSE: i64 = 2;
-/// The constant `true`.
-pub const TRUE: i64 = 3;
+// The NaN box.
 
-const CONSTANTS: usize = 4;
+/// The exponent's bits: a float whose exponent is not all ones is finite.
+const EXP: u64 = 0x7FF0_0000_0000_0000;
+/// The bits that tell a non-finite number from the other scalars.
+const TAG8: u64 = 0x7FF0_0000_0000_00FF;
+/// The one NaN a number is boxed as.
+const NAN: u64 = 0x7FF8_0000_0000_0000;
+/// The bits that tell a counted reference, and what they are for one.
+const REF_TAG: u64 = 0xFFF0_0000_0000_0003;
+const DYN_REF: u64 = 0x7FF0_0000_0000_0002;
+/// A handle's bits in a reference's payload: 32 of index, 14 of generation.
+const INDEX_BITS: u32 = 32;
+const GENERATION_BITS: u32 = 14;
+
+/// The constant `undefined`.
+pub const UNDEFINED: i64 = 0x7FF0_0000_0000_0020;
+/// The constant `null`.
+pub const NULL: i64 = 0x7FF0_0000_0000_0030;
+/// The constant `false`.
+pub const FALSE: i64 = 0x7FF0_0000_0000_0010;
+/// The constant `true`.
+pub const TRUE: i64 = 0xFFF0_0000_0000_0010_u64 as i64;
+
+/// What a box holds: a value of its own bits, or a reference.
+enum Boxed {
+    Inline(V),
+    Ref { handle: u64, kind: i32 },
+}
+
+/// A number's box: its bits, with every NaN the one NaN.
+fn number(x: f64) -> i64 {
+    (if x.is_nan() { NAN } else { x.to_bits() }) as i64
+}
+
+/// Whether `h` is a number's bits.
+fn is_number(h: i64) -> bool {
+    let x = h as u64;
+    x & EXP != EXP || x & TAG8 == EXP
+}
+
+/// The kind of a box that holds its value, without making the value:
+/// `None` for a reference or for bits that are no value.
+fn inline_kind(h: i64) -> Option<super::Kind> {
+    if is_number(h) {
+        return Some(super::Kind::Number);
+    }
+    match h {
+        UNDEFINED => Some(super::Kind::Undefined),
+        NULL => Some(super::Kind::Null),
+        FALSE | TRUE => Some(super::Kind::Boolean),
+        _ => None,
+    }
+}
+
+/// What `h` holds, or `None` for bits that are no value.
+fn unbox(h: i64) -> Option<Boxed> {
+    let x = h as u64;
+    if is_number(h) {
+        return Some(Boxed::Inline(super::from_f64(f64::from_bits(x))));
+    }
+    match h {
+        UNDEFINED => return Some(Boxed::Inline(super::undefined())),
+        NULL => return Some(Boxed::Inline(super::null())),
+        FALSE | TRUE => return Some(Boxed::Inline(super::from_bool(h == TRUE))),
+        _ => {}
+    }
+    (x & REF_TAG == DYN_REF).then_some(Boxed::Ref {
+        handle: (x >> 2) & ((1 << (INDEX_BITS + GENERATION_BITS)) - 1),
+        kind: ((x >> 48) & 0xF) as i32,
+    })
+}
 
 /// The memory a fresh thread starts with: one WASM page.
 const MEMORY: usize = 0x1_0000;
@@ -202,19 +270,11 @@ impl State {
 
 impl State {
     fn new() -> Self {
-        // A value handle is 32 bits of index and 32 of generation. A
-        // builder handle, an `i32`, is 16 and 15, so it is never negative.
-        let mut values = Slab::new(32, 32);
-        for v in [
-            super::undefined(),
-            super::null(),
-            super::from_bool(false),
-            super::from_bool(true),
-        ] {
-            values.put("constant", 0, v);
-        }
+        // A value handle is 32 bits of index and 14 of generation, the
+        // payload of a box. A builder handle, an `i32`, is 16 and 15, so it
+        // is never negative.
         State {
-            values,
+            values: Slab::new(INDEX_BITS, GENERATION_BITS),
             builders: Slab::new(16, 15),
             memory: core::iter::repeat_n(0, MEMORY).collect(),
             table: Vec::new(),
@@ -279,53 +339,93 @@ pub unsafe fn release() {
 // Handles. No borrow of the state is held while a typed L0 function or a
 // code runs, so either may call back into the ABI.
 
-fn is_constant(h: i64) -> bool {
-    (0..CONSTANTS as i64).contains(&h)
+/// The slot of a reference's handle, when it names a value of the box's kind.
+fn slot(s: &State, handle: u64, kind: i32) -> Option<&V> {
+    s.values
+        .get(handle)
+        .filter(|v| super::kind(v) as i32 == kind)
 }
 
-/// The value of a borrowed handle.
+/// The value of a borrowed box.
 fn get(name: &str, h: i64) -> V {
-    with(|s| s.values.get(h as u64).cloned()).unwrap_or_else(|| trap(name, "not a value"))
-}
-
-/// Runs `f` on the value of a handle, which stays where it is: a read
-/// that needs no copy of the value, inside the state. `f` must not
-/// reach the state itself; a trap inside it ends the change as any
-/// trap does.
-fn read<R>(name: &str, h: i64, f: impl FnOnce(&V) -> R) -> R {
-    with(|s| s.values.get(h as u64).map(f)).unwrap_or_else(|| trap(name, "not a value"))
-}
-
-/// [`read`] of two handles at once.
-fn read2<R>(name: &str, a: i64, b: i64, f: impl FnOnce(&V, &V) -> R) -> R {
-    with(|s| match (s.values.get(a as u64), s.values.get(b as u64)) {
-        (Some(x), Some(y)) => Some(f(x, y)),
-        _ => None,
-    })
+    match unbox(h) {
+        Some(Boxed::Inline(v)) => Some(v),
+        Some(Boxed::Ref { handle, kind }) => with(|s| slot(s, handle, kind).cloned()),
+        None => None,
+    }
     .unwrap_or_else(|| trap(name, "not a value"))
 }
 
-/// The value of a handle the function takes: the handle is freed.
-fn take(name: &str, h: i64) -> V {
-    if is_constant(h) {
-        return get(name, h);
+/// Runs `f` on the value of a box, which stays where it is: a read
+/// that needs no copy of a referenced value, inside the state. `f` must
+/// not reach the state itself; a trap inside it ends the change as any
+/// trap does.
+fn read<R>(name: &str, h: i64, f: impl FnOnce(&V) -> R) -> R {
+    match unbox(h) {
+        Some(Boxed::Inline(v)) => Some(f(&v)),
+        Some(Boxed::Ref { handle, kind }) => with(|s| slot(s, handle, kind).map(f)),
+        None => None,
     }
-    with(|s| s.values.take(h as u64)).unwrap_or_else(|| trap(name, "not a value"))
+    .unwrap_or_else(|| trap(name, "not a value"))
 }
 
-/// A new owned handle. `undefined`, `null` and the booleans answer their
-/// constants, so they never take a slot.
+/// [`read`] of two boxes at once.
+fn read2<R>(name: &str, a: i64, b: i64, f: impl FnOnce(&V, &V) -> R) -> R {
+    match (unbox(a), unbox(b)) {
+        (Some(Boxed::Inline(x)), Some(Boxed::Inline(y))) => Some(f(&x, &y)),
+        (Some(Boxed::Inline(x)), Some(Boxed::Ref { handle, kind })) => {
+            with(|s| slot(s, handle, kind).map(|y| f(&x, y)))
+        }
+        (Some(Boxed::Ref { handle, kind }), Some(Boxed::Inline(y))) => {
+            with(|s| slot(s, handle, kind).map(|x| f(x, &y)))
+        }
+        (
+            Some(Boxed::Ref {
+                handle: ha,
+                kind: ka,
+            }),
+            Some(Boxed::Ref {
+                handle: hb,
+                kind: kb,
+            }),
+        ) => with(|s| match (slot(s, ha, ka), slot(s, hb, kb)) {
+            (Some(x), Some(y)) => Some(f(x, y)),
+            _ => None,
+        }),
+        _ => None,
+    }
+    .unwrap_or_else(|| trap(name, "not a value"))
+}
+
+/// The value of a box the function takes: a reference's handle is freed.
+fn take(name: &str, h: i64) -> V {
+    match unbox(h) {
+        Some(Boxed::Inline(v)) => Some(v),
+        Some(Boxed::Ref { handle, kind }) => with(|s| {
+            slot(s, handle, kind)?;
+            s.values.take(handle)
+        }),
+        None => None,
+    }
+    .unwrap_or_else(|| trap(name, "not a value"))
+}
+
+/// A new owned box: a number, `undefined`, `null` and the booleans are
+/// their own bits, so they never take a slot.
 fn put(v: V) -> i64 {
-    match super::kind(&v) {
+    let kind = super::kind(&v);
+    match kind {
         super::Kind::Undefined => return UNDEFINED,
         super::Kind::Null => return NULL,
         super::Kind::Boolean => return from_bool(super::to_bool(&v) as i32),
+        super::Kind::Number => return number(super::to_f64(&v)),
         _ => {}
     }
-    with(|s| {
+    let handle = with(|s| {
         let birth = s.birth();
         s.values.put("put", birth, v)
-    }) as i64
+    });
+    (DYN_REF | (kind as u64) << 48 | handle << 2) as i64
 }
 
 fn take_builder(name: &str, b: i32) -> Builder<A> {
@@ -402,23 +502,35 @@ fn store(name: &str, ptr: i32, len: i32, size: usize, data: &[u8]) {
 
 // Scalars.
 
-/// L0 `kind`.
+/// L0 `kind`: a value of its own bits is read from them.
 pub fn kind(v: i64) -> i32 {
-    read("kind", v, |x| super::kind(x) as i32)
+    match inline_kind(v) {
+        Some(k) => k as i32,
+        None => read("kind", v, |x| super::kind(x) as i32),
+    }
 }
 
-/// L0 `to_f64`.
+/// L0 `to_f64`: a number is its own bits.
 pub fn to_f64(v: i64) -> f64 {
-    read("to_f64", v, super::to_f64)
+    if is_number(v) {
+        f64::from_bits(v as u64)
+    } else {
+        read("to_f64", v, super::to_f64)
+    }
 }
 
-/// L0 `from_f64`.
+/// L0 `from_f64`: the number's own bits.
 pub fn from_f64(x: f64) -> i64 {
-    put(super::from_f64(x))
+    number(x)
 }
 
-/// L0 `to_bool`.
+/// L0 `to_bool`: a boolean is its own bits.
 pub fn to_bool(v: i64) -> i32 {
+    match v {
+        FALSE => return 0,
+        TRUE => return 1,
+        _ => {}
+    }
     read("to_bool", v, |x| super::to_bool(x) as i32)
 }
 
@@ -576,13 +688,17 @@ pub fn find(o: i64, key: i64) -> i32 {
 
 /// L0 `dup`.
 pub fn dup(v: i64) -> i64 {
-    let x = get("dup", v);
-    if is_constant(v) { v } else { put(x) }
+    match inline_kind(v) {
+        Some(_) => v,
+        None => put(get("dup", v)),
+    }
 }
 
 /// L0 `drop`. It takes `v`.
 pub fn drop(v: i64) {
-    take("drop", v);
+    if inline_kind(v).is_none() {
+        take("drop", v);
+    }
 }
 
 // Functions.
@@ -706,6 +822,45 @@ pub fn same(a: i64, b: i64) -> i32 {
     read2("same", a, b, |x, y| super::same(x, y) as i32)
 }
 
+// References only: what Any, written in the IR, still calls NaNVM for.
+// Each takes the box of a reference and traps on any other bits, as on a
+// dropped or forged reference, so no misuse is answered.
+
+/// Traps unless `h` is the box of a reference.
+fn reference(name: &str, h: i64) {
+    if !matches!(unbox(h), Some(Boxed::Ref { .. })) {
+        trap(name, "not a reference")
+    }
+}
+
+/// The kind of a live reference: its `tttt`, which NaNVM checks against
+/// the kind it keeps for the handle.
+pub fn kind_ref(v: i64) -> i32 {
+    reference("kind_ref", v);
+    read("kind_ref", v, |x| super::kind(x) as i32)
+}
+
+/// [`dup`] of a reference.
+pub fn dup_ref(v: i64) -> i64 {
+    reference("dup_ref", v);
+    put(get("dup_ref", v))
+}
+
+/// [`drop`] of a reference. It takes `v`.
+pub fn drop_ref(v: i64) {
+    reference("drop_ref", v);
+    take("drop_ref", v);
+}
+
+/// [`same`] where `a` or `b` is a reference: both are checked, even when
+/// their bits are equal, so a dropped reference traps.
+pub fn same_ref(a: i64, b: i64) -> i32 {
+    if !matches!(unbox(a), Some(Boxed::Ref { .. })) {
+        reference("same_ref", b);
+    }
+    read2("same_ref", a, b, |x, y| super::same(x, y) as i32)
+}
+
 // The host's side, not L0 imports.
 
 /// `1` when a [`throw`] caused the last trap, else `0`: the trap was a
@@ -774,16 +929,20 @@ pub fn catch(f: impl FnOnce() -> i64) -> Result<i64, i64> {
     }
 }
 
-/// The number of handles in use, besides the constants: for tests of
-/// ownership.
+/// The number of references in use: for tests of ownership.
 pub fn live() -> usize {
-    with(|s| s.values.count() - CONSTANTS)
+    with(|s| s.values.count())
 }
 
-/// `1` when `h` names a value, else `0`: for a host that keeps handles of
-/// its own across a [`recover`].
+/// `1` when `h` is a value, else `0`: for a host that keeps boxes of its
+/// own across a [`recover`].
 pub fn alive(h: i64) -> i32 {
-    with(|s| s.values.get(h as u64).is_some()) as i32
+    match unbox(h) {
+        Some(Boxed::Inline(_)) => true,
+        Some(Boxed::Ref { handle, kind }) => with(|s| slot(s, handle, kind).is_some()),
+        None => false,
+    }
+    .into()
 }
 
 /// The number of builders that are open: for tests of ownership.

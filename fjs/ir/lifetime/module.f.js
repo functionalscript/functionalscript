@@ -65,7 +65,7 @@ import { assert, assertNotNullish } from '../../asserts/module.f.js'
 import { error, ok, okList } from '../../types/result/module.f.js'
 import { at, empty, fromEntries, setReplace } from '../../types/ordered_map/module.f.js'
 import { checkPlain } from '../check/module.f.js'
-import { equal, isCopy, isOwn, leaves, never } from '../module.f.js'
+import { equal, interfacesOf, isCopy, isOwn, leaves, never } from '../module.f.js'
 import { quote, show } from '../print/module.f.js'
 
 // sets of names, as lists
@@ -581,7 +581,7 @@ const go = (env, typed, mode, owned, live, n) => {
             if (r[0] === 'error') { return r }
             const { terms, owned: o, n: n1 } = r[1]
             /** @type {Term} */
-            const term = type[0] === 'int' && t[1] === 'trunc_sat' ? ['op', t[1], terms, type] : ['op', t[1], terms]
+            const term = (type[0] === 'int' && t[1] === 'trunc_sat') || (type[0] === 'sealed' && t[1] === 'seal') ? ['op', t[1], terms, type] : ['op', t[1], terms]
             return ok({ term, owned: o, n: n1 })
         }
         case 'call': {
@@ -729,9 +729,9 @@ export const lifetime = m => {
     const typed = checkPlain(m)
     if (typed[0] === 'error') { return typed }
     const functions = fromEntries(m.functions)
-    const imports = fromEntries(m.imports)
+    const imports = fromEntries(interfacesOf(m))
     const constants = okList(typed[1].constants.map(lifetimeConstant(functions, imports)))
     if (constants[0] === 'error') { return constants }
     const written = okList(typed[1].functions.map(lifetimeFn(functions, imports)))
-    return written[0] === 'error' ? written : ok({ imports: m.imports, constants: constants[1], functions: written[1], exports: m.exports })
+    return written[0] === 'error' ? written : ok({ imports: m.imports, ...(m.defines === undefined ? {} : { defines: m.defines }), constants: constants[1], functions: written[1], exports: m.exports })
 }

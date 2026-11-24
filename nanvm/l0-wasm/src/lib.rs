@@ -26,12 +26,18 @@
 //!   panic stopped ([`abi::release`]), so the host goes on to `has_thrown`
 //!   and `recover`.
 //!
+//! `kind_ref`, `dup_ref`, `drop_ref` and `same_ref` are NaNVM's own
+//! exports for Any written in the IR
+//! ([runtime-in-ir.md](../../../doc/sasha-gil/ir/runtime-in-ir.md)): each
+//! takes the box of a reference and traps on any other bits.
+//!
 //! L1's native rows, the `fjs:l1-native` imports, are exports too, under
 //! their row names (`bigintAdd`, `numberToString`, ...), from
 //! [`abi::native`].
 //!
-//! The four constants are the handles `0` to `3`, which a loader makes the
-//! program's immutable `i64` globals. The code is all for `wasm32`:
+//! Every `i64` is a NaN box ([`abi`]): the four constants are their boxes,
+//! which `constant_box` answers and a loader makes the program's immutable
+//! `i64` globals. The code is all for `wasm32`:
 //! natively the crate is empty.
 
 #![cfg(target_arch = "wasm32")]
@@ -137,6 +143,20 @@ fn region(name: &str, ptr: i32, len: i32, size: usize) -> &'static mut [u8] {
 }
 
 // Scalars.
+
+/// Any's constant `k` (0 `undefined`, 1 `null`, 2 `false`, 3 `true`), as
+/// NaNVM boxes it, so a host builds its constant globals from NaNVM and the
+/// two cannot disagree. Any other `k` traps.
+#[unsafe(export_name = "constant_box")]
+pub extern "C" fn constant_box(k: i32) -> i64 {
+    match k {
+        0 => abi::UNDEFINED,
+        1 => abi::NULL,
+        2 => abi::FALSE,
+        3 => abi::TRUE,
+        _ => panic!("constant_box: no constant {k}"),
+    }
+}
 
 #[unsafe(export_name = "kind")]
 pub extern "C" fn kind(v: i64) -> i32 {
@@ -336,6 +356,29 @@ pub extern "C" fn throw(v: i64) -> ! {
 #[unsafe(export_name = "same")]
 pub extern "C" fn same(a: i64, b: i64) -> i32 {
     abi::same(a, b)
+}
+
+// References only, for Any written in the IR: each traps on bits that are
+// no reference.
+
+#[unsafe(export_name = "kind_ref")]
+pub extern "C" fn kind_ref(v: i64) -> i32 {
+    abi::kind_ref(v)
+}
+
+#[unsafe(export_name = "dup_ref")]
+pub extern "C" fn dup_ref(v: i64) -> i64 {
+    abi::dup_ref(v)
+}
+
+#[unsafe(export_name = "drop_ref")]
+pub extern "C" fn drop_ref(v: i64) {
+    abi::drop_ref(v)
+}
+
+#[unsafe(export_name = "same_ref")]
+pub extern "C" fn same_ref(a: i64, b: i64) -> i32 {
+    abi::same_ref(a, b)
 }
 
 // The host's side.

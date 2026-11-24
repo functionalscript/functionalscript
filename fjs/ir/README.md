@@ -633,6 +633,55 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   It is lowered only where something calls it. Outside a program the
   refusal stays.
 
+## What the bit operators add
+
+The first step of the runtime written in the IR
+([runtime-in-ir.md](../../doc/sasha-gil/ir/runtime-in-ir.md), checkpoint 2),
+which reads and builds a NaN box:
+
+- **`and`, `or`, `xor`, `shl` and `shr`** of two unsigned integers, each
+  one WASM instruction in the word it runs in. The range is exact: `and`
+  within the smaller bound, `or` and `xor` within the ones of the larger,
+  and a shift, by a count below 64, at both ends, so `shl` is refused
+  where its result needs more than one word, as `mul` is. `shr` is the
+  logical shift. A signed operand is refused.
+- **`to_bits(x)`**, the 64 bits of an `f64c` as a `u(64)`, and
+  **`from_bits(b)`**, the float of an unsigned integer's bits, an `f64`,
+  since the bits may be any NaN: `i64.reinterpret_f64` and
+  `f64.reinterpret_i64`.
+- **`canon(x)`**, a float with any NaN replaced by the one NaN,
+  `0x7FF8_0000_0000_0000`: an `f64c`, so `to_bits(canon(x))` reads the
+  bits of any float the same on every target. It keeps the float in a
+  local and `select`s the one NaN where the float is not equal to itself.
+
+The `bits` module of [`testlib.f.js`](./testlib.f.js) runs each of them
+against JavaScript's `&`, `|`, `^`, `<<`, `>>` and a `DataView`.
+
+## What a module that defines its types adds
+
+Checkpoint 4c of the runtime written in the IR: the module that implements
+a sealed type, as Any's own module will implement `any`, sees the bits
+that carry its values.
+
+- **`defines`**: a module may name the sealed types that it implements,
+  under the name that their type terms carry, `['sealed', name, type, v]`,
+  with each type's variants and carrier as an interface gives them. The
+  function that a type's `kind` names is the module's own, so a `match`
+  calls `self`, and another module makes its literals. The module does not
+  import that name, nor call it but as `self`. No such type is counted
+  yet: a `dup` or a `drop` is refused, since a drop written in the module
+  could not give up the value that it owns.
+- **`unseal(v)`**, the bits of a value of a type that the module defines,
+  `u(64)` for an `i64` carrier and `u(32)` for an `i32`, and
+  **`seal(t, b)`**, a value of `t` from bits within them. Both are no
+  instruction at all: the value and its carrier's bits are one WASM value.
+  The checker refuses both in any other module, so a program still sees
+  `any` only through Any's functions.
+
+The `sealing` module of [`testlib.f.js`](./testlib.f.js) defines Any and
+runs on NaNVM's `.wasm`, against NaN boxes laid out as Sergey's README
+lays them out; `tagging` answers a `match` with a `kind` of its own.
+
 ## What every slice refuses
 
 Everything else is refused with the function's name and the reason, never

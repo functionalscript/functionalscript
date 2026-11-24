@@ -14,6 +14,7 @@ import {
     return_, sealed, signature, throw_, trap, true_, trunc_sat, u, unit, variant,
 } from '../module.f.js'
 import { print } from '../print/module.f.js'
+import { sealing } from '../testlib.f.js'
 import { lifetime } from './module.f.js'
 
 const string = only(any, 'string')
@@ -489,6 +490,17 @@ export const proof = {
             '    let m = add(n, n)',
             '    let y = true',
             '    y',
+        ]),
+        // A module that defines Any keeps its definition, and `seal` the type that it makes.
+        sealing: () => golden(sealing, [
+            'fn carrierOf(v: any.only(undefined, null, boolean, number)) -> u(64) =',
+            '    unseal(v)',
+            '',
+            'fn isReference(v: any) -> bool =',
+            '    eq(and(unseal(v), 18442240474082181123), 9218868437227405314)',
+            '',
+            'fn boxOf(x: f64c) -> any.only(number) =',
+            '    seal(any.only(number), to_bits(x))',
         ]),
         // A value of the linear type that a parameter that owns it takes over.
         // A constant owns its value, so a term that takes one over takes a dup of it, and one that reads it reads it as it is. A

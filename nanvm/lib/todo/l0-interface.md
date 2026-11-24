@@ -42,7 +42,10 @@ starts:
 - **The encoding of `any` for `naive`.** Step 2 picks a handle, an index
   into a table of values, with the constants at `0` to `3`. An owned
   pointer, or moving to [`nanenum`](../src/nanenum.rs), can replace it
-  later under the same ABI.
+  later under the same ABI. Since 2026-11-23 every `i64` is a NaN box
+  ([runtime-in-ir.md](../../../doc/sasha-gil/ir/runtime-in-ir.md)): a
+  number and the constants are their own bits, and only a reference holds
+  a handle.
 - **The loader-owned memory.** Rust's allocator assumes it owns the memory
   above its heap base, where the design has the loader reserve the
   program's regions.

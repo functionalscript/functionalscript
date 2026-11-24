@@ -7,8 +7,11 @@
  *
  * @module
  *
- * @import { ArmOf, Code, CodeParam, F64, F64c, Fn, Int, LoopParamOf, OpName, Param, Parts, Product, Sealed, SealedDef, Signature, Sum, Term, Type, Typed, TypedTerm } from './types.ts'
+ * @import { ArmOf, Code, CodeParam, Defines, F64, F64c, Fn, Int, Interface, LoopParamOf, OpName, Param, Parts, Product, Sealed, SealedDef, Signature, Sum, Term, Type, Typed, TypedTerm } from './types.ts'
  */
+
+import { assertNotNullish } from '../asserts/module.f.js'
+import { entry } from '../types/object/entry/module.f.js'
 
 // types
 
@@ -137,6 +140,29 @@ export const eq = op('eq')
 export const lt = op('lt')
 export const le = op('le')
 
+/**
+ * The bit operators of two unsigned integers: `and`, `or`, `xor`, and the
+ * shifts, `shl` and `shr`, by a count below 64. A shift is exact, as `mul`
+ * is: `shl` is refused where its result needs more than one word.
+ */
+export const and = op('and')
+export const or = op('or')
+export const xor = op('xor')
+export const shl = op('shl')
+export const shr = op('shr')
+
+/**
+ * A float with any NaN replaced by the one NaN, `0x7FF8_0000_0000_0000`:
+ * an `f64c`, whose bits `to_bits` may read.
+ */
+export const canon = op('canon')
+
+/** The 64 bits of an `f64c`, as a `u(64)`. */
+export const to_bits = op('to_bits')
+
+/** The float of 64 bits: an `f64`, since the bits may be any NaN. */
+export const from_bits = op('from_bits')
+
 /** An integer, within ±2^53, as the float of its value. */
 export const float = op('float')
 
@@ -147,6 +173,42 @@ export const float = op('float')
  * @type {(t: Int, x: Term) => Term}
  */
 export const trunc_sat = (t, x) => ['op', 'trunc_sat', [x], t]
+
+/**
+ * The bits that carry a value of a sealed type, `u(64)` for an `i64`
+ * carrier and `u(32)` for an `i32`: only in the module that defines
+ * the type. It borrows the value.
+ *
+ * @type {(x: Term) => Term}
+ */
+export const unseal = x => ['op', 'unseal', [x]]
+
+/**
+ * A value of the sealed type `t` from the bits that carry it: only in the
+ * module that defines `t`.
+ *
+ * @type {(t: Sealed, x: Term) => Term}
+ */
+export const seal = (t, x) => ['op', 'seal', [x], t]
+
+/** The name of the sealed types that a module defines, or `null` where it defines none. @type {(m: { readonly defines?: Defines }) => string | null} */
+export const definedBy = ({ defines }) => defines === undefined ? null : assertNotNullish(entry(defines, 'name'))
+
+/**
+ * The interfaces whose types a module's terms name: those it imports, then
+ * the one it defines, if any, whose functions are those of the module that
+ * its types' `kind` names.
+ *
+ * @type {(m: { readonly imports: readonly (readonly [string, Interface])[], readonly defines?: Defines, readonly functions: readonly (readonly [string, Signature])[] }) => readonly (readonly [string, Interface])[]}
+ */
+export const interfacesOf = ({ imports, defines, functions }) => {
+    if (defines === undefined) { return imports }
+    const hooks = defines.types.flatMap(([, { kind }]) => kind === undefined ? [] : [kind])
+    const name = assertNotNullish(definedBy({ defines }))
+    /** @type {Interface} */
+    const own = { abi: name, types: defines.types, functions: functions.filter(([k], j) => hooks.includes(k) && functions.findIndex(([x]) => x === k) === j).map(([k, { params, result }]) => /** @type {const} */ ([k, { params, result }])) }
+    return [...imports, [name, own]]
+}
 
 /** A function of a module, `self` for the module itself. @type {(module: string, name: string, args: readonly Term[]) => Term} */
 export const call = (module, name, args) => ['call', module, name, args]

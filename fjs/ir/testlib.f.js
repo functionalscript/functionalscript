@@ -7,7 +7,8 @@
  * kind, as the third slice reads them, `loops`, the fourth slice's,
  * `records`, the fifth's, `constants`, `literals` and `arrays`, the
  * sixth's, and `throws`, the seventh's, which is in the plain stage, for
- * the lifetime pass.
+ * the lifetime pass, and `bits`, the bit operators and a float's bits that
+ * a runtime written in the IR reads a NaN box with.
  * The [host proof](./wasm/proof.mjs) runs them all against JavaScript
  * twins.
  *
@@ -17,11 +18,11 @@
  * @import { Module, Term, Type } from './types.ts'
  */
 
-import { any, builder, container, l0 } from './l0/module.f.js'
+import { any, builder, container, kinds, l0 } from './l0/module.f.js'
 import {
-    abs, add, block, bool, br, call, cast, constant, div, eq, exact, f64, f64c, false_, field, float, fn, get, i, if_, int, le,
-    let_, lit, loop, lt, make, match, mul, n, ne, neg, never, next, not, only, own, product, return_, sqrt, sub, throw_, trap,
-    true_, trunc_sat, u, unit, variant,
+    abs, add, and, block, bool, br, call, cast, constant, div, eq, exact, f64, f64c, false_, field, float, fn, from_bits, get, i,
+    if_, int, le, let_, lit, loop, lt, make, match, mul, n, ne, neg, never, next, not, only, or, own, product, return_, shl, shr,
+    canon, seal as sealOf, sealed, sqrt, sub, throw_, to_bits, trap, true_, trunc_sat, u, unit, unseal, variant, xor,
 } from './module.f.js'
 
 /** `2 ** 40`, beside which `diff`'s operands lie. */
@@ -101,6 +102,77 @@ export const corners = {
             if_(a, let_('t', true_, t => t), let_('t', false_, t => t)))],
     ],
     exports: ['topU32', 'topU64', 'bottomI64', 'wide', 'unitLocal', 'oneArm', 'falseFirst', 'neverBlock', 'neverIf', 'guarded', 'twice'],
+}
+
+/**
+ * The bit operators and a float's bits: `and`, `or` and `xor` in each word
+ * and across two, shifts by a literal count and by a parameter (`drained` by one that
+ * may reach 32, which WASM's `i32` shifts would read modulo 32), and
+ * `to_bits` of an `f64c` and `from_bits`,
+ * which a runtime written in the IR reads a NaN box with: `reference` builds a
+ * reference's bits, `nibble` reads its kind back, and `signOf` reads a
+ * float's sign bit. `negBits` reads the bits of a negated float through
+ * `canon`, where `neg` of a NaN flips its sign bit.
+ *
+ * @type {Module}
+ */
+export const bits = {
+    imports: [],
+    functions: [
+        ['mask', fn([['a', u(64)], ['b', u(16)]], u(16), (a, b) => and(a, b))],
+        ['either', fn([['a', u(8)], ['b', u(32)]], u(32), (a, b) => or(a, b))],
+        ['flip', fn([['a', u(64)], ['b', u(64)]], u(64), (a, b) => xor(a, b))],
+        ['reference', fn([['k', u(4)], ['p', u(32)]], u(64), (k, p) => or(shl(k, n(48n)), shl(p, n(2n))))],
+        ['shifted', fn([['a', u(8)], ['k', u(3)]], u(16), (a, k) => xor(shl(a, k), shr(a, k)))],
+        ['drained', fn([['a', u(32)], ['k', u(6)]], u(32), (a, k) => shr(a, k))],
+        ['nibble', fn([['x', u(64)]], u(4), x => and(shr(x, n(48n)), n(15n)))],
+        ['bitsOf', fn([['x', f64c]], u(64), x => to_bits(x))],
+        ['ofBits', fn([['b', u(64)]], f64, b => from_bits(b))],
+        ['signOf', fn([['x', f64c]], u(1), x => shr(to_bits(x), n(63n)))],
+        ['negBits', fn([['x', f64]], u(64), x => to_bits(canon(neg(x))))],
+    ],
+    exports: ['mask', 'either', 'flip', 'reference', 'shifted', 'drained', 'nibble', 'bitsOf', 'ofBits', 'signOf', 'negBits'],
+}
+
+/**
+ * Any's carrier, as only the module that defines `any` sees it: a module
+ * that defines Any itself, with `any`'s variants and carrier and none of
+ * its hooks, so that its values are linear here. `carrierOf` unseals a
+ * value of a copy variant or a number, `isReference` tests the README's
+ * dynamic-reference pattern on the bits, and `boxOf` seals a float's bits
+ * as a number. Its proofs run on NaNVM's `.wasm`, whose values are NaN
+ * boxes, and not on the counting host, whose are not.
+ *
+ * @type {Module}
+ */
+export const sealing = {
+    imports: [],
+    defines: { name: 'Any', types: [['any', { variants: kinds, carrier: 'i64' }]] },
+    functions: [
+        ['carrierOf', fn([['v', only(any, 'undefined', 'null', 'boolean', 'number')]], u(64), v => unseal(v))],
+        ['isReference', fn([['v', any]], bool, v => eq(and(unseal(v), n(0xFFF0_0000_0000_0003n)), n(0x7FF0_0000_0000_0002n)))],
+        ['boxOf', fn([['x', f64c]], only(any, 'number'), x => sealOf(only(any, 'number'), to_bits(x)))],
+    ],
+    exports: ['carrierOf', 'isReference', 'boxOf'],
+}
+
+/** A cell of `tagging`, which its module defines. */
+const cell = sealed('T', 'cell')
+
+/**
+ * A module that defines `T.cell`, whose tag its own `tag` answers from the
+ * low bit of its carrier, as a `match` of a cell reads it.
+ *
+ * @type {Module}
+ */
+export const tagging = {
+    imports: [],
+    defines: { name: 'T', types: [['cell', { variants: ['small', 'big'], kind: 'tag', carrier: 'i64' }]] },
+    functions: [
+        ['tag', fn([['v', cell]], int(0n, 1n), v => and(unseal(v), n(1n)))],
+        ['size', fn([['v', cell]], u(8), v => match(v, [[['small'], null, n(1n)], [['big'], null, n(2n)]]))],
+    ],
+    exports: ['size'],
 }
 
 /** A call of an L0 function, by its interface and its name. @type {(module: string, name: string) => (...args: readonly Term[]) => Term} */
