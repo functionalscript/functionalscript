@@ -6,6 +6,9 @@ use super::*;
 /// A new runtime for each test. Natively each test has a thread, and so a
 /// runtime, of its own, but under `wasm32-wasip1` the tests share one
 /// thread.
+/// Bits that are no value: a scalar tag that no value has.
+const NOT_A_VALUE: i64 = 0x7FF0_0000_0000_0040;
+
 fn fresh() {
     with(|s| *s = State::new());
 }
@@ -58,15 +61,25 @@ fn constants() {
 #[test]
 fn numbers() {
     fresh();
+    // A number is its own bits: it takes no slot, and `dup` answers it.
     let x = from_f64(1.5);
+    assert_eq!(x, 1.5_f64.to_bits() as i64);
     assert_eq!(kind(x), 3);
     assert_eq!(to_f64(x), 1.5);
-    let y = dup(x);
-    assert_ne!(x, y);
+    assert_eq!(dup(x), x);
     drop(x);
-    assert_eq!(to_f64(y), 1.5);
-    drop(y);
     assert_eq!(live(), 0);
+    // Every NaN is the one NaN, and the infinities are numbers.
+    assert_eq!(
+        from_f64(f64::from_bits(0x7FF8_0000_0000_0001)),
+        from_f64(f64::NAN)
+    );
+    assert_eq!(from_f64(f64::NAN) as u64, 0x7FF8_0000_0000_0000);
+    assert_eq!(
+        [f64::INFINITY, f64::NEG_INFINITY, -0.0].map(|x| to_f64(from_f64(x)).to_bits()),
+        [f64::INFINITY, f64::NEG_INFINITY, -0.0].map(f64::to_bits)
+    );
+    assert_eq!(kind(from_f64(f64::NEG_INFINITY)), 3);
 }
 
 #[test]
@@ -229,7 +242,7 @@ fn bytes_of_a_host_buffer() {
     let mut units = [0; 2];
     read_units_into(s, 0, &mut units);
     assert_eq!(units, [0x61, 0xd800]);
-    assert_eq!((alive(s), alive(UNDEFINED), alive(1 << 40)), (1, 1, 0));
+    assert_eq!((alive(s), alive(UNDEFINED), alive(NOT_A_VALUE)), (1, 1, 0));
     let builder = begin_array(0);
     assert_eq!(open_builders(), 1);
     drop(seal(builder));
@@ -348,7 +361,7 @@ fn a_misuse_is_not_caught() {
 #[should_panic(expected = "l0.kind: not a value")]
 fn not_a_value() {
     fresh();
-    kind(99);
+    kind(NOT_A_VALUE);
 }
 
 #[test]
@@ -361,14 +374,14 @@ fn drop_twice() {
 }
 
 #[test]
-#[should_panic(expected = "l0.to_f64: not a value")]
+#[should_panic(expected = "l0.length: not a value")]
 fn a_dropped_handle_is_not_its_slot_s_next_value() {
     fresh();
-    let old = from_f64(1.0);
+    let old = make_string_of(&[0x61]);
     drop(old);
-    let new = from_f64(2.0);
+    let new = make_string_of(&[0x62]);
     assert_ne!(old, new);
-    to_f64(old);
+    length(old);
 }
 
 #[test]
@@ -509,11 +522,11 @@ fn recover_without_a_mark_frees_nothing() {
 #[test]
 fn recover_after_a_misuse_frees_since_the_mark() {
     fresh();
-    let kept = from_f64(1.0);
+    let kept = string("a");
     enter();
-    let left = from_f64(2.0);
+    let left = string("b");
     // A misuse traps with nothing thrown: what the call made is abandoned.
-    assert!(catch_unwind(|| concat(left, kept)).is_err());
+    assert!(catch_unwind(|| concat(left, from_f64(1.0))).is_err());
     assert_eq!(has_thrown(), 0);
     recover();
     assert_eq!((alive(kept), alive(left)), (1, 0));
@@ -540,7 +553,7 @@ fn a_trap_inside_a_read_leaves_the_state_usable() {
 fn concat_second_not_a_value() {
     fresh();
     let s = string("a");
-    concat(s, 99);
+    concat(s, NOT_A_VALUE);
 }
 
 #[test]
@@ -548,5 +561,5 @@ fn concat_second_not_a_value() {
 fn find_first_not_a_value() {
     fresh();
     let s = string("a");
-    find(99, s);
+    find(NOT_A_VALUE, s);
 }

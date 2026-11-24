@@ -30,8 +30,9 @@
 //! their row names (`bigintAdd`, `numberToString`, ...), from
 //! [`abi::native`].
 //!
-//! The four constants are the handles `0` to `3`, which a loader makes the
-//! program's immutable `i64` globals. The code is all for `wasm32`:
+//! Every `i64` is a NaN box ([`abi`]): the four constants are their boxes,
+//! which `constant_box` answers and a loader makes the program's immutable
+//! `i64` globals. The code is all for `wasm32`:
 //! natively the crate is empty.
 
 #![cfg(target_arch = "wasm32")]
@@ -137,6 +138,20 @@ fn region(name: &str, ptr: i32, len: i32, size: usize) -> &'static mut [u8] {
 }
 
 // Scalars.
+
+/// Any's constant `k` (0 `undefined`, 1 `null`, 2 `false`, 3 `true`), as
+/// NaNVM boxes it, so a host builds its constant globals from NaNVM and the
+/// two cannot disagree. Any other `k` traps.
+#[unsafe(export_name = "constant_box")]
+pub extern "C" fn constant_box(k: i32) -> i64 {
+    match k {
+        0 => abi::UNDEFINED,
+        1 => abi::NULL,
+        2 => abi::FALSE,
+        3 => abi::TRUE,
+        _ => panic!("constant_box: no constant {k}"),
+    }
+}
 
 #[unsafe(export_name = "kind")]
 pub extern "C" fn kind(v: i64) -> i32 {

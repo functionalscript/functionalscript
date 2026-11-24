@@ -8,6 +8,7 @@
 export type _Nanvm = {
     readonly memory: WebAssembly.Memory
     readonly reserve: (size: number) => number
+    readonly constant_box: (k: number) => bigint
     readonly kind: (h: bigint) => number
     readonly to_f64: (h: bigint) => number
     readonly from_f64: (x: number) => bigint
