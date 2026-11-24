@@ -45,7 +45,8 @@ pub use crate::vm::{
     object::{Object, property::Property, to_object::ToObject},
     object_spread::ObjectSpread,
     static_value::{
-        IStaticVm, StaticAny, StaticArray, StaticBigInt, StaticFunction, StaticObject, StaticString,
+        IStaticVm, StaticAny, StaticArray, StaticBigInt, StaticFunction, StaticObject,
+        StaticString, ascii, utf16,
     },
     string::{String, to_string::ToString},
     unpacked::Unpacked,

@@ -38,8 +38,8 @@ pub trait IContainer<A: IVm>: IComplex<A> {
         let a = self.items();
         let b = other.items();
         let mut items = Vec::with_capacity(a.length() + b.length());
-        items.extend((0..a.length()).map(|i| a[i].clone()));
-        items.extend((0..b.length()).map(|i| b[i].clone()));
+        items.extend((0..a.length()).map(|i| a.item(i)));
+        items.extend((0..b.length()).map(|i| b.item(i)));
         Self::from_vec(self.header().clone(), items)
     }
 
@@ -58,7 +58,7 @@ pub trait IContainer<A: IVm>: IComplex<A> {
             return false;
         }
         for i in 0..len {
-            if a[i] != b[i] {
+            if a.item(i) != b.item(i) {
                 return false;
             }
         }

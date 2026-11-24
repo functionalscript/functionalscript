@@ -165,7 +165,7 @@ pub fn read_units<A: IVm>(s: &Any<A>, start: u32, out: &mut [u16]) {
     let s = as_string("read_units", s);
     let range = range("read_units", start, out.len(), s.length());
     for (o, i) in out.iter_mut().zip(range) {
-        *o = s[i];
+        *o = s.item(i);
     }
 }
 
@@ -202,7 +202,7 @@ pub fn read_words<A: IVm>(b: &Any<A>, start: u32, out: &mut [u64]) {
     let b = as_bigint("read_words", b);
     let range = range("read_words", start, out.len(), b.length());
     for (o, i) in out.iter_mut().zip(range) {
-        *o = b[i];
+        *o = b.item(i);
     }
 }
 
@@ -230,7 +230,7 @@ fn fits(name: &str, len: u64) {
 /// L0 `unit`: the UTF-16 unit `i` of a string.
 pub fn unit<A: IVm>(s: &Any<A>, i: u32) -> u16 {
     let s = as_string("unit", s);
-    s[index("unit", i, s.length())]
+    s.item(index("unit", i, s.length()))
 }
 
 /// L0 `from_unit`: the string of one UTF-16 unit.
@@ -252,7 +252,7 @@ pub fn substring<A: IVm>(s: &Any<A>, start: u32, end: u32) -> Any<A> {
     let s = as_string("substring", s);
     let end = index("substring", end, s.length() + 1);
     let start = index("substring", start, end + 1);
-    (start..end).map(|i| s[i]).to_string().to_any()
+    (start..end).map(|i| s.item(i)).to_string().to_any()
 }
 
 /// L0 `join`: the strings of an array joined, with `separator` between two

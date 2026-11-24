@@ -17,11 +17,11 @@ impl<A: IVm> BigInt<A> {
         let length = self.length();
         let (significand, words_below, sticky) = match length {
             0 => (0, 0, false),
-            1 => (u128::from(self[0]), 0, false),
+            1 => (u128::from(self.item(0)), 0, false),
             _ => (
-                (u128::from(self[length - 1]) << 64) | u128::from(self[length - 2]),
+                (u128::from(self.item(length - 1)) << 64) | u128::from(self.item(length - 2)),
                 length - 2,
-                (0..length - 2).any(|i| self[i] != 0),
+                (0..length - 2).any(|i| self.item(i) != 0),
             ),
         };
         let exponent =

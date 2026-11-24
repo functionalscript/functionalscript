@@ -57,10 +57,10 @@ impl<A: IVm> Shr for BigInt<A> {
 
         // Whether any bit being shifted away is set — the "was this exact"
         // check flooring a negative result needs.
-        let sticky = (0..word_shift).any(|i| self[i] != 0)
-            || (bit_shift > 0 && self[word_shift] & ((1u64 << bit_shift) - 1) != 0);
+        let sticky = (0..word_shift).any(|i| self.item(i) != 0)
+            || (bit_shift > 0 && self.item(word_shift) & ((1u64 << bit_shift) - 1) != 0);
 
-        let mut value: Vec<u64> = (word_shift..n_len).map(|i| self[i]).collect();
+        let mut value: Vec<u64> = (word_shift..n_len).map(|i| self.item(i)).collect();
         if bit_shift > 0 {
             let mut carry = 0u64;
             for digit in value.iter_mut().rev() {

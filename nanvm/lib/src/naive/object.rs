@@ -1,6 +1,6 @@
 use crate::{
     naive::Naive,
-    vm::{Any, ContainerWrapper, IComplex, IContainer, IObject, Property, StaticObject, String},
+    vm::{Any, IComplex, IObject, Property, StaticObject, String},
 };
 use std::rc::Rc;
 
@@ -66,14 +66,11 @@ impl IObject<Naive> for Object {
                 .rev()
                 .find(|(k, _)| k == key)
                 .map(|(_, v)| v.clone()),
-            Self::Static(object) => {
-                let units = key.internal().items();
-                object
-                    .0
-                    .iter()
-                    .find(|(k, _)| k.0 == units)
-                    .map(|(_, v)| v.load())
-            }
+            Self::Static(object) => object
+                .0
+                .iter()
+                .find(|(k, _)| String::from_static(k) == *key)
+                .map(|(_, v)| v.load()),
         }
     }
 }

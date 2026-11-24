@@ -21,9 +21,9 @@ impl<A: IVm> Debug for BigInt<A> {
         // helper's first-item test to choose the padding. The loop's twin is
         // `Display`'s decimal group join, which has no separator.
         let last = items.length() - 1;
-        write!(f, "{:X}", items[last])?;
+        write!(f, "{:X}", items.item(last))?;
         for i in (0..last).rev() {
-            write!(f, "_{:016X}", items[i])?;
+            write!(f, "_{:016X}", items.item(i))?;
         }
         f.write_char('n')
     }
