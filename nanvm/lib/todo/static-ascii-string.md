@@ -48,22 +48,33 @@ string).
   to verify what it wrote. A check is made only where it is cheap:
   - `ascii` asserts `is_ascii`. In a `static`'s initializer that is
     evaluated when the module is compiled, and costs nothing when it runs.
-  - A byte of `0x80` or above written through the variant directly is
-    refused when it is read, by the bound of the table below, which the
-    read needs anyway
-    ([DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
+  - A byte of `0x80` or above written through the variant directly is not
+    checked. It reads as the code unit of the same number, as Latin-1
+    would, and the descriptor's contract is what says it is not written.
 
   Not taken: an `is_ascii` assertion at each load. Also not taken: calling
   the form Latin-1, every byte a code unit up to `0xff`, which has no
   invalid state and gives up the seven bits a packed VM would use.
 
-- **The widened units are never stored.** A VM keeps the descriptor and
-  reads through it. `StaticString` is `SizedIndex<usize, Output = u16>` in
-  either form: an ASCII byte is lent as a `&u16` out of a static table of
-  the 128 ASCII code units, so `IContainer`, whose items are read by
-  reference, stays as it is. The naive VM's string is its own units or a
-  descriptor, and is its own `IContainer::Items`. A static object's key is
-  compared with a string by index, with nothing built.
+- **The widened units are never stored, and a unit is read by value.** A
+  VM keeps the descriptor and reads through it. An ASCII string holds no
+  `u16` to lend, and `SizedIndex` was built on `Index`, which answers a
+  reference. So a container's item is read by value first:
+  `SizedIndex::item` answers `Output`, not `&Output`, and no longer
+  requires `Index`. A string's `u16` and a big integer's `u64` are `Copy`,
+  and `String<A>` and `BigInt<A>` lose `s[i]` for `s.item(i)`.
+
+  An array keeps `a[i]`. Its item, `Any<A>`, is not `Copy`, and the
+  generated code reads a frame by reference in thousands of places; a
+  by-value array is the "item by value" point of
+  [static constants](./static-constants.md) and stays there.
+
+  The naive VM's string is its own units or a descriptor. A static
+  object's key is compared with a string unit by unit, with nothing built.
+
+  Not taken: a static table of the 128 ASCII code units, out of which a
+  byte is lent as a `&u16`. It keeps `Index` and costs a memory read for a
+  value already at hand.
 
 - **The serializer.** A string whose units are all below `0x80` is written
   as `ascii("…")`, the rest as `utf16(&[…])`: a literal value, a key and a
@@ -73,6 +84,8 @@ string).
 
 One pull request each, stacked, after the one that files this issue.
 
+- [ ] `SizedIndex` reads an item by value; `String<A>` and `BigInt<A>`
+  are read with `item`.
 - [ ] `StaticString` as the enum with `utf16` and `ascii`, readable by
   index; the naive VM holding the descriptor; the serializer writing
   `utf16(&[…])` for every string; `npm run gen`.
