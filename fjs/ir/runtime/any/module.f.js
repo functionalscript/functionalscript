@@ -68,15 +68,15 @@ const isRefBits = b => eq(and(b, n(REF_TAG)), n(DYN_REF))
 const scalarKind = b => let_('tag', and(shr(b, n(4n)), n(3n)), tag =>
     if_(eq(tag, n(1n)), n(2n), if_(eq(tag, n(2n)), n(0n), n(1n))))
 
+/** String literals of `any`, as L0's Any makes them. */
+const stringLiteral = { variant: 'string', module: 'String', member: 'make_string' }
+
 /**
  * The interface that importers of this module see: L0's Any with `number`
  * among the copy variants, so a value narrowed to a number needs no count.
  *
  * @type {Interface}
  */
-/** String literals of `any`, as L0's Any makes them. */
-const stringLiteral = { variant: 'string', module: 'String', member: 'make_string' }
-
 export const iface = {
     abi: 'fjs:l0',
     types: [['any', {
