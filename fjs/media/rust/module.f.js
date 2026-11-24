@@ -84,6 +84,16 @@ const character = c => {
 export const stringLiteral = v =>
     isWellFormed(v) ? ok(`"${[...v].map(character).join('')}"`) : error(v)
 
+/**
+ * The Rust string literal of an ASCII string, or the refusal of a string
+ * with a code unit of `0x80` or above: the spelling for a constant held
+ * one byte per code unit.
+ *
+ * @type {(v: string) => Result<string, unknown>}
+ */
+export const asciiLiteral = v =>
+    toArray(stringToList(v)).every(unit => unit < 0x80) ? stringLiteral(v) : error(v)
+
 const wordDigits = encodeScalar(16)
 
 /**

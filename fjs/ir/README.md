@@ -668,9 +668,7 @@ that carry its values.
   with each type's variants and carrier as an interface gives them. The
   function that a type's `kind` names is the module's own, so a `match`
   calls `self`, and another module makes its literals. The module does not
-  import that name, nor call it but as `self`. No such type is counted
-  yet: a `dup` or a `drop` is refused, since a drop written in the module
-  could not give up the value that it owns.
+  import that name, nor call it but as `self`.
 - **`unseal(v)`**, the bits of a value of a type that the module defines,
   `u(64)` for an `i64` carrier and `u(32)` for an `i32`, and
   **`seal(t, b)`**, a value of `t` from bits within them. Both are no
@@ -681,6 +679,53 @@ that carry its values.
 The `sealing` module of [`testlib.f.js`](./testlib.f.js) defines Any and
 runs on NaNVM's `.wasm`, against NaN boxes laid out as Sergey's README
 lays them out; `tagging` answers a `match` with a `kind` of its own.
+
+## What a counted type that a module defines adds
+
+Checkpoint 4d-1, as
+[defined-hooks.md](../../doc/sasha-gil/ir/defined-hooks.md) sets it out: a
+type that a module defines may be counted, with a `dup` and a `drop` of its
+own that work on its carrier's bits, so that neither ever holds a value of
+the type and the lifetime pass never writes a hook inside a hook.
+
+- **The hooks**: a counted type names both, each a function of the module
+  of one borrowed parameter of its bits, `dup` as `(b: u(64)) -> u(64)`
+  and `drop` as `(b: u(64)) -> unit` for an `i64` carrier, and only a
+  counted type names copy variants. The checker refuses a hook that may
+  fail, since the pass writes the hooks after the effects are inferred.
+- **`release(x)`**, the bits of an owned value, which it takes over, as a
+  parameter that owns its argument does. It is no instruction.
+- **Only the lifetime pass writes them.** It copies a borrowed `e` of
+  such a type as `seal(t, self.dup(unseal(e)))`, `t` the type of `e`, and
+  drops an owned `x` as `self.drop(release(x))`. The checker refuses these
+  forms in the plain stage, and in the owned stage it takes them in that
+  shape only: a call of a hook, a `release`, and a `seal` of a variant
+  that is not copy are refused anywhere else, since bits are copy and the
+  owned check cannot follow them. A `seal` of copy variants stays the
+  module's to write.
+
+- **`Ref`**, in [`l0/module.f.js`](./l0/module.f.js): NaNVM's
+  `kind_ref`, `dup_ref`, `drop_ref` and `same_ref` over a reference's
+  bits, which NaNVM's host already passes through as `fjs:l0` imports. A
+  signature that counts on bits says so, `counts: 'dup'` or `'drop'`
+  (`countsBits`), as `dup_ref` and `drop_ref` do. The checker takes the
+  marker only on a signature that fits it: one borrowed word of bits,
+  `u(64)` or `u(32)`, a `dup` that answers bits of that word and a `drop`
+  that answers `unit`, neither of which fails. The printer writes the
+  marker after the signature: `fn dup_ref(b: u(64)) -> u(64) counts dup`.
+- **Only a hook calls a function that counts on bits**, the hook of its
+  name, and only as its last term: the checker refuses a call of one
+  anywhere else, so that a `dup` answers the bits that `dup_ref` gives and
+  a `drop` gives one up at most once on each path. What it cannot see is
+  whether a hook tells a reference from other bits rightly: the hooks are
+  the module's trusted base, and NaNVM's leak check proves them.
+
+The `counting` module of [`testlib.f.js`](./testlib.f.js) defines a counted
+`C.cell` whose hooks give the bits back and do nothing, so its owned stage
+runs on any engine. `referencing` defines a counted `R.ref` whose hooks
+count a NaN box's reference through `Ref` and pass any other box through,
+as Any's will; it runs on NaNVM's `.wasm`, which finds no live handle
+after it.
 
 ## What every slice refuses
 

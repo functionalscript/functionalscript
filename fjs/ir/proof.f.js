@@ -6,7 +6,7 @@ import { assert, assertEq } from '../asserts/module.f.js'
 import {
     abs, add, block, bool, br, call, call_ref, cast, code, codeOf, compareIn, constant, div, eq, equal, exact, f64, f64c, false_, field, fits, float, fn,
     get, i, if_, inside, int, isCopy, isOwn, le, leaves, let_, lit, loop, lt, make, mayFail, match, mul, n, ne, neg, never, next, not, only, own, return_,
-    definedBy, interfacesOf, sealed, signature, sqrt, sub, terms, throw_, trap, true_, trunc_sat, u, unit, variant,
+    definedBy, interfacesOf, release, seal, sealed, signature, sqrt, sub, terms, throw_, trap, true_, trunc_sat, u, unit, unseal, variant,
 } from './module.f.js'
 
 export const proof = {
@@ -71,6 +71,8 @@ export const proof = {
         assert(equal(block('l', f64, n(1n)), ['block', 'l', f64, n(1n)]))
         assert(equal(br('l', n(1n)), ['br', 'l', n(1n)]))
         assert(equal(constant('Any', 'null'), ['constant', 'Any', 'null']))
+        assert(equal([unseal(get('v')), release(get('v'))], [['op', 'unseal', [get('v')]], ['op', 'release', [get('v')]]]))
+        assert(equal(seal(sealed('C', 'cell'), get('b')), ['op', 'seal', [get('b')], sealed('C', 'cell')]))
     },
     // The terms that a term holds, in their order, and the typed terms in the same places of a typed term.
     parts: () => {

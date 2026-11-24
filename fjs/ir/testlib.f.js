@@ -18,7 +18,7 @@
  * @import { Module, Term, Type } from './types.ts'
  */
 
-import { any, builder, container, kinds, l0 } from './l0/module.f.js'
+import { any, builder, container, kinds, l0, ref } from './l0/module.f.js'
 import {
     abs, add, and, block, bool, br, call, cast, constant, div, eq, exact, f64, f64c, false_, field, float, fn, from_bits, get, i,
     if_, int, le, let_, lit, loop, lt, make, match, mul, n, ne, neg, never, next, not, only, or, own, product, return_, shl, shr,
@@ -173,6 +173,64 @@ export const tagging = {
         ['size', fn([['v', cell]], u(8), v => match(v, [[['small'], null, n(1n)], [['big'], null, n(2n)]]))],
     ],
     exports: ['size'],
+}
+
+/** A cell of `counting`, which its module defines and counts. */
+const counted = sealed('C', 'cell')
+
+/**
+ * A module that defines a counted `C.cell`, whose `dup` and `drop` work on
+ * its carrier's bits, as Any's do: here `dup` gives the bits back and
+ * `drop` does nothing, so it runs on any host. A small cell is copy, and
+ * the lifetime pass copies and drops a big one through the hooks.
+ *
+ * @type {Module}
+ */
+export const counting = {
+    imports: [],
+    defines: { name: 'C', types: [['cell', { variants: ['small', 'big'], kind: 'tag', carrier: 'i64', dup: 'dup', drop: 'drop', copy: ['small'] }]] },
+    functions: [
+        ['tag', fn([['v', counted]], int(0n, 1n), v => and(unseal(v), n(1n)))],
+        ['dup', fn([['b', u(64)]], u(64), b => b)],
+        ['drop', fn([['b', u(64)]], unit, () => make([]))],
+        ['small', fn([], only(counted, 'small'), () => sealOf(only(counted, 'small'), n(0n)))],
+        ['keep', fn([['v', counted]], counted, v => v)],
+        ['forget', fn([own('v', counted)], u(8), () => n(1n))],
+        ['size', fn([own('v', counted)], u(8), v => match(v, [[['small'], null, n(1n)], [['big'], null, n(2n)]]))],
+    ],
+    exports: ['small', 'keep', 'forget', 'size'],
+}
+
+/** A value of `referencing`, which its module defines and counts. */
+const refOf = sealed('R', 'ref')
+
+/** Whether bits are a NaN box of a reference, as Sergey's README lays one out. @type {(b: Term) => Term} */
+const isRefBits = b => eq(and(b, n(0xFFF0_0000_0000_0003n)), n(0x7FF0_0000_0000_0002n))
+
+/**
+ * A module that defines a counted `R.ref` over NaNVM's NaN boxes, whose
+ * hooks count a reference through `Ref`, NaNVM's own functions of
+ * references, and pass the bits of any other box through, as Any's will
+ * ([defined-hooks.md](../../doc/sasha-gil/ir/defined-hooks.md#anys-hooks-written-out)).
+ * `keep` copies a borrowed value, `take` moves an owned one, `forget`
+ * drops one, and `pair` takes two copies of a borrowed one, which it then
+ * drops. It runs on NaNVM's `.wasm` only, since the counting host's values
+ * are no NaN boxes and it has no `Ref`.
+ *
+ * @type {Module}
+ */
+export const referencing = {
+    imports: [ref],
+    defines: { name: 'R', types: [['ref', { variants: ['value'], carrier: 'i64', dup: 'dup', drop: 'drop' }]] },
+    functions: [
+        ['dup', fn([['b', u(64)]], u(64), b => if_(isRefBits(b), call('Ref', 'dup_ref', [b]), b))],
+        ['drop', fn([['b', u(64)]], unit, b => if_(isRefBits(b), call('Ref', 'drop_ref', [b]), make([])))],
+        ['keep', fn([['v', refOf]], refOf, v => v)],
+        ['take', fn([own('v', refOf)], refOf, v => v)],
+        ['forget', fn([own('v', refOf)], u(8), () => n(1n))],
+        ['pair', fn([['v', refOf]], u(8), v => let_('a', call('self', 'take', [v]), () => let_('b', call('self', 'take', [v]), () => n(2n))))],
+    ],
+    exports: ['keep', 'take', 'forget', 'pair'],
 }
 
 /** A call of an L0 function, by its interface and its name. @type {(module: string, name: string) => (...args: readonly Term[]) => Term} */
