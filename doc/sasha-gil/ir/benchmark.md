@@ -147,7 +147,7 @@ program's calls.
 
 ### After linkAny (checkpoint 4e)
 
-On branch `cursor/ir-runtime-4e-remeasure-8be5` at `b3fed82266`, 2026-11-24
+On branch `cursor/ir-runtime-4e-remeasure-8be5`, 2026-11-24
 (America/Los_Angeles), after #4113–#4115 (Any in the IR, counting host
 boxes, `linkAny`). Median of three runs on this container. Scalar ops are
 local WASM; import calls that remain are `Ref.*` and container/string work.
@@ -181,12 +181,19 @@ about as fast as JavaScript on this container; `sumToAny` is about 6×
 imports; `repeat` is slower than the prior table on this machine (string
 work dominates, and JS was also faster here).
 
-## Where the time goes
+## Where the time goes (historical: before linkAny)
+
+The tables and profile below are from the second and third runs above,
+when Any was still an L0 import and every scalar op was a host call.
+After [linkAny (checkpoint 4e)](#after-linkany-checkpoint-4e), numeric
+loops keep essentially one import (`drop` of the result); see that
+section for current tallies and times. The diagnosis here still explains
+why the earlier levers mattered and where reference-heavy programs pay.
 
 ### L0 calls per program
 
-From the `calls` mode. The module's literals, made once by its start
-function, are left out.
+From the `calls` mode of the third run. The module's literals, made once
+by its start function, are left out.
 
 | Program | L0 calls now | Per step | Before the levers | Most called now |
 | --- | --- | --- | --- | --- |
@@ -302,18 +309,19 @@ The first profile, before the levers, had the handle layer at 94% of
    one copy, straight into the new string. `repeat` went from 1,550× to
    about 100× JavaScript's time, 7.4 to 0.94 ms, and is still quadratic.
 
+### Done in checkpoint 4e
+
+7. **NaN-boxed handles via a runtime in the IR** (#4113–#4116): Any is
+   written over the box and linked into programs (`any.*`); the counting
+   host speaks boxes; numeric loops drop from tens of thousands of
+   import calls to one `drop`. See [After linkAny](#after-linkany-checkpoint-4e).
+
 ### Left
 
-1. **NaN-boxed handles**, the largest lever, as the second profile
-   ranked it: a number or a constant needs no slot, and `kind`, `to_f64`
-   and `from_f64` become a few instructions. The NaNVM route of
-   [nan-boxed-handles.md](../wasm/nan-boxed-handles.md) is superseded by
-   the owner's next task (2026-11-21): a runtime written in the IR, with
-   the NaN box coded by hand ([README](./README.md#next)).
-2. **Cancel `dup`/`drop` pairs in the lifetime pass** (medium): a few
-   percent, since `dup` is at most 1 in 6 of the calls after the records
-   pass (12,005 of 77,029 in `bigSum`).
-3. **A rope for `concat`** (NaNVM, larger): would make `repeat` linear.
+1. **Cancel `dup`/`drop` pairs in the lifetime pass** (medium): a few
+   percent on reference-heavy programs that still call `Ref.dup_ref` /
+   `drop_ref` (and on any leftover `dup`/`drop` pairs).
+2. **A rope for `concat`** (NaNVM, larger): would make `repeat` linear.
 
 One limit stays as it was: a loop whose state starts as `f64` and becomes
 `any` is still refused (below). The records pass runs after the lowering,
