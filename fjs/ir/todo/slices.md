@@ -1,7 +1,15 @@
 ## Build the IR in vertical slices
 
 **Priority:** P3
-**Status:** done — slices 1 to 12 merged by 2026-11-21; what came after them is under [After slice 12](#after-slice-12)
+**Status:** done — kept as the record; cited by
+  [`fjs/ir/README.md`](../README.md),
+  [`fjs/ir/from_fast/README.md`](../from_fast/README.md),
+  [`fjs/wasm/runtime/README.md`](../../wasm/runtime/README.md),
+  [`doc/sasha-gil/ir/`](../../../doc/sasha-gil/ir/), and
+  [`doc/sasha-gil/wasm/README.md`](../../../doc/sasha-gil/wasm/README.md)
+  for the slice decisions and roadmap no other file keeps. Slices 1 to 12
+  merged by 2026-11-21; what came after them is under
+  [After slice 12](#after-slice-12)
 
 ### Problem
 
