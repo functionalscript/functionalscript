@@ -46,6 +46,13 @@ export const proof = {
         const fn = ['=>', 0, [], 4]
         assert(run(fn) === fn)
     },
+    nullResult: () => {
+        // `() => [null][0]` is `() => null`, and `x => [x, [null][0]]` is `x => [x, null]`
+        /** @type {Exp} */
+        const first = ['.', ['[]', [null]], 0]
+        same(closure(['=>', 0, [], first]), ['=>', 0, [], null])
+        same(closure(['=>', 1, [], ['[]', [['arg', 0], ['.', ['[]', [null]], 0]]]]), ['=>', 1, [], ['[]', [['arg', 0], null]]])
+    },
     undefinedResult: () => {
         // `() => [].x` is `() => undefined`
         same(closure(['=>', 0, [], ['.', ['[]', []], 'x']]), ['=>', 0, [], ['undefined']])

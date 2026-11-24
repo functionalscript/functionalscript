@@ -72,7 +72,7 @@
  * @import { Result } from '../../types/result/types.ts'
  */
 
-import { assertNotNullish } from '../../asserts/module.f.js'
+import { assert, assertNotNullish } from '../../asserts/module.f.js'
 import { isIndex, maxLength } from '../../types/function/length/module.f.js'
 import { empty as noVisited, fromEntries, mapEntries, mapGet, mapHas, mapSet } from '../../types/map/module.f.js'
 import { reverse } from '../../types/list/module.f.js'
@@ -525,7 +525,12 @@ const sharedByIdentity = (e, visited) => {
 }
 
 /** One operand as an expression, from the expressions of the entries before it. @type {(exps: PersistentMap<number, Exp>, operand: Operand) => Exp} */
-const restore = (exps, operand) => operand instanceof Array ? assertNotNullish(mapGet(exps, operand[1])) : operand
+const restore = (exps, operand) => {
+    if (!(operand instanceof Array)) { return operand }
+    // an entry may stand for `null`, so the lookup asks for presence
+    assert(mapHas(exps, operand[1]))
+    return /** @type {Exp} */ (mapGet(exps, operand[1]))
+}
 
 /** @type {(exps: PersistentMap<number, Exp>, items: readonly ItemOperand[]) => ItemsOver<Exp>} */
 const restoreItems = (exps, items) => mapItems(/** @type {(x: Operand) => Exp} */ (x => restore(exps, x)))(items)

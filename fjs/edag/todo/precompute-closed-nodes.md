@@ -1,8 +1,8 @@
 ## Precompute closed nodes of a function body
 
 **Priority:** P3 — experiment
-**Status:** wip — a prototype is in
-[`../precompute`](../precompute/module.f.js), called by its proofs alone
+**Status:** wip — [`../precompute`](../precompute/module.f.js) runs on
+every module the interpreter loads; a closed call has no bound yet
 
 ### Problem
 
@@ -45,19 +45,35 @@ Decided by the task owner:
    metaprogramming: a computation whose inputs are known is done ahead,
    whatever kind it is.
 
-What they ask of the design:
+What they ask of the design, and where each stands:
 
-- The place is where a module's initializer answers its export object —
+- **The place** is where a module's initializer answers its export object,
   `interpreting` in
-  [`../../compiler/transpiler`](../../compiler/transpiler/module.f.js) —
-  so an importer's initializer already runs over precomputed functions.
-- A value precomputed once is not walked again. `precompute` builds a new
-  value throughout and remembers nothing between calls; it has to leave a
-  value it did not change as the value it was, and carry what it has
-  answered from one module to the next.
-- A cached value has to be the same on every run, so what stops a closed
-  call that does not end is a count of steps, not a clock.
-- Each open question below is a computation not yet applied, and so owed.
+  [`../../compiler/transpiler`](../../compiler/transpiler/module.f.js): an
+  importer's initializer runs over precomputed functions. Done.
+- **A value precomputed once is not walked again, and what exists is never
+  made again.** A value nothing changed in is answered as itself, and the
+  values answered are carried from one module to the next: the module walk
+  hands each module the one it completed before
+  (`_Load` in [`../../compiler/source`](../../compiler/source/types.ts)).
+  Done.
+- **A closed call that does not end** is stopped by a count of steps, not
+  a clock, so that a cached value is the same on every run. Not done: the
+  count has to travel through every call the interpreter makes, and
+  `Invoke` answers a value alone
+  ([`bound-edag-interpreter-resources.md`](../../compiler/todo/bound-edag-interpreter-resources.md)).
+  Until then a module with a closed call that does not end does not load.
+- **Each open question below** is a computation not yet applied, and so
+  owed.
+
+**A test that compares sharing between executors no longer holds.** The
+interpreter's value of a module now shares what its precomputed functions
+answer, the runtime's among them, where NaNVM running the same graph does
+not: `nanvm/harness`'s `same_graph` requires the two graphs to share
+alike, and its corpus fails on four fixtures whose expectations gained one
+shared empty array. The value-identity proposal already says which
+comparison is portable, ordered content; what the harness compares is to
+decide.
 
 ### Design
 
@@ -197,6 +213,13 @@ on NaNVM, the same as the uncurried one.
 - [x] Drop a capture the body no longer reads, and a comma operand already
       evaluated: both are what the FunctionalScript writer refuses.
 - [x] Reduce a nested function over its known slots.
+- [x] Precompute every module as the interpreter loads it, carrying the
+      values answered from one module to the next and making nothing again
+      that exists.
+- [ ] Decide what `nanvm/harness` compares, now that sharing differs
+      between executors.
+- [ ] A count of steps through the interpreter's calls, and a closed call
+      stopped by it.
 - [ ] Decide what asks for it, and write `.js` and `.rs` from the value in
       `fjs compile`.
 - [ ] Merge captures holding one value, so the whole compiler has a

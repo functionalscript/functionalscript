@@ -43,13 +43,20 @@
  * @import { RefMap } from '../../types/ref_map/types.ts'
  */
 
-import { assertNotNullish } from '../../asserts/module.f.js'
 import { generate } from '../../types/array/module.f.js'
 import { empty as noExps, mapGet, mapSet } from '../../types/map/module.f.js'
 import { empty as none } from '../../types/ref_map/module.f.js'
 import { ok, unwrap } from '../../types/result/module.f.js'
 import { identityAnalysis, operandsOf, ownOperandsOf, restoreNode } from '../analysis/module.f.js'
 import { eachWith } from '../memo/module.f.js'
+
+/**
+ * The expression built for an entry. It may be `null`, a node evaluated to
+ * it, so the answer is read as it is.
+ *
+ * @type {(built: PersistentMap<number, Exp>, i: number) => Exp}
+ */
+const at = (built, i) => /** @type {Exp} */ (mapGet(built, i))
 
 /** The reads an invocation decides. */
 const open = /** @type {readonly string[]} */ (['arg', 'rest', 'self'])
@@ -90,7 +97,7 @@ const prune = (length, count, unknown, body) => {
             : node[0] === 'frame' && kept.indexOf(node[1]) !== node[1] ? ['frame', kept.indexOf(node[1])]
             : rebuilt(before, exps, node, i)),
         noExps)
-    return [kept, body instanceof Array ? assertNotNullish(mapGet(built, self - 1)) : body]
+    return [kept, body instanceof Array ? at(built, self - 1) : body]
 }
 
 /**
@@ -163,7 +170,7 @@ const reduce = runtime => {
                 const before = built
                 const left = node[1]
                     .filter((x, j, all) => j === all.length - 1 || !(x instanceof Array && done.includes(x[1])))
-                    .map(x => x instanceof Array ? assertNotNullish(mapGet(before, x[1])) : x)
+                    .map(x => x instanceof Array ? at(before, x[1]) : x)
                 built = mapSet(built, i, left.length === 1 ? left[0] : [',', left])
             } else if (node[0] === '=>') {
                 // A slot is known where it is a primitive or a closed node
@@ -188,7 +195,7 @@ const reduce = runtime => {
                     for (const k of kept) {
                         if (k < innerSlots.length) {
                             const x = innerSlots[Number(k)]
-                            handed = [...handed, x instanceof Array ? assertNotNullish(mapGet(built, x[1])) : x]
+                            handed = [...handed, x instanceof Array ? at(built, x[1]) : x]
                         } else {
                             handed = [...handed, ['frame', slots.length + lifted.length]]
                             lifted = [...lifted, values[Number(k - innerSlots.length)]]
@@ -202,7 +209,7 @@ const reduce = runtime => {
             }
         }
         if (!changed) { return null }
-        const [kept, pruned] = prune(length, slots.length + lifted.length, unknown, assertNotNullish(mapGet(built, root)))
+        const [kept, pruned] = prune(length, slots.length + lifted.length, unknown, at(built, root))
         return [kept, lifted, pruned]
     }
     return go
@@ -244,17 +251,21 @@ const each = one => (seen, values) => {
 
 /**
  * `value` with every closure in it precomputed over its precomputed
- * captures. A value reached twice is answered once, so what was one array,
- * object or function is one still. What exists is never made again: an
- * array, an object or a function nothing changed in is answered as itself,
- * and so is every node of a body whose operands stayed as they were.
- * `runtime` answers the member and static functions a closed call makes,
- * as it does for [`memo`](../memo/module.f.js).
+ * captures, after the values `seen` has answered, and those with the ones
+ * answered here: a value reached twice is answered once, in one call or
+ * across calls, so what was one array, object or function is one still,
+ * and a value answered is its own answer. What exists is never made again:
+ * an array, an object or a function nothing changed in is answered as
+ * itself, and so is every node of a body whose operands stayed as they
+ * were. `runtime` answers the member and static functions a closed call
+ * makes, as it does for [`memo`](../memo/module.f.js).
  *
- * @type {(runtime: Runtime | undefined) => (value: EdagValue) => EdagValue}
+ * @type {(runtime: Runtime | undefined) => (seen: RefMap, value: EdagValue) => readonly [RefMap, EdagValue]}
  */
-export const precompute = runtime => {
+export const precomputeOver = runtime => {
     const one = closure(runtime)
+    /** A value with its answer, and the answer as its own. @type {(seen: RefMap, value: EdagValue & object, result: EdagValue & object) => readonly [RefMap, EdagValue]} */
+    const answer = (seen, value, result) => [seen(value, result)[1](result, result)[1], result]
     /** @type {(seen: RefMap, value: EdagValue) => readonly [RefMap, EdagValue]} */
     const walk = (seen, value) => {
         if (!(value instanceof Array)) { return [seen, value] }
@@ -263,25 +274,30 @@ export const precompute = runtime => {
         switch (value[0]) {
             case '[]': {
                 const [next, items] = each(walk)(seen, value[1])
-                /** @type {EdagValue} */
-                const result = same(value[1], items) ? value : ['[]', items]
-                return [next(value, result)[1], result]
+                return answer(next, value, same(value[1], items) ? value : ['[]', items])
             }
             case '{}': {
                 const [next, items] = each(walk)(seen, value[1].map(([, , item]) => item))
-                /** @type {EdagValue} */
-                const result = same(value[1].map(([, , item]) => item), items) ? value
-                    : ['{}', value[1].map((property, i) => property[2] === items[Number(i)] ? property : [':', property[1], items[Number(i)]])]
-                return [next(value, result)[1], result]
+                return answer(next, value, same(value[1].map(([, , item]) => item), items) ? value
+                    : ['{}', value[1].map((property, i) => property[2] === items[Number(i)] ? property : [':', property[1], items[Number(i)]])])
             }
             case '=>': {
                 const [next, slots] = each(walk)(seen, value[2])
-                const result = one(same(value[2], slots) ? value : ['=>', value[1], slots, value[3]])
-                return [next(value, result)[1], result]
+                return answer(next, value, one(same(value[2], slots) ? value : ['=>', value[1], slots, value[3]]))
             }
             // `undefined`, a helper and a built-in have nothing to precompute
             default: { return [seen, value] }
         }
     }
-    return value => walk(none, value)[1]
+    return walk
+}
+
+/**
+ * {@link precomputeOver} no values answered before: one value on its own.
+ *
+ * @type {(runtime: Runtime | undefined) => (value: EdagValue) => EdagValue}
+ */
+export const precompute = runtime => {
+    const over = precomputeOver(runtime)
+    return value => over(none, value)[1]
 }
