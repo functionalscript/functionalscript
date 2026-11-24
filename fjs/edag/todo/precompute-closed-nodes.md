@@ -125,10 +125,11 @@ FunctionalScript writer refuses a slot no read reaches.
    in turn. Doing so without a bound does not end on
    `const mk = n => () => mk(n + 1)`, where each closure's body closes over
    a call that answers the next.
-4. **Approval.** The identity change rests on the value-identity proposal,
-   which awaits the language designer's explicit approval. Until then the
-   module is reachable by its proofs alone, and wiring it into the
-   compiler, behind a flag or not, is a separate decision
+4. **What consumes it.** The identity change is approved
+   ([approval](https://github.com/functionalscript/functionalscript/pull/4111#issuecomment-7135356529)
+   of the [value-identity proposal](../../../spec/todo/value-identity.md)).
+   Wiring the module into the compiler, and under which output name or
+   flag, is still to decide
    ([`070-compiler-flags.md`](../../compiler/todo/070-compiler-flags.md)).
 
 ### Tasks
