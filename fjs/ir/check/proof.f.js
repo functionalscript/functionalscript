@@ -847,6 +847,8 @@ export const proof = {
         assertEq(assertError(ownedPlus([own('v', cell)], unit, call('self', 'drop', [release(v), release(v)]))), "f: self.drop: cell's drop takes release(x) of the value that it gives up")
         assertEq(assertError(ownedPlus([own('v', cell)], unit, call('self', 'drop', [['op', 'release', [v, v]]]))), "f: self.drop: cell's drop takes release(x) of the value that it gives up")
         assertEq(assertError(ownedPlus([own('v', cell), ['x', f64]], unit, call('self', 'drop', [release(get('x'))]))), "f: self.drop: release of f64, and the drop is cell's")
+        assertEq(assertError(ownedPlus(p, cell, seal(cell, call('self', 'dup', [unseal(get('w'))])))), 'f: no local w')
+        assertEq(assertError(ownedPlus(p, unit, call('self', 'drop', [release(get('w'))]))), 'f: no local w')
         assertEq(assertError(ownedPlus([own('v', cell)], u(64), release(v))), "f: release: only the lifetime pass releases a value, as the argument of its type's drop")
     },
     br: () => {

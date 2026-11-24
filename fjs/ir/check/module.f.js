@@ -465,16 +465,18 @@ const values = (checkTerm, env, ts) => okList(ts.map(t => value(checkTerm, env, 
  * @type {(checkTerm: _CheckTerm, env: _Env, target: Sealed, dup: string, xs: readonly Term[]) => Result<Typed, string>}
  */
 const sealCopy = (checkTerm, env, target, dup, xs) => {
-    if (!env.owned) { return error(`seal of ${show(target)}: only the lifetime pass seals a counted ${show(target)}: seal its copy variants, or let the pass copy`) }
+    /** @type {(message: string) => Result<Typed, string>} */
+    const no = message => error(`${assertNotNullish(entry(env, 'name'))}: ${message}`)
+    if (!env.owned) { return no(`seal of ${show(target)}: only the lifetime pass seals a counted ${show(target)}: seal its copy variants, or let the pass copy`) }
     const [x] = xs
     const inner = xs.length === 1 && x[0] === 'call' && x[1] === 'self' && x[2] === dup && x[3].length === 1 ? x[3][0] : undefined
     if (inner === undefined || inner[0] !== 'op' || inner[1] !== 'unseal' || inner[2].length !== 1) {
-        return error(`seal of ${show(target)}: a counted value is sealed only from a copy of its bits, seal(t, self.${dup}(unseal(e)))`)
+        return no(`seal of ${show(target)}: a counted value is sealed only from a copy of its bits, seal(t, self.${dup}(unseal(e)))`)
     }
     const v = value(checkTerm, env, inner[2][0])
     if (v[0] === 'error') { return v }
     const [of] = v[1]
-    if (!sub(env, of, target)) { return error(`seal of ${show(target)}: the copy is of ${show(of)}, which ${show(target)} does not hold`) }
+    if (!sub(env, of, target)) { return no(`seal of ${show(target)}: the copy is of ${show(of)}, which ${show(target)} does not hold`) }
     const bits = carrierBits(env, target)
     return ok([target, ['op', 'seal', [[bits, ['call', 'self', dup, [[bits, ['op', 'unseal', [v[1]]]]]]]]]])
 }
@@ -488,16 +490,18 @@ const sealCopy = (checkTerm, env, target, dup, xs) => {
  * @type {(checkTerm: _CheckTerm, env: _Env, type: string, drop: string, xs: readonly Term[]) => Result<Typed, string>}
  */
 const releaseDrop = (checkTerm, env, type, drop, xs) => {
+    /** @type {(message: string) => Result<Typed, string>} */
+    const no = message => error(`${assertNotNullish(entry(env, 'name'))}: ${message}`)
     const t = show(['sealed', assertNotNullish(env.own), type, null])
-    if (!env.owned) { return error(`self.${drop}: only the lifetime pass calls ${t}'s drop`) }
+    if (!env.owned) { return no(`self.${drop}: only the lifetime pass calls ${t}'s drop`) }
     const [x] = xs
     if (xs.length !== 1 || x[0] !== 'op' || x[1] !== 'release' || x[2].length !== 1) {
-        return error(`self.${drop}: ${t}'s drop takes release(x) of the value that it gives up`)
+        return no(`self.${drop}: ${t}'s drop takes release(x) of the value that it gives up`)
     }
     const v = value(checkTerm, env, x[2][0])
     if (v[0] === 'error') { return v }
     const [of] = v[1]
-    if (of[0] !== 'sealed' || of[1] !== env.own || of[2] !== type) { return error(`self.${drop}: release of ${show(of)}, and the drop is ${t}'s`) }
+    if (of[0] !== 'sealed' || of[1] !== env.own || of[2] !== type) { return no(`self.${drop}: release of ${show(of)}, and the drop is ${t}'s`) }
     const bits = carrierBits(env, of)
     return ok([unit, ['call', 'self', drop, [[bits, ['op', 'release', [v[1]]]]]]])
 }
@@ -593,8 +597,7 @@ const term = (env, t) => {
             if (name === 'release') { return no(`release: only the lifetime pass releases a value, as the argument of its type's drop`) }
             const dup = name === 'seal' && target?.[0] === 'sealed' ? dupHook(env, target) : null
             if (dup !== null) {
-                const r = sealCopy(term, env, /** @type {Sealed} */ (target), dup, xs)
-                return r[0] === 'error' ? no(r[1]) : r
+                return sealCopy(term, env, /** @type {Sealed} */ (target), dup, xs)
             }
             const args = values(term, env, xs)
             if (args[0] === 'error') { return args }
@@ -612,9 +615,8 @@ const term = (env, t) => {
             const hook = module === 'self' ? hooked(env).find(([, { dup, drop }]) => dup === name || drop === name) : undefined
             if (hook !== undefined) {
                 const [type, { drop }] = hook
-                const r = drop === name ? releaseDrop(term, env, type, name, xs)
-                    : error(`self.${name}: only the lifetime pass calls ${show(['sealed', assertNotNullish(env.own), type, null])}'s dup, in seal(t, self.${name}(unseal(e)))`)
-                return r[0] === 'error' ? no(r[1]) : r
+                return drop === name ? releaseDrop(term, env, type, name, xs)
+                    : no(`self.${name}: only the lifetime pass calls ${show(['sealed', assertNotNullish(env.own), type, null])}'s dup, in seal(t, self.${name}(unseal(e)))`)
             }
             const f = callee(env, module, name)
             if (f[0] === 'error') { return no(f[1]) }
@@ -1115,10 +1117,11 @@ const misdefined = (m, own) => {
         const t = `${own}.${type}`
         const bits = carrier === 'i64' ? u(64) : u(32)
         const b = show(bits)
+        const copies = copy ?? []
         return literal?.module === own ? `${t}: the module that defines it does not make its literals`
             : (dup === undefined) !== (drop === undefined) ? `${t} names ${dup === undefined ? 'a drop and no dup' : 'a dup and no drop'}, and a counted type names both`
             : dup === undefined && copy !== undefined ? `${t} names copy variants, and only a counted type has them`
-            : (copy ?? []).some((v, k) => !variants.includes(v) || (copy ?? []).indexOf(v) !== k) ? `${t}'s copy variants are its variants, each once`
+            : copies.some((v, k) => !variants.includes(v) || copies.indexOf(v) !== k) ? `${t}'s copy variants are its variants, each once`
             : dup !== undefined && !over(dup, bits, bits) ? `${t}'s dup is (b: ${b}) -> ${b}, over its carrier's bits`
             : drop !== undefined && !over(drop, bits, unit) ? `${t}'s drop is (b: ${b}) -> unit, over its carrier's bits`
             : null
