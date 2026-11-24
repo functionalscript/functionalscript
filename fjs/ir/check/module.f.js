@@ -66,6 +66,7 @@ import { at, empty, fromEntries, setReplace } from '../../types/ordered_map/modu
 import { bool, compareIn, definedBy, equal, f64, f64c, fits, inside, int, interfacesOf, isCopy, isOwn, never, product, u, unit } from '../module.f.js'
 import { quote, show } from '../print/module.f.js'
 import { checkOwned } from './owned/module.f.js'
+import { ref } from '../l0/module.f.js'
 
 /** Locals of a function: names to types, without parameter modes. @type {(params: readonly Param[]) => OrderedMap<Type>} */
 const localsOf = params => fromEntries(params.map(([name, type]) => /** @type {const} */ ([name, type])))
@@ -890,8 +891,9 @@ const globalOf = (env, t) => {
  * the loader's table. The emitter imports a maker once
  * for its ABI and its name, and it answers one WASM value, so two types
  * whose literals it makes are carried by that value. Two functions of one
- * name count on bits alike, `dup`, `drop` or not at all, so that an alias
- * without the marker cannot call a counting host function outside a hook.
+ * name count on bits alike, `dup`, `drop` or not at all, and as L0's `Ref`
+ * says NaNVM's do, so that an alias without the marker, beside `Ref` or
+ * alone, cannot call a counting host function outside a hook.
  *
  * @type {(env: _Env, imports: readonly (readonly [string, Interface])[]) => string | null}
  */
@@ -901,8 +903,9 @@ const shared = (env, imports) => {
         return literal === undefined || i === null ? [] : [/** @type {const} */ ([`${literal.module}.${literal.member}`, i.abi, literal.member, `${module}.${type}`, carrier])]
     }))
     const fns = [...imports.flatMap(([module, { abi, functions }]) => functions.map(([member]) => /** @type {const} */ ([`${module}.${member}`, abi, member]))), ...makers]
-    /** How each function import counts on bits, by its name: a maker does not. @type {readonly (readonly [string, string, string, string])[]} */
+    /** How each function import counts on bits, by its name: L0's `Ref` first, which says how NaNVM's own functions count, and a maker not at all. @type {readonly (readonly [string, string, string, string])[]} */
     const marks = [
+        ...ref[1].functions.map(([member, { counts }]) => /** @type {const} */ ([`L0's ${ref[0]}.${member}`, ref[1].abi, member, counts ?? 'nothing'])),
         ...imports.flatMap(([module, { abi, functions }]) => functions.map(([member, { counts }]) => /** @type {const} */ ([`${module}.${member}`, abi, member, counts ?? 'nothing']))),
         ...makers.map(([name, abi, member]) => /** @type {const} */ ([name, abi, member, 'nothing'])),
     ]
