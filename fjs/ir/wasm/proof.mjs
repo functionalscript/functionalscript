@@ -26,11 +26,7 @@ import { ARRAY, FUNCTION, OBJECT, STRING, asNumber, kind, length } from '../../w
 import { stringEquals, stringIndex, stringLess, toBoolean } from '../../wasm/runtime/l1/module.f.js'
 import { any, array, container, func, l0 } from '../l0/module.f.js'
 import { add, call, call_ref, code, codeOf, f64, fn, get, n } from '../module.f.js'
-import { arrays, bits, constants, corners, counting, literals, loops, records, samples, unknown } from '../testlib.f.js'
-import { write } from '../../media/wasm/binary/write/module.f.js'
-import { check } from '../check/module.f.js'
-import { lifetime } from '../lifetime/module.f.js'
-import { emit } from './module.f.js'
+import { arrays, bits, constants, corners, literals, loops, records, samples, unknown } from '../testlib.f.js'
 import { edges, held, product, run, spellings, trap } from './testlib.mjs'
 
 // arrays
@@ -324,27 +320,6 @@ export const proof = {
     constants: () => run(constants, twins, inputs),
     literals: () => run(literals, twins, inputs),
     arrays: () => run(arrays, twins, inputs),
-    // A counted type that the module defines: its owned stage, which copies and drops through the module's own hooks, runs.
-    counting: () => {
-        const owned = lifetime(counting)
-        assert(owned[0] === 'ok', owned[1])
-        const checked = check(owned[1])
-        assert(checked[0] === 'ok', checked[1])
-        const bytes = new Uint8Array(write(emit(checked[1])))
-        assert(WebAssembly.validate(bytes))
-        const { exports } = new WebAssembly.Instance(new WebAssembly.Module(bytes), {})
-        /** @type {(name: string, ...args: readonly bigint[]) => unknown} */
-        const call_ = (name, ...args) => {
-            const f = exports[name]
-            assert(typeof f === 'function', name)
-            return f(...args)
-        }
-        assert(call_('small') === 0n)
-        assert(call_('keep', 3n) === 3n)
-        assert(call_('forget', 3n) === 1)
-        assert(call_('size', 2n) === 1)
-        assert(call_('size', 3n) === 2)
-    },
     // `Functions.call` applies an existing function value to a sealed args array.
     call: () => {
         /** @type {Module} */

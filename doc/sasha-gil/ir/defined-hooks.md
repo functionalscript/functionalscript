@@ -1,6 +1,7 @@
 # Counting a type that the module defines: hooks over the carrier's bits
 
-2026-11-24. **Decided:** choice C (Sasha, 2026-11-24). This note gives
+2026-11-24. **Decided:** choice C (Sasha, 2026-11-24). **Built:** 4d-1
+(#4108, #4109). This note gives
 the scheme in full, as it will be built in checkpoint 4d of
 [runtime-in-ir.md](./runtime-in-ir.md#checkpoints). It builds on 4c
 (#4104), where a module names the sealed types it implements with
@@ -143,6 +144,20 @@ reference's path, or a `drop` that skips `drop_ref` for one, passes
 every rule. The two hooks are the module's trusted base, a few lines
 each, and the NaNVM host's leak check (below) is their proof.
 
+Built in 4d-1 (#4108, #4109), the rules take these shapes:
+
+- Only the pass writes `release`, a call of a hook and a `seal` of a
+  variant that is not copy. The checker refuses them in the plain stage,
+  and takes them in the owned stage only in the pass's two forms. No
+  code value names a hook either, so `call_ref` cannot reach one.
+- Each hook counts one type: two types that name one function, or a
+  type whose `dup` and `drop` are one, are refused, so that a call of a
+  hook names the type whose value it counts.
+- Rule 4's `Ref` functions are any of an interface's whose signature
+  says `counts: 'dup'` or `'drop'`, as `dup_ref` and `drop_ref` do, and
+  rule 5 is that such a call is the hook's last term: the body's, a
+  `let`'s body's or a `match` arm's.
+
 4c's refusal of a `dup` or a `drop` on a defined type goes. A hook may
 call other functions, and those may hold values of `T`: that is
 ordinary recursion, whose end is the module's to prove, as for any
@@ -167,8 +182,9 @@ that the module defines and `t` a sealed type whose interface is `own`:
 - The pass's output is checked again (the lifetime proofs check every
   module that they write), so a wrapping that broke ownership would be
   refused there.
-- In the printer, a drop of `s` in Any's own module reads
-  `let $3 = self.drop(release(s))` where an importer's reads
+- In the printer, which writes a call of the module's own function
+  without `self.`, a drop of `s` in Any's own module reads
+  `let $3 = drop(release(s))` where an importer's reads
   `let $3 = Any.drop(s)`.
 
 The WASM of a drop of local `x` in the defining module is one call:
