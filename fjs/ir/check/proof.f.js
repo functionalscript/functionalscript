@@ -922,6 +922,7 @@ export const proof = {
         assertEq(pw(lone('same_ref', signature([['a', u(64)]], bool))), "Alias.same_ref is the import same_ref of fjs:l0, which L0's Ref.same_ref declares as (a: u(64), b: u(64)) -> bool, not (a: u(64)) -> bool")
         assertEq(pw(lone('same_ref', signature([['a', u(64)], ['b', u(32)]], bool))), "Alias.same_ref is the import same_ref of fjs:l0, which L0's Ref.same_ref declares as (a: u(64), b: u(64)) -> bool, not (a: u(64), b: u(32)) -> bool")
         assertEq(pw(lone('kind_ref', signature([['b', u(64)]], int(0n, 9n)))), "Alias.kind_ref is the import kind_ref of fjs:l0, which L0's Ref.kind_ref declares as (b: u(64)) -> int(0, 8), not (b: u(64)) -> int(0, 9)")
+        assertEq(pw({ ...referencing, imports: [['Alias', { abi: 'fjs:l0', types: [], constants: [['dup_ref', u(64)]], functions: [] }]] }), "the constant Alias.dup_ref and the function L0's Ref.dup_ref are both the import dup_ref of fjs:l0")
         // other functions of Ref, and its counting ones as the last term of each path, are the hooks' to call
         assertOk(checkPlain(with_([['dup', fn([['b', u(64)]], u(64), () => if_(r('same_ref', b, b), let_('k', r('kind_ref', b), () => if_(true_, r('dup_ref', b), b)), b))]])))
     },

@@ -921,7 +921,7 @@ const shared = (env, imports) => {
     const shown = ({ params, result }) => `(${params.map(p => `${isOwn(p) ? 'own ' : ''}${p[0]}: ${show(p[1])}`).join(', ')}) -> ${show(result)}`
     const unlike = imports.flatMap(([module, { abi, functions }]) => abi !== ref[1].abi ? [] : functions.flatMap(([member, s]) => {
         const r = ref[1].functions.find(([k]) => k === member)?.[1]
-        const same = r === undefined || (s.params.length === r.params.length && s.params.every((p, k) => equal(p[1], r.params[k][1]) && isOwn(p) === isOwn(r.params[k])) && equal(s.result, r.result))
+        const same = r === undefined || (s.params.length === r.params.length && s.params.every((p, k) => equal(p[1], r.params[Number(k)][1]) && isOwn(p) === isOwn(r.params[Number(k)])) && equal(s.result, r.result))
         return same ? [] : [`${module}.${member} is the import ${member} of ${abi}, which L0's ${ref[0]}.${member} declares as ${shown(assertNotNullish(r))}, not ${shown(s)}`]
     }))
     const cs = imports.flatMap(([module, { abi, constants = [] }]) => constants.map(([member, t]) => /** @type {const} */ ([`${module}.${member}`, abi, member, globalOf(env, t)])))
@@ -931,7 +931,8 @@ const shared = (env, imports) => {
     const table = [...fns.map(([name, abi, member]) => /** @type {const} */ ([`function ${name}`, abi, member])), ...cs.map(([name, abi, member]) => /** @type {const} */ ([`constant ${name}`, abi, member]))]
         .find(([, abi, member]) => (member === 'table' || member === 'table_base') && abi === first)
     const clash = cs.flatMap(([name, abi, member, w], j) => {
-        const f = fns.find(([, a, m]) => a === abi && m === member)
+        // L0's Ref functions are NaNVM's functions, imported or not, so no constant is one of them.
+        const f = [...fns, ...ref[1].functions.map(([member]) => /** @type {const} */ ([`L0's ${ref[0]}.${member}`, ref[1].abi, member]))].find(([, a, m]) => a === abi && m === member)
         const c = cs.find(([, a, m, x], k) => k < j && a === abi && m === member && x !== null && w !== null && x !== w)
         return f !== undefined ? [`the constant ${name} and the function ${f[0]} are both the import ${member} of ${abi}`]
             : c !== undefined ? [`the constants ${c[0]}, a global of ${c[3]}, and ${name}, a global of ${w}, are both the import ${member} of ${abi}`]
