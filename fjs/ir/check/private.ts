@@ -25,6 +25,18 @@ export type _Env = {
     readonly constants: OrderedMap<Type>
     /** The name of the sealed types' interface that the module defines, or `null`. */
     readonly own: string | null
+    /**
+     * Whether the module is in its owned stage, which the lifetime pass
+     * writes: only there may a counted type that the module defines be
+     * sealed, released, copied or dropped, in the pass's two forms.
+     */
+    readonly owned: boolean
+    /**
+     * Whether the term is in the body of a function of the module, whose
+     * name is `name`: a constant's value or an interface's types have
+     * names too, and those of a hook are no hook's body.
+     */
+    readonly body: boolean
 }
 
 /** Check one term in its current scope. */

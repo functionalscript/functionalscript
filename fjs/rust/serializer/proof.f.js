@@ -32,6 +32,9 @@ const fn = { target: { kind: 'function', index: 0 }, parameters: [x], rest, self
 /** @type {(statements: Block['statements'], end: Value) => string} */
 const print = (statements, end) => unwrap(scopeTagged({ statements, exit: ['yield', [end]] }, options, [], true)).lines.map(untagged).join('\n')
 
+/** Whether code outside the literal descriptors spells a string literal. @type {(lines: readonly string[]) => boolean} */
+const quoted = lines => lines.filter(line => !line.startsWith('static LITERAL_')).join('').includes('\"')
+
 export const proof = {
     nativeOwnership: () => {
         /** @type {Block['statements']} */
@@ -62,7 +65,7 @@ export const proof = {
         const body = yielding([['array', ['hi', 'hi', ['function', fn]]]])
         const output = unwrap(scopeTagged(body, { ...options, text: () => 'hi' }, [], true))
         const lines = output.lines.map(untagged)
-        assertEq(lines[0], 'static LITERAL_0: StaticString = utf16(&[104, 105]);')
+        assertEq(lines[0], 'static LITERAL_0: StaticString = ascii("hi");')
         assertEq(lines.join('\n').split('StaticAny::String(&LITERAL_0)').length, 3)
         assert(lines.join('\n').includes('text: Some(&LITERAL_0)'))
         assert(output.uses.vm.includes('StaticFunction'))
@@ -151,7 +154,9 @@ export const proof = {
         assert(rust.includes('utf16(&[55296])'))
         const core = unwrap(scopeTagged(yielding([['Math.abs']]), { ...options, runtime: null }, [], true))
         assert(core.lines.join('').includes('StaticString'))
-        assert(!rust.includes('\"') && !core.lines.map(untagged).join('').includes('\"'))
+        // A string literal is spelled only in a descriptor, never built when the module runs.
+        assert(rust.includes('StaticString = ascii("a");'))
+        assert(!quoted(printed.lines.map(untagged)) && !quoted(core.lines.map(untagged)))
     },
     nativePrimitiveObjects: () => {
         /** @type {Value} */

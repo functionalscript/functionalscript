@@ -62,7 +62,7 @@ export type OpName =
     | 'eq' | 'lt' | 'le'
     | 'and' | 'or' | 'xor' | 'shl' | 'shr'
     | 'float' | 'trunc_sat' | 'canon' | 'to_bits' | 'from_bits'
-    | 'seal' | 'unseal'
+    | 'seal' | 'unseal' | 'release'
 
 /** A `match` arm: the variants it takes, `null` for the rest; a name for the operand there; its body. */
 export type ArmOf<T> = readonly [variants: readonly string[] | null, binder: string | null, body: T]
@@ -187,12 +187,20 @@ export type Param = readonly [name: string, type: Type, mode?: 'own']
  * as `Functions.throw` and the functions that L0 traps in do, and a
  * missing one is `false`. A function of a module declares none: the
  * checker infers it, and writes it in the module that it answers.
+ *
+ * `counts` marks a function of an interface that counts a value on its
+ * bits, as NaNVM's `dup_ref` and `drop_ref` do: `dup` answers the bits of a
+ * new owner, and `drop` gives one up. Bits are copy, so the owned check
+ * cannot follow them: only the hook of that name of a counted type that the
+ * module defines calls such a function, and only as its last term
+ * ([defined-hooks.md](../../doc/sasha-gil/ir/defined-hooks.md)).
  */
 export type Signature = {
     readonly params: readonly Param[]
     readonly result: Type
     readonly returns?: string
     readonly fails?: boolean
+    readonly counts?: 'dup' | 'drop'
 }
 
 /** A function: its parameters, its result, and a body that the label `return` leaves. */
@@ -258,9 +266,13 @@ export type Interface = {
 /**
  * The sealed types that a module implements, under the name that its types
  * and the modules that import it call it by, as `['sealed', name, type, v]`.
- * The function that a type's `kind` names is the module's own, another
- * module makes its literals, and no type is counted yet: it names no `dup`
- * and no `drop`, since a drop of its own could not give up its value.
+ * The functions that a type's `kind`, `dup` and `drop` name are the
+ * module's own, and another module makes its literals. A counted type's
+ * `dup` and `drop` work on its carrier's bits, `(b: u(64)) -> u(64)` and
+ * `(b: u(64)) -> unit` for an `i64` carrier, so they never hold a value of
+ * the type, and only the lifetime pass calls them, in
+ * `seal(t, self.dup(unseal(e)))` and `self.drop(release(x))`
+ * ([defined-hooks.md](../../doc/sasha-gil/ir/defined-hooks.md)).
  */
 export type Defines = {
     readonly name: string

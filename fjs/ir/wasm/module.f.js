@@ -373,7 +373,7 @@ const operator = (emitTerm, env, type, name, args) => {
         return truncSat(emitTerm, env, type, args[0])
     }
     // A sealed value and the bits of its carrier are one WASM value.
-    if (name === 'unseal') { return sequence(emitTerm, env, [[args[0], args[0][0]]], []) }
+    if (name === 'unseal' || name === 'release') { return sequence(emitTerm, env, [[args[0], args[0][0]]], []) }
     if (name === 'seal') { return sequence(emitTerm, env, [[args[0], carrier(env.interfaces, type)[0] === 'i64' ? u(64) : u(32)]], []) }
     const ints = args.flatMap(([t]) => t[0] === 'int' ? [t] : [])
     const own = args.map(x => /** @type {const} */ ([x, x[0]]))

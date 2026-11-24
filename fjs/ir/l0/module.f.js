@@ -109,7 +109,7 @@
  * @import { Interface } from '../types.ts'
  */
 
-import { bool, code, f64, f64c, i, int, mayFail, never, only, own, sealed, signature, u, unit } from '../module.f.js'
+import { bool, code, countsBits, f64, f64c, i, int, mayFail, never, only, own, sealed, signature, u, unit } from '../module.f.js'
 
 /** A value of unknown kind. */
 export const any = sealed('Any', 'any')
@@ -260,6 +260,28 @@ const functions = [
  * @type {readonly (readonly [string, Interface['functions'], Interface['types']])[]}
  */
 const more = [['String', strings, []], ['Containers', containers, [['builder', { variants: ['builder'], carrier: 'i32' }]]], ['Functions', functions, []]]
+
+/**
+ * `Ref`, NaNVM's functions of references, over their bits, which the module
+ * that defines `any` in the IR imports: `kind_ref`, the kind of a
+ * reference; `dup_ref`, the bits of a new owner of it; `drop_ref`, which
+ * gives one up; and `same_ref`, whether two references are one. Each traps
+ * on bits that are no reference, which is a misuse, so none declares that
+ * it may fail, as L0's `dup` and `drop` do not
+ * ([defined-hooks.md](../../../doc/sasha-gil/ir/defined-hooks.md#anys-hooks-written-out)).
+ *
+ * @type {readonly [string, Interface]}
+ */
+export const ref = ['Ref', {
+    abi: 'fjs:l0',
+    types: [],
+    functions: [
+        ['kind_ref', signature([['b', u(64)]], int(0n, 8n))],
+        ['dup_ref', countsBits('dup', signature([['b', u(64)]], u(64)))],
+        ['drop_ref', countsBits('drop', signature([['b', u(64)]], unit))],
+        ['same_ref', signature([['a', u(64)], ['b', u(64)]], bool)],
+    ],
+}]
 
 /** The interfaces of L0, by their names. @type {readonly (readonly [string, Interface])[]} */
 export const l0 = [

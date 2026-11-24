@@ -49,6 +49,8 @@ export type _Env = {
     readonly fn: string
     readonly functions: OrderedMap<Signature>
     readonly imports: OrderedMap<Interface>
+    /** The name of the sealed types that the module defines, whose hooks it calls on their bits, or `null`. */
+    readonly own: string | null
     readonly taken: readonly string[]
     readonly locals: OrderedMap<_Local>
     readonly frames: readonly _Frame[]
