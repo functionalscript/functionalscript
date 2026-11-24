@@ -32,7 +32,7 @@ impl<A: IVm> Shl for BigInt<A> {
         // and must succeed. That boundary is `nanvm-lib`'s own `MAX_WORDS`
         // policy limit (see its doc comment), not V8's own — V8 alone would
         // still accept a shift far past it.
-        let top_word = self[n_len - 1];
+        let top_word = self.item(n_len - 1);
         let carries_new_word = bit_shift > 0 && top_word >> (64 - bit_shift) != 0;
         let result_len = word_shift + n_len as u64 + if carries_new_word { 1 } else { 0 };
         if result_len > MAX_WORDS {
@@ -50,7 +50,7 @@ impl<A: IVm> Shl for BigInt<A> {
             return Err(error::bigint_too_large());
         }
         value.extend(core::iter::repeat_n(0u64, word_shift));
-        value.extend((0..n_len).map(|i| self[i]));
+        value.extend((0..n_len).map(|i| self.item(i)));
 
         if bit_shift > 0 {
             let mut carry = 0u64;

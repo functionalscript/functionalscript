@@ -1,7 +1,7 @@
 ## ASCII static string
 
 **Priority:** P3
-**Status:** open — the design is settled; no code yet
+**Status:** wip — items are read by value; the descriptor is still UTF-16 only
 
 ### Problem
 
@@ -84,7 +84,7 @@ string).
 
 One pull request each, stacked, after the one that files this issue.
 
-- [ ] `SizedIndex` reads an item by value; `String<A>` and `BigInt<A>`
+- [x] `SizedIndex` reads an item by value; `String<A>` and `BigInt<A>`
   are read with `item`.
 - [ ] `StaticString` as the enum with `utf16` and `ascii`, readable by
   index; the naive VM holding the descriptor; the serializer writing

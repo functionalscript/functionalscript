@@ -33,7 +33,14 @@ pub trait IVm: Sized + Clone + From<Unpacked<Self>> + 'static {
     type InternalString: IContainer<Self, Header = (), Item = u16>;
     type InternalBigInt: IContainer<Self, Header = Sign, Item = u64>;
     type InternalObject: IObject<Self>;
-    type InternalArray: IContainer<Self, Header = (), Item = Any<Self>>;
+    /// An array's items are also lent by reference, which `Array<A>`'s
+    /// `a[i]` answers.
+    type InternalArray: IContainer<
+            Self,
+            Header = (),
+            Item = Any<Self>,
+            Items: core::ops::Index<usize, Output = Any<Self>>,
+        >;
     type InternalFunction: IFunction<Self>;
     // functions
     fn to_unpacked(self) -> Unpacked<Self>;
