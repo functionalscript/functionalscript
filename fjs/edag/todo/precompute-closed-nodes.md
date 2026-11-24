@@ -2,7 +2,7 @@
 
 **Priority:** P3 — experiment
 **Status:** wip — [`../precompute`](../precompute/module.f.js) runs on
-every module the interpreter loads; a closed call has no bound yet
+every module the interpreter loads, within a count of steps
 
 ### Problem
 
@@ -58,11 +58,22 @@ What they ask of the design, and where each stands:
   (`_Load` in [`../../compiler/source`](../../compiler/source/types.ts)).
   Done.
 - **A closed call that does not end** is stopped by a count of steps, not
-  a clock, so that a cached value is the same on every run. Not done: the
-  count has to travel through every call the interpreter makes, and
-  `Invoke` answers a value alone
-  ([`bound-edag-interpreter-resources.md`](../../compiler/todo/bound-edag-interpreter-resources.md)).
-  Until then a module with a closed call that does not end does not load.
+  a clock, so that a cached value is the same on every run. Done, in
+  [`../memo`](../memo/module.f.js)'s `eachWith`: the closed nodes of one
+  function have a count of nodes to evaluate between them, 100 000 where
+  a module is loaded, and a call may nest 64 invocations deep. The count
+  travels through the invocation's state and through every call a node
+  leaves, a loop of tail calls included, and a node it ends in is left
+  where it is, as a node that fails is.
+
+  Two things it does not yet do. A function called back by a member
+  function or by a helper is given what was left when the invocation
+  around it began, so each such call is bounded and their sum is not: a
+  `map` over `n` items can take `n` times the count. And the count is per
+  function, not per load, where
+  [`bound-edag-interpreter-resources.md`](../../compiler/todo/bound-edag-interpreter-resources.md)
+  asks for one count over the whole operation; a module's own
+  initialization is not counted at all, as before.
 - **Each open question below** is a computation not yet applied, and so
   owed.
 
@@ -219,8 +230,11 @@ on NaNVM, the same as the uncurried one.
       that exists.
 - [x] `nanvm/harness` compares ordered content, and its fixtures compute
       nothing from whether two equal values are one.
-- [ ] A count of steps through the interpreter's calls, and a closed call
+- [x] A count of steps through the calls a node leaves, and a closed call
       stopped by it.
+- [ ] Count what a member function or a helper calls back, and one count
+      for a whole load.
+- [ ] Choose the count from measurements: 100 000 is a first guess.
 - [ ] Decide what asks for it, and write `.js` and `.rs` from the value in
       `fjs compile`.
 - [ ] Merge captures holding one value, so the whole compiler has a
@@ -229,8 +243,6 @@ on NaNVM, the same as the uncurried one.
       value, and the start-up of each.
 - [ ] Profile the interpreter and the writers on the whole compiler.
 - [ ] Open questions 1 to 4.
-- [ ] A bound on a closed call
-      ([`bound-edag-interpreter-resources.md`](../../compiler/todo/bound-edag-interpreter-resources.md)).
 - [ ] Record §3's new standing in
       [`../execution-models.md`](../execution-models.md).
 

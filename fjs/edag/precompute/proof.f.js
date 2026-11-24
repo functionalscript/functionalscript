@@ -14,7 +14,7 @@ import { call } from '../value/call/module.f.js'
 import { structEq } from '../value/semantics/module.f.js'
 import { precompute } from './module.f.js'
 
-const run = precompute(undefined)
+const run = precompute(undefined, 1_000)
 
 /** @type {(v: EdagValue, args?: Values) => EdagValue} */
 const apply = (v, args = []) => assertOk(call(ok(v), args.map(a => () => ok(a)), invoke))
@@ -44,6 +44,15 @@ export const proof = {
     primitiveBody: () => {
         /** @type {Closure} */
         const fn = ['=>', 0, [], 4]
+        assert(run(fn) === fn)
+    },
+    endless: () => {
+        // `() => forever()` over `const forever = () => forever()`: the call
+        // ends with the count and is left where it is
+        /** @type {Closure} */
+        const forever = ['=>', 0, [], ['()', ['self'], []]]
+        /** @type {Closure} */
+        const fn = ['=>', 0, [forever], ['()', ['frame', 0], []]]
         assert(run(fn) === fn)
     },
     nullResult: () => {

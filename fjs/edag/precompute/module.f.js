@@ -31,8 +31,7 @@
  * `x => y => [x, y, table(64)]` builds the table once.
  *
  * **Not reached.** A value a precomputation answers is not precomputed in
- * turn, and `['self']` is open. A closed call that does not end, does not
- * end here.
+ * turn, and `['self']` is open.
  *
  * @module
  *
@@ -110,9 +109,9 @@ const prune = (length, count, unknown, body) => {
  * down: its closed slots are known, the rest are not, and a value its body
  * lifts is lifted here and handed to it through a slot.
  *
- * @type {(runtime: Runtime | undefined) => (length: number, slots: Values, unknown: readonly number[], body: Exp) => readonly [kept: readonly number[], lifted: Values, body: Exp] | null}
+ * @type {(runtime: Runtime | undefined, steps: number) => (length: number, slots: Values, unknown: readonly number[], body: Exp) => readonly [kept: readonly number[], lifted: Values, body: Exp] | null}
  */
-const reduce = runtime => {
+const reduce = (runtime, steps) => {
     /** @type {(length: number, slots: Values, unknown: readonly number[], body: Exp) => readonly [kept: readonly number[], lifted: Values, body: Exp] | null} */
     const go = (length, slots, unknown, body) => {
         const [kind, table] = identityAnalysis(['=>', length, slots.map(() => null), body])
@@ -138,7 +137,7 @@ const reduce = runtime => {
         const read = [root, ...nodes.flatMap((node, i) => scope[Number(i)] === self && !closed[Number(i)] ? named(ownOperandsOf(node)) : [])]
         /** The closed nodes among them, each evaluated once. */
         const reached = nodes.flatMap((_, i) => closed[Number(i)] && read.includes(i) ? [i] : [])
-        const results = eachWith(runtime)(slots, reached.map(i => exps[Number(i)]))
+        const results = eachWith(runtime, steps)(slots, reached.map(i => exps[Number(i)]))
         /** The nodes whose values replace them. */
         const done = reached.filter((i, at) => results[Number(at)][0] === 'ok' && computes(nodes[Number(i)]))
 
@@ -219,11 +218,11 @@ const reduce = runtime => {
  * The closure with its closed nodes evaluated, or the closure itself where
  * nothing was.
  *
- * @type {(runtime: Runtime | undefined) => (fn: Closure) => Closure}
+ * @type {(runtime: Runtime | undefined, steps: number) => (fn: Closure) => Closure}
  */
-const closure = runtime => fn => {
+const closure = (runtime, steps) => fn => {
     const [, length, captures, body] = fn
-    const reduced = reduce(runtime)(length, captures, [], body)
+    const reduced = reduce(runtime, steps)(length, captures, [], body)
     if (reduced === null) { return fn }
     const [kept, lifted, result] = reduced
     const all = [...captures, ...lifted]
@@ -260,10 +259,15 @@ const each = one => (seen, values) => {
  * were. `runtime` answers the member and static functions a closed call
  * makes, as it does for [`memo`](../memo/module.f.js).
  *
- * @type {(runtime: Runtime | undefined) => (seen: RefMap, value: EdagValue) => readonly [RefMap, EdagValue]}
+ * `steps` is how many nodes the closed nodes of one function may take to
+ * evaluate between them: a node the count ends in is left where it is, as
+ * a node that fails is, so a closed call that does not end is not waited
+ * for, and the answer is the same on every run.
+ *
+ * @type {(runtime: Runtime | undefined, steps: number) => (seen: RefMap, value: EdagValue) => readonly [RefMap, EdagValue]}
  */
-export const precomputeOver = runtime => {
-    const one = closure(runtime)
+export const precomputeOver = (runtime, steps) => {
+    const one = closure(runtime, steps)
     /** A value with its answer, and the answer as its own. @type {(seen: RefMap, value: EdagValue & object, result: EdagValue & object) => readonly [RefMap, EdagValue]} */
     const answer = (seen, value, result) => [seen(value, result)[1](result, result)[1], result]
     /** @type {(seen: RefMap, value: EdagValue) => readonly [RefMap, EdagValue]} */
@@ -295,9 +299,9 @@ export const precomputeOver = runtime => {
 /**
  * {@link precomputeOver} no values answered before: one value on its own.
  *
- * @type {(runtime: Runtime | undefined) => (value: EdagValue) => EdagValue}
+ * @type {(runtime: Runtime | undefined, steps: number) => (value: EdagValue) => EdagValue}
  */
-export const precompute = runtime => {
-    const over = precomputeOver(runtime)
+export const precompute = (runtime, steps) => {
+    const over = precomputeOver(runtime, steps)
     return value => over(none, value)[1]
 }

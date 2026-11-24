@@ -38,6 +38,13 @@ import { mapStep, pureError, pureOk, resultStep, step } from '../../effects/modu
 
 export const parse = sourceParse
 
+/**
+ * How many nodes the closed nodes of one function may take to evaluate
+ * when a module is precomputed. A count and not a time, so that a module
+ * precomputes to the same value on every machine.
+ */
+const steps = /** @type {number} */ (100_000)
+
 /** The values precomputed up to a module, or none before the first. @type {(previous: readonly [ValueObject, RefMap] | null) => RefMap} */
 const answered = previous => previous === null ? none : previous[1]
 
@@ -60,7 +67,7 @@ const interpreting = runtime => ({
         const graph = converted[1].edag
         const [kind, value] = memo(assertOk(identityAnalysis(graph)))({ args: imports, runtime })
         if (kind === 'error') { return error({ message: 'module initialization failed', metadata: null, path, thrown: value }) }
-        const [done, exports] = precomputeOver(runtime)(answered(previous), value)
+        const [done, exports] = precomputeOver(runtime, steps)(answered(previous), value)
         return ok([/** @type {ValueObject} */ (exports), done])
     },
 })
