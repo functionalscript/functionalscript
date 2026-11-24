@@ -102,9 +102,11 @@ export const link = l1 => program => {
 export const linkedAnyName = name => `any.${name}`
 
 /**
- * A term with each of `own` that it calls or reads of `self` renamed by
- * `rename`, and each `Any.*` call and constant rewritten to that linked
- * name of `self`.
+ * A term with each `Any.*` call and constant rewritten to a linked name of
+ * `self`. When `own` is set, each of those names that the term also calls
+ * or reads of `self` is rewritten the same way — for Any's own bodies,
+ * which still say `self.kind`. A program's bodies pass an empty `own`, so
+ * a user `self.kind` stays the program's function.
  *
  * @type {(own: readonly string[], rename: (name: string) => string) => (t: Term) => Term}
  */
@@ -156,26 +158,28 @@ export const linkAny = any => program => {
     const own = definedBy(program)
     if (own !== null) { return error(`the program already defines ${own}`) }
     if (any.defines === undefined) { return error('Any has no defines') }
-    if (!program.imports.some(([k]) => k === 'Any')) { return error('the program imports no Any') }
+    if (program.imports.find(([k]) => k === 'Any') === undefined) { return error('the program imports no Any') }
     const withoutAny = program.imports.filter(([k]) => k !== 'Any')
     const refImport = any.imports.find(([k]) => k === 'Ref')
     if (refImport === undefined) { return error('Any imports no Ref') }
     /** @type {Module['imports']} */
-    const imports = withoutAny.some(([k]) => k === 'Ref') ? withoutAny : [refImport, ...withoutAny]
+    const imports = withoutAny.find(([k]) => k === 'Ref') !== undefined ? withoutAny : [refImport, ...withoutAny]
     const short = [
         ...any.functions.map(([k]) => k),
         ...(any.constants ?? []).map(([k]) => k),
     ]
-    const rewrite = rewriteAny(short, linkedAnyName)
+    // Program bodies: only `Any.*`. Any's bodies: also their own `self.*`.
+    const rewriteProgram = rewriteAny([], linkedAnyName)
+    const rewriteOwn = rewriteAny(short, linkedAnyName)
     /** @type {readonly (readonly [string, Fn])[]} */
-    const anyFunctions = any.functions.map(([k, f]) => [linkedAnyName(k), { ...f, body: rewrite(f.body) }])
+    const anyFunctions = any.functions.map(([k, f]) => [linkedAnyName(k), { ...f, body: rewriteOwn(f.body) }])
     /** @type {readonly (readonly [string, ConstantOf<Term>])[]} */
-    const anyConstants = (any.constants ?? []).map(([k, c]) => [linkedAnyName(k), { type: c.type, value: rewrite(c.value) }])
+    const anyConstants = (any.constants ?? []).map(([k, c]) => [linkedAnyName(k), { type: c.type, value: rewriteOwn(c.value) }])
     /** @type {readonly (readonly [string, Fn])[]} */
-    const functions = program.functions.map(([k, f]) => [k, { ...f, body: rewrite(f.body) }])
+    const functions = program.functions.map(([k, f]) => [k, { ...f, body: rewriteProgram(f.body) }])
     const ownConstants = program.constants ?? []
     /** @type {readonly (readonly [string, ConstantOf<Term>])[]} */
-    const constants = ownConstants.map(([k, c]) => [k, { type: c.type, value: rewrite(c.value) }])
+    const constants = ownConstants.map(([k, c]) => [k, { type: c.type, value: rewriteProgram(c.value) }])
     /** The hooks that a module which defines `any` must hold, by their linked names. */
     const hooks = any.defines.types.flatMap(([, d]) => [d.kind, d.dup, d.drop].flatMap(x => x === undefined ? [] : [linkedAnyName(x)]))
     /** @type {(name: string) => readonly string[]} */
@@ -201,13 +205,13 @@ export const linkAny = any => program => {
         }
     }
     const kept = reached.filter(name =>
-        anyFunctions.some(([x]) => x === name) || anyConstants.some(([x]) => x === name))
+        anyFunctions.find(([x]) => x === name) !== undefined || anyConstants.find(([x]) => x === name) !== undefined)
     const collide = kept.find(name =>
-        functions.some(([x]) => x === name) || constants.some(([x]) => x === name))
+        functions.find(([x]) => x === name) !== undefined || constants.find(([x]) => x === name) !== undefined)
     if (collide !== undefined) { return error(`${collide} is already a function or constant of the program`) }
     /** @type {NonNullable<Module['defines']>} */
     const defines = {
-        name: any.defines.name,
+        name: /** @type {string} */ (definedBy(any)),
         types: any.defines.types.map(([type, d]) => /** @type {const} */ ([type, {
             ...d,
             ...(d.kind === undefined ? {} : { kind: linkedAnyName(d.kind) }),
@@ -243,6 +247,6 @@ export const errorTable = ({ exit }) => {
     const entries = table[1].flatMap(x => x[0] === ':' && typeof x[1] === 'string' && typeof x[2] === 'string' ? [/** @type {const} */ ([x[1], x[2]])] : [])
     return entries.length !== table[1].length ? error('an error that is not a string of a name is not in this slice')
         // JavaScript reads the last of two entries of one name, and a lowering that read the first would throw another text.
-        : entries.some(([k], i) => entries.findIndex(([j]) => j === k) !== i) ? error('the error table names an error twice')
+        : entries.find(([k], i) => entries.findIndex(([j]) => j === k) !== i) !== undefined ? error('the error table names an error twice')
         : ok(entries)
 }

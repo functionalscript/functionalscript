@@ -15,7 +15,7 @@ import { assert, assertEq, assertError, assertOk, assertStructurallySame } from 
 import { any, array, container, l0 } from '../l0/module.f.js'
 import { lifetime } from '../lifetime/module.f.js'
 import {
-    add, block, bool, br, call, call_ref, cast, codeOf, constant, f64, f64c, false_, field, fn, get, let_, lit, loop as repeat, make, match,
+    add, block, bool, br, call, call_ref, cast, codeOf, constant, definedBy, f64, f64c, false_, field, fn, get, let_, lit, loop as repeat, make, match,
     signature, trap, true_, trunc_sat, u,
 } from '../module.f.js'
 import { native } from '../native/module.f.js'
@@ -159,8 +159,8 @@ export const proof = {
         {
             const m = assertOk(over({}, 'export const f = (a, b) => a + b * 2', programRuntime))
             assertEq(m.imports.map(([k]) => k).join(' '), 'Ref String BigInt Containers Functions Native')
-            assert(m.defines !== undefined && m.defines.name === 'Any')
-            assert(m.functions.some(([k]) => k === 'any.from_f64') && m.functions.some(([k]) => k === 'any.isRef'))
+            assert(definedBy(m) === 'Any')
+            assert(m.functions.find(([k]) => k === 'any.from_f64') !== undefined && m.functions.find(([k]) => k === 'any.isRef') !== undefined)
         }
         assertEq(program('export const f = (a, b) => a + b * 2'), [
             'const #n0: any.only(number) =',

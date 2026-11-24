@@ -10,7 +10,7 @@
 
 import { assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import {
-    add, block, br, call, call_ref, codeOf, constant, f64, f64c, field, fn, get, let_, lit, loop, make, match, trap, true_, trunc_sat, u,
+    add, block, bool, br, call, call_ref, codeOf, constant, f64, f64c, field, fn, get, let_, lit, loop, make, match, trap, true_, trunc_sat, u, variant,
 } from '../../module.f.js'
 import { l0, ref } from '../../l0/module.f.js'
 import { sourceOf } from '../testlib.f.js'
@@ -25,10 +25,10 @@ import { errorTable, link, linkAny, linkedAnyName, linkedName, uses } from './mo
  */
 const everyKind = name => block('B', f64, let_('x', trunc_sat(u(8), lit(f64c, 1)), let_('y', add(get('x'), lit(f64c, 2)),
     let_('c', codeOf(name('add')), let_('r', call_ref(get('c'), [call('self', name('add'), [call('Any', 'from_f64', [constant('self', name('#c0'))])])]), let_('m', make([['k', get('r')]]),
-        match(true_, [
+        let_('v', variant(bool, 'true', make([])), match(true_, [
             [['true'], null, br('B', field(get('m'), 'k'))],
             [null, null, loop('L', [['i', f64, constant('Any', 'undefined')]], trap('t'))],
-        ])))))))
+        ]))))))))
 
 /** The normalized FAST of a module's text, which imports nothing. @type {(text: string) => Block} */
 const fast = text => assertOk(sourceOf(text)).fast
@@ -89,6 +89,8 @@ export const proof = {
                 ['kind', fn([], f64, call('self', 'isRef', []))],
                 ['from_f64', fn([], f64, lit(f64c, 1))],
                 ['keep', fn([], f64, lit(f64c, 2))],
+                // everyKind covers each rewriteAny case (incl. Any and self).
+                ['all', fn([], f64, everyKind(k => k))],
             ],
             exports: ['kind', 'from_f64', 'keep'],
         }
@@ -99,13 +101,41 @@ export const proof = {
             functions: [],
             exports: [],
         })), 'the program already defines T')
+        assertEq(assertError(linkAny({
+            imports: any.imports,
+            functions: any.functions,
+            exports: any.exports,
+        })({
+            imports: l0, functions: [], exports: [],
+        })), 'Any has no defines')
+        assertEq(assertError(linkAny({ ...any, imports: [] })({
+            imports: l0, functions: [], exports: [],
+        })), 'Any imports no Ref')
+        // A type with no hooks covers the undefined branches of kind/dup/drop.
+        assertOk(linkAny({
+            ...any,
+            defines: {
+                name: 'Any',
+                types: [['any', { variants: ['undefined'], carrier: 'i64', copy: ['undefined'] }]],
+            },
+            functions: [['from_f64', fn([], f64, lit(f64c, 1))]],
+        })({
+            imports: l0,
+            functions: [['f', fn([], f64, call('Any', 'from_f64', []))]],
+            exports: ['f'],
+        }))
         // Hooks always link; from_f64 links because the program calls it; keep stays out.
         /** @type {Module} */
         const program = {
             imports: l0,
             constants: [['#c0', { type: f64, value: constant('Any', 'undefined') }]],
-            functions: [['f', fn([], f64, call('Any', 'from_f64', [constant('self', '#c0')]))]],
-            exports: ['f'],
+            functions: [
+                ['f', fn([], f64, call('Any', 'from_f64', [constant('self', '#c0')]))],
+                // A program `kind` called as self stays the program's, not any.kind.
+                ['kind', fn([], f64, lit(f64c, 3))],
+                ['g', fn([], f64, call('self', 'kind', []))],
+            ],
+            exports: ['f', 'kind', 'g'],
         }
         const linked = assertOk(linkAny(any)(program))
         assertStructurallySame(linked.imports, [ref, ...l0.slice(1)])
@@ -126,25 +156,54 @@ export const proof = {
         ])
         assertStructurallySame(linked.functions, [
             ['f', fn([], f64, call('self', 'any.from_f64', [constant('self', '#c0')]))],
+            ['kind', fn([], f64, lit(f64c, 3))],
+            ['g', fn([], f64, call('self', 'kind', []))],
             ['any.isRef', fn([], f64, lit(f64c, 0))],
             ['any.dup', fn([], f64, call('self', 'any.isRef', []))],
             ['any.drop', fn([], f64, call('self', 'any.isRef', []))],
             ['any.kind', fn([], f64, call('self', 'any.isRef', []))],
             ['any.from_f64', fn([], f64, lit(f64c, 1))],
         ])
-        assertStructurallySame(linked.exports, ['f'])
-        // A program may still export `kind`; linked Any uses `any.kind`.
-        assertOk(linkAny(any)({
-            imports: l0,
-            functions: [['kind', fn([], f64, lit(f64c, 0))]],
-            exports: ['kind'],
-        }))
+        assertStructurallySame(linked.exports, ['f', 'kind', 'g'])
         // A linked name that the program already holds is refused.
         assertEq(assertError(linkAny(any)({
             imports: l0,
             functions: [['any.kind', fn([], f64, lit(f64c, 0))]],
             exports: ['any.kind'],
         })), 'any.kind is already a function or constant of the program')
+        // everyKind on Any is reached when the program calls it, so each rewrite case runs.
+        assertOk(linkAny(any)({
+            imports: l0,
+            functions: [['f', fn([], f64, call('Any', 'all', []))]],
+            exports: ['f'],
+        }))
+        // A program that already imports Ref keeps that import (minus Any).
+        assertStructurallySame(assertOk(linkAny(any)({
+            imports: [ref, ...l0],
+            functions: [['f', fn([], f64, call('Any', 'from_f64', []))]],
+            exports: ['f'],
+        })).imports, [ref, ...l0.slice(1)])
+        // Any without constants still links.
+        assertOk(linkAny({
+            imports: any.imports,
+            defines: {
+                name: 'Any',
+                types: [['any', {
+                    variants: ['undefined', 'number'],
+                    kind: 'kind',
+                    carrier: 'i64',
+                    dup: 'dup',
+                    drop: 'drop',
+                    copy: ['undefined', 'number'],
+                }]],
+            },
+            functions: [['from_f64', fn([], f64, lit(f64c, 1))]],
+            exports: ['from_f64'],
+        })({
+            imports: l0,
+            functions: [['f', fn([], f64, call('Any', 'from_f64', []))]],
+            exports: ['f'],
+        }))
     },
     errorTable: () => {
         assertStructurallySame(assertOk(errorTable(fast("export const error = { a: 'TypeError: a', b: 'RangeError: b' }"))), [['a', 'TypeError: a'], ['b', 'RangeError: b']])
