@@ -1862,11 +1862,12 @@ export const proof = {
         assert(m.defines !== undefined && m.defines.name === 'Any')
         const names = m.functions.map(([k]) => k)
         assert(names.includes('l1.add') && names.includes('l1.toPrimitive'))
-        assert(names.includes('kind') && names.includes('from_f64') && names.includes('isRef'))
+        assert(names.includes('any.kind') && names.includes('any.from_f64') && names.includes('any.isRef'))
+        assert(names.includes('kind'))
         assert(!names.includes('l1.toIterable') && !names.includes('l1.objectSpread'))
         const text = print({ ...m, imports: [] })
         assert(text.includes('fn sum3(p0: any, p1: any, p2: any) -> any ='))
-        assert(text.includes('kind(') && !text.includes('Any.kind('))
+        assert(text.includes('any.kind(') && !text.includes('Any.kind('))
     },
     // Each program answers what JavaScript answers on the values of the
     // parity table, an object of a nested object, one of a function and a

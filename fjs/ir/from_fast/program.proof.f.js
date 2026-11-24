@@ -23,7 +23,7 @@ import { print } from '../print/module.f.js'
 import { link } from './link/module.f.js'
 import { lower } from './module.f.js'
 import {
-    apply as applyP, both as bothP, called as calledP, differ as differP, either as eitherP, first as firstP, typeKind as typeKindP, maybe as maybeP, method as methodP, mixed as mixedP, nested as nestedP, not as notP, opposite as oppositeP, order as orderP, otherwise as otherwiseP, pair as pairP, record as recordP, sign as signP, size as sizeP, sum3 as sum3P, twice as twiceP,
+    apply as applyP, both as bothP, called as calledP, differ as differP, either as eitherP, first as firstP, kind as kindP, maybe as maybeP, method as methodP, mixed as mixedP, nested as nestedP, not as notP, opposite as oppositeP, order as orderP, otherwise as otherwiseP, pair as pairP, record as recordP, sign as signP, size as sizeP, sum3 as sum3P, twice as twiceP,
 } from './programs.f.js'
 import { runtime, sourceOf } from './testlib.f.js'
 import {
@@ -83,32 +83,23 @@ const standIn = {
 const programRuntime = { ...runtime, l1: standIn }
 
 /**
- * Names that `linkAny` merges from Any. Program goldens compare the
- * lowering of the program and of L1, not Any's bit ops; those are proved
- * in [`link/proof.f.js`](./link/proof.f.js) and the host proof.
- */
-const linkedAny = {
-    functions: ['isRef', 'kind', 'dup', 'drop', 'to_f64', 'from_f64', 'to_bool', 'from_bool', 'same',
-        'keep', 'take', 'forget', 'undefinedOf', 'nullOf', 'falseOf', 'trueOf'],
-    constants: ['undefined', 'null', 'true', 'false'],
-}
-
-/**
  * A linked program as the program goldens read it: without Any's defines
- * and bodies, and with each `self` name of Any written as `Any` again so
- * the golden still shows the import form.
+ * and `any.*` bodies, and with each linked `any.X` written as `Any.X` again
+ * so the golden still shows the import form.
  *
  * @type {(m: Module) => Module}
  */
 const withoutLinkedAny = m => {
+    /** @type {(name: string) => string | null} */
+    const short = name => name.startsWith('any.') ? name.slice(4) : null
     /** @type {(t: Term) => Term} */
     const rewrite = t => {
         switch (t[0]) {
             case 'let': { return ['let', t[1], rewrite(t[2]), rewrite(t[3])] }
             case 'op': { return t[3] === undefined ? ['op', t[1], t[2].map(rewrite)] : ['op', t[1], t[2].map(rewrite), t[3]] }
             case 'call': {
-                const module = t[1] === 'self' && linkedAny.functions.includes(t[2]) ? 'Any' : t[1]
-                return ['call', module, t[2], t[3].map(rewrite)]
+                const bare = t[1] === 'self' ? short(t[2]) : null
+                return ['call', bare !== null ? 'Any' : t[1], bare ?? t[2], t[3].map(rewrite)]
             }
             case 'call_ref': { return ['call_ref', rewrite(t[1]), t[2].map(rewrite)] }
             case 'make': { return ['make', t[1].map(([k, x]) => /** @type {const} */ ([k, rewrite(x)]))] }
@@ -119,7 +110,8 @@ const withoutLinkedAny = m => {
             case 'loop': { return ['loop', t[1], t[2].map(([k, type, x]) => /** @type {const} */ ([k, type, rewrite(x)])), rewrite(t[3])] }
             case 'br': { return ['br', t[1], rewrite(t[2])] }
             case 'constant': {
-                return t[1] === 'self' && linkedAny.constants.includes(t[2]) ? ['constant', 'Any', t[2]] : t
+                const bare = t[1] === 'self' ? short(t[2]) : null
+                return bare !== null ? ['constant', 'Any', bare] : t
             }
             default: { return t }
         }
@@ -127,10 +119,10 @@ const withoutLinkedAny = m => {
     return {
         imports: [],
         constants: (m.constants ?? [])
-            .filter(([k]) => !linkedAny.constants.includes(k))
+            .filter(([k]) => short(k) === null)
             .map(([k, c]) => /** @type {const} */ ([k, { type: c.type, value: rewrite(c.value) }])),
         functions: m.functions
-            .filter(([k]) => !linkedAny.functions.includes(k))
+            .filter(([k]) => short(k) === null)
             .map(([k, f]) => /** @type {const} */ ([k, { ...f, body: rewrite(f.body) }])),
         exports: m.exports,
     }
@@ -168,7 +160,7 @@ export const proof = {
             const m = assertOk(over({}, 'export const f = (a, b) => a + b * 2', programRuntime))
             assertEq(m.imports.map(([k]) => k).join(' '), 'Ref String BigInt Containers Functions Native')
             assert(m.defines !== undefined && m.defines.name === 'Any')
-            assert(m.functions.some(([k]) => k === 'from_f64') && m.functions.some(([k]) => k === 'isRef'))
+            assert(m.functions.some(([k]) => k === 'any.from_f64') && m.functions.some(([k]) => k === 'any.isRef'))
         }
         assertEq(program('export const f = (a, b) => a + b * 2'), [
             'const #n0: any.only(number) =',
@@ -1266,7 +1258,7 @@ export const proof = {
         assertEq(twiceP(3), 12)
         assertEq(notP(''), true)
         assertEq(oppositeP('2'), -2)
-        assertEq(typeKindP(null), 'object')
+        assertEq(kindP(null), 'object')
         assertEq(differP(1, '1'), true)
         assertEq(orderP(1, 2), -1)
         assertEq(orderP(2, 1), 1)

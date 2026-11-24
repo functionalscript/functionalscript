@@ -147,12 +147,14 @@ make them ([choice 6](#6-the-tests-are-the-frames)).
 
 - **Pick:** Any's IR module lives in `fjs/ir/runtime/any`, beside the
   lowering, and joins a program the way L1 does (`link`): the program's
-  `Any.kind` and the rest become calls of the program's own functions,
-  and slice 5's rule inlines a helper that is not exported at each call.
-  Any's constants (`undefined`, `null`, `true`, `false`) become literals.
-  The calls that stay imports are NaNVM's: `kind_ref`, `dup_ref`,
-  `drop_ref` and `same_ref`, which take a box that is a reference and
-  trap on a dropped or forged one.
+  `Any.kind` and the rest become calls of the program's own functions
+  under linked names `any.kind` (as L1 uses `l1.add`), so a program may
+  still export `kind`, and slice 5's rule inlines a helper that is not
+  exported at each call. Any's constants (`undefined`, `null`, `true`,
+  `false`) become the module's globals under `any.*`. The calls that stay
+  imports are NaNVM's: `kind_ref`, `dup_ref`, `drop_ref` and `same_ref`,
+  which take a box that is a reference and trap on a dropped or forged
+  one.
 - **Alternative:** Any as a separate `.wasm` in import form, the modular
   L0's portable mode. Each call stays a call across modules, which is
   today's cost.

@@ -98,41 +98,57 @@ export const link = l1 => program => {
     })
 }
 
+/** The name of a function or a constant of Any in a program that links it: `any.kind`, `any.undefined`. @type {(name: string) => string} */
+export const linkedAnyName = name => `any.${name}`
+
 /**
- * A term of a program as one that defines Any holds it: each call and
- * constant of the `Any` import becomes one of the module's own, so the
- * checker sees `self.kind` where the program wrote `Any.kind`.
+ * A term with each of `own` that it calls or reads of `self` renamed by
+ * `rename`, and each `Any.*` call and constant rewritten to that linked
+ * name of `self`.
  *
- * @type {(t: Term) => Term}
+ * @type {(own: readonly string[], rename: (name: string) => string) => (t: Term) => Term}
  */
-const linkedAnyTerm = t => {
-    switch (t[0]) {
-        case 'let': { return ['let', t[1], linkedAnyTerm(t[2]), linkedAnyTerm(t[3])] }
-        case 'op': { return t[3] === undefined ? ['op', t[1], t[2].map(linkedAnyTerm)] : ['op', t[1], t[2].map(linkedAnyTerm), t[3]] }
-        case 'call': { return ['call', t[1] === 'Any' ? 'self' : t[1], t[2], t[3].map(linkedAnyTerm)] }
-        case 'call_ref': { return ['call_ref', linkedAnyTerm(t[1]), t[2].map(linkedAnyTerm)] }
-        case 'make': { return ['make', t[1].map(([k, x]) => /** @type {const} */ ([k, linkedAnyTerm(x)]))] }
-        case 'field': { return ['field', linkedAnyTerm(t[1]), t[2]] }
-        case 'variant': { return ['variant', t[1], t[2], linkedAnyTerm(t[3])] }
-        case 'match': { return ['match', linkedAnyTerm(t[1]), t[2].map(([vs, b, x]) => /** @type {const} */ ([vs, b, linkedAnyTerm(x)]))] }
-        case 'block': { return ['block', t[1], t[2], linkedAnyTerm(t[3])] }
-        case 'loop': { return ['loop', t[1], t[2].map(([k, type, x]) => /** @type {const} */ ([k, type, linkedAnyTerm(x)])), linkedAnyTerm(t[3])] }
-        case 'br': { return ['br', t[1], linkedAnyTerm(t[2])] }
-        case 'constant': { return t[1] === 'Any' ? ['constant', 'self', t[2]] : t }
-        default: { return t }
+const rewriteAny = (own, rename) => {
+    /** @type {(t: Term) => Term} */
+    const linked = t => {
+        switch (t[0]) {
+            case 'let': { return ['let', t[1], linked(t[2]), linked(t[3])] }
+            case 'op': { return t[3] === undefined ? ['op', t[1], t[2].map(linked)] : ['op', t[1], t[2].map(linked), t[3]] }
+            case 'call': {
+                const module = t[1] === 'Any' ? 'self' : t[1]
+                const name = t[1] === 'Any' || (t[1] === 'self' && own.includes(t[2])) ? rename(t[2]) : t[2]
+                return ['call', module, name, t[3].map(linked)]
+            }
+            case 'call_ref': { return ['call_ref', linked(t[1]), t[2].map(linked)] }
+            case 'make': { return ['make', t[1].map(([k, x]) => /** @type {const} */ ([k, linked(x)]))] }
+            case 'field': { return ['field', linked(t[1]), t[2]] }
+            case 'variant': { return ['variant', t[1], t[2], linked(t[3])] }
+            case 'match': { return ['match', linked(t[1]), t[2].map(([vs, b, x]) => /** @type {const} */ ([vs, b, linked(x)]))] }
+            case 'block': { return ['block', t[1], t[2], linked(t[3])] }
+            case 'loop': { return ['loop', t[1], t[2].map(([k, type, x]) => /** @type {const} */ ([k, type, linked(x)])), linked(t[3])] }
+            case 'br': { return ['br', t[1], linked(t[2])] }
+            case 'constant': {
+                return t[1] === 'Any' || (t[1] === 'self' && own.includes(t[2]))
+                    ? ['constant', 'self', rename(t[2])]
+                    : t
+            }
+            default: { return t }
+        }
     }
+    return linked
 }
 
 /**
  * A program that links Any's IR module
  * ([checkpoint 4e](../../todo/runtime-in-ir-4e.md)): drops the `Any`
  * import, keeps `Ref` (and the rest of L0), defines `any`, rewrites every
- * `Any.*` call and constant to `self.*`, and merges the bodies of Any that
- * the program reaches — always including the hooks that `defines` names
- * (`kind`, `dup`, `drop`) and whatever they call. Any exports nothing into
- * the program's export list. A program that already defines a type, that
- * imports no `Any`, or whose own name collides with a reached name of Any,
- * is refused.
+ * `Any.*` call and constant to a linked name `any.kind` (as L1 uses
+ * `l1.add`), and merges the bodies of Any that the program reaches —
+ * always including the hooks that `defines` names and whatever they call.
+ * Linked names leave the program's own exports free, so a program may
+ * still export `kind`. Any exports nothing into the program's export
+ * list. A program that already defines a type, that imports no `Any`, or
+ * whose own name collides with a reached linked name, is refused.
  *
  * @type {(any: Module) => (program: Module) => Result<Module, string>}
  */
@@ -146,17 +162,26 @@ export const linkAny = any => program => {
     if (refImport === undefined) { return error('Any imports no Ref') }
     /** @type {Module['imports']} */
     const imports = withoutAny.some(([k]) => k === 'Ref') ? withoutAny : [refImport, ...withoutAny]
+    const short = [
+        ...any.functions.map(([k]) => k),
+        ...(any.constants ?? []).map(([k]) => k),
+    ]
+    const rewrite = rewriteAny(short, linkedAnyName)
     /** @type {readonly (readonly [string, Fn])[]} */
-    const functions = program.functions.map(([k, f]) => [k, { ...f, body: linkedAnyTerm(f.body) }])
+    const anyFunctions = any.functions.map(([k, f]) => [linkedAnyName(k), { ...f, body: rewrite(f.body) }])
+    /** @type {readonly (readonly [string, ConstantOf<Term>])[]} */
+    const anyConstants = (any.constants ?? []).map(([k, c]) => [linkedAnyName(k), { type: c.type, value: rewrite(c.value) }])
+    /** @type {readonly (readonly [string, Fn])[]} */
+    const functions = program.functions.map(([k, f]) => [k, { ...f, body: rewrite(f.body) }])
     const ownConstants = program.constants ?? []
     /** @type {readonly (readonly [string, ConstantOf<Term>])[]} */
-    const constants = ownConstants.map(([k, c]) => [k, { type: c.type, value: linkedAnyTerm(c.value) }])
-    /** The hooks that a module which defines `any` must hold, whether the program calls them or not. */
-    const hooks = any.defines.types.flatMap(([, d]) => [d.kind, d.dup, d.drop].flatMap(x => x === undefined ? [] : [x]))
+    const constants = ownConstants.map(([k, c]) => [k, { type: c.type, value: rewrite(c.value) }])
+    /** The hooks that a module which defines `any` must hold, by their linked names. */
+    const hooks = any.defines.types.flatMap(([, d]) => [d.kind, d.dup, d.drop].flatMap(x => x === undefined ? [] : [linkedAnyName(x)]))
     /** @type {(name: string) => readonly string[]} */
     const usesOf = name => {
-        const f = any.functions.find(([k]) => k === name)
-        const c = (any.constants ?? []).find(([k]) => k === name)
+        const f = anyFunctions.find(([k]) => k === name)
+        const c = anyConstants.find(([k]) => k === name)
         return f !== undefined ? uses(f[1].body) : c !== undefined ? uses(c[1].value) : []
     }
     let todo = [
@@ -176,15 +201,25 @@ export const linkAny = any => program => {
         }
     }
     const kept = reached.filter(name =>
-        any.functions.some(([x]) => x === name) || (any.constants ?? []).some(([x]) => x === name))
+        anyFunctions.some(([x]) => x === name) || anyConstants.some(([x]) => x === name))
     const collide = kept.find(name =>
         functions.some(([x]) => x === name) || constants.some(([x]) => x === name))
     if (collide !== undefined) { return error(`${collide} is already a function or constant of the program`) }
+    /** @type {NonNullable<Module['defines']>} */
+    const defines = {
+        name: any.defines.name,
+        types: any.defines.types.map(([type, d]) => /** @type {const} */ ([type, {
+            ...d,
+            ...(d.kind === undefined ? {} : { kind: linkedAnyName(d.kind) }),
+            ...(d.dup === undefined ? {} : { dup: linkedAnyName(d.dup) }),
+            ...(d.drop === undefined ? {} : { drop: linkedAnyName(d.drop) }),
+        }])),
+    }
     return ok({
         imports,
-        defines: any.defines,
-        constants: [...(any.constants ?? []).filter(([x]) => kept.includes(x)), ...constants],
-        functions: [...functions, ...any.functions.filter(([x]) => kept.includes(x))],
+        defines,
+        constants: [...anyConstants.filter(([x]) => kept.includes(x)), ...constants],
+        functions: [...functions, ...anyFunctions.filter(([x]) => kept.includes(x))],
         exports: program.exports,
     })
 }
