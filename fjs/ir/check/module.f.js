@@ -66,6 +66,7 @@ import { at, empty, fromEntries, setReplace } from '../../types/ordered_map/modu
 import { bool, compareIn, definedBy, equal, f64, f64c, fits, inside, int, interfacesOf, isCopy, isOwn, never, product, u, unit } from '../module.f.js'
 import { quote, show } from '../print/module.f.js'
 import { checkOwned } from './owned/module.f.js'
+import { ref } from '../l0/module.f.js'
 
 /** Locals of a function: names to types, without parameter modes. @type {(params: readonly Param[]) => OrderedMap<Type>} */
 const localsOf = params => fromEntries(params.map(([name, type]) => /** @type {const} */ ([name, type])))
@@ -625,6 +626,11 @@ const term = (env, t) => {
             if (f[0] === 'error') { return no(f[1]) }
             const { params, result } = f[1]
             const full = module === 'self' ? name : `${module}.${name}`
+            // A function that counts on bits is called only in the body of the hook of its name of a counted type that the module defines, not in a constant of the hook's name.
+            const { counts } = f[1]
+            if (counts !== undefined && !(env.body && hooked(env).some(([, d]) => (counts === 'dup' ? d.dup : d.drop) === functionName))) {
+                return no(`${full} counts a value on its bits, so only the ${counts} of a counted type that the module defines calls it`)
+            }
             if (xs.length !== params.length) { return no(`${full} takes ${count(params.length, 'argument')}, not ${xs.length}`) }
             const args = values(term, env, xs)
             if (args[0] === 'error') { return args }
@@ -796,14 +802,17 @@ const unkept = (env, t) => isNever(t) ? 'a constant of never holds no value' : u
  * `dup` that borrows a value and answers one of the type, and a `drop` that
  * owns one and answers `unit`, only a counted type names copy variants,
  * each a variant of it, once, and a function that gives back a parameter
- * owns it, and the parameter is of the type of its result, and a function
- * that answers `never` may fail.
+ * owns it, and the parameter is of the type of its result, a function
+ * that answers `never` may fail, and a function that counts on bits is
+ * `dup` or `drop` over one word of bits, borrowed: `dup` as
+ * `(b: u(64)) -> u(64)` and `drop` as `(b: u(64)) -> unit`, or the same
+ * over `u(32)`, and may not fail, since the hooks that call it may not.
  *
  * @type {(imports: OrderedMap<Interface>) => (entry: readonly [string, Interface]) => string | null}
  */
 const checkInterface = imports => ([name, { types, constants = [], functions }]) => {
     /** @type {_Env} */
-    const env = { name, locals: empty, labels: empty, functions: empty, imports, constants: empty, own: null, owned: false }
+    const env = { name, locals: empty, labels: empty, functions: empty, imports, constants: empty, own: null, owned: false, body: false }
     const type = twiceIn(types.map(([k]) => k))
     const constant = twiceIn(constants.map(([k]) => k))
     const named = twiceIn(functions.map(([k]) => k))
@@ -826,6 +835,14 @@ const checkInterface = imports => ([name, { types, constants = [], functions }])
     const miscounted = types.find(([type, { dup, drop }]) => dup !== undefined && drop !== undefined && !(takes(dup, type, false, ['sealed', name, type, null]) && takes(drop, type, true, unit)))
     const unreturned = functions.find(([, { params, result, returns }]) => returns !== undefined && !params.some(p => p[0] === returns && isOwn(p) && equal(p[1], result)))
     const silent = functions.find(([, { result, fails }]) => isNever(result) && fails !== true)
+    // A function that counts on bits takes one word of them, once, so that its hook gives each up at most once; bits are borrowed, since `unsigned` refuses to own them.
+    const miscounting = functions.find(([, { params, result, fails, counts }]) => {
+        if (counts === undefined) { return false }
+        const bits = params[0]?.[1]
+        const word = bits !== undefined && (equal(bits, u(64)) || equal(bits, u(32)))
+        const answers = counts === 'dup' ? bits !== undefined && equal(result, bits) : counts === 'drop' ? equal(result, unit) : false
+        return !(params.length === 1 && word && answers && fails !== true)
+    })
     return type !== undefined ? `${name}: two types are named ${type}`
         : constant !== undefined ? `${name}: two constants are named ${constant}`
         : named !== undefined ? `${name}: two functions are named ${named}`
@@ -840,6 +857,7 @@ const checkInterface = imports => ([name, { types, constants = [], functions }])
         : miscounted !== undefined ? `${name}: ${miscounted[0]}'s dup borrows a value of the type and answers one, and its drop owns one and answers unit`
         : unreturned !== undefined ? `${name}: ${unreturned[0]} gives back ${unreturned[1].returns}, which is no parameter that it owns of the type of its result`
         : silent !== undefined ? `${name}: ${silent[0]} answers never, so it fails, and it does not say that it may`
+        : miscounting !== undefined ? `${name}: ${miscounting[0]} counts on bits, so it is dup as (b: u(64)) -> u(64) or drop as (b: u(64)) -> unit, over u(64) or u(32), and does not fail`
         : null
 }
 
@@ -872,7 +890,12 @@ const globalOf = (env, t) => {
  * the first interface's ABI, from which a module that holds code imports
  * the loader's table. The emitter imports a maker once
  * for its ABI and its name, and it answers one WASM value, so two types
- * whose literals it makes are carried by that value.
+ * whose literals it makes are carried by that value. Two functions of one
+ * name count on bits alike, `dup`, `drop` or not at all, and as L0's `Ref`
+ * says NaNVM's do, so that an alias without the marker, beside `Ref` or
+ * alone, cannot call a counting host function outside a hook, and a
+ * function that is one of `Ref`'s has `Ref`'s signature, which is how
+ * NaNVM's host exports it.
  *
  * @type {(env: _Env, imports: readonly (readonly [string, Interface])[]) => string | null}
  */
@@ -882,6 +905,25 @@ const shared = (env, imports) => {
         return literal === undefined || i === null ? [] : [/** @type {const} */ ([`${literal.module}.${literal.member}`, i.abi, literal.member, `${module}.${type}`, carrier])]
     }))
     const fns = [...imports.flatMap(([module, { abi, functions }]) => functions.map(([member]) => /** @type {const} */ ([`${module}.${member}`, abi, member]))), ...makers]
+    /** How each function import counts on bits, by its name: L0's `Ref` first, which says how NaNVM's own functions count, and a maker not at all. @type {readonly (readonly [string, string, string, string])[]} */
+    const marks = [
+        ...ref[1].functions.map(([member, { counts }]) => /** @type {const} */ ([`L0's ${ref[0]}.${member}`, ref[1].abi, member, counts ?? 'nothing'])),
+        ...imports.flatMap(([module, { abi, functions }]) => functions.map(([member, { counts }]) => /** @type {const} */ ([`${module}.${member}`, abi, member, counts ?? 'nothing']))),
+        ...makers.map(([name, abi, member]) => /** @type {const} */ ([name, abi, member, 'nothing'])),
+    ]
+    // Every name of one host function says how it counts on bits alike, so that no unmarked alias calls a counting one outside a hook.
+    const alias = marks.flatMap(([name, abi, member, c], j) => {
+        const other = marks.find(([, a, m, x], k) => k < j && a === abi && m === member && x !== c)
+        return other === undefined ? [] : [`the functions ${other[0]}, which counts ${other[3]}, and ${name}, which counts ${c}, are both the import ${member} of ${abi}, and its names count on bits alike`]
+    })
+    // A function that is one of NaNVM's own in L0's Ref has Ref's signature, as NaNVM's host exports it.
+    /** A signature, as the messages show it. @type {(s: Signature) => string} */
+    const shown = ({ params, result }) => `(${params.map(p => `${isOwn(p) ? 'own ' : ''}${p[0]}: ${show(p[1])}`).join(', ')}) -> ${show(result)}`
+    const unlike = imports.flatMap(([module, { abi, functions }]) => abi !== ref[1].abi ? [] : functions.flatMap(([member, s]) => {
+        const r = ref[1].functions.find(([k]) => k === member)?.[1]
+        const same = r === undefined || (s.params.length === r.params.length && s.params.every((p, k) => equal(p[1], r.params[Number(k)][1]) && isOwn(p) === isOwn(r.params[Number(k)])) && equal(s.result, r.result))
+        return same ? [] : [`${module}.${member} is the import ${member} of ${abi}, which L0's ${ref[0]}.${member} declares as ${shown(assertNotNullish(r))}, not ${shown(s)}`]
+    }))
     const cs = imports.flatMap(([module, { abi, constants = [] }]) => constants.map(([member, t]) => /** @type {const} */ ([`${module}.${member}`, abi, member, globalOf(env, t)])))
     const loader = [...fns.map(([name, abi, member]) => /** @type {const} */ ([`function ${name}`, abi, member])), ...cs.map(([name, abi, member]) => /** @type {const} */ ([`constant ${name}`, abi, member]))]
         .find(([, abi, member]) => (member === 'memory' || member === 'data_base') && makers.some(([, a]) => a === abi))
@@ -889,7 +931,8 @@ const shared = (env, imports) => {
     const table = [...fns.map(([name, abi, member]) => /** @type {const} */ ([`function ${name}`, abi, member])), ...cs.map(([name, abi, member]) => /** @type {const} */ ([`constant ${name}`, abi, member]))]
         .find(([, abi, member]) => (member === 'table' || member === 'table_base') && abi === first)
     const clash = cs.flatMap(([name, abi, member, w], j) => {
-        const f = fns.find(([, a, m]) => a === abi && m === member)
+        // L0's Ref functions are NaNVM's functions, imported or not, so no constant is one of them.
+        const f = [...fns, ...ref[1].functions.map(([member]) => /** @type {const} */ ([`L0's ${ref[0]}.${member}`, ref[1].abi, member]))].find(([, a, m]) => a === abi && m === member)
         const c = cs.find(([, a, m, x], k) => k < j && a === abi && m === member && x !== null && w !== null && x !== w)
         return f !== undefined ? [`the constant ${name} and the function ${f[0]} are both the import ${member} of ${abi}`]
             : c !== undefined ? [`the constants ${c[0]}, a global of ${c[3]}, and ${name}, a global of ${w}, are both the import ${member} of ${abi}`]
@@ -901,7 +944,7 @@ const shared = (env, imports) => {
     })
     return loader !== undefined ? `the ${loader[0]} is the import ${loader[2]} of ${loader[1]}, which the loader gives a module that makes literals`
         : table !== undefined ? `the ${table[0]} is the import ${table[2]} of ${table[1]}, which the loader gives a module that holds code`
-        : clash[0] ?? carried[0] ?? null
+        : clash[0] ?? carried[0] ?? alias[0] ?? unlike[0] ?? null
 }
 
 /**
@@ -940,7 +983,7 @@ const unscoped = (env, imports, functions, locals, results, loaded = imports) =>
 /** A function whose signature the checker took: a body of its result's type. @type {(functions: OrderedMap<Signature>, imports: OrderedMap<Interface>, constants: OrderedMap<Type>, own: string | null, owned: boolean) => (entry: readonly [string, FunctionOf<Term>]) => Result<readonly [string, FunctionOf<Typed>], string>} */
 const checkFn = (functions, imports, constants, own, owned) => ([name, { params, result, body }]) => {
     /** @type {_Env} */
-    const env = { name, locals: localsOf(params), labels: label_('return', ['block', result])(empty), functions, imports, constants, own, owned }
+    const env = { name, locals: localsOf(params), labels: label_('return', ['block', result])(empty), functions, imports, constants, own, owned, body: true }
     const b = term(env, body)
     if (b[0] === 'error') { return b }
     return sub(env, b[1][0], result) ? ok([name, { params, result, body: b[1] }])
@@ -956,7 +999,7 @@ const checkFn = (functions, imports, constants, own, owned) => ([name, { params,
  */
 const checkConstant = (functions, imports, constants, own, owned) => ([name, { type, value: e }]) => {
     /** @type {_Env} */
-    const env = { name, locals: empty, labels: empty, functions, imports, constants, own, owned }
+    const env = { name, locals: empty, labels: empty, functions, imports, constants, own, owned, body: false }
     const v = value(term, env, e)
     if (v[0] === 'error') { return v }
     return sub(env, v[1][0], type) ? ok([name, { type, value: v[1] }])
@@ -1098,6 +1141,44 @@ const failing = (imports, own, functions) => {
     return grow([])
 }
 
+/**
+ * A call of a function that counts on bits, of the interfaces `imports`,
+ * that a typed term makes where its value is not the term's own, or `null`:
+ * such a call stands only as the last term of a hook, so that a `dup`
+ * answers the bits that it gives and a `drop` gives one up at most once on
+ * each path. The last term of a `let` is its body's, and of a `match` each
+ * arm's.
+ *
+ * @type {(imports: OrderedMap<Interface>) => (x: Typed, last: boolean) => string | null}
+ */
+const misplaced = imports => {
+    /** @type {(module: string, name: string) => boolean} */
+    const counting = (module, name) => module !== 'self' && at(module)(imports)?.functions.find(([k]) => k === name)?.[1].counts !== undefined
+    /** @type {(x: Typed, last: boolean) => string | null} */
+    const walk = ([, t], last) => {
+        switch (t[0]) {
+            case 'call': {
+                const inner = t[3].map(a => walk(a, false)).find(r => r !== null)
+                return inner !== undefined ? inner : !last && counting(t[1], t[2]) ? `${t[1]}.${t[2]}` : null
+            }
+            case 'let': { return walk(t[2], false) ?? walk(t[3], last) }
+            case 'op': case 'call_ref': {
+                const xs = t[0] === 'op' ? t[2] : [t[1], ...t[2]]
+                return xs.map(a => walk(a, false)).find(r => r !== null) ?? null
+            }
+            case 'make': { return t[1].map(([, a]) => walk(a, false)).find(r => r !== null) ?? null }
+            case 'field': { return walk(t[1], false) }
+            case 'variant': { return walk(t[3], false) }
+            case 'match': { return walk(t[1], false) ?? t[2].map(([, , body]) => walk(body, last)).find(r => r !== null) ?? null }
+            case 'block': { return walk(t[3], false) }
+            case 'loop': { return t[2].map(([, , a]) => walk(a, false)).find(r => r !== null) ?? walk(t[3], false) }
+            case 'br': { return walk(t[2], false) }
+            default: { return null }
+        }
+    }
+    return walk
+}
+
 /** A function's effect, written beside it. @type {(fails: readonly string[]) => (entry: readonly [string, FunctionOf<Typed>]) => readonly [string, CheckedFn]} */
 const withEffect = fails => ([name, f]) => [name, { ...f, fails: fails.includes(name) }]
 
@@ -1153,7 +1234,7 @@ const checkStage = (m, owned) => {
     const constants = fromEntries(declared.map(([k, { type }]) => /** @type {const} */ ([k, type])))
     const own = definedBy(m)
     /** @type {_Env} */
-    const env = { name: '', locals: empty, labels: empty, functions, imports, constants, own, owned }
+    const env = { name: '', locals: empty, labels: empty, functions, imports, constants, own, owned, body: false }
     const mine = own === null ? null : misdefined(m, own)
     // The types that the module defines, as an interface's checks see them: their hooks are the module's own, over bits, which `misdefined` checks.
     const plainTypes = own === null ? [] : assertNotNullish(m.defines).types.map(([k, { variants, kind, carrier, literal }]) => /** @type {const} */ ([k, { variants, carrier, ...(kind === undefined ? {} : { kind }), ...(literal === undefined ? {} : { literal }) }]))
@@ -1187,6 +1268,19 @@ const checkStage = (m, owned) => {
         .flatMap(([type, { dup, drop }]) => [['dup', type, dup], ['drop', type, drop]])
         .find(([, , f]) => f !== undefined && fails.includes(f))
     if (failingHook !== undefined) { return error(`${own}.${failingHook[1]}'s ${failingHook[0]} may fail, and the ${failingHook[0]}s that the lifetime pass writes cannot`) }
+    // A hook calls a function that counts on bits only as its last term.
+    const astray = own === null ? undefined : assertNotNullish(m.defines).types
+        .flatMap(([type, { dup, drop }]) => [['dup', type, dup], ['drop', type, drop]])
+        .flatMap(([which, type, f]) => {
+            const body = typed[1].find(([k]) => k === f)?.[1].body
+            const call = body === undefined ? null : misplaced(imports)(body, true)
+            return call === null ? [] : [[which, type, call]]
+        })[0]
+    if (astray !== undefined) {
+        const [which, type, call] = astray
+        return error(which === 'dup' ? `${own}.${type}'s dup answers ${call}'s result, so it calls ${call} only as its last term`
+            : `${own}.${type}'s drop calls ${call} only as its last term, so at most once on each path`)
+    }
     return ok({ imports: m.imports, ...(m.defines === undefined ? {} : { defines: m.defines }), constants: values[1], functions: typed[1].map(withEffect(fails)), exports: m.exports })
 }
 
@@ -1243,6 +1337,7 @@ export const typeOf = scope => {
         constants: fromEntries(constants),
         own: null,
         owned: false,
+        body: false,
     }
     const why = unscoped(env, imports, functions, locals.map(([, x]) => x), [...results, ...constants.map(([, x]) => x)])
     return t => {

@@ -1,16 +1,16 @@
 /**
- * @import { Interface, Module, Param, Term, Type } from '../types.ts'
+ * @import { Interface, Module, Param, Signature, Term, Type } from '../types.ts'
  */
 
 import { assert, assertEq, assertError, assertNotNullish, assertOk } from '../../asserts/module.f.js'
-import { any, builder, l0, string } from '../l0/module.f.js'
+import { any, builder, l0, ref, string } from '../l0/module.f.js'
 import {
-    add, and, block, bool, br, call, call_ref, canon, cast, code, codeOf, constant, definedBy, div, eq, f64, f64c, field, float, fn, from_bits, get, i, if_, int,
+    add, and, block, bool, br, call, call_ref, canon, cast, code, codeOf, constant, countsBits, definedBy, div, eq, f64, f64c, field, float, fn, from_bits, get, i, if_, int,
     let_, lit, loop, lt, make, match, mayFail, mul, n, neg, never, next, only, or, own, product, release, return_, seal, sealed, shl, shr, signature, sub,
     throw_, to_bits, trap, true_, trunc_sat, u, unit, unseal, variant, xor,
 } from '../module.f.js'
 import { show } from '../print/module.f.js'
-import { bits, constants, corners, counting, loops, records, samples, sealing, tagging, throws, unknown } from '../testlib.f.js'
+import { bits, constants, corners, counting, loops, records, referencing, samples, sealing, tagging, throws, unknown } from '../testlib.f.js'
 import { check, checkPlain, typeOf } from './module.f.js'
 
 /** A module of one function, `f`. @type {(params: readonly Param[], result: Type, body: Term) => Module} */
@@ -862,6 +862,69 @@ export const proof = {
         assertEq(assertError(ownedPlus(p, cell, seal(cell, call('self', 'dup', [unseal(get('w'))])))), 'f: no local w')
         assertEq(assertError(ownedPlus(p, unit, call('self', 'drop', [release(get('w'))]))), 'f: no local w')
         assertEq(assertError(ownedPlus([own('v', cell)], u(64), release(v))), "f: release: only the lifetime pass releases a value, as the argument of its type's drop")
+    },
+    // Only a hook of a counted type that the module defines calls a function that counts on bits, and only as its last term.
+    refs: () => {
+        assertEq(assertOk(checkPlain(referencing)).functions.map(([k]) => k).join(), 'dup,drop,keep,take,forget,pair')
+        /** `referencing` with its functions `fs` in place of those of their names. @type {(fs: Module['functions']) => Module} */
+        const with_ = fs => ({ ...referencing, functions: [...referencing.functions.filter(([k]) => !fs.some(([x]) => x === k)), ...fs] })
+        const b = get('b')
+        /** @type {(name: string, ...args: readonly Term[]) => Term} */
+        const r = (name, ...args) => call('Ref', name, args)
+        const pw = /** @type {(m: Module) => string} */ (m => assertError(checkPlain(m)))
+        assertEq(pw(with_([['f', fn([['b', u(64)]], u(64), () => r('dup_ref', b))]])), 'f: Ref.dup_ref counts a value on its bits, so only the dup of a counted type that the module defines calls it')
+        assertEq(pw(with_([['f', fn([['b', u(64)]], unit, () => r('drop_ref', b))]])), 'f: Ref.drop_ref counts a value on its bits, so only the drop of a counted type that the module defines calls it')
+        assertEq(pw(with_([['drop', fn([['b', u(64)]], unit, () => let_('c', r('dup_ref', b), () => make([])))]])), 'drop: Ref.dup_ref counts a value on its bits, so only the dup of a counted type that the module defines calls it')
+        assertEq(pw({ ...with_([]), constants: [['c', { type: u(64), value: r('dup_ref', n(0n)) }]] }), 'c: Ref.dup_ref counts a value on its bits, so only the dup of a counted type that the module defines calls it')
+        // a constant of a hook's name is no hook's body
+        assertEq(pw({ ...with_([]), constants: [['dup', { type: u(64), value: r('dup_ref', n(0n)) }]] }), 'dup: Ref.dup_ref counts a value on its bits, so only the dup of a counted type that the module defines calls it')
+        assertEq(pw({ ...referencing, defines: { name: 'R', types: [['ref', { variants: ['value'], carrier: 'i64' }]] }, functions: [['dup', fn([['b', u(64)]], u(64), () => r('dup_ref', b))]], exports: [] }),
+            'dup: Ref.dup_ref counts a value on its bits, so only the dup of a counted type that the module defines calls it')
+        assertEq(pw(with_([['dup', fn([['b', u(64)]], u(64), () => let_('c', r('dup_ref', b), () => b))]])), "R.ref's dup answers Ref.dup_ref's result, so it calls Ref.dup_ref only as its last term")
+        assertEq(pw(with_([['dup', fn([['b', u(64)]], u(64), () => r('dup_ref', r('dup_ref', b)))]])), "R.ref's dup answers Ref.dup_ref's result, so it calls Ref.dup_ref only as its last term")
+        assertEq(pw(with_([['dup', fn([['b', u(64)]], u(64), () => add(r('dup_ref', b), n(0n)))]])), "R.ref's dup answers Ref.dup_ref's result, so it calls Ref.dup_ref only as its last term")
+        assertEq(pw(with_([['drop', fn([['b', u(64)]], unit, () => let_('c', r('drop_ref', b), () => r('drop_ref', b)))]])), "R.ref's drop calls Ref.drop_ref only as its last term, so at most once on each path")
+        assertEq(pw(with_([['dup', fn([['b', u(64)]], u(64), () => if_(eq(r('dup_ref', b), n(0n)), b, b))]])), "R.ref's dup answers Ref.dup_ref's result, so it calls Ref.dup_ref only as its last term")
+        assertEq(pw(with_([['drop', fn([['b', u(64)]], unit, () => block('out', unit, br('out', r('drop_ref', b))))]])), "R.ref's drop calls Ref.drop_ref only as its last term, so at most once on each path")
+        assertEq(pw(with_([['dup', fn([['b', u(64)]], u(64), () => field(make([['x', r('dup_ref', b)]]), 'x'))]])), "R.ref's dup answers Ref.dup_ref's result, so it calls Ref.dup_ref only as its last term")
+        assertEq(pw(with_([['dup', fn([['b', u(64)]], u(64), () => loop('L', [['x', u(64), r('dup_ref', b)]], x => x))]])), "R.ref's dup answers Ref.dup_ref's result, so it calls Ref.dup_ref only as its last term")
+        assertEq(pw(with_([['dup', fn([['b', u(64)]], u(64), () => loop('L', [['x', u(64), b]], () => r('dup_ref', b)))]])), "R.ref's dup answers Ref.dup_ref's result, so it calls Ref.dup_ref only as its last term")
+        assertEq(pw(with_([['id', fn([['b', u(64)]], u(64), () => b)], ['dup', fn([['b', u(64)]], u(64), () => call_ref(codeOf('id'), [r('dup_ref', b)]))]])), "R.ref's dup answers Ref.dup_ref's result, so it calls Ref.dup_ref only as its last term")
+        // a function that counts on bits is dup or drop over one borrowed word of them, and does not fail
+        /** `referencing` with Ref's function `name` of signature `s`. @type {(name: string, s: Signature) => Module} */
+        const counter = (name, s) => ({ ...referencing, imports: [['Ref', { ...ref[1], functions: [...ref[1].functions.filter(([k]) => k !== name), [name, s]] }]] })
+        const miscount = (/** @type {string} */ f) => `Ref: ${f} counts on bits, so it is dup as (b: u(64)) -> u(64) or drop as (b: u(64)) -> unit, over u(64) or u(32), and does not fail`
+        assertEq(pw(counter('drop_ref', countsBits('drop', signature([['a', u(64)], ['b', u(64)]], unit)))), miscount('drop_ref'))
+        assertEq(pw(counter('drop_ref', countsBits('drop', signature([], unit)))), miscount('drop_ref'))
+        assertEq(pw(counter('drop_ref', countsBits('drop', signature([own('b', u(64))], unit)))), 'Ref: b is own, and u(64) is not sealed, so there is nothing to own')
+        assertEq(pw(counter('drop_ref', countsBits('drop', signature([['b', f64]], unit)))), miscount('drop_ref'))
+        assertEq(pw(counter('drop_ref', countsBits('drop', signature([['b', u(64)]], u(64))))), miscount('drop_ref'))
+        assertEq(pw(counter('drop_ref', { ...countsBits('drop', signature([['b', u(64)]], unit)), fails: true })), miscount('drop_ref'))
+        assertEq(pw(counter('dup_ref', countsBits('dup', signature([['b', u(64)]], u(32))))), miscount('dup_ref'))
+        assertEq(pw(counter('dup_ref', countsBits('dup', signature([], u(64))))), miscount('dup_ref'))
+        assertEq(pw(counter('dup_ref', countsBits(/** @type {'dup'} */ (/** @type {unknown} */ ('copy')), signature([['b', u(64)]], u(64))))), miscount('dup_ref'))
+        // a host of another ABI may count on u(32) bits, but NaNVM's kind_ref does not count
+        const kindCounts = counter('kind_ref', countsBits('dup', signature([['b', u(32)]], u(32))))
+        assertOk(checkPlain({ ...kindCounts, imports: kindCounts.imports.map(([k, i]) => [k, { ...i, abi: 'test:ref' }]) }))
+        assertEq(pw(kindCounts), "the functions L0's Ref.kind_ref, which counts nothing, and Ref.kind_ref, which counts dup, are both the import kind_ref of fjs:l0, and its names count on bits alike")
+        // every name of one host function counts on bits alike
+        /** `referencing` with an interface `Alias` of `fjs:l0` that names `dup_ref` by `s`. @type {(s: Signature) => Module} */
+        const aliased = s => ({ ...referencing, imports: [...referencing.imports, ['Alias', { abi: 'fjs:l0', types: [], functions: [['dup_ref', s]] }]] })
+        const unmarked = "the functions L0's Ref.dup_ref, which counts dup, and Alias.dup_ref, which counts nothing, are both the import dup_ref of fjs:l0, and its names count on bits alike"
+        assertEq(pw(aliased(signature([['b', u(64)]], u(64)))), unmarked)
+        // alone too: L0's Ref says how NaNVM's functions count, imported or not
+        assertEq(pw({ ...aliased(signature([['b', u(64)]], u(64))), imports: [['Alias', { abi: 'fjs:l0', types: [], functions: [['dup_ref', signature([['b', u(64)]], u(64))]] }]] }), unmarked)
+        assertOk(checkPlain(aliased(countsBits('dup', signature([['b', u(64)]], u(64))))))
+        // a function that is one of NaNVM's own has Ref's signature, as NaNVM's host exports it
+        /** A module that imports only `Alias` of `fjs:l0`, naming `name` by `s`. @type {(name: string, s: Signature) => Module} */
+        const lone = (name, s) => ({ ...referencing, imports: [['Alias', { abi: 'fjs:l0', types: [], functions: [[name, s]] }]] })
+        assertEq(pw(lone('dup_ref', countsBits('dup', signature([['b', u(32)]], u(32))))), "Alias.dup_ref is the import dup_ref of fjs:l0, which L0's Ref.dup_ref declares as (b: u(64)) -> u(64), not (b: u(32)) -> u(32)")
+        assertEq(pw(lone('same_ref', signature([['a', u(64)]], bool))), "Alias.same_ref is the import same_ref of fjs:l0, which L0's Ref.same_ref declares as (a: u(64), b: u(64)) -> bool, not (a: u(64)) -> bool")
+        assertEq(pw(lone('same_ref', signature([['a', u(64)], ['b', u(32)]], bool))), "Alias.same_ref is the import same_ref of fjs:l0, which L0's Ref.same_ref declares as (a: u(64), b: u(64)) -> bool, not (a: u(64), b: u(32)) -> bool")
+        assertEq(pw(lone('kind_ref', signature([['b', u(64)]], int(0n, 9n)))), "Alias.kind_ref is the import kind_ref of fjs:l0, which L0's Ref.kind_ref declares as (b: u(64)) -> int(0, 8), not (b: u(64)) -> int(0, 9)")
+        assertEq(pw({ ...referencing, imports: [['Alias', { abi: 'fjs:l0', types: [], constants: [['dup_ref', u(64)]], functions: [] }]] }), "the constant Alias.dup_ref and the function L0's Ref.dup_ref are both the import dup_ref of fjs:l0")
+        // other functions of Ref, and its counting ones as the last term of each path, are the hooks' to call
+        assertOk(checkPlain(with_([['dup', fn([['b', u(64)]], u(64), () => if_(r('same_ref', b, b), let_('k', r('kind_ref', b), () => if_(true_, r('dup_ref', b), b)), b))]])))
     },
     br: () => {
         assertEq(why(one([], f64, br('l', one_))), 'f: no label l')

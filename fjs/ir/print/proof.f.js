@@ -8,7 +8,7 @@ import {
     add, block, bool, br, call, call_ref, code, codeOf, f64, f64c, field, fn, get, i, if_, int, let_, lit, loop, make, match, n, never, next, only,
     product, return_, sealed, trap, true_, trunc_sat, u, unit, variant,
 } from '../module.f.js'
-import { bits, constants, corners, loops, records, samples, sealing, tagging, unknown } from '../testlib.f.js'
+import { bits, constants, corners, loops, records, referencing, samples, sealing, tagging, unknown } from '../testlib.f.js'
 import { print, quote, show } from './module.f.js'
 
 /** @type {Type} */
@@ -159,6 +159,14 @@ export const proof = {
     '    fn k(x: b) -> int(0, 0)',
     '    fn seal(own x: b) -> unit',
     '',
+    ].join('\n')),
+    // a function that counts on bits says so, as the checker treats it apart
+    counts: () => assertEq(print(referencing).split('\n').slice(0, 5).join('\n'), [
+    'import Ref from fjs:l0',
+    '    fn kind_ref(b: u(64)) -> int(0, 8)',
+    '    fn dup_ref(b: u(64)) -> u(64) counts dup',
+    '    fn drop_ref(b: u(64)) -> unit counts drop',
+    '    fn same_ref(a: u(64), b: u(64)) -> bool',
     ].join('\n')),
     unknown: () => assertEq(print(unknown), [
     "import Any from fjs:l0",

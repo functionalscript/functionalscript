@@ -349,6 +349,15 @@ export const signature = (params, result, returns) => returns === undefined ? { 
 export const mayFail = s => ({ ...s, fails: true })
 
 /**
+ * A signature of an interface's function that counts a value on its bits,
+ * `dup` or `drop`, which only that hook of a counted type that the module
+ * defines calls.
+ *
+ * @type {(counts: 'dup' | 'drop', s: Signature) => Signature}
+ */
+export const countsBits = (counts, s) => ({ ...s, counts })
+
+/**
  * A parameter the callee owns: `own('v', any)`. A plain `[name, type]` still
  * borrows.
  *

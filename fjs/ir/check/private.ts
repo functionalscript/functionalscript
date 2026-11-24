@@ -31,6 +31,12 @@ export type _Env = {
      * sealed, released, copied or dropped, in the pass's two forms.
      */
     readonly owned: boolean
+    /**
+     * Whether the term is in the body of a function of the module, whose
+     * name is `name`: a constant's value or an interface's types have
+     * names too, and those of a hook are no hook's body.
+     */
+    readonly body: boolean
 }
 
 /** Check one term in its current scope. */
