@@ -1,11 +1,11 @@
 /**
- * @import { Interface, Module, Param, Term, Type } from '../types.ts'
+ * @import { Interface, Module, Param, Signature, Term, Type } from '../types.ts'
  */
 
 import { assert, assertEq, assertError, assertNotNullish, assertOk } from '../../asserts/module.f.js'
-import { any, builder, l0, string } from '../l0/module.f.js'
+import { any, builder, l0, ref, string } from '../l0/module.f.js'
 import {
-    add, and, block, bool, br, call, call_ref, canon, cast, code, codeOf, constant, definedBy, div, eq, f64, f64c, field, float, fn, from_bits, get, i, if_, int,
+    add, and, block, bool, br, call, call_ref, canon, cast, code, codeOf, constant, countsBits, definedBy, div, eq, f64, f64c, field, float, fn, from_bits, get, i, if_, int,
     let_, lit, loop, lt, make, match, mayFail, mul, n, neg, never, next, only, or, own, product, release, return_, seal, sealed, shl, shr, signature, sub,
     throw_, to_bits, trap, true_, trunc_sat, u, unit, unseal, variant, xor,
 } from '../module.f.js'
@@ -883,6 +883,20 @@ export const proof = {
         assertEq(pw(with_([['dup', fn([['b', u(64)]], u(64), () => loop('L', [['x', u(64), r('dup_ref', b)]], x => x))]])), "R.ref's dup answers Ref.dup_ref's result, so it calls Ref.dup_ref only as its last term")
         assertEq(pw(with_([['dup', fn([['b', u(64)]], u(64), () => loop('L', [['x', u(64), b]], () => r('dup_ref', b)))]])), "R.ref's dup answers Ref.dup_ref's result, so it calls Ref.dup_ref only as its last term")
         assertEq(pw(with_([['id', fn([['b', u(64)]], u(64), () => b)], ['dup', fn([['b', u(64)]], u(64), () => call_ref(codeOf('id'), [r('dup_ref', b)]))]])), "R.ref's dup answers Ref.dup_ref's result, so it calls Ref.dup_ref only as its last term")
+        // a function that counts on bits is dup or drop over one borrowed word of them, and does not fail
+        /** `referencing` with Ref's function `name` of signature `s`. @type {(name: string, s: Signature) => Module} */
+        const counter = (name, s) => ({ ...referencing, imports: [['Ref', { ...ref[1], functions: [...ref[1].functions.filter(([k]) => k !== name), [name, s]] }]] })
+        const miscount = (/** @type {string} */ f) => `Ref: ${f} counts on bits, so it is dup as (b: u(64)) -> u(64) or drop as (b: u(64)) -> unit, over u(64) or u(32), and does not fail`
+        assertEq(pw(counter('drop_ref', countsBits('drop', signature([['a', u(64)], ['b', u(64)]], unit)))), miscount('drop_ref'))
+        assertEq(pw(counter('drop_ref', countsBits('drop', signature([], unit)))), miscount('drop_ref'))
+        assertEq(pw(counter('drop_ref', countsBits('drop', signature([own('b', u(64))], unit)))), 'Ref: b is own, and u(64) is not sealed, so there is nothing to own')
+        assertEq(pw(counter('drop_ref', countsBits('drop', signature([['b', f64]], unit)))), miscount('drop_ref'))
+        assertEq(pw(counter('drop_ref', countsBits('drop', signature([['b', u(64)]], u(64))))), miscount('drop_ref'))
+        assertEq(pw(counter('drop_ref', { ...countsBits('drop', signature([['b', u(64)]], unit)), fails: true })), miscount('drop_ref'))
+        assertEq(pw(counter('dup_ref', countsBits('dup', signature([['b', u(64)]], u(32))))), miscount('dup_ref'))
+        assertEq(pw(counter('dup_ref', countsBits('dup', signature([], u(64))))), miscount('dup_ref'))
+        assertEq(pw(counter('dup_ref', countsBits(/** @type {'dup'} */ (/** @type {unknown} */ ('copy')), signature([['b', u(64)]], u(64))))), miscount('dup_ref'))
+        assertOk(checkPlain(counter('kind_ref', countsBits('dup', signature([['b', u(32)]], u(32))))))
         // other functions of Ref, and its counting ones as the last term of each path, are the hooks' to call
         assertOk(checkPlain(with_([['dup', fn([['b', u(64)]], u(64), () => if_(r('same_ref', b, b), let_('k', r('kind_ref', b), () => if_(true_, r('dup_ref', b), b)), b))]])))
     },

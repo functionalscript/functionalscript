@@ -798,8 +798,11 @@ const unkept = (env, t) => isNever(t) ? 'a constant of never holds no value' : u
  * `dup` that borrows a value and answers one of the type, and a `drop` that
  * owns one and answers `unit`, only a counted type names copy variants,
  * each a variant of it, once, and a function that gives back a parameter
- * owns it, and the parameter is of the type of its result, and a function
- * that answers `never` may fail.
+ * owns it, and the parameter is of the type of its result, a function
+ * that answers `never` may fail, and a function that counts on bits is
+ * `dup` or `drop` over one word of bits, borrowed: `dup` as
+ * `(b: u(64)) -> u(64)` and `drop` as `(b: u(64)) -> unit`, or the same
+ * over `u(32)`, and may not fail, since the hooks that call it may not.
  *
  * @type {(imports: OrderedMap<Interface>) => (entry: readonly [string, Interface]) => string | null}
  */
@@ -828,6 +831,14 @@ const checkInterface = imports => ([name, { types, constants = [], functions }])
     const miscounted = types.find(([type, { dup, drop }]) => dup !== undefined && drop !== undefined && !(takes(dup, type, false, ['sealed', name, type, null]) && takes(drop, type, true, unit)))
     const unreturned = functions.find(([, { params, result, returns }]) => returns !== undefined && !params.some(p => p[0] === returns && isOwn(p) && equal(p[1], result)))
     const silent = functions.find(([, { result, fails }]) => isNever(result) && fails !== true)
+    // A function that counts on bits takes one word of them, once, so that its hook gives each up at most once; bits are borrowed, since `unsigned` refuses to own them.
+    const miscounting = functions.find(([, { params, result, fails, counts }]) => {
+        if (counts === undefined) { return false }
+        const bits = params[0]?.[1]
+        const word = bits !== undefined && (equal(bits, u(64)) || equal(bits, u(32)))
+        const answers = counts === 'dup' ? bits !== undefined && equal(result, bits) : counts === 'drop' ? equal(result, unit) : false
+        return !(params.length === 1 && word && answers && fails !== true)
+    })
     return type !== undefined ? `${name}: two types are named ${type}`
         : constant !== undefined ? `${name}: two constants are named ${constant}`
         : named !== undefined ? `${name}: two functions are named ${named}`
@@ -842,6 +853,7 @@ const checkInterface = imports => ([name, { types, constants = [], functions }])
         : miscounted !== undefined ? `${name}: ${miscounted[0]}'s dup borrows a value of the type and answers one, and its drop owns one and answers unit`
         : unreturned !== undefined ? `${name}: ${unreturned[0]} gives back ${unreturned[1].returns}, which is no parameter that it owns of the type of its result`
         : silent !== undefined ? `${name}: ${silent[0]} answers never, so it fails, and it does not say that it may`
+        : miscounting !== undefined ? `${name}: ${miscounting[0]} counts on bits, so it is dup as (b: u(64)) -> u(64) or drop as (b: u(64)) -> unit, over u(64) or u(32), and does not fail`
         : null
 }
 
