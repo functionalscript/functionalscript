@@ -718,6 +718,15 @@ export const proof = {
             'carrierOf: u(64), isReference: bool, boxOf: any.only(number)')
         assertEq(definedBy(assertOk(check(sealing))), 'Any')
         assertEq(assertOk(check(tagging)).functions.map(([k, f]) => `${k}: ${show(f.body[0])}`).join(', '), 'tag: u(1), size: int(1, 2)')
+        /** `tagging` with its kind named `name` and written as `body`. @type {(name: string, body: (v: Term) => Term) => Module} */
+        const tagged = (name, body) => {
+            const [[, size], [, def]] = [assertNotNullish(tagging.functions.find(([k]) => k === 'size')), assertNotNullish(tagging.defines).types[0]]
+            return { ...tagging, defines: { name: 'T', types: [['cell', { ...def, kind: name }]] }, functions: [[name, fn([['v', ['sealed', 'T', 'cell', null]]], int(0n, 1n), body)], ['size', size]] }
+        }
+        // a match calls the kind that the module defines, and fails where it may
+        assertEq(assertOk(check(tagged('tag', () => trap('no tag')))).functions.map(([k, f]) => `${k}: ${f.fails}`).join(', '), 'tag: true, size: true')
+        // the loader's names are for what a module imports, not for its own functions
+        assertEq(assertOk(check(tagged('table', v => and(unseal(v), n(1n))))).functions.map(([k]) => k).join(), 'table,size')
         const defines = assertNotNullish(sealing.defines)
         /** A module of one function, `f`, that defines Any as `sealing` does. @type {(params: readonly Param[], result: Type, body: Term) => Module} */
         const sealed = (params, result, body) => ({ ...one(params, result, body), defines })

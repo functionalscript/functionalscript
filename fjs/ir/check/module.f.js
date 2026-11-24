@@ -815,17 +815,19 @@ const shared = (env, imports) => {
  * it may: the interfaces and the signatures that the environment sees are
  * ones a module may have, the types of its locals are ones a local may
  * hold, and `results`, those of its functions, ones a module may write.
- * Every type that reaches the rules of a term has passed this.
+ * The import checks read `loaded`, the interfaces that the loader links,
+ * which leave out the one that a module defines. Every type that reaches
+ * the rules of a term has passed this.
  *
- * @type {(env: _Env, imports: readonly (readonly [string, Interface])[], functions: readonly (readonly [string, Signature])[], locals: readonly Type[], results: readonly Type[]) => string | null}
+ * @type {(env: _Env, imports: readonly (readonly [string, Interface])[], functions: readonly (readonly [string, Signature])[], locals: readonly Type[], results: readonly Type[], loaded?: readonly (readonly [string, Interface])[]) => string | null}
  */
-const unscoped = (env, imports, functions, locals, results) => {
+const unscoped = (env, imports, functions, locals, results, loaded = imports) => {
     const interfaces = imports.map(([name]) => name)
     const imported = interfaces.find((k, j) => interfaces.indexOf(k) !== j || k === 'self')
     const names = functions.map(([name]) => name)
     const twice = names.find((k, j) => names.indexOf(k) !== j)
     const iface = imports.map(checkInterface(env.imports)).find(x => x !== null)
-    const field = shared(env, imports)
+    const field = shared(env, loaded)
     const signature = functions.map(([name, s]) => {
         const why = unsigned(env, s)
         return why === null ? null : `${name}: ${why}`
@@ -949,18 +951,23 @@ const declared = (imports, module, name) => assertNotNullish(assertNotNullish(at
  * `trap` or by a call of a function of an interface that may fail, and the
  * module's functions that it calls, each once.
  *
- * @type {(imports: OrderedMap<Interface>) => (x: Typed) => readonly [boolean, readonly string[]]}
+ * @type {(imports: OrderedMap<Interface>, own: string | null) => (x: Typed) => readonly [boolean, readonly string[]]}
  */
-const failures = imports => ([, t]) => {
+const failures = (imports, own) => ([, t]) => {
     // A `call_ref` of a known `code(f)` fails as `f` does; any other code value may fail.
     const known = t[0] === 'call_ref' && t[1][1][0] === 'code' ? t[1][1][1] : null
+    // A `match` of a sealed type calls its kind: the module's own, for a type that it defines.
+    const of = t[0] === 'match' && t[1][0][0] === 'sealed' ? t[1][0] : null
+    const kind = of === null ? null : /** @type {readonly [string, string]} */ ([of[1], assertNotNullish(assertNotNullish(assertNotNullish(at(of[1])(imports)).types.find(([k]) => k === of[2]))[1].kind)])
+    const mine = kind !== null && kind[0] === own ? kind[1] : null
     const itself = t[0] === 'trap'
         || (t[0] === 'call' && t[1] !== 'self' && declared(imports, t[1], t[2]))
         || (t[0] === 'call_ref' && known === null)
+        || (kind !== null && mine === null && declared(imports, kind[0], kind[1]))
     /** @type {readonly [boolean, readonly string[]]} */
-    const start = [itself, t[0] === 'call' && t[1] === 'self' ? [t[2]] : known !== null ? [known] : []]
+    const start = [itself, t[0] === 'call' && t[1] === 'self' ? [t[2]] : known !== null ? [known] : mine !== null ? [mine] : []]
     return inside(t).reduce(([f, fs], x) => {
-        const [g, gs] = failures(imports)(x)
+        const [g, gs] = failures(imports, own)(x)
         return [f || g, union(fs, gs)]
     }, start)
 }
@@ -970,10 +977,10 @@ const failures = imports => ([, t]) => {
  * themselves, then those that call one that may, again until no function
  * changes. A function that calls itself and nothing that may fail cannot.
  *
- * @type {(imports: OrderedMap<Interface>, functions: readonly (readonly [string, FunctionOf<Typed>])[]) => readonly string[]}
+ * @type {(imports: OrderedMap<Interface>, own: string | null, functions: readonly (readonly [string, FunctionOf<Typed>])[]) => readonly string[]}
  */
-const failing = (imports, functions) => {
-    const direct = functions.map(([f, { body }]) => /** @type {const} */ ([f, failures(imports)(body)]))
+const failing = (imports, own, functions) => {
+    const direct = functions.map(([f, { body }]) => /** @type {const} */ ([f, failures(imports, own)(body)]))
     /** @type {(known: readonly string[]) => readonly string[]} */
     const grow = known => {
         const next = direct.flatMap(([f, [itself, calls]]) => itself || calls.some(g => known.includes(g)) ? [f] : [])
@@ -1011,7 +1018,7 @@ export const checkPlain = m => {
         : assertNotNullish(m.defines).types.map(([type, { literal, dup, drop }]) => literal?.module === own ? `${own}.${type}: the module that defines it does not make its literals`
             : dup !== undefined || drop !== undefined ? `${own}.${type}: a type that the module defines is not counted yet, since its drop could not give up the value that it owns`
             : null).find(x => x !== null) ?? null
-    const why = mine ?? unscoped(env, interfaces, m.functions, [], [])
+    const why = mine ?? unscoped(env, interfaces, m.functions, [], [], m.imports)
     const names = m.functions.map(([name]) => name)
     const missing = m.exports.find(k => !names.includes(k))
     const again = twiceIn(m.exports)
@@ -1032,7 +1039,7 @@ export const checkPlain = m => {
     if (values[0] === 'error') { return values }
     const late = unordered(values[1], typed[1])
     if (late !== null) { return error(late) }
-    const fails = failing(imports, typed[1])
+    const fails = failing(imports, own, typed[1])
     return ok({ imports: m.imports, ...(m.defines === undefined ? {} : { defines: m.defines }), constants: values[1], functions: typed[1].map(withEffect(fails)), exports: m.exports })
 }
 
