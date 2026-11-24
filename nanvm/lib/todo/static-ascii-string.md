@@ -1,15 +1,16 @@
 ## ASCII static string
 
 **Priority:** P3
-**Status:** open — the design is settled; no code yet
+**Status:** wip — the VM reads both forms; the serializer still writes UTF-16
 
 ### Problem
 
-A [static string](../src/vm/static_value.rs) is its UTF-16 code units,
-`StaticString(pub &'static [u16])`. Most of the strings a compiled module
+A [static string](../src/vm/static_value.rs) was only its UTF-16 code
+units, `StaticString(pub &'static [u16])`, and the serializer still writes
+every string that way. Most of the strings a compiled module
 holds are ASCII: property keys, method names, a function's text. Each of
 them takes two bytes per character in the binary, and reads in the generated
-Rust as a list of numbers, `StaticString(&[104, 105])` for `'hi'`.
+Rust as a list of numbers, `utf16(&[104, 105])` for `'hi'`.
 
 A descriptor that holds one byte per code unit halves that data and can be
 written as a literal a reader recognizes. It is also the form a packed VM's
@@ -73,7 +74,7 @@ string).
 
 One pull request each, stacked, after the one that files this issue.
 
-- [ ] `StaticString` as the enum with `utf16` and `ascii`, readable by
+- [x] `StaticString` as the enum with `utf16` and `ascii`, readable by
   index; the naive VM holding the descriptor; the serializer writing
   `utf16(&[…])` for every string; `npm run gen`.
 - [ ] The Rust serializer writes an ASCII string as `ascii("…")`;

@@ -1,6 +1,7 @@
 mod container;
 mod function;
 mod object;
+mod string;
 
 use crate::{
     naive::{
@@ -23,7 +24,7 @@ impl<T: Into<Unpacked<Naive>>> From<T> for Naive {
 }
 
 impl IVm for Naive {
-    type InternalString = Container<(), u16>;
+    type InternalString = string::String;
     type InternalBigInt = Container<Sign, u64>;
     type InternalObject = object::Object;
     type InternalArray = Container<(), Any<Naive>>;
@@ -64,7 +65,7 @@ use crate::vm::{IStaticVm, StaticArray, StaticBigInt, StaticFunction, StaticObje
 
 impl IStaticVm for Naive {
     fn load_string(value: &'static StaticString) -> Self::InternalString {
-        Container::borrowed((), value, value.0)
+        string::String::Static(value)
     }
     fn load_bigint(value: &'static StaticBigInt) -> Self::InternalBigInt {
         Container::borrowed(value.sign, value, value.words)
