@@ -125,6 +125,19 @@ const isNumberBits = b => {
 /** Whether bits are a dynamic reference. @type {(b: bigint) => boolean} */
 const isRefBits = b => (BigInt.asUintN(64, b) & REF_TAG) === DYN_REF
 
+/**
+ * Whether bits are a recognized scalar: a number, or one of Any's four
+ * constant boxes. NaNVM's `dup` / `drop` only pass through inlines; anything
+ * else goes through `get` / `take` and traps when unboxing fails.
+ *
+ * @type {(b: bigint) => boolean}
+ */
+const isScalarBits = b => {
+    if (isNumberBits(b)) { return true }
+    const x = BigInt.asUintN(64, b)
+    return x === UNDEFINED || x === NULL || x === FALSE || x === TRUE
+}
+
 /** The cell index packed in a dyn-ref box. @type {(b: bigint) => bigint} */
 const handleOf = b => (BigInt.asUintN(64, b) >> 2n) & 0x3fff_ffff_ffffn
 
@@ -206,7 +219,7 @@ export const counting = (values, data = 0, entries = 0) => {
     }
     /** @type {(b: bigint) => bigint} */
     const dup = b => {
-        if (!isRefBits(b)) { return b }
+        if (isScalarBits(b)) { return b }
         const h = refHandle(b)
         const { value, count } = cell(h)
         cells.set(h, { value, count: count + 1 })
@@ -214,7 +227,7 @@ export const counting = (values, data = 0, entries = 0) => {
     }
     /** @type {(b: bigint) => void} */
     const drop = b => {
-        if (!isRefBits(b)) { return }
+        if (isScalarBits(b)) { return }
         const h = refHandle(b)
         const { value, count } = cell(h)
         if (count === 1) {

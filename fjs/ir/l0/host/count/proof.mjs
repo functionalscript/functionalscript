@@ -424,6 +424,9 @@ export const proof = {
             const [a0] = h.first
             h.imports.same_ref(i64(BigInt.asUintN(64, a0) ^ (1n << 48n)), a0)
         },
+        // A non-ref that is not a recognized scalar traps, as NaNVM does.
+        dupMalformed: () => { counting([]).imports.dup(i64(0x7ff0_0000_0000_0040n)) },
+        dropMalformed: () => { counting([]).imports.drop(i64(0x7ff0_0000_0000_0040n)) },
     },
     // `make_function` makes a function of the module's code, which reads its frame through `self` and its arguments
     // through `args`: JavaScript and `call` both call it, `length` and `text` are the ones given, a throw of the code is
