@@ -8,7 +8,7 @@ import {
     add, block, bool, br, call, call_ref, code, codeOf, f64, f64c, field, fn, get, i, if_, int, let_, lit, loop, make, match, n, never, next, only,
     product, return_, sealed, trap, true_, trunc_sat, u, unit, variant,
 } from '../module.f.js'
-import { bits, constants, corners, loops, records, samples, unknown } from '../testlib.f.js'
+import { bits, constants, corners, loops, records, samples, sealing, tagging, unknown } from '../testlib.f.js'
 import { print, quote, show } from './module.f.js'
 
 /** @type {Type} */
@@ -543,6 +543,43 @@ export const proof = {
     'export max, sum, sign, clamp, area, diff, double, delta, product, same, lessU32, lessMixed, lessU64, atMost, atMostU32, atMostI64, atMostU64, notEqual, toFloat, toFloatSigned, toFloatWide, average, magnitude, hypot, distance, safeDiv, pow, pick, xor',
     '',
     ].join('\n')),
+    // A type that the module defines, whose kind is a function of its own.
+    tagging: () => assertEq(print(tagging), [
+    'define T',
+    '    type cell = small | big',
+    '        kind: tag, carrier: i64',
+    '',
+    'fn tag(v: cell) -> u(1) =',
+    '    and(unseal(v), 1)',
+    '',
+    'fn size(v: cell) -> u(8) =',
+    '    match v',
+    '      small =>',
+    '        1',
+    '      big =>',
+    '        2',
+    '',
+    'export size',
+    '',
+].join('\n')),
+    // Any's carrier, which only the module that defines Any sees.
+    sealing: () => assertEq(print(sealing), [
+    'define Any',
+    '    type any = undefined | null | boolean | number | string | bigint | array | object | function',
+    '        carrier: i64',
+    '',
+    'fn carrierOf(v: any.only(undefined, null, boolean, number)) -> u(64) =',
+    '    unseal(v)',
+    '',
+    'fn isReference(v: any) -> bool =',
+    '    eq(and(unseal(v), 18442240474082181123), 9218868437227405314)',
+    '',
+    'fn boxOf(x: f64c) -> any.only(number) =',
+    '    seal(any.only(number), to_bits(x))',
+    '',
+    'export carrierOf, isReference, boxOf',
+    '',
+].join('\n')),
     bits: () => assertEq(print(bits), [
     'fn mask(a: u(64), b: u(16)) -> u(16) =',
     '    and(a, b)',

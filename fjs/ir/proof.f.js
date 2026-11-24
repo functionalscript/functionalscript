@@ -6,7 +6,7 @@ import { assert, assertEq } from '../asserts/module.f.js'
 import {
     abs, add, block, bool, br, call, call_ref, cast, code, codeOf, compareIn, constant, div, eq, equal, exact, f64, f64c, false_, field, fits, float, fn,
     get, i, if_, inside, int, isCopy, isOwn, le, leaves, let_, lit, loop, lt, make, mayFail, match, mul, n, ne, neg, never, next, not, only, own, return_,
-    sealed, signature, sqrt, sub, terms, throw_, trap, true_, trunc_sat, u, unit, variant,
+    definedBy, interfacesOf, sealed, signature, sqrt, sub, terms, throw_, trap, true_, trunc_sat, u, unit, variant,
 } from './module.f.js'
 
 export const proof = {
@@ -202,5 +202,17 @@ export const proof = {
         const v = own('v', f64)
         assert(equal(v, ['v', f64, 'own']))
         assertEq(`${isOwn(v)} ${isOwn(['w', f64])}`, 'true false')
+    },
+    // A module that defines a type sees it as one more interface, whose functions are the module's own that its kinds name.
+    defines: () => {
+        const cell = sealed('T', 'cell')
+        const functions = /** @type {const} */ ([['tag', signature([['v', cell]], u(1))], ['tag', signature([['v', cell]], u(2))], ['other', signature([], u(1))]])
+        /** @type {SealedDef} */
+        const def = { variants: ['small', 'big'], kind: 'tag', carrier: 'i64' }
+        const [only, ...rest] = interfacesOf({ imports: [], defines: { name: 'T', types: [['cell', def], ['plain', { variants: ['a'], carrier: 'i32' }]] }, functions })
+        assertEq(rest.length, 0)
+        assertEq(`${only[0]} ${only[1].abi} ${only[1].types.map(([k]) => k).join()} ${only[1].functions.map(([k, s]) => `${k}: ${s.result[2]}`).join()}`, 'T T cell,plain tag: 1')
+        assertEq(interfacesOf({ imports: [], functions }).length, 0)
+        assertEq(`${definedBy({ defines: { name: 'T', types: [] } })} ${definedBy({})}`, 'T null')
     },
 }

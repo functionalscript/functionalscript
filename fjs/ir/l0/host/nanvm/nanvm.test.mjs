@@ -6,7 +6,8 @@
  * that runs no module runs once more on the counting host, as it is.
  * L1's native rows run in NaNVM's Rust too, and are compared with
  * JavaScript on random floats, texts and bigints
- * ([slice 12c](../../../todo/slices.md)).
+ * ([slice 12c](../../../todo/slices.md)). A module that defines Any sees
+ * NaNVM's NaN boxes as they are ([checkpoint 4c](../../../../../doc/sasha-gil/ir/runtime-in-ir.md)).
  *
  * NaNVM's `.wasm` is built first, by
  *
@@ -27,7 +28,8 @@ import { test } from 'node:test'
 import { proof as fromFast } from '../../../from_fast/proof.mjs'
 import { proof as random } from '../../../from_fast/random/proof.mjs'
 import { proof as lifetime } from '../../../lifetime/proof.mjs'
-import { onHost } from '../../../wasm/testlib.mjs'
+import { sealing } from '../../../testlib.f.js'
+import { held, onHost, run } from '../../../wasm/testlib.mjs'
 import { proof as wasm } from '../../../wasm/proof.mjs'
 import { nanvmHost } from './module.mjs'
 
@@ -152,6 +154,33 @@ test('the bigint rows agree with JavaScript', () => {
         const mixed = native('bigintLess', [a, x])
         if (mixed !== (a < x ? 1 : a >= x ? 0 : -1)) { throw ['bigintLess', a, x, mixed] }
     }
+})
+
+/** A float's bits. @type {(x: number) => bigint} */
+const bitsOf = x => {
+    const v = new DataView(new ArrayBuffer(8))
+    v.setFloat64(0, x)
+    return v.getBigUint64(0)
+}
+
+/** The NaN box of a value of a copy variant or a number, as Sergey's README lays it out. @type {(v: unknown) => bigint} */
+const boxed = v =>
+    v === undefined ? 0x7FF0_0000_0000_0020n
+    : v === null ? 0x7FF0_0000_0000_0030n
+    : v === false ? 0x7FF0_0000_0000_0010n
+    : v === true ? 0xFFF0_0000_0000_0010n
+    : Number.isNaN(v) ? 0x7FF8_0000_0000_0000n
+    : bitsOf(Number(v))
+
+test('a module that defines Any sees the NaN boxes', () => {
+    ran += onHost(host, () => run(sealing, {
+        carrierOf: ([v]) => boxed(held(v)),
+        isReference: ([v]) => {
+            const x = held(v)
+            return x !== null && ['string', 'bigint', 'object', 'function'].includes(typeof x)
+        },
+        boxOf: ([x]) => ({ any: x }),
+    }, {}))
 })
 
 test('a trap keeps its text until enter', () => {

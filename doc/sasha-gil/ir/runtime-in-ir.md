@@ -117,6 +117,12 @@ make them ([choice 6](#6-the-tests-are-the-frames)).
   `seal(any, u(64)) -> any`. The checker refuses them in any other module,
   so a program still sees `any` only through Any's functions, as
   [definition.md](./definition.md#modules-and-interfaces) says.
+- **Done in 4c:** the module says which types it owns with `defines`, a
+  name and the types under it, as an interface gives them (Sasha's pick,
+  2026-11-24). Its `kind` is a function of its own. A defined type names
+  no `dup` or `drop` yet: a drop written in the module would leave the
+  value it owns for the lifetime pass to drop again, so 4d needs a way for
+  Any's own `drop` to give its value up first.
 - **Alternative:** step 7 of definition.md's
   [order of work](./definition.md#order-of-work) first: `bits(64, …)`
   layouts with the layout proof and frames, as

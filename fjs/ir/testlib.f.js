@@ -18,11 +18,11 @@
  * @import { Module, Term, Type } from './types.ts'
  */
 
-import { any, builder, container, l0 } from './l0/module.f.js'
+import { any, builder, container, kinds, l0 } from './l0/module.f.js'
 import {
     abs, add, and, block, bool, br, call, cast, constant, div, eq, exact, f64, f64c, false_, field, float, fn, from_bits, get, i,
     if_, int, le, let_, lit, loop, lt, make, match, mul, n, ne, neg, never, next, not, only, or, own, product, return_, shl, shr,
-    canon, sqrt, sub, throw_, to_bits, trap, true_, trunc_sat, u, unit, variant, xor,
+    canon, seal as sealOf, sealed, sqrt, sub, throw_, to_bits, trap, true_, trunc_sat, u, unit, unseal, variant, xor,
 } from './module.f.js'
 
 /** `2 ** 40`, beside which `diff`'s operands lie. */
@@ -132,6 +132,47 @@ export const bits = {
         ['negBits', fn([['x', f64]], u(64), x => to_bits(canon(neg(x))))],
     ],
     exports: ['mask', 'either', 'flip', 'reference', 'shifted', 'drained', 'nibble', 'bitsOf', 'ofBits', 'signOf', 'negBits'],
+}
+
+/**
+ * Any's carrier, as only the module that defines `any` sees it: a module
+ * that defines Any itself, with `any`'s variants and carrier and none of
+ * its hooks, so that its values are linear here. `carrierOf` unseals a
+ * value of a copy variant or a number, `isReference` tests the README's
+ * dynamic-reference pattern on the bits, and `boxOf` seals a float's bits
+ * as a number. Its proofs run on NaNVM's `.wasm`, whose values are NaN
+ * boxes, and not on the counting host, whose are not.
+ *
+ * @type {Module}
+ */
+export const sealing = {
+    imports: [],
+    defines: { name: 'Any', types: [['any', { variants: kinds, carrier: 'i64' }]] },
+    functions: [
+        ['carrierOf', fn([['v', only(any, 'undefined', 'null', 'boolean', 'number')]], u(64), v => unseal(v))],
+        ['isReference', fn([['v', any]], bool, v => eq(and(unseal(v), n(0xFFF0_0000_0000_0003n)), n(0x7FF0_0000_0000_0002n)))],
+        ['boxOf', fn([['x', f64c]], only(any, 'number'), x => sealOf(only(any, 'number'), to_bits(x)))],
+    ],
+    exports: ['carrierOf', 'isReference', 'boxOf'],
+}
+
+/** A cell of `tagging`, which its module defines. */
+const cell = sealed('T', 'cell')
+
+/**
+ * A module that defines `T.cell`, whose tag its own `tag` answers from the
+ * low bit of its carrier, as a `match` of a cell reads it.
+ *
+ * @type {Module}
+ */
+export const tagging = {
+    imports: [],
+    defines: { name: 'T', types: [['cell', { variants: ['small', 'big'], kind: 'tag', carrier: 'i64' }]] },
+    functions: [
+        ['tag', fn([['v', cell]], int(0n, 1n), v => and(unseal(v), n(1n)))],
+        ['size', fn([['v', cell]], u(8), v => match(v, [[['small'], null, n(1n)], [['big'], null, n(2n)]]))],
+    ],
+    exports: ['size'],
 }
 
 /** A call of an L0 function, by its interface and its name. @type {(module: string, name: string) => (...args: readonly Term[]) => Term} */
