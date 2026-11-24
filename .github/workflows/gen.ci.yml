@@ -169,7 +169,7 @@
           "shell": "bash"
         },
         {
-          "run": "test \"$(mise exec -- wasmtime --version | cut -d' ' -f1,2)\" = \"wasmtime 50.0.2\"",
+          "run": "test \"$(mise exec -- wasmtime --version | cut -d' ' -f1,2)\" = \"wasmtime 51.0.0\"",
           "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },

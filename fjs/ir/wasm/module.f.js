@@ -342,6 +342,24 @@ const truncSat = (emitTerm, env, t, x) => {
     return { code: [...c.code, ...low, ...high], locals: [...c.locals, ...kept] }
 }
 
+/** The bits of the one NaN of an `f64c`. */
+const NAN = 0x7FF8_0000_0000_0000n
+
+/**
+ * `canon`: the float, or the one NaN where it is a NaN, which is the one
+ * float that is not equal to itself.
+ *
+ * @type {(emitTerm: _EmitTerm, env: _Env, x: Typed) => _Code}
+ */
+const canon = (emitTerm, env, x) => {
+    const c = sequence(emitTerm, env, [[x, x[0]]], [])
+    const slot = env.next + c.locals.length
+    return {
+        code: [...c.code, ['local.set', slot], ['f64.const', NAN], ['local.get', slot], ['local.get', slot], ['local.get', slot], ['f64.ne'], ['select']],
+        locals: [...c.locals, ['canon', 'f64']],
+    }
+}
+
 /**
  * An operator: its operands, each made a value of the word that it runs in,
  * then its instruction, and a wrap where its result's word is narrower.
@@ -359,6 +377,7 @@ const operator = (emitTerm, env, type, name, args) => {
     if (name === 'seal') { return sequence(emitTerm, env, [[args[0], carrier(env.interfaces, type)[0] === 'i64' ? u(64) : u(32)]], []) }
     const ints = args.flatMap(([t]) => t[0] === 'int' ? [t] : [])
     const own = args.map(x => /** @type {const} */ ([x, x[0]]))
+    if (name === 'canon') { return canon(emitTerm, env, args[0]) }
     if (ints.length === 0) { return sequence(emitTerm, env, own, [float(name)]) }
     if (name === 'float') { return sequence(emitTerm, env, own, [convert(ints[0])]) }
     if (name === 'from_bits') { return sequence(emitTerm, env, [[args[0], u(64)]], [['f64.reinterpret_i64']]) }

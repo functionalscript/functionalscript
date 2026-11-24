@@ -645,10 +645,14 @@ which reads and builds a NaN box:
   and a shift, by a count below 64, at both ends, so `shl` is refused
   where its result needs more than one word, as `mul` is. `shr` is the
   logical shift. A signed operand is refused.
-- **`to_bits(x)`**, the 64 bits of a float as a `u(64)`, and
+- **`to_bits(x)`**, the 64 bits of an `f64c` as a `u(64)`, and
   **`from_bits(b)`**, the float of an unsigned integer's bits, an `f64`,
   since the bits may be any NaN: `i64.reinterpret_f64` and
   `f64.reinterpret_i64`.
+- **`canon(x)`**, a float with any NaN replaced by the one NaN,
+  `0x7FF8_0000_0000_0000`: an `f64c`, so `to_bits(canon(x))` reads the
+  bits of any float the same on every target. It keeps the float in a
+  local and `select`s the one NaN where the float is not equal to itself.
 
 The `bits` module of [`testlib.f.js`](./testlib.f.js) runs each of them
 against JavaScript's `&`, `|`, `^`, `<<`, `>>` and a `DataView`.
