@@ -170,11 +170,16 @@ export const counting = (values, data = 0, entries = 0) => {
     }
     /** A dyn-ref box of a live cell. @type {(h: bigint, kind: number) => bigint} */
     const boxRef = (h, kind) => i64(DYN_REF | (BigInt(kind) << 48n) | (h << 2n))
+    /** The kind nibble `tttt` packed in a dyn-ref box. @type {(b: bigint) => number} */
+    const kindOf = b => Number((BigInt.asUintN(64, b) >> 48n) & 0xfn)
     /** @type {(b: bigint) => bigint} */
     const refHandle = b => {
         if (!isRefBits(b)) { throw 'fjs:l0 host: not a value' }
         const h = handleOf(b)
-        cell(h)
+        const { value } = cell(h)
+        // NaNVM checks the box's kind against the value it keeps for the
+        // handle; a forged `tttt` must trap the same way.
+        if (kindOf(b) !== valueKind(value)) { throw 'fjs:l0 host: not a value' }
         return h
     }
     /** @type {(value: unknown) => bigint} */

@@ -408,6 +408,22 @@ export const proof = {
             h.imports.frame(h.imports.make_function(0, h.first[0], 0, UNDEFINED), 1)
         },
         kindRef: () => { counting([]).imports.kind_ref(FORGED) },
+        // A live cell with a forged kind nibble traps, as NaNVM does.
+        kindNibble: () => {
+            const h = counting(['a'])
+            const [a0] = h.first
+            h.imports.kind_ref(i64(BigInt.asUintN(64, a0) ^ (1n << 48n)))
+        },
+        dupKindNibble: () => {
+            const h = counting(['a'])
+            const [a0] = h.first
+            h.imports.dup_ref(i64(BigInt.asUintN(64, a0) ^ (1n << 48n)))
+        },
+        sameKindNibble: () => {
+            const h = counting(['a'])
+            const [a0] = h.first
+            h.imports.same_ref(i64(BigInt.asUintN(64, a0) ^ (1n << 48n)), a0)
+        },
     },
     // `make_function` makes a function of the module's code, which reads its frame through `self` and its arguments
     // through `args`: JavaScript and `call` both call it, `length` and `text` are the ones given, a throw of the code is
