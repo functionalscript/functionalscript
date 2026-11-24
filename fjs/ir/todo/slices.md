@@ -452,7 +452,7 @@ module for calls, for speed.
 | Choice | Decision |
 | --- | --- |
 | Memory | NaNVM exports `memory` and `reserve(size)`; the loader reserves `fjs.layout`'s data size and passes the address as `data_base` |
-| Constants | The loader makes Any's four `i64` globals of NaNVM's handles `0` to `3` (their NaN boxes since [runtime-in-ir.md](../../../doc/sasha-gil/ir/runtime-in-ir.md) checkpoint 3) |
+| Constants | The loader makes Any's four `i64` globals of NaNVM's handles `0` to `3`; since [runtime-in-ir.md](../../../doc/sasha-gil/ir/runtime-in-ir.md) checkpoint 3 they are the NaN boxes that NaNVM's `constant_box` answers, and `0` to `3` are numbers |
 | Calls | An adapter module: NaNVM's `fjs:host` `invoke` is the adapter's export, a `call_indirect` into a table that the loader makes, so a call stays in WebAssembly |
 | A misuse's text | A panic hook keeps it for the host, as 12b |
 | Native rows | Rust in NaNVM, as 12c |
