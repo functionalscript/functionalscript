@@ -17,7 +17,7 @@ pub(crate) fn is_low_surrogate(u: u16) -> bool {
 impl<A: IVm> String<A> {
     /// The code unit at `k`, when `k` is a position inside the string.
     pub(crate) fn unit_at(&self, k: f64) -> Option<u16> {
-        in_range(k, self.length()).map(|i| self[i])
+        in_range(k, self.length()).map(|i| self.item(i))
     }
 
     /// A string of the one code unit `u`.

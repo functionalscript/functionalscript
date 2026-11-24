@@ -122,7 +122,7 @@ pub(crate) fn string_to_index<A: IVm>(s: &String<A>) -> Option<u32> {
             .contains(&unit)
             .then(|| (unit - b'0' as u16) as u32)
     };
-    let first = digit(s[0])?;
+    let first = digit(s.item(0))?;
     if len == 1 {
         return Some(first);
     }
@@ -132,7 +132,7 @@ pub(crate) fn string_to_index<A: IVm>(s: &String<A>) -> Option<u32> {
     }
     let mut value = first;
     for i in 1..len {
-        value = value.checked_mul(10)?.checked_add(digit(s[i])?)?;
+        value = value.checked_mul(10)?.checked_add(digit(s.item(i))?)?;
     }
     Some(value)
 }

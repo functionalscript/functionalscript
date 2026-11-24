@@ -50,7 +50,7 @@ impl<A: IVm> BigInt<A> {
     /// most significant chunk is never `0`; a zero magnitude has no chunks.
     pub(super) fn chunks(&self, base: u64) -> Vec<u64> {
         let items = self.0.items();
-        let mut words: Vec<u64> = (0..items.length()).map(|i| items[i]).collect();
+        let mut words: Vec<u64> = (0..items.length()).map(|i| items.item(i)).collect();
         let mut chunks = Vec::new();
         while !words.is_empty() {
             let mut remainder = 0u128;

@@ -70,7 +70,7 @@ pub fn decode_bytes<A: IVm>(any: Any<A>) -> Result<Vec<u8>, Malformed> {
         return Ok(Vec::new());
     }
     let negative = vec < BigInt::default();
-    let top = vec[words - 1];
+    let top = vec.item(words - 1);
     let bits = 64 * (words - 1) + (64 - top.leading_zeros());
     let count = bits.div_ceil(8);
     let padding = 8 * count - bits;
@@ -79,12 +79,12 @@ pub fn decode_bytes<A: IVm>(any: Any<A>) -> Result<Vec<u8>, Malformed> {
     let byte = |i: u32| {
         let at = 8 * i;
         if at < padding {
-            (vec[0] << (padding - at)) as u8
+            (vec.item(0) << (padding - at)) as u8
         } else {
             let (word, offset) = ((at - padding) / 64, (at - padding) % 64);
-            let low = vec[word] >> offset;
+            let low = vec.item(word) >> offset;
             let high = if offset > 56 && word + 1 < words {
-                vec[word + 1] << (64 - offset)
+                vec.item(word + 1) << (64 - offset)
             } else {
                 0
             };

@@ -43,7 +43,7 @@ impl<A: IVm> Mul for BigInt<A> {
             let mut j = i.saturating_sub(rhs_max);
             let max = if i < lhs_max { i } else { lhs_max };
             while j <= max {
-                value = Self::add_to_vec(value, i, self[j] as u128 * rhs[i - j] as u128);
+                value = Self::add_to_vec(value, i, self.item(j) as u128 * rhs.item(i - j) as u128);
                 j += 1;
             }
             i += 1;

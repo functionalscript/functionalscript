@@ -20,7 +20,7 @@ impl<A: IVm> Array<A> {
     /// `lastIndexOf(x)` searches from the end, `lastIndexOf(x, undefined)`
     /// from `0`, and an effect's optional parameter is absent.
     pub fn present(&self, i: u32) -> Option<Any<A>> {
-        self.get(i).cloned()
+        self.get(i)
     }
 }
 

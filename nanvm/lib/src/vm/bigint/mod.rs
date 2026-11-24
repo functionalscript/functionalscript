@@ -87,7 +87,10 @@ fn trim(words: &mut Vec<u64>) {
 fn cmp_words<T: SizedIndex<usize, Output = u64> + ?Sized>(a: &T, b: &T) -> Ordering {
     a.length().cmp(&b.length()).then_with(|| {
         let words = (0..a.length()).rev();
-        words.clone().map(|i| a[i]).cmp(words.map(|i| b[i]))
+        words
+            .clone()
+            .map(|i| a.item(i))
+            .cmp(words.map(|i| b.item(i)))
     })
 }
 
@@ -240,7 +243,7 @@ impl<A: IVm> BigInt<A> {
         match rhs.length() {
             0 => ShiftAmount::Noop,
             1 => {
-                let (word_shift, bit_shift) = rhs[0].div_mod(64);
+                let (word_shift, bit_shift) = rhs.item(0).div_mod(64);
                 ShiftAmount::Words(word_shift, bit_shift)
             }
             _ => ShiftAmount::TooWide,
@@ -461,7 +464,7 @@ impl<A: IVm> BigInt<A> {
 /// Panics if the slice is not normalized, i.e. if it has leading
 /// (most-significant) zero words.
 fn assert_slice_normalized<I: Uint, T: SizedIndex<I, Output = u64> + ?Sized>(v: &T) {
-    if let Some(&last) = v.last()
+    if let Some(last) = v.last()
         && last == 0
     {
         panic!("BigInt is not normalized (has leading zero words)");

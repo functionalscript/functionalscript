@@ -1,13 +1,14 @@
 use core::ops::Index;
 
-use crate::vm::{Any, Array, ContainerWrapper, IVm};
+use crate::vm::{Any, Array, ContainerWrapper, IContainer, IVm};
 
 impl<A: IVm> Index<u32> for Array<A> {
     type Output = Any<A>;
-    /// Currently panics if out of bounds.
+    /// A reference, where [`SizedIndex::item`](crate::common::sized_index::SizedIndex::item)
+    /// answers a clone. Currently panics if out of bounds.
     /// TODO: Future versions may change to return `Nullish::Undefined`.
     fn index(&self, index: u32) -> &Self::Output {
-        self.item(index)
+        &self.0.items()[index as usize]
     }
 }
 

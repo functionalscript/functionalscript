@@ -564,7 +564,7 @@ mod test {
     fn strings_of_code_units() {
         let lone = string_key_utf16::<Naive>(&[0x61, 0xd800]);
         assert_eq!(lone.length(), 2);
-        assert_eq!(lone[1], 0xd800);
+        assert_eq!(lone.item(1), 0xd800);
         assert_eq!(string_any_utf16::<Naive>(&[0x61, 0x62]), string_any("ab"));
         assert_eq!(string_key_utf16::<Naive>(&[]), string_key(""));
     }

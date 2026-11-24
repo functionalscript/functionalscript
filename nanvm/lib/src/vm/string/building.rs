@@ -18,7 +18,7 @@ fn is_space(u: u16) -> bool {
 impl<A: IVm> String<A> {
     /// The code units from `from` up to, not including, `to`.
     fn units(&self, from: u32, to: u32) -> String<A> {
-        (from..to.max(from)).map(|i| self[i]).to_string()
+        (from..to.max(from)).map(|i| self.item(i)).to_string()
     }
 
     /// `String.prototype.slice(start, end)`
@@ -91,7 +91,7 @@ impl<A: IVm> String<A> {
         }
         let target = target as u64;
         let padding =
-            (0..target - u64::from(len)).map(|i| fill[(i % u64::from(fill.length())) as u32]);
+            (0..target - u64::from(len)).map(|i| fill.item((i % u64::from(fill.length())) as u32));
         if at_start {
             create(target, padding.chain(self.clone()))
         } else {
@@ -106,14 +106,14 @@ impl<A: IVm> String<A> {
     pub(crate) fn trim(&self, start: bool, end: bool) -> String<A> {
         let len = self.length();
         let from = if start {
-            (0..len).find(|&i| !is_space(self[i])).unwrap_or(len)
+            (0..len).find(|&i| !is_space(self.item(i))).unwrap_or(len)
         } else {
             0
         };
         let to = if end {
             (from..len)
                 .rev()
-                .find(|&i| !is_space(self[i]))
+                .find(|&i| !is_space(self.item(i)))
                 .map_or(from, |i| i + 1)
         } else {
             len

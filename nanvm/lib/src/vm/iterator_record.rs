@@ -52,12 +52,12 @@ impl<A: IVm> Iterator for IteratorRecord<A> {
                 if *next >= length {
                     return None;
                 }
-                let first = string[*next];
+                let first = string.item(*next);
                 let pair = is_high_surrogate(first)
                     && *next + 1 < length
-                    && is_low_surrogate(string[*next + 1]);
+                    && is_low_surrogate(string.item(*next + 1));
                 let code_point: String<A> = if pair {
-                    [first, string[*next + 1]].to_string()
+                    [first, string.item(*next + 1)].to_string()
                 } else {
                     [first].to_string()
                 };

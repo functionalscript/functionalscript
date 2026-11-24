@@ -1,4 +1,3 @@
-use core::ops::Index;
 use std::rc::Rc;
 
 use crate::{
@@ -14,21 +13,18 @@ pub enum String {
     Static(&'static StaticString),
 }
 
-impl Index<usize> for String {
-    type Output = u16;
-    fn index(&self, index: usize) -> &u16 {
-        match self {
-            Self::Owned(units) => &units[index],
-            Self::Static(value) => &value[index],
-        }
-    }
-}
-
 impl SizedIndex<usize> for String {
+    type Output = u16;
     fn length(&self) -> usize {
         match self {
             Self::Owned(units) => units.len(),
             Self::Static(value) => value.length(),
+        }
+    }
+    fn item(&self, i: usize) -> u16 {
+        match self {
+            Self::Owned(units) => units[i],
+            Self::Static(value) => value.item(i),
         }
     }
 }

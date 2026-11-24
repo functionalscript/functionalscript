@@ -1,4 +1,5 @@
 use super::String;
+use crate::common::sized_index::SizedIndex;
 use crate::vm::{
     Any, IVm, ToAny,
     member_access::{indexed_entry, indexed_member_access},
@@ -25,7 +26,7 @@ impl<A: IVm> String<A> {
 
 /// The code unit at the in-bounds index `i`, as a one-unit string.
 fn unit<A: IVm>(s: &String<A>, i: u32) -> Any<A> {
-    String::of_unit(s[i]).to_any()
+    String::of_unit(s.item(i)).to_any()
 }
 
 #[cfg(test)]
