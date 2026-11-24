@@ -14,7 +14,7 @@
  * @import { PersistentMap } from '../../types/map/types.ts'
  */
 
-import { f64Bits, i64Literal, stringLiteral, u64WordItems, utf16Units } from '../../media/rust/module.f.js'
+import { asciiLiteral, f64Bits, i64Literal, stringLiteral, u64WordItems, utf16Units } from '../../media/rust/module.f.js'
 import { indent } from '../../media/rust/item/module.f.js'
 import { error, mapOk, ok, okList, okThen, unwrap } from '../../types/result/module.f.js'
 import { helperLength, isHelper, isIntrinsic, isStatic, staticText } from '../../edag/module.f.js'
@@ -1206,9 +1206,13 @@ export const scopeTagged = (b, options, external = [], native = false) => {
     const ids = namesOf(task)
     const declarations = mapEntries(ids.literals).map(([value, id]) => {
         const prefix = `${kw('static')} LITERAL_${id}: `
-        return typeof value === 'string'
-            ? cat([prefix, vm('StaticString'), ' = ', vm('utf16'), `(${slice(utf16Units(value))});`])
-            : cat([prefix, vm('StaticBigInt'), ` = StaticBigInt { sign: nanvm_lib::sign::Sign::${value < 0n ? 'Negative' : 'Positive'}, words: ${slice(u64WordItems(value))} };`])
+        if (typeof value === 'string') {
+            const [tag, text] = asciiLiteral(value)
+            return cat([prefix, vm('StaticString'), ' = ', ...tag === 'ok'
+                ? [vm('ascii'), `(${str(text)});`]
+                : [vm('utf16'), `(${slice(utf16Units(value))});`]])
+        }
+        return cat([prefix, vm('StaticBigInt'), ` = StaticBigInt { sign: nanvm_lib::sign::Sign::${value < 0n ? 'Negative' : 'Positive'}, words: ${slice(u64WordItems(value))} };`])
     })
     const rendered = /** @type {Result<Printed<readonly string[]>, readonly unknown[]>} */ (
         spellingWalk({ ...task, context: { ...task.context, names: ids, ownership: native ? moduleOwnership(task) : undefined } }))
