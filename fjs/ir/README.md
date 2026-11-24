@@ -211,9 +211,9 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   is called by its named exports, and L0 §20's `init`, which answers the
   main module's default export, is not built yet.
 - **Constants on the host**: the [counting host](./l0/host/count/module.mjs)
-  makes Any's four constants as cells `-1` to `-4`, each counted once for
-  its global, and keeps what `init` makes, since nothing drops a constant.
-  Each call after `init` must leave every cell as `init` left it.
+  makes Any's four constants as their NaN boxes (checkpoint 4e), immutable
+  globals of those bits, and keeps what `init` makes, since nothing drops a
+  constant. Each call after `init` must leave every cell as `init` left it.
 - **The lowering of a module-level definition**: each definition of a
   module that is not a function is
   [a constant](./from_fast/README.md#constants), `#c0`, `#c1`, … by its
@@ -467,13 +467,13 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
 ## What copy variants add
 
 - **An interface's copy variants**: a counted type may name some of its
-  variants as copy, each once, as Any names `undefined`, `null` and
-  `boolean`. A value of a subset that holds only those, such as Any's
-  constants, is used as a float is: the lifetime pass writes no `dup` and
-  no `drop` of it, and the owned-stage check takes it where a parameter
-  owns its argument.
-- **The counting host** makes such values immediates: Any's constant
-  cells, whose counts a `dup` or a `drop` leaves.
+  variants as copy, each once, as Any names `undefined`, `null`,
+  `boolean` and (in the IR module) `number`. A value of a subset that holds
+  only those, such as Any's constants, is used as a float is: the lifetime
+  pass writes no `dup` and no `drop` of it, and the owned-stage check takes
+  it where a parameter owns its argument.
+- **The counting host** makes such values immediates: their NaN-box bits,
+  which a `dup` or a `drop` leaves alone.
 
 ## What 11a adds
 

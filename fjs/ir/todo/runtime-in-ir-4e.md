@@ -26,7 +26,7 @@ May land as stacked PRs (git-base only). Depends on 4d-2 (#4113).
 
 ## Tasks
 
-- [ ] Counting host speaks NaN boxes + Ref ops; update `count/proof.mjs`
+- [x] Counting host speaks NaN boxes + Ref ops; update `count/proof.mjs`
 - [ ] `linkAny` for programs; proofs on NaNVM and counting host
 - [ ] Remeasure demos; tick `runtime-in-ir.md` / `defined-hooks.md`
 
