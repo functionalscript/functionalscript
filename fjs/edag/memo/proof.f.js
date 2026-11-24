@@ -11,7 +11,7 @@ import { conditional } from '../testlib.f.js'
 import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { vm } from '../amnesia/module.f.js'
 import { analysis, identityAnalysis } from '../analysis/module.f.js'
-import { memo, invoke } from './module.f.js'
+import { eachWith, memo, invoke } from './module.f.js'
 import { noBoolean, noIn } from '../operations/module.f.js'
 import runtimeEdag from '../../js/runtime/gen.edag.js'
 import { read } from '../value/property/module.f.js'
@@ -71,6 +71,16 @@ const elements = v => /** @type {ValueArray} */ (v)[1]
 const fails = (e, expected = ['undefined']) => assertStructurallySame(result(e), ['error', expected])
 
 export const proof = {
+    eachWith: () => {
+        // one invocation: a node two roots share is one value, and a
+        // failure between them stops neither
+        /** @type {Exp} */
+        const c = ['[]', []]
+        const [a, failed, b] = eachWith(undefined)([], [c, ['.', null, 'x'], ['[]', [c]]])
+        assertError(failed)
+        const [, [item]] = /** @type {readonly [string, readonly unknown[]]} */ (assertOk(b))
+        assert(assertOk(a) === item)
+    },
     // The entry check is the runtime's to answer, and this executor is
     // given none: the operator is refused by name, as its node specifies.
     inWithoutRuntime: () => {

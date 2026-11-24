@@ -15,7 +15,7 @@
  *
  * @module
  * @import { Exp, ExpOp } from '../types.ts'
- * @import { EdagValue } from '../value/types.ts'
+ * @import { EdagValue, Values } from '../value/types.ts'
  * @import { Analysis, Operand } from '../analysis/types.ts'
  * @import { ValueResult } from '../value/control/types.ts'
  * @import { Invoke, Outcome } from '../value/call/types.ts'
@@ -116,11 +116,11 @@ const keep = ([size, pairs, rest], e, value) =>
     size < few ? [size + 1, [e, value, pairs], rest] : [size + 1, pairs, rest(e, value)[1]]
 
 /**
- * An invoked body in tail position, evaluated as the graph has it: a node
- * is its own key, so one shared node is one value and two equal nodes are
- * two, as the identity table would count them. Every value a node answers
- * is kept by that node for the invocation, a shared one among them, and a
- * call it leaves is not, as the invocation ends with it.
+ * The evaluator of one invocation, as the graph has it: a node is its own
+ * key, so one shared node is one value and two equal nodes are two, as the
+ * identity table would count them. Every value a node answers is kept by
+ * that node for the invocation, a shared one among them, and a call it
+ * leaves is not, as the invocation ends with it.
  *
  * Nothing is read before it is needed. A table of the function would walk
  * its whole body, every nested body and every value it captured, on each
@@ -132,9 +132,13 @@ const keep = ([size, pairs, rest], e, value) =>
  * a list searched with `===`, and only an invocation that keeps more than
  * {@link few} keeps the rest in a map.
  *
- * @type {(context: Context, root: Exp, invoke: Invoke) => Outcome}
+ * @type {(context: Context, invoke: Invoke) => {
+ *  readonly operand: (e: Exp, state: _State<_Kept, Exp>) => Evaluation<_State<_Kept, Exp>>
+ *  readonly tail: (root: Exp, state: _State<_Kept, Exp>) => Tail<_State<_Kept, Exp>>
+ *  readonly start: _State<_Kept, Exp>
+ * }}
  */
-const body = (context, root, invoke) => {
+const invocation = (context, invoke) => {
     const settled = settle(invoke)
     const args = moduleArgs(context)
 
@@ -170,7 +174,17 @@ const body = (context, root, invoke) => {
         return retained(root, next, outcome)
     }
 
-    return tail(root, [nothing, operation({ context, moduleArgs: args, operand, tail, expression: identity, invoke })])[1]
+    return { operand, tail, start: [nothing, operation({ context, moduleArgs: args, operand, tail, expression: identity, invoke })] }
+}
+
+/**
+ * An invoked body in tail position, under {@link invocation}.
+ *
+ * @type {(context: Context, root: Exp, invoke: Invoke) => Outcome}
+ */
+const body = (context, root, invoke) => {
+    const { tail, start } = invocation(context, invoke)
+    return tail(root, start)[1]
 }
 
 /**
@@ -184,6 +198,28 @@ export const invokeWith = runtime => invokerWith((fn, context) => body(context, 
 
 /** {@link invokeWith} no runtime: every member function it answers is one the dispatcher implements natively. @type {Invoke} */
 export const invoke = invokeWith(undefined)
+
+/**
+ * Each of `roots` in order, in one invocation over `frame` with no
+ * arguments and no `self`: a node two roots share is one value, and a root
+ * that fails leaves the roots after it to their own answers. The roots are
+ * nodes that read neither an argument nor `self`
+ * ([`../precompute`](../precompute/module.f.js)).
+ *
+ * @type {(runtime: Runtime | undefined) => (frame: Values, roots: readonly Exp[]) => readonly ValueResult[]}
+ */
+export const eachWith = runtime => (frame, roots) => {
+    const { operand, start } = invocation({ frame, args: [], fixed: [], rest: ['[]', []], runtime }, invokeWith(runtime))
+    /** @type {readonly ValueResult[]} */
+    let results = []
+    let state = start
+    for (const root of roots) {
+        const [next, result] = operand(root, state)
+        state = next
+        results = [...results, result]
+    }
+    return results
+}
 
 /** Interpret a complete analyzed graph. Binding admission happens once here. @type {(a: Analysis) => (context: Invocation) => ValueResult} */
 export const memo = a => {
