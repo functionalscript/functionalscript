@@ -871,6 +871,8 @@ export const proof = {
         assertEq(pw(with_([['f', fn([['b', u(64)]], unit, () => r('drop_ref', b))]])), 'f: Ref.drop_ref counts a value on its bits, so only the drop of a counted type that the module defines calls it')
         assertEq(pw(with_([['drop', fn([['b', u(64)]], unit, () => let_('c', r('dup_ref', b), () => make([])))]])), 'drop: Ref.dup_ref counts a value on its bits, so only the dup of a counted type that the module defines calls it')
         assertEq(pw({ ...with_([]), constants: [['c', { type: u(64), value: r('dup_ref', n(0n)) }]] }), 'c: Ref.dup_ref counts a value on its bits, so only the dup of a counted type that the module defines calls it')
+        // a constant of a hook's name is no hook's body
+        assertEq(pw({ ...with_([]), constants: [['dup', { type: u(64), value: r('dup_ref', n(0n)) }]] }), 'dup: Ref.dup_ref counts a value on its bits, so only the dup of a counted type that the module defines calls it')
         assertEq(pw({ ...referencing, defines: { name: 'R', types: [['ref', { variants: ['value'], carrier: 'i64' }]] }, functions: [['dup', fn([['b', u(64)]], u(64), () => r('dup_ref', b))]], exports: [] }),
             'dup: Ref.dup_ref counts a value on its bits, so only the dup of a counted type that the module defines calls it')
         assertEq(pw(with_([['dup', fn([['b', u(64)]], u(64), () => let_('c', r('dup_ref', b), () => b))]])), "R.ref's dup answers Ref.dup_ref's result, so it calls Ref.dup_ref only as its last term")

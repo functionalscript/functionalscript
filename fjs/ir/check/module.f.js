@@ -622,9 +622,9 @@ const term = (env, t) => {
             if (f[0] === 'error') { return no(f[1]) }
             const { params, result } = f[1]
             const full = module === 'self' ? name : `${module}.${name}`
-            // A function that counts on bits is called only in the hook of its name of a counted type that the module defines.
+            // A function that counts on bits is called only in the body of the hook of its name of a counted type that the module defines, not in a constant of the hook's name.
             const { counts } = f[1]
-            if (counts !== undefined && !hooked(env).some(([, d]) => (counts === 'dup' ? d.dup : d.drop) === functionName)) {
+            if (counts !== undefined && !(env.body && hooked(env).some(([, d]) => (counts === 'dup' ? d.dup : d.drop) === functionName))) {
                 return no(`${full} counts a value on its bits, so only the ${counts} of a counted type that the module defines calls it`)
             }
             if (xs.length !== params.length) { return no(`${full} takes ${count(params.length, 'argument')}, not ${xs.length}`) }
@@ -808,7 +808,7 @@ const unkept = (env, t) => isNever(t) ? 'a constant of never holds no value' : u
  */
 const checkInterface = imports => ([name, { types, constants = [], functions }]) => {
     /** @type {_Env} */
-    const env = { name, locals: empty, labels: empty, functions: empty, imports, constants: empty, own: null, owned: false }
+    const env = { name, locals: empty, labels: empty, functions: empty, imports, constants: empty, own: null, owned: false, body: false }
     const type = twiceIn(types.map(([k]) => k))
     const constant = twiceIn(constants.map(([k]) => k))
     const named = twiceIn(functions.map(([k]) => k))
@@ -954,7 +954,7 @@ const unscoped = (env, imports, functions, locals, results, loaded = imports) =>
 /** A function whose signature the checker took: a body of its result's type. @type {(functions: OrderedMap<Signature>, imports: OrderedMap<Interface>, constants: OrderedMap<Type>, own: string | null, owned: boolean) => (entry: readonly [string, FunctionOf<Term>]) => Result<readonly [string, FunctionOf<Typed>], string>} */
 const checkFn = (functions, imports, constants, own, owned) => ([name, { params, result, body }]) => {
     /** @type {_Env} */
-    const env = { name, locals: localsOf(params), labels: label_('return', ['block', result])(empty), functions, imports, constants, own, owned }
+    const env = { name, locals: localsOf(params), labels: label_('return', ['block', result])(empty), functions, imports, constants, own, owned, body: true }
     const b = term(env, body)
     if (b[0] === 'error') { return b }
     return sub(env, b[1][0], result) ? ok([name, { params, result, body: b[1] }])
@@ -970,7 +970,7 @@ const checkFn = (functions, imports, constants, own, owned) => ([name, { params,
  */
 const checkConstant = (functions, imports, constants, own, owned) => ([name, { type, value: e }]) => {
     /** @type {_Env} */
-    const env = { name, locals: empty, labels: empty, functions, imports, constants, own, owned }
+    const env = { name, locals: empty, labels: empty, functions, imports, constants, own, owned, body: false }
     const v = value(term, env, e)
     if (v[0] === 'error') { return v }
     return sub(env, v[1][0], type) ? ok([name, { type, value: v[1] }])
@@ -1205,7 +1205,7 @@ const checkStage = (m, owned) => {
     const constants = fromEntries(declared.map(([k, { type }]) => /** @type {const} */ ([k, type])))
     const own = definedBy(m)
     /** @type {_Env} */
-    const env = { name: '', locals: empty, labels: empty, functions, imports, constants, own, owned }
+    const env = { name: '', locals: empty, labels: empty, functions, imports, constants, own, owned, body: false }
     const mine = own === null ? null : misdefined(m, own)
     // The types that the module defines, as an interface's checks see them: their hooks are the module's own, over bits, which `misdefined` checks.
     const plainTypes = own === null ? [] : assertNotNullish(m.defines).types.map(([k, { variants, kind, carrier, literal }]) => /** @type {const} */ ([k, { variants, carrier, ...(kind === undefined ? {} : { kind }), ...(literal === undefined ? {} : { literal }) }]))
@@ -1308,6 +1308,7 @@ export const typeOf = scope => {
         constants: fromEntries(constants),
         own: null,
         owned: false,
+        body: false,
     }
     const why = unscoped(env, imports, functions, locals.map(([, x]) => x), [...results, ...constants.map(([, x]) => x)])
     return t => {
