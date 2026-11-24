@@ -148,7 +148,13 @@ export const xor = op('xor')
 export const shl = op('shl')
 export const shr = op('shr')
 
-/** The 64 bits of a float, as a `u(64)`. */
+/**
+ * A float with any NaN replaced by the one NaN, `0x7FF8_0000_0000_0000`:
+ * an `f64c`, whose bits `to_bits` may read.
+ */
+export const canon = op('canon')
+
+/** The 64 bits of an `f64c`, as a `u(64)`. */
 export const to_bits = op('to_bits')
 
 /** The float of 64 bits: an `f64`, since the bits may be any NaN. */

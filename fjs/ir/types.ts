@@ -61,7 +61,7 @@ export type OpName =
     | 'add' | 'sub' | 'mul' | 'div' | 'neg' | 'abs' | 'sqrt'
     | 'eq' | 'lt' | 'le'
     | 'and' | 'or' | 'xor' | 'shl' | 'shr'
-    | 'float' | 'trunc_sat' | 'to_bits' | 'from_bits'
+    | 'float' | 'trunc_sat' | 'canon' | 'to_bits' | 'from_bits'
 
 /** A `match` arm: the variants it takes, `null` for the rest; a name for the operand there; its body. */
 export type ArmOf<T> = readonly [variants: readonly string[] | null, binder: string | null, body: T]

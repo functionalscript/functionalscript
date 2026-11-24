@@ -574,7 +574,10 @@ export const proof = {
     'fn signOf(x: f64c) -> u(1) =',
     '    shr(to_bits(x), 63)',
     '',
-    'export mask, either, flip, reference, shifted, drained, nibble, bitsOf, ofBits, signOf',
+    'fn negBits(x: f64) -> u(64) =',
+    '    to_bits(canon(neg(x)))',
+    '',
+    'export mask, either, flip, reference, shifted, drained, nibble, bitsOf, ofBits, signOf, negBits',
     '',
     ].join('\n')),
     corners: () => assertEq(print(corners), [
