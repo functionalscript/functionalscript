@@ -725,6 +725,19 @@ export const proof = {
         }
         // a match calls the kind that the module defines, and fails where it may
         assertEq(assertOk(check(tagged('tag', () => trap('no tag')))).functions.map(([k, f]) => `${k}: ${f.fails}`).join(', '), 'tag: true, size: true')
+        // a match of one variant tests no tag, so it calls no kind
+        const cellOf = /** @type {const} */ (['sealed', 'T', 'cell', null])
+        const narrow = tagged('tag', () => trap('no tag'))
+        assertEq(assertOk(check({ ...narrow, functions: [...narrow.functions, ['one', fn([['v', ['sealed', 'T', 'cell', ['big']]]], u(8), v => match(v, [[null, null, n(2n)]]))]] }))
+            .functions.map(([k, f]) => `${k}: ${f.fails}`).join(', '), 'tag: true, size: true, one: false')
+        // a constant that matches a cell reads what its kind reads
+        assertEq(why({
+            ...tagged('tag', v => and(unseal(v), constant('self', 'mask'))),
+            constants: [
+                ['size0', { type: u(8), value: match(seal(cellOf, n(0n)), [[['small'], null, n(1n)], [['big'], null, n(2n)]]) }],
+                ['mask', { type: int(0n, 1n), value: n(1n) }],
+            ],
+        }), 'size0: mask is read before init evaluates it')
         // the loader's names are for what a module imports, not for its own functions
         assertEq(assertOk(check(tagged('table', v => and(unseal(v), n(1n))))).functions.map(([k]) => k).join(), 'table,size')
         const defines = assertNotNullish(sealing.defines)

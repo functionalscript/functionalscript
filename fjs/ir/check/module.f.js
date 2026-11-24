@@ -55,7 +55,7 @@
  *
  * @import { Result } from '../../types/result/types.ts'
  * @import { OrderedMap } from '../../types/ordered_map/types.ts'
- * @import { ArmOf, Checked, CheckedFn, Code, ConstantOf, FunctionOf, Int, Interface, Module, OpName, Param, Product, Scope, Sealed, SealedDef, Signature, Term, Type, Typed } from '../types.ts'
+ * @import { ArmOf, Checked, CheckedFn, Code, ConstantOf, FunctionOf, Int, Interface, Module, OpName, Param, Product, Scope, Sealed, SealedDef, Signature, Term, Type, Typed, TypedTerm } from '../types.ts'
  * @import { _CheckTerm, _Env, _Join, _Label } from './private.ts'
  */
 
@@ -875,23 +875,39 @@ const checkConstant = (functions, imports, constants, own) => ([name, { type, va
 const union = (a, b) => [...a, ...b.filter(x => !a.includes(x))]
 
 /**
+ * The kind that a typed `match` calls, by its interface and its name, or
+ * `null` where it calls none: a `match` of a sealed type tests a tag where
+ * an arm before its last takes a variant, as the emitter writes it.
+ *
+ * @type {(imports: OrderedMap<Interface>, t: TypedTerm) => readonly [string, string] | null}
+ */
+const kindCall = (imports, t) => {
+    if (t[0] !== 'match' || t[1][0][0] !== 'sealed' || t[2].slice(0, -1).every(([vs]) => vs.length === 0)) { return null }
+    const [, module, name] = t[1][0]
+    return [module, assertNotNullish(assertNotNullish(assertNotNullish(at(module)(imports)).types.find(([k]) => k === name))[1].kind)]
+}
+
+/**
  * The module's constants that a typed term reads itself, and the module's
  * functions that it calls, each once. A `call_ref` of a known `code(f)`
- * counts as a call of `f`; `code(f)` alone does not.
+ * counts as a call of `f`; `code(f)` alone does not. A `match` of a type
+ * that the module defines, `own`, calls its kind where it tests a tag.
  *
- * @type {(x: Typed) => readonly [readonly string[], readonly string[]]}
+ * @type {(imports: OrderedMap<Interface>, own: string | null) => (x: Typed) => readonly [readonly string[], readonly string[]]}
  */
-const uses = ([, t]) => {
+const uses = (imports, own) => ([, t]) => {
     const known = t[0] === 'call_ref' && t[1][1][0] === 'code' ? t[1][1][1] : null
+    const kind = kindCall(imports, t)
     /** @type {readonly [readonly string[], readonly string[]]} */
-    const own = t[0] === 'constant' && t[1] === 'self' ? [[t[2]], []]
+    const start = t[0] === 'constant' && t[1] === 'self' ? [[t[2]], []]
         : t[0] === 'call' && t[1] === 'self' ? [[], [t[2]]]
         : known !== null ? [[], [known]]
+        : kind !== null && kind[0] === own ? [[], [kind[1]]]
         : [[], []]
     return inside(t).reduce(([cs, fs], x) => {
-        const [c, f] = uses(x)
+        const [c, f] = uses(imports, own)(x)
         return [union(cs, c), union(fs, f)]
-    }, own)
+    }, start)
 }
 
 /** Whether a typed term has a `call_ref` whose callee is not a known `code(f)`. @type {(x: Typed) => boolean} */
@@ -921,15 +937,15 @@ const readings = direct => {
  * it may: the term of each reads only the constants before it, itself or
  * through the functions that it calls.
  *
- * @type {(constants: readonly (readonly [string, ConstantOf<Typed>])[], functions: readonly (readonly [string, FunctionOf<Typed>])[]) => string | null}
+ * @type {(imports: OrderedMap<Interface>, own: string | null, constants: readonly (readonly [string, ConstantOf<Typed>])[], functions: readonly (readonly [string, FunctionOf<Typed>])[]) => string | null}
  */
-const unordered = (constants, functions) => {
+const unordered = (imports, own, constants, functions) => {
     const all = functions.map(([f]) => f)
     // An unresolved code value may run any function: in an initializer and in
     // any function body, take every function as a callee so readings grow.
     /** @type {(x: Typed) => readonly [readonly string[], readonly string[]]} */
     const deps = x => {
-        const [cs, fs] = uses(x)
+        const [cs, fs] = uses(imports, own)(x)
         return [cs, unresolvedCallRef(x) ? all : fs]
     }
     const reading = readings(functions.map(([f, { body }]) => /** @type {const} */ ([f, deps(body)])))
@@ -956,9 +972,8 @@ const declared = (imports, module, name) => assertNotNullish(assertNotNullish(at
 const failures = (imports, own) => ([, t]) => {
     // A `call_ref` of a known `code(f)` fails as `f` does; any other code value may fail.
     const known = t[0] === 'call_ref' && t[1][1][0] === 'code' ? t[1][1][1] : null
-    // A `match` of a sealed type calls its kind: the module's own, for a type that it defines.
-    const of = t[0] === 'match' && t[1][0][0] === 'sealed' ? t[1][0] : null
-    const kind = of === null ? null : /** @type {readonly [string, string]} */ ([of[1], assertNotNullish(assertNotNullish(assertNotNullish(at(of[1])(imports)).types.find(([k]) => k === of[2]))[1].kind)])
+    // A `match` that tests a tag calls its kind: the module's own, for a type that it defines.
+    const kind = kindCall(imports, t)
     const mine = kind !== null && kind[0] === own ? kind[1] : null
     const itself = t[0] === 'trap'
         || (t[0] === 'call' && t[1] !== 'self' && declared(imports, t[1], t[2]))
@@ -1037,7 +1052,7 @@ export const checkPlain = m => {
     if (typed[0] === 'error') { return typed }
     const values = okList(declared.map(checkConstant(functions, imports, constants, own)))
     if (values[0] === 'error') { return values }
-    const late = unordered(values[1], typed[1])
+    const late = unordered(imports, own, values[1], typed[1])
     if (late !== null) { return error(late) }
     const fails = failing(imports, own, typed[1])
     return ok({ imports: m.imports, ...(m.defines === undefined ? {} : { defines: m.defines }), constants: values[1], functions: typed[1].map(withEffect(fails)), exports: m.exports })
