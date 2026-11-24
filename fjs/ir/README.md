@@ -724,8 +724,14 @@ The `counting` module of [`testlib.f.js`](./testlib.f.js) defines a counted
 `C.cell` whose hooks give the bits back and do nothing, so its owned stage
 runs on any engine. `referencing` defines a counted `R.ref` whose hooks
 count a NaN box's reference through `Ref` and pass any other box through,
-as Any's will; it runs on NaNVM's `.wasm`, which finds no live handle
+as Any's do; it runs on NaNVM's `.wasm`, which finds no live handle
 after it.
+
+Checkpoint 4d-2: [`runtime/any`](./runtime/any/module.f.js) is Any itself
+in the IR — `isRef`, `kind`, hooks, the scalar conversions, `same`, and the
+four constants, with `number` among the copy variants. Its proofs check the
+module; the NaNVM host proves it against L0 on the same boxes. Linking it
+into programs is checkpoint 4e.
 
 ## What every slice refuses
 

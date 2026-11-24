@@ -128,7 +128,8 @@ make them ([choice 6](#6-the-tests-are-the-frames)).
 - **Done in 4d-1:** a defined type may be counted by hooks over its bits,
   which only the lifetime pass calls, through the new `release` (#4108),
   and `Ref` gives NaNVM's functions of references to those hooks only
-  (#4109). Next, 4d-2: Any's own module in the IR.
+  (#4109). **Done in 4d-2:** Any's own module in the IR
+  (`fjs/ir/runtime/any`). Next, 4e: link it into programs.
 - **Alternative:** step 7 of definition.md's
   [order of work](./definition.md#order-of-work) first: `bits(64, …)`
   layouts with the layout proof and frames, as
