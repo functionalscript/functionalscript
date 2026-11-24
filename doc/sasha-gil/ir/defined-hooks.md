@@ -105,7 +105,23 @@ The checker refuses, each with the type's name:
    be a failure that no function declares. NaNVM's `dup_ref` and
    `drop_ref` trap only on a dropped or forged box, which is a misuse,
    as L0's `dup` and `drop` do today, so their imports declare no
-   failure, as L0's do.
+   failure, as L0's do;
+4. a call to `T`'s `dup` or `drop`, or to `Ref.dup_ref` or
+   `Ref.drop_ref`, that the module writes itself, outside the two
+   hooks: "only the lifetime pass calls T's dup and drop", and "Ref's
+   dup_ref and drop_ref are called only in T's dup and drop". Their
+   bits are a `u(64)`, which is copy, so the owned check can't see a
+   discarded `dup_ref` result (a leaked handle) or a second `drop_ref`
+   of the same bits (a "not a value" trap). Keeping the calls inside
+   the hooks and the pass's own wrapping leaves two places to check:
+   the pass, whose wrapping is the table below, and the hooks
+   themselves;
+5. in `dup`, a `Ref.dup_ref` result that is not the hook's result on
+   its path, and in `drop`, more than one `Ref.drop_ref` on one path:
+   "T's dup must answer dup_ref's result", "T's drop calls drop_ref at
+   most once on each path". With rule 4 this makes each hook's own
+   count right by construction: a `dup` gives exactly one new owner,
+   and a `drop` gives up at most one.
 4c's refusal of a `dup` or a `drop` on a defined type goes. A hook may
 call other functions, and those may hold values of `T`: that is
 ordinary recursion, whose end is the module's to prove, as for any
@@ -227,7 +243,10 @@ functions as Any's hooks: an `any` is an `i64`, as its bits are. So:
 
 ## Proofs
 
-- **Checker:** one refusal for each rule above, and the hooks of a small
+- **Checker:** one refusal for each rule above (for rules 4 and 5: a
+  discarded `self.dup(b)`, a `Ref.dup_ref` in an ordinary function, a
+  `dup` that answers `b` after calling `dup_ref`, a `drop` that calls
+  `drop_ref` twice), and the hooks of a small
   defined type (as `tagging` is in 4c) accepted.
 - **Lifetime:** printed goldens of a defining module, showing
   `seal(t, self.dup(unseal(e)))` and `self.drop(release(x))` on each
