@@ -7,10 +7,21 @@ use crate::{
 };
 
 /// Its own code units, or a constant's descriptor, read in the form it was written in.
-#[derive(Clone)]
 pub enum String {
     Owned(Rc<[u16]>),
     Static(&'static StaticString),
+}
+
+impl Clone for String {
+    /// Out of line: compiled code clones a value in thousands of places, and a
+    /// release build that inlines the two branches at each of them is larger.
+    #[inline(never)]
+    fn clone(&self) -> Self {
+        match self {
+            Self::Owned(units) => Self::Owned(units.clone()),
+            Self::Static(value) => Self::Static(value),
+        }
+    }
 }
 
 impl SizedIndex<usize> for String {
