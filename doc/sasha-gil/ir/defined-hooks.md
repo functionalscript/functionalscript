@@ -196,12 +196,17 @@ fn drop(b: u(64)) -> unit =
   values are numbers.
 - For a value that may be a reference, a hook costs one `and`, one
   compare and a branch, and calls NaNVM only for a reference.
-- `kind` `unseal`s its borrowed `any` and reads the tag from the bits
-  by the README's tests, as
-  [nan-box-patterns.md](./nan-box-patterns.md) lists them: the four
-  constants by their bits, `Ref.kind_ref(b)` for a reference, and
-  `number` for every other pattern, the one NaN and the infinities
-  among them.
+- `kind` `unseal`s its borrowed `any` and dispatches on the box's tag
+  exactly as runtime-in-ir.md's
+  [kind table](./runtime-in-ir.md#6-the-tests-are-the-frames) does: a
+  number (`is_number`) is 3, `Ref.kind_ref(b)` answers for a reference,
+  and the scalar tags give boolean, undefined and null. Short bigints
+  (`x & 1 == 1`) and short strings (`x & 0xC != 0`) keep their own
+  branches, 5 and 4, so a later slice that makes them needs no change to
+  `kind`; until then no box takes those branches.
+- Short strings and short bigints take no NaNVM slot either. When a
+  later slice makes them, `isRef` is still false for them, so `dup` and
+  `drop` pass their bits through unchanged.
 
 ## What other modules see
 
