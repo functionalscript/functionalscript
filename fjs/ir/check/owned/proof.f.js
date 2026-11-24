@@ -441,6 +441,7 @@ export const proof = {
         fine(hooked([own('v', cell)], cell, let_('w', seal(cell, call('self', 'dup', [unseal(v)])), w => let_('d', gone(v), () => w))))
         assertEq(why(hooked([['v', cell]], unit, gone(v))), 'f: release: v is borrowed')
         assertEq(why(hooked([['v', cell]], unit, match(v, [[null, 'w', gone(get('w'))]]))), 'f: release: w is borrowed')
+        assertEq(why(hooked([['v', cell]], unit, gone(field(make([['c', v]]), 'c')))), "f: release's operand is borrowed")
         assertEq(why(hooked([own('v', cell)], unit, let_('d', gone(v), () => gone(v)))), 'f: v is used after it was consumed')
         assertEq(why(hooked([own('v', cell)], u(64), let_('d', gone(v), () => unseal(v)))), 'f: v is used after it was consumed')
         assertEq(why(hooked([own('v', cell)], unit, make([]))), 'f: v is left over')

@@ -121,8 +121,14 @@ make them ([choice 6](#6-the-tests-are-the-frames)).
   name and the types under it, as an interface gives them (Sasha's pick,
   2026-11-24). Its `kind` is a function of its own. A defined type names
   no `dup` or `drop` yet: a drop written in the module would leave the
-  value it owns for the lifetime pass to drop again, so 4d needs a way for
-  Any's own `drop` to give its value up first.
+  value it owns for the lifetime pass to drop again. 4d lifts that with
+  hooks over the carrier's bits, as
+  [defined-hooks.md](./defined-hooks.md) gives in full (Sasha's pick C,
+  2026-11-24).
+- **Done in 4d-1:** a defined type may be counted by hooks over its bits,
+  which only the lifetime pass calls, through the new `release` (#4108),
+  and `Ref` gives NaNVM's functions of references to those hooks only
+  (#4109). Next, 4d-2: Any's own module in the IR.
 - **Alternative:** step 7 of definition.md's
   [order of work](./definition.md#order-of-work) first: `bits(64, …)`
   layouts with the layout proof and frames, as

@@ -640,6 +640,9 @@ const term = (env, t) => {
             return ok([isDup ? args[1][0][0] : result, ['call', module, name, args[1]]])
         }
         case 'code': {
+            // A hook is the lifetime pass's to call, so no code value names one.
+            const hook = hooked(env).find(([, { dup, drop }]) => dup === t[1] || drop === t[1])
+            if (hook !== undefined) { return no(`code of ${t[1]}: only the lifetime pass calls ${show(['sealed', assertNotNullish(env.own), hook[0], null])}'s ${hook[1].dup === t[1] ? 'dup' : 'drop'}`) }
             const f = callee(env, 'self', t[1])
             if (f[0] === 'error') { return no(f[1]) }
             const { params, result } = f[1]
@@ -1156,6 +1159,10 @@ const misdefined = (m, own) => {
         const s = m.functions.find(([k]) => k === f)?.[1]
         return s !== undefined && s.params.length === 1 && !isOwn(s.params[0]) && equal(s.params[0][1], bits) && equal(s.result, result)
     }
+    // Each hook is one type's, so that a call of it names the type whose value it counts.
+    const hooks = assertNotNullish(m.defines).types.flatMap(([type, { dup, drop }]) => [...(dup === undefined ? [] : [dup]), ...(drop === undefined ? [] : [drop])].map(f => /** @type {const} */ ([type, f])))
+    const shared = hooks.find(([, f], k) => hooks.findIndex(([, g]) => g === f) !== k)
+    if (shared !== undefined) { return `${own}.${shared[0]} names ${shared[1]}, which is a hook already: each hook counts one type` }
     return assertNotNullish(m.defines).types.map(([type, { variants, literal, carrier, dup, drop, copy }]) => {
         const t = `${own}.${type}`
         const bits = carrier === 'i64' ? u(64) : u(32)

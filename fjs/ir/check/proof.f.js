@@ -814,6 +814,13 @@ export const proof = {
         assertEq(why(counter({}, [['drop', fn([['b', u(64)]], u(64), b => b)]])), "C.cell's drop is (b: u(64)) -> unit, over its carrier's bits")
         assertEq(why(counter({}, [['drop', fn([['b', u(64)], ['c', u(64)]], unit, () => make([]))]])), "C.cell's drop is (b: u(64)) -> unit, over its carrier's bits")
         assertEq(why(counter({ carrier: 'i32' })), "C.cell's dup is (b: u(32)) -> u(32), over its carrier's bits")
+        // each hook counts one type, so a drop names the type whose value it releases
+        assertEq(why({ ...counting, defines: { name: 'C', types: [['cell', def], ['other', { ...def, kind: 'tag2' }]] }, functions: [...counting.functions, ['tag2', fn([['v', sealed('C', 'other')]], int(0n, 1n), v => and(unseal(v), n(1n)))]] }),
+            'C.other names dup, which is a hook already: each hook counts one type')
+        assertEq(why(counter({ drop: 'dup' })), 'C.cell names dup, which is a hook already: each hook counts one type')
+        // a hook is the pass's to call, so no code value names one
+        assertEq(why(counter({}, [['f', fn([['b', u(64)]], u(64), b => call_ref(codeOf('drop'), [b]))]])), "f: code of drop: only the lifetime pass calls cell's drop")
+        assertEq(why(counter({}, [['f', fn([['b', u(64)]], u(64), b => call_ref(codeOf('dup'), [b]))]])), "f: code of dup: only the lifetime pass calls cell's dup")
         // a hook may not fail, since the pass writes it after the effects are inferred
         assertEq(why(counter({}, [['drop', fn([['b', u(64)]], unit, () => trap('no drop'))]])), "C.cell's drop may fail, and the drops that the lifetime pass writes cannot")
         assertEq(why(counter({}, [['dup', fn([['b', u(64)]], u(64), () => trap('no dup'))]])), "C.cell's dup may fail, and the dups that the lifetime pass writes cannot")
