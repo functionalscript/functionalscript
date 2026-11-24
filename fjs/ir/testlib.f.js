@@ -22,7 +22,7 @@ import { any, builder, container, l0 } from './l0/module.f.js'
 import {
     abs, add, and, block, bool, br, call, cast, constant, div, eq, exact, f64, f64c, false_, field, float, fn, from_bits, get, i,
     if_, int, le, let_, lit, loop, lt, make, match, mul, n, ne, neg, never, next, not, only, or, own, product, return_, shl, shr,
-    sqrt, sub, throw_, to_bits, trap, true_, trunc_sat, u, unit, variant, xor,
+    canon, sqrt, sub, throw_, to_bits, trap, true_, trunc_sat, u, unit, variant, xor,
 } from './module.f.js'
 
 /** `2 ** 40`, beside which `diff`'s operands lie. */
@@ -111,7 +111,8 @@ export const corners = {
  * `to_bits` of an `f64c` and `from_bits`,
  * which a runtime written in the IR reads a NaN box with: `reference` builds a
  * reference's bits, `nibble` reads its kind back, and `signOf` reads a
- * float's sign bit.
+ * float's sign bit. `negBits` reads the bits of a negated float through
+ * `canon`, where `neg` of a NaN flips its sign bit.
  *
  * @type {Module}
  */
@@ -128,8 +129,9 @@ export const bits = {
         ['bitsOf', fn([['x', f64c]], u(64), x => to_bits(x))],
         ['ofBits', fn([['b', u(64)]], f64, b => from_bits(b))],
         ['signOf', fn([['x', f64c]], u(1), x => shr(to_bits(x), n(63n)))],
+        ['negBits', fn([['x', f64]], u(64), x => to_bits(canon(neg(x))))],
     ],
-    exports: ['mask', 'either', 'flip', 'reference', 'shifted', 'drained', 'nibble', 'bitsOf', 'ofBits', 'signOf'],
+    exports: ['mask', 'either', 'flip', 'reference', 'shifted', 'drained', 'nibble', 'bitsOf', 'ofBits', 'signOf', 'negBits'],
 }
 
 /** A call of an L0 function, by its interface and its name. @type {(module: string, name: string) => (...args: readonly Term[]) => Term} */

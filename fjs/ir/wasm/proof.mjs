@@ -259,6 +259,7 @@ const twins = {
     bitsOf: ([x]) => bitsOf(num(x)),
     ofBits: ([b]) => ofBits(int(b)),
     signOf: ([x]) => bitsOf(num(x)) >> 63n,
+    negBits: ([x]) => Number.isNaN(num(x)) ? 0x7FF8_0000_0000_0000n : bitsOf(-num(x)),
 }
 
 /** Values of `any` for the string comparisons: strings that share a prefix, the two ends of a unit, a pair of surrogates, and values of other kinds, which trap. */
