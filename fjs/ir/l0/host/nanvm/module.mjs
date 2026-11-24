@@ -108,19 +108,6 @@ const ARRAY = 6
 const OBJECT = 7
 const FUNCTION = 8
 
-/**
- * NaNVM's box of a copy value: Any's constants, as the NaN box spells them
- * ([runtime-in-ir.md](../../../../../doc/sasha-gil/ir/runtime-in-ir.md#the-box-in-slice-1)),
- * each read as a signed `i64`.
- */
-const UNDEFINED = 0x7FF0_0000_0000_0020n
-const NULL = 0x7FF0_0000_0000_0030n
-const FALSE = 0x7FF0_0000_0000_0010n
-const TRUE = BigInt.asIntN(64, 0xFFF0_0000_0000_0010n)
-
-/** @type {(value: undefined | null | boolean) => bigint} */
-const constantOf = value => value === undefined ? UNDEFINED : value === null ? NULL : value ? TRUE : FALSE
-
 /** Whether a value is one of Any's copy variants: `undefined`, `null` or a boolean. @type {(value: unknown) => value is undefined | null | boolean} */
 const isCopy = value => value === undefined || value === null || typeof value === 'boolean'
 
@@ -152,6 +139,13 @@ export const nanvmHost = nanvm => (values, data = 0, entries = 0) => {
     const { invoke } = new WebAssembly.Instance(adapter, { 'fjs:adapter': { table, host } }).exports
     const instance = new WebAssembly.Instance(nanvm, { 'fjs:host': { invoke } })
     const n = /** @type {_Nanvm} */ (/** @type {unknown} */ (instance.exports))
+    // Any's constants, as NaNVM boxes them: NaNVM is their one source.
+    const UNDEFINED = n.constant_box(0)
+    const NULL = n.constant_box(1)
+    const FALSE = n.constant_box(2)
+    const TRUE = n.constant_box(3)
+    /** @type {(value: undefined | null | boolean) => bigint} */
+    const constantOf = value => value === undefined ? UNDEFINED : value === null ? NULL : value ? TRUE : FALSE
     /** The units of a string, written in a region of their own. @type {(s: string) => bigint} */
     const makeString = s => {
         const ptr = n.reserve(2 * s.length)
