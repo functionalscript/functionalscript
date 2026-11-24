@@ -183,16 +183,18 @@ work dominates, and JS was also faster here).
 
 ## Where the time goes (historical: before linkAny)
 
-The tables and profile below are from the second and third runs above,
-when Any was still an L0 import and every scalar op was a host call.
-After [linkAny (checkpoint 4e)](#after-linkany-checkpoint-4e), numeric
-loops keep essentially one import (`drop` of the result); see that
-section for current tallies and times. The diagnosis here still explains
-why the earlier levers mattered and where reference-heavy programs pay.
+The tables and profile below are from the second run above (after
+borrow / number paths / records, before the three levers of the
+[third run](#after-the-next-three-levers)), when Any was still an L0
+import and every scalar op was a host call. After
+[linkAny (checkpoint 4e)](#after-linkany-checkpoint-4e), numeric loops
+keep essentially one import (`drop` of the result); see that section for
+current tallies and times. The diagnosis here still explains why the
+earlier levers mattered and where reference-heavy programs pay.
 
 ### L0 calls per program
 
-From the `calls` mode of the third run. The module's literals, made once
+From the `calls` mode of the second run. The module's literals, made once
 by its start function, are left out.
 
 | Program | L0 calls now | Per step | Before the levers | Most called now |
