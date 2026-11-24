@@ -147,7 +147,7 @@ program's calls.
 
 ### After linkAny (checkpoint 4e)
 
-On branch `cursor/ir-runtime-4e-remeasure-8be5`, 2026-11-24
+On branch `cursor/ir-runtime-4e-remeasure-8be5` at `79ba661aaf`, 2026-11-24
 (America/Los_Angeles), after #4113–#4115 (Any in the IR, counting host
 boxes, `linkAny`). Median of three runs on this container. Scalar ops are
 local WASM; import calls that remain are `Ref.*` and container/string work.
