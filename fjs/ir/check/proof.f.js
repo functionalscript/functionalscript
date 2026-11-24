@@ -915,6 +915,13 @@ export const proof = {
         // alone too: L0's Ref says how NaNVM's functions count, imported or not
         assertEq(pw({ ...aliased(signature([['b', u(64)]], u(64))), imports: [['Alias', { abi: 'fjs:l0', types: [], functions: [['dup_ref', signature([['b', u(64)]], u(64))]] }]] }), unmarked)
         assertOk(checkPlain(aliased(countsBits('dup', signature([['b', u(64)]], u(64))))))
+        // a function that is one of NaNVM's own has Ref's signature, as NaNVM's host exports it
+        /** A module that imports only `Alias` of `fjs:l0`, naming `name` by `s`. @type {(name: string, s: Signature) => Module} */
+        const lone = (name, s) => ({ ...referencing, imports: [['Alias', { abi: 'fjs:l0', types: [], functions: [[name, s]] }]] })
+        assertEq(pw(lone('dup_ref', countsBits('dup', signature([['b', u(32)]], u(32))))), "Alias.dup_ref is the import dup_ref of fjs:l0, which L0's Ref.dup_ref declares as (b: u(64)) -> u(64), not (b: u(32)) -> u(32)")
+        assertEq(pw(lone('same_ref', signature([['a', u(64)]], bool))), "Alias.same_ref is the import same_ref of fjs:l0, which L0's Ref.same_ref declares as (a: u(64), b: u(64)) -> bool, not (a: u(64)) -> bool")
+        assertEq(pw(lone('same_ref', signature([['a', u(64)], ['b', u(32)]], bool))), "Alias.same_ref is the import same_ref of fjs:l0, which L0's Ref.same_ref declares as (a: u(64), b: u(64)) -> bool, not (a: u(64), b: u(32)) -> bool")
+        assertEq(pw(lone('kind_ref', signature([['b', u(64)]], int(0n, 9n)))), "Alias.kind_ref is the import kind_ref of fjs:l0, which L0's Ref.kind_ref declares as (b: u(64)) -> int(0, 8), not (b: u(64)) -> int(0, 9)")
         // other functions of Ref, and its counting ones as the last term of each path, are the hooks' to call
         assertOk(checkPlain(with_([['dup', fn([['b', u(64)]], u(64), () => if_(r('same_ref', b, b), let_('k', r('kind_ref', b), () => if_(true_, r('dup_ref', b), b)), b))]])))
     },

@@ -893,7 +893,9 @@ const globalOf = (env, t) => {
  * whose literals it makes are carried by that value. Two functions of one
  * name count on bits alike, `dup`, `drop` or not at all, and as L0's `Ref`
  * says NaNVM's do, so that an alias without the marker, beside `Ref` or
- * alone, cannot call a counting host function outside a hook.
+ * alone, cannot call a counting host function outside a hook, and a
+ * function that is one of `Ref`'s has `Ref`'s signature, which is how
+ * NaNVM's host exports it.
  *
  * @type {(env: _Env, imports: readonly (readonly [string, Interface])[]) => string | null}
  */
@@ -914,6 +916,14 @@ const shared = (env, imports) => {
         const other = marks.find(([, a, m, x], k) => k < j && a === abi && m === member && x !== c)
         return other === undefined ? [] : [`the functions ${other[0]}, which counts ${other[3]}, and ${name}, which counts ${c}, are both the import ${member} of ${abi}, and its names count on bits alike`]
     })
+    // A function that is one of NaNVM's own in L0's Ref has Ref's signature, as NaNVM's host exports it.
+    /** A signature, as the messages show it. @type {(s: Signature) => string} */
+    const shown = ({ params, result }) => `(${params.map(p => `${isOwn(p) ? 'own ' : ''}${p[0]}: ${show(p[1])}`).join(', ')}) -> ${show(result)}`
+    const unlike = imports.flatMap(([module, { abi, functions }]) => abi !== ref[1].abi ? [] : functions.flatMap(([member, s]) => {
+        const r = ref[1].functions.find(([k]) => k === member)?.[1]
+        const same = r === undefined || (s.params.length === r.params.length && s.params.every((p, k) => equal(p[1], r.params[k][1]) && isOwn(p) === isOwn(r.params[k])) && equal(s.result, r.result))
+        return same ? [] : [`${module}.${member} is the import ${member} of ${abi}, which L0's ${ref[0]}.${member} declares as ${shown(assertNotNullish(r))}, not ${shown(s)}`]
+    }))
     const cs = imports.flatMap(([module, { abi, constants = [] }]) => constants.map(([member, t]) => /** @type {const} */ ([`${module}.${member}`, abi, member, globalOf(env, t)])))
     const loader = [...fns.map(([name, abi, member]) => /** @type {const} */ ([`function ${name}`, abi, member])), ...cs.map(([name, abi, member]) => /** @type {const} */ ([`constant ${name}`, abi, member]))]
         .find(([, abi, member]) => (member === 'memory' || member === 'data_base') && makers.some(([, a]) => a === abi))
@@ -933,7 +943,7 @@ const shared = (env, imports) => {
     })
     return loader !== undefined ? `the ${loader[0]} is the import ${loader[2]} of ${loader[1]}, which the loader gives a module that makes literals`
         : table !== undefined ? `the ${table[0]} is the import ${table[2]} of ${table[1]}, which the loader gives a module that holds code`
-        : clash[0] ?? carried[0] ?? alias[0] ?? null
+        : clash[0] ?? carried[0] ?? alias[0] ?? unlike[0] ?? null
 }
 
 /**

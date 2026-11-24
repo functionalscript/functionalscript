@@ -163,7 +163,9 @@ Built in 4d-1 (#4108, #4109), the rules take these shapes:
   (the same ABI and name) carries the same marker, and the marker that
   L0's `Ref` gives it, whether or not the module imports `Ref`: so an
   unmarked alias of `dup_ref`, beside `Ref` or alone, cannot call it
-  outside a hook. Rule 5 is that such a call is the hook's last term: the body's, a
+  outside a hook. Such a function also has `Ref`'s signature, which is
+  how NaNVM's host exports it, so a `u(32)` alias of `dup_ref` is
+  refused rather than failing when the module links. Rule 5 is that such a call is the hook's last term: the body's, a
   `let`'s body's or a `match` arm's.
 
 4c's refusal of a `dup` or a `drop` on a defined type goes. A hook may
