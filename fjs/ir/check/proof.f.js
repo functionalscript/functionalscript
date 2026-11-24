@@ -5,12 +5,12 @@
 import { assert, assertEq, assertError, assertOk } from '../../asserts/module.f.js'
 import { any, builder, l0, string } from '../l0/module.f.js'
 import {
-    add, block, bool, br, call, call_ref, cast, code, codeOf, constant, div, eq, f64, f64c, field, float, fn, get, i, if_, int, let_, lit, loop, lt, make,
-    match, mayFail, mul, n, neg, never, next, only, own, product, return_, sealed, signature, sub, throw_, trap, true_, trunc_sat,
-    u, unit, variant,
+    add, and, block, bool, br, call, call_ref, cast, code, codeOf, constant, div, eq, f64, f64c, field, float, fn, from_bits, get, i, if_, int,
+    let_, lit, loop, lt, make, match, mayFail, mul, n, neg, never, next, only, or, own, product, return_, sealed, shl, shr, signature, sub,
+    throw_, to_bits, trap, true_, trunc_sat, u, unit, variant, xor,
 } from '../module.f.js'
 import { show } from '../print/module.f.js'
-import { constants, corners, loops, records, samples, throws, unknown } from '../testlib.f.js'
+import { bits, constants, corners, loops, records, samples, throws, unknown } from '../testlib.f.js'
 import { check, checkPlain, typeOf } from './module.f.js'
 
 /** A module of one function, `f`. @type {(params: readonly Param[], result: Type, body: Term) => Module} */
@@ -683,6 +683,33 @@ export const proof = {
         assertEq(why(one(p, u(8), trunc_sat(u(8), n(1n)))), 'f: trunc_sat of int(1, 1): trunc_sat takes a float')
         assertEq(why(one(p, u(8), trunc_sat(u(8), y))), 'f: no local y')
         assertEq(why(one(p, f64, ['op', 'add', [x, x], u(8)])), 'f: add takes no range')
+    },
+    // A bit operator takes unsigned integers, and its range is exact: `and`
+    // within the smaller bound, `or` and `xor` within the ones of the larger,
+    // a shift at both ends by a count below 64.
+    bits: () => {
+        assertEq(assertOk(check(bits)).functions.map(([k, f]) => `${k}: ${show(f.body[0])}`).join(', '), [
+            'mask: u(16)', 'either: u(32)', 'flip: u(64)', 'reference: u(52)', 'shifted: u(15)', 'drained: u(32)', 'nibble: u(4)',
+            'bitsOf: u(64)', 'ofBits: f64', 'signOf: u(1)',
+        ].join(', '))
+        const p = /** @type {const} */ ([['a', int(2n, 5n)], ['x', f64], ['k', int(1n, 2n)]])
+        const a = get('a')
+        assertEq(bodyType(one(p, u(64), shl(a, n(3n)))), 'int(16, 40)')
+        assertEq(bodyType(one(p, u(64), shr(a, get('k')))), 'int(0, 2)')
+        assertEq(why(one(p, u(64), and(a, n(-1n)))), 'f: and of int(2, 5) and int(-1, -1): a bit operator takes unsigned integers')
+        assertEq(why(one(p, u(64), shl(a, n(64n)))), 'f: shl of int(2, 5) by int(64, 64): a shift count is below 64')
+        assertEq(why(one(p, u(64), shl(a, n(62n)))), 'f: shl of int(2, 5) and int(62, 62) is int(0, 23058430092136939520), which needs more than one word')
+        assertEq(bodyType(one(p, u(64), and(a, n(255n)))), 'int(0, 5)')
+        for (const [name, f] of /** @type {const} */ ([['and', and], ['or', or], ['xor', xor], ['shl', shl], ['shr', shr]])) {
+            assertEq(why(one(p, u(64), f(get('x'), get('x')))), `f: ${name} of f64: a bit operator takes unsigned integers`)
+        }
+        assertEq(why(one(p, u(64), to_bits(a))), 'f: to_bits of int(2, 5): to_bits takes a float')
+        assertEq(why(one(p, u(64), to_bits(get('x')))), 'f: to_bits of f64: to_bits takes an f64c, whose one NaN has one bit pattern')
+        assertEq(bodyType(one(p, u(64), to_bits(one_))), 'u(64)')
+        assertEq(bodyType(one(p, u(64), or(n(0n), n(0n)))), 'int(0, 0)')
+        assertEq(why(one(p, f64, from_bits(get('x')))), 'f: from_bits of f64: from_bits takes an unsigned integer')
+        assertEq(why(one(p, f64, from_bits(n(-1n)))), 'f: from_bits of int(-1, -1): from_bits takes an unsigned integer')
+        assertEq(why(one(p, f64, ['op', 'to_bits', [get('x'), get('x')]])), 'f: to_bits takes one operand, not 2')
     },
     br: () => {
         assertEq(why(one([], f64, br('l', one_))), 'f: no label l')

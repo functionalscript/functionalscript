@@ -8,7 +8,7 @@ import {
     add, block, bool, br, call, call_ref, code, codeOf, f64, f64c, field, fn, get, i, if_, int, let_, lit, loop, make, match, n, never, next, only,
     product, return_, sealed, trap, true_, trunc_sat, u, unit, variant,
 } from '../module.f.js'
-import { constants, corners, loops, records, samples, unknown } from '../testlib.f.js'
+import { bits, constants, corners, loops, records, samples, unknown } from '../testlib.f.js'
 import { print, quote, show } from './module.f.js'
 
 /** @type {Type} */
@@ -277,7 +277,7 @@ export const proof = {
     "",
     "export toBoolean, kindOf, isNumber, size, tag, number, fail, falsy",
     "",
-].join('\n')),
+    ].join('\n')),
     loops: () => assertEq(print(loops), [
     "import Any from fjs:l0",
     "    type any = undefined | null | boolean | number | string | bigint | array | object | function",
@@ -443,7 +443,7 @@ export const proof = {
     "",
     "export stringEquals, stringLess, factorial, triangle, kindAfter, index, indexOfSum, three, toU31, toI32, toU32, toSmall, toU64, toI64, toWide, toNegative",
     "",
-].join('\n')),
+    ].join('\n')),
     samples: () => assertEq(print(samples), [
     'fn max(a: f64, b: f64) -> f64 =',
     '    if lt(a, b) then b else a',
@@ -541,6 +541,40 @@ export const proof = {
     '        b',
     '',
     'export max, sum, sign, clamp, area, diff, double, delta, product, same, lessU32, lessMixed, lessU64, atMost, atMostU32, atMostI64, atMostU64, notEqual, toFloat, toFloatSigned, toFloatWide, average, magnitude, hypot, distance, safeDiv, pow, pick, xor',
+    '',
+    ].join('\n')),
+    bits: () => assertEq(print(bits), [
+    'fn mask(a: u(64), b: u(16)) -> u(16) =',
+    '    and(a, b)',
+    '',
+    'fn either(a: u(8), b: u(32)) -> u(32) =',
+    '    or(a, b)',
+    '',
+    'fn flip(a: u(64), b: u(64)) -> u(64) =',
+    '    xor(a, b)',
+    '',
+    'fn reference(k: u(4), p: u(32)) -> u(64) =',
+    '    or(shl(k, 48), shl(p, 2))',
+    '',
+    'fn shifted(a: u(8), k: u(3)) -> u(16) =',
+    '    xor(shl(a, k), shr(a, k))',
+    '',
+    'fn drained(a: u(32), k: u(6)) -> u(32) =',
+    '    shr(a, k)',
+    '',
+    'fn nibble(x: u(64)) -> u(4) =',
+    '    and(shr(x, 48), 15)',
+    '',
+    'fn bitsOf(x: f64c) -> u(64) =',
+    '    to_bits(x)',
+    '',
+    'fn ofBits(b: u(64)) -> f64 =',
+    '    from_bits(b)',
+    '',
+    'fn signOf(x: f64c) -> u(1) =',
+    '    shr(to_bits(x), 63)',
+    '',
+    'export mask, either, flip, reference, shifted, drained, nibble, bitsOf, ofBits, signOf',
     '',
     ].join('\n')),
     corners: () => assertEq(print(corners), [
@@ -732,7 +766,7 @@ export const proof = {
     "",
     "export stringIndex, midpoint, fib, choose, middle, widened, nested, steps, describe, kindOfFirst",
     "",
-].join('\n')),
+    ].join('\n')),
     zoo: () => assertEq(print(zoo), [
     'fn ranges(a: int(-5, -1), b: int(0, 0), c: int(1, 3)) -> f64 =',
     '    1.5 as f64',

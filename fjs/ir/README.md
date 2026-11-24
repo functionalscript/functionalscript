@@ -633,6 +633,26 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   It is lowered only where something calls it. Outside a program the
   refusal stays.
 
+## What the bit operators add
+
+The first step of the runtime written in the IR
+([runtime-in-ir.md](../../doc/sasha-gil/ir/runtime-in-ir.md), checkpoint 2),
+which reads and builds a NaN box:
+
+- **`and`, `or`, `xor`, `shl` and `shr`** of two unsigned integers, each
+  one WASM instruction in the word it runs in. The range is exact: `and`
+  within the smaller bound, `or` and `xor` within the ones of the larger,
+  and a shift, by a count below 64, at both ends, so `shl` is refused
+  where its result needs more than one word, as `mul` is. `shr` is the
+  logical shift. A signed operand is refused.
+- **`to_bits(x)`**, the 64 bits of a float as a `u(64)`, and
+  **`from_bits(b)`**, the float of an unsigned integer's bits, an `f64`,
+  since the bits may be any NaN: `i64.reinterpret_f64` and
+  `f64.reinterpret_i64`.
+
+The `bits` module of [`testlib.f.js`](./testlib.f.js) runs each of them
+against JavaScript's `&`, `|`, `^`, `<<`, `>>` and a `DataView`.
+
 ## What every slice refuses
 
 Everything else is refused with the function's name and the reason, never
