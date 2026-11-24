@@ -422,7 +422,7 @@ each step.
 - [x] **A module function that calls itself** (#4059): in a program, one
   that the module does not export is a function of the IR, `#h0`, `#h1`,
   …, of `any` alone, where 11b refused it.
-- [ ] **The perf demos' programs**, stacked: `%`, `>>` and `&` of `any`
+- [x] **The perf demos' programs**, stacked: `%`, `>>` and `&` of `any`
   (#4060), `Number(x)` and template literals (#4061), bigint literals
   (#4062), and `charCodeAt`, `at`, `every` and `filter` as L1 operations
   (#4063).
