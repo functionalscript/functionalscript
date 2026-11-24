@@ -186,7 +186,12 @@ runtime-in-ir.md inlines once Any is linked into the program.
 With the box of [Sergey's README](../../sergey-shandar/nanvm/README.md),
 a value needs a count only when it is a reference
 (`0x7FF0…0002 | kind << 48 | handle << 2`), and NaNVM keeps that count.
-`Ref` is a new L0 interface of 4b's exports, over bits:
+`Ref` is a new L0 interface of 4b's exports, over bits. Those exports
+are on main since #4100 (`kind_ref`, `dup_ref`, `drop_ref` and
+`same_ref` in `nanvm/lib/src/l0/abi.rs`, exported by
+`nanvm/l0-wasm/src/lib.rs`); this note's branch is stacked on 4c
+(#4104), which was cut before #4100 merged, so they show here only once
+it is rebased on main. 4d-1 needs no new NaNVM work, only the IR side:
 
 ```text
 import Ref from fjs:l0
