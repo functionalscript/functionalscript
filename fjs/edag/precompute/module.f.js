@@ -48,7 +48,7 @@ import { generate } from '../../types/array/module.f.js'
 import { empty as noExps, mapGet, mapSet } from '../../types/map/module.f.js'
 import { empty as none } from '../../types/ref_map/module.f.js'
 import { ok, unwrap } from '../../types/result/module.f.js'
-import { identityAnalysis, ownOperandsOf, restoreNode } from '../analysis/module.f.js'
+import { identityAnalysis, operandsOf, ownOperandsOf, restoreNode } from '../analysis/module.f.js'
 import { eachWith } from '../memo/module.f.js'
 
 /** The reads an invocation decides. */
@@ -59,6 +59,15 @@ const named = operands => operands.flatMap(x => x instanceof Array ? [x[1]] : []
 
 /** Whether a node computes anything: a read of a slot and a node with no operand at all do not. @type {(node: Node) => boolean} */
 const computes = node => node.length > 1 && node[0] !== 'frame'
+
+/**
+ * An entry over the expressions built for its operands: the node it was
+ * where none of them changed, since what exists is never made again.
+ *
+ * @type {(built: PersistentMap<number, Exp>, exps: readonly Exp[], node: Node, i: number) => Exp}
+ */
+const rebuilt = (built, exps, node, i) =>
+    named(operandsOf(node)).every(j => mapGet(built, j) === exps[Number(j)]) ? exps[Number(i)] : restoreNode(built, node)
 
 /**
  * The slots a body needs, and the body reading them by their new places:
@@ -78,8 +87,8 @@ const prune = (length, count, unknown, body) => {
     const built = nodes.reduce(
         (/** @type {PersistentMap<number, Exp>} */ before, node, i) => mapSet(before, i,
             scope[Number(i)] !== self ? exps[Number(i)]
-            : node[0] === 'frame' ? ['frame', kept.indexOf(node[1])]
-            : restoreNode(before, node)),
+            : node[0] === 'frame' && kept.indexOf(node[1]) !== node[1] ? ['frame', kept.indexOf(node[1])]
+            : rebuilt(before, exps, node, i)),
         noExps)
     return [kept, body instanceof Array ? assertNotNullish(mapGet(built, self - 1)) : body]
 }
@@ -147,7 +156,7 @@ const reduce = runtime => {
                 }
             } else if (scope[Number(i)] !== self || closed[Number(i)]) {
                 built = mapSet(built, i, exps[Number(i)])
-            } else if (node[0] === ',') {
+            } else if (node[0] === ',' && node[1].some((x, j, all) => j < all.length - 1 && x instanceof Array && done.includes(x[1]))) {
                 // An operand before the last is there to be evaluated, and
                 // one that has been is done: it goes, and a comma left with
                 // its last operand alone is that operand.
@@ -171,7 +180,7 @@ const reduce = runtime => {
                     known.flatMap((r, j) => r !== undefined && r[0] === 'ok' ? [] : [j]),
                     innerBody instanceof Array ? exps[Number(innerBody[1])] : innerBody)
                 if (inner === null) {
-                    built = mapSet(built, i, restoreNode(built, node))
+                    built = mapSet(built, i, rebuilt(built, exps, node, i))
                 } else {
                     const [kept, values, reduced] = inner
                     /** @type {readonly Exp[]} */
@@ -189,7 +198,7 @@ const reduce = runtime => {
                     built = mapSet(built, i, ['=>', innerLength, handed, reduced])
                 }
             } else {
-                built = mapSet(built, i, restoreNode(built, node))
+                built = mapSet(built, i, rebuilt(built, exps, node, i))
             }
         }
         if (!changed) { return null }
@@ -214,6 +223,9 @@ const closure = runtime => fn => {
     return ['=>', length, kept.map(i => all[Number(i)]), result]
 }
 
+/** Whether each value is the one it was. @type {(before: Values, after: Values) => boolean} */
+const same = (before, after) => after.every((value, i) => value === before[Number(i)])
+
 /**
  * The values of a container in order, the answered ones threaded through.
  *
@@ -233,8 +245,9 @@ const each = one => (seen, values) => {
 /**
  * `value` with every closure in it precomputed over its precomputed
  * captures. A value reached twice is answered once, so what was one array,
- * object or function is one still. The answer is a new value throughout;
- * the one given is left as it was.
+ * object or function is one still. What exists is never made again: an
+ * array, an object or a function nothing changed in is answered as itself,
+ * and so is every node of a body whose operands stayed as they were.
  * `runtime` answers the member and static functions a closed call makes,
  * as it does for [`memo`](../memo/module.f.js).
  *
@@ -251,18 +264,19 @@ export const precompute = runtime => {
             case '[]': {
                 const [next, items] = each(walk)(seen, value[1])
                 /** @type {EdagValue} */
-                const result = ['[]', items]
+                const result = same(value[1], items) ? value : ['[]', items]
                 return [next(value, result)[1], result]
             }
             case '{}': {
                 const [next, items] = each(walk)(seen, value[1].map(([, , item]) => item))
                 /** @type {EdagValue} */
-                const result = ['{}', value[1].map(([, key], i) => [':', key, items[Number(i)]])]
+                const result = same(value[1].map(([, , item]) => item), items) ? value
+                    : ['{}', value[1].map((property, i) => property[2] === items[Number(i)] ? property : [':', property[1], items[Number(i)]])]
                 return [next(value, result)[1], result]
             }
             case '=>': {
                 const [next, slots] = each(walk)(seen, value[2])
-                const result = one(['=>', value[1], slots, value[3]])
+                const result = one(same(value[2], slots) ? value : ['=>', value[1], slots, value[3]])
                 return [next(value, result)[1], result]
             }
             // `undefined`, a helper and a built-in have nothing to precompute

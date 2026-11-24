@@ -44,7 +44,7 @@ export const proof = {
     primitiveBody: () => {
         /** @type {Closure} */
         const fn = ['=>', 0, [], 4]
-        same(run(fn), fn)
+        assert(run(fn) === fn)
     },
     undefinedResult: () => {
         // `() => [].x` is `() => undefined`
@@ -62,13 +62,13 @@ export const proof = {
         // `(a, ...r) => [a, r, self]` computes nothing ahead of a call
         /** @type {Closure} */
         const fn = ['=>', 1, [], ['[]', [['arg', 0], ['rest'], ['self']]]]
-        same(run(fn), fn)
+        assert(run(fn) === fn)
     },
     leaves: () => {
         // a read of a slot and a node with no operand are left where they are
         /** @type {Closure} */
         const fn = ['=>', 1, [7], ['[]', [['arg', 0], ['frame', 0], ['undefined']]]]
-        same(run(fn), fn)
+        assert(run(fn) === fn)
     },
     closedPart: () => {
         // `x => [x, [1, 2], 2 + 2]`
@@ -186,6 +186,31 @@ export const proof = {
         const five = ['=>', 1, [['arg', 0]], 5]
         const result = closure(['=>', 1, [], ['[]', [pairOf, five, ['[]', [1]]]]])
         same(result, ['=>', 1, [['[]', [1]]], ['[]', [pairOf, five, ['frame', 0]]]])
+        const [, [first, second]] = /** @type {readonly [string, readonly unknown[]]} */ (result[3])
+        assert(first === pairOf)
+        assert(second === five)
+    },
+    existing: () => {
+        // what exists is never made again: a container nothing changed in
+        // is itself, and beside a function that changed its neighbours are
+        /** @type {EdagValue} */
+        const data = ['[]', [1, ['{}', [[':', 'a', ['[]', []]]]]]]
+        assert(run(data) === data)
+        /** @type {EdagValue} */
+        const mixed = ['{}', [[':', 'data', data], [':', 'pair', pair]]]
+        const [, [kept, [, , changed]]] = /** @type {readonly [string, readonly [unknown, readonly [string, string, Closure]]]} */ (run(mixed))
+        assert(kept === mixed[1][0])
+        same(changed, ['=>', 0, [['[]', [1, 2]]], ['frame', 0]])
+        // a function over a capture that changed, with nothing of its own to evaluate
+        const [, , [inner], body] = closure(['=>', 1, [pair], ['[]', [['frame', 0], ['arg', 0]]]])
+        same(inner, ['=>', 0, [['[]', [1, 2]]], ['frame', 0]])
+        same(body, ['[]', [['frame', 0], ['arg', 0]]])
+    },
+    openComma: () => {
+        // `f => (f(), f)` has nothing evaluated ahead and stays as it is
+        /** @type {Closure} */
+        const fn = ['=>', 1, [], [',', [['()', ['arg', 0], []], ['arg', 0]]]]
+        assert(run(fn) === fn)
     },
     refused: () => {
         // a node under two functions is no body the analysis reads
@@ -193,7 +218,7 @@ export const proof = {
         const n = ['[]', []]
         /** @type {Closure} */
         const fn = ['=>', 0, [], ['[]', [n, ['=>', 0, [], n]]]]
-        same(run(fn), fn)
+        assert(run(fn) === fn)
     },
     values: () => {
         // a value reached twice is answered once, in an array and an object
