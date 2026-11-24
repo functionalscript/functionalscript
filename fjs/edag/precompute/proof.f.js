@@ -132,19 +132,60 @@ export const proof = {
         agree(fn, result, [0])
     },
     nested: () => {
-        // `x => [y => [x, y, [1]], () => 2 + 2]`: an open function's body is
-        // left as written, a closed function is made once and precomputed
-        // no further
-        /** @type {Exp} */
-        const inner = ['[]', [['frame', 0], ['arg', 0], ['[]', [1]]]]
-        /** @type {Exp} */
-        const constant = ['=>', 0, [], ['+', 2, 2]]
+        // `x => [y => [x, y, [1]], () => 2 + 2]`: the open function's `[1]`
+        // is made once and handed to it through a slot, and the closed
+        // function is made once
         /** @type {Closure} */
-        const fn = ['=>', 1, [], ['[]', [['=>', 1, [['arg', 0]], inner], constant]]]
+        const fn = ['=>', 1, [], ['[]', [
+            ['=>', 1, [['arg', 0]], ['[]', [['frame', 0], ['arg', 0], ['[]', [1]]]]],
+            ['=>', 0, [], ['+', 2, 2]],
+        ]]]
         const result = closure(fn)
-        same(result, ['=>', 1, [['=>', 0, [], ['+', 2, 2]]], ['[]', [['=>', 1, [['arg', 0]], inner], ['frame', 0]]]])
-        const [, [open]] = /** @type {readonly [string, readonly Closure[]]} */ (apply(result, [3]))
-        assert(open[3] === inner)
+        same(result, ['=>', 1, [['[]', [1]], ['=>', 0, [], ['+', 2, 2]]], ['[]', [
+            ['=>', 1, [['arg', 0], ['frame', 0]], ['[]', [['frame', 0], ['arg', 0], ['frame', 1]]]],
+            ['frame', 1],
+        ]]])
+        const [, [inner]] = /** @type {readonly [string, readonly Closure[]]} */ (apply(result, [3]))
+        same(apply(inner, [4]), ['[]', [3, 4, ['[]', [1]]]])
+        // one array for every call of every inner function
+        const [, [again]] = /** @type {readonly [string, readonly Closure[]]} */ (apply(result, [5]))
+        const [, [, , first]] = /** @type {readonly [string, readonly unknown[]]} */ (apply(inner, [4]))
+        const [, [, , second]] = /** @type {readonly [string, readonly unknown[]]} */ (apply(again, [6]))
+        assert(first === second)
+    },
+    nestedKnownSlot: () => {
+        // `x => y => [x, make(1), five]`, `make` captured: the inner slots
+        // holding `make` and `5` are known, so the call is made here, and
+        // `make` is captured by neither function afterwards
+        /** @type {Closure} */
+        const make = ['=>', 1, [], ['[]', [['arg', 0]]]]
+        /** @type {Closure} */
+        const fn = ['=>', 1, [make], ['=>', 1, [['arg', 0], ['frame', 0], 5],
+            ['[]', [['frame', 0], ['()', ['frame', 1], [1]], ['frame', 2]]]]]
+        const result = closure(fn)
+        same(result, ['=>', 1, [['[]', [1]]], ['=>', 1, [['arg', 0], 5, ['frame', 0]],
+            ['[]', [['frame', 0], ['frame', 2], ['frame', 1]]]]])
+        same(apply(apply(result, [7]), [8]), apply(apply(fn, [7]), [8]))
+    },
+    nestedUnknownSlot: () => {
+        // a closed slot that fails is unknown, and fails at the call as before
+        /** @type {Exp} */
+        const inner = ['[]', [['frame', 0], ['frame', 1], ['[]', [1]]]]
+        /** @type {Closure} */
+        const fn = ['=>', 1, [], ['=>', 0, [['arg', 0], ['.', null, 'x']], inner]]
+        const result = closure(fn)
+        same(result, ['=>', 1, [['[]', [1]]], ['=>', 0, [['arg', 0], ['.', null, 'x'], ['frame', 0]],
+            ['[]', [['frame', 0], ['frame', 1], ['frame', 2]]]]])
+        assertError(call(ok(result), [() => ok(1)], invoke))
+    },
+    nestedUntouched: () => {
+        // `x => [y => [x, y], y => 5, [1]]`: nothing to evaluate in either inner function
+        /** @type {Exp} */
+        const pairOf = ['=>', 1, [['arg', 0]], ['[]', [['frame', 0], ['arg', 0]]]]
+        /** @type {Exp} */
+        const five = ['=>', 1, [['arg', 0]], 5]
+        const result = closure(['=>', 1, [], ['[]', [pairOf, five, ['[]', [1]]]]])
+        same(result, ['=>', 1, [['[]', [1]]], ['[]', [pairOf, five, ['frame', 0]]]])
     },
     refused: () => {
         // a node under two functions is no body the analysis reads

@@ -24,9 +24,15 @@
  * unspecified: two calls can answer one array, object or function where
  * they answered two.
  *
- * **Not reached.** The body of a nested function whose slots are open is
- * left as written, and a value a precomputation answers is not precomputed
- * in turn. A closed call that does not end, does not end here.
+ * **Nested functions.** A nested function with an open slot has a frame
+ * that is partly known: a slot holding a constant is, the rest are filled
+ * at a call. Its body is reduced over the known ones, and a value it lifts
+ * becomes a capture of the outermost closure, handed down through a slot.
+ * `x => y => [x, y, table(64)]` builds the table once.
+ *
+ * **Not reached.** A value a precomputation answers is not precomputed in
+ * turn, and `['self']` is open. A closed call that does not end, does not
+ * end here.
  *
  * @module
  *
@@ -38,9 +44,10 @@
  */
 
 import { assertNotNullish } from '../../asserts/module.f.js'
+import { generate } from '../../types/array/module.f.js'
 import { empty as noExps, mapGet, mapSet } from '../../types/map/module.f.js'
 import { empty as none } from '../../types/ref_map/module.f.js'
-import { unwrap } from '../../types/result/module.f.js'
+import { ok, unwrap } from '../../types/result/module.f.js'
 import { identityAnalysis, ownOperandsOf, restoreNode } from '../analysis/module.f.js'
 import { eachWith } from '../memo/module.f.js'
 
@@ -54,81 +61,91 @@ const named = operands => operands.flatMap(x => x instanceof Array ? [x[1]] : []
 const computes = node => node.length > 1 && node[0] !== 'frame'
 
 /**
- * The closure without the captures its body does not read, the reads
- * renumbered: a call made ahead leaves the function it called unread, and
- * a writer refuses a slot no read reaches.
+ * The slots a body needs, and the body reading them by their new places:
+ * a slot the body does not read goes, since a call made ahead leaves the
+ * function it called unread and a writer refuses a slot no read reaches.
+ * A slot in `unknown` stays, read or not: it is filled at a call.
  *
- * @type {(fn: Closure) => Closure}
+ * @type {(length: number, count: number, unknown: readonly number[], body: Exp) => readonly [kept: readonly number[], body: Exp]}
  */
-const prune = fn => {
-    const [, length, captures, body] = fn
-    const { nodes, scope, exps } = unwrap(identityAnalysis(['=>', length, captures.map(() => null), body]))
+const prune = (length, count, unknown, body) => {
+    const all = generate(count, i => i)
+    const { nodes, scope, exps } = unwrap(identityAnalysis(['=>', length, all.map(() => null), body]))
     const self = nodes.length - 1
     const used = nodes.flatMap((node, i) => scope[Number(i)] === self && node[0] === 'frame' ? [node[1]] : [])
-    const kept = captures.flatMap((_, i) => used.includes(i) ? [i] : [])
-    if (kept.length === captures.length) { return fn }
+    const kept = all.filter(i => used.includes(i) || unknown.includes(i))
+    if (kept.length === count) { return [kept, body] }
     const built = nodes.reduce(
         (/** @type {PersistentMap<number, Exp>} */ before, node, i) => mapSet(before, i,
             scope[Number(i)] !== self ? exps[Number(i)]
             : node[0] === 'frame' ? ['frame', kept.indexOf(node[1])]
             : restoreNode(before, node)),
         noExps)
-    return ['=>', length, kept.map(i => captures[Number(i)]), body instanceof Array ? assertNotNullish(mapGet(built, self - 1)) : body]
+    return [kept, body instanceof Array ? assertNotNullish(mapGet(built, self - 1)) : body]
 }
 
 /**
- * The closure with its closed nodes evaluated, or the closure itself where
- * nothing was.
+ * A function over `slots`, the ones in `unknown` filled only at a call,
+ * with the closed nodes of `body` evaluated: the slots it then has, each
+ * by its place in `slots` followed by the values lifted, those values, and
+ * the body; or `null` where nothing was evaluated.
  *
- * @type {(runtime: Runtime | undefined) => (fn: Closure) => Closure}
+ * A nested function with an open slot is the same question one level
+ * down: its closed slots are known, the rest are not, and a value its body
+ * lifts is lifted here and handed to it through a slot.
+ *
+ * @type {(runtime: Runtime | undefined) => (length: number, slots: Values, unknown: readonly number[], body: Exp) => readonly [kept: readonly number[], lifted: Values, body: Exp] | null}
  */
-const closure = runtime => fn => {
-    const [, length, captures, body] = fn
-    const [kind, table] = identityAnalysis(['=>', length, captures.map(() => null), body])
-    // A body the analysis refuses, and a primitive one, stay as they are.
-    if (kind === 'error' || table.nodes.length < 2) { return fn }
-    const { nodes, scope, exps } = table
-    // The function is the last entry, and its body the one before it.
-    const self = nodes.length - 1
-    const root = self - 1
+const reduce = runtime => {
+    /** @type {(length: number, slots: Values, unknown: readonly number[], body: Exp) => readonly [kept: readonly number[], lifted: Values, body: Exp] | null} */
+    const go = (length, slots, unknown, body) => {
+        const [kind, table] = identityAnalysis(['=>', length, slots.map(() => null), body])
+        // A body the analysis refuses, and a primitive one, stay as they are.
+        if (kind === 'error' || table.nodes.length < 2) { return null }
+        const { nodes, scope, exps } = table
+        // The function is the last entry, and its body the one before it.
+        const self = nodes.length - 1
+        const root = self - 1
 
-    // A node follows its operands, so each is decided by the ones before it.
-    const closed = nodes.reduce(
-        (/** @type {readonly boolean[]} */ before, node, i) =>
-            [...before, scope[Number(i)] === self && !open.includes(node[0]) && named(ownOperandsOf(node)).every(j => before[Number(j)])],
-        [])
+        // A node follows its operands, so each is decided by the ones before it.
+        const closed = nodes.reduce(
+            (/** @type {readonly boolean[]} */ before, node, i) => [
+                ...before,
+                scope[Number(i)] === self
+                    && !open.includes(node[0])
+                    && !(node[0] === 'frame' && unknown.includes(node[1]))
+                    && named(ownOperandsOf(node)).every(j => before[Number(j)]),
+            ],
+            [])
 
-    /** What an open node of the body reads, and the body. */
-    const read = [root, ...nodes.flatMap((node, i) => scope[Number(i)] === self && !closed[Number(i)] ? named(ownOperandsOf(node)) : [])]
-    const points = nodes.flatMap((node, i) => closed[Number(i)] && computes(node) && read.includes(i) ? [i] : [])
-    const results = eachWith(runtime)(captures, points.map(i => exps[Number(i)]))
+        /** What an open node of the body reads, and the body. */
+        const read = [root, ...nodes.flatMap((node, i) => scope[Number(i)] === self && !closed[Number(i)] ? named(ownOperandsOf(node)) : [])]
+        /** The closed nodes among them, each evaluated once. */
+        const reached = nodes.flatMap((_, i) => closed[Number(i)] && read.includes(i) ? [i] : [])
+        const results = eachWith(runtime)(slots, reached.map(i => exps[Number(i)]))
+        /** The nodes whose values replace them. */
+        const done = reached.filter((i, at) => results[Number(at)][0] === 'ok' && computes(nodes[Number(i)]))
 
-    /** The nodes evaluated. */
-    const done = points.filter((_, p) => results[Number(p)][0] === 'ok')
-
-    /** @type {PersistentMap<number, Exp>} */
-    let built = noExps
-    /** @type {Values} */
-    let lifted = []
-    let changed = false
-    for (let i = 0; i < nodes.length; i += 1) {
-        const point = points.indexOf(i)
-        const result = point === -1 ? undefined : results[Number(point)]
-        if (result !== undefined && result[0] === 'ok') {
-            const value = result[1]
-            changed = true
-            if (!(value instanceof Array)) {
-                built = mapSet(built, i, value)
-            } else if (value[0] === 'undefined') {
-                // a node of this body's own, as the scope rule asks
-                built = mapSet(built, i, ['undefined'])
-            } else {
-                built = mapSet(built, i, ['frame', captures.length + lifted.length])
-                lifted = [...lifted, value]
-            }
-        } else {
+        /** @type {PersistentMap<number, Exp>} */
+        let built = noExps
+        /** @type {Values} */
+        let lifted = []
+        let changed = false
+        for (let i = 0; i < nodes.length; i += 1) {
             const node = nodes[Number(i)]
-            if (scope[Number(i)] !== self || closed[Number(i)]) {
+            if (done.includes(i)) {
+                const value = unwrap(results[Number(reached.indexOf(i))])
+                changed = true
+                if (!(value instanceof Array)) {
+                    built = mapSet(built, i, value)
+                } else if (value[0] === 'undefined') {
+                    // a node of this body's own, as the scope rule asks
+                    built = mapSet(built, i, ['undefined'])
+                } else {
+                    built = mapSet(built, i, ['frame', slots.length + lifted.length])
+                    lifted = [...lifted, value]
+                }
+            } else if (scope[Number(i)] !== self || closed[Number(i)]) {
                 built = mapSet(built, i, exps[Number(i)])
             } else if (node[0] === ',') {
                 // An operand before the last is there to be evaluated, and
@@ -139,12 +156,62 @@ const closure = runtime => fn => {
                     .filter((x, j, all) => j === all.length - 1 || !(x instanceof Array && done.includes(x[1])))
                     .map(x => x instanceof Array ? assertNotNullish(mapGet(before, x[1])) : x)
                 built = mapSet(built, i, left.length === 1 ? left[0] : [',', left])
+            } else if (node[0] === '=>') {
+                // A slot is known where it is a primitive or a closed node
+                // that answered; the function is reduced over those.
+                const [, innerLength, innerSlots, innerBody] = node
+                const known = innerSlots.map(x => {
+                    if (!(x instanceof Array)) { return ok(x) }
+                    const at = reached.indexOf(x[1])
+                    return at === -1 ? undefined : results[Number(at)]
+                })
+                const inner = go(
+                    innerLength,
+                    known.map(r => r !== undefined && r[0] === 'ok' ? r[1] : null),
+                    known.flatMap((r, j) => r !== undefined && r[0] === 'ok' ? [] : [j]),
+                    innerBody instanceof Array ? exps[Number(innerBody[1])] : innerBody)
+                if (inner === null) {
+                    built = mapSet(built, i, restoreNode(built, node))
+                } else {
+                    const [kept, values, reduced] = inner
+                    /** @type {readonly Exp[]} */
+                    let handed = []
+                    for (const k of kept) {
+                        if (k < innerSlots.length) {
+                            const x = innerSlots[Number(k)]
+                            handed = [...handed, x instanceof Array ? assertNotNullish(mapGet(built, x[1])) : x]
+                        } else {
+                            handed = [...handed, ['frame', slots.length + lifted.length]]
+                            lifted = [...lifted, values[Number(k - innerSlots.length)]]
+                        }
+                    }
+                    changed = true
+                    built = mapSet(built, i, ['=>', innerLength, handed, reduced])
+                }
             } else {
                 built = mapSet(built, i, restoreNode(built, node))
             }
         }
+        if (!changed) { return null }
+        const [kept, pruned] = prune(length, slots.length + lifted.length, unknown, assertNotNullish(mapGet(built, root)))
+        return [kept, lifted, pruned]
     }
-    return changed ? prune(['=>', length, [...captures, ...lifted], assertNotNullish(mapGet(built, root))]) : fn
+    return go
+}
+
+/**
+ * The closure with its closed nodes evaluated, or the closure itself where
+ * nothing was.
+ *
+ * @type {(runtime: Runtime | undefined) => (fn: Closure) => Closure}
+ */
+const closure = runtime => fn => {
+    const [, length, captures, body] = fn
+    const reduced = reduce(runtime)(length, captures, [], body)
+    if (reduced === null) { return fn }
+    const [kept, lifted, result] = reduced
+    const all = [...captures, ...lifted]
+    return ['=>', length, kept.map(i => all[Number(i)]), result]
 }
 
 /**
