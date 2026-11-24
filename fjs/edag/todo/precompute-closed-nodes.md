@@ -209,13 +209,12 @@ on NaNVM, the same as the uncurried one.
    a call that answers the next.
 4. **A known failure.** A closed node that fails is left to fail at every
    call. It could become a `throw` of the value it failed with.
-5. **What asks for it.** The identity change is approved
-   ([approval](https://github.com/functionalscript/functionalscript/pull/4111#issuecomment-7135356529)
-   of the [value-identity proposal](../../../spec/todo/value-identity.md)).
-   How `fjs compile` is asked for an output written from the value, with or
-   without `precompute` — an output name, a flag
-   ([`070-compiler-flags.md`](../../compiler/todo/070-compiler-flags.md)),
-   or the default — is still to decide.
+5. **A module that does not initialize in reasonable time.** A code
+   output now initializes the module, as a data output always did: a module
+   whose initialization overflows the host's stack or does not end stops
+   `fjs compile` for `.js` and `.rs` too, where it used to be written
+   without being run. Initialization is not counted; only what is
+   precomputed is.
 
 ### Tasks
 
@@ -235,8 +234,13 @@ on NaNVM, the same as the uncurried one.
 - [ ] Count what a member function or a helper calls back, and one count
       for a whole load.
 - [ ] Choose the count from measurements: 100 000 is a first guess.
-- [ ] Decide what asks for it, and write `.js` and `.rs` from the value in
-      `fjs compile`.
+- [x] Write `.js` and `.rs` from the module's value in `fjs compile`, by
+      default (decided by the task owner), and from the graph where the
+      module has no value or the writer no spelling for it. A caller whose
+      subject is the writer or the VM asks for the graph: the NaNVM harness,
+      the demos and the proofs of the writers.
+- [ ] Correct the specification pages that still call them graph outputs
+      ([`code-outputs-are-values.md`](../../../spec/todo/code-outputs-are-values.md)).
 - [ ] Merge captures holding one value, so the whole compiler has a
       FunctionalScript spelling.
 - [ ] Release builds of the whole compiler from the graph and from the

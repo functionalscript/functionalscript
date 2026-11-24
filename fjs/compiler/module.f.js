@@ -26,16 +26,19 @@
  * @import { _Checked, _CompileOp, OutputRefusal, RuntimeLoad } from './types.ts'
  * @import { ParseError } from './parser/types.ts'
  * @import { SourceError } from './transpiler/types.ts'
+ * @import { Exp } from '../edag/types.ts'
+ * @import { EdagValue } from '../edag/value/types.ts'
  * @import { Effect, IoChannel, IoError } from '../effects/types.ts'
  * @import { Env, Program, ReadWhole, ResolveFileModule, Write } from '../effects/node/types.ts'
  */
 
-import { _transpileDefault, noRuntime as transpilerNoRuntime, runtimeAt } from './transpiler/module.f.js'
+import { _transpileDefault, interpret, noRuntime as transpilerNoRuntime, runtimeAt } from './transpiler/module.f.js'
+import { ownBodies } from '../edag/value/function/module.f.js'
 import { errorLocation } from './parser/module.f.js'
 import { _origin, resolve, resolveOver } from './edag/module.f.js'
 import { toRustMarked } from './rust/module.f.js'
 import { _numberSerialize, tryJsonMarked, tryMarked } from '../media/datajs/serializer/module.f.js'
-import { tryMarked as fjsMarked, tryModuleLocated, unlocated } from './serializer/module.f.js'
+import { tryMarked as fjsMarked, tryModuleLocated, tryModuleMarked, unlocated } from './serializer/module.f.js'
 import { arrayWrap, boolSerialize, colon, nullSerialize, objectWrap, stringSerialize } from '../media/json/serializer/module.f.js'
 import { flat, map } from '../types/list/module.f.js'
 import { error, mapOk, ok, okThen } from '../types/result/module.f.js'
@@ -113,33 +116,76 @@ const isFjs = named(['.js', '.mjs'])
 const edagText = path => mapStep(resolve(path), tryMarked)
 
 /**
+ * A code output of the module at `path`: `write` of the module's value
+ * where it has one the writer spells, and `graph`, the program as written,
+ * otherwise.
+ *
+ * The value is the module interpreted under the runtime `load` answers and
+ * precomputed as it loaded ([`./transpiler`](./transpiler/module.f.js)),
+ * its functions over bodies of their own: nothing of its initialization is
+ * left to run, and what its functions compute the same way in every call
+ * is computed. A module whose initialization fails has no value, and the
+ * failure is the program's to make when it runs, so its graph is written;
+ * so is a module the interpreter refuses, whose graph route says why; and
+ * so is a value the writer has no spelling for.
+ *
+ * @type {(load: RuntimeLoad, write: (value: Exp) => Result<Marked, unknown>, graph: (path: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, ParseError>) => (path: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, SourceError>}
+ */
+const valueText = (load, write, graph) => path => resultStep(
+    interpret(load)(path),
+    /** @type {(result: Result<EdagValue, SourceError>) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, SourceError>} */
+    (result) => {
+        if (result[0] === 'error') { return graph(path) }
+        const written = write(ownBodies(result[1]))
+        return written[0] === 'ok' ? pureOk(written) : graph(path)
+    })
+
+/**
  * The program at `path` as the text of its `.rs` output: linked by `./edag`
  * into one graph, the same as {@link edagText}, and printed against the
- * `nanvm-lib` API by `./rust` rather than serialized as a DataJS document.
+ * `nanvm-lib` API by `./rust`.
  *
  * @type {(native: boolean) => (path: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, ParseError>}
  */
-const rustText = native => path => mapStep(resolve(path), root => toRustMarked(root, native))
+const rustGraph = native => path => mapStep(resolve(path), root => toRustMarked(root, native))
+
+/**
+ * The `.rs` output of the module at `path`: its value printed against the
+ * `nanvm-lib` API ({@link valueText}), or {@link rustGraph}.
+ *
+ * @type {(load: RuntimeLoad, native: boolean) => (path: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, SourceError>}
+ */
+const rustText = (load, native) => valueText(load, value => toRustMarked(value, native), rustGraph(native))
 
 /**
  * The program at `path` as the text of the FunctionalScript module it is:
  * linked by `./edag` into one graph, the same as {@link edagText}, and
- * written back as source by `./serializer` rather than as a document of the
- * graph. This route does not evaluate the module — it rewrites the graph —
- * so a module holding a function compiles, and one whose value the readers
- * would refuse, a read of `null`, compiles too, the failure being the
- * program's to make when it runs. A refusal says it is the output's, since
- * the module itself was accepted, and then what the writer has no spelling
- * for.
+ * written back as source by `./serializer`. This route does not evaluate
+ * the module — it rewrites the graph — so a module holding a function
+ * compiles, and one whose value the readers would refuse, a read of
+ * `null`, compiles too, the failure being the program's to make when it
+ * runs. A refusal says it is the output's, since the module itself was
+ * accepted, and then what the writer has no spelling for.
  *
  * @type {(path: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, ParseError>}
  */
-const fjsText = path => mapStep(resolveOver(path, null), ([linked, graph]) => {
+const fjsGraph = path => mapStep(resolveOver(path, null), ([linked, graph]) => {
     const written = path.endsWith('.json') ? unlocated(fjsMarked(graph)) : tryModuleLocated(graph)
     if (written[0] === 'ok') { return written }
     const [reason, node] = written[1]
     return error(`cannot write as FunctionalScript: ${reason}${_origin(linked, node)}`)
 })
+
+/**
+ * The FunctionalScript output of the module at `path`: its value written
+ * as source ({@link valueText}), or {@link fjsGraph}.
+ *
+ * @type {(load: RuntimeLoad) => (path: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, SourceError>}
+ */
+const fjsText = load => path => valueText(
+    load,
+    value => path.endsWith('.json') ? fjsMarked(value) : tryModuleMarked(value),
+    fjsGraph)(path)
 
 /**
  * Write the default export of a module, or the whole document for a direct
@@ -166,14 +212,22 @@ const dataText = write => load => path => mapStep(_transpileDefault(load)(path),
  * input is the effect's; and a name with no language here is neither, since
  * there is nothing to read the input for.
  *
- * @type {(load: RuntimeLoad) => (outputFileName: string) => ((inputFileName: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, SourceError>) | null}
+ * A code output, `.js` or `.rs`, is written from the module's value
+ * ({@link valueText}); `graph` asks for the program as written instead,
+ * for a caller whose subject is the writer or the VM that runs what it
+ * writes, where a module computed ahead would leave nothing to look at.
+ *
+ * @type {(load: RuntimeLoad, graph?: boolean) => (outputFileName: string) => ((inputFileName: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, SourceError>) | null}
  */
-const outputMarked = load => outputFileName => {
+const outputMarked = (load, graph = false) => outputFileName => {
     if (outputFileName.endsWith('.json')) { return dataText(tryJsonMarked)(load) }
     if (isEdag(outputFileName)) { return edagText }
     if (isDataJs(outputFileName)) { return dataText(tryMarked)(load) }
-    if (isFjs(outputFileName)) { return fjsText }
-    if (outputFileName.endsWith('.rs')) { return rustText(outputFileName.endsWith('.native.rs')) }
+    if (isFjs(outputFileName)) { return graph ? fjsGraph : fjsText(load) }
+    if (outputFileName.endsWith('.rs')) {
+        const native = outputFileName.endsWith('.native.rs')
+        return graph ? rustGraph(native) : rustText(load, native)
+    }
     return null
 }
 
@@ -343,10 +397,13 @@ const refusal = (message, diagnostic, source = null) => error([message, diagnost
  * `fjs compile` writes runs this and the text it shows is the file's, which
  * its proof pins. Exported for linkage, as the other `_` exports are.
  *
- * @type {(load: RuntimeLoad) => (inputFileName: string, outputFileName: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, OutputRefusal>, never>}
+ * `graph` is {@link outputMarked}'s: a code output of the program as
+ * written, not of its value.
+ *
+ * @type {(load: RuntimeLoad, graph?: boolean) => (inputFileName: string, outputFileName: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, OutputRefusal>, never>}
  */
-export const _outputMarked = load => (inputFileName, outputFileName) => {
-    const text = outputMarked(load)(outputFileName)
+export const _outputMarked = (load, graph = false) => (inputFileName, outputFileName) => {
+    const text = outputMarked(load, graph)(outputFileName)
     if (text === null) {
         return pureOk(refusal(unknownOutput, `${outputFileName} - error: ${unknownOutput}`))
     }
@@ -376,10 +433,10 @@ const compileResult = result => {
 /**
  * {@link _outputMarked} with a refusal as the line the command prints.
  *
- * @type {(load: RuntimeLoad) => (inputFileName: string, outputFileName: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, never>}
+ * @type {(load: RuntimeLoad, graph: boolean) => (inputFileName: string, outputFileName: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, never>}
  */
-export const _compileMarked = load => (inputFileName, outputFileName) => mapStep(
-    _outputMarked(load)(inputFileName, outputFileName), compileResult)
+export const _compileMarked = (load, graph) => (inputFileName, outputFileName) => mapStep(
+    _outputMarked(load, graph)(inputFileName, outputFileName), compileResult)
 
 /**
  * The runtime of the package at `packageRoot`, `fjs/js/runtime/module.f.js`
@@ -398,16 +455,19 @@ export const noRuntime = transpilerNoRuntime
  * Compiles the FunctionalScript module `inputFileName` into `outputFileName`,
  * in the language the output's extension declares — what {@link compile} does
  * with two arguments, as one effect a program can sequence: `fjs/nanvm/harness`
- * compiles every harness fixture through it, under {@link noRuntime}, since a
- * code output interprets nothing. The output's directory is created
+ * compiles every harness fixture through it, from the graph and under
+ * {@link noRuntime}, since that route interprets nothing. The output's directory is created
  * first. A failure is the diagnostic the command prints, carried as the
  * message of an `IoError`: an output extension naming no language, a parse
  * error, or a refused output, each as {@link compile} describes.
  *
- * @type {(load: RuntimeLoad) => (inputFileName: string, outputFileName: string) => Effect<_CompileOp, void, IoChannel>}
+ * `graph` asks for a code output of the program as written, not of its
+ * value ({@link _outputMarked}).
+ *
+ * @type {(load: RuntimeLoad, graph?: boolean) => (inputFileName: string, outputFileName: string) => Effect<_CompileOp, void, IoChannel>}
  */
-export const compileFile = load => (inputFileName, outputFileName) => step(
-    _compileMarked(load)(inputFileName, outputFileName),
+export const compileFile = (load, graph = false) => (inputFileName, outputFileName) => step(
+    _compileMarked(load, graph)(inputFileName, outputFileName),
     /** @type {(result: Result<Marked, string>) => Effect<_CompileOp, void, IoChannel>} */
     (result) => {
         const [tag, value] = result
@@ -420,9 +480,11 @@ export const compileFile = load => (inputFileName, outputFileName) => step(
  * Rust module calling the `nanvm-lib` API for `.rs`, the program's EDAG for
  * `.edag.data.js` and `.edag.data.mjs`, a DataJS document for `.data.js`
  * and `.data.mjs`, and a FunctionalScript module for every other `.js` and
- * `.mjs`. A data output interprets the module under the runtime of the
- * package the command runs from, {@link packageRuntime}, loaded then and
- * only then; the other outputs interpret nothing.
+ * `.mjs`. A data output and a code output interpret the module under the
+ * runtime of the package the command runs from, {@link packageRuntime},
+ * loaded then and only then; the EDAG output interprets nothing. A code
+ * output is the module's value, initialized and precomputed
+ * ({@link valueText}), or the program as written where it has none.
  * Each of the three module outputs is in normalized form — one line, shared
  * nodes hoisted into `$0`, `$1`, … and an object's members in the order the
  * module gave them. FunctionalScript uses that same counter for parameters

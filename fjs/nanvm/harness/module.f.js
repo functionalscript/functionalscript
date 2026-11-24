@@ -141,7 +141,7 @@ export const expectedModules = names => unwrap(expectedText(names))
 export const generateFixtures = () => step(fixtures(), names => {
     const compiled = forEachStep(
         pureOk(names),
-        name => compileFile(noRuntime)(`${fixturesDirectory}/${name}`, `${directory}/${rustName(name)}.rs`))
+        name => compileFile(noRuntime, true)(`${fixturesDirectory}/${name}`, `${directory}/${rustName(name)}.rs`))
     return step(compiled, () => writeFiles([[modulesPath, modules(names.map(rustName))]]))
 })
 

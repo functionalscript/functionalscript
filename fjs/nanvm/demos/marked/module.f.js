@@ -48,7 +48,7 @@ const compiled = places => foldStep(
     pureOk(places),
     /** @type {readonly (readonly [string, Marked])[]} */ ([]),
     place => done => step(
-        _compileMarked(noRuntime)(samplePath(place.directory), rustPath(placeName(place))),
+        _compileMarked(noRuntime, true)(samplePath(place.directory), rustPath(placeName(place))),
         ([tag, value]) => tag === 'error' ? pureError(ioError({ message: value })) : pureOk([...done, [placeName(place), value]])))
 
 /**
