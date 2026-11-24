@@ -45,7 +45,7 @@ export const not = v => !v
 export const opposite = v => -v
 
 /** @type {(v: any) => any} */
-export const kind = v => typeof v
+export const typeKind = v => typeof v
 
 /** @type {(a: any, b: any) => any} */
 export const differ = (a, b) => a !== b

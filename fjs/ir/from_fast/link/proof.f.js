@@ -1,6 +1,6 @@
 /**
  * Proofs of [how a program links L1](./module.f.js): the linked names, the
- * names that a term calls or reads, `link` and `errorTable`.
+ * names that a term calls or reads, `link`, `linkAny` and `errorTable`.
  *
  * @module
  *
@@ -12,9 +12,9 @@ import { assertEq, assertError, assertOk, assertStructurallySame } from '../../.
 import {
     add, block, br, call, call_ref, codeOf, constant, f64, f64c, field, fn, get, let_, lit, loop, make, match, trap, true_, trunc_sat, u,
 } from '../../module.f.js'
-import { l0 } from '../../l0/module.f.js'
+import { l0, ref } from '../../l0/module.f.js'
 import { sourceOf } from '../testlib.f.js'
-import { errorTable, link, linkedName, uses } from './module.f.js'
+import { errorTable, link, linkAny, linkedName, uses } from './module.f.js'
 
 /**
  * A term of every kind, which calls, reads and names a function and a
@@ -64,6 +64,70 @@ export const proof = {
             functions: [['l1.add', fn([], f64, lit(f64c, 0))]],
             exports: [],
         })
+    },
+    linkAny: () => {
+        /** @type {Module} */
+        const any = {
+            imports: [ref],
+            defines: {
+                name: 'Any',
+                types: [['any', {
+                    variants: ['undefined', 'number'],
+                    kind: 'kind',
+                    carrier: 'i64',
+                    dup: 'dup',
+                    drop: 'drop',
+                    copy: ['undefined', 'number'],
+                }]],
+            },
+            constants: [['undefined', { type: f64, value: lit(f64c, 0) }]],
+            functions: [
+                ['isRef', fn([], f64, lit(f64c, 0))],
+                ['dup', fn([], f64, call('self', 'isRef', []))],
+                ['drop', fn([], f64, call('self', 'isRef', []))],
+                ['kind', fn([], f64, call('self', 'isRef', []))],
+                ['from_f64', fn([], f64, lit(f64c, 1))],
+                ['keep', fn([], f64, lit(f64c, 2))],
+            ],
+            exports: ['kind', 'from_f64', 'keep'],
+        }
+        assertEq(assertError(linkAny(any)({ imports: [], functions: [], exports: [] })), 'the program imports no Any')
+        assertEq(assertError(linkAny(any)({
+            imports: l0,
+            defines: { name: 'T', types: [['cell', { variants: ['a'], carrier: 'i64' }]] },
+            functions: [],
+            exports: [],
+        })), 'the program already defines T')
+        // Hooks always link; from_f64 links because the program calls it; keep stays out.
+        /** @type {Module} */
+        const program = {
+            imports: l0,
+            constants: [['#c0', { type: f64, value: constant('Any', 'undefined') }]],
+            functions: [['f', fn([], f64, call('Any', 'from_f64', [constant('self', '#c0')]))]],
+            exports: ['f'],
+        }
+        const linked = assertOk(linkAny(any)(program))
+        assertStructurallySame(linked.imports, [ref, ...l0.slice(1)])
+        assertStructurallySame(linked.defines, any.defines)
+        assertStructurallySame(linked.constants, [
+            ['undefined', { type: f64, value: lit(f64c, 0) }],
+            ['#c0', { type: f64, value: constant('self', 'undefined') }],
+        ])
+        assertStructurallySame(linked.functions, [
+            ['f', fn([], f64, call('self', 'from_f64', [constant('self', '#c0')]))],
+            ['isRef', fn([], f64, lit(f64c, 0))],
+            ['dup', fn([], f64, call('self', 'isRef', []))],
+            ['drop', fn([], f64, call('self', 'isRef', []))],
+            ['kind', fn([], f64, call('self', 'isRef', []))],
+            ['from_f64', fn([], f64, lit(f64c, 1))],
+        ])
+        assertStructurallySame(linked.exports, ['f'])
+        // A name of the program that Any also holds is refused.
+        assertEq(assertError(linkAny(any)({
+            imports: l0,
+            functions: [['kind', fn([], f64, lit(f64c, 0))]],
+            exports: ['kind'],
+        })), 'kind is already a function or constant of the program')
     },
     errorTable: () => {
         assertStructurallySame(assertOk(errorTable(fast("export const error = { a: 'TypeError: a', b: 'RangeError: b' }"))), [['a', 'TypeError: a'], ['b', 'RangeError: b']])

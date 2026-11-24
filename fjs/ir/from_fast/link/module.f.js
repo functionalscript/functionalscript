@@ -2,8 +2,10 @@
  * How a program links L1 ([slice 11](../../todo/slices.md)): the linked
  * names of L1's functions and constants, `l1.add`, the terms of L1 that
  * read them so, what a term calls or reads of its own module, `link`, which
- * merges a program with the bodies of L1 that it reaches, and `errorTable`,
- * which reads L1's error table from its text, for
+ * merges a program with the bodies of L1 that it reaches, `linkAny`, which
+ * merges Any's IR module the same way so scalar ops become the program's
+ * own functions ([checkpoint 4e](../../todo/runtime-in-ir-4e.md)), and
+ * `errorTable`, which reads L1's error table from its text, for
  * [the lowering](../module.f.js).
  *
  * @module
@@ -14,7 +16,7 @@
  */
 
 import { error, ok } from '../../../types/result/module.f.js'
-import { terms } from '../../module.f.js'
+import { definedBy, terms } from '../../module.f.js'
 
 /** The name of a function or a constant of L1 in a program that links it: `l1.add`, `l1.#c0`. @type {(name: string) => string} */
 export const linkedName = name => `l1.${name}`
@@ -92,6 +94,97 @@ export const link = l1 => program => {
         imports: program.imports,
         constants: [...constants.filter(([x]) => kept.includes(x)), ...own],
         functions: [...program.functions, ...functions.filter(([x]) => kept.includes(x))],
+        exports: program.exports,
+    })
+}
+
+/**
+ * A term of a program as one that defines Any holds it: each call and
+ * constant of the `Any` import becomes one of the module's own, so the
+ * checker sees `self.kind` where the program wrote `Any.kind`.
+ *
+ * @type {(t: Term) => Term}
+ */
+const linkedAnyTerm = t => {
+    switch (t[0]) {
+        case 'let': { return ['let', t[1], linkedAnyTerm(t[2]), linkedAnyTerm(t[3])] }
+        case 'op': { return t[3] === undefined ? ['op', t[1], t[2].map(linkedAnyTerm)] : ['op', t[1], t[2].map(linkedAnyTerm), t[3]] }
+        case 'call': { return ['call', t[1] === 'Any' ? 'self' : t[1], t[2], t[3].map(linkedAnyTerm)] }
+        case 'call_ref': { return ['call_ref', linkedAnyTerm(t[1]), t[2].map(linkedAnyTerm)] }
+        case 'make': { return ['make', t[1].map(([k, x]) => /** @type {const} */ ([k, linkedAnyTerm(x)]))] }
+        case 'field': { return ['field', linkedAnyTerm(t[1]), t[2]] }
+        case 'variant': { return ['variant', t[1], t[2], linkedAnyTerm(t[3])] }
+        case 'match': { return ['match', linkedAnyTerm(t[1]), t[2].map(([vs, b, x]) => /** @type {const} */ ([vs, b, linkedAnyTerm(x)]))] }
+        case 'block': { return ['block', t[1], t[2], linkedAnyTerm(t[3])] }
+        case 'loop': { return ['loop', t[1], t[2].map(([k, type, x]) => /** @type {const} */ ([k, type, linkedAnyTerm(x)])), linkedAnyTerm(t[3])] }
+        case 'br': { return ['br', t[1], linkedAnyTerm(t[2])] }
+        case 'constant': { return t[1] === 'Any' ? ['constant', 'self', t[2]] : t }
+        default: { return t }
+    }
+}
+
+/**
+ * A program that links Any's IR module
+ * ([checkpoint 4e](../../todo/runtime-in-ir-4e.md)): drops the `Any`
+ * import, keeps `Ref` (and the rest of L0), defines `any`, rewrites every
+ * `Any.*` call and constant to `self.*`, and merges the bodies of Any that
+ * the program reaches — always including the hooks that `defines` names
+ * (`kind`, `dup`, `drop`) and whatever they call. Any exports nothing into
+ * the program's export list. A program that already defines a type, that
+ * imports no `Any`, or whose own name collides with a reached name of Any,
+ * is refused.
+ *
+ * @type {(any: Module) => (program: Module) => Result<Module, string>}
+ */
+export const linkAny = any => program => {
+    const own = definedBy(program)
+    if (own !== null) { return error(`the program already defines ${own}`) }
+    if (any.defines === undefined) { return error('Any has no defines') }
+    if (!program.imports.some(([k]) => k === 'Any')) { return error('the program imports no Any') }
+    const withoutAny = program.imports.filter(([k]) => k !== 'Any')
+    const refImport = any.imports.find(([k]) => k === 'Ref')
+    if (refImport === undefined) { return error('Any imports no Ref') }
+    /** @type {Module['imports']} */
+    const imports = withoutAny.some(([k]) => k === 'Ref') ? withoutAny : [refImport, ...withoutAny]
+    /** @type {readonly (readonly [string, Fn])[]} */
+    const functions = program.functions.map(([k, f]) => [k, { ...f, body: linkedAnyTerm(f.body) }])
+    const ownConstants = program.constants ?? []
+    /** @type {readonly (readonly [string, ConstantOf<Term>])[]} */
+    const constants = ownConstants.map(([k, c]) => [k, { type: c.type, value: linkedAnyTerm(c.value) }])
+    /** The hooks that a module which defines `any` must hold, whether the program calls them or not. */
+    const hooks = any.defines.types.flatMap(([, d]) => [d.kind, d.dup, d.drop].flatMap(x => x === undefined ? [] : [x]))
+    /** @type {(name: string) => readonly string[]} */
+    const usesOf = name => {
+        const f = any.functions.find(([k]) => k === name)
+        const c = (any.constants ?? []).find(([k]) => k === name)
+        return f !== undefined ? uses(f[1].body) : c !== undefined ? uses(c[1].value) : []
+    }
+    let todo = [
+        ...hooks,
+        ...functions.flatMap(([, f]) => uses(f.body)),
+        ...constants.flatMap(([, c]) => uses(c.value)),
+    ]
+    /** @type {readonly string[]} */
+    let reached = []
+    let k = 0
+    while (k < todo.length) {
+        const x = todo[Number(k)]
+        k = k + 1
+        if (!reached.includes(x)) {
+            reached = [...reached, x]
+            todo = [...todo, ...usesOf(x)]
+        }
+    }
+    const kept = reached.filter(name =>
+        any.functions.some(([x]) => x === name) || (any.constants ?? []).some(([x]) => x === name))
+    const collide = kept.find(name =>
+        functions.some(([x]) => x === name) || constants.some(([x]) => x === name))
+    if (collide !== undefined) { return error(`${collide} is already a function or constant of the program`) }
+    return ok({
+        imports,
+        defines: any.defines,
+        constants: [...(any.constants ?? []).filter(([x]) => kept.includes(x)), ...constants],
+        functions: [...functions, ...any.functions.filter(([x]) => kept.includes(x))],
         exports: program.exports,
     })
 }

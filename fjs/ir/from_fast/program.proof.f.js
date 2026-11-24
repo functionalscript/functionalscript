@@ -11,7 +11,7 @@
  * @import { Module, Param, Signature, Term, Type } from '../types.ts'
  */
 
-import { assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { any, array, container, l0 } from '../l0/module.f.js'
 import { lifetime } from '../lifetime/module.f.js'
 import {
@@ -23,7 +23,7 @@ import { print } from '../print/module.f.js'
 import { link } from './link/module.f.js'
 import { lower } from './module.f.js'
 import {
-    apply as applyP, both as bothP, called as calledP, differ as differP, either as eitherP, first as firstP, kind as kindP, maybe as maybeP, method as methodP, mixed as mixedP, nested as nestedP, not as notP, opposite as oppositeP, order as orderP, otherwise as otherwiseP, pair as pairP, record as recordP, sign as signP, size as sizeP, sum3 as sum3P, twice as twiceP,
+    apply as applyP, both as bothP, called as calledP, differ as differP, either as eitherP, first as firstP, typeKind as typeKindP, maybe as maybeP, method as methodP, mixed as mixedP, nested as nestedP, not as notP, opposite as oppositeP, order as orderP, otherwise as otherwiseP, pair as pairP, record as recordP, sign as signP, size as sizeP, sum3 as sum3P, twice as twiceP,
 } from './programs.f.js'
 import { runtime, sourceOf } from './testlib.f.js'
 import {
@@ -82,11 +82,65 @@ const standIn = {
 /** The runtime of a program, which links the stand-in for L1. */
 const programRuntime = { ...runtime, l1: standIn }
 
+/**
+ * Names that `linkAny` merges from Any. Program goldens compare the
+ * lowering of the program and of L1, not Any's bit ops; those are proved
+ * in [`link/proof.f.js`](./link/proof.f.js) and the host proof.
+ */
+const linkedAny = {
+    functions: ['isRef', 'kind', 'dup', 'drop', 'to_f64', 'from_f64', 'to_bool', 'from_bool', 'same',
+        'keep', 'take', 'forget', 'undefinedOf', 'nullOf', 'falseOf', 'trueOf'],
+    constants: ['undefined', 'null', 'true', 'false'],
+}
+
+/**
+ * A linked program as the program goldens read it: without Any's defines
+ * and bodies, and with each `self` name of Any written as `Any` again so
+ * the golden still shows the import form.
+ *
+ * @type {(m: Module) => Module}
+ */
+const withoutLinkedAny = m => {
+    /** @type {(t: Term) => Term} */
+    const rewrite = t => {
+        switch (t[0]) {
+            case 'let': { return ['let', t[1], rewrite(t[2]), rewrite(t[3])] }
+            case 'op': { return t[3] === undefined ? ['op', t[1], t[2].map(rewrite)] : ['op', t[1], t[2].map(rewrite), t[3]] }
+            case 'call': {
+                const module = t[1] === 'self' && linkedAny.functions.includes(t[2]) ? 'Any' : t[1]
+                return ['call', module, t[2], t[3].map(rewrite)]
+            }
+            case 'call_ref': { return ['call_ref', rewrite(t[1]), t[2].map(rewrite)] }
+            case 'make': { return ['make', t[1].map(([k, x]) => /** @type {const} */ ([k, rewrite(x)]))] }
+            case 'field': { return ['field', rewrite(t[1]), t[2]] }
+            case 'variant': { return ['variant', t[1], t[2], rewrite(t[3])] }
+            case 'match': { return ['match', rewrite(t[1]), t[2].map(([vs, b, x]) => /** @type {const} */ ([vs, b, rewrite(x)]))] }
+            case 'block': { return ['block', t[1], t[2], rewrite(t[3])] }
+            case 'loop': { return ['loop', t[1], t[2].map(([k, type, x]) => /** @type {const} */ ([k, type, rewrite(x)])), rewrite(t[3])] }
+            case 'br': { return ['br', t[1], rewrite(t[2])] }
+            case 'constant': {
+                return t[1] === 'self' && linkedAny.constants.includes(t[2]) ? ['constant', 'Any', t[2]] : t
+            }
+            default: { return t }
+        }
+    }
+    return {
+        imports: [],
+        constants: (m.constants ?? [])
+            .filter(([k]) => !linkedAny.constants.includes(k))
+            .map(([k, c]) => /** @type {const} */ ([k, { type: c.type, value: rewrite(c.value) }])),
+        functions: m.functions
+            .filter(([k]) => !linkedAny.functions.includes(k))
+            .map(([k, f]) => /** @type {const} */ ([k, { ...f, body: rewrite(f.body) }])),
+        exports: m.exports,
+    }
+}
+
 /** The IR of a program's text over an L1 without `get`, where the program exports its own, printed without the interfaces that it imports. @type {(text: string) => string} */
-const ownGet = text => print({ ...assertOk(over({}, text, { ...programRuntime, l1: { ...standIn, functions: standIn.functions.filter(([k]) => k !== 'get') } })), imports: [] })
+const ownGet = text => print(withoutLinkedAny(assertOk(over({}, text, { ...programRuntime, l1: { ...standIn, functions: standIn.functions.filter(([k]) => k !== 'get') } }))))
 
 /** The IR of a program's text, which no table types, printed without the interfaces that it imports. @type {(text: string) => string} */
-const program = text => print({ ...assertOk(over({}, text, programRuntime)), imports: [] })
+const program = text => print(withoutLinkedAny(assertOk(over({}, text, programRuntime))))
 
 /** Why the lifetime pass, which types a program's plain stage as the checker does, refuses it. @type {(text: string) => string} */
 const refusedProgram = text => assertError(lifetime(assertOk(over({}, text, programRuntime))))
@@ -109,6 +163,13 @@ export const proof = {
     // Slice 11a: an untyped program, each export of `any` alone, whose
     // operators of `any` call L1, which links into the same module.
     programs: () => {
+        // linkAny defines Any, drops its import, and keeps Ref for the hooks.
+        {
+            const m = assertOk(over({}, 'export const f = (a, b) => a + b * 2', programRuntime))
+            assertEq(m.imports.map(([k]) => k).join(' '), 'Ref String BigInt Containers Functions Native')
+            assert(m.defines !== undefined && m.defines.name === 'Any')
+            assert(m.functions.some(([k]) => k === 'from_f64') && m.functions.some(([k]) => k === 'isRef'))
+        }
         assertEq(program('export const f = (a, b) => a + b * 2'), [
             'const #n0: any.only(number) =',
             '    Any.from_f64(2.0)',
@@ -1205,7 +1266,7 @@ export const proof = {
         assertEq(twiceP(3), 12)
         assertEq(notP(''), true)
         assertEq(oppositeP('2'), -2)
-        assertEq(kindP(null), 'object')
+        assertEq(typeKindP(null), 'object')
         assertEq(differP(1, '1'), true)
         assertEq(orderP(1, 2), -1)
         assertEq(orderP(2, 1), 1)
