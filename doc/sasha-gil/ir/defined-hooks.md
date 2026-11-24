@@ -64,7 +64,23 @@ type's carrier bits. All three are refused in any other module, with
   ownership, as passing it to an `own` parameter does. The owned check
   refuses it on a borrowed value ("release's operand is borrowed") and
   on a value used later ("x is used after it was consumed"). The pass
-  writes it in each drop; the module may write it too.
+  writes it in each drop, and only the pass writes it: a `release` that
+  the module writes is refused ("only the lifetime pass releases a T").
+- **Bits carry no ownership**, since `u(64)` is copy. So the module may
+  not turn bits back into a counted value by itself: a `seal(t, b)` that
+  it writes is refused unless `t` is narrowed to copy variants ("only
+  the lifetime pass seals a counted T: seal t's copy variants, or let
+  the pass copy"). Otherwise `seal(T, unseal(v))` of a borrowed `v`
+  would make a second owner of one NaNVM handle without a `dup_ref`,
+  and a `release(x)` whose bits were dropped on the floor would leak
+  `x`'s handle, and the owned check would see neither. With these two
+  rules and rule 4 below, every place where bits become an owner or
+  stop being one is written by the pass, in the two forms of
+  [the table below](#what-the-lifetime-pass-writes), or is in a hook.
+  Any's 4d-2 functions (`from_f64`, `from_bool`, the constants) seal
+  only copy variants. A later slice whose functions make new references
+  (a string from NaNVM, say) widens this rule with its own form, such as
+  `seal(t, Ref.new_…(…))` taken straight from the call's result.
 - All three emit no instruction: the value and its bits are one WASM
   value. So the wrapping in the pass costs nothing at run time.
 
@@ -119,9 +135,12 @@ The checker refuses, each with the type's name:
 5. in `dup`, a `Ref.dup_ref` result that is not the hook's result on
    its path, and in `drop`, more than one `Ref.drop_ref` on one path:
    "T's dup must answer dup_ref's result", "T's drop calls drop_ref at
-   most once on each path". With rule 4 this makes each hook's own
-   count right by construction: a `dup` gives exactly one new owner,
-   and a `drop` gives up at most one.
+   most once on each path".
+The checker can't see more than that inside the hooks, since it can't
+tell a reference's bits from others: a `dup` that answers `b` on a
+reference's path, or a `drop` that skips `drop_ref` for one, passes
+every rule. The two hooks are the module's trusted base, a few lines
+each, and the NaNVM host's leak check (below) is their proof.
 4c's refusal of a `dup` or a `drop` on a defined type goes. A hook may
 call other functions, and those may hold values of `T`: that is
 ordinary recursion, whose end is the module's to prove, as for any
@@ -253,7 +272,10 @@ functions as Any's hooks: an `any` is an `i64`, as its bits are. So:
   path the pass already covers for imports: a borrowed argument to an
   `own` parameter, a value left over, a `match` arm, a `br`, a throw.
 - **Owned:** `release` of a borrowed value, `release` twice, and a value
-  used after `release`, each refused.
+  used after `release`, each refused in the pass's output; a `release`
+  that the module writes, and a `seal(T, unseal(v))` of a counted `T`
+  that it writes, each refused, while `seal` of a copy variant is
+  accepted.
 - **NaNVM host:** Any's hooks and a module that copies and drops
   references run on NaNVM's `.wasm`. The test runner already checks
   after each call that NaNVM holds no live slot (`h.live()` is empty),
