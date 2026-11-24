@@ -145,6 +145,42 @@ JavaScript (13× to 67×), `repeat` about 100× (1,550×), and `readFields`
 about 170× (450×). `kind` is still a third to two thirds of every
 program's calls.
 
+### After linkAny (checkpoint 4e)
+
+On branch `cursor/ir-runtime-4e-remeasure-8be5` at `36c9ccfc4c`, 2026-11-24
+(America/Los_Angeles), after #4113–#4115 (Any in the IR, counting host
+boxes, `linkAny`). Median of three runs on this container. Scalar ops are
+local WASM; import calls that remain are `Ref.*` and container/string work.
+
+| Program | JavaScript | Typed IR as WASM | IR on NaNVM's `.wasm` | IR on the counting host | NaNVM / JavaScript | Counting / NaNVM |
+| --- | --- | --- | --- | --- | --- | --- |
+| `sumTo` | 25 µs | 5.0 µs | 22.6 µs | 25.7 µs | 1× | 1.1× |
+| `sumToAny` | 25 µs | | 152 µs | 161 µs | 6× | 1.1× |
+| `fib` | 0.30 µs | 46 ns | 225 ns | 588 ns | 1× | 2.6× |
+| `readFields` | 25 µs | | 10.2 ms | 38.9 ms | 410× | 3.8× |
+| `callMany` | 2.5 µs | | 1.31 ms | 2.93 ms | 520× | 2.2× |
+| `repeat` | 3.8 µs | | 3.61 ms | 10.2 ms | 950× | 2.8× |
+| `bigSum` | 7.7 µs | | 3.60 ms | 7.89 ms | 470× | 2.2× |
+
+L0 **import** calls per program (local Any ops are not imports):
+
+| Program | L0 calls | Most called |
+| --- | --- | --- |
+| `sumTo` | 1 | `drop` 1 |
+| `sumToAny` | 1 | `drop` 1 |
+| `fib` | 1 | `drop` 1 |
+| `readFields` | 220,001 | `kind_ref` 100,000, `dup_ref` 40,000, `drop_ref` 40,000, `find` 20,000, `item` 20,000 |
+| `callMany` | 14,001 | `kind_ref` 4,000, `drop_ref` 3,000, `push` 2,000, `dup_ref` 2,000, `begin_array` 1,000 |
+| `repeat` | 61,054 | `kind_ref` 24,021, `dup_ref` 13,011, `drop_ref` 13,011, `find` 3,002, `item` 3,002 |
+| `bigSum` | 77,029 | `kind_ref` 50,018, `drop_ref` 15,005, `dup_ref` 12,005, `drop` 1 |
+
+Numeric loops drop from tens of thousands of `kind`/`to_f64`/`from_f64`
+imports to a single `drop` of the result. `sumTo` and `fib` on NaNVM are
+about as fast as JavaScript on this container; `sumToAny` is about 6×
+(was 36×). Programs that touch references still pay `Ref` and container
+imports; `repeat` is slower than the prior table on this machine (string
+work dominates, and JS was also faster here).
+
 ## Where the time goes
 
 ### L0 calls per program

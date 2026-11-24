@@ -327,8 +327,8 @@ functions as Any's hooks: an `any` is an `i64`, as its bits are. So:
    `from_bool`, `same` and the constants, proved against the L0 view on
    NaNVM. **Built.**
 3. **4e:** link it into programs, move the counting host to boxes, and
-   measure the demos, as runtime-in-ir.md plans. **4e-1 built** (counting
-   host boxes + Ref); link and remeasure remain.
+   measure the demos, as runtime-in-ir.md plans. **Built** as #4114
+   (boxes), #4115 (`linkAny`), #4116 (remeasure).
 
 ## Open questions
 

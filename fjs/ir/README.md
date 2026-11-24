@@ -730,8 +730,9 @@ after it.
 Checkpoint 4d-2: [`runtime/any`](./runtime/any/module.f.js) is Any itself
 in the IR — `isRef`, `kind`, hooks, the scalar conversions, `same`, and the
 four constants, with `number` among the copy variants. Its proofs check the
-module; the NaNVM host proves it against L0 on the same boxes. Linking it
-into programs is checkpoint 4e.
+module; the NaNVM host proves it against L0 on the same boxes. Checkpoint
+4e links it into programs (`linkAny` after L1's `link`), moves the counting
+host to NaN boxes, and remeasures the IR benchmarks.
 
 ## What every slice refuses
 
