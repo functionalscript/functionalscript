@@ -26,6 +26,11 @@
 //!   panic stopped ([`abi::release`]), so the host goes on to `has_thrown`
 //!   and `recover`.
 //!
+//! `kind_ref`, `dup_ref`, `drop_ref` and `same_ref` are NaNVM's own
+//! exports for Any written in the IR
+//! ([runtime-in-ir.md](../../../doc/sasha-gil/ir/runtime-in-ir.md)): each
+//! takes the box of a reference and traps on any other bits.
+//!
 //! L1's native rows, the `fjs:l1-native` imports, are exports too, under
 //! their row names (`bigintAdd`, `numberToString`, ...), from
 //! [`abi::native`].
@@ -351,6 +356,29 @@ pub extern "C" fn throw(v: i64) -> ! {
 #[unsafe(export_name = "same")]
 pub extern "C" fn same(a: i64, b: i64) -> i32 {
     abi::same(a, b)
+}
+
+// References only, for Any written in the IR: each traps on bits that are
+// no reference.
+
+#[unsafe(export_name = "kind_ref")]
+pub extern "C" fn kind_ref(v: i64) -> i32 {
+    abi::kind_ref(v)
+}
+
+#[unsafe(export_name = "dup_ref")]
+pub extern "C" fn dup_ref(v: i64) -> i64 {
+    abi::dup_ref(v)
+}
+
+#[unsafe(export_name = "drop_ref")]
+pub extern "C" fn drop_ref(v: i64) {
+    abi::drop_ref(v)
+}
+
+#[unsafe(export_name = "same_ref")]
+pub extern "C" fn same_ref(a: i64, b: i64) -> i32 {
+    abi::same_ref(a, b)
 }
 
 // The host's side.

@@ -15,3 +15,8 @@ When a function receives an input, it may request for additional inputs to conti
 ```
 source.f.js-> [parser] -source.f.js AST-> [deps] -> source + requirements -> [loader]
 ```
+
+## Builds
+
+- Builds should be signed.
+- Everything is content-addressable and dependencies are resolved into hashes.

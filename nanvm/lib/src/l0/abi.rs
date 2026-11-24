@@ -822,6 +822,45 @@ pub fn same(a: i64, b: i64) -> i32 {
     read2("same", a, b, |x, y| super::same(x, y) as i32)
 }
 
+// References only: what Any, written in the IR, still calls NaNVM for.
+// Each takes the box of a reference and traps on any other bits, as on a
+// dropped or forged reference, so no misuse is answered.
+
+/// Traps unless `h` is the box of a reference.
+fn reference(name: &str, h: i64) {
+    if !matches!(unbox(h), Some(Boxed::Ref { .. })) {
+        trap(name, "not a reference")
+    }
+}
+
+/// The kind of a live reference: its `tttt`, which NaNVM checks against
+/// the kind it keeps for the handle.
+pub fn kind_ref(v: i64) -> i32 {
+    reference("kind_ref", v);
+    read("kind_ref", v, |x| super::kind(x) as i32)
+}
+
+/// [`dup`] of a reference.
+pub fn dup_ref(v: i64) -> i64 {
+    reference("dup_ref", v);
+    put(get("dup_ref", v))
+}
+
+/// [`drop`] of a reference. It takes `v`.
+pub fn drop_ref(v: i64) {
+    reference("drop_ref", v);
+    take("drop_ref", v);
+}
+
+/// [`same`] where `a` or `b` is a reference: both are checked, even when
+/// their bits are equal, so a dropped reference traps.
+pub fn same_ref(a: i64, b: i64) -> i32 {
+    if !matches!(unbox(a), Some(Boxed::Ref { .. })) {
+        reference("same_ref", b);
+    }
+    read2("same_ref", a, b, |x, y| super::same(x, y) as i32)
+}
+
 // The host's side, not L0 imports.
 
 /// `1` when a [`throw`] caused the last trap, else `0`: the trap was a

@@ -5,7 +5,7 @@
 import { assert, assertEq, assertError, assertNotNullish, assertOk } from '../../asserts/module.f.js'
 import { any, builder, l0, string } from '../l0/module.f.js'
 import {
-    add, and, block, bool, br, call, call_ref, cast, code, codeOf, constant, definedBy, div, eq, f64, f64c, field, float, fn, from_bits, get, i, if_, int,
+    add, and, block, bool, br, call, call_ref, canon, cast, code, codeOf, constant, definedBy, div, eq, f64, f64c, field, float, fn, from_bits, get, i, if_, int,
     let_, lit, loop, lt, make, match, mayFail, mul, n, neg, never, next, only, or, own, product, return_, seal, sealed, shl, shr, signature, sub,
     throw_, to_bits, trap, true_, trunc_sat, u, unit, unseal, variant, xor,
 } from '../module.f.js'
@@ -690,7 +690,7 @@ export const proof = {
     bits: () => {
         assertEq(assertOk(check(bits)).functions.map(([k, f]) => `${k}: ${show(f.body[0])}`).join(', '), [
             'mask: u(16)', 'either: u(32)', 'flip: u(64)', 'reference: u(52)', 'shifted: u(15)', 'drained: u(32)', 'nibble: u(4)',
-            'bitsOf: u(64)', 'ofBits: f64', 'signOf: u(1)',
+            'bitsOf: u(64)', 'ofBits: f64', 'signOf: u(1)', 'negBits: u(64)',
         ].join(', '))
         const p = /** @type {const} */ ([['a', int(2n, 5n)], ['x', f64], ['k', int(1n, 2n)]])
         const a = get('a')
@@ -706,6 +706,9 @@ export const proof = {
         assertEq(why(one(p, u(64), to_bits(a))), 'f: to_bits of int(2, 5): to_bits takes a float')
         assertEq(why(one(p, u(64), to_bits(get('x')))), 'f: to_bits of f64: to_bits takes an f64c, whose one NaN has one bit pattern')
         assertEq(bodyType(one(p, u(64), to_bits(one_))), 'u(64)')
+        assertEq(bodyType(one(p, u(64), to_bits(canon(get('x'))))), 'u(64)')
+        assertEq(why(one(p, u(64), canon(a))), 'f: canon of int(2, 5): canon takes a float')
+        assertEq(why(one(p, f64, ['op', 'canon', [get('x'), get('x')]])), 'f: canon takes one operand, not 2')
         assertEq(bodyType(one(p, u(64), or(n(0n), n(0n)))), 'int(0, 0)')
         assertEq(why(one(p, f64, from_bits(get('x')))), 'f: from_bits of f64: from_bits takes an unsigned integer')
         assertEq(why(one(p, f64, from_bits(n(-1n)))), 'f: from_bits of int(-1, -1): from_bits takes an unsigned integer')

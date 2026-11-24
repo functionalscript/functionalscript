@@ -284,6 +284,7 @@ const floatOp = (name, a) => {
         case 'abs': { return ok(a) }
         case 'eq': case 'lt': case 'le': { return ok(bool) }
         case 'float': { return error(`float of ${show(a)}: float takes an integer`) }
+        case 'canon': { return ok(f64c) }
         case 'to_bits': { return a[0] === 'f64c' ? ok(u(64)) : error(`to_bits of ${show(a)}: to_bits takes an f64c, whose one NaN has one bit pattern`) }
         case 'from_bits': { return error(`from_bits of ${show(a)}: from_bits takes an unsigned integer`) }
         case 'and': case 'or': case 'xor': case 'shl': case 'shr': { return error(`${name} of ${show(a)}: a bit operator takes unsigned integers`) }
@@ -298,7 +299,7 @@ const floatOp = (name, a) => {
  * @type {(name: OpName, args: readonly Type[]) => Result<Type, string>}
  */
 const opType = (name, args) => {
-    const unary = name === 'neg' || name === 'abs' || name === 'sqrt' || name === 'float' || name === 'to_bits' || name === 'from_bits'
+    const unary = name === 'neg' || name === 'abs' || name === 'sqrt' || name === 'float' || name === 'canon' || name === 'to_bits' || name === 'from_bits'
     if (args.length !== (unary ? 1 : 2)) {
         return error(`${name} takes ${count(unary ? 1 : 2, 'operand')}, not ${args.length}`)
     }
@@ -308,7 +309,7 @@ const opType = (name, args) => {
         return name === 'float'
             ? (-(1n << 53n) <= a[1] && a[2] <= 1n << 53n ? ok(f64c) : error(`float of ${show(a)}: a float holds the integers within ±2^53 only`))
             : name === 'from_bits' ? (0n <= a[1] && fits(64)(a) ? ok(f64) : error(`from_bits of ${show(a)}: from_bits takes an unsigned integer`))
-            : name === 'to_bits' ? error(`to_bits of ${show(a)}: to_bits takes a float`)
+            : name === 'to_bits' || name === 'canon' ? error(`${name} of ${show(a)}: ${name} takes a float`)
             : unary ? error(`${name} of an integer is not in this slice`)
             : intOp(name, a, b)
     }

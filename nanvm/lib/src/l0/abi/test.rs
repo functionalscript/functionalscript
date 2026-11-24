@@ -563,3 +563,82 @@ fn find_first_not_a_value() {
     let s = string("a");
     find(NOT_A_VALUE, s);
 }
+
+// References only.
+
+#[test]
+fn references_only() {
+    fresh();
+    let s = string("a");
+    let a = array(&[]);
+    let b = array(&[]);
+    let before = live();
+    assert_eq!(kind_ref(s), 4);
+    assert_eq!(kind_ref(a), 6);
+    let d = dup_ref(a);
+    assert_ne!(d, a);
+    assert_eq!(same_ref(a, d), 1);
+    assert_eq!(same_ref(a, a), 1);
+    assert_eq!(same_ref(a, b), 0);
+    drop_ref(d);
+    assert_eq!(live(), before);
+    drop_ref(s);
+    drop_ref(a);
+    drop_ref(b);
+    assert_eq!(live(), before - 3);
+}
+
+#[test]
+#[should_panic(expected = "l0.kind_ref: not a reference")]
+fn kind_ref_of_a_number() {
+    fresh();
+    kind_ref(from_f64(1.0));
+}
+
+#[test]
+#[should_panic(expected = "l0.dup_ref: not a reference")]
+fn dup_ref_of_a_constant() {
+    fresh();
+    dup_ref(TRUE);
+}
+
+#[test]
+#[should_panic(expected = "l0.drop_ref: not a reference")]
+fn drop_ref_of_a_constant() {
+    fresh();
+    drop_ref(UNDEFINED);
+}
+
+#[test]
+#[should_panic(expected = "l0.same_ref: not a reference")]
+fn same_ref_of_two_numbers() {
+    fresh();
+    same_ref(from_f64(1.0), from_f64(1.0));
+}
+
+#[test]
+#[should_panic(expected = "l0.kind_ref: not a value")]
+fn kind_ref_of_a_dropped_reference() {
+    fresh();
+    let s = string("a");
+    drop_ref(s);
+    kind_ref(s);
+}
+
+#[test]
+#[should_panic(expected = "l0.same_ref: not a value")]
+fn same_ref_of_one_dropped_reference_twice() {
+    fresh();
+    let a = array(&[]);
+    drop_ref(a);
+    same_ref(a, a);
+}
+
+#[test]
+#[should_panic(expected = "l0.drop_ref: not a value")]
+fn drop_ref_twice() {
+    fresh();
+    let s = string("a");
+    drop_ref(s);
+    drop_ref(s);
+}
