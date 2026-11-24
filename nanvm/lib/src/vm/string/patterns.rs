@@ -226,8 +226,9 @@ impl<A: IVm> String<A> {
         };
         let separator = separator.to_string()?;
         let len = self.length();
-        let piece =
-            |from: u32, to: u32| -> Any<A> { (from..to).map(|i| self[i]).to_string().to_any() };
+        let piece = |from: u32, to: u32| -> Any<A> {
+            (from..to).map(|i| self.item(i)).to_string().to_any()
+        };
         if separator.length() == 0 {
             return Ok((0..len.min(limit)).map(|i| piece(i, i + 1)).to_array());
         }

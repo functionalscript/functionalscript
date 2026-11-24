@@ -14,7 +14,7 @@ impl<A: IVm> Debug for String<A> {
         const PRINTABLE_ASCII: RangeInclusive<u16> = 0x20..=0x7F;
         f.write_char('"')?;
         for i in 0..self.length() {
-            match self[i] {
+            match self.item(i) {
                 DOUBLE_QUOTE => f.write_str("\\\"")?,
                 BACKSLASH => f.write_str("\\\\")?,
                 c => {

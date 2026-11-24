@@ -1,5 +1,3 @@
-use core::ops::Index;
-
 use crate::{
     common::sized_index::SizedIndex,
     sign::Sign,
@@ -10,7 +8,8 @@ use crate::{
 /// either through [`SizedIndex`] and need not widen the ASCII form.
 pub enum StaticString {
     Utf16(&'static [u16]),
-    /// One code unit per byte. Every byte is below `0x80`: reading any other panics.
+    /// One code unit per byte. Every byte is below `0x80`, which nothing checks
+    /// when it is read: [`ascii`] is the checked way to write one.
     Ascii(&'static [u8]),
 }
 
@@ -24,32 +23,18 @@ pub const fn ascii(text: &'static str) -> StaticString {
     StaticString::Ascii(text.as_bytes())
 }
 
-/// The code unit of each ASCII byte, so that one can be lent as a `&u16`.
-static ASCII: [u16; 0x80] = {
-    let mut units = [0; 0x80];
-    let mut i = 0;
-    while i < 0x80 {
-        units[i] = i as u16;
-        i += 1;
-    }
-    units
-};
-
-impl Index<usize> for StaticString {
-    type Output = u16;
-    fn index(&self, index: usize) -> &u16 {
-        match self {
-            Self::Utf16(units) => &units[index],
-            Self::Ascii(bytes) => &ASCII[bytes[index] as usize],
-        }
-    }
-}
-
 impl SizedIndex<usize> for StaticString {
+    type Output = u16;
     fn length(&self) -> usize {
         match self {
             Self::Utf16(units) => units.len(),
             Self::Ascii(bytes) => bytes.len(),
+        }
+    }
+    fn item(&self, i: usize) -> u16 {
+        match self {
+            Self::Utf16(units) => units[i],
+            Self::Ascii(bytes) => bytes[i].into(),
         }
     }
 }
@@ -206,12 +191,5 @@ mod tests {
         for (descriptor, expected) in fixtures {
             assert!(descriptor.load().same_value(&expected));
         }
-    }
-
-    /// Loading does not read the bytes; reading one that is not ASCII panics.
-    #[test]
-    #[should_panic(expected = "index out of bounds")]
-    fn ascii_string_refuses_a_byte_above_0x7f() {
-        let _ = String::<Naive>::from_static(&StaticString::Ascii(b"\x80"))[0];
     }
 }

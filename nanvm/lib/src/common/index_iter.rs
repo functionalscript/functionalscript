@@ -16,7 +16,7 @@ impl<I: Uint, T: SizedIndex<I>> IndexIter<I, T> {
     }
 }
 
-impl<I: Uint, T: SizedIndex<I, Output: Clone>> Iterator for IndexIter<I, T> {
+impl<I: Uint, T: SizedIndex<I>> Iterator for IndexIter<I, T> {
     type Item = T::Output;
     fn next(&mut self) -> Option<Self::Item> {
         let i = self.i;
@@ -24,7 +24,7 @@ impl<I: Uint, T: SizedIndex<I, Output: Clone>> Iterator for IndexIter<I, T> {
             return None;
         }
         self.i += 1.into();
-        Some(self.container[i].clone())
+        Some(self.container.item(i))
     }
     /// Exact: a [`SizedIndex`]'s length is fixed.
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -33,9 +33,9 @@ impl<I: Uint, T: SizedIndex<I, Output: Clone>> Iterator for IndexIter<I, T> {
     }
 }
 
-impl<I: Uint, T: SizedIndex<I, Output: Clone>> ExactSizeIterator for IndexIter<I, T> {}
+impl<I: Uint, T: SizedIndex<I>> ExactSizeIterator for IndexIter<I, T> {}
 
-impl<I: Uint, T: SizedIndex<I, Output: Clone>> FusedIterator for IndexIter<I, T> {}
+impl<I: Uint, T: SizedIndex<I>> FusedIterator for IndexIter<I, T> {}
 
 #[cfg(test)]
 mod tests {

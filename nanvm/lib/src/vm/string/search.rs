@@ -9,7 +9,7 @@ impl<A: IVm> String<A> {
     fn occurs_at(&self, needle: &String<A>, k: u32) -> bool {
         let n = needle.length();
         u64::from(k) + u64::from(n) <= u64::from(self.length())
-            && (0..n).all(|i| self[k + i] == needle[i])
+            && (0..n).all(|i| self.item(k + i) == needle.item(i))
     }
 
     /// The first position at or after `from` where `needle` occurs.
