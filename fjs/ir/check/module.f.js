@@ -889,7 +889,9 @@ const globalOf = (env, t) => {
  * the first interface's ABI, from which a module that holds code imports
  * the loader's table. The emitter imports a maker once
  * for its ABI and its name, and it answers one WASM value, so two types
- * whose literals it makes are carried by that value.
+ * whose literals it makes are carried by that value. Two functions of one
+ * name count on bits alike, `dup`, `drop` or not at all, so that an alias
+ * without the marker cannot call a counting host function outside a hook.
  *
  * @type {(env: _Env, imports: readonly (readonly [string, Interface])[]) => string | null}
  */
@@ -899,6 +901,16 @@ const shared = (env, imports) => {
         return literal === undefined || i === null ? [] : [/** @type {const} */ ([`${literal.module}.${literal.member}`, i.abi, literal.member, `${module}.${type}`, carrier])]
     }))
     const fns = [...imports.flatMap(([module, { abi, functions }]) => functions.map(([member]) => /** @type {const} */ ([`${module}.${member}`, abi, member]))), ...makers]
+    /** How each function import counts on bits, by its name: a maker does not. @type {readonly (readonly [string, string, string, string])[]} */
+    const marks = [
+        ...imports.flatMap(([module, { abi, functions }]) => functions.map(([member, { counts }]) => /** @type {const} */ ([`${module}.${member}`, abi, member, counts ?? 'nothing']))),
+        ...makers.map(([name, abi, member]) => /** @type {const} */ ([name, abi, member, 'nothing'])),
+    ]
+    // Every name of one host function says how it counts on bits alike, so that no unmarked alias calls a counting one outside a hook.
+    const alias = marks.flatMap(([name, abi, member, c], j) => {
+        const other = marks.find(([, a, m, x], k) => k < j && a === abi && m === member && x !== c)
+        return other === undefined ? [] : [`the functions ${other[0]}, which counts ${other[3]}, and ${name}, which counts ${c}, are both the import ${member} of ${abi}, and its names count on bits alike`]
+    })
     const cs = imports.flatMap(([module, { abi, constants = [] }]) => constants.map(([member, t]) => /** @type {const} */ ([`${module}.${member}`, abi, member, globalOf(env, t)])))
     const loader = [...fns.map(([name, abi, member]) => /** @type {const} */ ([`function ${name}`, abi, member])), ...cs.map(([name, abi, member]) => /** @type {const} */ ([`constant ${name}`, abi, member]))]
         .find(([, abi, member]) => (member === 'memory' || member === 'data_base') && makers.some(([, a]) => a === abi))
@@ -918,7 +930,7 @@ const shared = (env, imports) => {
     })
     return loader !== undefined ? `the ${loader[0]} is the import ${loader[2]} of ${loader[1]}, which the loader gives a module that makes literals`
         : table !== undefined ? `the ${table[0]} is the import ${table[2]} of ${table[1]}, which the loader gives a module that holds code`
-        : clash[0] ?? carried[0] ?? null
+        : clash[0] ?? carried[0] ?? alias[0] ?? null
 }
 
 /**

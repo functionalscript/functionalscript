@@ -904,6 +904,11 @@ export const proof = {
         assertEq(pw(counter('dup_ref', countsBits('dup', signature([], u(64))))), miscount('dup_ref'))
         assertEq(pw(counter('dup_ref', countsBits(/** @type {'dup'} */ (/** @type {unknown} */ ('copy')), signature([['b', u(64)]], u(64))))), miscount('dup_ref'))
         assertOk(checkPlain(counter('kind_ref', countsBits('dup', signature([['b', u(32)]], u(32))))))
+        // every name of one host function counts on bits alike
+        /** `referencing` with an interface `Alias` of `fjs:l0` that names `dup_ref` by `s`. @type {(s: Signature) => Module} */
+        const aliased = s => ({ ...referencing, imports: [...referencing.imports, ['Alias', { abi: 'fjs:l0', types: [], functions: [['dup_ref', s]] }]] })
+        assertEq(pw(aliased(signature([['b', u(64)]], u(64)))), 'the functions Ref.dup_ref, which counts dup, and Alias.dup_ref, which counts nothing, are both the import dup_ref of fjs:l0, and its names count on bits alike')
+        assertOk(checkPlain(aliased(countsBits('dup', signature([['b', u(64)]], u(64))))))
         // other functions of Ref, and its counting ones as the last term of each path, are the hooks' to call
         assertOk(checkPlain(with_([['dup', fn([['b', u(64)]], u(64), () => if_(r('same_ref', b, b), let_('k', r('kind_ref', b), () => if_(true_, r('dup_ref', b), b)), b))]])))
     },
