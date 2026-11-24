@@ -711,7 +711,8 @@ the type and the lifetime pass never writes a hook inside a hook.
   (`countsBits`), as `dup_ref` and `drop_ref` do. The checker takes the
   marker only on a signature that fits it: one borrowed word of bits,
   `u(64)` or `u(32)`, a `dup` that answers bits of that word and a `drop`
-  that answers `unit`, neither of which fails.
+  that answers `unit`, neither of which fails. The printer writes the
+  marker after the signature: `fn dup_ref(b: u(64)) -> u(64) counts dup`.
 - **Only a hook calls a function that counts on bits**, the hook of its
   name, and only as its last term: the checker refuses a call of one
   anywhere else, so that a `dup` answers the bits that `dup_ref` gives and
