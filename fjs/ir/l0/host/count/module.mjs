@@ -288,11 +288,11 @@ export const counting = (values, data = 0, entries = 0) => {
                 refHandle(b)
                 drop(b)
             },
-            same_ref: (a, b) => {
-                const ha = refHandle(a)
-                const hb = refHandle(b)
-                return ha === hb ? 1 : 0
-            },
+            // Reference identity is the JS value in the cell, as NaNVM's
+            // `same_ref` compares the objects behind the handles and as
+            // Any.same does: two cells of one array are one value, even when
+            // their handles differ.
+            same_ref: (a, b) => cell(refHandle(a)).value === cell(refHandle(b)).value ? 1 : 0,
             from_unit: c => make(v.from_unit(c)),
             concat: (a, b) => make(v.concat(a, b)),
             substring: (s, start, end) => make(v.substring(s, start, end)),

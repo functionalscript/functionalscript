@@ -136,6 +136,12 @@ export const proof = {
         assertEq(cells(h), '0:2,1:1')
         assertEq(h.imports.same_ref(a0, a0), 1)
         assertEq(h.imports.same_ref(a0, b0), 0)
+        // Two cells of one JS value are the same reference, as Any.same and NaNVM.
+        const shared = ['x']
+        const h2 = counting([shared, shared])
+        const [s0, s1] = h2.first
+        assert(s0 !== s1)
+        assertEq(h2.imports.same_ref(s0, s1), 1)
         h.imports.drop_ref(a0)
         assertEq(cells(h), '0:1,1:1')
     },
