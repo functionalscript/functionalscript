@@ -774,7 +774,13 @@ export const proof = {
                     const run = make(
                         /** @type {(pair: readonly unknown[], read: () => readonly unknown[]) => number} */ ((pair, read) => {
                             assertEq(pair[0], arity === 1 ? visits : undefined)
-                            assert(pair !== previousPair)
+                            // `[undefined, null]` reads no argument, so the
+                            // module loaded holds it precomputed, one array
+                            // for every call: whether two calls answer one
+                            // object is the executor's to choose
+                            // (`spec/todo/value-identity.md`). The pairs that
+                            // read an argument are made per call.
+                            assert(mixed || pair !== previousPair)
                             assertEq(read()[0], pair)
                             assertEq(read()[1], run)
                             if (mixed) { assertEq(pair[1], null) }
@@ -809,7 +815,7 @@ export const proof = {
                     throws(invoke, error => error === previousPair)
                     assertEq(visits, 1)
                     assert(saved()[0] === snapshot[0] && saved()[1] === snapshot[1])
-                    assert(previousPair !== snapshot[0])
+                    assert(mixed || previousPair !== snapshot[0])
                     if (mixed) {
                         visits = 0
                         limit = 100_000
