@@ -467,6 +467,9 @@ const values = (checkTerm, env, ts) => okList(ts.map(t => value(checkTerm, env, 
 const sealCopy = (checkTerm, env, target, dup, xs) => {
     /** @type {(message: string) => Result<Typed, string>} */
     const no = message => error(`${assertNotNullish(entry(env, 'name'))}: ${message}`)
+    // The target is a sealed type that a module may write before the pass's form is looked for.
+    const bad = unsealed(env, target)
+    if (bad !== null) { return no(bad) }
     if (!env.owned) { return no(`seal of ${show(target)}: only the lifetime pass seals a counted ${show(target)}: seal its copy variants, or let the pass copy`) }
     const [x] = xs
     const inner = xs.length === 1 && x[0] === 'call' && x[1] === 'self' && x[2] === dup && x[3].length === 1 ? x[3][0] : undefined

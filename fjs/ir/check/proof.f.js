@@ -850,6 +850,11 @@ export const proof = {
         assertEq(assertError(ownedPlus(p, cell, seal(cell, call('self', 'tag', [unseal(v)])))), "f: seal of cell: a counted value is sealed only from a copy of its bits, seal(t, self.dup(unseal(e)))")
         assertEq(assertError(ownedPlus(p, only(cell, 'big'), seal(only(cell, 'big'), call('self', 'dup', [unseal(v)])))), 'f: seal of cell.only(big): the copy is of cell, which cell.only(big) does not hold')
         assertEq(assertError(ownedPlus(p, u(64), call('self', 'dup', [unseal(v)]))), "f: self.dup: only the lifetime pass calls cell's dup, in seal(t, self.dup(unseal(e)))")
+        // the pass's form seals only a sealed type that a module may write
+        const big = let_('w', match(v, [[['small'], null, trap('small')], [['big'], 'w', get('w')]]), w => call('self', 'dup', [unseal(w)]))
+        assertEq(assertError(ownedPlus(p, cell, seal(only(cell, 'big', 'bogus'), big))), 'f: cell has no variant bogus')
+        assertEq(assertError(ownedPlus(p, cell, seal(only(cell, 'big', 'big'), big))), 'f: cell.only(big, big) names big twice')
+        assertEq(plainWhy(plus(p, cell, seal(only(cell, 'big', 'bogus'), get('b')))), 'f: cell has no variant bogus')
         assertEq(assertError(ownedPlus([own('v', cell)], unit, call('self', 'drop', [unseal(v)]))), "f: self.drop: cell's drop takes release(x) of the value that it gives up")
         assertEq(assertError(ownedPlus([own('v', cell)], unit, call('self', 'drop', [release(v), release(v)]))), "f: self.drop: cell's drop takes release(x) of the value that it gives up")
         assertEq(assertError(ownedPlus([own('v', cell)], unit, call('self', 'drop', [['op', 'release', [v, v]]]))), "f: self.drop: cell's drop takes release(x) of the value that it gives up")
