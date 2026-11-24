@@ -37,6 +37,10 @@ export const proof = {
         // `() => 2 + 2` is `() => 4`
         same(closure(['=>', 0, [], ['+', 2, 2]]), ['=>', 0, [], 4])
     },
+    primitiveOverCapture: () => {
+        // `() => two + 2` with `two` captured is `() => 4`, capturing nothing
+        same(closure(['=>', 0, [2], ['+', ['frame', 0], 2]]), ['=>', 0, [], 4])
+    },
     primitiveBody: () => {
         /** @type {Closure} */
         const fn = ['=>', 0, [], 4]
@@ -93,9 +97,19 @@ export const proof = {
         /** @type {Closure} */
         const fn = ['=>', 0, [make], ['()', ['frame', 0], [1]]]
         const result = closure(fn)
-        same(result[3], ['frame', 1])
-        same(result[2][1], ['[]', [1]])
+        // and `make`, read no more, is no longer captured
+        same(result, ['=>', 0, [['[]', [1]]], ['frame', 0]])
         agree(fn, result)
+    },
+    renumbered: () => {
+        // `x => [x, make(1), seven]`: the captures left are read by their new slots
+        /** @type {Closure} */
+        const make = ['=>', 1, [], ['[]', [['arg', 0]]]]
+        /** @type {Closure} */
+        const fn = ['=>', 1, [make, 7], ['[]', [['arg', 0], ['()', ['frame', 0], [1]], ['frame', 1]]]]
+        const result = closure(fn)
+        same(result, ['=>', 1, [7, ['[]', [1]]], ['[]', [['arg', 0], ['frame', 1], ['frame', 0]]]])
+        agree(fn, result, [5])
     },
     sharedNode: () => {
         // `x => { const c = []; return [x, c, [c]] }`: `c` stays one array

@@ -15,6 +15,8 @@
  * - an array, an object or a function becomes one more capture, and the
  *   body reads it as `['frame', k]`.
  *
+ * A capture the body no longer reads is dropped.
+ *
  * The answer is an ordinary value every executor runs. It differs from the
  * one given only in what the
  * [value-identity proposal](../../../spec/todo/value-identity.md) leaves
@@ -37,6 +39,7 @@
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { empty as noExps, mapGet, mapSet } from '../../types/map/module.f.js'
 import { empty as none } from '../../types/ref_map/module.f.js'
+import { unwrap } from '../../types/result/module.f.js'
 import { identityAnalysis, ownOperandsOf, restoreNode } from '../analysis/module.f.js'
 import { eachWith } from '../memo/module.f.js'
 
@@ -48,6 +51,29 @@ const named = operands => operands.flatMap(x => x instanceof Array ? [x[1]] : []
 
 /** Whether a node computes anything: a read of a slot and a node with no operand at all do not. @type {(node: Node) => boolean} */
 const computes = node => node.length > 1 && node[0] !== 'frame'
+
+/**
+ * The closure without the captures its body does not read, the reads
+ * renumbered: a call made ahead leaves the function it called unread, and
+ * a writer refuses a slot no read reaches.
+ *
+ * @type {(fn: Closure) => Closure}
+ */
+const prune = fn => {
+    const [, length, captures, body] = fn
+    const { nodes, scope, exps } = unwrap(identityAnalysis(['=>', length, captures.map(() => null), body]))
+    const self = nodes.length - 1
+    const used = nodes.flatMap((node, i) => scope[Number(i)] === self && node[0] === 'frame' ? [node[1]] : [])
+    const kept = captures.flatMap((_, i) => used.includes(i) ? [i] : [])
+    if (kept.length === captures.length) { return fn }
+    const built = nodes.reduce(
+        (/** @type {PersistentMap<number, Exp>} */ before, node, i) => mapSet(before, i,
+            scope[Number(i)] !== self ? exps[Number(i)]
+            : node[0] === 'frame' ? ['frame', kept.indexOf(node[1])]
+            : restoreNode(before, node)),
+        noExps)
+    return ['=>', length, kept.map(i => captures[Number(i)]), body instanceof Array ? assertNotNullish(mapGet(built, self - 1)) : body]
+}
 
 /**
  * The closure with its closed nodes evaluated, or the closure itself where
@@ -100,7 +126,7 @@ const closure = runtime => fn => {
             built = mapSet(built, i, scope[Number(i)] === self && !closed[Number(i)] ? restoreNode(built, nodes[Number(i)]) : exps[Number(i)])
         }
     }
-    return changed ? ['=>', length, [...captures, ...lifted], assertNotNullish(mapGet(built, root))] : fn
+    return changed ? prune(['=>', length, [...captures, ...lifted], assertNotNullish(mapGet(built, root))]) : fn
 }
 
 /**
