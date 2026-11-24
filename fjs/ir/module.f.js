@@ -191,6 +191,15 @@ export const unseal = x => ['op', 'unseal', [x]]
  */
 export const seal = (t, x) => ['op', 'seal', [x], t]
 
+/**
+ * The bits that carry an owned value of a sealed type, which the term takes
+ * over: only in the module that defines the type, and only as the argument
+ * of the type's `drop`, as the lifetime pass writes it.
+ *
+ * @type {(x: Term) => Term}
+ */
+export const release = x => ['op', 'release', [x]]
+
 /** The name of the sealed types that a module defines, or `null` where it defines none. @type {(m: { readonly defines?: Defines }) => string | null} */
 export const definedBy = ({ defines }) => defines === undefined ? null : assertNotNullish(entry(defines, 'name'))
 

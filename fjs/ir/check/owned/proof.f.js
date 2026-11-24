@@ -8,10 +8,11 @@
 import { assertEq, assertError, assertOk } from '../../../asserts/module.f.js'
 import { any, l0, string } from '../../l0/module.f.js'
 import {
-    add, block, bool, br, call, call_ref, code, codeOf, constant, f64, field, float, fn, get, if_, let_, lit, loop, lt, make, match, never, next, only, own, return_, seal, trap, true_, u, unit,
-    unseal, variant,
+    add, block, bool, br, call, call_ref, code, codeOf, constant, f64, field, float, fn, get, if_, let_, lit, loop, lt, make, match, never, next, only, own, release, return_, seal, sealed, trap, true_,
+    u, unit, unseal, variant,
 } from '../../module.f.js'
 import { check } from '../module.f.js'
+import { counting } from '../../testlib.f.js'
 
 /** A module of one function `f` over L0, and any more functions before it. @type {(params: readonly Param[], result: Type, body: Term, more?: Module['functions']) => Module} */
 const overL0 = (params, result, body, more = []) => ({
@@ -428,4 +429,21 @@ export const proof = {
             'f: loop L repeats after s was consumed',
         ),
     },
+    // `release` takes its operand over, as the drop of a counted type that the module defines does.
+    release: () => {
+        const cell = sealed('C', 'cell')
+        const v = get('v')
+        /** `counting`'s hooks and one more function, `f`, in the owned stage. @type {(params: readonly Param[], result: Type, body: Term) => Module} */
+        const hooked = (params, result, body) => ({ ...counting, functions: [...counting.functions.filter(([k]) => ['tag', 'dup', 'drop'].includes(k)), ['f', fn(params, result, body)]], exports: [] })
+        /** The drop of `x`, as the lifetime pass writes it. @type {(x: Term) => Term} */
+        const gone = x => call('self', 'drop', [release(x)])
+        fine(hooked([own('v', cell)], unit, gone(v)))
+        fine(hooked([own('v', cell)], cell, let_('w', seal(cell, call('self', 'dup', [unseal(v)])), w => let_('d', gone(v), () => w))))
+        assertEq(why(hooked([['v', cell]], unit, gone(v))), 'f: release: v is borrowed')
+        assertEq(why(hooked([['v', cell]], unit, match(v, [[null, 'w', gone(get('w'))]]))), 'f: release: w is borrowed')
+        assertEq(why(hooked([own('v', cell)], unit, let_('d', gone(v), () => gone(v)))), 'f: v is used after it was consumed')
+        assertEq(why(hooked([own('v', cell)], u(64), let_('d', gone(v), () => unseal(v)))), 'f: v is used after it was consumed')
+        assertEq(why(hooked([own('v', cell)], unit, make([]))), 'f: v is left over')
+    },
+
 }

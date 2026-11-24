@@ -45,6 +45,11 @@
  *   value, which a local holds meanwhile.
  * - **A linear type has no `dup` and no `drop`**, so a use that would need
  *   one is refused.
+ * - **A type that the module defines is counted on its bits.** Its `dup`
+ *   and its `drop` are the module's own, over its carrier's bits, so a
+ *   copy of `e` is `seal(t, self.dup(unseal(e)))`, `t` the type of `e`,
+ *   and a drop of `x` is `self.drop(release(x))`
+ *   ([defined-hooks.md](../../../doc/sasha-gil/ir/defined-hooks.md)).
  * - **A copy type needs neither.** A sealed type whose every variant its
  *   interface names as copy, as Any names `undefined`, `null` and
  *   `boolean`, is used as a float is: the pass writes no `dup` and no
@@ -65,7 +70,7 @@ import { assert, assertNotNullish } from '../../asserts/module.f.js'
 import { error, ok, okList } from '../../types/result/module.f.js'
 import { at, empty, fromEntries, setReplace } from '../../types/ordered_map/module.f.js'
 import { checkPlain } from '../check/module.f.js'
-import { equal, interfacesOf, isCopy, isOwn, leaves, never } from '../module.f.js'
+import { definedBy, equal, interfacesOf, isCopy, isOwn, leaves, never } from '../module.f.js'
 import { quote, show } from '../print/module.f.js'
 
 // sets of names, as lists
@@ -203,7 +208,9 @@ const reading = ts => ts.map(x => [x, 'read'])
 /** A copy of a value of a sealed type, which its context owns, or why there is none. @type {(env: _Env, t: Sealed, e: Term, what: string) => Result<Term, string>} */
 const dupOf = (env, t, e, what) => {
     const { dup } = defOf(env, t)
-    return dup === undefined ? no(env, `a copy of ${what} is needed, and ${show(t)} is linear: nothing copies it`) : ok(['call', t[1], dup, [e]])
+    if (dup === undefined) { return no(env, `a copy of ${what} is needed, and ${show(t)} is linear: nothing copies it`) }
+    // A type that the module defines is copied on its bits, by the module's own dup.
+    return ok(t[1] === env.own ? ['op', 'seal', [['call', 'self', dup, [['op', 'unseal', [e]]]]], t] : ['call', t[1], dup, [e]])
 }
 
 /** The drop of an owned local, or why there is none. @type {(env: _Env, x: string) => Result<Term, string>} */
@@ -212,7 +219,9 @@ const dropOf = (env, x) => {
     assert(l[0] === 'own')
     const [, t] = l
     const { drop } = defOf(env, t)
-    return drop === undefined ? no(env, `${x} is left over, and ${show(t)} is linear: nothing drops it`) : ok(['call', t[1], drop, [['get', x]]])
+    if (drop === undefined) { return no(env, `${x} is left over, and ${show(t)} is linear: nothing drops it`) }
+    // A type that the module defines is dropped on its bits, which `release` takes over from the local.
+    return ok(t[1] === env.own ? ['call', 'self', drop, [['op', 'release', [['get', x]]]]] : ['call', t[1], drop, [['get', x]]])
 }
 
 /** Terms done in their order, each bound to a new name that nothing reads, then `last`. @type {(env: _Env, terms: readonly Term[], last: Term, n: number) => readonly [Term, number]} */
@@ -683,16 +692,16 @@ const go = (env, typed, mode, owned, live, n) => {
  * from its `own` parameters of a sealed type, which it owns, and what is
  * left of them dropped after the body's value.
  *
- * @type {(functions: OrderedMap<Signature>, imports: OrderedMap<Interface>) => (entry: readonly [string, FunctionOf<Typed>]) => Result<readonly [string, FunctionOf<Term>], string>}
+ * @type {(functions: OrderedMap<Signature>, imports: OrderedMap<Interface>, own: string | null) => (entry: readonly [string, FunctionOf<Typed>]) => Result<readonly [string, FunctionOf<Term>], string>}
  */
-const lifetimeFn = (functions, imports) => ([fn, { params, result, body }]) => {
+const lifetimeFn = (functions, imports, own) => ([fn, { params, result, body }]) => {
     /** @type {readonly (readonly [string, _Local])[]} */
     const locals = params.map(p => {
         const [k, t] = p
         return [k, t[0] !== 'sealed' || isCopy(defIn(imports, t), t) ? ['plain'] : isOwn(p) ? ['own', t] : ['borrow']]
     })
     /** @type {_Env} */
-    const env = { fn, functions, imports, taken: [...params.map(([k]) => k), ...bound(body)], locals: fromEntries(locals), frames: [['return', nothing, ['return']]] }
+    const env = { fn, functions, imports, own, taken: [...params.map(([k]) => k), ...bound(body)], locals: fromEntries(locals), frames: [['return', nothing, ['return']]] }
     const [plain, n] = named(env, body, 0)
     const r = go(env, plain, 'take', locals.flatMap(([k, l]) => l[0] === 'own' ? [k] : []), nothing, n)
     if (r[0] === 'error') { return r }
@@ -705,11 +714,11 @@ const lifetimeFn = (functions, imports) => ([fn, { params, result, body }]) => {
  * A constant's owned stage: its temporaries named, then its term written
  * from no owned local, so that the constant owns its value.
  *
- * @type {(functions: OrderedMap<Signature>, imports: OrderedMap<Interface>) => (entry: readonly [string, ConstantOf<Typed>]) => Result<readonly [string, ConstantOf<Term>], string>}
+ * @type {(functions: OrderedMap<Signature>, imports: OrderedMap<Interface>, own: string | null) => (entry: readonly [string, ConstantOf<Typed>]) => Result<readonly [string, ConstantOf<Term>], string>}
  */
-const lifetimeConstant = (functions, imports) => ([fn, { type, value }]) => {
+const lifetimeConstant = (functions, imports, own) => ([fn, { type, value }]) => {
     /** @type {_Env} */
-    const env = { fn, functions, imports, taken: bound(value), locals: empty, frames: [] }
+    const env = { fn, functions, imports, own, taken: bound(value), locals: empty, frames: [] }
     const [plain, n] = named(env, value, 0)
     const r = go(env, plain, 'take', nothing, nothing, n)
     return r[0] === 'error' ? r : ok([fn, { type, value: r[1].term }])
@@ -730,8 +739,8 @@ export const lifetime = m => {
     if (typed[0] === 'error') { return typed }
     const functions = fromEntries(m.functions)
     const imports = fromEntries(interfacesOf(m))
-    const constants = okList(typed[1].constants.map(lifetimeConstant(functions, imports)))
+    const constants = okList(typed[1].constants.map(lifetimeConstant(functions, imports, definedBy(m))))
     if (constants[0] === 'error') { return constants }
-    const written = okList(typed[1].functions.map(lifetimeFn(functions, imports)))
+    const written = okList(typed[1].functions.map(lifetimeFn(functions, imports, definedBy(m))))
     return written[0] === 'error' ? written : ok({ imports: m.imports, ...(m.defines === undefined ? {} : { defines: m.defines }), constants: constants[1], functions: written[1], exports: m.exports })
 }
