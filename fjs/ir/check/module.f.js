@@ -622,6 +622,11 @@ const term = (env, t) => {
             if (f[0] === 'error') { return no(f[1]) }
             const { params, result } = f[1]
             const full = module === 'self' ? name : `${module}.${name}`
+            // A function that counts on bits is called only in the hook of its name of a counted type that the module defines.
+            const { counts } = f[1]
+            if (counts !== undefined && !hooked(env).some(([, d]) => (counts === 'dup' ? d.dup : d.drop) === functionName)) {
+                return no(`${full} counts a value on its bits, so only the ${counts} of a counted type that the module defines calls it`)
+            }
             if (xs.length !== params.length) { return no(`${full} takes ${count(params.length, 'argument')}, not ${xs.length}`) }
             const args = values(term, env, xs)
             if (args[0] === 'error') { return args }
@@ -1092,6 +1097,44 @@ const failing = (imports, own, functions) => {
     return grow([])
 }
 
+/**
+ * A call of a function that counts on bits, of the interfaces `imports`,
+ * that a typed term makes where its value is not the term's own, or `null`:
+ * such a call stands only as the last term of a hook, so that a `dup`
+ * answers the bits that it gives and a `drop` gives one up at most once on
+ * each path. The last term of a `let` is its body's, and of a `match` each
+ * arm's.
+ *
+ * @type {(imports: OrderedMap<Interface>) => (x: Typed, last: boolean) => string | null}
+ */
+const misplaced = imports => {
+    /** @type {(module: string, name: string) => boolean} */
+    const counting = (module, name) => module !== 'self' && at(module)(imports)?.functions.find(([k]) => k === name)?.[1].counts !== undefined
+    /** @type {(x: Typed, last: boolean) => string | null} */
+    const walk = ([, t], last) => {
+        switch (t[0]) {
+            case 'call': {
+                const inner = t[3].map(a => walk(a, false)).find(r => r !== null)
+                return inner !== undefined ? inner : !last && counting(t[1], t[2]) ? `${t[1]}.${t[2]}` : null
+            }
+            case 'let': { return walk(t[2], false) ?? walk(t[3], last) }
+            case 'op': case 'call_ref': {
+                const xs = t[0] === 'op' ? t[2] : [t[1], ...t[2]]
+                return xs.map(a => walk(a, false)).find(r => r !== null) ?? null
+            }
+            case 'make': { return t[1].map(([, a]) => walk(a, false)).find(r => r !== null) ?? null }
+            case 'field': { return walk(t[1], false) }
+            case 'variant': { return walk(t[3], false) }
+            case 'match': { return walk(t[1], false) ?? t[2].map(([, , body]) => walk(body, last)).find(r => r !== null) ?? null }
+            case 'block': { return walk(t[3], false) }
+            case 'loop': { return t[2].map(([, , a]) => walk(a, false)).find(r => r !== null) ?? walk(t[3], false) }
+            case 'br': { return walk(t[2], false) }
+            default: { return null }
+        }
+    }
+    return walk
+}
+
 /** A function's effect, written beside it. @type {(fails: readonly string[]) => (entry: readonly [string, FunctionOf<Typed>]) => readonly [string, CheckedFn]} */
 const withEffect = fails => ([name, f]) => [name, { ...f, fails: fails.includes(name) }]
 
@@ -1177,6 +1220,19 @@ const checkStage = (m, owned) => {
         .flatMap(([type, { dup, drop }]) => [['dup', type, dup], ['drop', type, drop]])
         .find(([, , f]) => f !== undefined && fails.includes(f))
     if (failingHook !== undefined) { return error(`${own}.${failingHook[1]}'s ${failingHook[0]} may fail, and the ${failingHook[0]}s that the lifetime pass writes cannot`) }
+    // A hook calls a function that counts on bits only as its last term.
+    const astray = own === null ? undefined : assertNotNullish(m.defines).types
+        .flatMap(([type, { dup, drop }]) => [['dup', type, dup], ['drop', type, drop]])
+        .flatMap(([which, type, f]) => {
+            const body = typed[1].find(([k]) => k === f)?.[1].body
+            const call = body === undefined ? null : misplaced(imports)(body, true)
+            return call === null ? [] : [[which, type, call]]
+        })[0]
+    if (astray !== undefined) {
+        const [which, type, call] = astray
+        return error(which === 'dup' ? `${own}.${type}'s dup answers ${call}'s result, so it calls ${call} only as its last term`
+            : `${own}.${type}'s drop calls ${call} only as its last term, so at most once on each path`)
+    }
     return ok({ imports: m.imports, ...(m.defines === undefined ? {} : { defines: m.defines }), constants: values[1], functions: typed[1].map(withEffect(fails)), exports: m.exports })
 }
 

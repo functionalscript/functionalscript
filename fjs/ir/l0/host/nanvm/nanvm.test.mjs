@@ -7,7 +7,10 @@
  * L1's native rows run in NaNVM's Rust too, and are compared with
  * JavaScript on random floats, texts and bigints
  * ([slice 12c](../../../todo/slices.md)). A module that defines Any sees
- * NaNVM's NaN boxes as they are ([checkpoint 4c](../../../../../doc/sasha-gil/ir/runtime-in-ir.md)).
+ * NaNVM's NaN boxes as they are ([checkpoint 4c](../../../../../doc/sasha-gil/ir/runtime-in-ir.md)),
+ * and one that counts the type that it defines does so through `Ref`,
+ * NaNVM's functions of references, with no leak and no double drop
+ * ([checkpoint 4d-1](../../../../../doc/sasha-gil/ir/defined-hooks.md)).
  *
  * NaNVM's `.wasm` is built first, by
  *
@@ -28,7 +31,11 @@ import { test } from 'node:test'
 import { proof as fromFast } from '../../../from_fast/proof.mjs'
 import { proof as random } from '../../../from_fast/random/proof.mjs'
 import { proof as lifetime } from '../../../lifetime/proof.mjs'
-import { sealing } from '../../../testlib.f.js'
+import { referencing, sealing } from '../../../testlib.f.js'
+import { write } from '../../../../media/wasm/binary/write/module.f.js'
+import { check } from '../../../check/module.f.js'
+import { lifetime as lifetimePass } from '../../../lifetime/module.f.js'
+import { emit } from '../../../wasm/module.f.js'
 import { held, onHost, run } from '../../../wasm/testlib.mjs'
 import { proof as wasm } from '../../../wasm/proof.mjs'
 import { nanvmHost } from './module.mjs'
@@ -181,6 +188,38 @@ test('a module that defines Any sees the NaN boxes', () => {
         },
         boxOf: ([x]) => ({ any: x }),
     }, {}))
+})
+
+test('a module that counts the type it defines counts NaNVM references through its own hooks', () => {
+    const owned = lifetimePass(referencing)
+    if (owned[0] === 'error') { throw owned[1] }
+    const checked = check(owned[1])
+    if (checked[0] === 'error') { throw checked[1] }
+    const compiled = new WebAssembly.Module(new Uint8Array(write(emit(checked[1]))))
+    // a reference of each kind that NaNVM counts, and boxes that it does not
+    const h = host(['ab', 12345678901234567890n, [1, 2], { x: 1 }, 1.5, undefined, null, true])
+    const { exports } = new WebAssembly.Instance(compiled, { 'fjs:l0': h.imports })
+    h.keep()
+    /** @type {(name: string, ...args: readonly bigint[]) => unknown} */
+    const call = (name, ...args) => {
+        const f = exports[name]
+        if (typeof f !== 'function') { throw name }
+        return f(...args)
+    }
+    for (const v of h.first) {
+        // a copy is a new owner, which its drop gives up
+        const copy = call('keep', v)
+        if (typeof copy !== 'bigint') { throw ['keep', copy] }
+        if (call('forget', copy) !== 1) { throw 'forget' }
+        // two copies, each dropped where the function ends
+        if (call('pair', v) !== 2) { throw 'pair' }
+        // a move gives the same owner back, which the host drops
+        const moved = call('take', h.imports.dup(v))
+        if (typeof moved !== 'bigint') { throw ['take', moved] }
+        h.imports.drop(moved)
+    }
+    const cells = h.live()
+    if (cells.length !== 0) { throw ['leaked', cells] }
 })
 
 test('a trap keeps its text until enter', () => {

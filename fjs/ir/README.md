@@ -704,9 +704,24 @@ the type and the lifetime pass never writes a hook inside a hook.
   owned check cannot follow them. A `seal` of copy variants stays the
   module's to write.
 
+- **`Ref`**, in [`l0/module.f.js`](./l0/module.f.js): NaNVM's
+  `kind_ref`, `dup_ref`, `drop_ref` and `same_ref` over a reference's
+  bits, which NaNVM's host already passes through as `fjs:l0` imports. A
+  signature that counts on bits says so, `counts: 'dup'` or `'drop'`
+  (`countsBits`), as `dup_ref` and `drop_ref` do.
+- **Only a hook calls a function that counts on bits**, the hook of its
+  name, and only as its last term: the checker refuses a call of one
+  anywhere else, so that a `dup` answers the bits that `dup_ref` gives and
+  a `drop` gives one up at most once on each path. What it cannot see is
+  whether a hook tells a reference from other bits rightly: the hooks are
+  the module's trusted base, and NaNVM's leak check proves them.
+
 The `counting` module of [`testlib.f.js`](./testlib.f.js) defines a counted
 `C.cell` whose hooks give the bits back and do nothing, so its owned stage
-runs on any engine.
+runs on any engine. `referencing` defines a counted `R.ref` whose hooks
+count a NaN box's reference through `Ref` and pass any other box through,
+as Any's will; it runs on NaNVM's `.wasm`, which finds no live handle
+after it.
 
 ## What every slice refuses
 

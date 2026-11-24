@@ -187,12 +187,20 @@ export type Param = readonly [name: string, type: Type, mode?: 'own']
  * as `Functions.throw` and the functions that L0 traps in do, and a
  * missing one is `false`. A function of a module declares none: the
  * checker infers it, and writes it in the module that it answers.
+ *
+ * `counts` marks a function of an interface that counts a value on its
+ * bits, as NaNVM's `dup_ref` and `drop_ref` do: `dup` answers the bits of a
+ * new owner, and `drop` gives one up. Bits are copy, so the owned check
+ * cannot follow them: only the hook of that name of a counted type that the
+ * module defines calls such a function, and only as its last term
+ * ([defined-hooks.md](../../doc/sasha-gil/ir/defined-hooks.md)).
  */
 export type Signature = {
     readonly params: readonly Param[]
     readonly result: Type
     readonly returns?: string
     readonly fails?: boolean
+    readonly counts?: 'dup' | 'drop'
 }
 
 /** A function: its parameters, its result, and a body that the label `return` leaves. */
