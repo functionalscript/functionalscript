@@ -36,6 +36,10 @@
  *   so it needs no `dup` and no `drop`, and a parameter that owns its
  *   argument takes it. So is the name of an arm of a `match` that narrows
  *   its operand to copy variants.
+ * - **`release` takes its operand over**, as an `own` parameter does,
+ *   and gives its bits, which are plain: the lifetime pass writes it in
+ *   `self.drop(release(x))`, the drop of a counted type that the module
+ *   defines, whose `drop` works on bits.
  * - **A `match` lends its operand**, and the name of an arm is a borrow of
  *   it. A product holds borrows only, and no parameter of a loop is a
  *   product that holds a counted value. A product's borrow leans on every
@@ -438,6 +442,14 @@ const walk = (env, alive, [type, t], mode) => {
         case 'get': { return getTerm(env, alive, t[1], mode) }
         case 'let': { return letTerm(walk, env, alive, mode, t[1], t[2], t[3]) }
         case 'op': {
+            // `release` takes its operand over, as an `own` parameter does, and gives plain bits.
+            if (t[1] === 'release') {
+                const [x] = t[2]
+                const r = walk(env, alive, x, 'take')
+                if (r[0] === 'error') { return r }
+                return r[1].value[0] === 'borrowed' ? no(env, x[1][0] === 'get' ? `release: ${x[1][1]} is borrowed` : `release's operand is borrowed`)
+                    : ok(out(r[1].next, plain, r[1].exits))
+            }
             const r = sequence(walk, env, alive, t[2].map(x => [x, 'read']))
             if (r[0] === 'error') { return r }
             // `seal` makes a value of the type that it names, which its context owns, as a call's result is

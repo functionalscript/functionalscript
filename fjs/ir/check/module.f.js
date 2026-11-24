@@ -63,7 +63,7 @@ import { error, ok, okList, unwrap } from '../../types/result/module.f.js'
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
 import { at, empty, fromEntries, setReplace } from '../../types/ordered_map/module.f.js'
-import { bool, compareIn, definedBy, equal, f64, f64c, fits, inside, int, interfacesOf, isOwn, never, product, u, unit } from '../module.f.js'
+import { bool, compareIn, definedBy, equal, f64, f64c, fits, inside, int, interfacesOf, isCopy, isOwn, never, product, u, unit } from '../module.f.js'
 import { quote, show } from '../print/module.f.js'
 import { checkOwned } from './owned/module.f.js'
 
@@ -326,6 +326,30 @@ const unsealable = (env, name, t) => env.own === t[1] ? null : `${name} of ${sho
 const carrierBits = (env, t) => unwrap(definition(env, t)).carrier === 'i64' ? u(64) : u(32)
 
 /**
+ * The counted types that the module defines, each with its name and its
+ * definition: the types whose `dup` and `drop` the lifetime pass calls.
+ *
+ * @type {(env: _Env) => readonly (readonly [string, SealedDef])[]}
+ */
+const hooked = env => {
+    const i = env.own === null ? null : at(env.own)(env.imports)
+    return i === null ? [] : i.types.filter(([, { dup }]) => dup !== undefined)
+}
+
+/**
+ * The `dup` of `t` where the module defines `t`, `t` is counted and a value
+ * of `t` may hold a counted variant, or `null`: the hook that a `seal` of
+ * `t` takes its bits from.
+ *
+ * @type {(env: _Env, t: Sealed) => string | null}
+ */
+const dupHook = (env, t) => {
+    if (t[1] !== env.own) { return null }
+    const d = hooked(env).find(([k]) => k === t[2])?.[1]
+    return d === undefined || isCopy(d, t) ? null : assertNotNullish(d.dup)
+}
+
+/**
  * `unseal`'s type: the bits of its carrier, of one value of a sealed type
  * that the module defines.
  *
@@ -432,6 +456,59 @@ const value = (checkTerm, env, t) => {
 /** @type {(checkTerm: _CheckTerm, env: _Env, ts: readonly Term[]) => Result<readonly Typed[], string>} */
 const values = (checkTerm, env, ts) => okList(ts.map(t => value(checkTerm, env, t)))
 
+/**
+ * `seal(t, self.dup(unseal(e)))`, the copy of `e` that the lifetime pass
+ * writes for a counted type `t` that the module defines, typed, or why the
+ * module may not write the `seal`: only the owned stage has it, and only
+ * in that form, where `e` is a value of `t`.
+ *
+ * @type {(checkTerm: _CheckTerm, env: _Env, target: Sealed, dup: string, xs: readonly Term[]) => Result<Typed, string>}
+ */
+const sealCopy = (checkTerm, env, target, dup, xs) => {
+    /** @type {(message: string) => Result<Typed, string>} */
+    const no = message => error(`${assertNotNullish(entry(env, 'name'))}: ${message}`)
+    // The target is a sealed type that a module may write before the pass's form is looked for.
+    const bad = unsealed(env, target)
+    if (bad !== null) { return no(bad) }
+    if (!env.owned) { return no(`seal of ${show(target)}: only the lifetime pass seals a counted ${show(target)}: seal its copy variants, or let the pass copy`) }
+    const [x] = xs
+    const inner = xs.length === 1 && x[0] === 'call' && x[1] === 'self' && x[2] === dup && x[3].length === 1 ? x[3][0] : undefined
+    if (inner === undefined || inner[0] !== 'op' || inner[1] !== 'unseal' || inner[2].length !== 1) {
+        return no(`seal of ${show(target)}: a counted value is sealed only from a copy of its bits, seal(t, self.${dup}(unseal(e)))`)
+    }
+    const v = value(checkTerm, env, inner[2][0])
+    if (v[0] === 'error') { return v }
+    const [of] = v[1]
+    if (!sub(env, of, target)) { return no(`seal of ${show(target)}: the copy is of ${show(of)}, which ${show(target)} does not hold`) }
+    const bits = carrierBits(env, target)
+    return ok([target, ['op', 'seal', [[bits, ['call', 'self', dup, [[bits, ['op', 'unseal', [v[1]]]]]]]]]])
+}
+
+/**
+ * `self.drop(release(x))`, the drop of an owned `x` that the lifetime pass
+ * writes for a counted type that the module defines, typed, or why the
+ * module may not write the call: only the owned stage has it, and only in
+ * that form, where `x` is a value of the type whose `drop` it is.
+ *
+ * @type {(checkTerm: _CheckTerm, env: _Env, type: string, drop: string, xs: readonly Term[]) => Result<Typed, string>}
+ */
+const releaseDrop = (checkTerm, env, type, drop, xs) => {
+    /** @type {(message: string) => Result<Typed, string>} */
+    const no = message => error(`${assertNotNullish(entry(env, 'name'))}: ${message}`)
+    const t = show(['sealed', assertNotNullish(env.own), type, null])
+    if (!env.owned) { return no(`self.${drop}: only the lifetime pass calls ${t}'s drop`) }
+    const [x] = xs
+    if (xs.length !== 1 || x[0] !== 'op' || x[1] !== 'release' || x[2].length !== 1) {
+        return no(`self.${drop}: ${t}'s drop takes release(x) of the value that it gives up`)
+    }
+    const v = value(checkTerm, env, x[2][0])
+    if (v[0] === 'error') { return v }
+    const [of] = v[1]
+    if (of[0] !== 'sealed' || of[1] !== env.own || of[2] !== type) { return no(`self.${drop}: release of ${show(of)}, and the drop is ${t}'s`) }
+    const bits = carrierBits(env, of)
+    return ok([unit, ['call', 'self', drop, [[bits, ['op', 'release', [v[1]]]]]]])
+}
+
 /** A label bound to what it names. @type {(label: string, l: _Label) => (labels: OrderedMap<_Label>) => OrderedMap<_Label>} */
 const label_ = (label, l) => setReplace(label)(l)
 
@@ -519,6 +596,12 @@ const term = (env, t) => {
         }
         case 'op': {
             const [, name, xs, target] = t
+            // Only the lifetime pass releases a value, in the drop of a counted type that the module defines.
+            if (name === 'release') { return no(`release: only the lifetime pass releases a value, as the argument of its type's drop`) }
+            const dup = name === 'seal' && target?.[0] === 'sealed' ? dupHook(env, target) : null
+            if (dup !== null) {
+                return sealCopy(term, env, /** @type {Sealed} */ (target), dup, xs)
+            }
             const args = values(term, env, xs)
             if (args[0] === 'error') { return args }
             const types = args[1].map(([x]) => x)
@@ -531,6 +614,13 @@ const term = (env, t) => {
         }
         case 'call': {
             const [, module, name, xs] = t
+            // Only the lifetime pass calls the dup and the drop of a counted type that the module defines.
+            const hook = module === 'self' ? hooked(env).find(([, { dup, drop }]) => dup === name || drop === name) : undefined
+            if (hook !== undefined) {
+                const [type, { drop }] = hook
+                return drop === name ? releaseDrop(term, env, type, name, xs)
+                    : no(`self.${name}: only the lifetime pass calls ${show(['sealed', assertNotNullish(env.own), type, null])}'s dup, in seal(t, self.${name}(unseal(e)))`)
+            }
             const f = callee(env, module, name)
             if (f[0] === 'error') { return no(f[1]) }
             const { params, result } = f[1]
@@ -548,6 +638,9 @@ const term = (env, t) => {
             return ok([isDup ? args[1][0][0] : result, ['call', module, name, args[1]]])
         }
         case 'code': {
+            // A hook is the lifetime pass's to call, so no code value names one.
+            const hook = hooked(env).find(([, { dup, drop }]) => dup === t[1] || drop === t[1])
+            if (hook !== undefined) { return no(`code of ${t[1]}: only the lifetime pass calls ${show(['sealed', assertNotNullish(env.own), hook[0], null])}'s ${hook[1].dup === t[1] ? 'dup' : 'drop'}`) }
             const f = callee(env, 'self', t[1])
             if (f[0] === 'error') { return no(f[1]) }
             const { params, result } = f[1]
@@ -710,7 +803,7 @@ const unkept = (env, t) => isNever(t) ? 'a constant of never holds no value' : u
  */
 const checkInterface = imports => ([name, { types, constants = [], functions }]) => {
     /** @type {_Env} */
-    const env = { name, locals: empty, labels: empty, functions: empty, imports, constants: empty, own: null }
+    const env = { name, locals: empty, labels: empty, functions: empty, imports, constants: empty, own: null, owned: false }
     const type = twiceIn(types.map(([k]) => k))
     const constant = twiceIn(constants.map(([k]) => k))
     const named = twiceIn(functions.map(([k]) => k))
@@ -844,10 +937,10 @@ const unscoped = (env, imports, functions, locals, results, loaded = imports) =>
         : null
 }
 
-/** A function whose signature the checker took: a body of its result's type. @type {(functions: OrderedMap<Signature>, imports: OrderedMap<Interface>, constants: OrderedMap<Type>, own: string | null) => (entry: readonly [string, FunctionOf<Term>]) => Result<readonly [string, FunctionOf<Typed>], string>} */
-const checkFn = (functions, imports, constants, own) => ([name, { params, result, body }]) => {
+/** A function whose signature the checker took: a body of its result's type. @type {(functions: OrderedMap<Signature>, imports: OrderedMap<Interface>, constants: OrderedMap<Type>, own: string | null, owned: boolean) => (entry: readonly [string, FunctionOf<Term>]) => Result<readonly [string, FunctionOf<Typed>], string>} */
+const checkFn = (functions, imports, constants, own, owned) => ([name, { params, result, body }]) => {
     /** @type {_Env} */
-    const env = { name, locals: localsOf(params), labels: label_('return', ['block', result])(empty), functions, imports, constants, own }
+    const env = { name, locals: localsOf(params), labels: label_('return', ['block', result])(empty), functions, imports, constants, own, owned }
     const b = term(env, body)
     if (b[0] === 'error') { return b }
     return sub(env, b[1][0], result) ? ok([name, { params, result, body: b[1] }])
@@ -859,11 +952,11 @@ const checkFn = (functions, imports, constants, own) => ([name, { params, result
  * type, with no local and no label in scope, since it is no function's
  * body.
  *
- * @type {(functions: OrderedMap<Signature>, imports: OrderedMap<Interface>, constants: OrderedMap<Type>, own: string | null) => (entry: readonly [string, ConstantOf<Term>]) => Result<readonly [string, ConstantOf<Typed>], string>}
+ * @type {(functions: OrderedMap<Signature>, imports: OrderedMap<Interface>, constants: OrderedMap<Type>, own: string | null, owned: boolean) => (entry: readonly [string, ConstantOf<Term>]) => Result<readonly [string, ConstantOf<Typed>], string>}
  */
-const checkConstant = (functions, imports, constants, own) => ([name, { type, value: e }]) => {
+const checkConstant = (functions, imports, constants, own, owned) => ([name, { type, value: e }]) => {
     /** @type {_Env} */
-    const env = { name, locals: empty, labels: empty, functions, imports, constants, own }
+    const env = { name, locals: empty, labels: empty, functions, imports, constants, own, owned }
     const v = value(term, env, e)
     if (v[0] === 'error') { return v }
     return sub(env, v[1][0], type) ? ok([name, { type, value: v[1] }])
@@ -1009,18 +1102,50 @@ const failing = (imports, own, functions) => {
 const withEffect = fails => ([name, f]) => [name, { ...f, fails: fails.includes(name) }]
 
 /**
- * A module's plain stage, checked: the interfaces it imports, its constants
- * and its functions of distinct names, each typed, exports that name its
- * functions once each, and no function named `init`, which the module
- * exports to evaluate its constants in their order. The answer is the
- * module with every term typed and each function's effect, which is what
- * the [lifetime pass](../lifetime/module.f.js) reads to write the owned
- * stage.
- * Nothing here asks how often a value is used.
+ * Why a module may not define its sealed types as it does, or `null` where
+ * it may: it does not import the interface that it defines, another module
+ * makes their literals, and a counted type names both of its hooks, each a
+ * function of the module over its carrier's bits, `dup` as
+ * `(b: u(64)) -> u(64)` and `drop` as `(b: u(64)) -> unit` for an `i64`
+ * carrier, with copy variants only where it is counted, each a variant of
+ * it, once ([defined-hooks.md](../../../doc/sasha-gil/ir/defined-hooks.md)).
  *
- * @type {(m: Module) => Result<Checked, string>}
+ * @type {(m: Module, own: string) => string | null}
  */
-export const checkPlain = m => {
+const misdefined = (m, own) => {
+    if (m.imports.some(([k]) => k === own)) { return `the module defines ${own}, so it does not import ${own}` }
+    /** Whether the module's function `f` takes one borrowed parameter of `bits` and answers `result`. @type {(f: string, bits: Type, result: Type) => boolean} */
+    const over = (f, bits, result) => {
+        const s = m.functions.find(([k]) => k === f)?.[1]
+        return s !== undefined && s.params.length === 1 && !isOwn(s.params[0]) && equal(s.params[0][1], bits) && equal(s.result, result)
+    }
+    // Each hook is one type's, so that a call of it names the type whose value it counts.
+    const hooks = assertNotNullish(m.defines).types.flatMap(([type, { dup, drop }]) => [...(dup === undefined ? [] : [dup]), ...(drop === undefined ? [] : [drop])].map(f => /** @type {const} */ ([type, f])))
+    const shared = hooks.find(([, f], k) => hooks.findIndex(([, g]) => g === f) !== k)
+    if (shared !== undefined) { return `${own}.${shared[0]} names ${shared[1]}, which is a hook already: each hook counts one type` }
+    return assertNotNullish(m.defines).types.map(([type, { variants, literal, carrier, dup, drop, copy }]) => {
+        const t = `${own}.${type}`
+        const bits = carrier === 'i64' ? u(64) : u(32)
+        const b = show(bits)
+        const copies = copy ?? []
+        return literal?.module === own ? `${t}: the module that defines it does not make its literals`
+            : (dup === undefined) !== (drop === undefined) ? `${t} names ${dup === undefined ? 'a drop and no dup' : 'a dup and no drop'}, and a counted type names both`
+            : dup === undefined && copy !== undefined ? `${t} names copy variants, and only a counted type has them`
+            : copies.some((v, k) => !variants.includes(v) || copies.indexOf(v) !== k) ? `${t}'s copy variants are its variants, each once`
+            : dup !== undefined && !over(dup, bits, bits) ? `${t}'s dup is (b: ${b}) -> ${b}, over its carrier's bits`
+            : drop !== undefined && !over(drop, bits, unit) ? `${t}'s drop is (b: ${b}) -> unit, over its carrier's bits`
+            : null
+    }).find(x => x !== null) ?? null
+}
+
+/**
+ * A module's stage, checked: the plain stage, or the owned one, which the
+ * lifetime pass writes and where alone the pass's forms for a counted type
+ * that the module defines stand. See `checkPlain`.
+ *
+ * @type {(m: Module, owned: boolean) => Result<Checked, string>}
+ */
+const checkStage = (m, owned) => {
     const interfaces = interfacesOf(m)
     const imports = fromEntries(interfaces)
     const functions = fromEntries(m.functions)
@@ -1028,15 +1153,14 @@ export const checkPlain = m => {
     const constants = fromEntries(declared.map(([k, { type }]) => /** @type {const} */ ([k, type])))
     const own = definedBy(m)
     /** @type {_Env} */
-    const env = { name: '', locals: empty, labels: empty, functions, imports, constants, own }
-    const mine = own === null ? null
-        : m.imports.some(([k]) => k === own) ? `the module defines ${own}, so it does not import ${own}`
-        : assertNotNullish(m.defines).types.map(([type, { literal, dup, drop }]) => literal?.module === own ? `${own}.${type}: the module that defines it does not make its literals`
-            : dup !== undefined || drop !== undefined ? `${own}.${type}: a type that the module defines is not counted yet, since its drop could not give up the value that it owns`
-            : null).find(x => x !== null) ?? null
+    const env = { name: '', locals: empty, labels: empty, functions, imports, constants, own, owned }
+    const mine = own === null ? null : misdefined(m, own)
+    // The types that the module defines, as an interface's checks see them: their hooks are the module's own, over bits, which `misdefined` checks.
+    const plainTypes = own === null ? [] : assertNotNullish(m.defines).types.map(([k, { variants, kind, carrier, literal }]) => /** @type {const} */ ([k, { variants, carrier, ...(kind === undefined ? {} : { kind }), ...(literal === undefined ? {} : { literal }) }]))
+    const scoped = own === null ? interfaces : interfaces.map(([k, i]) => /** @type {const} */ ([k, k === own ? { ...i, types: plainTypes } : i]))
     // The loader links what the module imports, and the makers of the literals of the types that it defines, but none of its own functions.
-    const loaded = own === null ? m.imports : [...m.imports, /** @type {const} */ ([own, { abi: own, types: assertNotNullish(m.defines).types, functions: [] }])]
-    const why = mine ?? unscoped(env, interfaces, m.functions, [], [], loaded)
+    const loaded = own === null ? m.imports : [...m.imports, /** @type {const} */ ([own, { abi: own, types: plainTypes, functions: [] }])]
+    const why = mine ?? unscoped(env, scoped, m.functions, [], [], loaded)
     const names = m.functions.map(([name]) => name)
     const missing = m.exports.find(k => !names.includes(k))
     const again = twiceIn(m.exports)
@@ -1051,15 +1175,36 @@ export const checkPlain = m => {
     if (names.includes('init')) { return error('init is the function that evaluates the constants, so no function has that name') }
     if (constant !== undefined) { return error(`two constants are named ${constant}`) }
     if (typeof kept === 'string') { return error(kept) }
-    const typed = okList(m.functions.map(checkFn(functions, imports, constants, own)))
+    const typed = okList(m.functions.map(checkFn(functions, imports, constants, own, owned)))
     if (typed[0] === 'error') { return typed }
-    const values = okList(declared.map(checkConstant(functions, imports, constants, own)))
+    const values = okList(declared.map(checkConstant(functions, imports, constants, own, owned)))
     if (values[0] === 'error') { return values }
     const late = unordered(imports, own, values[1], typed[1])
     if (late !== null) { return error(late) }
     const fails = failing(imports, own, typed[1])
+    // The pass writes the hooks after the effects are inferred, so a hook that may fail would be a failure that no function declares.
+    const failingHook = own === null ? undefined : assertNotNullish(m.defines).types
+        .flatMap(([type, { dup, drop }]) => [['dup', type, dup], ['drop', type, drop]])
+        .find(([, , f]) => f !== undefined && fails.includes(f))
+    if (failingHook !== undefined) { return error(`${own}.${failingHook[1]}'s ${failingHook[0]} may fail, and the ${failingHook[0]}s that the lifetime pass writes cannot`) }
     return ok({ imports: m.imports, ...(m.defines === undefined ? {} : { defines: m.defines }), constants: values[1], functions: typed[1].map(withEffect(fails)), exports: m.exports })
 }
+
+/**
+ * A module's plain stage, checked: the interfaces it imports, its constants
+ * and its functions of distinct names, each typed, exports that name its
+ * functions once each, and no function named `init`, which the module
+ * exports to evaluate its constants in their order. The answer is the
+ * module with every term typed and each function's effect, which is what
+ * the [lifetime pass](../lifetime/module.f.js) reads to write the owned
+ * stage.
+ * Nothing here asks how often a value is used, and the forms that only
+ * the pass writes, which copy, drop and seal a counted type that the
+ * module defines, are refused.
+ *
+ * @type {(m: Module) => Result<Checked, string>}
+ */
+export const checkPlain = m => checkStage(m, false)
 
 /**
  * A module, checked: its plain stage typed, and its owned stage checked,
@@ -1069,7 +1214,7 @@ export const checkPlain = m => {
  * @type {(m: Module) => Result<Checked, string>}
  */
 export const check = m => {
-    const typed = checkPlain(m)
+    const typed = checkStage(m, true)
     if (typed[0] === 'error') { return typed }
     const owned = checkOwned(typed[1])
     return owned[0] === 'error' ? owned : typed
@@ -1097,6 +1242,7 @@ export const typeOf = scope => {
         imports: fromEntries(imports),
         constants: fromEntries(constants),
         own: null,
+        owned: false,
     }
     const why = unscoped(env, imports, functions, locals.map(([, x]) => x), [...results, ...constants.map(([, x]) => x)])
     return t => {

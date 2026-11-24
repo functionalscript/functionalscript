@@ -175,6 +175,32 @@ export const tagging = {
     exports: ['size'],
 }
 
+/** A cell of `counting`, which its module defines and counts. */
+const counted = sealed('C', 'cell')
+
+/**
+ * A module that defines a counted `C.cell`, whose `dup` and `drop` work on
+ * its carrier's bits, as Any's do: here `dup` gives the bits back and
+ * `drop` does nothing, so it runs on any host. A small cell is copy, and
+ * the lifetime pass copies and drops a big one through the hooks.
+ *
+ * @type {Module}
+ */
+export const counting = {
+    imports: [],
+    defines: { name: 'C', types: [['cell', { variants: ['small', 'big'], kind: 'tag', carrier: 'i64', dup: 'dup', drop: 'drop', copy: ['small'] }]] },
+    functions: [
+        ['tag', fn([['v', counted]], int(0n, 1n), v => and(unseal(v), n(1n)))],
+        ['dup', fn([['b', u(64)]], u(64), b => b)],
+        ['drop', fn([['b', u(64)]], unit, () => make([]))],
+        ['small', fn([], only(counted, 'small'), () => sealOf(only(counted, 'small'), n(0n)))],
+        ['keep', fn([['v', counted]], counted, v => v)],
+        ['forget', fn([own('v', counted)], u(8), () => n(1n))],
+        ['size', fn([own('v', counted)], u(8), v => match(v, [[['small'], null, n(1n)], [['big'], null, n(2n)]]))],
+    ],
+    exports: ['small', 'keep', 'forget', 'size'],
+}
+
 /** A call of an L0 function, by its interface and its name. @type {(module: string, name: string) => (...args: readonly Term[]) => Term} */
 const l0Call = (module, name) => (...args) => call(module, name, args)
 
