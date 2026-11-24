@@ -66,14 +66,15 @@ What they ask of the design, and where each stands:
 - **Each open question below** is a computation not yet applied, and so
   owed.
 
-**A test that compares sharing between executors no longer holds.** The
-interpreter's value of a module now shares what its precomputed functions
+**A test that compares sharing between executors does not hold.** The
+interpreter's value of a module shares what its precomputed functions
 answer, the runtime's among them, where NaNVM running the same graph does
-not: `nanvm/harness`'s `same_graph` requires the two graphs to share
-alike, and its corpus fails on four fixtures whose expectations gained one
-shared empty array. The value-identity proposal already says which
-comparison is portable, ordered content; what the harness compares is to
-decide.
+not. Decided by the task owner: `nanvm/harness` compares ordered content
+only (`same_content`). Four fixtures also computed a boolean from whether
+two equal values were one — `fromEntries([]) === fromEntries([])` and its
+kind — which the value-identity proposal leaves to the executor; those
+comparisons are gone from the fixtures, and what NaNVM itself shares stays
+with the tests that run it.
 
 ### Design
 
@@ -216,8 +217,8 @@ on NaNVM, the same as the uncurried one.
 - [x] Precompute every module as the interpreter loads it, carrying the
       values answered from one module to the next and making nothing again
       that exists.
-- [ ] Decide what `nanvm/harness` compares, now that sharing differs
-      between executors.
+- [x] `nanvm/harness` compares ordered content, and its fixtures compute
+      nothing from whether two equal values are one.
 - [ ] A count of steps through the interpreter's calls, and a closed call
       stopped by it.
 - [ ] Decide what asks for it, and write `.js` and `.rs` from the value in

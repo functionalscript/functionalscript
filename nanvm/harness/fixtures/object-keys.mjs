@@ -19,7 +19,6 @@ export default [
     keys({ ...source, b: 9, z: undefined }),
     keys({ constructor: 1, toString: 2, value: () => { throw 7; } }),
     [read() === read(), keys === Object.keys, keys === Object["keys"], typeof Object.keys, Object.keys.length, String(Object.keys)],
-    [keys(source) === keys(source), keys([]) === keys([]), keys("") === keys("")],
     // @ts-expect-error — the built-in ignores an extra argument.
     keys(source, 1),
 ];
