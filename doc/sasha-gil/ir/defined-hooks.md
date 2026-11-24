@@ -136,11 +136,13 @@ The checker refuses, each with the type's name:
    its path, and in `drop`, more than one `Ref.drop_ref` on one path:
    "T's dup must answer dup_ref's result", "T's drop calls drop_ref at
    most once on each path".
+
 The checker can't see more than that inside the hooks, since it can't
 tell a reference's bits from others: a `dup` that answers `b` on a
 reference's path, or a `drop` that skips `drop_ref` for one, passes
 every rule. The two hooks are the module's trusted base, a few lines
 each, and the NaNVM host's leak check (below) is their proof.
+
 4c's refusal of a `dup` or a `drop` on a defined type goes. A hook may
 call other functions, and those may hold values of `T`: that is
 ordinary recursion, whose end is the module's to prove, as for any
