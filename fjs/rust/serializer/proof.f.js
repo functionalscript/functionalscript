@@ -32,6 +32,9 @@ const fn = { target: { kind: 'function', index: 0 }, parameters: [x], rest, self
 /** @type {(statements: Block['statements'], end: Value) => string} */
 const print = (statements, end) => unwrap(scopeTagged({ statements, exit: ['yield', [end]] }, options, [], true)).lines.map(untagged).join('\n')
 
+/** Whether code outside the literal descriptors spells a string literal. @type {(lines: readonly string[]) => boolean} */
+const quoted = lines => lines.filter(line => !line.startsWith('static LITERAL_')).join('').includes('\"')
+
 export const proof = {
     nativeOwnership: () => {
         /** @type {Block['statements']} */
@@ -152,8 +155,6 @@ export const proof = {
         const core = unwrap(scopeTagged(yielding([['Math.abs']]), { ...options, runtime: null }, [], true))
         assert(core.lines.join('').includes('StaticString'))
         // A string literal is spelled only in a descriptor, never built when the module runs.
-        /** @type {(lines: readonly string[]) => boolean} */
-        const quoted = lines => lines.filter(line => !line.startsWith('static LITERAL_')).join('').includes('\"')
         assert(rust.includes('StaticString = ascii("a");'))
         assert(!quoted(printed.lines.map(untagged)) && !quoted(core.lines.map(untagged)))
     },

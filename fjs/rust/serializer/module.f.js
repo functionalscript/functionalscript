@@ -1207,9 +1207,9 @@ export const scopeTagged = (b, options, external = [], native = false) => {
     const declarations = mapEntries(ids.literals).map(([value, id]) => {
         const prefix = `${kw('static')} LITERAL_${id}: `
         if (typeof value === 'string') {
-            const text = asciiLiteral(value)
-            return cat([prefix, vm('StaticString'), ' = ', ...text[0] === 'ok'
-                ? [vm('ascii'), `(${str(text[1])});`]
+            const [tag, text] = asciiLiteral(value)
+            return cat([prefix, vm('StaticString'), ' = ', ...tag === 'ok'
+                ? [vm('ascii'), `(${str(text)});`]
                 : [vm('utf16'), `(${slice(utf16Units(value))});`]])
         }
         return cat([prefix, vm('StaticBigInt'), ` = StaticBigInt { sign: nanvm_lib::sign::Sign::${value < 0n ? 'Negative' : 'Positive'}, words: ${slice(u64WordItems(value))} };`])
