@@ -11,11 +11,11 @@
  * @import { Module, Param, Signature, Term, Type } from '../types.ts'
  */
 
-import { assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { any, array, container, l0 } from '../l0/module.f.js'
 import { lifetime } from '../lifetime/module.f.js'
 import {
-    add, block, bool, br, call, call_ref, cast, codeOf, constant, f64, f64c, false_, field, fn, get, let_, lit, loop as repeat, make, match,
+    add, block, bool, br, call, call_ref, cast, codeOf, constant, definedBy, f64, f64c, false_, field, fn, get, let_, lit, loop as repeat, make, match,
     signature, trap, true_, trunc_sat, u,
 } from '../module.f.js'
 import { native } from '../native/module.f.js'
@@ -82,11 +82,57 @@ const standIn = {
 /** The runtime of a program, which links the stand-in for L1. */
 const programRuntime = { ...runtime, l1: standIn }
 
+/**
+ * A linked program as the program goldens read it: without Any's defines
+ * and `any.*` bodies, and with each linked `any.X` written as `Any.X` again
+ * so the golden still shows the import form.
+ *
+ * @type {(m: Module) => Module}
+ */
+const withoutLinkedAny = m => {
+    /** @type {(name: string) => string | null} */
+    const short = name => name.startsWith('any.') ? name.slice(4) : null
+    /** @type {(t: Term) => Term} */
+    const rewrite = t => {
+        switch (t[0]) {
+            case 'let': { return ['let', t[1], rewrite(t[2]), rewrite(t[3])] }
+            case 'op': { return t[3] === undefined ? ['op', t[1], t[2].map(rewrite)] : ['op', t[1], t[2].map(rewrite), t[3]] }
+            case 'call': {
+                const bare = t[1] === 'self' ? short(t[2]) : null
+                return ['call', bare !== null ? 'Any' : t[1], bare ?? t[2], t[3].map(rewrite)]
+            }
+            case 'call_ref': { return ['call_ref', rewrite(t[1]), t[2].map(rewrite)] }
+            case 'make': { return ['make', t[1].map(([k, x]) => /** @type {const} */ ([k, rewrite(x)]))] }
+            case 'field': { return ['field', rewrite(t[1]), t[2]] }
+            case 'variant': { return ['variant', t[1], t[2], rewrite(t[3])] }
+            case 'match': { return ['match', rewrite(t[1]), t[2].map(([vs, b, x]) => /** @type {const} */ ([vs, b, rewrite(x)]))] }
+            case 'block': { return ['block', t[1], t[2], rewrite(t[3])] }
+            case 'loop': { return ['loop', t[1], t[2].map(([k, type, x]) => /** @type {const} */ ([k, type, rewrite(x)])), rewrite(t[3])] }
+            case 'br': { return ['br', t[1], rewrite(t[2])] }
+            case 'constant': {
+                const bare = t[1] === 'self' ? short(t[2]) : null
+                return bare !== null ? ['constant', 'Any', bare] : t
+            }
+            default: { return t }
+        }
+    }
+    return {
+        imports: [],
+        constants: (m.constants ?? [])
+            .filter(([k]) => short(k) === null)
+            .map(([k, c]) => /** @type {const} */ ([k, { type: c.type, value: rewrite(c.value) }])),
+        functions: m.functions
+            .filter(([k]) => short(k) === null)
+            .map(([k, f]) => /** @type {const} */ ([k, { ...f, body: rewrite(f.body) }])),
+        exports: m.exports,
+    }
+}
+
 /** The IR of a program's text over an L1 without `get`, where the program exports its own, printed without the interfaces that it imports. @type {(text: string) => string} */
-const ownGet = text => print({ ...assertOk(over({}, text, { ...programRuntime, l1: { ...standIn, functions: standIn.functions.filter(([k]) => k !== 'get') } })), imports: [] })
+const ownGet = text => print(withoutLinkedAny(assertOk(over({}, text, { ...programRuntime, l1: { ...standIn, functions: standIn.functions.filter(([k]) => k !== 'get') } }))))
 
 /** The IR of a program's text, which no table types, printed without the interfaces that it imports. @type {(text: string) => string} */
-const program = text => print({ ...assertOk(over({}, text, programRuntime)), imports: [] })
+const program = text => print(withoutLinkedAny(assertOk(over({}, text, programRuntime))))
 
 /** Why the lifetime pass, which types a program's plain stage as the checker does, refuses it. @type {(text: string) => string} */
 const refusedProgram = text => assertError(lifetime(assertOk(over({}, text, programRuntime))))
@@ -109,6 +155,13 @@ export const proof = {
     // Slice 11a: an untyped program, each export of `any` alone, whose
     // operators of `any` call L1, which links into the same module.
     programs: () => {
+        // linkAny defines Any, drops its import, and keeps Ref for the hooks.
+        {
+            const m = assertOk(over({}, 'export const f = (a, b) => a + b * 2', programRuntime))
+            assertEq(m.imports.map(([k]) => k).join(' '), 'Ref String BigInt Containers Functions Native')
+            assert(definedBy(m) === 'Any')
+            assert(m.functions.find(([k]) => k === 'any.from_f64') !== undefined && m.functions.find(([k]) => k === 'any.isRef') !== undefined)
+        }
         assertEq(program('export const f = (a, b) => a + b * 2'), [
             'const #n0: any.only(number) =',
             '    Any.from_f64(2.0)',

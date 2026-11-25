@@ -17,8 +17,9 @@ proofs cannot run a program that inlines Any's bit hooks.
    host supplies `kind_ref` / `dup_ref` / `drop_ref` / `same_ref`.
 2. **`linkAny`** — merge Any's IR module into a program the way L1's
    `link` does: drop the `Any` import, `defines` `any`, keep `Ref` (and
-   the rest of L0); rewrite `Any.*` to `self.*` / constants; unexported
-   helpers stay local.
+   the rest of L0); rewrite `Any.*` to linked names `any.*` (as L1 uses
+   `l1.*`), point `defines` hooks at those names, and leave the program's
+   own exports free; unexported helpers stay local.
 3. **Remeasure** — `doc/sasha-gil/ir/benchmark.run.mjs` (times + `calls`)
    and update `benchmark.md` / plan ticks.
 
@@ -27,7 +28,7 @@ May land as stacked PRs (git-base only). Depends on 4d-2 (#4113).
 ## Tasks
 
 - [x] Counting host speaks NaN boxes + Ref ops; update `count/proof.mjs`
-- [ ] `linkAny` for programs; proofs on NaNVM and counting host
+- [x] `linkAny` for programs; proofs on NaNVM and counting host (#4115)
 - [ ] Remeasure demos; tick `runtime-in-ir.md` / `defined-hooks.md`
 
 ## Related

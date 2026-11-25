@@ -162,7 +162,7 @@
 
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
-import { error, mapOk, ok, okList } from '../../types/result/module.f.js'
+import { error, mapOk, ok, okList, okThen } from '../../types/result/module.f.js'
 import { ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFINED } from '../../wasm/runtime/l0/module.f.js'
 import { typeOf } from '../check/module.f.js'
 import { any, array, builder, func, kinds, l0, lengths, object, string } from '../l0/module.f.js'
@@ -177,8 +177,9 @@ import { literals } from './literals/module.f.js'
 import { lengthRead } from './reads/module.f.js'
 import { everyLoop, filterLoops, locals as callbackLocals, names as callbackNames } from './callbacks/module.f.js'
 import { bindTerm, castCall, casts, getOf, isPure, isSpread, l1Of, linking, pure, refuse, settled, settledParts, standsFor, values } from './scope/module.f.js'
-import { link, linkedName, uses } from './link/module.f.js'
+import { link, linkAny, linkedName, uses } from './link/module.f.js'
 import { show } from '../print/module.f.js'
+import { module as anyModule } from '../runtime/any/module.f.js'
 
 /** A count in a message: `one parameter`, `2 values`. @type {(k: number, noun: string) => string} */
 const count = (k, noun) => k === 1 ? `one ${noun}` : `${k} ${noun}s`
@@ -2308,6 +2309,6 @@ export const lower = (signatures, runtime = null) => ({ statements, exit }, impo
     /** @type {Module} */
     const m = { imports: interfaces, constants, functions: everything, exports: lowered.map(([key]) => key) }
     if (l1 === null) { return ok(literals(m)) }
-    // a program: L1's bodies linked in, then the objects that it only reads back split, then its boxed numbers made once
-    return mapOk(x => literals(records('l1.get')(x)))(link(l1)(m))
+    // a program: L1's bodies linked in, then the objects that it only reads back split, then its boxed numbers made once (still as Any.from_f64), then Any's bodies linked in so scalar ops and those boxes are local
+    return okThen(linkAny(anyModule))(mapOk(x => literals(records('l1.get')(x)))(link(l1)(m)))
 }

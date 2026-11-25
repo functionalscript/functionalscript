@@ -1858,11 +1858,16 @@ export const proof = {
     programs: () => {
         const m = fromPrograms()
         assertEq([...m.exports].toSorted().join(' '), Object.keys(programs).toSorted().join(' '))
+        assertEq(m.imports.map(([k]) => k).join(' '), 'Ref String BigInt Containers Functions Native')
+        assert(m.defines !== undefined && m.defines.name === 'Any')
         const names = m.functions.map(([k]) => k)
         assert(names.includes('l1.add') && names.includes('l1.toPrimitive'))
+        assert(names.includes('any.kind') && names.includes('any.from_f64') && names.includes('any.isRef'))
+        assert(names.includes('kind'))
         assert(!names.includes('l1.toIterable') && !names.includes('l1.objectSpread'))
         const text = print({ ...m, imports: [] })
         assert(text.includes('fn sum3(p0: any, p1: any, p2: any) -> any ='))
+        assert(text.includes('any.kind(') && !text.includes('Any.kind('))
     },
     // Each program answers what JavaScript answers on the values of the
     // parity table, an object of a nested object, one of a function and a

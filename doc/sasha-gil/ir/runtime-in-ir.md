@@ -129,8 +129,9 @@ make them ([choice 6](#6-the-tests-are-the-frames)).
   which only the lifetime pass calls, through the new `release` (#4108),
   and `Ref` gives NaNVM's functions of references to those hooks only
   (#4109). **Done in 4d-2:** Any's own module in the IR
-  (`fjs/ir/runtime/any`). **4e in progress:** the counting host speaks
-  NaN boxes; next, link Any into programs and remeasure.
+  (`fjs/ir/runtime/any`). **Done in 4e-1 / 4e-2:** the counting host
+  speaks NaN boxes (#4114) and `linkAny` merges Any into programs
+  (#4115). Remeasure is 4e-3 (#4116).
 - **Alternative:** step 7 of definition.md's
   [order of work](./definition.md#order-of-work) first: `bits(64, …)`
   layouts with the layout proof and frames, as
@@ -147,12 +148,14 @@ make them ([choice 6](#6-the-tests-are-the-frames)).
 
 - **Pick:** Any's IR module lives in `fjs/ir/runtime/any`, beside the
   lowering, and joins a program the way L1 does (`link`): the program's
-  `Any.kind` and the rest become calls of the program's own functions,
-  and slice 5's rule inlines a helper that is not exported at each call.
-  Any's constants (`undefined`, `null`, `true`, `false`) become literals.
-  The calls that stay imports are NaNVM's: `kind_ref`, `dup_ref`,
-  `drop_ref` and `same_ref`, which take a box that is a reference and
-  trap on a dropped or forged one.
+  `Any.kind` and the rest become calls of the program's own functions
+  under linked names `any.kind` (as L1 uses `l1.add`), so a program may
+  still export `kind`, and slice 5's rule inlines a helper that is not
+  exported at each call. Any's constants (`undefined`, `null`, `true`,
+  `false`) become the module's globals under `any.*`. The calls that stay
+  imports are NaNVM's: `kind_ref`, `dup_ref`, `drop_ref` and `same_ref`,
+  which take a box that is a reference and trap on a dropped or forged
+  one.
 - **Alternative:** Any as a separate `.wasm` in import form, the modular
   L0's portable mode. Each call stays a call across modules, which is
   today's cost.
@@ -231,6 +234,6 @@ inline for a short string and NaNVM's for a long one.
 2. **The counting host** speaks the box (4e-1): scalars are immediates,
    references pack a cell index as a dyn-ref, and the host supplies
    `kind_ref` / `dup_ref` / `drop_ref` / `same_ref`. Linking Any into
-   programs remains.
+   programs is done (4e-2); remeasure is 4e-3.
 3. **The `s` bit** (a static reference) stays unused until literals live
    in a data segment.
