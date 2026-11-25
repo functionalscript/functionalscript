@@ -143,16 +143,26 @@ and the [type-system worked example](./type-system.md#reading-two-string-functio
 
 ### C. NaN CPU-saving (unpack once into slots)
 
-Also from the modular-runtime memo:
+Also from the modular-runtime memo, with one correction below:
 
-- **Layout:** `unpack` writes a length local (`i32`, 0 = long) plus unit
-  slots (memo: up to eight 16-bit units for the `8×6` short form; long path
-  keeps a pointer/handle slot).
-- **Ops:** `length`/`at` read slots; decode cost paid once per unpack
-  region.
-- **Tradeoffs:** larger frames; cheaper repeated `at` (e.g. scans). Needs
-  the IR/emitter to honour multi-local `str` layouts (choice 13), which
-  memory-saving can defer.
+- **Layout:** `unpack` writes a **kind/discriminator** local, a length
+  local (`i32`, including `0` for the inline empty string), and unit slots
+  (memo: up to eight 16-bit units for the `8×6` short form). On the long
+  path the remaining slot holds a pointer/handle, not decoded units.
+- **Long vs empty:** Sergey's box gives `""` its own short-string tag
+  ([README](../../sergey-shandar/nanvm/README.md), empty string row), so
+  length `0` is a valid short result. The modular-runtime memo's
+  “length `0` = long” sentinel therefore **cannot** be used as written: it
+  would make `length("")` take the long path and break the interface
+  contract (parity with L0). Candidate C needs a **distinct long-state
+  discriminator** — for example a separate `i32` flag (`0` short / `1`
+  long), or a length sentinel outside `0…8` such as `-1` — chosen when C
+  is implemented. Empty stays length `0` on the short arm.
+- **Ops:** `length`/`at` branch on the discriminator, then read slots or
+  the long path; decode cost paid once per unpack region.
+- **Tradeoffs:** larger frames (one more local than the memo's sketch);
+  cheaper repeated `at` (e.g. scans). Needs the IR/emitter to honour
+  multi-local `str` layouts (choice 13), which memory-saving can defer.
 
 ### How they plug in
 
@@ -225,19 +235,23 @@ Goal: compare A/B/C **without rewriting callers**.
 1. **Default experiment order:** implement B (memory-saving) before C
    (CPU-saving), with A as baseline — or stand up the multi-local `str`
    layout (C's prerequisite) first?
-2. **Where pack/decode helpers live:** private to String, or shared Any
+2. **Candidate C's long-state discriminator:** separate flag vs out-of-range
+   length sentinel (e.g. `-1`)? Must not reuse length `0`, which is the
+   inline empty string (see §C). Also whether to patch the modular-runtime
+   memo's “`0` = long” wording in the same coding stack.
+3. **Where pack/decode helpers live:** private to String, or shared Any
    bit utilities? Modular L0 puts `box_inline` on Any.
-3. **Which short encodings in v1?** All of Sergey's scalar string tags, or
+4. **Which short encodings in v1?** All of Sergey's scalar string tags, or
    a subset (e.g. empty + `1×16`/`2×16` first) with the rest refused or
    forced long?
-4. **`concat` of two shorts:** always try inline result, or always allocate
+5. **`concat` of two shorts:** always try inline result, or always allocate
    long until a later slice? Affects `repeat` hit rate.
-5. **`string` as a copy variant of `any`:** once shorts exist, should a
+6. **`string` as a copy variant of `any`:** once shorts exist, should a
    value narrowed to `string` be copy when short and counted when long, or
    stay counted until narrowed further? Hooks today treat non-refs as
    pass-through bits.
-6. **`at` vs `unit` naming** in the IR `str` table.
-7. **Dependency on 4e:** may String template work begin against #4113 alone
+7. **`at` vs `unit` naming** in the IR `str` table.
+8. **Dependency on 4e:** may String template work begin against #4113 alone
    (Any module present, not yet `linkAny`), or wait for #4114–#4116 on
    `main`?
 
