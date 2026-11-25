@@ -19,7 +19,7 @@ import { ioError, notImplemented } from '../../../effects/module.f.js'
 import { run } from '../../../effects/mock/module.f.js'
 import { utf8 } from '../../../text/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
-import { buildDirectory, decode, heapChange, init, irL0Path, irModulePath, irPlace, irRatio, loadWithIr, memoryRatio, modulesReady, signedBytes, jsOutput, load, milliseconds, placeName, ratio, runBoth, runIr, runJs, runWasm, rustMarkedPath, rustPath, samplePath, update, view, wasmDemo, wasmPath, watPath } from './module.f.js'
+import { buildDirectory, decode, heapChange, init, irL0Path, irModulePath, irPlace, irMemoryRatio, irRatio, loadWithIr, memoryRatio, modulesReady, signedBytes, jsOutput, load, milliseconds, placeName, ratio, runBoth, runIr, runJs, runWasm, rustMarkedPath, rustPath, samplePath, update, view, wasmDemo, wasmPath, watPath } from './module.f.js'
 import { entry } from '../../../types/object/entry/module.f.js'
 import { toJson } from '../../../media/json/module.f.js'
 
@@ -215,6 +215,23 @@ export const proof = {
         assertEq(memoryRatio({ ...grown, js: error('no js') }), null)
         assertEq(memoryRatio({ ...grown, wasm: ok({ run: { output: ok('other'), time: 1 }, memory: 0, growth: 5000 }) }), 'Not available')
     },
+    irMemoryRatio: () => {
+        /** @type {(heap: JsHeap | null, growth: number) => Runs} */
+        const runs = (heap, growth) => ({
+            js: ok({ output: ok(''), time: 1, heap }),
+            wasm: ok({ run: { output: ok(''), time: 1 }, memory: 0, growth: 0 }),
+            ir: ok({ run: { output: ok(''), time: 1 }, memory: 0x2_0000, growth }),
+        })
+        assertEq(irMemoryRatio(runs({ before: 1000, after: 3000 }, 5000)), '2.5×')
+        assertEq(irMemoryRatio(runs({ before: 1000, after: 3000 }, 0)), 'Not available')
+        assertEq(irMemoryRatio(runs(null, 5000)), null)
+        // No IR route: no line.
+        assertEq(irMemoryRatio({ js: ok({ output: ok(''), time: 1, heap: { before: 1000, after: 3000 } }), wasm: ok({ run: { output: ok(''), time: 1 }, memory: 0, growth: 0 }) }), null)
+        const grown = runs({ before: 1000, after: 3000 }, 5000)
+        assertEq(irMemoryRatio({ ...grown, ir: error('no ir') }), 'Not available')
+        assertEq(irMemoryRatio({ ...grown, js: error('no js') }), null)
+        assertEq(irMemoryRatio({ ...grown, ir: ok({ run: { output: ok('other'), time: 1 }, memory: 0, growth: 5000 }) }), 'Not available')
+    },
     signedBytes: () => {
         assertEq(signedBytes(65536), '+65536 bytes')
         assertEq(signedBytes(-1), '-1 bytes')
@@ -240,12 +257,12 @@ export const proof = {
         assert(shown.includes('Linear memory of the module so far: 65536 bytes'))
         assert(shown.includes('Linear memory added by the run: +0 bytes'))
         // The heap did not grow in this mock, so there is no comparison.
-        assert(shown.includes('Memory the WebAssembly run added, as a multiple of the JavaScript heap’s growth (Chromium): Not available'))
+        assert(shown.includes('Memory the Rust→WASM run added, as a multiple of the JavaScript heap’s growth (Chromium): Not available'))
         assert(shown.includes('Change in the whole page’s JavaScript heap across the run (Chromium): +0 bytes, 1024 → 1024'))
         // No heap line where the browser does not report it.
         const noHeap = text(view('hi')(perform(page({}, null, 'ok', null))(runBoth(hi)(ready))))
         assert(!noHeap.includes('JavaScript heap'))
-        assert(!noHeap.includes('Memory the WebAssembly run added'))
+        assert(!noHeap.includes('Memory the Rust→WASM run added'))
         assert(!noHeap.includes('Not available') && !noHeap.includes('Memory: '))
         assertEq(heapChange({ before: 1024, after: 512 }), '-512 bytes, 1024 → 512')
         assert(shown.includes('Rust→WASM running time, as a multiple of the JavaScript one: 1.0×'))
@@ -262,17 +279,20 @@ export const proof = {
         assert(refused.includes('no wasm'))
         // Three-route copy when the page has an IR module.
         /** @type {IrInstance} */
-        const irInst = { invoke: () => ({ value: 'hi', memory: 0x1_0000, growth: 0, time: 1 }), startup: 3 }
+        const irInst = { invoke: () => ({ value: 'hi', memory: 0x1_0000, growth: 0x1_0000, time: 1 }), startup: 3 }
         const irReady = { ...ready, ir: ok(irInst) }
         const three = text(view('hi')(perform(page(files, instance([0x68, 0x69]), 'ok', 1024, irInst))(runBoth({ ...hi, ir: irPlace('hi') })(irReady))))
         assert(three.includes('IR→WASM startup (fetch and compile L0 + program): 3.0 ms'))
         assert(three.includes('WebAssembly (IR → NaNVM, linkAny)'))
+        assert(three.includes('Linear memory of the module so far: 65536 bytes'))
+        assert(three.includes('Linear memory added by the run: +65536 bytes'))
         assert(three.includes('IR→WASM running time, as a multiple of the JavaScript one'))
+        assert(three.includes('Memory the IR→WASM run added, as a multiple of the JavaScript heap’s growth (Chromium): Not available'))
         assertEq(irRatio({ js: ok({ output: ok('hi'), time: 2, heap: null }), wasm: ok({ run: { output: ok('hi'), time: 4 }, memory: 0, growth: 0 }), ir: ok({ run: { output: ok('hi'), time: 6 }, memory: 0, growth: 0 }) }), '3.0×')
         assertEq(irRatio({ js: ok({ output: ok('hi'), time: 2, heap: null }), wasm: ok({ run: { output: ok('hi'), time: 4 }, memory: 0, growth: 0 }) }), null)
         assertStructurallySame(
             perform(page({}, null, 'ok', 1024, irInst))(runIr(irInst)),
-            ok({ run: { output: ok('hi'), time: 1 }, memory: 0x1_0000, growth: 0 }))
+            ok({ run: { output: ok('hi'), time: 1 }, memory: 0x1_0000, growth: 0x1_0000 }))
     },
     update: () => {
         const map = page(files, instance([0x68, 0x69]))

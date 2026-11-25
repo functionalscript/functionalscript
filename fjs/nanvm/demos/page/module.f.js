@@ -389,7 +389,7 @@ export const ratio = ({ js, wasm }) => ratioAgainstJs(js, wasm)
 export const irRatio = ({ js, ir }) => ir === undefined ? null : ratioAgainstJs(js, ir)
 
 /**
- * How many times as much memory the WebAssembly run added as the JavaScript
+ * How many times as much memory a WASM-shaped run added as the JavaScript
  * one, as {@link ratio} compares their times: the linear memory the run
  * added against the change in the page's JavaScript heap. `null` where the
  * browser does not report the heap, which every browser but Chromium does
@@ -400,13 +400,31 @@ export const irRatio = ({ js, ir }) => ir === undefined ? null : ratioAgainstJs(
  * where the linear memory did not grow, which only says the allocator reused
  * memory it had, not that the run used none.
  *
+ * @type {(js: Runs['js'], other: Result<WasmRun, string> | undefined) => string | null}
+ */
+const growthAgainstJs = (js, other) => js[0] === 'error' || js[1].heap === null
+    ? null
+    : other === undefined
+        ? null
+        : other[0] === 'ok' && sameOutput(js[1], other[1]) && js[1].heap.after > js[1].heap.before && other[1].growth > 0
+            ? `${(other[1].growth / (js[1].heap.after - js[1].heap.before)).toFixed(1)}×`
+            : 'Not available'
+
+/**
+ * Rust→WASM linear-memory growth against the JavaScript heap, as
+ * {@link growthAgainstJs}.
+ *
  * @type {(runs: Runs) => string | null}
  */
-export const memoryRatio = ({ js, wasm }) => js[0] === 'error' || js[1].heap === null
-    ? null
-    : wasm[0] === 'ok' && sameOutput(js[1], wasm[1]) && js[1].heap.after > js[1].heap.before && wasm[1].growth > 0
-        ? `${(wasm[1].growth / (js[1].heap.after - js[1].heap.before)).toFixed(1)}×`
-        : 'Not available'
+export const memoryRatio = ({ js, wasm }) => growthAgainstJs(js, wasm)
+
+/**
+ * IR→WASM linear-memory growth against the JavaScript heap, on the same
+ * terms as {@link memoryRatio}. `null` when the page has no IR route.
+ *
+ * @type {(runs: Runs) => string | null}
+ */
+export const irMemoryRatio = ({ js, ir }) => growthAgainstJs(js, ir)
 
 /** A change in memory, signed. @type {(bytes: number) => string} */
 export const signedBytes = bytes => `${bytes < 0 ? '-' : '+'}${Math.abs(bytes)} bytes`
@@ -455,10 +473,10 @@ const runsDetail = ({ js, wasm, ir }) => [
     ...(ir === undefined ? [] : wasmShapedView('WebAssembly (IR → NaNVM, linkAny)', ir)),
 ]
 
-/** @type {(ratio: string | null) => readonly Node[]} */
-const memoryView = ratio => ratio === null
+/** @type {(label: string, ratio: string | null) => readonly Node[]} */
+const memoryView = (label, ratio) => ratio === null
     ? []
-    : [stat('Memory the WebAssembly run added, as a multiple of the JavaScript heap’s growth (Chromium)', ratio)]
+    : [stat(label, ratio)]
 
 /** @type {(runs: Runs) => readonly Node[]} */
 const runsView = runs => {
@@ -467,8 +485,17 @@ const runsView = runs => {
         ...runsDetail(runs),
         ['h3', {}, 'Comparison'],
         stat('Rust→WASM running time, as a multiple of the JavaScript one', ratio(runs)),
-        ...memoryView(memoryRatio(runs)),
-        ...(ir === null ? [] : [stat('IR→WASM running time, as a multiple of the JavaScript one', ir)]),
+        ...memoryView(
+            'Memory the Rust→WASM run added, as a multiple of the JavaScript heap’s growth (Chromium)',
+            memoryRatio(runs)),
+        ...(ir === null
+            ? []
+            : [
+                stat('IR→WASM running time, as a multiple of the JavaScript one', ir),
+                ...memoryView(
+                    'Memory the IR→WASM run added, as a multiple of the JavaScript heap’s growth (Chromium)',
+                    irMemoryRatio(runs)),
+            ]),
     ]
 }
 

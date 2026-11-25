@@ -1,9 +1,11 @@
 /**
  * Collatz for the IR / direct-to-WASM demo route: the same search as
- * [`sample.f.js`](./sample.f.js) (longest chain below 30,000, same linear
- * `while` shape), as a pure program `from_fast` can lower — no `write`
- * effect. The page's IR column runs the exported entry and shows the string
- * it answers.
+ * [`sample.f.js`](./sample.f.js) (longest chain below 30,000), as a pure
+ * program `from_fast` can lower — no `write` effect. State is records in a
+ * linear `while` so the lowering admits the loop; the sample stays on
+ * numbers alone so its JavaScript and Rust→WASM routes stay allocation-free.
+ * The page's IR column runs the exported entry and shows the string it
+ * answers.
  *
  * @module
  */
