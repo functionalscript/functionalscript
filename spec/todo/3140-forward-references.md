@@ -88,6 +88,22 @@ they are the same table and the same index, so a function read twice is
 one function on every executor, a content-addressable one included, where
 a function is its table's content and its index.
 
+**Two functions written alike.** A table is what a program can rely on to
+be one: a function read twice is the same function. It cannot rely on two
+tables being two.
+
+```js
+const a = () => 'x'
+const b = () => 'x'
+```
+
+Neither `Object.is(a, b)` nor `structEq(a, b)` promises `true` or `false`
+here: a compiler may compare the two EDAGs, find the functions the same and
+make them one, and a content-addressable VM always does
+([value identity](./value-identity.md)). So a program that needs two
+functions told apart gives them different content, and one that needs them
+found equal compares what they are made from, not the functions.
+
 **What was considered and left.**
 
 - *An object as the group*, `const x = { a: () => x.b(), b: () => x.a() }`,
@@ -141,9 +157,12 @@ language rule).
 - [ ] Every consumer of the function node: the analysis, both interpreters,
       both writers, the Rust backend and NaNVM's function value.
 - [ ] `fjs/ebnf`: rules that name each other as functions of one table, in
-      place of `reference`, `define` and `definitions`; the compiler's
-      grammar, and the proof that two references of one body keep two
-      mappings.
+      place of `reference`, `define` and `definitions`, and the compiler's
+      grammar. `referenceMappingsKeepIdentity` in
+      [`fjs/ebnf/ll1`](../../fjs/ebnf/ll1/proof.f.js) maps one of two rules
+      of the same body and not the other, which no executor is held to:
+      the requirement goes, and a grammar that maps two rules differently
+      writes them differently.
 - [ ] The same rule in a function body
       ([`body-const-forward-reference.md`](../../fjs/compiler/parser/todo/body-const-forward-reference.md)).
 
