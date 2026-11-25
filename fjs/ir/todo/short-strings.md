@@ -1,7 +1,7 @@
 ## Short strings in the IR
 
 **Priority:** P2
-**Status:** wip — design approved (Sasha, #4118); S1–S3 coding; S4 open
+**Status:** wip — design approved (Sasha, #4118); S1–S3 done; S4 coding
 
 ### Problem
 
