@@ -41,6 +41,9 @@ export type _Nanvm = {
     readonly alive: (h: bigint) => number
     readonly trap_text_length: () => number
     readonly trap_text_into: (ptr: number) => void
-    /** `0` always dyn-ref (A); non-zero short when a v1-enabled tag fits (B/C). */
-    readonly set_string_emit_short: (enabled: number) => void
+    /**
+     * `0` always dyn-ref (A); otherwise a bit mask of enabled short tags
+     * (B/C), bit `i` matching `allTags[i]` in the String short helpers.
+     */
+    readonly set_string_emit: (mask: number) => void
 }

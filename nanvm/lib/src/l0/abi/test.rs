@@ -139,7 +139,7 @@ fn short_strings_junk_traps() {
 #[test]
 fn short_strings_emit() {
     fresh();
-    set_string_emit_short(true);
+    set_string_emit(short::V1_MASK);
     let empty = string("");
     assert_eq!(empty as u64, short::EMPTY);
     assert_eq!(live(), 0);
@@ -158,6 +158,18 @@ fn short_strings_emit() {
     assert_eq!(live(), 1);
     drop(abc);
     assert_eq!(live(), 0);
+    // An empty enabled set is always dyn-ref, even under shortWhenEnabled.
+    fresh();
+    set_string_emit(0);
+    let one = from_unit(0x41);
+    assert_eq!(live(), 1);
+    drop(one);
+    // Enabling only empty still force-longs a one-unit string.
+    set_string_emit(1 << short::Tag::Empty as u32);
+    let still_long = from_unit(0x41);
+    assert_eq!(live(), 1);
+    assert_ne!(still_long as u64, short::pack(&[0x41]).unwrap());
+    drop(still_long);
 }
 
 #[test]

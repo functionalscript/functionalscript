@@ -13,22 +13,55 @@ const SCALAR: u64 = 0x7FF0_0000_0000_0000;
 /// Empty-string box.
 pub const EMPTY: u64 = 0x7FF0_0000_0000_0008;
 
-/// Sergey scalar short-string encodings.
+/// Sergey scalar short-string encodings, in the same order as
+/// `fjs/ir/runtime/string/short.f.js` `allTags` (bit `i` of an emit mask).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
 pub enum Tag {
-    Empty,
-    S1x16,
-    S2x16,
-    S3x16,
-    S4x7,
-    S5x7,
-    S6x7,
-    S7x7,
-    S8x6,
+    Empty = 0,
+    S1x16 = 1,
+    S2x16 = 2,
+    S3x16 = 3,
+    S4x7 = 4,
+    S5x7 = 5,
+    S6x7 = 6,
+    S7x7 = 7,
+    S8x6 = 8,
 }
+
+/// Every Sergey tag, index = emit-mask bit.
+pub const ALL_TAGS: &[Tag] = &[
+    Tag::Empty,
+    Tag::S1x16,
+    Tag::S2x16,
+    Tag::S3x16,
+    Tag::S4x7,
+    Tag::S5x7,
+    Tag::S6x7,
+    Tag::S7x7,
+    Tag::S8x6,
+];
 
 /// v1 enabled set for NaN variants B/C.
 pub const V1_ENABLED: &[Tag] = &[Tag::Empty, Tag::S1x16, Tag::S2x16];
+
+/// Emit mask for [`V1_ENABLED`]: bits 0–2.
+pub const V1_MASK: u32 =
+    (1 << Tag::Empty as u32) | (1 << Tag::S1x16 as u32) | (1 << Tag::S2x16 as u32);
+
+/// Tags whose bits are set in `mask` (bit `i` = [`ALL_TAGS`]`[i]`).
+pub fn tags_from_mask(mask: u32) -> Vec<Tag> {
+    ALL_TAGS
+        .iter()
+        .copied()
+        .filter(|&t| mask & (1 << t as u32) != 0)
+        .collect()
+}
+
+/// Emit mask for an enabled-tag list.
+pub fn mask_of(tags: &[Tag]) -> u32 {
+    tags.iter().fold(0u32, |m, &t| m | (1 << t as u32))
+}
 
 /// `$`, `0`–`9`, `A`–`Z`, `_`, `a`–`z` — the 6-bit short-string alphabet.
 const ALPHABET: [u16; 64] = [
@@ -163,6 +196,9 @@ mod tests {
         assert!(pack_enabled(&[0x61], V1_ENABLED).is_some());
         assert!(pack_enabled(&[0x61, 0x62, 0x63], V1_ENABLED).is_none());
         assert!(pack(&[0x61, 0x62, 0x63]).is_some());
+        assert_eq!(V1_MASK, mask_of(V1_ENABLED));
+        assert_eq!(tags_from_mask(V1_MASK), V1_ENABLED.to_vec());
+        assert!(tags_from_mask(0).is_empty());
     }
 
     #[test]

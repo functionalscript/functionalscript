@@ -63,10 +63,28 @@
  * @import { Host as NativeHost } from '../../../native/host/types.ts'
  */
 
+import { allTags } from '../../../runtime/string/short.f.js'
 import { write } from '../../../../media/wasm/binary/write/module.f.js'
 
 /** Default emit policy: variant A — every string stays a dyn-ref. @type {StringEmit} */
 const alwaysDynRef = { kind: 'alwaysDynRef' }
+
+/**
+ * Emit mask for NaNVM: bit `i` = `allTags[i]`. `0` means always dyn-ref.
+ *
+ * @type {(emit: StringEmit) => number}
+ */
+const emitMask = emit => {
+    if (emit.kind !== 'shortWhenEnabled') { return 0 }
+    /** @type {(i: number, acc: number) => number} */
+    const go = (i, acc) => {
+        if (i === emit.enabledTags.length) { return acc }
+        const bit = allTags.indexOf(emit.enabledTags[Number(i)])
+        if (bit < 0) { throw 'fjs:l0 nanvm: unknown short tag' }
+        return go(i + 1, acc | (1 << bit))
+    }
+    return go(0, 0)
+}
 
 /** The first code index of a JavaScript function that `own` gives NaNVM, past any module's table. */
 export const HOST = 0x4000_0000
@@ -147,7 +165,7 @@ export const nanvmHost = nanvm => (values, data = 0, entries = 0, stringEmit = a
     const { invoke } = new WebAssembly.Instance(adapter, { 'fjs:adapter': { table, host } }).exports
     const instance = new WebAssembly.Instance(nanvm, { 'fjs:host': { invoke } })
     const n = /** @type {_Nanvm} */ (/** @type {unknown} */ (instance.exports))
-    n.set_string_emit_short(stringEmit.kind === 'shortWhenEnabled' ? 1 : 0)
+    n.set_string_emit(emitMask(stringEmit))
     // Any's constants, as NaNVM boxes them: NaNVM is their one source.
     const UNDEFINED = n.constant_box(0)
     const NULL = n.constant_box(1)

@@ -16,8 +16,9 @@
 //!   them alone. A well-formed **short string** is the same: the ABI
 //!   **accepts** every Sergey short-string tag
 //!   ([short-strings.md](../../../../doc/sasha-gil/ir/short-strings.md) S2);
-//!   [`set_string_emit_short`] turns on B/C emission (`empty` / `s1x16` /
-//!   `s2x16`), and a miss stays a dyn-ref. Every other value is a
+//!   [`set_string_emit`] takes a bit mask of enabled tags (`0` = always
+//!   dyn-ref / variant A; non-zero = B/C when a set bit's tag fits), and a
+//!   miss stays a dyn-ref. Every other value is a
 //!   reference, `0x7FF | kind << 48 | handle << 2`: `kind` is L0's kind,
 //!   and the handle is an index into a table of `naive` values, 32 bits,
 //!   with the slot's generation in the 14 above, so a handle used after
@@ -274,9 +275,9 @@ struct State {
     marks: Vec<u64>,
     /// The value of the last [`throw`], and the births before it.
     thrown: Option<(V, u64)>,
-    /// When true, allocating string ops emit a short box for a v1-enabled
-    /// tag (String variants B/C); when false, always a dyn-ref (A).
-    string_emit_short: bool,
+    /// Bit mask of short tags allocating string ops may emit (`0` = always
+    /// dyn-ref / variant A; see [`short::tags_from_mask`]).
+    string_emit_mask: u32,
 }
 
 impl State {
@@ -301,15 +302,17 @@ impl State {
             births: 0,
             marks: Vec::new(),
             thrown: None,
-            string_emit_short: false,
+            string_emit_mask: 0,
         }
     }
 }
 
-/// String emit policy for allocating L0 string imports: `false` is variant
-/// A (always dyn-ref); `true` is B/C (short when a v1-enabled tag fits).
-pub fn set_string_emit_short(enabled: bool) {
-    with(|s| s.string_emit_short = enabled);
+/// String emit policy for allocating L0 string imports: `0` is variant A
+/// (always dyn-ref); a non-zero mask enables short emit for the tags whose
+/// bits are set ([`short::ALL_TAGS`] order), matching the counting host's
+/// `enabledTags`.
+pub fn set_string_emit(mask: u32) {
+    with(|s| s.string_emit_mask = mask);
 }
 
 /// The state, and whether a change of it is under way. A `RefCell` would
@@ -437,7 +440,7 @@ fn take(name: &str, h: i64) -> V {
 
 /// A new owned box: a number, `undefined`, `null` and the booleans are
 /// their own bits, so they never take a slot. A string may be a short box
-/// when [`set_string_emit_short`] is on and a v1-enabled tag fits.
+/// when [`set_string_emit`] enables a tag that fits.
 fn put(v: V) -> i64 {
     let kind = super::kind(&v);
     match kind {
@@ -445,12 +448,16 @@ fn put(v: V) -> i64 {
         super::Kind::Null => return NULL,
         super::Kind::Boolean => return from_bool(super::to_bool(&v) as i32),
         super::Kind::Number => return number(super::to_f64(&v)),
-        super::Kind::String if with(|s| s.string_emit_short) => {
-            let len = super::length(&v) as usize;
-            let mut units: Vec<u16> = core::iter::repeat_n(0, len).collect();
-            super::read_units(&v, 0, &mut units);
-            if let Some(bits) = short::pack_enabled(&units, short::V1_ENABLED) {
-                return bits as i64;
+        super::Kind::String => {
+            let mask = with(|s| s.string_emit_mask);
+            if mask != 0 {
+                let enabled = short::tags_from_mask(mask);
+                let len = super::length(&v) as usize;
+                let mut units: Vec<u16> = core::iter::repeat_n(0, len).collect();
+                super::read_units(&v, 0, &mut units);
+                if let Some(bits) = short::pack_enabled(&units, &enabled) {
+                    return bits as i64;
+                }
             }
         }
         _ => {}

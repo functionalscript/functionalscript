@@ -425,11 +425,11 @@ pub extern "C" fn alive(h: i64) -> i32 {
     abi::alive(h)
 }
 
-/// String emit policy: `0` always dyn-ref (variant A); non-zero short when
-/// a v1-enabled tag fits (B/C). Default is A.
-#[unsafe(export_name = "set_string_emit_short")]
-pub extern "C" fn set_string_emit_short(enabled: i32) {
-    abi::set_string_emit_short(enabled != 0)
+/// String emit policy: `0` always dyn-ref (variant A); otherwise a bit mask
+/// of enabled short tags (B/C), bit `i` = `short::ALL_TAGS[i]`. Default is A.
+#[unsafe(export_name = "set_string_emit")]
+pub extern "C" fn set_string_emit(mask: i32) {
+    abi::set_string_emit(mask as u32)
 }
 
 // L1's native rows, the `fjs:l1-native` imports.
