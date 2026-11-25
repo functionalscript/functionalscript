@@ -4,7 +4,7 @@
  * read them so, what a term calls or reads of its own module, `link`, which
  * merges a program with the bodies of L1 that it reaches, `linkAny`, which
  * merges Any's IR module the same way so scalar ops become the program's
- * own functions ([checkpoint 4e](../../todo/runtime-in-ir-4e.md)), and
+ * own functions ([checkpoint 4e](../../../../doc/sasha-gil/ir/runtime-in-ir.md)), and
  * `errorTable`, which reads L1's error table from its text, for
  * [the lowering](../module.f.js).
  *
@@ -142,7 +142,7 @@ const rewriteAny = (own, rename) => {
 
 /**
  * A program that links Any's IR module
- * ([checkpoint 4e](../../todo/runtime-in-ir-4e.md)): drops the `Any`
+ * ([checkpoint 4e](../../../../doc/sasha-gil/ir/runtime-in-ir.md)): drops the `Any`
  * import, keeps `Ref` (and the rest of L0), defines `any`, rewrites every
  * `Any.*` call and constant to a linked name `any.kind` (as L1 uses
  * `l1.add`), and merges the bodies of Any that the program reaches —

@@ -129,9 +129,10 @@ make them ([choice 6](#6-the-tests-are-the-frames)).
   which only the lifetime pass calls, through the new `release` (#4108),
   and `Ref` gives NaNVM's functions of references to those hooks only
   (#4109). **Done in 4d-2:** Any's own module in the IR
-  (`fjs/ir/runtime/any`). **Done in 4e-1 / 4e-2:** the counting host
-  speaks NaN boxes (#4114) and `linkAny` merges Any into programs
-  (#4115). Remeasure is 4e-3 (#4116).
+  (`fjs/ir/runtime/any`). **Done in 4e:** the counting host speaks NaN
+  boxes (#4114), `linkAny` merges Any into programs (#4115), and the IR
+  benchmarks were remeasured (#4116): numeric loops keep essentially no
+  scalar import calls (`sumTo` / `fib` ≈ JavaScript on NaNVM).
 - **Alternative:** step 7 of definition.md's
   [order of work](./definition.md#order-of-work) first: `bits(64, …)`
   layouts with the layout proof and frames, as
@@ -236,6 +237,6 @@ interchangeable implementations, experiment plan) is in
 2. **The counting host** speaks the box (4e-1): scalars are immediates,
    references pack a cell index as a dyn-ref, and the host supplies
    `kind_ref` / `dup_ref` / `drop_ref` / `same_ref`. Linking Any into
-   programs is done (4e-2); remeasure is 4e-3.
+   programs (4e-2) and remeasure (4e-3) are done.
 3. **The `s` bit** (a static reference) stays unused until literals live
    in a data segment.

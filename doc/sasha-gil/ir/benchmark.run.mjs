@@ -93,7 +93,8 @@ const tallied = (make, tally) => (values, d, e) => {
             tally.set(k, (tally.get(k) ?? 0) + 1)
             return f(...xs)
         }]))
-    return { ...h, imports }
+    // Caller cleanup after the export returns is not a program import.
+    return { ...h, imports, dropResult: h.imports.drop }
 }
 
 /** The program `name` on a host that `make` makes, with `args` as its first values: a call of it, which reads and drops its result. */
@@ -102,10 +103,11 @@ const onHost = (make, name, args) => {
     const { exports } = new WebAssembly.Instance(untyped, { 'fjs:l0': h.imports, 'fjs:l1-native': h.native ?? nativeHost(h.read, h.own, h.fail) })
     if (typeof exports.init === 'function') { exports.init() }
     h.keep()
+    const dropResult = h.dropResult ?? h.imports.drop
     return () => {
         const r = exports[name](...h.first)
         const v = h.read(r)
-        h.imports.drop(r)
+        dropResult(r)
         return v
     }
 }
