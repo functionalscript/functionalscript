@@ -1,5 +1,8 @@
 ## Move `fjs.layout` ULEB decode into FunctionalScript
 
+**Priority:** P3
+**Status:** open
+
 `fjs/ir/wasm/layout.mjs` holds the unsigned LEB128 walk that reads a
 module's `fjs.layout` custom section beside the `WebAssembly.Module.customSections`
 call. The walk is pure (bytes in, numbers out) but uses in-place `push`, so it
