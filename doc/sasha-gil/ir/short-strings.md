@@ -29,9 +29,14 @@ What is still expensive is **reference-shaped** work. After bulk `concat`,
 `repeat` is still far from JavaScript (about 100× on the last published
 table in [benchmark.md](./benchmark.md)), and post-linkAny profiles still
 spend that time on `kind_ref` / `dup_ref` / `drop_ref` and string imports.
-`repeat` builds `t = t + 'ab'`; many intermediate strings are short enough
-to live in the box. Short strings are the first runtime-in-IR step that can
-cut that traffic **without** rewriting containers or Heap.
+`repeat` (`n = 1_000`, append `'ab'` from `e = ""`) grows past the
+eight-unit short maximum after a few steps; most of its cost is copying
+increasingly long strings (about 87% in the published profile). Short
+strings are still the first runtime-in-IR step that can cut **short**
+string traffic without rewriting containers or Heap — but the primary
+comparison for that win is a short-only microbench, not `repeat` as a
+short-hit rate demo. `repeat` stays as a regression / long-path check
+(and for any early iterations or `concat` policy that still help).
 
 | Length class | Today (post–scalar Any) | This phase's target |
 | --- | --- | --- |
@@ -110,14 +115,17 @@ A String runtime module variant is valid for experiment if:
 2. Its manifest states slot demand (including zero) and which functions are
    templates vs imports vs null.
 3. **Storage (by variant class):**
-   - **NaN short-string variants (B, C):** values that fit Sergey's short
-     tags do **not** take a dyn-ref slot; they live in the box. Values that
-     do not fit still go through the host/NaNVM string path the variant
-     names.
+   - **NaN short-string variants (B, C):** values whose encodings the
+     variant **enables** do **not** take a dyn-ref slot; they live in the
+     box. Every other string `any` (too long for any short tag, or a short
+     tag the variant has not enabled yet) still goes through the
+     host/NaNVM string path — same observable `length`/`at` as L0, just
+     not inline. A v1 that enables only a subset must **force long** for
+     the rest, not refuse them (refusal would break clause 1).
    - **Host-backed baseline (A):** never makes a short-string box; every
      string remains a dyn-ref. That is intentional: A is the portable
-     control, not a NaN short-string implementation. Clause 3's “no
-     dyn-ref for shorts” applies only to B and C.
+     control, not a NaN short-string implementation. The “no dyn-ref for
+     enabled shorts” rule applies only to B and C.
 4. Swapping the variant changes **only** the linked String module (and
    possibly which Any encoding it requires), not L1 source or demo
    programs.
@@ -154,24 +162,26 @@ and the [type-system worked example](./type-system.md#reading-two-string-functio
 
 Also from the modular-runtime memo, with one correction below:
 
-- **Layout:** `unpack` writes a **kind/discriminator** local, a length
-  local (`i32`, including `0` for the inline empty string), and unit slots
-  (memo: up to eight 16-bit units for the `8×6` short form). On the long
-  path the remaining slot holds a pointer/handle, not decoded units.
 - **Long vs empty:** Sergey's box gives `""` its own short-string tag
   ([README](../../sergey-shandar/nanvm/README.md), empty string row), so
   length `0` is a valid short result. The modular-runtime memo's
-  “length `0` = long” sentinel therefore **cannot** be used as written: it
-  would make `length("")` take the long path and break the interface
-  contract (parity with L0). Candidate C needs a **distinct long-state
-  discriminator** — for example a separate `i32` flag (`0` short / `1`
-  long), or a length sentinel outside `0…8` such as `-1` — chosen when C
-  is implemented. Empty stays length `0` on the short arm.
-- **Ops:** `length`/`at` branch on the discriminator, then read slots or
+  “length `0` = long” sentinel therefore **cannot** be used as written.
+  Empty stays length `0` on the short arm. Pick **one** of the layouts
+  below when C is implemented (open Q2); do not prescribe both.
+- **Layout C-flag:** `unpack` writes a separate `i32` flag (`0` short /
+  `1` long), a length local (`0…8` on the short arm), and unit slots
+  (memo: up to eight 16-bit units). On the long arm the remaining slot
+  holds a pointer/handle. Frame cost: flag + length + units (or handle).
+- **Layout C-sentinel:** `unpack` writes a single length local where
+  `0…8` means short (including empty) and a sentinel outside that range
+  (e.g. `-1`) means long, plus the same unit / handle slots. No separate
+  flag local. Frame cost: one fewer `i32` than C-flag.
+- **Ops:** `length`/`at` branch on flag or sentinel, then read slots or
   the long path; decode cost paid once per unpack region.
-- **Tradeoffs:** larger frames (one more local than the memo's sketch);
-  cheaper repeated `at` (e.g. scans). Needs the IR/emitter to honour
-  multi-local `str` layouts (choice 13), which memory-saving can defer.
+- **Tradeoffs:** larger frames than B; cheaper repeated `at`. Measure the
+  frame cost of the **chosen** layout, not an unconditional “extra local.”
+  Needs the IR/emitter to honour multi-local `str` layouts (choice 13),
+  which memory-saving can defer.
 
 ### How they plug in
 
@@ -204,9 +214,11 @@ different Any carrier. Out of scope for the first coding stack.
 
 Goal: compare A/B/C **without rewriting callers**.
 
-1. **Fix the program.** Keep `repeat` and a small short-string microbench
-   (literals + `length`/`unit`/`concat` of short results) as IR/L1 text.
-   Callers use `str` rows or L0 String names only.
+1. **Fix the programs.** Primary: a short-only microbench (literals +
+   `length`/`unit`/`concat` whose results stay within the enabled short
+   encodings). Secondary: keep `repeat` as a long-path / regression check
+   (it is mostly long after a few steps). Callers use `str` rows or L0
+   String names only.
 2. **Vary only the String module** (and the Any encoding it requires) at
    link/emit time. Import-form A is the portable baseline; B and C are
    template-form specializations.
@@ -214,11 +226,14 @@ Goal: compare A/B/C **without rewriting callers**.
    the existing string parity tables (short and long), including traps on
    bad indices.
 4. **Measure** (same harness as [benchmark.md](./benchmark.md)):
-   - wall clock: `repeat`, plus a short-only loop if `repeat` stays long-dominated;
-   - L0 / Ref import counts: `kind_ref`, `dup_ref`, `drop_ref`, string imports;
-   - short-hit rate: fraction of string values / `concat` results that stay inline;
-   - frame cost: locals per `str` (0 vs CPU-saving unpack);
-   - optional: peak host string allocations.
+   - wall clock: **short-only microbench first**; `repeat` second;
+   - L0 / Ref import counts on the short-only bench: `kind_ref`,
+     `dup_ref`, `drop_ref`, string imports;
+   - short-hit rate on the short-only bench (and early `repeat` steps if
+     useful);
+   - frame cost: locals per `str` for B (0) vs the **chosen** C layout;
+   - optional: peak host string allocations; `repeat` wall clock as
+     regression.
 5. **Decision gate.** After one remeasure PR, pick a default variant for
    NaNVM-targeted builds; keep the others buildable behind the same
    interface. Do not delete the losers until a later cleanup.
@@ -244,15 +259,14 @@ Goal: compare A/B/C **without rewriting callers**.
 1. **Default experiment order:** implement B (memory-saving) before C
    (CPU-saving), with A as baseline — or stand up the multi-local `str`
    layout (C's prerequisite) first?
-2. **Candidate C's long-state discriminator:** separate flag vs out-of-range
-   length sentinel (e.g. `-1`)? Must not reuse length `0`, which is the
-   inline empty string (see §C). Also whether to patch the modular-runtime
-   memo's “`0` = long” wording in the same coding stack.
+2. **Candidate C layout:** C-flag vs C-sentinel (see §C)? Must not reuse
+   length `0` as long. Also whether to patch the modular-runtime memo's
+   “`0` = long” wording in the same coding stack.
 3. **Where pack/decode helpers live:** private to String, or shared Any
    bit utilities? Modular L0 puts `box_inline` on Any.
 4. **Which short encodings in v1?** All of Sergey's scalar string tags, or
-   a subset (e.g. empty + `1×16`/`2×16` first) with the rest refused or
-   forced long?
+   a subset (e.g. empty + `1×16`/`2×16` first) with the rest **forced
+   long** (not refused — see clause 3)?
 5. **`concat` of two shorts:** always try inline result, or always allocate
    long until a later slice? Affects `repeat` hit rate.
 6. **`string` as a copy variant of `any`:** once shorts exist, should a
