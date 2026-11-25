@@ -1,12 +1,9 @@
 /**
- * Paths and program names for the IR / direct-to-WASM demo route: the
- * emit script writes these under `nanvm/demos/wasm/`, and the sort and
- * Collatz pages load them beside Rust→WASM.
+ * File names and program list for the IR / direct-to-WASM demo route: one
+ * spelling for the emit script and the sort / Collatz pages.
  *
  * @module
  */
-
-import { buildDirectory } from '../page/module.f.js'
 
 /** NaNVM L0 beside the IR modules. */
 export const l0FileName = 'nanvm_l0_wasm.wasm'
@@ -15,18 +12,12 @@ export const l0FileName = 'nanvm_l0_wasm.wasm'
 export const irFileName = name => `${name}.ir.wasm`
 
 /**
- * The samples that have an `ir.f.js` and are emitted into
- * {@link buildDirectory}.
+ * The samples that have an `ir.f.js` and are emitted into the wasm publish
+ * directory.
  *
  * @type {readonly string[]}
  */
 export const irPrograms = /** @type {const} */ (['collatz', 'sort'])
 
-/** Repository-relative publish directory for IR artifacts. */
-export const irPublishDirectory = buildDirectory
-
-/** @type {(name: string) => string} */
-export const irPublishPath = name => `${irPublishDirectory}/${irFileName(name)}`
-
-/** Repository-relative path of the published NaNVM L0 module. */
-export const irL0PublishPath = `${irPublishDirectory}/${l0FileName}`
+/** The export every IR demo program answers. */
+export const irExportName = 'run'

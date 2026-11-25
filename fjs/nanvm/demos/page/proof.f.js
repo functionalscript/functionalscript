@@ -14,12 +14,12 @@
  */
 
 import { tagged } from '../../../text/marked/module.f.js'
-import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.js'
 import { ioError, notImplemented } from '../../../effects/module.f.js'
 import { run } from '../../../effects/mock/module.f.js'
 import { utf8 } from '../../../text/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
-import { buildDirectory, decode, heapChange, init, irL0Path, irModulePath, irPlace, irRatio, loadWithIr, memoryRatio, signedBytes, jsOutput, load, milliseconds, placeName, ratio, runBoth, runIr, runJs, runWasm, rustMarkedPath, rustPath, samplePath, update, view, wasmDemo, wasmPath, watPath } from './module.f.js'
+import { buildDirectory, decode, heapChange, init, irL0Path, irModulePath, irPlace, irRatio, loadWithIr, memoryRatio, modulesReady, signedBytes, jsOutput, load, milliseconds, placeName, ratio, runBoth, runIr, runJs, runWasm, rustMarkedPath, rustPath, samplePath, update, view, wasmDemo, wasmPath, watPath } from './module.f.js'
 import { entry } from '../../../types/object/entry/module.f.js'
 import { toJson } from '../../../media/json/module.f.js'
 
@@ -221,9 +221,12 @@ export const proof = {
         assertEq(signedBytes(0), '+0 bytes')
     },
     view: () => {
-        // Before loading: no startup and no runs.
+        // Before loading: no startup and no runs; Run stays disabled with a note.
         const first = text(view('hi')(init))
         assert(first.includes('Loading…'))
+        assert(first.includes('Waiting for modules to finish loading…'))
+        assert(!modulesReady(init))
+        assert(modulesReady(ready))
         assert(!first.includes('startup'))
         assert(!first.includes('"JavaScript"'))
         // Loaded, run, and an empty output said in words.
@@ -281,8 +284,10 @@ export const proof = {
         assertEq(demo.init, init)
         assert(text(demo.view(init)).includes('Run'))
         assert(text(demo.view(init)).includes('two ways'))
+        assertEq(assertNotNullish(demo.wait)(init), 'timing JavaScript and Rust→WASM…')
         const withIr = wasmDemo({ ...hi, ir: irPlace('hi') })
         assertEq(withIr.init.ir?.[0], 'loading')
         assert(text(withIr.view(withIr.init)).includes('three ways'))
+        assertEq(assertNotNullish(withIr.wait)(withIr.init), 'timing JavaScript, Rust→WASM, and IR…')
     },
 }

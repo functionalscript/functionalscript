@@ -1,45 +1,17 @@
 /**
- * Browser/Node host for IR-emitted WASM on NaNVM L0: layout, instantiate,
- * and a timed call of a named export that answers a string (or other value
- * read through the host). Used by the emit script and by
- * `effects/browser`'s `instantiateIr`.
+ * Browser/Node host for IR-emitted WASM on NaNVM L0: instantiate and a timed
+ * call of a named export that answers a string (or other value read through
+ * the host). Layout decoding lives in [`layout.mjs`](../../../ir/wasm/layout.mjs).
+ * Used by the emit script and by `effects/browser`'s `instantiateIr`.
  *
  * @module
  */
 
 import { nanvmHost } from '../../../ir/l0/host/nanvm/module.mjs'
 import { host as nativeHost } from '../../../ir/native/host/module.mjs'
+import { layoutOf } from '../../../ir/wasm/layout.mjs'
 
-/** The unsigned LEB128 numbers that `bytes` hold, one after another. @type {(bytes: Uint8Array) => readonly number[]} */
-const ulebs = bytes => {
-    /** @type {number[]} */
-    const out = []
-    let n = 0
-    let unit = 1
-    for (const b of bytes) {
-        n += (b % 0x80) * unit
-        if (b < 0x80) {
-            out.push(n)
-            n = 0
-            unit = 1
-        } else {
-            unit *= 0x80
-        }
-    }
-    return out
-}
-
-/**
- * What a module's `fjs.layout` asks for: the bytes of its data segments
- * and the entries of its table, `0` each where it has none.
- *
- * @type {(m: WebAssembly.Module) => { readonly data: number, readonly entries: number }}
- */
-export const layoutOf = m => {
-    const [section] = WebAssembly.Module.customSections(m, 'fjs.layout')
-    const [data = 0, , entries = 0] = section === undefined ? [] : ulebs(new Uint8Array(section))
-    return { data, entries }
-}
+export { layoutOf }
 
 /**
  * A ready IR program: compiled L0 + program modules, layout, and the export

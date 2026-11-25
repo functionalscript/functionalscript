@@ -55,6 +55,7 @@ import { codeMarker, listingMarker } from '../../../website/style/module.f.js'
 import { assertNotNullish } from '../../../asserts/module.f.js'
 import { entry } from '../../../types/object/entry/module.f.js'
 import { generate } from '../../../types/array/generate/module.f.js'
+import { irExportName, irFileName, l0FileName } from '../ir/module.f.js'
 
 /** A sample's source, repository-relative, from its directory. @type {(directory: string) => string} */
 export const samplePath = directory => `${directory}/sample.f.js`
@@ -89,7 +90,7 @@ export const rustMarkedPath = name => `${buildDirectory}/${name}${rustMarkedExte
 export const wasmPath = `${buildDirectory}/nanvm_demos.wasm`
 
 /** NaNVM L0, published beside the IR modules for the direct-to-WASM route. */
-export const irL0Path = `${buildDirectory}/nanvm_l0_wasm.wasm`
+export const irL0Path = `${buildDirectory}/${l0FileName}`
 
 /**
  * An IR-emitted program module for a sample, published when the site is
@@ -97,7 +98,7 @@ export const irL0Path = `${buildDirectory}/nanvm_l0_wasm.wasm`
  *
  * @type {(name: string) => string}
  */
-export const irModulePath = name => `${buildDirectory}/${name}.ir.wasm`
+export const irModulePath = name => `${buildDirectory}/${irFileName(name)}`
 
 /**
  * The IR place for a sample that has an `ir.f.js`: L0, the emitted module,
@@ -105,7 +106,7 @@ export const irModulePath = name => `${buildDirectory}/${name}.ir.wasm`
  *
  * @type {(name: string) => IrPlace}
  */
-export const irPlace = name => ({ l0Path: irL0Path, modulePath: irModulePath(name), exportName: 'run' })
+export const irPlace = name => ({ l0Path: irL0Path, modulePath: irModulePath(name), exportName: irExportName })
 
 /**
  * A sample's disassembly: the functions Rust compiled from its module alone,
@@ -484,22 +485,47 @@ export const startupView = ({ wasm, ir }) => [
 ]
 
 /**
+ * Whether every module Run needs has arrived: Rust→WASM, and IR when the
+ * page has that route.
+ *
+ * @type {(state: Pick<State, 'wasm' | 'ir'>) => boolean}
+ */
+export const modulesReady = state =>
+    state.wasm[0] === 'ok' && (state.ir === null || state.ir[0] === 'ok')
+
+/**
  * The files every WASM demo page shows, and its Run button: the source, with
  * what `afterSource` draws below it once it has arrived; the Rust; and the
  * disassembly. The program page and the function page differ in what they
  * draw after these, not in these.
  *
- * @type {(state: Pick<State, 'source' | 'rust' | 'wat'>, afterSource: (text: string) => readonly Node[]) => readonly Node[]}
+ * The Run control stays under the listings so the reader sees it where they
+ * finish reading; a status line under it says when modules are still loading
+ * (the runtime also fills `data-demo-status` while a click is in flight, so
+ * "Working…" is not only at the foot of a long WAT block).
+ *
+ * @type {(state: Pick<State, 'source' | 'rust' | 'wat' | 'wasm' | 'ir'>, afterSource: (text: string) => readonly Node[]) => readonly Node[]}
  */
-export const filesView = (state, afterSource) => [
-    caption('FunctionalScript source:'),
-    ...loadedView(state.source, text => [codeBlock(text, 'Copy the source', highlight(text)), ...afterSource(text)]),
-    caption('Rust that fjs compile writes from it, on the NaNVM runtime:'),
-    ...loadedView(state.rust, marked => [codeBlock(toText(marked), 'Copy the Rust', render(marked))]),
-    caption('WebAssembly text (WAT) of the functions compiled from this source, without the NaNVM runtime:'),
-    ...loadedView(state.wat, marked => [['div', { [codeMarker]: '', [listingMarker]: '' }, ['pre', ...render(marked)]]]),
-    ['p', {}, ['button', { type: 'button', name: 'run' }, 'Run']],
-]
+export const filesView = (state, afterSource) => {
+    const ready = modulesReady(state)
+    /** @type {Element} */
+    const run = ['p', {}, ['button', { type: 'button', name: 'run', ...(ready ? {} : { disabled: '' }) }, 'Run']]
+    /** @type {Element} */
+    const status = ['p', { 'data-demo-status': '' }]
+    /** @type {readonly Node[]} */
+    const waiting = ready ? [] : [['p', {}, 'Waiting for modules to finish loading…']]
+    return [
+        caption('FunctionalScript source:'),
+        ...loadedView(state.source, text => [codeBlock(text, 'Copy the source', highlight(text)), ...afterSource(text)]),
+        caption('Rust that fjs compile writes from it, on the NaNVM runtime:'),
+        ...loadedView(state.rust, marked => [codeBlock(toText(marked), 'Copy the Rust', render(marked))]),
+        caption('WebAssembly text (WAT) of the functions compiled from this source, without the NaNVM runtime:'),
+        ...loadedView(state.wat, marked => [['div', { [codeMarker]: '', [listingMarker]: '' }, ['pre', ...render(marked)]]]),
+        run,
+        status,
+        ...waiting,
+    ]
+}
 
 /** @type {(hasIr: boolean) => readonly Node[]} */
 const intro = hasIr => hasIr
@@ -517,12 +543,18 @@ const intro = hasIr => hasIr
     ]
 
 /** @type {(name: string) => (state: State) => Element} */
-export const view = name => state => ['div', {},
-    ['p', {}, ...intro(state.ir !== null)],
-    ...filesView(state, () => []),
-    ...startupView(state),
-    ...(state.runs === null ? [] : runsView(state.runs)),
-]
+export const view = name => state => {
+    /** @type {readonly Node[]} */
+    const results = state.runs === null
+        ? []
+        : [/** @type {Element} */ (['div', { 'data-demo-reveal': '' }, ...runsView(state.runs)])]
+    return ['div', {},
+        ['p', {}, ...intro(state.ir !== null)],
+        ...filesView(state, () => []),
+        ...startupView(state),
+        ...results,
+    ]
+}
 
 /** @type {(sample: Sample) => (state: State) => (event: DemoEvent) => Effect<FetchText | Instantiate | InstantiateIr | Sandbox | JsHeapSize, State, never>} */
 export const update = sample => state => event =>
@@ -536,4 +568,7 @@ export const wasmDemo = sample => ({
     init: sample.ir === undefined ? init : initWithIr,
     update: update(sample),
     view: view(placeName(sample.place)),
+    wait: state => state.ir !== null
+        ? 'timing JavaScript, Rust→WASM, and IR…'
+        : 'timing JavaScript and Rust→WASM…',
 })

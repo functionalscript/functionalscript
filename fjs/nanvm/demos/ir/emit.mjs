@@ -18,6 +18,7 @@ import { errorTable } from '../../../ir/from_fast/link/module.f.js'
 import { l1Runtime, l1Whole, sourceOf } from '../../../ir/from_fast/testlib.f.js'
 import { lifetime } from '../../../ir/lifetime/module.f.js'
 import { emit } from '../../../ir/wasm/module.f.js'
+import { irFileName, irPrograms, l0FileName } from './module.f.js'
 
 const root = new URL('../../../../', import.meta.url)
 const here = path => new URL(path, root)
@@ -39,23 +40,17 @@ const runtime = {
     l1: fromText(here('fjs/wasm/runtime/l1/module.f.js'), l1Whole, l1Runtime(errors)),
 }
 
-/** @type {readonly { readonly name: string, readonly path: string }[]} */
-const programs = [
-    { name: 'collatz', path: 'fjs/nanvm/demos/collatz/ir.f.js' },
-    { name: 'sort', path: 'fjs/nanvm/demos/sort/ir.f.js' },
-]
-
 const outDir = here('nanvm/demos/wasm/')
 mkdirSync(outDir, { recursive: true })
 
-for (const { name, path } of programs) {
-    const bytes = compileBytes(assertOk(lifetime(fromText(here(path), {}, runtime))))
-    const dest = new URL(`${name}.ir.wasm`, outDir)
+for (const name of irPrograms) {
+    const bytes = compileBytes(assertOk(lifetime(fromText(here(`fjs/nanvm/demos/${name}/ir.f.js`), {}, runtime))))
+    const dest = new URL(irFileName(name), outDir)
     writeFileSync(dest, bytes)
     console.log(`wrote ${dest.pathname} (${bytes.length} bytes)`)
 }
 
-const l0Src = here('target/wasm32-unknown-unknown/release/nanvm_l0_wasm.wasm')
-const l0Dest = new URL('nanvm_l0_wasm.wasm', outDir)
+const l0Src = here(`target/wasm32-unknown-unknown/release/${l0FileName}`)
+const l0Dest = new URL(l0FileName, outDir)
 copyFileSync(l0Src, l0Dest)
 console.log(`copied ${l0Dest.pathname}`)

@@ -104,6 +104,15 @@ const busy = (root, working, note = null) => {
     } else {
         root.removeAttribute('data-demo-working')
     }
+    // A long listing (WAT) puts the root's ::after "Working…" below the fold;
+    // demos that place `data-demo-status` under their Run button keep the
+    // same wording where the reader just clicked.
+    const status = root.querySelector('[data-demo-status]')
+    if (status !== null) {
+        status.textContent = working
+            ? `Working…${note === null || note === '' ? '' : ` (${note})`}`
+            : ''
+    }
     for (const control of root.querySelectorAll('button')) {
         control.disabled = working || control.getAttribute('disabled') !== null
     }
@@ -482,6 +491,12 @@ const stepper = (root, demo) => {
     }
     const draw = () => {
         render(root, scoped(demo.view(state)))
+        // Results a long listing pushed below the fold: scroll the marked
+        // block into view once it appears (nearest keeps a short page still).
+        const reveal = root.querySelector('[data-demo-reveal]')
+        if (reveal !== null) {
+            reveal.scrollIntoView({ block: 'nearest', behavior: lessMotion(root) ? 'auto' : 'smooth' })
+        }
         schedule()
     }
     /** @type {(event: DemoEvent, automatic?: boolean) => void} */

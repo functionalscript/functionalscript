@@ -119,6 +119,7 @@ const wasmTargetCommands = target =>
 export const nanvmWasmCommands = /** @type {const} */ ([
     'cargo build -p nanvm-l0-wasm --release --target wasm32-unknown-unknown',
     'node --test ./fjs/ir/l0/host/nanvm/nanvm.test.mjs',
+    'node --test ./fjs/nanvm/demos/ir/ir.test.mjs',
 ])
 
 /**
