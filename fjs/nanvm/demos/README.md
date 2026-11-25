@@ -18,8 +18,9 @@ and compares what each run wrote and how long it took.
   written byte by byte.
 - [Sorting](./sort/README.md): a quicksort of 100,000 integers, which
   allocates as it goes (JS, Rust→WASM, and IR→WASM).
-- [Collatz](./collatz/README.md): the longest Collatz chain below 30,000,
-  arithmetic with no allocation (JS, Rust→WASM, and IR→WASM).
+- [Collatz](./collatz/README.md): the longest Collatz chain below 30,000 —
+  JS and Rust→WASM stay allocation-free (number handling alone); the IR→WASM
+  route uses records so `from_fast` can lower the loop.
 
 ## Language Features
 
