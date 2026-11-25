@@ -228,7 +228,8 @@ Each is one PR that leaves every proof green, so it can merge on its own.
 Short strings come after: String's group of the box, and its functions
 inline for a short string and NaNVM's for a long one. Design (interface,
 interchangeable implementations, experiment plan) is in
-[short-strings.md](./short-strings.md); implementation waits on approval.
+[short-strings.md](./short-strings.md) (approved). S1 skeleton:
+[`fjs/ir/runtime/string`](../../../fjs/ir/runtime/string/module.f.js).
 
 ## Open questions
 

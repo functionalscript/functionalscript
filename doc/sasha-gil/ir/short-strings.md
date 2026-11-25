@@ -1,11 +1,10 @@
 # Short strings in the IR
 
-2026-11-24. **Proposed, not decided. Design only** — this note names the
-runtime-module interface and an experiment plan; it ships no packing,
-host ABI change, `linkAny` string path, or proof that implements the
-feature. The owner asked for a **design gate on this phase** (modular
-String experiment before coding), separate from AGENTS.md's
-language-feature approval rule; S1–S4 wait on that decision.
+2026-11-24. **Design approved** (Sasha, [#4118](https://github.com/functionalscript/functionalscript/pull/4118)).
+S1 coding: String module skeleton and short pack/unpack helpers live in
+[`fjs/ir/runtime/string`](../../../fjs/ir/runtime/string/module.f.js)
+(manifests A/B/C, bit round-trips; no host ABI or link change yet). S2–S4
+still ahead.
 
 This is the next runtime-in-IR phase after scalar Any
 ([runtime-in-ir.md](./runtime-in-ir.md); checkpoints through 4d-2 on
@@ -306,7 +305,7 @@ Stack with **git base** (child PR base = parent head). No GitHub
 | Slice | Ships (illustrative) |
 | --- | --- |
 | **S0** | This note + `fjs/ir/todo/short-strings.md` (design only). |
-| **S1** | String module skeleton in IR: interface + manifest hooks; short pack/unpack **helpers** unused by programs; proofs of bit round-trips; no link change. Prefer implementing behind the interface so a second variant can land as S1b without caller churn. |
+| **S1** | String module skeleton in IR: interface + manifest hooks; short pack/unpack **helpers** unused by programs; proofs of bit round-trips; no link change. Prefer implementing behind the interface so a second variant can land as S1b without caller churn. **Shipped** in [`fjs/ir/runtime/string`](../../../fjs/ir/runtime/string/module.f.js) (manifests A/B/C; v1 enabled tags empty/`s1x16`/`s2x16`; C-flag provisional). |
 | **S2** | Host / counting-host / NaNVM ABI: accept short-string boxes; emission of shorts where a **concrete enabled tag** fits is a **per-variant policy** (off for A, on for B/C). Long path unchanged when no tag fits. |
 | **S3** | Link / L1 string ops use the short path (template or linked IR); long miss still imports; parity proofs vs L0. |
 | **S4** | Remeasure (short microbench primary, `repeat` secondary); update `benchmark.md`; record which variant / C layout was measured. |
