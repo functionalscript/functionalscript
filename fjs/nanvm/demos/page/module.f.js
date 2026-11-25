@@ -28,7 +28,7 @@
  * @module
  *
  * @import { Sandbox, SandboxResult, Write } from '../../../effects/common/types.ts'
- * @import { FetchText, Instantiate, JsHeapSize, WasmInstance } from '../../../effects/browser/types.ts'
+ * @import { FetchText, Instantiate, InstantiateIr, IrInstance, JsHeapSize, WasmInstance } from '../../../effects/browser/types.ts'
  * @import { Effect, IoChannel } from '../../../effects/types.ts'
  * @import { Element, Node } from '../../../media/html/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
@@ -36,12 +36,12 @@
  * @import { List } from '../../../types/list/types.ts'
  * @import { MemOperationMap } from '../../../effects/mock/types.ts'
  * @import { Demo, DemoEvent } from '../../../website/demo/types.ts'
- * @import { JsHeap, JsRun, Loaded, Place, Run, Runs, Sample, State, WasmRun } from './types.ts'
+ * @import { IrPlace, IrRun, JsHeap, JsRun, Loaded, Place, Run, Runs, Sample, State, WasmRun } from './types.ts'
  * @import { Marked } from '../../../text/marked/types.ts'
  */
 
 import { sandbox } from '../../../effects/common/module.f.js'
-import { fetchText, instantiate, jsHeapSize } from '../../../effects/browser/module.f.js'
+import { fetchText, instantiate, instantiateIr, jsHeapSize } from '../../../effects/browser/module.f.js'
 import { errorMessage, history, historyStep, mapStep, pure, pureOk, resultMapStep, resultStep, step } from '../../../effects/module.f.js'
 import { run as mockRun } from '../../../effects/mock/module.f.js'
 import { empty, msb, u8ListMsb } from '../../../types/bit_vec/module.f.js'
@@ -88,6 +88,25 @@ export const rustMarkedPath = name => `${buildDirectory}/${name}${rustMarkedExte
 /** The module every sample is in, as `cargo build` names it. */
 export const wasmPath = `${buildDirectory}/nanvm_demos.wasm`
 
+/** NaNVM L0, published beside the IR modules for the direct-to-WASM route. */
+export const irL0Path = `${buildDirectory}/nanvm_l0_wasm.wasm`
+
+/**
+ * An IR-emitted program module for a sample, published when the site is
+ * built from that sample's `ir.f.js`.
+ *
+ * @type {(name: string) => string}
+ */
+export const irModulePath = name => `${buildDirectory}/${name}.ir.wasm`
+
+/**
+ * The IR place for a sample that has an `ir.f.js`: L0, the emitted module,
+ * and the `run` export.
+ *
+ * @type {(name: string) => IrPlace}
+ */
+export const irPlace = name => ({ l0Path: irL0Path, modulePath: irModulePath(name), exportName: 'run' })
+
 /**
  * A sample's disassembly: the functions Rust compiled from its module alone,
  * without NaNVM or `std`.
@@ -97,7 +116,14 @@ export const wasmPath = `${buildDirectory}/nanvm_demos.wasm`
 export const watPath = name => `${buildDirectory}/${name}.wat.marked`
 
 /** @type {State} */
-export const init = { source: ['loading'], rust: ['loading'], wat: ['loading'], wasm: ['loading'], runs: null }
+export const init = { source: ['loading'], rust: ['loading'], wat: ['loading'], wasm: ['loading'], ir: null, runs: null }
+
+/**
+ * Initial state for a page that also loads the IR route.
+ *
+ * @type {State}
+ */
+export const initWithIr = { ...init, ir: ['loading'] }
 
 /** @type {<T>(r: Result<T, IoChannel>) => Result<T, string>} */
 const loaded = r => r[0] === 'ok' ? r : error(errorMessage(r[1]))
@@ -132,6 +158,18 @@ export const load = place => {
     const rust = step(source, state => resultStep(fetchText(`/${rustMarkedPath(name)}`), r => pureOk({ ...state, rust: loadedMarked(r) })))
     const wat = step(rust, state => resultStep(fetchText(`/${watPath(name)}`), r => pureOk({ ...state, wat: loadedMarked(r) })))
     return step(wat, state => resultStep(instantiate(`/${wasmPath}`), r => pureOk({ ...state, wasm: loaded(r) })))
+}
+
+/**
+ * {@link load}, then NaNVM L0 and the IR-emitted program for the third route.
+ *
+ * @type {(place: Place, ir: IrPlace) => Effect<FetchText | Instantiate | InstantiateIr, State, never>}
+ */
+export const loadWithIr = (place, ir) => {
+    const files = step(load(place), state => pureOk(/** @type {State} */ ({ ...state, ir: ['loading'] })))
+    return step(files, state => resultStep(
+        instantiateIr(`/${ir.l0Path}`, `/${ir.modulePath}`, ir.exportName),
+        r => pureOk({ ...state, ir: loaded(r) })))
 }
 
 /** Bytes as text, refused unless they are UTF-8. @type {(bytes: List<number>) => Result<string, string>} */
@@ -249,18 +287,43 @@ export const runWasm = name => ({ exports }) => {
 }
 
 /**
- * Both runs, JavaScript first; the WebAssembly one only once the module has
- * loaded.
+ * Times one IR / direct-to-WASM call: the host-read value as text, and
+ * NaNVM L0 linear memory around the call.
+ *
+ * @type {(instance: IrInstance) => Effect<Sandbox, Result<IrRun, string>, never>}
+ */
+export const runIr = ({ invoke }) => resultMapStep(sandbox(() => invoke()), r => {
+    const t = timed(/** @type {Result<SandboxResult<{ readonly value: unknown, readonly memory: number, readonly growth: number }>, IoChannel>} */ (r))
+    if (t[0] === 'error') { return ok(t) }
+    const { value, memory, growth } = t[1].value
+    /** @type {Result<string, string>} */
+    const output = typeof value === 'string' ? ok(value) : error(`the IR export answered ${typeof value}, not a string`)
+    return ok(ok({ run: { output, time: t[1].time }, memory, growth }))
+})
+
+/**
+ * JavaScript, then Rust→WASM, then IR when the page has that route; each
+ * WASM path only once its module has loaded.
  *
  * @type {(sample: Sample) => (state: State) => Effect<Sandbox | JsHeapSize, State, never>}
  */
 export const runBoth = ({ place, program }) => state => {
-    const { wasm } = state
+    const { wasm, ir } = state
     const js = history(runJs(program))
     const both = historyStep(js, () => wasm[0] === 'ok'
         ? runWasm(placeName(place))(wasm[1])
         : pureOk(error(wasm[0] === 'loading' ? 'the module has not loaded yet' : wasm[1])))
-    return step(both, ([wasmRun, jsRun]) => pureOk(/** @type {State} */ ({ ...state, runs: { js: jsRun, wasm: wasmRun } })))
+    const withIr = historyStep(both, () => ir === null
+        ? pureOk(null)
+        : ir[0] === 'ok'
+            ? runIr(ir[1])
+            : pureOk(error(ir[0] === 'loading' ? 'the IR module has not loaded yet' : ir[1])))
+    return step(withIr, ([irRun, wasmRun, jsRun]) => pureOk(/** @type {State} */ ({
+        ...state,
+        runs: irRun === null
+            ? { js: jsRun, wasm: wasmRun }
+            : { js: jsRun, wasm: wasmRun, ir: /** @type {Result<IrRun, string>} */ (irRun) },
+    })))
 }
 
 /**
@@ -292,7 +355,19 @@ const outputView = output => output[0] === 'ok'
 const sameOutput = (js, wasm) => js.output[0] === 'ok' && wasm.run.output[0] === 'ok' && js.output[1] === wasm.run.output[1]
 
 /**
- * How many times as long the WebAssembly run took as the JavaScript one, or
+ * How many times as long a timed WASM-shaped run took as the JavaScript one,
+ * or "Not available" unless both wrote the same output, or where the
+ * JavaScript time reads `0`.
+ *
+ * @type {(js: Result<JsRun, string>, other: Result<WasmRun, string>) => string}
+ */
+const ratioAgainstJs = (js, other) => js[0] === 'ok' && other[0] === 'ok'
+    && sameOutput(js[1], other[1]) && js[1].time > 0
+    ? `${(other[1].run.time / js[1].time).toFixed(1)}×`
+    : 'Not available'
+
+/**
+ * How many times as long the Rust→WASM run took as the JavaScript one, or
  * "Not available" unless both runs wrote the same output, or where the
  * JavaScript time reads `0`, which a browser's coarse clock answers for a
  * short run. Runs that failed, or wrote different outputs, did not do the
@@ -300,10 +375,15 @@ const sameOutput = (js, wasm) => js.output[0] === 'ok' && wasm.run.output[0] ===
  *
  * @type {(runs: Runs) => string}
  */
-export const ratio = ({ js, wasm }) => js[0] === 'ok' && wasm[0] === 'ok'
-    && sameOutput(js[1], wasm[1]) && js[1].time > 0
-    ? `${(wasm[1].run.time / js[1].time).toFixed(1)}×`
-    : 'Not available'
+export const ratio = ({ js, wasm }) => ratioAgainstJs(js, wasm)
+
+/**
+ * How many times as long the IR / direct-to-WASM run took as the JavaScript
+ * one, on the same terms as {@link ratio}.
+ *
+ * @type {(runs: Runs) => string | null}
+ */
+export const irRatio = ({ js, ir }) => ir === undefined ? null : ratioAgainstJs(js, ir)
 
 /**
  * How many times as much memory the WebAssembly run added as the JavaScript
@@ -345,8 +425,21 @@ const heapView = heap => heap === null
     ? []
     : [stat('Change in the whole page’s JavaScript heap across the run (Chromium)', heapChange(heap))]
 
+/** @type {(title: string, run: Result<WasmRun, string>) => readonly Node[]} */
+const wasmShapedView = (title, run) => [
+    ['h3', {}, title],
+    ...(run[0] === 'ok'
+        ? [
+            ...outputView(run[1].run.output),
+            stat('Running time', milliseconds(run[1].run.time)),
+            stat('Linear memory of the module so far', `${run[1].memory} bytes`),
+            stat('Linear memory added by the run', signedBytes(run[1].growth)),
+        ]
+        : [refusal(run[1])]),
+]
+
 /** @type {(runs: Runs) => readonly Node[]} */
-const runsDetail = ({ js, wasm }) => [
+const runsDetail = ({ js, wasm, ir }) => [
     ['h3', {}, 'JavaScript'],
     ...(js[0] === 'ok'
         ? [
@@ -355,15 +448,8 @@ const runsDetail = ({ js, wasm }) => [
             ...heapView(js[1].heap),
         ]
         : [refusal(js[1])]),
-    ['h3', {}, 'WebAssembly'],
-    ...(wasm[0] === 'ok'
-        ? [
-            ...outputView(wasm[1].run.output),
-            stat('Running time', milliseconds(wasm[1].run.time)),
-            stat('Linear memory of the module so far', `${wasm[1].memory} bytes`),
-            stat('Linear memory added by the run', signedBytes(wasm[1].growth)),
-        ]
-        : [refusal(wasm[1])]),
+    ...wasmShapedView('WebAssembly (Rust → NaNVM)', wasm),
+    ...(ir === undefined ? [] : wasmShapedView('WebAssembly (IR → NaNVM, linkAny)', ir)),
 ]
 
 /** @type {(ratio: string | null) => readonly Node[]} */
@@ -372,21 +458,30 @@ const memoryView = ratio => ratio === null
     : [stat('Memory the WebAssembly run added, as a multiple of the JavaScript heap’s growth (Chromium)', ratio)]
 
 /** @type {(runs: Runs) => readonly Node[]} */
-const runsView = runs => [
-    ...runsDetail(runs),
-    ['h3', {}, 'Comparison'],
-    stat('WebAssembly running time, as a multiple of the JavaScript one', ratio(runs)),
-    ...memoryView(memoryRatio(runs)),
-]
+const runsView = runs => {
+    const ir = irRatio(runs)
+    return [
+        ...runsDetail(runs),
+        ['h3', {}, 'Comparison'],
+        stat('Rust→WASM running time, as a multiple of the JavaScript one', ratio(runs)),
+        ...memoryView(memoryRatio(runs)),
+        ...(ir === null ? [] : [stat('IR→WASM running time, as a multiple of the JavaScript one', ir)]),
+    ]
+}
 
 /**
- * How long the module took to arrive and start, once it has.
+ * How long each module took to arrive and start, once it has.
  *
- * @type {(state: Pick<State, 'wasm'>) => readonly Node[]}
+ * @type {(state: Pick<State, 'wasm' | 'ir'>) => readonly Node[]}
  */
-export const startupView = ({ wasm }) => wasm[0] === 'ok'
-    ? [stat('WebAssembly startup (fetch, compile and instantiate)', milliseconds(wasm[1].startup))]
-    : []
+export const startupView = ({ wasm, ir }) => [
+    ...(wasm[0] === 'ok'
+        ? [stat('Rust→WASM startup (fetch, compile and instantiate)', milliseconds(wasm[1].startup))]
+        : []),
+    ...(ir !== null && ir[0] === 'ok'
+        ? [stat('IR→WASM startup (fetch and compile L0 + program)', milliseconds(ir[1].startup))]
+        : []),
+]
 
 /**
  * The files every WASM demo page shows, and its Run button: the source, with
@@ -406,22 +501,39 @@ export const filesView = (state, afterSource) => [
     ['p', {}, ['button', { type: 'button', name: 'run' }, 'Run']],
 ]
 
-/** @type {(name: string) => (state: State) => Element} */
-export const view = name => state => ['div', {},
-    ['p', {},
+/** @type {(hasIr: boolean) => readonly Node[]} */
+const intro = hasIr => hasIr
+    ? [
+        'The same FunctionalScript program, run three ways: as the JavaScript it already is; ',
+        'compiled by ', ['code', 'fjs compile'], ' to Rust on the NaNVM runtime, then to WebAssembly; ',
+        'and lowered through the IR (', ['code', 'from_fast'], ' + ', ['code', 'linkAny'],
+        ') directly to WebAssembly on NaNVM L0. ',
+        'Run calls each in turn and shows what it wrote and how long the call took.',
+    ]
+    : [
         'The same FunctionalScript program, run two ways: as the JavaScript it already is, ',
         'and compiled by ', ['code', 'fjs compile'], ' to Rust on the NaNVM runtime, then to WebAssembly. ',
-        'Run calls each in turn and shows what it wrote to standard output and how long the call took.'],
+        'Run calls each in turn and shows what it wrote to standard output and how long the call took.',
+    ]
+
+/** @type {(name: string) => (state: State) => Element} */
+export const view = name => state => ['div', {},
+    ['p', {}, ...intro(state.ir !== null)],
     ...filesView(state, () => []),
     ...startupView(state),
     ...(state.runs === null ? [] : runsView(state.runs)),
 ]
 
-/** @type {(sample: Sample) => (state: State) => (event: DemoEvent) => Effect<FetchText | Instantiate | Sandbox | JsHeapSize, State, never>} */
+/** @type {(sample: Sample) => (state: State) => (event: DemoEvent) => Effect<FetchText | Instantiate | InstantiateIr | Sandbox | JsHeapSize, State, never>} */
 export const update = sample => state => event =>
-    event.kind === 'start' ? load(sample.place)
-    : event.kind === 'click' && entry(event, 'name') === 'run' ? runBoth(sample)(state)
-    : pureOk(state)
+    event.kind === 'start'
+        ? sample.ir === undefined ? load(sample.place) : loadWithIr(sample.place, sample.ir)
+        : event.kind === 'click' && entry(event, 'name') === 'run' ? runBoth(sample)(state)
+        : pureOk(state)
 
-/** @type {(sample: Sample) => Demo<State, DemoEvent, FetchText | Instantiate | Sandbox | JsHeapSize>} */
-export const wasmDemo = sample => ({ init, update: update(sample), view: view(placeName(sample.place)) })
+/** @type {(sample: Sample) => Demo<State, DemoEvent, FetchText | Instantiate | InstantiateIr | Sandbox | JsHeapSize>} */
+export const wasmDemo = sample => ({
+    init: sample.ir === undefined ? init : initWithIr,
+    update: update(sample),
+    view: view(placeName(sample.place)),
+})

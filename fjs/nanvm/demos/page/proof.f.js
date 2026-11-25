@@ -5,7 +5,7 @@
  *
  * @import { Effect, IoChannel } from '../../../effects/types.ts'
  * @import { Sandbox } from '../../../effects/common/types.ts'
- * @import { FetchText, Instantiate, JsHeapSize, WasmInstance } from '../../../effects/browser/types.ts'
+ * @import { FetchText, Instantiate, InstantiateIr, IrInstance, JsHeapSize, WasmInstance } from '../../../effects/browser/types.ts'
  * @import { MemOperationMap } from '../../../effects/mock/types.ts'
  * @import { Element } from '../../../media/html/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
@@ -19,7 +19,7 @@ import { ioError, notImplemented } from '../../../effects/module.f.js'
 import { run } from '../../../effects/mock/module.f.js'
 import { utf8 } from '../../../text/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
-import { buildDirectory, decode, heapChange, init, memoryRatio, signedBytes, jsOutput, load, milliseconds, placeName, ratio, runBoth, runJs, runWasm, rustMarkedPath, rustPath, samplePath, update, view, wasmDemo, wasmPath, watPath } from './module.f.js'
+import { buildDirectory, decode, heapChange, init, irL0Path, irModulePath, irPlace, irRatio, loadWithIr, memoryRatio, signedBytes, jsOutput, load, milliseconds, placeName, ratio, runBoth, runIr, runJs, runWasm, rustMarkedPath, rustPath, samplePath, update, view, wasmDemo, wasmPath, watPath } from './module.f.js'
 import { entry } from '../../../types/object/entry/module.f.js'
 import { toJson } from '../../../media/json/module.f.js'
 
@@ -68,14 +68,15 @@ const thrown = value => value === throws ? error('boom') : ok(value)
  * implement it, and `thrown` for a thunk that throws. `heap` is what the heap
  * reads, every time: `null` for a browser that does not report it.
  *
- * @type {(files: StringMap<string>, wasm: WasmInstance | null, sandbox?: 'ok' | 'notImplemented' | 'thrown', heap?: number | null | 'notImplemented') => MemOperationMap<FetchText | Instantiate | Sandbox | JsHeapSize, null>}
+ * @type {(files: StringMap<string>, wasm: WasmInstance | null, sandbox?: 'ok' | 'notImplemented' | 'thrown', heap?: number | null | 'notImplemented', ir?: IrInstance | null) => MemOperationMap<FetchText | Instantiate | InstantiateIr | Sandbox | JsHeapSize, null>}
  */
-const page = (files, wasm, sandbox = 'ok', heap = 1024) => ({
+const page = (files, wasm, sandbox = 'ok', heap = 1024, ir = null) => ({
     fetchText: path => s => {
         const text = entry(files, path)
         return [s, text === undefined ? error(ioError({ message: `${path}: HTTP 404` })) : ok(text)]
     },
     instantiate: path => s => [s, wasm === null ? error(ioError({ message: `${path}: HTTP 404` })) : ok(wasm)],
+    instantiateIr: (_l0, _program, _name) => s => [s, ir === null ? error(ioError({ message: 'IR: HTTP 404' })) : ok(ir)],
     sandbox: f => s => [s,
         sandbox === 'notImplemented' ? error(notImplemented('sandbox'))
         : sandbox === 'thrown' ? ok({ result: error('boom'), duration: 0 })
@@ -83,7 +84,7 @@ const page = (files, wasm, sandbox = 'ok', heap = 1024) => ({
     jsHeapSize: () => s => [s, heap === 'notImplemented' ? error(notImplemented('jsHeapSize')) : ok(heap)],
 })
 
-/** @type {<T>(map: MemOperationMap<FetchText | Instantiate | Sandbox | JsHeapSize, null>) => (effect: Effect<FetchText | Instantiate | Sandbox | JsHeapSize, T, never>) => T} */
+/** @type {<T>(map: MemOperationMap<FetchText | Instantiate | InstantiateIr | Sandbox | JsHeapSize, null>) => (effect: Effect<FetchText | Instantiate | InstantiateIr | Sandbox | JsHeapSize, T, never>) => T} */
 const perform = map => effect => {
     const [, result] = run(map)(null)(effect)
     assert(result[0] === 'ok')
@@ -106,6 +107,10 @@ export const proof = {
         assertEq(rustMarkedPath('hello'), 'nanvm/demos/wasm/hello.rs.marked')
         assertEq(wasmPath, `${buildDirectory}/nanvm_demos.wasm`)
         assertEq(watPath('hello'), `${buildDirectory}/hello.wat.marked`)
+        assertEq(irL0Path, `${buildDirectory}/nanvm_l0_wasm.wasm`)
+        assertEq(irModulePath('collatz'), `${buildDirectory}/collatz.ir.wasm`)
+        assertStructurallySame(irPlace('sort'), { l0Path: irL0Path, modulePath: irModulePath('sort'), exportName: 'run' })
+        assertEq(init.ir, null)
     },
     load: () => {
         assertStructurallySame(ready.source, ok('export default 1'))
@@ -113,11 +118,17 @@ export const proof = {
         // The disassembly's words with their kinds, read back from its tags.
         assertStructurallySame(ready.wat, ok([['('], ['module', 'keyword'], [')']]))
         assertEq(ready.wasm[0], 'ok')
+        assertEq(ready.ir, null)
         assertEq(ready.runs, null)
         // A file that does not arrive is the reason it is not shown.
         const missing = perform(page({}, null))(load(hi.place))
         assertStructurallySame(missing.source, error(`/fjs/nanvm/demos/hi/sample.f.js: HTTP 404`))
         assertStructurallySame(missing.wasm, error(`/${wasmPath}: HTTP 404`))
+        // An IR route loads L0 and the program module.
+        /** @type {IrInstance} */
+        const ir = { invoke: () => ({ value: 'hi\n', memory: 0x1_0000, growth: 0 }), startup: 3 }
+        const withIr = perform(page(files, instance([0x68, 0x69]), 'ok', 1024, ir))(loadWithIr(hi.place, irPlace('hi')))
+        assertEq(withIr.ir?.[0], 'ok')
     },
     decode: () => {
         assertStructurallySame(decode([0x68, 0x69]), ok('hi'))
@@ -218,7 +229,7 @@ export const proof = {
         // Loaded, run, and an empty output said in words.
         const both = perform(page({}, null))(runBoth(hi)(ready))
         const shown = text(view('hi')(both))
-        assert(shown.includes('WebAssembly startup (fetch, compile and instantiate): 2.0 ms'))
+        assert(shown.includes('Rust→WASM startup (fetch, compile and instantiate): 2.0 ms'))
         assert(shown.includes('Running time: 1.0 ms'))
         assert(shown.includes('Linear memory of the module so far: 65536 bytes'))
         assert(shown.includes('Linear memory added by the run: +0 bytes'))
@@ -231,7 +242,7 @@ export const proof = {
         assert(!noHeap.includes('Memory the WebAssembly run added'))
         assert(!noHeap.includes('Not available') && !noHeap.includes('Memory: '))
         assertEq(heapChange({ before: 1024, after: 512 }), '-512 bytes, 1024 → 512')
-        assert(shown.includes('WebAssembly running time, as a multiple of the JavaScript one: 1.0×'))
+        assert(shown.includes('Rust→WASM running time, as a multiple of the JavaScript one: 1.0×'))
         assert(shown.includes('pub fn module() {}'))
         // The Rust is coloured, and its copy is the plain text.
         assert(shown.includes('["span",{"data-token":"keyword"},"pub"]'))
@@ -243,6 +254,19 @@ export const proof = {
         assert(refused.includes('lost'))
         assert(refused.includes('no js'))
         assert(refused.includes('no wasm'))
+        // Three-route copy when the page has an IR module.
+        /** @type {IrInstance} */
+        const irInst = { invoke: () => ({ value: 'hi', memory: 0x1_0000, growth: 0 }), startup: 3 }
+        const irReady = { ...ready, ir: ok(irInst) }
+        const three = text(view('hi')(perform(page(files, instance([0x68, 0x69]), 'ok', 1024, irInst))(runBoth({ ...hi, ir: irPlace('hi') })(irReady))))
+        assert(three.includes('IR→WASM startup (fetch and compile L0 + program): 3.0 ms'))
+        assert(three.includes('WebAssembly (IR → NaNVM, linkAny)'))
+        assert(three.includes('IR→WASM running time, as a multiple of the JavaScript one'))
+        assertEq(irRatio({ js: ok({ output: ok('hi'), time: 2, heap: null }), wasm: ok({ run: { output: ok('hi'), time: 4 }, memory: 0, growth: 0 }), ir: ok({ run: { output: ok('hi'), time: 6 }, memory: 0, growth: 0 }) }), '3.0×')
+        assertEq(irRatio({ js: ok({ output: ok('hi'), time: 2, heap: null }), wasm: ok({ run: { output: ok('hi'), time: 4 }, memory: 0, growth: 0 }) }), null)
+        assertStructurallySame(
+            perform(page({}, null, 'ok', 1024, irInst))(runIr(irInst)),
+            ok({ run: { output: ok('hi'), time: 1 }, memory: 0x1_0000, growth: 0 }))
     },
     update: () => {
         const map = page(files, instance([0x68, 0x69]))
@@ -256,5 +280,9 @@ export const proof = {
         const demo = wasmDemo(hi)
         assertEq(demo.init, init)
         assert(text(demo.view(init)).includes('Run'))
+        assert(text(demo.view(init)).includes('two ways'))
+        const withIr = wasmDemo({ ...hi, ir: irPlace('hi') })
+        assertEq(withIr.init.ir?.[0], 'loading')
+        assert(text(withIr.view(withIr.init)).includes('three ways'))
     },
 }

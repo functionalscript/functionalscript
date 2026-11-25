@@ -43,15 +43,15 @@ const random = (n, seed) => {
 const sort = a => {
     /** @type {(pivot: any) => any} */
     const around = pivot => [
-        ...sort(a.filter(x => x < pivot)),
-        ...a.filter(x => x === pivot),
-        ...sort(a.filter(x => x > pivot)),
+        ...sort(a.filter(/** @type {(x: any) => any} */ (x => x < pivot))),
+        ...a.filter(/** @type {(x: any) => any} */ (x => x === pivot)),
+        ...sort(a.filter(/** @type {(x: any) => any} */ (x => x > pivot))),
     ]
     return a.length < 2 ? a : around(a[Number(a.length >> 1)])
 }
 
 /** Whether `a` is in ascending order. @type {(a: any) => any} */
-const ascending = a => a.every((x, i) => i === 0 || a[Number(i - 1)] <= x)
+const ascending = a => a.every(/** @type {(x: any, i: any) => any} */ ((x, i) => i === 0 || a[Number(i - 1)] <= x))
 
 /** What the program answers once it has sorted. @type {(a: any) => any} */
 const report = a => ascending(a)

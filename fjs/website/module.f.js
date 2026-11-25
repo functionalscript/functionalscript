@@ -463,16 +463,17 @@ export const startRounds = 3
  * @type {(module: Module, files: OrderedMap<IoResult<string>>) => () => readonly [readonly string[], Result<unknown, string>]}
  */
 const startedWith = (module, files) => () => {
-    const demo = /** @type {Demo<unknown, DemoEvent, FetchText | Instantiate>} */ (module.demo)
+    const demo = /** @type {Demo<unknown, DemoEvent, FetchText | Instantiate | import('../effects/browser/types.ts').InstantiateIr>} */ (module.demo)
     // A demo with no `update` answers nothing, and starts as it is.
     if (typeof demo.update !== 'function') { return [[], ok(demo.init)] }
-    /** @type {MemOperationMap<FetchText | Instantiate, readonly string[]>} */
+    /** @type {MemOperationMap<FetchText | Instantiate | import('../effects/browser/types.ts').InstantiateIr, readonly string[]>} */
     const map = {
         fetchText: path => asked => {
             const file = at(path)(files)
             return file === null ? [[...asked, path], error(ioError({ message: `${path}: not read yet` }))] : [asked, file]
         },
         instantiate: () => asked => [asked, error(ioError({ message: 'the module is instantiated in the browser' }))],
+        instantiateIr: () => asked => [asked, error(ioError({ message: 'the IR module is instantiated in the browser' }))],
     }
     const [asked, state] = runInMemory(map)([])(demo.update(demo.init)({ kind: 'start' }))
     return [asked, state[0] === 'error' ? error(String(state[1])) : state]

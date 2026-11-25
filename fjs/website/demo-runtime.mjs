@@ -20,6 +20,7 @@ import { asyncPartialRun } from '../effects/module.mjs'
 import { commandsOf } from '../effects/module.f.js'
 import { commonOperationMap, randomIntOperationMap } from '../effects/common/module.mjs'
 import { browserOperationMap } from '../effects/browser/module.mjs'
+import { instantiateIrOperationMap } from '../nanvm/demos/ir/browser.mjs'
 import { macrotask, patch, toDom } from '../media/html/module.mjs'
 import { startDemoSharing } from './demo-sharing-runtime.mjs'
 import { copy } from './copy-runtime.mjs'
@@ -55,7 +56,7 @@ import { dragAxisAttributes, dragValue } from './demo/module.f.js'
  *
  * @type {CommandSet<Sandbox | Catch | RandomInt | BrowserOp>}
  */
-const commandSet = { sandbox: null, catch: null, randomInt: null, fetchText: null, instantiate: null, jsHeapSize: null }
+const commandSet = { sandbox: null, catch: null, randomInt: null, fetchText: null, instantiate: null, instantiateIr: null, jsHeapSize: null }
 
 /**
  * The commands of {@link commandSet}, in the form a partial runner tests
@@ -65,7 +66,12 @@ const commandSet = { sandbox: null, catch: null, randomInt: null, fetchText: nul
  */
 const commands = commandsOf(commandSet)
 
-const run = asyncPartialRun(commands)({ ...commonOperationMap, ...randomIntOperationMap, ...browserOperationMap })
+const run = asyncPartialRun(commands)({
+    ...commonOperationMap,
+    ...randomIntOperationMap,
+    ...browserOperationMap,
+    ...instantiateIrOperationMap,
+})
 
 /**
  * Says whether the page is waiting on this demo, and stops the reader asking
