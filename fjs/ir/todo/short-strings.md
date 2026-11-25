@@ -1,7 +1,7 @@
 ## Short strings in the IR
 
 **Priority:** P2
-**Status:** wip — design approved (Sasha, #4118); S1 done; S2 coding
+**Status:** wip — design approved (Sasha, #4118); S1–S3 coding; S4 open
 
 ### Problem
 
@@ -28,7 +28,7 @@ Design approved; S1 lands the skeleton under `fjs/ir/runtime/string`.
 - [x] Owner approval of the design (Sasha on [#4118](https://github.com/functionalscript/functionalscript/pull/4118); Sergey not required for this gate)
 - [x] **S1** — String module skeleton + short pack/unpack helpers; unused by programs; no link change (`fjs/ir/runtime/string`)
 - [x] **S2** — Host / NaNVM ABI accepts short boxes; emit policy is per-variant (off for A, on for B/C when a concrete enabled tag fits)
-- [ ] **S3** — Link / L1 string ops use the short path; parity vs L0
+- [x] **S3** — Link / L1 string ops use the short path (`linkString` + B IR length/unit); parity vs L0
 - [ ] **S4** — Remeasure; update `benchmark.md`
 - [ ] Optional **S5+** — second variant behind the same interface; compare
 

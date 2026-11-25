@@ -1,8 +1,9 @@
 /**
- * String runtime-module skeleton for short strings in the IR
- * ([short-strings.md](../../../../doc/sasha-gil/ir/short-strings.md) S1):
- * one logical interface, three interchangeable manifests (A / B / C), and
- * short pack/unpack helpers that programs do not call. No link change.
+ * String runtime-module for short strings in the IR
+ * ([short-strings.md](../../../../doc/sasha-gil/ir/short-strings.md)):
+ * one logical interface, three interchangeable manifests (A / B / C), short
+ * pack/unpack helpers, and the B IR module that `linkString` merges for
+ * length/unit (S3). Programs call String ops; they never import the helpers.
  *
  * @module
  *

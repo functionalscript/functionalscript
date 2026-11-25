@@ -734,9 +734,10 @@ module; the NaNVM host proves it against L0 on the same boxes. Checkpoint
 4e links it into programs (`linkAny` after L1's `link`), moves the counting
 host to NaN boxes, and remeasures the IR benchmarks.
 
-Short strings S1: [`runtime/string`](./runtime/string/module.f.js) is the
-String runtime-module skeleton — manifests A/B/C and short pack/unpack
-helpers with bit round-trip proofs; no host ABI or link change yet
+Short strings: [`runtime/string`](./runtime/string/module.f.js) is the
+String runtime-module (manifests A/B/C, pack/unpack helpers); S2 teaches
+the host/NaNVM ABI to accept and emit short boxes; S3's `linkString`
+merges B IR `length`/`unit` after `linkAny` (long miss still imports)
 ([short-strings.md](../../doc/sasha-gil/ir/short-strings.md)).
 
 ## What every slice refuses

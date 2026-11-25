@@ -5,7 +5,8 @@ S1: String module skeleton in
 [`fjs/ir/runtime/string`](../../../fjs/ir/runtime/string/module.f.js).
 S2: counting host and NaNVM L0 ABI **accept** short-string boxes; **emit**
 is per-variant (`alwaysDynRef` for A, `shortWhenEnabled` + v1 tags for
-B/C). S3–S4 still ahead.
+B/C). S3: `linkString` merges B IR `length`/`unit` (short path; long miss
+still imports). S4 remeasure still ahead.
 
 This is the next runtime-in-IR phase after scalar Any
 ([runtime-in-ir.md](./runtime-in-ir.md); checkpoints through 4d-2 on
@@ -307,8 +308,8 @@ Stack with **git base** (child PR base = parent head). No GitHub
 | --- | --- |
 | **S0** | This note + `fjs/ir/todo/short-strings.md` (design only). |
 | **S1** | String module skeleton in IR: interface + manifest hooks; short pack/unpack **helpers** unused by programs; proofs of bit round-trips; no link change. Prefer implementing behind the interface so a second variant can land as S1b without caller churn. **Shipped** in [`fjs/ir/runtime/string`](../../../fjs/ir/runtime/string/module.f.js) (manifests A/B/C; v1 enabled tags empty/`s1x16`/`s2x16`; C-flag provisional). |
-| **S2** | Host / counting-host / NaNVM ABI: accept short-string boxes; emission of shorts where a **concrete enabled tag** fits is a **per-variant policy** (off for A, on for B/C). Long path unchanged when no tag fits. |
-| **S3** | Link / L1 string ops use the short path (template or linked IR); long miss still imports; parity proofs vs L0. |
+| **S2** | Host / counting-host / NaNVM ABI: accept short-string boxes; emission of shorts where a **concrete enabled tag** fits is a **per-variant policy** (off for A, on for B/C). Long path unchanged when no tag fits. **Shipped**. |
+| **S3** | Link / L1 string ops use the short path (template or linked IR); long miss still imports; parity proofs vs L0. **Shipped** (`linkString` + B IR). |
 | **S4** | Remeasure (short microbench primary, `repeat` secondary); update `benchmark.md`; record which variant / C layout was measured. |
 | **S5+** | Alternate variant (B↔C) behind the same interface; compare; optional `concat` inline policy from open Q4. |
 

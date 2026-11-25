@@ -4,8 +4,10 @@
  * read them so, what a term calls or reads of its own module, `link`, which
  * merges a program with the bodies of L1 that it reaches, `linkAny`, which
  * merges Any's IR module the same way so scalar ops become the program's
- * own functions ([checkpoint 4e](../../../../doc/sasha-gil/ir/runtime-in-ir.md)), and
- * `errorTable`, which reads L1's error table from its text, for
+ * own functions ([checkpoint 4e](../../../../doc/sasha-gil/ir/runtime-in-ir.md)),
+ * `linkString`, which merges String's short-path `length` / `unit` after
+ * Any ([short-strings.md](../../../../doc/sasha-gil/ir/short-strings.md) S3),
+ * and `errorTable`, which reads L1's error table from its text, for
  * [the lowering](../module.f.js).
  *
  * @module
@@ -224,6 +226,120 @@ export const linkAny = any => program => {
         defines,
         constants: [...anyConstants.filter(([x]) => kept.includes(x)), ...constants],
         functions: [...functions, ...anyFunctions.filter(([x]) => kept.includes(x))],
+        exports: program.exports,
+    })
+}
+
+/** The name of a String short-path function in a program that links it: `string.length`. @type {(name: string) => string} */
+export const linkedStringName = name => `string.${name}`
+
+/**
+ * String ops that the short path replaces. Allocators and the rest stay
+ * L0 imports; the long miss of length/unit still calls `String.*`.
+ *
+ * @type {readonly string[]}
+ */
+const stringShortOps = ['length', 'unit']
+
+/**
+ * A term with linked String short-path names. When `rewriteImports` is set,
+ * each `String.length` / `String.unit` becomes a linked `self` call — for
+ * program bodies. String's own bodies pass `rewriteImports` false so their
+ * long-miss `String.*` imports stay imports; `own` still renames their
+ * `self.unitN` helpers. Other `String.*` calls stay imports either way.
+ *
+ * @type {(own: readonly string[], rename: (name: string) => string, rewriteImports: boolean) => (t: Term) => Term}
+ */
+const rewriteString = (own, rename, rewriteImports) => {
+    /** @type {(t: Term) => Term} */
+    const linked = t => {
+        switch (t[0]) {
+            case 'let': { return ['let', t[1], linked(t[2]), linked(t[3])] }
+            case 'op': { return t[3] === undefined ? ['op', t[1], t[2].map(linked)] : ['op', t[1], t[2].map(linked), t[3]] }
+            case 'call': {
+                const fromString = rewriteImports && t[1] === 'String' && stringShortOps.includes(t[2])
+                const fromOwn = t[1] === 'self' && own.includes(t[2])
+                const module = fromString ? 'self' : t[1]
+                const name = fromString || fromOwn ? rename(t[2]) : t[2]
+                return ['call', module, name, t[3].map(linked)]
+            }
+            case 'call_ref': { return ['call_ref', linked(t[1]), t[2].map(linked)] }
+            case 'make': { return ['make', t[1].map(([k, x]) => /** @type {const} */ ([k, linked(x)]))] }
+            case 'field': { return ['field', linked(t[1]), t[2]] }
+            case 'variant': { return ['variant', t[1], t[2], linked(t[3])] }
+            case 'match': { return ['match', linked(t[1]), t[2].map(([vs, b, x]) => /** @type {const} */ ([vs, b, linked(x)]))] }
+            case 'block': { return ['block', t[1], t[2], linked(t[3])] }
+            case 'loop': { return ['loop', t[1], t[2].map(([k, type, x]) => /** @type {const} */ ([k, type, linked(x)])), linked(t[3])] }
+            case 'br': { return ['br', t[1], linked(t[2])] }
+            case 'constant': {
+                return t[1] === 'self' && own.includes(t[2])
+                    ? ['constant', 'self', rename(t[2])]
+                    : t
+            }
+            default: { return t }
+        }
+    }
+    return linked
+}
+
+/**
+ * A program that links String's short-path IR
+ * ([short-strings.md](../../../../doc/sasha-gil/ir/short-strings.md) S3):
+ * keeps the `String` import for the long miss and for allocators, rewrites
+ * every `String.length` / `String.unit` to a linked name `string.length`,
+ * and merges the bodies of String that the program reaches. The program
+ * must already define Any (after `linkAny`); String's standalone module
+ * defines Any only so its bodies may `unseal` under check. A program that
+ * imports no `String`, that does not define Any, or whose own name collides
+ * with a reached linked name, is refused.
+ *
+ * @type {(stringModule: Module) => (program: Module) => Result<Module, string>}
+ */
+export const linkString = stringModule => program => {
+    if (definedBy(program) !== 'Any') { return error('the program does not define Any') }
+    if (program.imports.find(([k]) => k === 'String') === undefined) {
+        return error('the program imports no String')
+    }
+    const short = stringModule.functions.map(([k]) => k)
+    // Program: rewrite String.length/unit. Own bodies: rename self helpers only.
+    const rewriteProgram = rewriteString([], linkedStringName, true)
+    const rewriteOwn = rewriteString(short, linkedStringName, false)
+    /** @type {readonly (readonly [string, Fn])[]} */
+    const stringFunctions = stringModule.functions.map(([k, f]) => [linkedStringName(k), { ...f, body: rewriteOwn(f.body) }])
+    /** @type {readonly (readonly [string, Fn])[]} */
+    const functions = program.functions.map(([k, f]) => [k, { ...f, body: rewriteProgram(f.body) }])
+    const ownConstants = program.constants ?? []
+    /** @type {readonly (readonly [string, ConstantOf<Term>])[]} */
+    const constants = ownConstants.map(([k, c]) => [k, { type: c.type, value: rewriteProgram(c.value) }])
+    /** @type {(name: string) => readonly string[]} */
+    const usesOf = name => {
+        const f = stringFunctions.find(([k]) => k === name)
+        return f !== undefined ? uses(f[1].body) : []
+    }
+    let todo = [
+        ...functions.flatMap(([, f]) => uses(f.body)),
+        ...constants.flatMap(([, c]) => uses(c.value)),
+    ]
+    /** @type {readonly string[]} */
+    let reached = []
+    let k = 0
+    while (k < todo.length) {
+        const x = todo[Number(k)]
+        k = k + 1
+        if (!reached.includes(x)) {
+            reached = [...reached, x]
+            todo = [...todo, ...usesOf(x)]
+        }
+    }
+    const kept = reached.filter(name => stringFunctions.find(([x]) => x === name) !== undefined)
+    const collide = kept.find(name =>
+        functions.find(([x]) => x === name) !== undefined || constants.find(([x]) => x === name) !== undefined)
+    if (collide !== undefined) { return error(`${collide} is already a function or constant of the program`) }
+    return ok({
+        imports: program.imports,
+        defines: /** @type {NonNullable<Module['defines']>} */ (program.defines),
+        constants,
+        functions: [...functions, ...stringFunctions.filter(([x]) => kept.includes(x))],
         exports: program.exports,
     })
 }

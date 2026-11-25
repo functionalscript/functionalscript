@@ -84,22 +84,26 @@ const programRuntime = { ...runtime, l1: standIn }
 
 /**
  * A linked program as the program goldens read it: without Any's defines
- * and `any.*` bodies, and with each linked `any.X` written as `Any.X` again
- * so the golden still shows the import form.
+ * and `any.*` / `string.*` bodies, and with each linked `any.X` /
+ * `string.length` / `string.unit` written as `Any.X` / `String.*` again so
+ * the golden still shows the import form. Short-path linking is proved in
+ * [`link/proof.f.js`](./link/proof.f.js) and the string IR proofs.
  *
  * @type {(m: Module) => Module}
  */
 const withoutLinkedAny = m => {
-    /** @type {(name: string) => string | null} */
-    const short = name => name.startsWith('any.') ? name.slice(4) : null
+    /** @type {(name: string) => readonly [string, string] | null} */
+    const linked = name => name.startsWith('any.') ? /** @type {const} */ (['Any', name.slice(4)])
+        : name.startsWith('string.') ? /** @type {const} */ (['String', name.slice(7)])
+        : null
     /** @type {(t: Term) => Term} */
     const rewrite = t => {
         switch (t[0]) {
             case 'let': { return ['let', t[1], rewrite(t[2]), rewrite(t[3])] }
             case 'op': { return t[3] === undefined ? ['op', t[1], t[2].map(rewrite)] : ['op', t[1], t[2].map(rewrite), t[3]] }
             case 'call': {
-                const bare = t[1] === 'self' ? short(t[2]) : null
-                return ['call', bare !== null ? 'Any' : t[1], bare ?? t[2], t[3].map(rewrite)]
+                const hit = t[1] === 'self' ? linked(t[2]) : null
+                return ['call', hit !== null ? hit[0] : t[1], hit !== null ? hit[1] : t[2], t[3].map(rewrite)]
             }
             case 'call_ref': { return ['call_ref', rewrite(t[1]), t[2].map(rewrite)] }
             case 'make': { return ['make', t[1].map(([k, x]) => /** @type {const} */ ([k, rewrite(x)]))] }
@@ -110,8 +114,8 @@ const withoutLinkedAny = m => {
             case 'loop': { return ['loop', t[1], t[2].map(([k, type, x]) => /** @type {const} */ ([k, type, rewrite(x)])), rewrite(t[3])] }
             case 'br': { return ['br', t[1], rewrite(t[2])] }
             case 'constant': {
-                const bare = t[1] === 'self' ? short(t[2]) : null
-                return bare !== null ? ['constant', 'Any', bare] : t
+                const hit = t[1] === 'self' ? linked(t[2]) : null
+                return hit !== null ? ['constant', hit[0], hit[1]] : t
             }
             default: { return t }
         }
@@ -119,10 +123,10 @@ const withoutLinkedAny = m => {
     return {
         imports: [],
         constants: (m.constants ?? [])
-            .filter(([k]) => short(k) === null)
+            .filter(([k]) => linked(k) === null)
             .map(([k, c]) => /** @type {const} */ ([k, { type: c.type, value: rewrite(c.value) }])),
         functions: m.functions
-            .filter(([k]) => short(k) === null)
+            .filter(([k]) => linked(k) === null)
             .map(([k, f]) => /** @type {const} */ ([k, { ...f, body: rewrite(f.body) }])),
         exports: m.exports,
     }
@@ -155,12 +159,15 @@ export const proof = {
     // Slice 11a: an untyped program, each export of `any` alone, whose
     // operators of `any` call L1, which links into the same module.
     programs: () => {
-        // linkAny defines Any, drops its import, and keeps Ref for the hooks.
+        // linkAny defines Any, drops its import, and keeps Ref for the hooks;
+        // linkString keeps String and adds string.length/unit when reached.
         {
             const m = assertOk(over({}, 'export const f = (a, b) => a + b * 2', programRuntime))
             assertEq(m.imports.map(([k]) => k).join(' '), 'Ref String BigInt Containers Functions Native')
             assert(definedBy(m) === 'Any')
             assert(m.functions.find(([k]) => k === 'any.from_f64') !== undefined && m.functions.find(([k]) => k === 'any.isRef') !== undefined)
+            const withLen = assertOk(over({}, 'export const f = a => a.length', programRuntime))
+            assert(withLen.functions.find(([k]) => k === 'string.length') !== undefined)
         }
         assertEq(program('export const f = (a, b) => a + b * 2'), [
             'const #n0: any.only(number) =',
