@@ -22,6 +22,8 @@ import {
     tagOf as _tagOf,
     unit as _unit,
     unpack as _unpack,
+    emitA as _emitA,
+    emitB as _emitB,
     v1EnabledTags as _v1EnabledTags,
 } from './short.f.js'
 
@@ -37,6 +39,10 @@ export const tagOf = _tagOf
 export const unit = _unit
 export const unpack = _unpack
 export const v1EnabledTags = _v1EnabledTags
+/** Emit A — always dyn-ref (control). Re-export of `short.f.js`. */
+export const emitA = _emitA
+/** Emit B — short when a v1 tag fits (NaNVM default). Re-export of `short.f.js`. */
+export const emitB = _emitB
 
 /**
  * Logical ops every String variant must expose to programs / emitters.
@@ -62,7 +68,7 @@ export const a = {
     unpack: { kind: 'null' },
     length: { kind: 'import', op: 'length' },
     unit: { kind: 'import', op: 'unit' },
-    emit: { kind: 'alwaysDynRef' },
+    emit: emitA,
     enabledTags: [],
     longPath: 'fjs:l0',
 }

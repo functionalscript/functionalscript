@@ -11,8 +11,9 @@ import type { Host as NativeHost } from '../../native/host/types.ts'
 /**
  * Whether allocating string imports on a counting / NaNVM host may return
  * a short-string box ([short-strings.md](../../../../doc/sasha-gil/ir/short-strings.md)
- * S2). Matches String-manifest `emit` + `enabledTags`: A is always
- * dyn-ref; B/C are short when an enabled tag fits.
+ * S2 / S4 decision gate). Prefer named policies `emitA` / `emitB` from
+ * `runtime/string/short.f.js`: A is always dyn-ref (counting default);
+ * B is short when a v1-enabled tag fits (NaNVM default).
  */
 export type StringEmit =
     | { readonly kind: 'alwaysDynRef' }
@@ -132,7 +133,9 @@ export type Imports = {
  * which no one owns, and a `dup` or a `drop` of those bits is a no-op. A
  * reference is a dyn-ref box that packs a cell index; `dup` and `drop`
  * count that cell. Short-string **emission** follows the host's
- * {@link StringEmit} policy (default always dyn-ref).
+ * {@link StringEmit} policy: NaNVM defaults to B (`emitB`); the counting
+ * host defaults to A (`emitA`) as the dyn-ref control
+ * ([short-strings.md](../../../../doc/sasha-gil/ir/short-strings.md) S4).
  */
 export type Counting = {
     readonly imports: Imports

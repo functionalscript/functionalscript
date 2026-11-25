@@ -1,7 +1,7 @@
 ## Short strings in the IR
 
 **Priority:** P2
-**Status:** wip — design approved (Sasha, #4118); S1–S4 done; S5+ open
+**Status:** wip — design approved (Sasha, #4118); S1–S4 done; decision gate closed (B default for NaNVM); S5+ open
 
 ### Problem
 
@@ -30,7 +30,8 @@ Design approved; S1 lands the skeleton under `fjs/ir/runtime/string`.
 - [x] **S2** — Host / NaNVM ABI accepts short boxes; emit policy is per-variant (off for A, on for B/C when a concrete enabled tag fits)
 - [x] **S3** — Link / L1 string ops use the short path (`linkString` + B IR length/unit); parity vs L0
 - [x] **S4** — Remeasure (`shortOps` primary, `repeat` secondary; variant B); update `benchmark.md`
-- [ ] Optional **S5+** — second variant behind the same interface; compare
+- [x] **Decision gate** — NaNVM defaults to B (`emitB`); counting stays A (`emitA`) as control
+- [ ] Optional **S5+** — second variant behind the same interface; compare; optional wider tags
 
 ### Related
 

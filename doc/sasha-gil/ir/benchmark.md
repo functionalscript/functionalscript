@@ -242,12 +242,14 @@ linkAny):
 | `repeat` | 4.3 µs | | 3.12 ms | 9.71 ms | 726× | 3.1× |
 | `bigSum` | 8.0 µs | | 3.91 ms | 10.85 ms | 489× | 2.8× |
 
-**Decision gate (provisional):** keep shipping B's emit + linked
-length/unit for NaNVM-targeted short work; keep A buildable as the
-dyn-ref control. `shortOps` is still ~900× JavaScript — the next win is
-not more string packing but cutting record `find`/`item` / `Ref` on the
-loop state (or a flatter short-only loop). C vs B comparison waits on
-multi-local `str` (S5+).
+**Decision gate (closed):** NaNVM-targeted hosts default to **B**
+(`emitB` — `shortWhenEnabled` + v1 tags `empty`/`s1x16`/`s2x16`; linked
+`length`/`unit`). Counting host defaults to **A** (`emitA` /
+`alwaysDynRef`) as the control; pass `emitB` explicitly for short emit
+there. A and C stay buildable behind the same String interface. `shortOps`
+is still ~900× JavaScript — the next win is not more string packing but
+cutting record `find`/`item` / `Ref` on the loop state (or a flatter
+short-only loop). C vs B comparison waits on multi-local `str` (S5+).
 
 ## Where the time goes (historical: before linkAny)
 

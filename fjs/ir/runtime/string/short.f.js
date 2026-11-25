@@ -47,6 +47,22 @@ export const allTags = /** @type {const} */ ([
  */
 export const v1EnabledTags = /** @type {const} */ (['empty', 's1x16', 's2x16'])
 
+/**
+ * Emit A — every allocating string import returns a dyn-ref (control).
+ * Pass explicitly when a NaNVM-targeted host should not emit shorts.
+ *
+ * @type {{ readonly kind: 'alwaysDynRef' }}
+ */
+export const emitA = { kind: 'alwaysDynRef' }
+
+/**
+ * Emit B — short box when a v1-enabled tag fits (S4 decision gate default
+ * for NaNVM-targeted builds). Same tags as {@link v1EnabledTags}.
+ *
+ * @type {{ readonly kind: 'shortWhenEnabled', readonly enabledTags: typeof v1EnabledTags }}
+ */
+export const emitB = { kind: 'shortWhenEnabled', enabledTags: v1EnabledTags }
+
 /** Unit counts parallel to [`allTags`] (index = tag). */
 const tagLens = /** @type {const} */ ([0, 1, 2, 3, 4, 5, 6, 7, 8])
 
