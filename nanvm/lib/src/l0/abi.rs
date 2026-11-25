@@ -13,12 +13,16 @@
 //!   choices 1 and 2 say. A number is its own `f64` bits, with one NaN,
 //!   and `undefined`, `null`, `false` and `true` are the four constants:
 //!   these take no slot, `dup` answers them as they are and `drop` leaves
-//!   them alone. Every other value is a reference,
-//!   `0x7FF | kind << 48 | handle << 2`: `kind` is L0's kind, and the
-//!   handle is an index into a table of `naive` values, 32 bits, with the
-//!   slot's generation in the 14 above, so a handle used after its `drop`
-//!   traps even when its slot holds a new value. A reference is one owned
-//!   handle: `dup` makes a new one and `drop` frees one.
+//!   them alone. A well-formed **short string** is the same: the ABI
+//!   **accepts** every Sergey short-string tag
+//!   ([short-strings.md](../../../../doc/sasha-gil/ir/short-strings.md) S2);
+//!   [`set_string_emit_short`] turns on B/C emission (`empty` / `s1x16` /
+//!   `s2x16`), and a miss stays a dyn-ref. Every other value is a
+//!   reference, `0x7FF | kind << 48 | handle << 2`: `kind` is L0's kind,
+//!   and the handle is an index into a table of `naive` values, 32 bits,
+//!   with the slot's generation in the 14 above, so a handle used after
+//!   its `drop` traps even when its slot holds a new value. A reference
+//!   is one owned handle: `dup` makes a new one and `drop` frees one.
 //! - **A builder is an `i32` handle,** an index into a table of open
 //!   builders, with a generation the same way.
 //! - **Bytes** cross through [`with_memory`], which stands in for the
@@ -46,6 +50,7 @@
 //! the memory, `out of bounds`.
 
 pub mod native;
+pub mod short;
 #[cfg(test)]
 mod test;
 
@@ -59,7 +64,7 @@ use super::{Builder, trap};
 use crate::common::sized_index::SizedIndex;
 use crate::{
     naive::Naive,
-    vm::{Any, Array, Function, IVm, ToAny, ToArray},
+    vm::{Any, Array, Function, IVm, ToAny, ToArray, ToString},
 };
 
 type A = Naive;
@@ -127,7 +132,14 @@ fn inline_kind(h: i64) -> Option<super::Kind> {
         UNDEFINED => Some(super::Kind::Undefined),
         NULL => Some(super::Kind::Null),
         FALSE | TRUE => Some(super::Kind::Boolean),
-        _ => None,
+        _ => {
+            let x = h as u64;
+            if short::is_short(x) {
+                short::tag_of(x).map(|_| super::Kind::String)
+            } else {
+                None
+            }
+        }
     }
 }
 
@@ -142,6 +154,9 @@ fn unbox(h: i64) -> Option<Boxed> {
         NULL => return Some(Boxed::Inline(super::null())),
         FALSE | TRUE => return Some(Boxed::Inline(super::from_bool(h == TRUE))),
         _ => {}
+    }
+    if short::is_short(x) {
+        return short::unpack(x).map(|units| Boxed::Inline(units.to_string().to_any()));
     }
     (x & REF_TAG == DYN_REF).then_some(Boxed::Ref {
         handle: (x >> 2) & ((1 << (INDEX_BITS + GENERATION_BITS)) - 1),
@@ -259,6 +274,9 @@ struct State {
     marks: Vec<u64>,
     /// The value of the last [`throw`], and the births before it.
     thrown: Option<(V, u64)>,
+    /// When true, allocating string ops emit a short box for a v1-enabled
+    /// tag (String variants B/C); when false, always a dyn-ref (A).
+    string_emit_short: bool,
 }
 
 impl State {
@@ -283,8 +301,15 @@ impl State {
             births: 0,
             marks: Vec::new(),
             thrown: None,
+            string_emit_short: false,
         }
     }
+}
+
+/// String emit policy for allocating L0 string imports: `false` is variant
+/// A (always dyn-ref); `true` is B/C (short when a v1-enabled tag fits).
+pub fn set_string_emit_short(enabled: bool) {
+    with(|s| s.string_emit_short = enabled);
 }
 
 /// The state, and whether a change of it is under way. A `RefCell` would
@@ -411,7 +436,8 @@ fn take(name: &str, h: i64) -> V {
 }
 
 /// A new owned box: a number, `undefined`, `null` and the booleans are
-/// their own bits, so they never take a slot.
+/// their own bits, so they never take a slot. A string may be a short box
+/// when [`set_string_emit_short`] is on and a v1-enabled tag fits.
 fn put(v: V) -> i64 {
     let kind = super::kind(&v);
     match kind {
@@ -419,6 +445,14 @@ fn put(v: V) -> i64 {
         super::Kind::Null => return NULL,
         super::Kind::Boolean => return from_bool(super::to_bool(&v) as i32),
         super::Kind::Number => return number(super::to_f64(&v)),
+        super::Kind::String if with(|s| s.string_emit_short) => {
+            let len = super::length(&v) as usize;
+            let mut units: Vec<u16> = core::iter::repeat_n(0, len).collect();
+            super::read_units(&v, 0, &mut units);
+            if let Some(bits) = short::pack_enabled(&units, short::V1_ENABLED) {
+                return bits as i64;
+            }
+        }
         _ => {}
     }
     let handle = with(|s| {

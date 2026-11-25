@@ -41,4 +41,6 @@ export type _Nanvm = {
     readonly alive: (h: bigint) => number
     readonly trap_text_length: () => number
     readonly trap_text_into: (ptr: number) => void
+    /** `0` always dyn-ref (A); non-zero short when a v1-enabled tag fits (B/C). */
+    readonly set_string_emit_short: (enabled: number) => void
 }

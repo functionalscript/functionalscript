@@ -225,11 +225,9 @@ Each is one PR that leaves every proof green, so it can merge on its own.
    L0 view on the parity tables, linking it into programs, and the demos
    measured. It may land as several PRs.
 
-Short strings come after: String's group of the box, and its functions
-inline for a short string and NaNVM's for a long one. Design (interface,
-interchangeable implementations, experiment plan) is in
-[short-strings.md](./short-strings.md) (approved). S1 skeleton:
-[`fjs/ir/runtime/string`](../../../fjs/ir/runtime/string/module.f.js).
+Short strings: design in [short-strings.md](./short-strings.md) (approved).
+S1 skeleton: [`fjs/ir/runtime/string`](../../../fjs/ir/runtime/string/module.f.js).
+S2: counting host / NaNVM ABI accept short boxes; emit per variant.
 
 ## Open questions
 

@@ -32,7 +32,10 @@
  *   the JavaScript value it was made of, as a counting host answers the
  *   value that it holds, so a proof tells a module that answers what it
  *   was given from one that answers a copy. A function that `read` makes
- *   of a function of NaNVM calls it through NaNVM's `call`.
+ *   of a function of NaNVM calls it through NaNVM's `call`. Short-string
+ *   boxes are accepted by NaNVM's ABI; emission follows `stringEmit`
+ *   (default always dyn-ref), as on the counting host
+ *   ([short-strings.md](../../../../../doc/sasha-gil/ir/short-strings.md) S2).
  * - **The host holds handles of its own**: one for each value that `own`
  *   made, to read it back, and one for each function that `read` made,
  *   to call it, and forgets those that NaNVM's `recover` frees. `live`
@@ -55,12 +58,15 @@
  *
  * @module
  *
- * @import { Counting } from '../types.ts'
+ * @import { Counting, StringEmit } from '../types.ts'
  * @import { _Nanvm } from './private.ts'
  * @import { Host as NativeHost } from '../../../native/host/types.ts'
  */
 
 import { write } from '../../../../media/wasm/binary/write/module.f.js'
+
+/** Default emit policy: variant A — every string stays a dyn-ref. @type {StringEmit} */
+const alwaysDynRef = { kind: 'alwaysDynRef' }
 
 /** The first code index of a JavaScript function that `own` gives NaNVM, past any module's table. */
 export const HOST = 0x4000_0000
@@ -114,11 +120,13 @@ const isCopy = value => value === undefined || value === null || typeof value ==
 /**
  * The hosts of a compiled NaNVM: each call instantiates NaNVM afresh, with
  * `values` as its first values, a region of `data` bytes for a module's
- * data segments, and a table of `entries` for its code.
+ * data segments, and a table of `entries` for its code. `stringEmit`
+ * selects whether allocating string imports may return a short box (B/C)
+ * or always a dyn-ref (A), matching the counting host.
  *
- * @type {(nanvm: WebAssembly.Module) => (values: readonly unknown[], data?: number, entries?: number) => Counting}
+ * @type {(nanvm: WebAssembly.Module) => (values: readonly unknown[], data?: number, entries?: number, stringEmit?: StringEmit) => Counting}
  */
-export const nanvmHost = nanvm => (values, data = 0, entries = 0) => {
+export const nanvmHost = nanvm => (values, data = 0, entries = 0, stringEmit = alwaysDynRef) => {
     /** The table of code that the module fills and the adapter calls into. */
     const table = new WebAssembly.Table({ element: 'anyfunc', initial: entries })
     /** The JavaScript functions that `own` gave NaNVM, by code index from `HOST`. @type {Function[]} */
@@ -139,6 +147,7 @@ export const nanvmHost = nanvm => (values, data = 0, entries = 0) => {
     const { invoke } = new WebAssembly.Instance(adapter, { 'fjs:adapter': { table, host } }).exports
     const instance = new WebAssembly.Instance(nanvm, { 'fjs:host': { invoke } })
     const n = /** @type {_Nanvm} */ (/** @type {unknown} */ (instance.exports))
+    n.set_string_emit_short(stringEmit.kind === 'shortWhenEnabled' ? 1 : 0)
     // Any's constants, as NaNVM boxes them: NaNVM is their one source.
     const UNDEFINED = n.constant_box(0)
     const NULL = n.constant_box(1)

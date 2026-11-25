@@ -108,6 +108,59 @@ fn strings() {
 }
 
 #[test]
+fn short_strings_accept() {
+    fresh();
+    let empty = short::EMPTY as i64;
+    assert_eq!(kind(empty), 4);
+    assert_eq!(length(empty), 0);
+    assert_eq!(text_of(empty), "");
+    assert_eq!(dup(empty), empty);
+    drop(empty);
+    assert_eq!(live(), 0);
+    let a = short::pack(&[0x61]).unwrap() as i64;
+    let ab = short::pack(&[0x61, 0x62]).unwrap() as i64;
+    assert_eq!(kind(a), 4);
+    assert_eq!(unit(a, 0), 0x61);
+    assert_eq!(text_of(ab), "ab");
+    assert_eq!(length(ab), 2);
+    // Short-family bits that match no Sergey tag are not a value.
+    let junk = 0x7FF0_0000_0000_00E8_u64 as i64;
+    assert!(short::is_short(junk as u64));
+    assert_eq!(short::tag_of(junk as u64), None);
+}
+
+#[test]
+#[should_panic(expected = "l0.kind: not a value")]
+fn short_strings_junk_traps() {
+    fresh();
+    kind(0x7FF0_0000_0000_00E8_u64 as i64);
+}
+
+#[test]
+fn short_strings_emit() {
+    fresh();
+    set_string_emit_short(true);
+    let empty = string("");
+    assert_eq!(empty as u64, short::EMPTY);
+    assert_eq!(live(), 0);
+    let a = from_unit(0x41);
+    assert_eq!(text_of(a), "A");
+    assert_eq!(kind(a), 4);
+    assert_eq!(a as u64, short::pack(&[0x41]).unwrap());
+    assert_eq!(live(), 0);
+    let ab = concat(from_unit(0x61), from_unit(0x62));
+    assert_eq!(text_of(ab), "ab");
+    assert_eq!(ab as u64, short::pack(&[0x61, 0x62]).unwrap());
+    assert_eq!(live(), 0);
+    // Three units fit a Sergey tag but not the v1 enabled set → dyn-ref.
+    let abc = string("abc");
+    assert_eq!(text_of(abc), "abc");
+    assert_eq!(live(), 1);
+    drop(abc);
+    assert_eq!(live(), 0);
+}
+
+#[test]
 fn bigints() {
     fresh();
     let words: Vec<u8> = [1u64, 2].iter().flat_map(|w| w.to_le_bytes()).collect();
