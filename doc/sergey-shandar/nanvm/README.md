@@ -53,10 +53,11 @@ vvvv_vvvv_vvvv_vvvv
 
 ## Reference
 
-`s111_1111_1111_tttt_....10`
+`s111_1111_1111_tttt_...r10` - non function reference type
 
 - `s` is static,
-- `tttt` is type.
+- `tttt` is type,
+- `r` = `0` reserved.
 
 ## Examples
 
