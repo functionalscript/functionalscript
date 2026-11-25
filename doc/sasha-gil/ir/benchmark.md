@@ -3,11 +3,13 @@
 Measured 2026-11-21, first after slice 12 ([`fjs/ir/todo/slices.md`](../../../fjs/ir/todo/slices.md))
 and again after the first three levers (#4049, #4050, #4052), then on
 2026-11-22 on `main` after the next three (#4055 to #4057,
-[third run](#after-the-next-three-levers)): how fast
+[third run](#after-the-next-three-levers)), and on 2026-11-24 after
+[linkAny (checkpoint 4e)](#after-linkany-checkpoint-4e): how fast
 untyped FunctionalScript programs run when the IR lowers them to WASM and
 NaNVM's `.wasm` is their runtime, beside the counting host and JavaScript
 itself, and where the time goes. This is a measurement, not a decision.
-The levers at the end are proposals, re-ranked from the second profile.
+The levers at the end are proposals, re-ranked from the second profile;
+numeric-loop import costs after linkAny supersede the earlier headline.
 
 The code is in this folder: [benchmark.programs.mjs](./benchmark.programs.mjs)
 holds the untyped programs, [benchmark.typed.mjs](./benchmark.typed.mjs) two
@@ -16,24 +18,33 @@ typed twins, and [benchmark.run.mjs](./benchmark.run.mjs) the runner. See
 
 ## Summary
 
-The first four points are from the second run; the
-[third run](#after-the-next-three-levers) changes them as it says.
+The first four points are from the second run (before linkAny); the
+[third run](#after-the-next-three-levers) changes them as it says. They
+are historical for numeric loops once Any is linked — see
+[After linkAny](#after-linkany-checkpoint-4e) and the fifth point.
 
 - **The three levers made six of the seven untyped programs on NaNVM's
-  `.wasm` 4.7× to 24× faster.** Those six now run 13× to 450× slower than
+  `.wasm` 4.7× to 24× faster.** Those six then ran 13× to 450× slower than
   JavaScript (50× to 1,300× before), and 1.5× to 4.7× faster than the
-  counting host. `repeat`, which builds a string, gained 1× to 2× and is
+  counting host. `repeat`, which builds a string, gained 1× to 2× and was
   still about 1,500× slower than JavaScript.
 - **The typed twins still run as plain WASM about 5× to 7× faster than
-  JavaScript.** Numeric untyped code is now within 13× to 70× of
-  JavaScript.
-- **NaNVM's handle layer is still most of a numeric loop: 90% of `sumTo`,
-  `sumToAny` and `fib`.** Fewer calls reach it, but each costs as much as
-  before: 9 to 35 ns. The program and the L1 bodies take 7% to 9%.
-- **Two new hot spots show up now that the rest is smaller.** Each object
+  JavaScript.** Before linkAny, numeric untyped code was within 13× to
+  70× of JavaScript.
+- **Before linkAny, NaNVM's handle layer was most of a numeric loop: 90%
+  of `sumTo`, `sumToAny` and `fib`.** Fewer calls reached it, but each
+  cost as much as before: 9 to 35 ns. The program and the L1 bodies took
+  7% to 9%.
+- **Two hot spots showed up once the rest was smaller.** Each object
   lookup (`find`, `item`, `key`, `length`) copies the object's whole entry
   list, which is 40% of `readFields`. And `concat` copies both strings one
-  unit at a time, which is 87% of `repeat`.
+  unit at a time, which is 87% of `repeat`. Those still dominate
+  reference- and string-heavy programs after linkAny.
+- **After linkAny (checkpoint 4e), numeric loops on NaNVM are about 1× to
+  6× JavaScript, with essentially one L0 import (`drop`).** `sumTo` and
+  `fib` match JavaScript on this container; `sumToAny` is about 6× (was
+  36×). Programs that touch references still pay `Ref` and container
+  imports.
 
 ## Setup
 
