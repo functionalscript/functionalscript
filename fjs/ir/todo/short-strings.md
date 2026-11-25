@@ -1,7 +1,7 @@
 ## Short strings in the IR
 
 **Priority:** P2
-**Status:** wip — design PR; no packing/unpacking, host ABI, link, or feature proofs until the design is approved
+**Status:** wip — design PR; owner asked for a design gate on this phase (not the language-feature rule); S1–S4 wait on that decision
 
 ### Problem
 
@@ -21,7 +21,8 @@ CPU-saving), and an experiment plan that swaps variants without rewriting
 callers. Full note:
 [`doc/sasha-gil/ir/short-strings.md`](../../../doc/sasha-gil/ir/short-strings.md).
 
-Do **not** start S1–S4 coding until that design is approved.
+Do **not** start S1–S4 coding until the owner decides on that design
+(phase gate by request; not AGENTS.md language-feature approval).
 
 ### Tasks
 

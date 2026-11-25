@@ -3,7 +3,9 @@
 2026-11-24. **Proposed, not decided. Design only** — this note names the
 runtime-module interface and an experiment plan; it ships no packing,
 host ABI change, `linkAny` string path, or proof that implements the
-feature. Implementation waits on explicit approval (design first).
+feature. The owner asked for a **design gate on this phase** (modular
+String experiment before coding), separate from AGENTS.md's
+language-feature approval rule; S1–S4 wait on that decision.
 
 This is the next runtime-in-IR phase after scalar Any
 ([runtime-in-ir.md](./runtime-in-ir.md); checkpoints through 4d-2 on
@@ -107,8 +109,15 @@ A String runtime module variant is valid for experiment if:
    view on the same inputs.
 2. Its manifest states slot demand (including zero) and which functions are
    templates vs imports vs null.
-3. Short values do not take a dyn-ref slot; long values still go through the
-   host/NaNVM string path the variant names.
+3. **Storage (by variant class):**
+   - **NaN short-string variants (B, C):** values that fit Sergey's short
+     tags do **not** take a dyn-ref slot; they live in the box. Values that
+     do not fit still go through the host/NaNVM string path the variant
+     names.
+   - **Host-backed baseline (A):** never makes a short-string box; every
+     string remains a dyn-ref. That is intentional: A is the portable
+     control, not a NaN short-string implementation. Clause 3's “no
+     dyn-ref for shorts” applies only to B and C.
 4. Swapping the variant changes **only** the linked String module (and
    possibly which Any encoding it requires), not L1 source or demo
    programs.
@@ -222,8 +231,8 @@ Goal: compare A/B/C **without rewriting callers**.
   do **not** share the String module interface (they would get a BigInt
   module). Layout non-overlap with string tags must be preserved when
   both land.
-- **Choosing and shipping a single packing implementation** in the design
-  PR.
+- **Choosing and shipping a single packing implementation** in this
+  design PR (S1+ after the owner decision on this note).
 - **Rope for `concat`**, cancel-`dup`/`drop` lifetime pass, static `s` bit
   / data-segment literals — separate levers in benchmark.md / runtime-in-ir
   open questions.
