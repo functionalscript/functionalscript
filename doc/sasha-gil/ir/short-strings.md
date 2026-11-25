@@ -25,18 +25,22 @@ short-bigint branches; `isRef` stays false for them so Any's `dup`/`drop`
 hooks need no change when short strings appear
 ([defined-hooks.md](./defined-hooks.md)).
 
-What is still expensive is **reference-shaped** work. After bulk `concat`,
-`repeat` is still far from JavaScript (about 100× on the last published
-table in [benchmark.md](./benchmark.md)), and post-linkAny profiles still
-spend that time on `kind_ref` / `dup_ref` / `drop_ref` and string imports.
-`repeat` (`n = 1_000`, append `'ab'` from `e = ""`) grows past the
-eight-unit short maximum after a few steps; most of its cost is copying
-increasingly long strings (about 87% in the published profile). Short
-strings are still the first runtime-in-IR step that can cut **short**
-string traffic without rewriting containers or Heap — but the primary
-comparison for that win is a short-only microbench, not `repeat` as a
-short-hit rate demo. `repeat` stays as a regression / long-path check
-(and for any early iterations or `concat` policy that still help).
+What is still expensive is **reference-shaped** work. On the After
+linkAny table in [benchmark.md](./benchmark.md) (checkpoint 4e,
+[#4116](https://github.com/functionalscript/functionalscript/pull/4116)
+tip; assumed landing with #4114–#4115), `repeat` is about **950×**
+JavaScript, and its L0 import profile is mostly `kind_ref` / `dup_ref` /
+`drop_ref` (plus container/string imports). The older third-run table on
+`main` before linkAny had `repeat` at 108× with `kind`/`dup`/`drop`
+instead — do not mix those runs. `repeat` (`n = 1_000`, append `'ab'`
+from `e = ""`) grows past the eight-unit short maximum after a few
+steps; the pre-linkAny profile attributed about 87% of its time to
+copying increasingly long strings. Short strings are still the first
+runtime-in-IR step that can cut **short** string traffic without
+rewriting containers or Heap — but the primary comparison for that win
+is a short-only microbench, not `repeat` as a short-hit rate demo.
+`repeat` stays as a regression / long-path check (and for any early
+iterations or `concat` policy that still help).
 
 | Length class | Today (post–scalar Any) | This phase's target |
 | --- | --- | --- |
@@ -132,9 +136,13 @@ A String runtime module variant is valid for experiment if:
      string remains a dyn-ref. That is intentional: A is the portable
      control, not a NaN short-string implementation. The “no dyn-ref for
      enabled shorts” rule applies only to B and C.
-4. Swapping the variant changes **only** the linked String module (and
-   possibly which Any encoding it requires), not L1 source or demo
-   programs.
+4. Swapping the variant changes the linked String module, the Any
+   encoding it requires if any, and the **host/runtime emission policy**
+   for allocating string imports (`make_string`, `from_unit`, `concat`,
+   …) — not L1 source or demo programs. Those imports stay imports in
+   every form; whether they return short boxes or always dyn-refs is
+   part of the variant's configuration (see experiment plan), so
+   baseline A can still promise all-dyn-ref results.
 
 ## Candidate implementations
 
@@ -225,9 +233,14 @@ Goal: compare A/B/C **without rewriting callers**.
    encodings). Secondary: keep `repeat` as a long-path / regression check
    (it is mostly long after a few steps). Callers use `str` rows or L0
    String names only.
-2. **Vary only the String module** (and the Any encoding it requires) at
-   link/emit time. Import-form A is the portable baseline; B and C are
-   template-form specializations.
+2. **Vary the String runtime configuration** at link/emit time: the
+   String module variant (import A vs template B/C), the Any encoding it
+   requires, **and** the host/NaNVM emission policy for allocating string
+   imports. Allocating ops (`make_string`, `from_unit`, `concat`, …) stay
+   imports in every form; A configures them to always return dyn-refs, B/C
+   to emit a short box when a concrete enabled tag fits. Callers and
+   demos do not change. “Vary only the String module” alone is not enough
+   once S2 teaches the host to emit shorts.
 3. **Parity.** Each variant must match the L0 JavaScript / NaNVM view on
    the existing string parity tables (short and long), including traps on
    bad indices.
@@ -294,7 +307,7 @@ Stack with **git base** (child PR base = parent head). No GitHub
 | --- | --- |
 | **S0** | This note + `fjs/ir/todo/short-strings.md` (design only). |
 | **S1** | String module skeleton in IR: interface + manifest hooks; short pack/unpack **helpers** unused by programs; proofs of bit round-trips; no link change. Prefer implementing behind the interface so a second variant can land as S1b without caller churn. |
-| **S2** | Host / counting-host / NaNVM ABI: emit and accept short-string boxes where a **concrete enabled tag** fits (length and unit bit-widths); otherwise long path unchanged. |
+| **S2** | Host / counting-host / NaNVM ABI: accept short-string boxes; emission of shorts where a **concrete enabled tag** fits is a **per-variant policy** (off for A, on for B/C). Long path unchanged when no tag fits. |
 | **S3** | Link / L1 string ops use the short path (template or linked IR); long miss still imports; parity proofs vs L0. |
 | **S4** | Remeasure (short microbench primary, `repeat` secondary); update `benchmark.md`; record which variant / C layout was measured. |
 | **S5+** | Alternate variant (B↔C) behind the same interface; compare; optional `concat` inline policy from open Q4. |
