@@ -126,7 +126,7 @@ export const proof = {
         assertStructurallySame(missing.wasm, error(`/${wasmPath}: HTTP 404`))
         // An IR route loads L0 and the program module.
         /** @type {IrInstance} */
-        const ir = { invoke: () => ({ value: 'hi\n', memory: 0x1_0000, growth: 0 }), startup: 3 }
+        const ir = { invoke: () => ({ value: 'hi\n', memory: 0x1_0000, growth: 0, time: 1 }), startup: 3 }
         const withIr = perform(page(files, instance([0x68, 0x69]), 'ok', 1024, ir))(loadWithIr(hi.place, irPlace('hi')))
         assertEq(withIr.ir?.[0], 'ok')
     },
@@ -227,6 +227,9 @@ export const proof = {
         assert(first.includes('Waiting for modules to finish loading…'))
         assert(!modulesReady(init))
         assert(modulesReady(ready))
+        // A refused module still enables Run so JavaScript can run.
+        assert(modulesReady({ ...ready, wasm: error('gone') }))
+        assert(modulesReady({ ...ready, ir: error('no ir') }))
         assert(!first.includes('startup'))
         assert(!first.includes('"JavaScript"'))
         // Loaded, run, and an empty output said in words.
@@ -259,7 +262,7 @@ export const proof = {
         assert(refused.includes('no wasm'))
         // Three-route copy when the page has an IR module.
         /** @type {IrInstance} */
-        const irInst = { invoke: () => ({ value: 'hi', memory: 0x1_0000, growth: 0 }), startup: 3 }
+        const irInst = { invoke: () => ({ value: 'hi', memory: 0x1_0000, growth: 0, time: 1 }), startup: 3 }
         const irReady = { ...ready, ir: ok(irInst) }
         const three = text(view('hi')(perform(page(files, instance([0x68, 0x69]), 'ok', 1024, irInst))(runBoth({ ...hi, ir: irPlace('hi') })(irReady))))
         assert(three.includes('IR→WASM startup (fetch and compile L0 + program): 3.0 ms'))

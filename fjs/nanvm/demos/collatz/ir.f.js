@@ -1,9 +1,9 @@
 /**
  * Collatz for the IR / direct-to-WASM demo route: the same search as
- * [`sample.f.js`](./sample.f.js) (longest chain below 30,000), as a pure
- * program `from_fast` can lower — `while` loops over record state, no
- * `write` effect. The page's IR column runs the exported entry and shows
- * the string it answers.
+ * [`sample.f.js`](./sample.f.js) (longest chain below 30,000, same linear
+ * `while` shape), as a pure program `from_fast` can lower — no `write`
+ * effect. The page's IR column runs the exported entry and shows the string
+ * it answers.
  *
  * @module
  */

@@ -289,17 +289,19 @@ export const runWasm = name => ({ exports }) => {
 
 /**
  * Times one IR / direct-to-WASM call: the host-read value as text, and
- * NaNVM L0 linear memory around the call.
+ * NaNVM L0 linear memory around the call. The displayed time is the export
+ * window `invoke` measures, not the sandbox wall that also covers host and
+ * program instantiation.
  *
  * @type {(instance: IrInstance) => Effect<Sandbox, Result<IrRun, string>, never>}
  */
 export const runIr = ({ invoke }) => resultMapStep(sandbox(() => invoke()), r => {
-    const t = timed(/** @type {Result<SandboxResult<{ readonly value: unknown, readonly memory: number, readonly growth: number }>, IoChannel>} */ (r))
+    const t = timed(/** @type {Result<SandboxResult<{ readonly value: unknown, readonly memory: number, readonly growth: number, readonly time: number }>, IoChannel>} */ (r))
     if (t[0] === 'error') { return ok(t) }
-    const { value, memory, growth } = t[1].value
+    const { value, memory, growth, time } = t[1].value
     /** @type {Result<string, string>} */
     const output = typeof value === 'string' ? ok(value) : error(`the IR export answered ${typeof value}, not a string`)
-    return ok(ok({ run: { output, time: t[1].time }, memory, growth }))
+    return ok(ok({ run: { output, time }, memory, growth }))
 })
 
 /**
@@ -485,13 +487,14 @@ export const startupView = ({ wasm, ir }) => [
 ]
 
 /**
- * Whether every module Run needs has arrived: Rust→WASM, and IR when the
- * page has that route.
+ * Whether every module Run needs has settled (ok or refused): Rust→WASM, and
+ * IR when the page has that route. A refusal still enables Run so JavaScript
+ * can run and the page can show the stored error — only `loading` blocks.
  *
  * @type {(state: Pick<State, 'wasm' | 'ir'>) => boolean}
  */
 export const modulesReady = state =>
-    state.wasm[0] === 'ok' && (state.ir === null || state.ir[0] === 'ok')
+    state.wasm[0] !== 'loading' && (state.ir === null || state.ir[0] !== 'loading')
 
 /**
  * The files every WASM demo page shows, and its Run button: the source, with
@@ -513,7 +516,9 @@ export const filesView = (state, afterSource) => {
     /** @type {Element} */
     const status = ['p', { 'data-demo-status': '' }]
     /** @type {readonly Node[]} */
-    const waiting = ready ? [] : [['p', {}, 'Waiting for modules to finish loading…']]
+    const waiting = ready
+        ? []
+        : [['p', {}, 'Waiting for modules to finish loading…']]
     return [
         caption('FunctionalScript source:'),
         ...loadedView(state.source, text => [codeBlock(text, 'Copy the source', highlight(text)), ...afterSource(text)]),

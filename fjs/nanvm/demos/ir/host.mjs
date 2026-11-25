@@ -15,11 +15,17 @@ export { layoutOf }
 
 /**
  * A ready IR program: compiled L0 + program modules, layout, and the export
- * to invoke. `invoke` makes a fresh NaNVM host, runs the export, and answers
- * the host-read value plus linear-memory size before/after.
+ * to invoke. `invoke` makes a fresh NaNVM host and instance, then times only
+ * the export call (plus host read/drop), matching the Rust→WASM path where
+ * sample load sits outside the timed `run_sample`.
  *
  * @type {(l0: WebAssembly.Module, program: WebAssembly.Module, exportName: string) => {
- *   readonly invoke: () => { readonly value: unknown, readonly memory: number, readonly growth: number },
+ *   readonly invoke: () => {
+ *     readonly value: unknown,
+ *     readonly memory: number,
+ *     readonly growth: number,
+ *     readonly time: number,
+ *   },
  * }}
  */
 export const bindIr = (l0, program, exportName) => {
@@ -41,20 +47,28 @@ export const bindIr = (l0, program, exportName) => {
             const memory = /** @type {{ readonly buffer?: { readonly byteLength: number } } | undefined} */ (
                 h.imports.memory ?? exports.memory)
             const before = memory?.buffer?.byteLength ?? 0
+            const started = performance.now()
             const handle = f()
             const value = h.read(handle)
             h.imports.drop(handle)
+            const time = performance.now() - started
             const after = memory?.buffer?.byteLength ?? before
-            return { value, memory: after, growth: after - before }
+            return { value, memory: after, growth: after - before, time }
         },
     }
 }
 
 /**
- * Compiles L0 and program bytes into a bound IR runner, measuring startup.
+ * Compiles L0 and program bytes into a bound IR runner, measuring startup
+ * (compile only — not host instantiation).
  *
  * @type {(l0Bytes: ArrayBuffer, programBytes: ArrayBuffer, exportName: string) => {
- *   readonly invoke: () => { readonly value: unknown, readonly memory: number, readonly growth: number },
+ *   readonly invoke: () => {
+ *     readonly value: unknown,
+ *     readonly memory: number,
+ *     readonly growth: number,
+ *     readonly time: number,
+ *   },
  *   readonly startup: number,
  * }}
  */

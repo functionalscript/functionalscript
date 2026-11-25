@@ -5,7 +5,10 @@
  * A computation on numbers alone, beside the sorting sample, which builds a
  * new array at every step: here nothing is allocated while it searches. A
  * chain's length and its start travel as one number, {@link key}, rather
- * than as a pair.
+ * than as a pair. The search uses the same linear `while` shape as
+ * [`ir.f.js`](./ir.f.js), so the page's three routes time the same workload
+ * (the IR route answers the report string directly; this sample still
+ * encodes it for `write`).
  *
  * The program is an effect: one `write` command, whose text is encoded to
  * UTF-8 bytes in a bit vector by {@link bytes} here, because `fjs compile`
@@ -21,13 +24,22 @@ const limit = 30_000
 const scale = 1_048_576
 
 /**
- * How many steps `x` takes to reach `1`, plus `count`: halve an even number,
- * and triple an odd one and add one. Starts below {@link limit} take a few
- * hundred steps at most, so the recursion stays shallow.
+ * How many steps `start` takes to reach `1`. State is a record so the IR
+ * lowering and this sample stay the same shape.
  *
- * @type {(x: number, count: number) => number}
+ * @type {(start: number) => number}
  */
-const steps = (x, count) => x === 1 ? count : steps(x % 2 === 0 ? x / 2 : 3 * x + 1, count + 1)
+const steps = start => {
+    /** @type {{ readonly x: number, readonly count: number }} */
+    let s = { x: start, count: 0 }
+    while (s.x !== 1) {
+        s = {
+            x: s.x % 2 === 0 ? s.x / 2 : 3 * s.x + 1,
+            count: s.count + 1,
+        }
+    }
+    return s.count
+}
 
 /**
  * A start and its chain's length as one number, ordered by the length and
@@ -35,18 +47,22 @@ const steps = (x, count) => x === 1 ? count : steps(x % 2 === 0 ? x / 2 : 3 * x 
  *
  * @type {(start: number) => number}
  */
-const key = start => steps(start, 0) * scale + start
-
-/** @type {(a: number, b: number) => number} */
-const larger = (a, b) => a > b ? a : b
+const key = start => steps(start) * scale + start
 
 /**
- * The largest {@link key} of the `n` starts from `lo`, found in halves, so
- * the depth is `log n`.
+ * The largest {@link key} of the starts below {@link limit}.
  *
- * @type {(lo: number, n: number) => number}
+ * @type {() => number}
  */
-const longest = (lo, n) => n === 1 ? key(lo) : larger(longest(lo, n >> 1), longest(lo + (n >> 1), n - (n >> 1)))
+const longest = () => {
+    /** @type {{ readonly start: number, readonly best: number }} */
+    let s = { start: 1, best: 0 }
+    while (s.start < limit) {
+        const k = key(s.start)
+        s = { start: s.start + 1, best: k > s.best ? k : s.best }
+    }
+    return s.best
+}
 
 /**
  * ASCII text as the bit vector a `write` command carries: the bytes, most
@@ -76,6 +92,6 @@ const report = best =>
  */
 export default () => ({
     command: 'write',
-    payload: ['stdout', bytes(report(longest(1, limit - 1)))],
+    payload: ['stdout', bytes(report(longest()))],
     continuation: () => () => ['ok', undefined],
 })

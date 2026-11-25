@@ -42,20 +42,27 @@ export type IrCallResult = {
     readonly value: unknown
     readonly memory: number
     readonly growth: number
+    /**
+     * The export call alone (plus host read/drop of its answer), in
+     * milliseconds — not host or program instantiation, which sit outside
+     * this figure as sample load sits outside timed `run_sample` on the
+     * Rust→WASM path.
+     */
+    readonly time: number
 }
 
 /**
  * An IR program ready to run: L0 and the emitted module compiled, bound
  * through NaNVM. `invoke` makes a fresh host, runs the named export, and
- * answers the host-read value. Prefetched on page start so Run times the
- * entry alone.
+ * answers the host-read value with a `time` that covers the entry call
+ * alone. Prefetched on page start so Run's startup line is compile only.
  */
 export type IrInstance = {
     readonly invoke: () => IrCallResult
     /**
      * Fetching and compiling L0 and the program module, in milliseconds.
-     * Instantiation of a host for one call is not included: that is part of
-     * the timed run, as loading a sample export is of the Rust→WASM path.
+     * Host and program instantiation for one call are not included here;
+     * they happen inside `invoke` before its timed export window.
      */
     readonly startup: number
 }
