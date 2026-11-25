@@ -13,7 +13,7 @@ import { nodeCommands } from '../effects/node/module.f.js'
 import { partialRun } from '../effects/mock/module.f.js'
 import { error, ok } from '../types/result/module.f.js'
 import { ioError, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.js'
-import { fetchText, instantiate } from '../effects/browser/module.f.js'
+import { fetchText, instantiate, instantiateIr } from '../effects/browser/module.f.js'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../asserts/module.f.js'
 import { utf8 } from '../text/module.f.js'
 import { utf8ToString } from '../text/utf8/module.f.js'
@@ -1025,6 +1025,20 @@ export const proof = {
             const page = pageAt(root, ['a'])
             assert(page.includes(`<p>missing missing error</p>`), page)
             assert(startRounds === 3)
+        },
+        // An IR instantiate during start is refused in the build, as Rust→WASM is.
+        prerenderedIr: () => {
+            const demo = {
+                init: 'loading',
+                view: (/** @type {string} */ s) => ['p', s],
+                update: () => () => resultStep(
+                    instantiateIr('/a/l0.wasm', '/a/p.ir.wasm', 'run'),
+                    ir => pureOk(ir[0])),
+            }
+            const { root } = generateWith(
+                { a: { 'demo.f.mjs': file('export const demo = {}') } },
+                { 'a/demo.f.mjs': demo })
+            assert(pageAt(root, ['a']).includes('<p>error</p>'))
         },
         // A start that fails keeps the first view.
         prerenderedFailedStart: () => {

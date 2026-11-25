@@ -3,7 +3,9 @@
 A quicksort of 100,000 pseudo-random integers, which reports the smallest
 and the largest. It allocates as it goes, so it measures the NaNVM
 runtime's allocation as much as its arithmetic. The demo below runs it as
-JavaScript and as WebAssembly, and shows what each run wrote, how long each
-took, and the second time as a multiple of the first.
+JavaScript, as Rust→WebAssembly (`fjs compile`), and as IR→WebAssembly
+(`from_fast` + `linkAny` on NaNVM L0), and shows what each run wrote, how
+long each took, and the WASM times as multiples of the JavaScript one.
+Containers stay on NaNVM imports on the IR route.
 
 See [WASM demos](../README.md) for the other pages.

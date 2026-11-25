@@ -34,6 +34,47 @@ export type WasmInstance = {
 export type Instantiate = readonly['instantiate', (path: string) => IoResult<WasmInstance>]
 
 /**
+ * One call of an IR program on NaNVM L0: the value the export answered
+ * (host-read), and the L0 module's linear memory size after the call and
+ * how much it grew across it.
+ */
+export type IrCallResult = {
+    readonly value: unknown
+    readonly memory: number
+    readonly growth: number
+    /**
+     * The export call alone (plus host read/drop of its answer), in
+     * milliseconds — not host or program instantiation, which sit outside
+     * this figure as sample load sits outside timed `run_sample` on the
+     * Rust→WASM path.
+     */
+    readonly time: number
+}
+
+/**
+ * An IR program ready to run: L0 and the emitted module compiled, bound
+ * through NaNVM. `invoke` makes a fresh host, runs the named export, and
+ * answers the host-read value with a `time` that covers the entry call
+ * alone. Prefetched on page start so Run's startup line is compile only.
+ */
+export type IrInstance = {
+    readonly invoke: () => IrCallResult
+    /**
+     * Fetching and compiling L0 and the program module, in milliseconds.
+     * Host and program instantiation for one call are not included here;
+     * they happen inside `invoke` before its timed export window.
+     */
+    readonly startup: number
+}
+
+/**
+ * Fetches NaNVM L0 and an IR-emitted program module from the site, compiles
+ * both, and binds them so a later `invoke` runs the named export on a fresh
+ * host.
+ */
+export type InstantiateIr = readonly['instantiateIr', (l0Path: string, programPath: string, exportName: string) => IoResult<IrInstance>]
+
+/**
  * The page's JavaScript heap in use, in bytes: Chromium's non-standard
  * `performance.memory.usedJSHeapSize`, or `null` in a browser without it.
  * Chrome answers it to the byte; a build may round it or answer a cached
@@ -44,4 +85,4 @@ export type Instantiate = readonly['instantiate', (path: string) => IoResult<Was
 export type JsHeapSize = readonly['jsHeapSize', () => OpResult<number | null>]
 
 /** Every browser operation. */
-export type BrowserOp = FetchText | Instantiate | JsHeapSize
+export type BrowserOp = FetchText | Instantiate | InstantiateIr | JsHeapSize

@@ -20,6 +20,7 @@ import { asyncPartialRun } from '../effects/module.mjs'
 import { commandsOf } from '../effects/module.f.js'
 import { commonOperationMap, randomIntOperationMap } from '../effects/common/module.mjs'
 import { browserOperationMap } from '../effects/browser/module.mjs'
+import { instantiateIrOperationMap } from '../nanvm/demos/ir/browser.mjs'
 import { macrotask, patch, toDom } from '../media/html/module.mjs'
 import { startDemoSharing } from './demo-sharing-runtime.mjs'
 import { copy } from './copy-runtime.mjs'
@@ -55,7 +56,7 @@ import { dragAxisAttributes, dragValue } from './demo/module.f.js'
  *
  * @type {CommandSet<Sandbox | Catch | RandomInt | BrowserOp>}
  */
-const commandSet = { sandbox: null, catch: null, randomInt: null, fetchText: null, instantiate: null, jsHeapSize: null }
+const commandSet = { sandbox: null, catch: null, randomInt: null, fetchText: null, instantiate: null, instantiateIr: null, jsHeapSize: null }
 
 /**
  * The commands of {@link commandSet}, in the form a partial runner tests
@@ -65,7 +66,12 @@ const commandSet = { sandbox: null, catch: null, randomInt: null, fetchText: nul
  */
 const commands = commandsOf(commandSet)
 
-const run = asyncPartialRun(commands)({ ...commonOperationMap, ...randomIntOperationMap, ...browserOperationMap })
+const run = asyncPartialRun(commands)({
+    ...commonOperationMap,
+    ...randomIntOperationMap,
+    ...browserOperationMap,
+    ...instantiateIrOperationMap,
+})
 
 /**
  * Says whether the page is waiting on this demo, and stops the reader asking
@@ -97,6 +103,15 @@ const busy = (root, working, note = null) => {
         root.setAttribute('data-demo-working', note === null ? '' : ` (${note})`)
     } else {
         root.removeAttribute('data-demo-working')
+    }
+    // A long listing (WAT) puts the root's ::after "Working…" below the fold;
+    // demos that place `data-demo-status` under their Run button keep the
+    // same wording where the reader just clicked.
+    const status = root.querySelector('[data-demo-status]')
+    if (status !== null) {
+        status.textContent = working
+            ? `Working…${note === null || note === '' ? '' : ` (${note})`}`
+            : ''
     }
     for (const control of root.querySelectorAll('button')) {
         control.disabled = working || control.getAttribute('disabled') !== null
@@ -476,6 +491,12 @@ const stepper = (root, demo) => {
     }
     const draw = () => {
         render(root, scoped(demo.view(state)))
+        // Results a long listing pushed below the fold: scroll the marked
+        // block into view once it appears (nearest keeps a short page still).
+        const reveal = root.querySelector('[data-demo-reveal]')
+        if (reveal !== null) {
+            reveal.scrollIntoView({ block: 'nearest', behavior: lessMotion(root) ? 'auto' : 'smooth' })
+        }
         schedule()
     }
     /** @type {(event: DemoEvent, automatic?: boolean) => void} */
