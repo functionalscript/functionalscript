@@ -268,7 +268,8 @@ Goal: compare A/B/C **without rewriting callers**.
    a subset (e.g. empty + `1×16`/`2×16` first) with the rest **forced
    long** (not refused — see clause 3)?
 5. **`concat` of two shorts:** always try inline result, or always allocate
-   long until a later slice? Affects `repeat` hit rate.
+   long until a later slice? Affects the short-only microbench and early
+   `repeat` steps.
 6. **`string` as a copy variant of `any`:** once shorts exist, should a
    value narrowed to `string` be copy when short and counted when long, or
    stay counted until narrowed further? Hooks today treat non-refs as
@@ -289,7 +290,7 @@ Stack with **git base** (child PR base = parent head). No GitHub
 | **S1** | String module skeleton in IR: interface + manifest hooks; short pack/unpack **helpers** unused by programs; proofs of bit round-trips; no link change. Prefer implementing behind the interface so a second variant can land as S1b without caller churn. |
 | **S2** | Host / counting-host / NaNVM ABI: emit and accept short-string boxes where length fits; long path unchanged. |
 | **S3** | Link / L1 string ops use the short path (template or linked IR); long miss still imports; parity proofs vs L0. |
-| **S4** | Remeasure (`repeat` + short microbench); update `benchmark.md`; record which variant was measured. |
+| **S4** | Remeasure (short microbench primary, `repeat` secondary); update `benchmark.md`; record which variant / C layout was measured. |
 | **S5+** | Alternate variant (B↔C) behind the same interface; compare; optional `concat` inline policy from open Q4. |
 
 Short bigints and Heap stay **after** this experiment's measurement gate,
