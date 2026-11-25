@@ -47,17 +47,20 @@ export const allTags = /** @type {const} */ ([
  */
 export const v1EnabledTags = /** @type {const} */ (['empty', 's1x16', 's2x16'])
 
+/** Unit counts parallel to [`allTags`] (index = tag). */
+const tagLens = /** @type {const} */ ([0, 1, 2, 3, 4, 5, 6, 7, 8])
+
 /** Unit count each Sergey tag encodes when it fits. @type {Readonly<Record<ShortTag, number>>} */
 export const tagLen = {
-    empty: 0,
-    s1x16: 1,
-    s2x16: 2,
-    s3x16: 3,
-    s4x7: 4,
-    s5x7: 5,
-    s6x7: 6,
-    s7x7: 7,
-    s8x6: 8,
+    empty: tagLens[0],
+    s1x16: tagLens[1],
+    s2x16: tagLens[2],
+    s3x16: tagLens[3],
+    s4x7: tagLens[4],
+    s5x7: tagLens[5],
+    s6x7: tagLens[6],
+    s7x7: tagLens[7],
+    s8x6: tagLens[8],
 }
 
 /**
@@ -67,8 +70,11 @@ export const tagLen = {
  */
 export const maxEnabledLen = enabled => {
     /** @type {(i: number, max: number) => number} */
-    const go = (i, max) => i === enabled.length ? max
-        : go(i + 1, Math.max(max, tagLen[enabled[Number(i)]]))
+    const go = (i, max) => {
+        if (i === enabled.length) { return max }
+        const j = allTags.indexOf(enabled[Number(i)])
+        return go(i + 1, Math.max(max, tagLens[Number(j)]))
+    }
     return enabled.length === 0 ? -1 : go(0, -1)
 }
 
