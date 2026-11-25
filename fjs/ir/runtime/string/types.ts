@@ -1,6 +1,8 @@
 /**
  * String runtime-module manifests and short-string tag names
  * ([short-strings.md](../../../../doc/sasha-gil/ir/short-strings.md) S1).
+ *
+ * @module
  */
 
 /** Sergey's scalar short-string encodings. */
