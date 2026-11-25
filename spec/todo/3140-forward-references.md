@@ -83,7 +83,9 @@ const b = ['fn', ab, 1]
   once and shared: `a` and `b` are functions of one group.
 - `['fn', group, index]` is a function of it. The tag is a placeholder.
 - `['self', index]` in a body is function `index` of the body's own group.
-- A group holds at most 256 functions, an index a `u8`.
+
+The number of functions in a group is not limited by the language: how a
+VM holds the index is its own (below).
 
 A group is no array or object of the language, and a program never holds
 one: only its functions are values.
@@ -123,13 +125,29 @@ may implement one interface, a single function a group of one:
 ```rust
 trait IGroup {
     type Function: Function;
-    fn at(&self, i: u8) -> &Self::Function;
+    fn at(&self, i: u32) -> &Self::Function;
 }
 trait Function {
     fn len(&self) -> u32;
     fn call(&self, ...) -> ...;
 }
 ```
+
+How a function value holds its group and its index depends on how wide a
+value is:
+
+- *A wide value*, 128 bits, or a VM whose values are not packed at all,
+  as NaNVM's reference VM: the index is in the value beside the pointer,
+  `GroupFunction { group: Rc<Group>, index: u32 }`. Cloning it is cloning
+  the group's `Rc`.
+- *A 64-bit NaN-boxed pointer* has no room for an index. The value points
+  at the function's own entry inside the group, and the entry holds the
+  offset back to the group's counter. Cloning or dropping a function reads
+  that offset and counts through it, with `Rc`'s own count behind it, and
+  nothing else in the VM does: every other reference counts where it
+  points. A call finds its code in the entry it already points at.
+
+Neither limits a group, and neither is seen by a program.
 
 Two function values are the same function where they are the same group
 and the same index, so a function read twice is one function on every
@@ -214,7 +232,7 @@ language rule).
 - [ ] Decide one form or two: whether a function that refers to no other
       keeps `['=>', length, slots, body]`.
 - [ ] The EDAG: `['group', slots, functions]`, `['fn', group, index]` and
-      `['self', index]`, with the limit of 256 functions.
+      `['self', index]`.
 - [ ] The language rule: consecutive function `const`s that refer to each
       other are one group, and a use of a group before its last function
       is a compilation error.
