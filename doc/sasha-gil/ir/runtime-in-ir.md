@@ -129,7 +129,8 @@ make them ([choice 6](#6-the-tests-are-the-frames)).
   which only the lifetime pass calls, through the new `release` (#4108),
   and `Ref` gives NaNVM's functions of references to those hooks only
   (#4109). **Done in 4d-2:** Any's own module in the IR
-  (`fjs/ir/runtime/any`). Next, 4e: link it into programs.
+  (`fjs/ir/runtime/any`). **4e in progress:** the counting host speaks
+  NaN boxes; next, link Any into programs and remeasure.
 - **Alternative:** step 7 of definition.md's
   [order of work](./definition.md#order-of-work) first: `bits(64, …)`
   layouts with the layout proof and frames, as
@@ -227,8 +228,9 @@ inline for a short string and NaNVM's for a long one.
 
 1. **Choice 2's numbering** of `tttt` departs from the README. Is L0's
    kind numbering fine, or should the README's `Type` gain an array?
-2. **The counting host** must speak the box too, or the lifetime proofs
-   cannot run programs that inline Any. Checkpoint 4 proposes that it
-   does, with its cells as the reference payload.
+2. **The counting host** speaks the box (4e-1): scalars are immediates,
+   references pack a cell index as a dyn-ref, and the host supplies
+   `kind_ref` / `dup_ref` / `drop_ref` / `same_ref`. Linking Any into
+   programs remains.
 3. **The `s` bit** (a static reference) stays unused until literals live
    in a data segment.
