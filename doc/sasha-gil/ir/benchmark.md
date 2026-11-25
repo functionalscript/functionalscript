@@ -35,16 +35,16 @@ are historical for numeric loops once Any is linked — see
   of `sumTo`, `sumToAny` and `fib`.** Fewer calls reached it, but each
   cost as much as before: 9 to 35 ns. The program and the L1 bodies took
   7% to 9%.
-- **Two hot spots showed up once the rest was smaller.** Each object
-  lookup (`find`, `item`, `key`, `length`) copies the object's whole entry
-  list, which is 40% of `readFields`. And `concat` copies both strings one
-  unit at a time, which is 87% of `repeat`. Those still dominate
-  reference- and string-heavy programs after linkAny.
+- **Two second-run hot spots showed up once the rest was smaller** (since
+  fixed in the [third run](#after-the-next-three-levers)): each object
+  lookup (`find`, `item`, `key`, `length`) copied the object's whole entry
+  list (#4056 now reads in place), and `concat` copied both strings one
+  unit at a time (#4057 now copies in bulk).
 - **After linkAny (checkpoint 4e), numeric loops on NaNVM are about 1× to
   6× JavaScript, with no L0 imports during the program.** `sumTo` and
   `fib` match JavaScript on this container; `sumToAny` is about 6× (was
-  36×). Programs that touch references still pay `Ref` and container
-  imports.
+  36×). Reference- and string-heavy programs still pay `Ref` and container
+  imports, not the retired whole-entry-list / unit-at-a-time copies.
 
 ## Setup
 
