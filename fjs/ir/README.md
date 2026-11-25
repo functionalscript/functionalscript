@@ -737,7 +737,9 @@ host to NaN boxes, and remeasures the IR benchmarks.
 Short strings: [`runtime/string`](./runtime/string/module.f.js) is the
 String runtime-module (manifests A/B/C, pack/unpack helpers); S2 teaches
 the host/NaNVM ABI to accept and emit short boxes; S3's `linkString`
-merges B IR `length`/`unit` after `linkAny` (long miss still imports)
+merges B IR `length`/`unit` after `linkAny` (long miss still imports);
+S4 remeasures `shortOps` / `repeat` under emit B in
+[benchmark.md](../../doc/sasha-gil/ir/benchmark.md)
 ([short-strings.md](../../doc/sasha-gil/ir/short-strings.md)).
 
 ## What every slice refuses
