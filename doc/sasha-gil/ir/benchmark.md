@@ -41,7 +41,7 @@ are historical for numeric loops once Any is linked — see
   unit at a time, which is 87% of `repeat`. Those still dominate
   reference- and string-heavy programs after linkAny.
 - **After linkAny (checkpoint 4e), numeric loops on NaNVM are about 1× to
-  6× JavaScript, with essentially one L0 import (`drop`).** `sumTo` and
+  6× JavaScript, with no L0 imports during the program.** `sumTo` and
   `fib` match JavaScript on this container; `sumToAny` is about 6× (was
   36×). Programs that touch references still pay `Ref` and container
   imports.
@@ -173,22 +173,24 @@ local WASM; import calls that remain are `Ref.*` and container/string work.
 | `repeat` | 3.8 µs | | 3.61 ms | 10.2 ms | 950× | 2.8× |
 | `bigSum` | 7.7 µs | | 3.60 ms | 7.89 ms | 470× | 2.2× |
 
-L0 **import** calls per program (local Any ops are not imports):
+L0 **import** calls per program (local Any ops are not imports). The
+runner's post-call `drop` of the result is caller cleanup and is not
+counted:
 
 | Program | L0 calls | Most called |
 | --- | --- | --- |
-| `sumTo` | 1 | `drop` 1 |
-| `sumToAny` | 1 | `drop` 1 |
-| `fib` | 1 | `drop` 1 |
-| `readFields` | 220,001 | `kind_ref` 100,000, `dup_ref` 40,000, `drop_ref` 40,000, `find` 20,000, `item` 20,000 |
-| `callMany` | 14,001 | `kind_ref` 4,000, `drop_ref` 3,000, `push` 2,000, `dup_ref` 2,000, `begin_array` 1,000 |
-| `repeat` | 61,054 | `kind_ref` 24,021, `dup_ref` 13,011, `drop_ref` 13,011, `find` 3,002, `item` 3,002 |
-| `bigSum` | 77,029 | `kind_ref` 50,018, `drop_ref` 15,005, `dup_ref` 12,005, `drop` 1 |
+| `sumTo` | 0 | — |
+| `sumToAny` | 0 | — |
+| `fib` | 0 | — |
+| `readFields` | 220,000 | `kind_ref` 100,000, `dup_ref` 40,000, `drop_ref` 40,000, `find` 20,000, `item` 20,000 |
+| `callMany` | 14,000 | `kind_ref` 4,000, `drop_ref` 3,000, `push` 2,000, `dup_ref` 2,000, `begin_array` 1,000 |
+| `repeat` | 61,053 | `kind_ref` 24,021, `dup_ref` 13,011, `drop_ref` 13,011, `find` 3,002, `item` 3,002 |
+| `bigSum` | 77,028 | `kind_ref` 50,018, `drop_ref` 15,005, `dup_ref` 12,005 |
 
 Numeric loops drop from tens of thousands of `kind`/`to_f64`/`from_f64`
-imports to a single `drop` of the result. `sumTo` and `fib` on NaNVM are
-about as fast as JavaScript on this container; `sumToAny` is about 6×
-(was 36×). Programs that touch references still pay `Ref` and container
+imports to none during the program. `sumTo` and `fib` on NaNVM are about
+as fast as JavaScript on this container; `sumToAny` is about 6× (was
+36×). Programs that touch references still pay `Ref` and container
 imports; `repeat` is slower than the prior table on this machine (string
 work dominates, and JS was also faster here).
 
@@ -199,9 +201,9 @@ borrow / number paths / records, before the three levers of the
 [third run](#after-the-next-three-levers)), when Any was still an L0
 import and every scalar op was a host call. After
 [linkAny (checkpoint 4e)](#after-linkany-checkpoint-4e), numeric loops
-keep essentially one import (`drop` of the result); see that section for
-current tallies and times. The diagnosis here still explains why the
-earlier levers mattered and where reference-heavy programs pay.
+make no L0 imports during the program; see that section for current
+tallies and times. The diagnosis here still explains why the earlier
+levers mattered and where reference-heavy programs pay.
 
 ### L0 calls per program
 
@@ -327,7 +329,8 @@ The first profile, before the levers, had the handle layer at 94% of
 7. **NaN-boxed handles via a runtime in the IR** (#4113–#4116): Any is
    written over the box and linked into programs (`any.*`); the counting
    host speaks boxes; numeric loops drop from tens of thousands of
-   import calls to one `drop`. See [After linkAny](#after-linkany-checkpoint-4e).
+   import calls to none during the program. See
+   [After linkAny](#after-linkany-checkpoint-4e).
 
 ### Left
 
