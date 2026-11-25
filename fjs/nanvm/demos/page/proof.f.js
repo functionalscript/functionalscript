@@ -19,7 +19,7 @@ import { ioError, notImplemented } from '../../../effects/module.f.js'
 import { run } from '../../../effects/mock/module.f.js'
 import { utf8 } from '../../../text/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
-import { buildDirectory, decode, heapChange, init, irL0Path, irModulePath, irPlace, irMemoryRatio, irRatio, loadWithIr, memoryRatio, modulesReady, signedBytes, jsOutput, load, milliseconds, placeName, ratio, runBoth, runIr, runJs, runWasm, rustMarkedPath, rustPath, samplePath, update, view, wasmDemo, wasmPath, watPath } from './module.f.js'
+import { buildDirectory, decode, heapChange, init, initWithIr, irL0Path, irModulePath, irPlace, irMemoryRatio, irRatio, loadWithIr, memoryRatio, modulesReady, signedBytes, jsOutput, load, milliseconds, placeName, ratio, runBoth, runIr, runJs, runWasm, rustMarkedPath, rustPath, samplePath, update, view, wasmDemo, wasmPath, watPath } from './module.f.js'
 import { entry } from '../../../types/object/entry/module.f.js'
 import { toJson } from '../../../media/json/module.f.js'
 
@@ -182,6 +182,30 @@ export const proof = {
         assertStructurallySame(loading.runs?.wasm, error('the module has not loaded yet'))
         const failed = perform(page({}, null))(runBoth(hi)({ ...init, wasm: error('gone') }))
         assertStructurallySame(failed.runs?.wasm, error('gone'))
+        // IR still loading, or refused: Run still times JavaScript and Rust→WASM.
+        /** @type {IrInstance} */
+        const irInst = { invoke: () => ({ value: 'hi', memory: 0x1_0000, growth: 0, time: 1 }), startup: 3 }
+        const irLoading = perform(page({}, null))(runBoth({ ...hi, ir: irPlace('hi') })({ ...ready, ir: ['loading'] }))
+        assertStructurallySame(irLoading.runs?.ir, error('the IR module has not loaded yet'))
+        const irFailed = perform(page({}, null))(runBoth({ ...hi, ir: irPlace('hi') })({ ...ready, ir: error('gone') }))
+        assertStructurallySame(irFailed.runs?.ir, error('gone'))
+        const irOk = perform(page({}, null, 'ok', 1024, irInst))(runBoth({ ...hi, ir: irPlace('hi') })({ ...ready, ir: ok(irInst) }))
+        assertEq(irOk.runs?.ir?.[0], 'ok')
+    },
+    runIr: () => {
+        /** @type {IrInstance} */
+        const irInst = { invoke: () => ({ value: 'hi', memory: 0x1_0000, growth: 0, time: 1 }), startup: 3 }
+        assertStructurallySame(
+            perform(page({}, null, 'ok', 1024, irInst))(runIr(irInst)),
+            ok({ run: { output: ok('hi'), time: 1 }, memory: 0x1_0000, growth: 0 }))
+        // A non-string export is refused, not stringified.
+        const notString = { invoke: () => ({ value: 1, memory: 0, growth: 0, time: 1 }), startup: 0 }
+        assertStructurallySame(
+            perform(page({}, null))(runIr(notString)),
+            ok({ run: { output: error('the IR export answered number, not a string'), time: 1 }, memory: 0, growth: 0 }))
+        // Sandbox refusal and a throw inside invoke.
+        assertStructurallySame(perform(page({}, null, 'notImplemented'))(runIr(irInst)), error('operation not implemented: sandbox'))
+        assertStructurallySame(perform(page({}, null, 'thrown'))(runIr(irInst)), error('it threw: boom'))
     },
     milliseconds: () => assertEq(milliseconds(1.54), '1.5 ms'),
     ratio: () => {
@@ -301,6 +325,12 @@ export const proof = {
         assert(perform(map)(update(hi)(loaded)({ kind: 'click', name: 'run' })).runs !== null)
         assertEq(perform(map)(update(hi)(loaded)({ kind: 'click', name: 'other' })), loaded)
         assertEq(perform(map)(update(hi)(loaded)({ kind: 'input', name: 'x', value: '' })), loaded)
+        // An IR sample's start loads L0 and the program module.
+        /** @type {IrInstance} */
+        const irInst = { invoke: () => ({ value: 'hi', memory: 0x1_0000, growth: 0, time: 1 }), startup: 3 }
+        const irMap = page(files, instance([0x68, 0x69]), 'ok', 1024, irInst)
+        const withIr = perform(irMap)(update({ ...hi, ir: irPlace('hi') })(initWithIr)({ kind: 'start' }))
+        assertEq(withIr.ir?.[0], 'ok')
     },
     wasmDemo: () => {
         const demo = wasmDemo(hi)
