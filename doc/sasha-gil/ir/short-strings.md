@@ -40,8 +40,14 @@ short-hit rate demo. `repeat` stays as a regression / long-path check
 
 | Length class | Today (post–scalar Any) | This phase's target |
 | --- | --- | --- |
-| Short (fits Sergey's scalar tags) | Still a dyn-ref string on NaNVM | Inline in the box; String ops over the box or unpacked slots |
-| Long | NaNVM heap string behind a dyn-ref | Unchanged: NaNVM (or Naive) long path |
+| Short (matches an enabled Sergey tag: length **and** unit bit-widths) | Still a dyn-ref string on NaNVM | Inline in the box; String ops over the box or unpacked slots |
+| Long (no matching enabled tag — too many units, or units too wide for every tag of that length) | NaNVM heap string behind a dyn-ref | Unchanged: NaNVM (or Naive) long path |
+
+**Packing eligibility** is tag fit, not length alone. Example: four UTF-16
+units including `U+0080` do not match `4×7` (7-bit units), so there is no
+short box for that string even though length ≤ 8; emit/accept must choose
+a concrete enabled tag or fall through long. Truncating or refusing such
+a value is out of contract.
 
 ## Fit with the modular runtime
 
@@ -288,7 +294,7 @@ Stack with **git base** (child PR base = parent head). No GitHub
 | --- | --- |
 | **S0** | This note + `fjs/ir/todo/short-strings.md` (design only). |
 | **S1** | String module skeleton in IR: interface + manifest hooks; short pack/unpack **helpers** unused by programs; proofs of bit round-trips; no link change. Prefer implementing behind the interface so a second variant can land as S1b without caller churn. |
-| **S2** | Host / counting-host / NaNVM ABI: emit and accept short-string boxes where length fits; long path unchanged. |
+| **S2** | Host / counting-host / NaNVM ABI: emit and accept short-string boxes where a **concrete enabled tag** fits (length and unit bit-widths); otherwise long path unchanged. |
 | **S3** | Link / L1 string ops use the short path (template or linked IR); long miss still imports; parity proofs vs L0. |
 | **S4** | Remeasure (short microbench primary, `repeat` secondary); update `benchmark.md`; record which variant / C layout was measured. |
 | **S5+** | Alternate variant (B↔C) behind the same interface; compare; optional `concat` inline policy from open Q4. |

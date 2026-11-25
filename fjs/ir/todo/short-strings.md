@@ -30,7 +30,7 @@ Do **not** start S1–S4 coding until the owner decides on that design
 - [x] Claim with this `todo/` and a docs-only PR
 - [ ] Owner approval of the design (Sergey / Sasha)
 - [ ] **S1** — String module skeleton + short pack/unpack helpers; unused by programs; no link change
-- [ ] **S2** — Host / NaNVM ABI emits and accepts short-string boxes; long path unchanged
+- [ ] **S2** — Host / NaNVM ABI emits/accepts short boxes only when a concrete enabled tag fits (not length alone); else long path
 - [ ] **S3** — Link / L1 string ops use the short path; parity vs L0
 - [ ] **S4** — Remeasure; update `benchmark.md`
 - [ ] Optional **S5+** — second variant behind the same interface; compare
