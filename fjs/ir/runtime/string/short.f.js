@@ -51,26 +51,40 @@ export const v1EnabledTags = /** @type {const} */ (['empty', 's1x16', 's2x16'])
 export const isShort = b => (b & TAG2) === SCALAR && (b & 0xCn) !== 0n
 
 /**
+ * Fixed mask/value pairs from
+ * [nan-box-patterns.md](../../../../doc/sasha-gil/ir/nan-box-patterns.md):
+ * a value is in a pattern when `b & mask === value`. Field bits are free;
+ * every other bit must match, so junk above a short tag is `not_short`.
+ *
+ * @type {readonly (readonly [ShortTag, bigint, bigint])[]}
+ */
+const patterns = [
+    ['empty', 0xFFFF_FFFF_FFFF_FFFFn, EMPTY],
+    ['s1x16', 0xFFFF_FFFF_FF00_00FFn, 0x7FF0_0000_0000_0018n],
+    ['s2x16', 0xFFFF_FF00_0000_00FFn, 0x7FF0_0000_0000_0028n],
+    ['s4x7', 0xFFFF_FFF0_0000_00FFn, 0x7FF0_0000_0000_0048n],
+    ['s5x7', 0xFFFF_F800_0000_00FFn, 0x7FF0_0000_0000_0058n],
+    ['s6x7', 0xFFFC_0000_0000_00FFn, 0x7FF0_0000_0000_0068n],
+    ['s3x16', 0xFFF0_0000_0000_000Fn, 0x7FF0_0000_0000_0004n],
+    ['s8x6', 0xFFF0_0000_0000_000Fn, 0x7FF0_0000_0000_000Cn],
+    ['s7x7', 0xFFF0_0000_0000_0007n, 0xFFF0_0000_0000_0004n],
+]
+
+/**
  * Which short tag a short-string box uses, or `error` if the bits are not
- * a known short-string pattern.
+ * a known short-string pattern (full mask match, not low-byte alone).
  *
  * @type {(b: bigint) => Result<ShortTag, 'not_short'>}
  */
 export const tagOf = b => {
     if (!isShort(b)) { return error('not_short') }
-    // s7x7 first: its payload starts at bit 3, so low4 may be 0x4 or 0xC.
-    if ((b & 0xFFF0_0000_0000_0007n) === 0xFFF0_0000_0000_0004n) { return ok('s7x7') }
-    const low4 = b & 0xFn
-    if (low4 === 0xCn) { return ok('s8x6') }
-    if (low4 === 0x4n) { return ok('s3x16') }
-    const low8 = b & 0xFFn
-    if (low8 === 0x08n) { return ok('empty') }
-    if (low8 === 0x18n) { return ok('s1x16') }
-    if (low8 === 0x28n) { return ok('s2x16') }
-    if (low8 === 0x48n) { return ok('s4x7') }
-    if (low8 === 0x58n) { return ok('s5x7') }
-    if (low8 === 0x68n) { return ok('s6x7') }
-    return error('not_short')
+    /** @type {(i: number) => Result<ShortTag, 'not_short'>} */
+    const go = i => {
+        if (i === patterns.length) { return error('not_short') }
+        const [tag, mask, value] = patterns[Number(i)]
+        return (b & mask) === value ? ok(tag) : go(i + 1)
+    }
+    return go(0)
 }
 
 /** @type {(c: number) => Result<number, 'wide'>} */
