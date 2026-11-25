@@ -178,12 +178,9 @@ pub fn pack_enabled(units: &[u16], enabled: &[Tag]) -> Option<u64> {
 /// Unpack a short-string box to its UTF-16 units.
 pub fn unpack(b: u64) -> Option<Vec<u16>> {
     match tag_of(b)? {
-        Tag::Empty => Some(Vec::new()),
-        Tag::S1x16 => Some(vec![((b >> 8) & 0xffff) as u16]),
-        Tag::S2x16 => Some(vec![
-            ((b >> 8) & 0xffff) as u16,
-            ((b >> 24) & 0xffff) as u16,
-        ]),
+        Tag::Empty => Some([].to_vec()),
+        Tag::S1x16 => Some([((b >> 8) & 0xffff) as u16].to_vec()),
+        Tag::S2x16 => Some([((b >> 8) & 0xffff) as u16, ((b >> 24) & 0xffff) as u16].to_vec()),
         Tag::S3x16 => Some(unpack_units(b >> 4, 3, 16)),
         Tag::S4x7 => Some(unpack_units(b >> 8, 4, 7)),
         Tag::S5x7 => Some(unpack_units(b >> 8, 5, 7)),
@@ -202,7 +199,7 @@ mod tests {
 
     #[test]
     fn empty_round_trip() {
-        assert_eq!(unpack(EMPTY), Some(vec![]));
+        assert_eq!(unpack(EMPTY), Some([].to_vec()));
         assert_eq!(pack(&[]), Some(EMPTY));
         assert_eq!(tag_of(EMPTY), Some(Tag::Empty));
     }
@@ -210,9 +207,9 @@ mod tests {
     #[test]
     fn s1_s2_round_trip() {
         let a = pack(&[0x61]).unwrap();
-        assert_eq!(unpack(a), Some(vec![0x61]));
+        assert_eq!(unpack(a), Some([0x61].to_vec()));
         let ab = pack(&[0x61, 0x62]).unwrap();
-        assert_eq!(unpack(ab), Some(vec![0x61, 0x62]));
+        assert_eq!(unpack(ab), Some([0x61, 0x62].to_vec()));
         assert!(pack_enabled(&[0x61], V1_ENABLED).is_some());
         assert!(pack_enabled(&[0x61, 0x62, 0x63], V1_ENABLED).is_none());
         assert!(pack(&[0x61, 0x62, 0x63]).is_some());
