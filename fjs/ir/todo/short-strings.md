@@ -1,7 +1,7 @@
 ## Short strings in the IR
 
 **Priority:** P2
-**Status:** wip — design PR; owner asked for a design gate on this phase (not the language-feature rule); S1–S4 wait on that decision
+**Status:** wip — design approved (Sasha, #4118); S1–S4 coding not started
 
 ### Problem
 
@@ -28,7 +28,7 @@ Do **not** start S1–S4 coding until the owner decides on that design
 
 - [x] Design note under `doc/sasha-gil/ir/` (interface, candidates, experiment, non-goals, open questions, later slices)
 - [x] Claim with this `todo/` and a docs-only PR
-- [ ] Owner approval of the design (Sergey / Sasha)
+- [x] Owner approval of the design (Sasha on [#4118](https://github.com/functionalscript/functionalscript/pull/4118); Sergey not required for this gate)
 - [ ] **S1** — String module skeleton + short pack/unpack helpers; unused by programs; no link change
 - [ ] **S2** — Host / NaNVM ABI accepts short boxes; emit policy is per-variant (off for A, on for B/C when a concrete enabled tag fits)
 - [ ] **S3** — Link / L1 string ops use the short path; parity vs L0
