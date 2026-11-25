@@ -4,6 +4,8 @@ Short string with leading zeros.
 
 ## Short String 64 bit
 
+Max length is 10 characters
+
 |      |    |Occupied|
 |------|----|--------|
 |      |`0` |`1`     |
@@ -19,6 +21,8 @@ Short string with leading zeros.
 |`10x6`|`60`|`61`    |
 
 ## Short String 50 bit
+
+Max length is 8 characters.
 
 |      |    |Occupied|
 |------|----|--------|
