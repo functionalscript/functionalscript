@@ -453,10 +453,13 @@ fn put(v: V) -> i64 {
             if mask != 0 {
                 let enabled = short::tags_from_mask(mask);
                 let len = super::length(&v) as usize;
-                let mut units: Vec<u16> = core::iter::repeat_n(0, len).collect();
-                super::read_units(&v, 0, &mut units);
-                if let Some(bits) = short::pack_enabled(&units, &enabled) {
-                    return bits as i64;
+                // Skip the unit copy when no enabled tag can hold `len`.
+                if short::max_enabled_len(&enabled).is_some_and(|max| len <= max) {
+                    let mut units: Vec<u16> = core::iter::repeat_n(0, len).collect();
+                    super::read_units(&v, 0, &mut units);
+                    if let Some(bits) = short::pack_enabled(&units, &enabled) {
+                        return bits as i64;
+                    }
                 }
             }
         }

@@ -47,6 +47,31 @@ export const allTags = /** @type {const} */ ([
  */
 export const v1EnabledTags = /** @type {const} */ (['empty', 's1x16', 's2x16'])
 
+/** Unit count each Sergey tag encodes when it fits. @type {Readonly<Record<ShortTag, number>>} */
+export const tagLen = {
+    empty: 0,
+    s1x16: 1,
+    s2x16: 2,
+    s3x16: 3,
+    s4x7: 4,
+    s5x7: 5,
+    s6x7: 6,
+    s7x7: 7,
+    s8x6: 8,
+}
+
+/**
+ * Longest unit count any tag in `enabled` can hold, or `-1` when none.
+ *
+ * @type {(enabled: readonly ShortTag[]) => number}
+ */
+export const maxEnabledLen = enabled => {
+    /** @type {(i: number, max: number) => number} */
+    const go = (i, max) => i === enabled.length ? max
+        : go(i + 1, Math.max(max, tagLen[enabled[Number(i)]]))
+    return enabled.length === 0 ? -1 : go(0, -1)
+}
+
 /** Whether bits are a short-string scalar (README `is_short_string`). @type {(b: bigint) => boolean} */
 export const isShort = b => (b & TAG2) === SCALAR && (b & 0xCn) !== 0n
 

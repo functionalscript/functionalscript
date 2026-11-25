@@ -63,6 +63,26 @@ pub fn mask_of(tags: &[Tag]) -> u32 {
     tags.iter().fold(0u32, |m, &t| m | (1 << t as u32))
 }
 
+/// Unit count a tag encodes, when it fits.
+pub fn tag_len(tag: Tag) -> usize {
+    match tag {
+        Tag::Empty => 0,
+        Tag::S1x16 => 1,
+        Tag::S2x16 => 2,
+        Tag::S3x16 => 3,
+        Tag::S4x7 => 4,
+        Tag::S5x7 => 5,
+        Tag::S6x7 => 6,
+        Tag::S7x7 => 7,
+        Tag::S8x6 => 8,
+    }
+}
+
+/// Longest unit count any tag in `enabled` can hold, or `None` if empty.
+pub fn max_enabled_len(enabled: &[Tag]) -> Option<usize> {
+    enabled.iter().map(|&t| tag_len(t)).max()
+}
+
 /// `$`, `0`–`9`, `A`–`Z`, `_`, `a`–`z` — the 6-bit short-string alphabet.
 const ALPHABET: [u16; 64] = [
     0x24, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x41, 0x42, 0x43, 0x44, 0x45,
@@ -199,6 +219,9 @@ mod tests {
         assert_eq!(V1_MASK, mask_of(V1_ENABLED));
         assert_eq!(tags_from_mask(V1_MASK), V1_ENABLED.to_vec());
         assert!(tags_from_mask(0).is_empty());
+        assert_eq!(max_enabled_len(V1_ENABLED), Some(2));
+        assert_eq!(max_enabled_len(&[]), None);
+        assert_eq!(max_enabled_len(ALL_TAGS), Some(8));
     }
 
     #[test]

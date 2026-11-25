@@ -99,7 +99,7 @@
  * @import { Counting, StringEmit } from '../types.ts'
  */
 
-import { isShort, packEnabled, unpack } from '../../../runtime/string/short.f.js'
+import { isShort, maxEnabledLen, packEnabled, unpack } from '../../../runtime/string/short.f.js'
 import { kind as valueKind } from '../../../../wasm/runtime/l0/module.f.js'
 import { view } from '../module.f.js'
 
@@ -239,7 +239,8 @@ export const counting = (values, data = 0, entries = 0, stringEmit = alwaysDynRe
         if (value === true) { return i64(TRUE) }
         if (value === false) { return i64(FALSE) }
         if (typeof value === 'number') { return numberBox(value) }
-        if (typeof value === 'string' && stringEmit.kind === 'shortWhenEnabled') {
+        if (typeof value === 'string' && stringEmit.kind === 'shortWhenEnabled'
+            && value.length <= maxEnabledLen(stringEmit.enabledTags)) {
             const packed = packEnabled(unitsOf(value), stringEmit.enabledTags)
             if (packed[0] === 'ok') { return i64(packed[1]) }
         }

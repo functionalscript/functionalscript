@@ -14,8 +14,10 @@ import {
     allTags as _allTags,
     isShort as _isShort,
     length as _length,
+    maxEnabledLen as _maxEnabledLen,
     pack as _pack,
     packEnabled as _packEnabled,
+    tagLen as _tagLen,
     tagOf as _tagOf,
     unit as _unit,
     unpack as _unpack,
@@ -26,8 +28,10 @@ export const EMPTY = _EMPTY
 export const allTags = _allTags
 export const isShort = _isShort
 export const length = _length
+export const maxEnabledLen = _maxEnabledLen
 export const pack = _pack
 export const packEnabled = _packEnabled
+export const tagLen = _tagLen
 export const tagOf = _tagOf
 export const unit = _unit
 export const unpack = _unpack
