@@ -32,10 +32,12 @@
  *   that the rest reads is shadowed. A key or a name in a new name has
  *   `\`, `.` and `/` escaped by a `\`, so `s.p.q` is the key `q` of
  *   `s.p` and `s.p\.q` the key `p.q` of `s`, and no new name is another. A
- *   new split name that is already a binder of the function keeps every
- *   object of that function, since the name would be one of its own (cast
- *   arms like `p0.array` share the `.` spelling). Binders that only use
- *   those characters for kind casts do not block an unrelated split.
+ *   new split name that is already a binder of the function, or that another
+ *   split of the same rewrite would also write, keeps every object of that
+ *   function: cast arms like `p0.array` share the `.` spelling, and escaped
+ *   keys can make two origins spell the same (`r` + `x.y` and `r.x\` + `y`
+ *   both write `r.x\.y`). Binders that only use those characters for kind
+ *   casts do not block an unrelated split.
  *   A read `get(s, 'i')` is `s.i`, and a `let` of such a read is no
  *   local of its own but `s.i` itself, so nothing copies it. A read of a
  *   term whose value may be such an object reads the key at each end of
@@ -339,16 +341,20 @@ const withValues = (t, values) => {
  * A function's body with what `split` says split: `rewrite` of a term at
  * `path`, whose value is read at the key `key`, or used as it is where
  * `key` is `null`. `collision.hit` becomes true when a new name is already
- * a binder of the function.
+ * a binder of the function, or when two origins of this rewrite would write
+ * the same spelling.
  *
  * @type {(get: string, split: _Split, existing: ReadonlySet<string>, collision: { hit: boolean }) => (t: Term, path: string, env: _Env, key: string | null) => Term}
  */
 const rewrite = (get, split, existing, collision) => {
     /** The keys of a local that the pass splits, by its path. @type {(id: string) => readonly string[] | null} */
     const keysAt = id => split.locals.find(([x]) => x === id)?.[1] ?? null
-    /** A new binder name, or a collision with one the function already has. @type {(n: string) => string} */
+    /** Names this rewrite has already claimed. @type {Set<string>} */
+    const claimed = new Set()
+    /** A new binder name, or a collision with an existing or prior claim. @type {(n: string) => string} */
     const fresh = n => {
-        if (existing.has(n)) { collision.hit = true }
+        if (existing.has(n) || claimed.has(n)) { collision.hit = true }
+        claimed.add(n)
         return n
     }
     /** The name of a split local's value at a key. @type {(name: string, key: string) => string} */

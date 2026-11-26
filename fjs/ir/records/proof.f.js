@@ -271,6 +271,12 @@ export const proof = {
         ],
     ),
     collide: () => same(let_('r.x', b, let_('r', object([['x', a]]), read(get('r'), 'x')))),
+    // Two origins that escape to the same spelling (`r`+`x.y` and `r.x\`+`y`
+    // both want `r.x\.y`): keep both objects.
+    collideGenerated: () => same(let_('r.x\\', object([['y', b]]), let_('r', object([['x.y', a]]), make([
+        ['first', read(get('r'), 'x.y')],
+        ['second', read(get('r.x\\'), 'y')],
+    ])))),
     castBinderSplit: () => golden(
         let_('p0.string', a, let_('r', object([['x', b]]), read(get('r'), 'x'))),
         [
