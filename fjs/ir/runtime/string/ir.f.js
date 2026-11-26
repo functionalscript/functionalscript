@@ -1,6 +1,8 @@
 /**
  * String IR module for short-string length/unit (variant B, memory-saving):
- * defines Any so standalone check may `unseal`, re-decodes every Sergey
+ * defines Any, with Any's own definition and hooks from
+ * [`runtime/any`](../any/module.f.js), so standalone check may `unseal`;
+ * re-decodes every Sergey
  * short tag, and falls through to L0 `String.length` / `String.unit` on a
  * long miss. `linkString` merges only the reached length/unit bodies into a
  * post-`linkAny` program and keeps the String import
@@ -11,17 +13,9 @@
  * @import { Module, Term } from '../../types.ts'
  */
 
-import { kinds, l0, ref, string } from '../../l0/module.f.js'
-import {
-    add, and, bool, call, eq, false_, fn, if_, int, le, let_, make, n, ne,
-    sealed, shr, trap, true_, u, unit as unitType, unseal,
-} from '../../module.f.js'
-
-/** A value of unknown kind, as this module defines it for standalone check. */
-const any = sealed('Any', 'any')
-
-/** Exponent bits shared by every scalar NaN box. */
-const EXP = 0x7FF0_0000_0000_0000n
+import { l0, ref, string } from '../../l0/module.f.js'
+import { add, and, call, eq, false_, fn, if_, le, let_, n, ne, shr, trap, u, unseal } from '../../module.f.js'
+import { defines, module as anyModule } from '../any/module.f.js'
 
 /** Tag-2 mask: non-finite scalars vs references. */
 const TAG2 = 0x7FF0_0000_0000_0003n
@@ -32,29 +26,16 @@ const SCALAR = 0x7FF0_0000_0000_0000n
 /** Empty-string box. */
 const EMPTY = 0x7FF0_0000_0000_0008n
 
-/** Dyn-ref tag bits (for isRef hooks required by defines). */
-const REF_TAG = 0xFFF0_0000_0000_0003n
-const DYN_REF = 0x7FF0_0000_0000_0002n
-
 /** Index type of L0 length/unit. */
 const index = u(31)
 
 /** UTF-16 unit. */
 const codeUnit = u(16)
 
-/** String-literal maker named on Any's defines (same as L0 Any). */
-const stringLiteral = { variant: 'string', module: 'String', member: 'make_string' }
-
 /** L0 String interface, for the long miss of length/unit. */
 const stringImport = /** @type {NonNullable<(typeof l0)[number]>} */ (
     l0.find(([k]) => k === 'String')
 )
-
-/** Whether bits are a number. @type {(b: Term) => Term} */
-const isNumberBits = b => if_(eq(and(b, n(EXP)), n(EXP)), eq(and(b, n(0x7FF0_0000_0000_00FFn)), n(EXP)), true_)
-
-/** Whether bits are a dynamic reference. @type {(b: Term) => Term} */
-const isRefBits = b => eq(and(b, n(REF_TAG)), n(DYN_REF))
 
 /** Whether bits are a short-string scalar. @type {(b: Term) => Term} */
 const isShortBits = b => if_(eq(and(b, n(TAG2)), n(SCALAR)), ne(and(b, n(0xCn)), n(0n)), false_)
@@ -131,34 +112,26 @@ const unitAt = (b, i, shifts, mask) => {
 }
 
 /**
- * Variant B String IR module: hooks exist only so standalone check may
- * define Any; `linkString` reaches length/unit (and their helpers) alone.
+ * The hooks that Any's `defines` names, with the function they call, taken
+ * from Any's own module: the one definition of how a box is counted and
+ * which kind it is.
+ *
+ * @type {Module['functions']}
+ */
+const anyHooks = anyModule.functions.filter(([k]) => k === 'isRef' || k === 'dup' || k === 'drop' || k === 'kind')
+
+/**
+ * Variant B String IR module: it defines Any, as Any's module does, only so
+ * standalone check may `unseal`; `linkString` reaches length/unit (and their
+ * helpers) alone.
  *
  * @type {Module}
  */
 export const module = {
     imports: [ref, stringImport],
-    defines: {
-        name: 'Any',
-        types: [['any', {
-            variants: kinds,
-            kind: 'kind',
-            carrier: 'i64',
-            dup: 'dup',
-            drop: 'drop',
-            copy: ['undefined', 'null', 'boolean', 'number'],
-            literal: stringLiteral,
-        }]],
-    },
+    defines,
     functions: [
-        ['isRef', fn([['b', u(64)]], bool, b => isRefBits(b))],
-        ['dup', fn([['b', u(64)]], u(64), b => if_(call('self', 'isRef', [b]), call('Ref', 'dup_ref', [b]), b))],
-        ['drop', fn([['b', u(64)]], unitType, b => if_(call('self', 'isRef', [b]), call('Ref', 'drop_ref', [b]), make([])))],
-        ['kind', fn([['v', any]], int(0n, 8n), v => let_('b', unseal(v), b =>
-            if_(isNumberBits(b), n(3n),
-                if_(eq(and(b, n(1n)), n(1n)), n(5n),
-                    if_(call('self', 'isRef', [b]), call('Ref', 'kind_ref', [b]),
-                        if_(ne(and(b, n(0xCn)), n(0n)), n(4n), n(0n)))))))],
+        ...anyHooks,
         // Shared OOB trap for short unit.
         ['oob', fn([], codeUnit, () => trap('not an index'))],
         ['unit2', fn([['b', u(64)], ['i', index]], codeUnit, (b, i) =>

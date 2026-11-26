@@ -107,6 +107,26 @@ export const iface = {
 }
 
 /**
+ * How this module defines `any`: its variants, its carrier, and the hooks
+ * that tell its kind and count it. A module that defines Any for its own
+ * check, as String's IR module does, takes this one.
+ *
+ * @type {NonNullable<Module['defines']>}
+ */
+export const defines = {
+    name: 'Any',
+    types: [['any', {
+        variants: kinds,
+        kind: 'kind',
+        carrier: 'i64',
+        dup: 'dup',
+        drop: 'drop',
+        copy: ['undefined', 'null', 'boolean', 'number'],
+        literal: stringLiteral,
+    }]],
+}
+
+/**
  * Any's IR module: it defines `any`, imports `Ref`, and exports the
  * functions and constants of {@link iface}, plus `isRef` for proofs.
  *
@@ -114,18 +134,7 @@ export const iface = {
  */
 export const module = {
     imports: [ref],
-    defines: {
-        name: 'Any',
-        types: [['any', {
-            variants: kinds,
-            kind: 'kind',
-            carrier: 'i64',
-            dup: 'dup',
-            drop: 'drop',
-            copy: ['undefined', 'null', 'boolean', 'number'],
-            literal: stringLiteral,
-        }]],
-    },
+    defines,
     constants: [
         ['undefined', { type: only(any, 'undefined'), value: seal(only(any, 'undefined'), n(UNDEFINED)) }],
         ['null', { type: only(any, 'null'), value: seal(only(any, 'null'), n(NULL)) }],
