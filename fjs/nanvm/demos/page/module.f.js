@@ -399,13 +399,13 @@ export const irRatio = ({ js, ir }) => ir === undefined ? null : ratioAgainstJs(
  *
  * @type {(bytes: number) => boolean}
  */
-export const roundedBytes = bytes => bytes >= 10000000 && [...bytes.toString().slice(3)].every(c => c === '0')
+export const roundedBytes = bytes => bytes >= 10_000_000 && [...bytes.toString().slice(3)].every(c => c === '0')
 
 /** Whether both readings of the heap are rounded ones. @type {(heap: JsHeap) => boolean} */
 export const rounded = ({ before, after }) => roundedBytes(before) && roundedBytes(after)
 
 /** What the page says in place of a figure that it cannot read from rounded readings. */
-export const notPrecise = 'Not measured: Chromium rounds the JavaScript heap; start it with --enable-precise-memory-info for exact bytes'
+export const notPrecise = /** @type {const} */ ('Not measured: Chromium rounds the JavaScript heap; start it with --enable-precise-memory-info for exact bytes')
 
 /**
  * How many times as much memory a WASM-shaped run added as the JavaScript

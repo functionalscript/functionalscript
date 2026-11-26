@@ -258,17 +258,17 @@ export const proof = {
     },
     roundedBytes: () => {
         // Three significant digits from Chromium's least bucket up, as Chromium reports by default.
-        assert(roundedBytes(10000000))
-        assert(roundedBytes(15200000))
-        assert(roundedBytes(2340000000))
+        assert(roundedBytes(10_000_000))
+        assert(roundedBytes(15_200_000))
+        assert(roundedBytes(2_340_000_000))
         // A precise reading, and a small one, which Chromium never rounds to.
-        assert(!roundedBytes(15200001))
-        assert(!roundedBytes(4132778))
+        assert(!roundedBytes(15_200_001))
+        assert(!roundedBytes(4_132_778))
         assert(!roundedBytes(3000))
-        assert(rounded({ before: 15200000, after: 15300000 }))
+        assert(rounded({ before: 15_200_000, after: 15_300_000 }))
         // One precise reading is enough to show the change.
-        assert(!rounded({ before: 15200000, after: 15200123 }))
-        assert(!rounded({ before: 4132778, after: 44100946 }))
+        assert(!rounded({ before: 15_200_000, after: 15_200_123 }))
+        assert(!rounded({ before: 4_132_778, after: 44_100_946 }))
     },
     signedBytes: () => {
         assertEq(signedBytes(65536), '+65536 bytes')
@@ -304,7 +304,7 @@ export const proof = {
         assert(!noHeap.includes('Not available') && !noHeap.includes('Memory: '))
         assertEq(heapChange({ before: 1024, after: 512 }), '-512 bytes, 1024 → 512')
         // Chromium's rounded readings: the heap line and the comparison say so, with no figure.
-        const roundedShown = text(view('hi')(perform(page({}, null, 'ok', 15200000))(runBoth(hi)(ready))))
+        const roundedShown = text(view('hi')(perform(page({}, null, 'ok', 15_200_000))(runBoth(hi)(ready))))
         assert(roundedShown.includes(`Change in the whole page’s JavaScript heap across the run (Chromium): ${notPrecise}`))
         assert(roundedShown.includes(`Memory the Rust→WASM run added, as a multiple of the JavaScript heap’s growth (Chromium): ${notPrecise}`))
         assert(!roundedShown.includes('15200000'))
