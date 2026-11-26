@@ -33,7 +33,10 @@
  *   `any`. A later round still finds a site under a widen `block` this
  *   pass introduced and may split it; ownership is the labels `settled`
  *   recorded from each round, not the `W`/`W_` spelling — a user-authored
- *   `block W` is never peeled, so a `br` to its label stays inside.
+ *   `block W` is never peeled, so a `br` to its label stays inside. Each
+ *   wrap picks a label fresh in the function and in the term it wraps, so
+ *   a nested widen (outer `if` around an inner split read) does not reopen
+ *   `W` inside `W`.
  * - **How it splits.** A local `s` of keys `i` and `acc` is the locals
  *   `s.i` and `s.acc`, of `any`: a `let` binds each, a loop has a
  *   parameter for each, and a `br` gives each. The `let`s of the chain that
@@ -146,14 +149,16 @@ const siteOf = (widens, t) => {
  * `if` of strings — is wrapped in a `block` of `any`, so a subset does not
  * stand in for a `get` and break a later `match` that names another kind.
  * `siteOf` still sees a site under that `block`, so a later round can split
- * it. `widen` is a label not already open in the function; `settled` records
- * it so later rounds peel only that ownership.
+ * it. `taken` is labels already open in the function (`return` included);
+ * the wrap also avoids labels that already appear in `t`, so nesting two
+ * widens in one rewrite cannot reopen the same name. `settled` records
+ * every new label so later rounds peel only that ownership.
  *
- * @type {(widen: string) => (t: Term) => Term}
+ * @type {(taken: readonly string[]) => (t: Term) => Term}
  */
-const asGet = widen => t => {
+const asGet = taken => t => {
     if (t[0] === 'block' && isFullAny(t[2])) { return t }
-    return /** @type {Term} */ (['block', widen, any, t])
+    return /** @type {Term} */ (['block', freshWiden([...taken, ...labelsOf(t)]), any, t])
 }
 
 /**
@@ -431,9 +436,9 @@ const withValues = (t, values) => {
  * @typedef {readonly (readonly [string, string])[]} _Claimed
  * @typedef {readonly [_Claimed, boolean]} _ClaimSt
  *
- * @type {(get: string, split: _Split, existing: readonly string[], widen: string, widens: readonly string[]) => (t: Term, path: string, env: _Env, key: string | null, st: _ClaimSt) => readonly [Term, _ClaimSt]}
+ * @type {(get: string, split: _Split, existing: readonly string[], taken: readonly string[], widens: readonly string[]) => (t: Term, path: string, env: _Env, key: string | null, st: _ClaimSt) => readonly [Term, _ClaimSt]}
  */
-const rewrite = (get, split, existing, widen, widens) => {
+const rewrite = (get, split, existing, taken, widens) => {
     /** The keys of a local that the pass splits, by its path. @type {(id: string) => readonly string[] | null} */
     const keysAt = id => split.locals.find(([x]) => x === id)?.[1] ?? null
     /** Claim `n` as a binder from `origin`, or mark a collision. A spelling
@@ -452,7 +457,7 @@ const rewrite = (get, split, existing, widen, widens) => {
         const n = part(name, key)
         return [n, claim(st, n, `${name}\u0000${key}`)]
     }
-    const toAny = asGet(widen)
+    const toAny = asGet(taken)
     /** @type {(t: Term, path: string, env: _Env, key: string | null, st: _ClaimSt) => readonly [Term, _ClaimSt]} */
     const go = (t, path, env, key, st) => {
         /**
@@ -720,22 +725,23 @@ const rewrite = (get, split, existing, widen, widens) => {
  */
 const once = (get, widens) => f => {
     const existing = [...f.params.map(([k]) => k), ...binders(f.body)]
-    // `return` is always open; prefer W, else W_, W__, …
-    const widen = freshWiden([...labelsOf(f.body), 'return'])
+    // `return` is always open; each wrap also avoids labels inside its term
+    const taken = [...labelsOf(f.body), 'return']
     const env = f.params.reduce((e, [k]) => bind(e, [k, `param/${k}`, k]), top)
     // what the function answers leaves it
     const [from, fs] = facts(get, widens)(f.body, 'f', env, true)
     const params = f.params.map(([k]) => /** @type {_Fact} */ (['local', `param/${k}`, 'other']))
     const split = solve([...params, ...fs, ...from.map(s => /** @type {_Fact} */ (['escape', s]))])
     if (split.locals.length === 0 && split.reads.length === 0) { return f }
-    const [body, [, hit]] = rewrite(get, split, existing, widen, widens)(f.body, 'f', env, null, [[], false])
+    const [body, [, hit]] = rewrite(get, split, existing, taken, widens)(f.body, 'f', env, null, [[], false])
     return hit ? f : { ...f, body }
 }
 
 /**
  * A function with what it only reads back split, until nothing more is:
  * an object that another holds is read back once the outer one is split.
- * Each successful round's widen label is owned by the pass for later peels.
+ * Labels that appear in the body only after a round are owned by the pass
+ * for later peels (a round may introduce several when widens nest).
  *
  * @type {(get: string) => (f: Fn) => Fn}
  */
@@ -744,9 +750,9 @@ const settled = get => {
     const go = (f, widens) => {
         const next = once(get, widens)(f)
         if (next === f) { return f }
-        // same freshWiden inputs as `once` used on `f` before rewriting
-        const widen = freshWiden([...labelsOf(f.body), 'return'])
-        return go(next, [...widens, widen])
+        const before = labelsOf(f.body)
+        const introduced = labelsOf(next.body).filter((l, i, all) => !before.includes(l) && all.indexOf(l) === i)
+        return go(next, [...widens, ...introduced])
     }
     return f => go(f, [])
 }

@@ -454,6 +454,30 @@ export const proof = {
         [['true'], null, br('W', a)],
         [['false'], null, b],
     ])]])), read(get('r'), 'x'))),
+    // Nested widens in one rewrite: inner split read wraps with W, outer
+    // field value wraps with W_ so checkPlain does not see W inside W.
+    nestedWiden: () => {
+        const body = let_('r', object([['x', if_(c, read(object([['y', a]]), 'y'), b)]]), read(get('r'), 'x'))
+        const f = fn([['a', any], ['b', any], ['c', bool]], any, body)
+        const afterF = records('get')({ imports: [], functions: [['f', f]], exports: [] }).functions[0][1]
+        assertEq(print({ imports: [], functions: [['f', afterF]], exports: [] }), [
+            'fn f(a: any, b: any, c: bool) -> any =',
+            '    let r.x =',
+            '        block W_: any',
+            '            if c',
+            '            then',
+            '                block W: any',
+            '                    a',
+            '            else',
+            '                b',
+            '    r.x',
+        ].map(line => `${line}\n`).join(''))
+        assertOk(checkPlain({
+            imports: l0.imports,
+            functions: [...l0.functions.filter(([k]) => k !== 'f'), ['f', afterF]],
+            exports: ['f'],
+        }))
+    },
     // Sibling product fields each bind r.x in their own expression scope;
     // claims do not collide across fields.
     siblingFields: () => golden(
