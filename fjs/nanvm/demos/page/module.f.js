@@ -23,7 +23,10 @@
  * **The JavaScript heap is shown only where the browser reports it**, which
  * Chromium alone does, as its change across the run, with the readings just
  * before and just after. Elsewhere the line is left out, as the page shows no
- * figure it cannot measure.
+ * figure it cannot measure. Chromium itself rounds the reading to three
+ * significant digits and refreshes it rarely, unless it is started with
+ * `--enable-precise-memory-info`; a rounded reading is not shown either, and
+ * the page says why.
  *
  * @module
  *
@@ -389,6 +392,22 @@ export const ratio = ({ js, wasm }) => ratioAgainstJs(js, wasm)
 export const irRatio = ({ js, ir }) => ir === undefined ? null : ratioAgainstJs(js, ir)
 
 /**
+ * Whether a reading of the heap is one that Chromium rounded: by default it
+ * reports the heap rounded to three significant digits, at least 10,000,000
+ * bytes, and the same reading for a long while after, so a run's change is
+ * almost always none. A precise reading has such a form once in 100,000.
+ *
+ * @type {(bytes: number) => boolean}
+ */
+export const roundedBytes = bytes => bytes >= 10000000 && [...bytes.toString().slice(3)].every(c => c === '0')
+
+/** Whether both readings of the heap are rounded ones. @type {(heap: JsHeap) => boolean} */
+export const rounded = ({ before, after }) => roundedBytes(before) && roundedBytes(after)
+
+/** What the page says in place of a figure that it cannot read from rounded readings. */
+export const notPrecise = 'Not measured: Chromium rounds the JavaScript heap; start it with --enable-precise-memory-info for exact bytes'
+
+/**
  * How many times as much memory a WASM-shaped run added as the JavaScript
  * one, as {@link ratio} compares their times: the linear memory the run
  * added against the change in the page's JavaScript heap. `null` where the
@@ -398,7 +417,8 @@ export const irRatio = ({ js, ir }) => ir === undefined ? null : ratioAgainstJs(
  * both runs wrote the same output, where the heap did not grow, since a
  * heap a garbage collection shrank during the run gives no comparison, or
  * where the linear memory did not grow, which only says the allocator reused
- * memory it had, not that the run used none.
+ * memory it had, not that the run used none. {@link notPrecise} where the
+ * readings are Chromium's rounded ones.
  *
  * @type {(js: Runs['js'], other: Result<WasmRun, string> | undefined) => string | null}
  */
@@ -406,9 +426,11 @@ const growthAgainstJs = (js, other) => js[0] === 'error' || js[1].heap === null
     ? null
     : other === undefined
         ? null
-        : other[0] === 'ok' && sameOutput(js[1], other[1]) && js[1].heap.after > js[1].heap.before && other[1].growth > 0
-            ? `${(other[1].growth / (js[1].heap.after - js[1].heap.before)).toFixed(1)}×`
-            : 'Not available'
+        : rounded(js[1].heap)
+            ? notPrecise
+            : other[0] === 'ok' && sameOutput(js[1], other[1]) && js[1].heap.after > js[1].heap.before && other[1].growth > 0
+                ? `${(other[1].growth / (js[1].heap.after - js[1].heap.before)).toFixed(1)}×`
+                : 'Not available'
 
 /**
  * Rust→WASM linear-memory growth against the JavaScript heap, as
@@ -444,7 +466,7 @@ export const heapChange = ({ before, after }) => `${signedBytes(after - before)}
  */
 const heapView = heap => heap === null
     ? []
-    : [stat('Change in the whole page’s JavaScript heap across the run (Chromium)', heapChange(heap))]
+    : [stat('Change in the whole page’s JavaScript heap across the run (Chromium)', rounded(heap) ? notPrecise : heapChange(heap))]
 
 /** @type {(title: string, run: Result<WasmRun, string>) => readonly Node[]} */
 const wasmShapedView = (title, run) => [

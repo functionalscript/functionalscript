@@ -19,7 +19,7 @@ import { ioError, notImplemented } from '../../../effects/module.f.js'
 import { run } from '../../../effects/mock/module.f.js'
 import { utf8 } from '../../../text/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
-import { buildDirectory, decode, heapChange, init, initWithIr, irL0Path, irModulePath, irPlace, irMemoryRatio, irRatio, loadWithIr, memoryRatio, modulesReady, signedBytes, jsOutput, load, milliseconds, placeName, ratio, runBoth, runIr, runJs, runWasm, rustMarkedPath, rustPath, samplePath, update, view, wasmDemo, wasmPath, watPath } from './module.f.js'
+import { buildDirectory, decode, heapChange, init, initWithIr, irL0Path, irModulePath, irPlace, irMemoryRatio, irRatio, loadWithIr, memoryRatio, modulesReady, signedBytes, jsOutput, load, milliseconds, notPrecise, placeName, ratio, rounded, roundedBytes, runBoth, runIr, runJs, runWasm, rustMarkedPath, rustPath, samplePath, update, view, wasmDemo, wasmPath, watPath } from './module.f.js'
 import { entry } from '../../../types/object/entry/module.f.js'
 import { toJson } from '../../../media/json/module.f.js'
 
@@ -256,6 +256,20 @@ export const proof = {
         assertEq(irMemoryRatio({ ...grown, js: error('no js') }), null)
         assertEq(irMemoryRatio({ ...grown, ir: ok({ run: { output: ok('other'), time: 1 }, memory: 0, growth: 5000 }) }), 'Not available')
     },
+    roundedBytes: () => {
+        // Three significant digits from Chromium's least bucket up, as Chromium reports by default.
+        assert(roundedBytes(10000000))
+        assert(roundedBytes(15200000))
+        assert(roundedBytes(2340000000))
+        // A precise reading, and a small one, which Chromium never rounds to.
+        assert(!roundedBytes(15200001))
+        assert(!roundedBytes(4132778))
+        assert(!roundedBytes(3000))
+        assert(rounded({ before: 15200000, after: 15300000 }))
+        // One precise reading is enough to show the change.
+        assert(!rounded({ before: 15200000, after: 15200123 }))
+        assert(!rounded({ before: 4132778, after: 44100946 }))
+    },
     signedBytes: () => {
         assertEq(signedBytes(65536), '+65536 bytes')
         assertEq(signedBytes(-1), '-1 bytes')
@@ -289,6 +303,11 @@ export const proof = {
         assert(!noHeap.includes('Memory the Rust→WASM run added'))
         assert(!noHeap.includes('Not available') && !noHeap.includes('Memory: '))
         assertEq(heapChange({ before: 1024, after: 512 }), '-512 bytes, 1024 → 512')
+        // Chromium's rounded readings: the heap line and the comparison say so, with no figure.
+        const roundedShown = text(view('hi')(perform(page({}, null, 'ok', 15200000))(runBoth(hi)(ready))))
+        assert(roundedShown.includes(`Change in the whole page’s JavaScript heap across the run (Chromium): ${notPrecise}`))
+        assert(roundedShown.includes(`Memory the Rust→WASM run added, as a multiple of the JavaScript heap’s growth (Chromium): ${notPrecise}`))
+        assert(!roundedShown.includes('15200000'))
         assert(shown.includes('Rust→WASM running time, as a multiple of the JavaScript one: 1.0×'))
         assert(shown.includes('pub fn module() {}'))
         // The Rust is coloured, and its copy is the plain text.
