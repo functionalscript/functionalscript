@@ -564,7 +564,7 @@ const intro = hasIr => hasIr
     ? [
         'The same FunctionalScript program, run three ways: as the JavaScript it already is; ',
         'compiled by ', ['code', 'fjs compile'], ' to Rust on the NaNVM runtime, then to WebAssembly; ',
-        'and lowered through the IR (', ['code', 'from_fast'], ' + ', ['code', 'linkAny'],
+        'and lowered through the IR (', ['code', 'from_fast'], ' + ', ['code', 'linkAny'], ' + ', ['code', 'linkString'],
         ') directly to WebAssembly on NaNVM L0. ',
         'Run calls each in turn and shows what it wrote and how long the call took.',
     ]
