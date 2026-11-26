@@ -432,9 +432,11 @@ const withValues = (t, values) => {
  * a spelling. Sibling product fields and call/op arguments do the same:
  * each starts from the parent claims; only collision flags combine. A
  * non-split `let`'s body likewise starts from the parent claims: the
- * initializer's binders do not outlive it. A split `let`'s part binders
- * and a split loop's parameter parts are claimed before the body, so an
- * arm that would reuse an enclosing generated spelling still hits. `br`
+ * initializer's binders do not outlive it. Match arms start from the
+ * parent claims (not the operand's); a loop's initializers start from the
+ * pre-body claim state (not the body's). A split `let`'s part binders and
+ * a split loop's parameter parts are claimed before the body, so an arm
+ * that would reuse an enclosing generated spelling still hits. `br`
  * fields reuse `part` spellings without claiming. Reads of a part do not
  * claim.
  *
@@ -579,19 +581,19 @@ const rewrite = (get, split, existing, taken, widens, fullAny) => {
                 }, st)
             }
             case 'match': {
-                const [operand, st1] = go(t[1], `${path}/e`, env, null, st)
-                // each arm claims from the parent state alone: disjoint arms
-                // may bind the same spelling, and those binders do not outlive
-                // the match, so arm claims are not merged into the continuation
+                const [operand, [, hitOp]] = go(t[1], `${path}/e`, env, null, st)
+                // each arm claims from the parent state alone: the operand's
+                // binders do not outlive it, and disjoint arms may share a
+                // spelling; arm claims are not merged into the continuation
                 const [arms, hitArms] = t[2].reduce(
                     (acc, [variants, binder, x], j) => {
                         const [done, hit] = acc
-                        const [body, [, hitBody]] = go(x, `${path}/a${j}`, binder === null ? env : bind(env, [binder, `${path}/a${j}x`, binder]), key, [st1[0], false])
+                        const [body, [, hitBody]] = go(x, `${path}/a${j}`, binder === null ? env : bind(env, [binder, `${path}/a${j}x`, binder]), key, [st[0], false])
                         return /** @type {const} */ ([[...done, /** @type {const} */ ([variants, binder, body])], hit || hitBody])
                     },
-                    /** @type {readonly [Match[2], boolean]} */ ([[], st1[1]]),
+                    /** @type {readonly [Match[2], boolean]} */ ([[], hitOp || st[1]]),
                 )
-                return [['match', operand, arms], [st1[0], hitArms]]
+                return [['match', operand, arms], [st[0], hitArms]]
             }
             case 'loop': {
                 const params = t[2].map(([k], j) => /** @type {_Local} */ ([k, `${path}#${j}`, k]))
@@ -615,8 +617,11 @@ const rewrite = (get, split, existing, taken, widens, fullAny) => {
                     },
                     /** @type {readonly [readonly (readonly string[] | null)[], _ClaimSt]} */ ([[], st]),
                 )
-                const [body, stBody] = go(t[3], `${path}/b`, inner, key, stClaim)
-                /** The loop, its split parameters' chains moved before it, from the `j`th on. @type {(j: number, env: _Env, done: readonly (readonly [string, Type, Term])[], st: _ClaimSt) => readonly [Term, _ClaimSt]} */
+                const [body, [, hitBody]] = go(t[3], `${path}/b`, inner, key, stClaim)
+                /** The loop, its split parameters' chains moved before it, from the `j`th on.
+                 * Initializers see `stClaim` (not the body's claims): a body's
+                 * binders are not in scope during initialization. */
+                /** @type {(j: number, env: _Env, done: readonly (readonly [string, Type, Term])[], st: _ClaimSt) => readonly [Term, _ClaimSt]} */
                 const from = (j, e, done, stF) => {
                     if (j === t[2].length) { return [['loop', t[1], done, body], stF] }
                     const [k, type, first] = t[2][Number(j)]
@@ -632,7 +637,8 @@ const rewrite = (get, split, existing, taken, widens, fullAny) => {
                         return from(j + 1, e, [...done, ...params2], stV)
                     }, stF)
                 }
-                return from(0, env, [], stBody)
+                const [loopTerm, [, hitInit]] = from(0, env, [], stClaim)
+                return [loopTerm, [st[0], hitInit || hitBody]]
             }
             case 'br': {
                 const target = env.labels.find(([k]) => k === t[1])

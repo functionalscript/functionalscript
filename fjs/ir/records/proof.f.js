@@ -488,6 +488,39 @@ export const proof = {
             '    r.x',
         ],
     ),
+    // Match operand and an arm each bind r.x; arms start from parent claims.
+    matchOperandClaims: () => golden(
+        match(let_('r', object([['x', a]]), read(get('r'), 'x')), [
+            [['true'], null, let_('r', object([['x', b]]), read(get('r'), 'x'))],
+            [null, null, c],
+        ]),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    match',
+            '        let r.x = a',
+            '        r.x',
+            '      true =>',
+            '        let r.x = b',
+            '        r.x',
+            '      else =>',
+            '        c',
+        ],
+    ),
+    // Non-split loop initializer and body each bind r.x; init does not see
+    // the body's claims.
+    loopInitClaims: () => golden(
+        loop('L', [['k', any, let_('r', object([['x', a]]), read(get('r'), 'x'))]], () => let_('r', object([['x', b]]), read(get('r'), 'x'))),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    loop L (',
+            '        k: any =',
+            '            let r.x = a',
+            '            r.x',
+            '    )',
+            '        let r.x = b',
+            '        r.x',
+        ],
+    ),
     // Initial and br both write `let t` under split local `s`: claiming
     // `s/t` (and `s.x` as both a let and a loop parameter) twice would bind
     // them in nested scopes, so the objects stay.
