@@ -173,6 +173,7 @@ import {
 import { native } from '../native/module.f.js'
 import { asAny, boolean, floats, inOrder, isAny, isFloat, nativeRow, numbered, numberPath, numberRow, numeric, primitive } from './numbers/module.f.js'
 import { records } from '../records/module.f.js'
+import { inline as inlineHinted } from '../inline/module.f.js'
 import { literals } from './literals/module.f.js'
 import { lengthRead } from './reads/module.f.js'
 import { everyLoop, filterLoops, locals as callbackLocals, names as callbackNames } from './callbacks/module.f.js'
@@ -2251,6 +2252,6 @@ export const lower = (signatures, runtime = null) => ({ statements, exit }, impo
     /** @type {Module} */
     const m = { imports: interfaces, constants, functions: everything, exports: lowered.map(([key]) => key) }
     if (l1 === null) { return ok(literals(m)) }
-    // a program: L1's bodies linked in, then the objects that it only reads back split, then its boxed numbers made once (still as Any.from_f64), then Any's bodies linked in so scalar ops and those boxes are local, then String's short-path length/unit
-    return okThen(linkString(stringModule))(okThen(linkAny(runtime !== null && runtime.checkedKind === true ? checkedAny : anyModule))(mapOk(x => literals(records('l1.get')(x)))(link(l1)(m))))
+    // a program: L1's bodies linked in, then the objects that it only reads back split, then its boxed numbers made once (still as Any.from_f64), then Any's bodies linked in so scalar ops and those boxes are local, then String's short-path length/unit, then the calls that a hint asks for inlined
+    return okThen(inlineHinted)(okThen(linkString(stringModule))(okThen(linkAny(runtime !== null && runtime.checkedKind === true ? checkedAny : anyModule))(mapOk(x => literals(records('l1.get')(x)))(link(l1)(m)))))
 }
