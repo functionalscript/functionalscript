@@ -49,14 +49,17 @@ export const NULL = 0x7FF0_0000_0000_0030n
 /** The NaN box of the empty string. */
 export const EMPTY = 0x7FF0_0000_0000_0008n
 
+/** All 64 bits: `b & U64` reads an `i64` as unsigned. */
+const U64 = 0xFFFF_FFFF_FFFF_FFFFn
+
 /** Whether bits, as an `i64` or as unsigned, are a number: finite, or non-finite with the number's tag. @type {(b: bigint) => boolean} */
 export const isNumberBits = b => {
-    const x = BigInt.asUintN(64, b)
+    const x = b & U64
     return (x & EXP) !== EXP || (x & TAG8) === EXP
 }
 
 /** Whether bits, as an `i64` or as unsigned, are a dynamic reference. @type {(b: bigint) => boolean} */
-export const isRefBits = b => (BigInt.asUintN(64, b) & REF_TAG) === DYN_REF
+export const isRefBits = b => (b & U64 & REF_TAG) === DYN_REF
 
 /** {@link isNumberBits} as an IR term over `u64` bits. @type {(b: Term) => Term} */
 export const isNumberTerm = b => if_(eq(and(b, n(EXP)), n(EXP)), eq(and(b, n(TAG8)), n(EXP)), true_)

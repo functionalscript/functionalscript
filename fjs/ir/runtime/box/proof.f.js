@@ -11,6 +11,9 @@ import {
     isNumberBits, isNumberTerm, isRefBits, isRefTerm,
 } from './module.f.js'
 
+/** Unsigned bits as the `i64` that the WebAssembly JavaScript API passes. @type {(b: bigint) => bigint} */
+const i64 = b => b < 1n << 63n ? b : b - (1n << 64n)
+
 export const proof = {
     // The values, spelled out: a change here is a change of the box's layout.
     values: () => {
@@ -34,17 +37,17 @@ export const proof = {
         assert(isNumberBits(bitsOf(1.5)))
         assert(isNumberBits(bitsOf(-0)))
         assert(isNumberBits(bitsOf(Infinity)))
-        assert(isNumberBits(BigInt.asIntN(64, bitsOf(-Infinity))))
+        assert(isNumberBits(i64(bitsOf(-Infinity))))
         assert(isNumberBits(NAN))
         assert(!isNumberBits(UNDEFINED))
-        assert(!isNumberBits(BigInt.asIntN(64, TRUE)))
+        assert(!isNumberBits(i64(TRUE)))
         assert(!isNumberBits(EMPTY))
         assert(!isNumberBits(DYN_REF | (6n << 48n)))
     },
     // A dynamic reference whatever its kind and handle; no scalar is one.
     isRefBits: () => {
         assert(isRefBits(DYN_REF))
-        assert(isRefBits(BigInt.asIntN(64, DYN_REF | (6n << 48n) | (5n << 2n))))
+        assert(isRefBits(i64(DYN_REF | (6n << 48n) | (5n << 2n))))
         assert(!isRefBits(UNDEFINED))
         assert(!isRefBits(TRUE))
         assert(!isRefBits(EMPTY))
