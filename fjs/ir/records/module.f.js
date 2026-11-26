@@ -486,17 +486,22 @@ const rewrite = (get, split, existing, taken, widens, fullAny) => {
          * where the chain ends. What `end` writes stands inside the chain, whose
          * names no other name is, and reads the scope around it.
          * `exprSt` is the claim list for expression-local scopes inside the
-         * chain (site field values): it may omit binders that the hoisted
-         * chain itself must still respect (loop-part claims). Defaults to
-         * `st`.
+         * chain (site field values): hoisted chain binders are mirrored into
+         * it, while callers may start it without binders the fields must not
+         * see (loop-part claims). Defaults to `st`.
          *
          * @type {(t: Term, path: string, env: _Env, prefix: string, end: (values: readonly (readonly [string, Term])[], st: _ClaimSt) => readonly [Term, _ClaimSt], st: _ClaimSt, exprSt?: _ClaimSt) => readonly [Term, _ClaimSt]}
          */
         const moved = (t, path, env, prefix, end, st, exprSt = st) => {
             if (t[0] === 'let') {
                 const name = `${prefix}/${escape(t[1])}`
-                const st1 = claim(st, name, `${prefix}\u0000${t[1]}`)
-                const [rest, st2] = moved(t[3], `${path}/b`, bind(env, [t[1], path, name]), prefix, end, st1, exprSt)
+                const origin = `${prefix}\u0000${t[1]}`
+                // hoisted binder: claim on `st` (may include loop parts) and
+                // mirror onto `exprSt` so site fields still see the chain
+                const st1 = claim(st, name, origin)
+                const expr1 = claim([exprSt[0], false], name, origin)
+                const hit1 = st1[1] || exprSt[1] || expr1[1]
+                const [rest, st2] = moved(t[3], `${path}/b`, bind(env, [t[1], path, name]), prefix, end, [st1[0], hit1], [expr1[0], hit1])
                 if (keysAt(path) === null) {
                     const [value, st3] = go(t[2], `${path}/v`, env, null, st2)
                     return [['let', name, value, rest], st3]
@@ -508,7 +513,7 @@ const rewrite = (get, split, existing, taken, widens, fullAny) => {
                         return /** @type {const} */ ([['let', binder, toAny(x), body], stC])
                     },
                     /** @type {readonly [Term, _ClaimSt]} */ ([rest, stV]),
-                ), st2, exprSt)
+                ), st2, [expr1[0], hit1])
             }
             // a prior round may have left the site under a pass-owned widen `block`
             if (isWidenBlock(widens, t)) {
@@ -516,7 +521,8 @@ const rewrite = (get, split, existing, taken, widens, fullAny) => {
             }
             const site = siteOf(widens, t)
             if (site !== null) {
-                // sibling field values: expression-local (exprSt); OR hits
+                // sibling field values: expression-local (exprSt has chain
+                // binders, not loop parts); OR hits
                 const [values, hit] = site.reduce(
                     (acc, [k, x], j) => {
                         const [done, hitA] = acc

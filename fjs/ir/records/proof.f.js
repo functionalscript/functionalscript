@@ -576,6 +576,11 @@ export const proof = {
             ['s', any, let_('t', object([['x.y', a]]), object([['x.y', read(get('t'), 'x.y')]]))],
         ], () => a),
     ),
+    // Hoisted chain binder `s/t` stays in exprSt for site fields: a field
+    // that would also generate `s/t` must hit, not emit nested `let s/t`.
+    loopInitHoistedFieldClaims: () => same(
+        loop('L', [['s', any, let_('t', a, object([['x', let_('s', let_('t', b, object([['x', get('t')]])), read(get('s'), 'x'))]]))]], () => a),
+    ),
     // Initial and br both write `let t` under split local `s`: claiming
     // `s/t` (and `s.x` as both a let and a loop parameter) twice would bind
     // them in nested scopes, so the objects stay.
