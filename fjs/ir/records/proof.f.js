@@ -521,6 +521,25 @@ export const proof = {
             '        r.x',
         ],
     ),
+    // Sibling non-split loop initializers each bind r.x; claims do not collide.
+    loopSiblingInits: () => golden(
+        loop('L', [
+            ['k', any, let_('r', object([['x', a]]), read(get('r'), 'x'))],
+            ['m', any, let_('r', object([['x', b]]), read(get('r'), 'x'))],
+        ], (k, m) => if_(k, next('L', [['k', k], ['m', m]]), m)),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    loop L (',
+            '        k: any =',
+            '            let r.x = a',
+            '            r.x,',
+            '        m: any =',
+            '            let r.x = b',
+            '            r.x',
+            '    )',
+            '        if k then br L { k: k, m: m } else m',
+        ],
+    ),
     // Initial and br both write `let t` under split local `s`: claiming
     // `s/t` (and `s.x` as both a let and a loop parameter) twice would bind
     // them in nested scopes, so the objects stay.
