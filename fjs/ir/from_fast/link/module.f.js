@@ -105,8 +105,8 @@ export const linkedAnyName = name => `any.${name}`
 
 /**
  * A term with each `Any.*` call and constant rewritten to a linked name of
- * `self`. When `own` is set, each of those names that the term also calls
- * or reads of `self` is rewritten the same way — for Any's own bodies,
+ * `self`. When `own` is set, each of those names that the term also calls,
+ * reads or takes as a function value (`code`) of `self` is rewritten the same way — for Any's own bodies,
  * which still say `self.kind`. A program's bodies pass an empty `own`, so
  * a user `self.kind` stays the program's function.
  *
@@ -123,6 +123,7 @@ const rewriteAny = (own, rename) => {
                 const name = t[1] === 'Any' || (t[1] === 'self' && own.includes(t[2])) ? rename(t[2]) : t[2]
                 return ['call', module, name, t[3].map(linked)]
             }
+            case 'code': { return own.includes(t[1]) ? ['code', rename(t[1])] : t }
             case 'call_ref': { return ['call_ref', linked(t[1]), t[2].map(linked)] }
             case 'make': { return ['make', t[1].map(([k, x]) => /** @type {const} */ ([k, linked(x)]))] }
             case 'field': { return ['field', linked(t[1]), t[2]] }
@@ -246,7 +247,7 @@ const stringShortOps = ['length', 'unit']
  * each `String.length` / `String.unit` becomes a linked `self` call — for
  * program bodies. String's own bodies pass `rewriteImports` false so their
  * long-miss `String.*` imports stay imports; `own` still renames their
- * `self.unitN` helpers. Other `String.*` calls stay imports either way.
+ * `self.unitN` helpers, called or taken as a function value (`code`). Other `String.*` calls stay imports either way.
  *
  * @type {(own: readonly string[], rename: (name: string) => string, rewriteImports: boolean) => (t: Term) => Term}
  */
@@ -263,6 +264,7 @@ const rewriteString = (own, rename, rewriteImports) => {
                 const name = fromString || fromOwn ? rename(t[2]) : t[2]
                 return ['call', module, name, t[3].map(linked)]
             }
+            case 'code': { return own.includes(t[1]) ? ['code', rename(t[1])] : t }
             case 'call_ref': { return ['call_ref', linked(t[1]), t[2].map(linked)] }
             case 'make': { return ['make', t[1].map(([k, x]) => /** @type {const} */ ([k, linked(x)]))] }
             case 'field': { return ['field', linked(t[1]), t[2]] }
