@@ -517,7 +517,7 @@ const rewrite = (get, split, existing, taken, widens, fullAny) => {
                         return /** @type {const} */ ([['let', binder, toAny(x), body], stC])
                     },
                     /** @type {readonly [Term, _ClaimSt]} */ ([rest, [st2[0], st2[1] || stV[1]]]),
-                ), [st1[0], false])
+                ), [st1[0], false], [expr1[0], false])
             }
             // a prior round may have left the site under a pass-owned widen `block`
             if (isWidenBlock(widens, t)) {

@@ -608,6 +608,22 @@ export const proof = {
             '            m',
         ],
     ),
+    // Split initializer: nested moved chain's site field must use exprSt
+    // (pre-loop claims + chain binders), not st1's loop-part claims — else
+    // the field-local `s.x` false-collides with the loop part and stays.
+    loopInitHoistedInitSite: () => golden(
+        loop('L', [['s', any, let_('t', object([['x', let_('s', object([['x', a]]), read(get('s'), 'x'))]]), object([['x', read(get('t'), 'x')]]))]],
+            s_ => if_(read(s_, 'x'), next('L', [['s', object([['x', b]])]]), read(s_, 'x'))),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    let s/t.x =',
+            '        block W: any',
+            '            let s.x = a',
+            '            s.x',
+            '    loop L (s.x: any = s/t.x)',
+            '        if s.x then br L { s.x: b } else s.x',
+        ],
+    ),
     // Moved chain: each let initializer binds r.x; rest's claims do not
     // poison an earlier initializer (OR hits only from pre-rest claims).
     movedLetInitClaims: () => golden(
