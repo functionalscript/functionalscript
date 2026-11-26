@@ -11,20 +11,14 @@
  * @module
  *
  * @import { Module, Term } from '../../types.ts'
+ * @import { ShortTag } from './types.ts'
  */
 
 import { l0, ref, string } from '../../l0/module.f.js'
 import { add, and, call, eq, false_, fn, if_, le, let_, n, ne, shr, trap, u, unseal } from '../../module.f.js'
 import { defines, module as anyModule } from '../any/module.f.js'
-
-/** Tag-2 mask: non-finite scalars vs references. */
-const TAG2 = 0x7FF0_0000_0000_0003n
-
-/** Scalar family under TAG2. */
-const SCALAR = 0x7FF0_0000_0000_0000n
-
-/** Empty-string box. */
-const EMPTY = 0x7FF0_0000_0000_0008n
+import { SCALAR, TAG2 } from '../box/module.f.js'
+import { allTags, patterns } from './short.f.js'
 
 /** Index type of L0 length/unit. */
 const index = u(31)
@@ -54,22 +48,34 @@ const fromId6 = code => if_(eq(code, n(0n)), n(0x24n),
             if_(eq(code, n(37n)), n(0x5fn), add(code, n(0x3bn))))))
 
 /**
- * Length of a short-string box, or the long import.
+ * The short tags tested in turn, in the order of `short.f.js`'s
+ * {@link patterns}: the answer of the first that `b` matches, or `miss`.
+ *
+ * @type {(b: Term, answer: (tag: ShortTag) => Term, miss: Term) => Term}
+ */
+const byTag = (b, answer, miss) => patterns.reduceRight(
+    (rest, [tag, mask, value]) => if_(tagIs(b, mask, value), answer(tag), rest),
+    miss)
+
+/**
+ * Length of a short-string box, or the long import. A tag's index in
+ * `allTags` is the unit count it holds.
  *
  * @type {(s: Term) => Term}
  */
 const lengthBody = s => let_('b', unseal(s), b => if_(isShortBits(b),
-    if_(tagIs(b, 0xFFFF_FFFF_FFFF_FFFFn, EMPTY), n(0n),
-        if_(tagIs(b, 0xFFFF_FFFF_FF00_00FFn, 0x7FF0_0000_0000_0018n), n(1n),
-            if_(tagIs(b, 0xFFFF_FF00_0000_00FFn, 0x7FF0_0000_0000_0028n), n(2n),
-                if_(tagIs(b, 0xFFFF_FFF0_0000_00FFn, 0x7FF0_0000_0000_0048n), n(4n),
-                    if_(tagIs(b, 0xFFFF_F800_0000_00FFn, 0x7FF0_0000_0000_0058n), n(5n),
-                        if_(tagIs(b, 0xFFFC_0000_0000_00FFn, 0x7FF0_0000_0000_0068n), n(6n),
-                            if_(tagIs(b, 0xFFF0_0000_0000_000Fn, 0x7FF0_0000_0000_0004n), n(3n),
-                                if_(tagIs(b, 0xFFF0_0000_0000_000Fn, 0x7FF0_0000_0000_000Cn), n(8n),
-                                    if_(tagIs(b, 0xFFF0_0000_0000_0007n, 0xFFF0_0000_0000_0004n), n(7n),
-                                        call('String', 'length', [s])))))))))),
+    byTag(b, tag => n(BigInt(allTags.indexOf(tag))), call('String', 'length', [s])),
     call('String', 'length', [s])))
+
+/**
+ * Unit at `i` of a short tag's box: the empty string has none, a one-unit
+ * string's is inline, and the others call this module's function for the tag.
+ *
+ * @type {(tag: ShortTag, b: Term, i: Term) => Term}
+ */
+const unitOfTag = (tag, b, i) => tag === 'empty' ? call('self', 'oob', [])
+    : tag === 's1x16' ? if_(eq(i, n(0n)), and(shr(b, n(8n)), n(0xffffn)), call('self', 'oob', []))
+    : call('self', `unit_${tag}`, [b, i])
 
 /**
  * Unit at `i` of a short-string box, or the long import. Out of range traps
@@ -78,38 +84,24 @@ const lengthBody = s => let_('b', unseal(s), b => if_(isShortBits(b),
  * @type {(s: Term, i: Term) => Term}
  */
 const unitBody = (s, i) => let_('b', unseal(s), b => if_(isShortBits(b),
-    if_(tagIs(b, 0xFFFF_FFFF_FFFF_FFFFn, EMPTY), call('self', 'oob', []),
-        if_(tagIs(b, 0xFFFF_FFFF_FF00_00FFn, 0x7FF0_0000_0000_0018n),
-            if_(eq(i, n(0n)), and(shr(b, n(8n)), n(0xffffn)), call('self', 'oob', [])),
-            if_(tagIs(b, 0xFFFF_FF00_0000_00FFn, 0x7FF0_0000_0000_0028n),
-                call('self', 'unit2', [b, i]),
-                if_(tagIs(b, 0xFFFF_FFF0_0000_00FFn, 0x7FF0_0000_0000_0048n),
-                    call('self', 'unit4x7', [b, i]),
-                    if_(tagIs(b, 0xFFFF_F800_0000_00FFn, 0x7FF0_0000_0000_0058n),
-                        call('self', 'unit5x7', [b, i]),
-                        if_(tagIs(b, 0xFFFC_0000_0000_00FFn, 0x7FF0_0000_0000_0068n),
-                            call('self', 'unit6x7', [b, i]),
-                            if_(tagIs(b, 0xFFF0_0000_0000_000Fn, 0x7FF0_0000_0000_0004n),
-                                call('self', 'unit3x16', [b, i]),
-                                if_(tagIs(b, 0xFFF0_0000_0000_000Fn, 0x7FF0_0000_0000_000Cn),
-                                    call('self', 'unit8', [b, i]),
-                                    if_(tagIs(b, 0xFFF0_0000_0000_0007n, 0xFFF0_0000_0000_0004n),
-                                        call('self', 'unit7x7', [b, i]),
-                                        call('String', 'unit', [s, i])))))))))),
+    byTag(b, tag => unitOfTag(tag, b, i), call('String', 'unit', [s, i])),
     call('String', 'unit', [s, i])))
 
 /**
- * Unrolled unit at a fixed shift: compares `i` to each index so the shift
- * count stays a singleton below 64.
+ * Unrolled unit at a fixed shift, mapped by `of`: compares `i` to each index
+ * so the shift count stays a singleton below 64.
  *
- * @type {(b: Term, i: Term, shifts: readonly bigint[], mask: bigint) => Term}
+ * @type {(b: Term, i: Term, shifts: readonly bigint[], mask: bigint, of: (bits: Term) => Term) => Term}
  */
-const unitAt = (b, i, shifts, mask) => {
+const unitOf = (b, i, shifts, mask, of) => {
     /** @type {(k: number) => Term} */
     const go = k => k === shifts.length ? call('self', 'oob', [])
-        : if_(eq(i, n(BigInt(k))), and(shr(b, n(shifts[Number(k)])), n(mask)), go(k + 1))
+        : if_(eq(i, n(BigInt(k))), of(and(shr(b, n(shifts[Number(k)])), n(mask))), go(k + 1))
     return go(0)
 }
+
+/** {@link unitOf} where the bits are the unit itself. @type {(b: Term, i: Term, shifts: readonly bigint[], mask: bigint) => Term} */
+const unitAt = (b, i, shifts, mask) => unitOf(b, i, shifts, mask, bits => bits)
 
 /**
  * The hooks that Any's `defines` names, with the function they call, taken
@@ -134,29 +126,21 @@ export const module = {
         ...anyHooks,
         // Shared OOB trap for short unit.
         ['oob', fn([], codeUnit, () => trap('not an index'))],
-        ['unit2', fn([['b', u(64)], ['i', index]], codeUnit, (b, i) =>
+        ['unit_s2x16', fn([['b', u(64)], ['i', index]], codeUnit, (b, i) =>
             unitAt(b, i, [8n, 24n], 0xffffn))],
-        ['unit3x16', fn([['b', u(64)], ['i', index]], codeUnit, (b, i) =>
+        ['unit_s3x16', fn([['b', u(64)], ['i', index]], codeUnit, (b, i) =>
             unitAt(b, i, [4n, 20n, 36n], 0xffffn))],
-        ['unit4x7', fn([['b', u(64)], ['i', index]], codeUnit, (b, i) =>
+        ['unit_s4x7', fn([['b', u(64)], ['i', index]], codeUnit, (b, i) =>
             unitAt(b, i, [8n, 15n, 22n, 29n], 0x7fn))],
-        ['unit5x7', fn([['b', u(64)], ['i', index]], codeUnit, (b, i) =>
+        ['unit_s5x7', fn([['b', u(64)], ['i', index]], codeUnit, (b, i) =>
             unitAt(b, i, [8n, 15n, 22n, 29n, 36n], 0x7fn))],
-        ['unit6x7', fn([['b', u(64)], ['i', index]], codeUnit, (b, i) =>
+        ['unit_s6x7', fn([['b', u(64)], ['i', index]], codeUnit, (b, i) =>
             unitAt(b, i, [8n, 15n, 22n, 29n, 36n, 43n], 0x7fn))],
-        ['unit7x7', fn([['b', u(64)], ['i', index]], codeUnit, (b, i) =>
+        ['unit_s7x7', fn([['b', u(64)], ['i', index]], codeUnit, (b, i) =>
             unitAt(b, i, [3n, 10n, 17n, 24n, 31n, 38n, 45n], 0x7fn))],
         // Eight 6-bit alphabet codes starting at bit 4.
-        ['unit8', fn([['b', u(64)], ['i', index]], codeUnit, (b, i) =>
-            if_(eq(i, n(0n)), fromId6(and(shr(b, n(4n)), n(0x3fn))),
-                if_(eq(i, n(1n)), fromId6(and(shr(b, n(10n)), n(0x3fn))),
-                    if_(eq(i, n(2n)), fromId6(and(shr(b, n(16n)), n(0x3fn))),
-                        if_(eq(i, n(3n)), fromId6(and(shr(b, n(22n)), n(0x3fn))),
-                            if_(eq(i, n(4n)), fromId6(and(shr(b, n(28n)), n(0x3fn))),
-                                if_(eq(i, n(5n)), fromId6(and(shr(b, n(34n)), n(0x3fn))),
-                                    if_(eq(i, n(6n)), fromId6(and(shr(b, n(40n)), n(0x3fn))),
-                                        if_(eq(i, n(7n)), fromId6(and(shr(b, n(46n)), n(0x3fn))),
-                                            call('self', 'oob', []))))))))))],
+        ['unit_s8x6', fn([['b', u(64)], ['i', index]], codeUnit, (b, i) =>
+            unitOf(b, i, [4n, 10n, 16n, 22n, 28n, 34n, 40n, 46n], 0x3fn, fromId6))],
         ['length', fn([['s', string]], index, s => lengthBody(s))],
         ['unit', fn([['s', string], ['i', index]], codeUnit, (s, i) => unitBody(s, i))],
     ],

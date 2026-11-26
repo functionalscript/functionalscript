@@ -14,7 +14,7 @@ stays A (`emitA`) as the dyn-ref control.
 This is the next runtime-in-IR phase after scalar Any
 ([runtime-in-ir.md](./runtime-in-ir.md); checkpoints through 4d-2 on
 `main` as [#4113](https://github.com/functionalscript/functionalscript/pull/4113),
-with 4e linking/remeasure assumed landing as #4114–#4116). It follows the
+with 4e linking/remeasure merged as #4114–#4116). It follows the
 [modular runtime](../wasm/modular-runtime.md) and
 [modular L0](../wasm/modular-l0.md) notes: several String implementations
 behind one module interface, swappable without rewriting callers.
@@ -32,7 +32,7 @@ hooks need no change when short strings appear
 What is still expensive is **reference-shaped** work. On the After
 linkAny table in [benchmark.md](./benchmark.md) (checkpoint 4e,
 [#4116](https://github.com/functionalscript/functionalscript/pull/4116)
-tip; assumed landing with #4114–#4115), `repeat` is about **950×**
+tip, merged with #4114–#4115), `repeat` is about **950×**
 JavaScript, and its L0 import profile is mostly `kind_ref` / `dup_ref` /
 `drop_ref` (plus container/string imports). The older third-run table on
 `main` before linkAny had `repeat` at 108× with `kind`/`dup`/`drop`

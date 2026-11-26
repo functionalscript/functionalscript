@@ -5,19 +5,11 @@
  */
 
 import type { Kind } from '../../../wasm/runtime/l0/types.ts'
-import type { ShortTag } from '../../runtime/string/types.ts'
+import type { StringEmit } from '../../runtime/string/types.ts'
 import type { Host as NativeHost } from '../../native/host/types.ts'
 
-/**
- * Whether allocating string imports on a counting / NaNVM host may return
- * a short-string box ([short-strings.md](../../../../doc/sasha-gil/ir/short-strings.md)
- * S2 / S4 decision gate). Prefer named policies `emitA` / `emitB` from
- * `runtime/string/short.f.js`: A is always dyn-ref (counting default);
- * B is short when a v1-enabled tag fits (NaNVM default).
- */
-export type StringEmit =
-    | { readonly kind: 'alwaysDynRef' }
-    | { readonly kind: 'shortWhenEnabled', readonly enabledTags: readonly ShortTag[] }
+/** The String module's emit policy, as the hosts take it. */
+export type { StringEmit }
 
 /**
  * The functions of the `fjs:l0` imports that [the interfaces of

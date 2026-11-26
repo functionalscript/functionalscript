@@ -13,9 +13,10 @@
  */
 
 import { kinds, ref } from '../../l0/module.f.js'
+import { FALSE, NULL, TRUE, UNDEFINED, isNumberTerm, isRefTerm } from '../box/module.f.js'
 import {
     and, bool, call, canon, constant, eq, f64, f64c, fn, from_bits, hint, if_, int, let_,
-    make, n, ne, only, own, seal, sealed, shr, signature, to_bits, true_, u, unit, unseal,
+    make, n, ne, only, own, seal, sealed, shr, signature, to_bits, u, unit, unseal,
 } from '../../module.f.js'
 
 /** A value of unknown kind, as this module defines it. */
@@ -29,34 +30,6 @@ const number = only(any, 'number')
 
 /** A reference of `any`: an array, an object or a function. */
 const reference = only(any, 'array', 'object', 'function')
-
-/** The exponent's bits: a float whose exponent is not all ones is finite. */
-const EXP = 0x7FF0_0000_0000_0000n
-
-/** The bits that tell a non-finite number from the other scalars. */
-const TAG8 = 0x7FF0_0000_0000_00FFn
-
-/** The NaN box of `false`. */
-const FALSE = 0x7FF0_0000_0000_0010n
-
-/** The NaN box of `true`. */
-const TRUE = 0xFFF0_0000_0000_0010n
-
-/** The NaN box of `undefined`. */
-const UNDEFINED = 0x7FF0_0000_0000_0020n
-
-/** The NaN box of `null`. */
-const NULL = 0x7FF0_0000_0000_0030n
-
-/** The mask and pattern of a dynamic reference, as Sergey's README lays one out. */
-const REF_TAG = 0xFFF0_0000_0000_0003n
-const DYN_REF = 0x7FF0_0000_0000_0002n
-
-/** Whether bits are a number: finite, or non-finite with the number's tag. @type {(b: Term) => Term} */
-const isNumberBits = b => if_(eq(and(b, n(EXP)), n(EXP)), eq(and(b, n(TAG8)), n(EXP)), true_)
-
-/** Whether bits are a dynamic reference. @type {(b: Term) => Term} */
-const isRefBits = b => eq(and(b, n(REF_TAG)), n(DYN_REF))
 
 /**
  * L0's kind of a scalar tag `(b >> 4) & 3`: boolean 2, undefined 0, null 1,
@@ -72,22 +45,31 @@ const scalarKind = b => let_('tag', and(shr(b, n(4n)), n(3n)), tag =>
 const stringLiteral = { variant: 'string', module: 'String', member: 'make_string' }
 
 /**
- * The interface that importers of this module see: L0's Any with `number`
- * among the copy variants, so a value narrowed to a number needs no count.
+ * The `any` that this module defines and its importers see: L0's Any with
+ * `number` among the copy variants, so a value narrowed to a number needs no
+ * count.
+ *
+ * @type {Interface['types']}
+ */
+const types = [['any', {
+    variants: kinds,
+    kind: 'kind',
+    carrier: 'i64',
+    dup: 'dup',
+    drop: 'drop',
+    copy: ['undefined', 'null', 'boolean', 'number'],
+    literal: stringLiteral,
+}]]
+
+/**
+ * The interface that importers of this module see: {@link types}, its
+ * constants and its functions.
  *
  * @type {Interface}
  */
 export const iface = {
     abi: 'fjs:l0',
-    types: [['any', {
-        variants: kinds,
-        kind: 'kind',
-        carrier: 'i64',
-        dup: 'dup',
-        drop: 'drop',
-        copy: ['undefined', 'null', 'boolean', 'number'],
-        literal: stringLiteral,
-    }]],
+    types,
     constants: [
         ['undefined', only(any, 'undefined')],
         ['null', only(any, 'null')],
@@ -113,18 +95,7 @@ export const iface = {
  *
  * @type {NonNullable<Module['defines']>}
  */
-export const defines = {
-    name: 'Any',
-    types: [['any', {
-        variants: kinds,
-        kind: 'kind',
-        carrier: 'i64',
-        dup: 'dup',
-        drop: 'drop',
-        copy: ['undefined', 'null', 'boolean', 'number'],
-        literal: stringLiteral,
-    }]],
-}
+export const defines = { name: 'Any', types }
 
 /**
  * Any's IR module: it defines `any`, imports `Ref`, and exports the
@@ -143,13 +114,13 @@ export const module = {
     ],
     functions: [
         // Whether bits are a dynamic reference: two bit operations, which the inline pass writes into each hook that asks.
-        ['isRef', hint('always', fn([['b', u(64)]], bool, b => isRefBits(b)))],
+        ['isRef', hint('always', fn([['b', u(64)]], bool, b => isRefTerm(b)))],
         // Hooks over bits: count a reference through Ref, pass every other box through.
         ['dup', fn([['b', u(64)]], u(64), b => if_(call('self', 'isRef', [b]), call('Ref', 'dup_ref', [b]), b))],
         ['drop', fn([['b', u(64)]], unit, b => if_(call('self', 'isRef', [b]), call('Ref', 'drop_ref', [b]), make([])))],
         // L0's kind from the box: numbers, short bigints, references, short strings, then scalar tags.
         ['kind', fn([['v', any]], int(0n, 8n), v => let_('b', unseal(v), b =>
-            if_(isNumberBits(b), n(3n),
+            if_(isNumberTerm(b), n(3n),
                 if_(eq(and(b, n(1n)), n(1n)), n(5n),
                     if_(call('self', 'isRef', [b]), call('Ref', 'kind_ref', [b]),
                         if_(ne(and(b, n(0xCn)), n(0n)), n(4n),

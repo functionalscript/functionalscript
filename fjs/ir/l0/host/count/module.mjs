@@ -99,42 +99,16 @@
  * @import { Counting, StringEmit } from '../types.ts'
  */
 
-import { emitA, emitB, isShort, maxEnabledLen, packEnabled, unpack } from '../../../runtime/string/short.f.js'
+import { emitA, emitB, enabledTagsOf, isShort, maxEnabledLen, packEnabled, unpack } from '../../../runtime/string/short.f.js'
 import { kind as valueKind } from '../../../../wasm/runtime/l0/module.f.js'
 import { view } from '../module.f.js'
+import { DYN_REF, FALSE, NAN, NULL, TRUE, UNDEFINED, isNumberBits, isRefBits } from '../../../runtime/box/module.f.js'
 
 export { emitA, emitB }
-
-/** The exponent's bits: a float whose exponent is not all ones is finite. */
-const EXP = 0x7FF0_0000_0000_0000n
-/** The bits that tell a non-finite number from the other scalars. */
-const TAG8 = 0x7FF0_0000_0000_00FFn
-/** The one NaN a number is boxed as. */
-const NAN = 0x7FF8_0000_0000_0000n
-/** The bits that tell a counted reference, and what they are for one. */
-const REF_TAG = 0xFFF0_0000_0000_0003n
-const DYN_REF = 0x7FF0_0000_0000_0002n
-
-/** The NaN box of `undefined`. */
-const UNDEFINED = 0x7FF0_0000_0000_0020n
-/** The NaN box of `null`. */
-const NULL = 0x7FF0_0000_0000_0030n
-/** The NaN box of `false`. */
-const FALSE = 0x7FF0_0000_0000_0010n
-/** The NaN box of `true`. */
-const TRUE = 0xFFF0_0000_0000_0010n
 
 /** An i64 as the WebAssembly JavaScript API passes one. @type {(b: bigint) => bigint} */
 const i64 = b => BigInt.asIntN(64, b)
 
-/** Whether bits are a number: finite, or non-finite with the number's tag. @type {(b: bigint) => boolean} */
-const isNumberBits = b => {
-    const x = BigInt.asUintN(64, b)
-    return (x & EXP) !== EXP || (x & TAG8) === EXP
-}
-
-/** Whether bits are a dynamic reference. @type {(b: bigint) => boolean} */
-const isRefBits = b => (BigInt.asUintN(64, b) & REF_TAG) === DYN_REF
 
 /**
  * UTF-16 units of a JS string (surrogate pairs stay as two units).
@@ -208,6 +182,9 @@ const dataBase = 0x100
  * @type {(values: readonly unknown[], data?: number, entries?: number, stringEmit?: StringEmit) => Counting}
  */
 export const counting = (values, data = 0, entries = 0, stringEmit = emitA) => {
+    /** The short encodings this host may make, and the most units any of them holds. */
+    const enabledTags = enabledTagsOf(stringEmit)
+    const maxLen = maxEnabledLen(enabledTags)
     /** @type {Map<bigint, { readonly value: unknown, readonly count: number }>} */
     const cells = new Map()
     /** The count at which each kept cell was kept. @type {Map<bigint, number>} */
@@ -240,9 +217,8 @@ export const counting = (values, data = 0, entries = 0, stringEmit = emitA) => {
         if (value === true) { return i64(TRUE) }
         if (value === false) { return i64(FALSE) }
         if (typeof value === 'number') { return numberBox(value) }
-        if (typeof value === 'string' && stringEmit.kind === 'shortWhenEnabled'
-            && value.length <= maxEnabledLen(stringEmit.enabledTags)) {
-            const packed = packEnabled(unitsOf(value), stringEmit.enabledTags)
+        if (typeof value === 'string' && value.length <= maxLen) {
+            const packed = packEnabled(unitsOf(value), enabledTags)
             if (packed[0] === 'ok') { return i64(packed[1]) }
         }
         const h = next
