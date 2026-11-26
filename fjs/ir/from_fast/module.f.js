@@ -180,7 +180,7 @@ import { arrayBuilt, objectBuilt } from './spread/module.f.js'
 import { bindTerm, castCall, casts, getOf, isPure, isSpread, l1Of, linking, pure, refuse, settled, settledParts, standsFor, values } from './scope/module.f.js'
 import { link, linkAny, linkString, linkedName, uses } from './link/module.f.js'
 import { show } from '../print/module.f.js'
-import { module as anyModule } from '../runtime/any/module.f.js'
+import { checked as checkedAny, module as anyModule } from '../runtime/any/module.f.js'
 import { module as stringModule } from '../runtime/string/ir.f.js'
 
 /** A count in a message: `one parameter`, `2 values`. @type {(k: number, noun: string) => string} */
@@ -2098,14 +2098,16 @@ const madeClosures = (lowerClosure, closures, todo) => {
  * whose interfaces it then imports, and, where the module reads L1's error
  * table, its specifier and the table, which [`errorTable`](./link/module.f.js#errortable)
  * reads from its text, and, for a program, L1's plain stage, which
- * [`link`](./link/module.f.js#link) merges into it; then the normalized FAST of the
+ * [`link`](./link/module.f.js#link) merges into it, and `checkedKind` for a debug build,
+ * where Any's `kind` of a reference is NaNVM's checked `kind_ref`, not its
+ * `tttt` bits; then the normalized FAST of the
  * module's text and its imports. The functions keep the order of the
  * exports. Each other definition of the module is a constant, named for
  * its place among them, `#c0` first, whose term reads the constants before
  * it; the module keeps those that the functions read, themselves or
  * through the constants that they read, in their order.
  *
- * @type {(signatures: Readonly<Record<string, Signature>>, runtime?: { readonly l0: string, readonly native: string, readonly errors?: { readonly specifier: string, readonly table: readonly (readonly [string, string])[] }, readonly l1?: Module } | null) => (fast: Block, imports?: readonly AstImport[]) => Result<Module, string>}
+ * @type {(signatures: Readonly<Record<string, Signature>>, runtime?: { readonly l0: string, readonly native: string, readonly errors?: { readonly specifier: string, readonly table: readonly (readonly [string, string])[] }, readonly l1?: Module, readonly checkedKind?: boolean } | null) => (fast: Block, imports?: readonly AstImport[]) => Result<Module, string>}
  */
 export const lower = (signatures, runtime = null) => ({ statements, exit }, imports = []) => {
     const table = Object.entries(signatures)
@@ -2250,5 +2252,5 @@ export const lower = (signatures, runtime = null) => ({ statements, exit }, impo
     const m = { imports: interfaces, constants, functions: everything, exports: lowered.map(([key]) => key) }
     if (l1 === null) { return ok(literals(m)) }
     // a program: L1's bodies linked in, then the objects that it only reads back split, then its boxed numbers made once (still as Any.from_f64), then Any's bodies linked in so scalar ops and those boxes are local, then String's short-path length/unit
-    return okThen(linkString(stringModule))(okThen(linkAny(anyModule))(mapOk(x => literals(records('l1.get')(x)))(link(l1)(m))))
+    return okThen(linkString(stringModule))(okThen(linkAny(runtime !== null && runtime.checkedKind === true ? checkedAny : anyModule))(mapOk(x => literals(records('l1.get')(x)))(link(l1)(m))))
 }

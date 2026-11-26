@@ -16,7 +16,7 @@ import { kinds, ref } from '../../l0/module.f.js'
 import { FALSE, NULL, TRUE, UNDEFINED, isNumberTerm, isRefTerm } from '../box/module.f.js'
 import {
     and, bool, call, canon, constant, eq, f64, f64c, fn, from_bits, if_, int, let_,
-    make, n, ne, only, own, seal, sealed, shr, signature, to_bits, u, unit, unseal,
+    make, n, ne, only, own, seal, sealed, shr, signature, to_bits, trap, u, unit, unseal,
 } from '../../module.f.js'
 
 /** A value of unknown kind, as this module defines it. */
@@ -98,12 +98,35 @@ export const iface = {
 export const defines = { name: 'Any', types }
 
 /**
- * Any's IR module: it defines `any`, imports `Ref`, and exports the
- * functions and constants of {@link iface}, plus `isRef` for proofs.
+ * The kind of a reference's bits read from its `tttt` nibble, which holds
+ * L0's kind (4 string to 8 function), with no call: bits whose nibble is
+ * none of those trap. NaNVM does not check the handle here, so the bits of
+ * a dropped reference answer the kind they had; `dup`, `drop` and `same`
+ * still go through `Ref`, which checks it. The lifetime pass and the owned
+ * check keep a checked program from reading a reference that it dropped.
  *
- * @type {Module}
+ * @type {(b: Term) => Term}
  */
-export const module = {
+const tagKind = b => let_('t', and(shr(b, n(48n)), n(0xFn)), t =>
+    [4n, 5n, 6n, 7n, 8n].reduceRight((rest, k) => if_(eq(t, n(k)), n(k), rest), trap('not a value')))
+
+/**
+ * The kind of a reference's bits as NaNVM answers it: `Ref.kind_ref`, which
+ * checks that the handle is live and that `tttt` is the kind it keeps for
+ * it, and traps otherwise.
+ *
+ * @type {(b: Term) => Term}
+ */
+const checkedKind = b => call('Ref', 'kind_ref', [b])
+
+/**
+ * Any's IR module with the kind of a reference given by `refKind`: it
+ * defines `any`, imports `Ref`, and exports the functions and constants of
+ * {@link iface}, plus `isRef` for proofs.
+ *
+ * @type {(refKind: (b: Term) => Term) => Module}
+ */
+const moduleOf = refKind => ({
     imports: [ref],
     defines,
     constants: [
@@ -118,11 +141,11 @@ export const module = {
         // Hooks over bits: count a reference through Ref, pass every other box through.
         ['dup', fn([['b', u(64)]], u(64), b => if_(call('self', 'isRef', [b]), call('Ref', 'dup_ref', [b]), b))],
         ['drop', fn([['b', u(64)]], unit, b => if_(call('self', 'isRef', [b]), call('Ref', 'drop_ref', [b]), make([])))],
-        // L0's kind from the box: numbers, short bigints, references, short strings, then scalar tags.
+        // L0's kind from the box: numbers, short bigints, references (by `refKind`), short strings, then scalar tags.
         ['kind', fn([['v', any]], int(0n, 8n), v => let_('b', unseal(v), b =>
             if_(isNumberTerm(b), n(3n),
                 if_(eq(and(b, n(1n)), n(1n)), n(5n),
-                    if_(call('self', 'isRef', [b]), call('Ref', 'kind_ref', [b]),
+                    if_(call('self', 'isRef', [b]), refKind(b),
                         if_(ne(and(b, n(0xCn)), n(0n)), n(4n),
                             scalarKind(b)))))))],
         // A number's bits as an f64c; a float as a number's bits.
@@ -146,4 +169,21 @@ export const module = {
         'isRef', 'kind', 'to_f64', 'from_f64', 'to_bool', 'from_bool', 'same', 'dup', 'drop',
         'keep', 'take', 'forget', 'undefinedOf', 'nullOf', 'falseOf', 'trueOf',
     ],
-}
+})
+
+/**
+ * Any's IR module, which programs link: the kind of a reference is read
+ * from its bits ({@link tagKind}).
+ *
+ * @type {Module}
+ */
+export const module = moduleOf(tagKind)
+
+/**
+ * Any's IR module for a debug build: the kind of a reference is NaNVM's
+ * checked `kind_ref` ({@link checkedKind}), so a dropped or forged reference
+ * traps there too. `lower` links it where its runtime says `checkedKind`.
+ *
+ * @type {Module}
+ */
+export const checked = moduleOf(checkedKind)
