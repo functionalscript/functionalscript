@@ -450,8 +450,9 @@ const withValues = (t, values) => {
  * of the loop, so its binders still see the loop-part claims. A split
  * `let`'s part binders and a split loop's parameter parts are claimed
  * before the body, so an arm that would reuse an enclosing generated
- * spelling still hits. `br` fields reuse `part` spellings without
- * claiming. Reads of a part do not claim.
+ * spelling still hits. Sibling non-split `br` state fields each start
+ * from the pre-field claims (OR hits only); split `br` fields still reuse
+ * `part` spellings without claiming. Reads of a part do not claim.
  *
  * @typedef {readonly (readonly [string, string])[]} _Claimed
  * @typedef {readonly [_Claimed, boolean]} _ClaimSt
@@ -674,6 +675,8 @@ const rewrite = (get, split, existing, taken, widens, fullAny) => {
                     const [v, st1] = go(e, `${path}/v`, env, null, st)
                     return [['br', t[1], v], st1]
                 }
+                // Sibling non-split state fields each start from the current
+                // claim list (OR hits only); prior split-moved binders stay.
                 /** The `br`, the split parameters' chains moved before it, from the `j`th field on. @type {(j: number, env: _Env, done: readonly (readonly [string, Term])[], st: _ClaimSt) => readonly [Term, _ClaimSt]} */
                 const from = (j, ee, done, stF) => {
                     if (j === e[1].length) { return [['br', t[1], ['make', done]], stF] }
@@ -681,8 +684,8 @@ const rewrite = (get, split, existing, taken, widens, fullAny) => {
                     const p = params.find(([name]) => name === k)
                     const keys = p === undefined ? null : keysAt(p[1])
                     if (keys === null) {
-                        const [v, st1] = go(x, `${path}/v${j}`, ee, null, stF)
-                        return from(j + 1, ee, [...done, [k, v]], st1)
+                        const [v, [, hitV]] = go(x, `${path}/v${j}`, ee, null, [stF[0], false])
+                        return from(j + 1, ee, [...done, [k, v]], [stF[0], stF[1] || hitV])
                     }
                     return moved(x, `${path}/v${j}`, ee, k, (values, stV) => {
                         // field names match the loop parameters already claimed

@@ -581,6 +581,33 @@ export const proof = {
     loopInitHoistedFieldClaims: () => same(
         loop('L', [['s', any, let_('t', a, object([['x', let_('s', let_('t', b, object([['x', get('t')]])), read(get('s'), 'x'))]]))]], () => a),
     ),
+    // Sibling non-split br state fields each bind r.x; claims do not collide.
+    brFieldClaims: () => golden(
+        loop('L', [
+            ['k', any, a],
+            ['m', any, b],
+        ], (k, m) => if_(k, br('L', make([
+            ['k', let_('r', object([['x', a]]), read(get('r'), 'x'))],
+            ['m', let_('r', object([['x', b]]), read(get('r'), 'x'))],
+        ])), m)),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    loop L (k: any = a, m: any = b)',
+            '        if k',
+            '        then',
+            '            br L',
+            '                {',
+            '                    k:',
+            '                        let r.x = a',
+            '                        r.x,',
+            '                    m:',
+            '                        let r.x = b',
+            '                        r.x',
+            '                }',
+            '        else',
+            '            m',
+        ],
+    ),
     // Initial and br both write `let t` under split local `s`: claiming
     // `s/t` (and `s.x` as both a let and a loop parameter) twice would bind
     // them in nested scopes, so the objects stay.
