@@ -221,6 +221,17 @@ export const proof = {
             '        "hi"',
         ],
     ),
+    // A value that is already a block of full any is not wrapped again.
+    alreadyAnyBlock: () => golden(
+        let_('r', object([['x', block('B', any, s('hi'))]]), read(get('r'), 'x')),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    let r.x =',
+            '        block B: any',
+            '            "hi"',
+            '    r.x',
+        ],
+    ),
     // A non-literal string-typed value (if of two string lits) also widens,
     // so a later match may still name number (get would have answered any).
     stringIf: () => {
