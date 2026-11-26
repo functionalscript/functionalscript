@@ -20,11 +20,11 @@
  * - **An argument narrower than its parameter is widened** by a `block` of
  *   the parameter's type, since the body was checked at that type, and a
  *   `match` of it may name variants that the argument does not hold.
- * - **A repeat of a loop of the body names the loop's parameters** with
- *   the prefix too.
  *   A linear value is no such argument, since the `let` of the copy would
  *   own what the call only lent, and nothing may copy it: the pass refuses
  *   such a call.
+ * - **A repeat of a loop of the body names the loop's parameters** with
+ *   the prefix too.
  * - **A copy holds the copies of its own calls.** The pass writes the body
  *   of each function that it inlines with its calls inlined too, which ends
  *   since the checker refuses a hint that reaches itself.
