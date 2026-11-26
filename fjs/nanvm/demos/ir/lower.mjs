@@ -23,19 +23,17 @@ import { emit } from '../../../ir/wasm/module.f.js'
 /** A path from the repository's root, as a URL. @type {(path: string) => URL} */
 export const here = path => new URL(`../../../../${path}`, import.meta.url)
 
-/** The lowering's runtime, as `lower` takes it. @typedef {NonNullable<Parameters<typeof lower>[1]>} Runtime */
-
-/** The IR module of a file's text. @type {(path: URL, table: Parameters<typeof lower>[0], runtime: Runtime) => Module} */
+/** The IR module of a file's text. @type {(path: URL, table: Parameters<typeof lower>[0], runtime: NonNullable<Parameters<typeof lower>[1]>) => Module} */
 const fromText = (path, table, runtime) => {
     const { fast, imports } = assertOk(sourceOf(readFileSync(path, 'utf8')))
     return assertOk(lower(table, runtime)(fast, imports))
 }
 
-/** L1 lowered from its text, with its error table, as the programs' runtime. @type {() => Runtime} */
-const runtimeOf = () => {
-    const errors = assertOk(errorTable(assertOk(sourceOf(readFileSync(here('fjs/wasm/runtime/l1/error/module.f.js'), 'utf8'))).fast))
-    return { ...l1Runtime(errors), l1: fromText(here('fjs/wasm/runtime/l1/module.f.js'), l1Whole, l1Runtime(errors)) }
-}
+/** L1's error table, from its text. */
+const errors = assertOk(errorTable(assertOk(sourceOf(readFileSync(here('fjs/wasm/runtime/l1/error/module.f.js'), 'utf8'))).fast))
+
+/** L1 lowered once from its text, with its error table, as every program's runtime. */
+const runtime = { ...l1Runtime(errors), l1: fromText(here('fjs/wasm/runtime/l1/module.f.js'), l1Whole, l1Runtime(errors)) }
 
 /**
  * The WebAssembly bytes of the demo `name`'s `ir.f.js`. A module that check
@@ -44,7 +42,7 @@ const runtimeOf = () => {
  * @type {(name: string) => Uint8Array<ArrayBuffer>}
  */
 export const programBytes = name => {
-    const m = assertOk(lifetime(fromText(here(`fjs/nanvm/demos/${name}/ir.f.js`), {}, runtimeOf())))
+    const m = assertOk(lifetime(fromText(here(`fjs/nanvm/demos/${name}/ir.f.js`), {}, runtime)))
     const [tag, checked] = check(m)
     if (tag !== 'ok') { throw new Error(String(checked)) }
     return new Uint8Array(write(emit(checked)))
