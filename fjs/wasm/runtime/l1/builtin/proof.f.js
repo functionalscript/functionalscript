@@ -1,6 +1,6 @@
 import { assert, assertEq, assertStructurallySame } from '../../../../asserts/module.f.js'
 import { entry as hostEntry, hasEntry as hostHasEntry } from '../../../../types/object/entry/module.f.js'
-import { charCodeAt, entries, entry, fromCharCode, hasEntry, slice } from './module.f.js'
+import { entries, entry, fromCharCode, hasEntry, slice } from './module.f.js'
 import { structurallySame } from '../../../../types/object/structurally_same/module.f.js'
 
 /** A function value. @type {(a: unknown) => unknown} */
@@ -30,14 +30,6 @@ const keys = /** @type {readonly unknown[]} */ ([
 ])
 
 export const proof = {
-    // `charCodeAt` answers what the host's `charCodeAt` answers.
-    charCodeAt: () => {
-        for (const s of strings) {
-            for (const at of numbers) {
-                assert(Object.is(charCodeAt(s, at), s.charCodeAt(/** @type {number} */ (at))), `${s} ${String(at)}`)
-            }
-        }
-    },
     // `slice` answers what the host's `slice` answers, `undefined` ends
     // included.
     slice: () => {
@@ -78,8 +70,6 @@ export const proof = {
         }
     },
     throw: {
-        charCodeAtNotString: () => { charCodeAt(['a'], 0) },
-        charCodeAtBigInt: () => { charCodeAt('a', 0n) },
         sliceNotString: () => { slice(1, 0, 1) },
         fromCharCodeNotArray: () => { fromCharCode(0x61) },
         fromCharCodeBigInt: () => { fromCharCode([1n]) },

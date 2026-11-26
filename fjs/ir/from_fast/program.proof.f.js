@@ -1896,4 +1896,17 @@ export const proof = {
             exports: ['f'],
         })
     },
+    // A program reads a reference's kind from its bits; `checkedKind`, for a debug build, links the Any whose `kind` asks L0's checked `kind_ref`.
+    checkedKind: () => {
+        /** @type {(r: Parameters<typeof lower>[1]) => string} */
+        const kindOf = r => {
+            const m = assertOk(over({}, 'export const f = v => typeof v', r))
+            const found = m.functions.find(([k]) => k === 'any.kind')
+            assert(found !== undefined)
+            return print({ imports: [], functions: [found], exports: [] })
+        }
+        assert(!kindOf(programRuntime).includes('Ref.kind_ref('))
+        assert(kindOf({ ...programRuntime, checkedKind: true }).includes('Ref.kind_ref('))
+        assert(!kindOf({ ...programRuntime, checkedKind: false }).includes('Ref.kind_ref('))
+    },
 }
