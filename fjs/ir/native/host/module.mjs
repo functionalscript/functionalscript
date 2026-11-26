@@ -32,8 +32,20 @@ import {
     stringToBigInt, stringToNumber,
 } from '../../../wasm/runtime/l1/native/module.f.js'
 
-/** The least magnitude past NaNVM's limit on a bigint, 2^14 words of 64 bits (`MAX_WORDS` in `nanvm/lib/src/vm/bigint/mod.rs`). */
-const tooLarge = 1n << (64n * (1n << 14n))
+/**
+ * NaNVM's limit on a bigint's magnitude, in bits: 2^14 words of 64 bits
+ * (`MAX_WORDS` in `nanvm/lib/src/vm/bigint/mod.rs`). A magnitude is past it
+ * when it has a bit at or above this one.
+ *
+ * The bound is a bit count, not the bigint `1n << maxBits`: that one has
+ * 2^20 + 1 bits, one more than Firefox lets a BigInt have, so making it
+ * throws a `RangeError` when this module loads, and every page that
+ * imports the module fails.
+ */
+const maxBits = 64n * (1n << 14n)
+
+/** Whether a bigint is past NaNVM's limit. @type {(r: bigint) => boolean} */
+const pastLimit = r => ((r < 0n ? -r : r) >> maxBits) !== 0n
 
 /**
  * The `fjs:l1-native` imports over a reading of handles, the one that the
@@ -59,7 +71,7 @@ export const host = (read, make, fail) => {
         try {
             const r = f()
             // NaNVM's limit, `MAX_WORDS` of `u64` words, is lower than an engine's, so a row past it throws here as on NaNVM.
-            if (typeof r === 'bigint' && (r < 0n ? -r : r) >= tooLarge) { throw error.bigintTooLarge }
+            if (typeof r === 'bigint' && pastLimit(r)) { throw error.bigintTooLarge }
             return make(r)
         } catch (e) {
             const thrown = e instanceof RangeError ? error.bigintTooLarge : e
