@@ -350,7 +350,7 @@ const withValues = (t, values) => {
  * @typedef {readonly (readonly [string, string])[]} _Claimed
  * @typedef {readonly [_Claimed, boolean]} _ClaimSt
  *
- * @type {(get: string, split: _Split, existing: ReadonlySet<string>) => (t: Term, path: string, env: _Env, key: string | null, st: _ClaimSt) => readonly [Term, _ClaimSt]}
+ * @type {(get: string, split: _Split, existing: readonly string[]) => (t: Term, path: string, env: _Env, key: string | null, st: _ClaimSt) => readonly [Term, _ClaimSt]}
  */
 const rewrite = (get, split, existing) => {
     /** The keys of a local that the pass splits, by its path. @type {(id: string) => readonly string[] | null} */
@@ -358,7 +358,7 @@ const rewrite = (get, split, existing) => {
     /** Claim `n` as a binder from `origin`, or mark a collision. @type {(st: _ClaimSt, n: string, origin: string) => _ClaimSt} */
     const claim = (st, n, origin) => {
         const [claimed, hit] = st
-        if (existing.has(n)) { return [claimed, true] }
+        if (existing.includes(n)) { return [claimed, true] }
         const prev = claimed.find(([k]) => k === n)
         if (prev !== undefined) { return prev[1] !== origin ? [claimed, true] : st }
         return [[...claimed, [n, origin]], hit]
@@ -603,7 +603,7 @@ const rewrite = (get, split, existing) => {
  * @type {(get: string) => (f: Fn) => Fn}
  */
 const once = get => f => {
-    const existing = new Set([...f.params.map(([k]) => k), ...binders(f.body)])
+    const existing = [...f.params.map(([k]) => k), ...binders(f.body)]
     const env = f.params.reduce((e, [k]) => bind(e, [k, `param/${k}`, k]), top)
     // what the function answers leaves it
     const [from, fs] = facts(get)(f.body, 'f', env, true)
