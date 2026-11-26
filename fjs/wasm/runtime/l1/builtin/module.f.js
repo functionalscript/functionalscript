@@ -9,11 +9,12 @@
  * operations, and proved against the host's own function.
  *
  * [`fjs/js/runtime`](../../../../js/runtime/module.f.js) does not change:
- * the WASM backend binds these names to the bodies here, while the
- * interpreter and the Rust backend keep answering them natively. Nothing
- * binds them yet: `fjs/ir`'s lowering takes only the method calls that L1
- * itself answers. `charCodeAt` is one of those since #4063, so its body is
- * L1's [`charCodeAt`](../module.f.js), not one here.
+ * the WASM backend is to bind these names to the bodies here once
+ * `fjs/ir`'s lowering takes them, while the interpreter and the Rust
+ * backend keep answering them natively. Nothing binds them yet: the
+ * lowering takes only the method calls that L1 itself answers.
+ * `charCodeAt` is one of those since #4063, so its body is L1's
+ * [`charCodeAt`](../module.f.js), not one here.
  *
  * @module
  */
