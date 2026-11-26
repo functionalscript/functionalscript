@@ -30,9 +30,10 @@
  *   open), unless it is already a `block` of full `any`. Locals and object
  *   sites are widened too: a parameter of `any.only(string)`, or a nested
  *   object of kind `object`, must not stand in for `get`, which answers
- *   `any`. A later round still finds a site under a widen `block`
- *   (`W`/`W_`/…) and may split it; a user-authored block is not peeled, so
- *   a `br` to its label stays inside.
+ *   `any`. A later round still finds a site under a widen `block` this
+ *   pass introduced and may split it; ownership is the labels `settled`
+ *   recorded from each round, not the `W`/`W_` spelling — a user-authored
+ *   `block W` is never peeled, so a `br` to its label stays inside.
  * - **How it splits.** A local `s` of keys `i` and `acc` is the locals
  *   `s.i` and `s.acc`, of `any`: a `let` binds each, a loop has a
  *   parameter for each, and a `br` gives each. The `let`s of the chain that
@@ -90,41 +91,33 @@ const isPure = t => t[0] === 'get' || t[0] === 'lit'
 const isFullAny = ty => ty[0] === 'sealed' && ty[3] === null
 
 /**
- * Whether a label is one this pass uses for widen blocks (`W`, `W_`, …).
- * User-authored blocks with other names must not be peeled.
+ * A widen `block` this pass introduced: full `any`, and its label is one
+ * `settled` recorded from a prior round. Label text alone is not ownership
+ * — a user may author `block W`.
  *
- * @type {(n: string) => boolean}
+ * @type {(widens: readonly string[], t: Term) => boolean}
  */
-const isWidenLabel = n => {
-    if (n.length === 0 || n[0] !== 'W') { return false }
-    return n.slice(1).split('').every(c => c === '_')
-}
+const isWidenBlock = (widens, t) => t[0] === 'block' && isFullAny(t[2]) && widens.includes(t[1])
 
 /**
- * A widen `block` this pass introduced (full `any`, label `W`/`W_`/…), or
- * `null`.
+ * A pass-introduced widen `block`'s body, or the term itself. Does not peel
+ * a user-authored block (a `br` to its label would escape).
  *
- * @type {(t: Term) => boolean}
+ * @type {(widens: readonly string[], t: Term) => Term}
  */
-const isWidenBlock = t => t[0] === 'block' && isFullAny(t[2]) && isWidenLabel(t[1])
-
-/**
- * A full-`any` widen `block`'s body, or the term itself. Does not peel a
- * user-authored block (a `br` to its label would escape).
- *
- * @type {(t: Term) => Term}
- */
-const peelWiden = t => isWidenBlock(t) ? peelWiden(t[3]) : t
+const peelWiden = (widens, t) => isWidenBlock(widens, t)
+    ? peelWiden(widens, /** @type {readonly ['block', string, Type, Term]} */ (t)[3])
+    : t
 
 /**
  * The keys and the values of an object that a term builds as the lowering
- * writes one, or `null`. A full-`any` widen `block` around a site does not
- * hide it: a later round may still split that site.
+ * writes one, or `null`. A pass-introduced widen `block` around a site does
+ * not hide it: a later round may still split that site.
  *
- * @type {(t: Term) => _Site | null}
+ * @type {(widens: readonly string[], t: Term) => _Site | null}
  */
-const siteOf = t => {
-    t = peelWiden(t)
+const siteOf = (widens, t) => {
+    t = peelWiden(widens, t)
     if (t[0] !== 'match' || t[2].length !== 2) { return null }
     const [[variants, binder, body], [rest, , other]] = t[2]
     const sealed = t[1]
@@ -153,7 +146,8 @@ const siteOf = t => {
  * `if` of strings — is wrapped in a `block` of `any`, so a subset does not
  * stand in for a `get` and break a later `match` that names another kind.
  * `siteOf` still sees a site under that `block`, so a later round can split
- * it. `widen` is a label not already open in the function.
+ * it. `widen` is a label not already open in the function; `settled` records
+ * it so later rounds peel only that ownership.
  *
  * @type {(widen: string) => (t: Term) => Term}
  */
@@ -167,10 +161,10 @@ const asGet = widen => t => {
  * split, whose chains then move before the others: all but one of them do
  * nothing, as a local, a literal, or an object of these does nothing.
  *
- * @type {(values: readonly Term[]) => boolean}
+ * @type {(widens: readonly string[]) => (values: readonly Term[]) => boolean}
  */
-const movable = values => values.filter(x => {
-    const site = siteOf(x)
+const movable = widens => values => values.filter(x => {
+    const site = siteOf(widens, x)
     return !isPure(x) && (site === null || !site.every(([, v]) => isPure(v)))
 }).length < 2
 
@@ -235,9 +229,9 @@ const readOf = (get, t) => {
  * whether the term only passes on the value at the end of a chain of
  * `let`s, as a local's value does.
  *
- * @type {(get: string) => (t: Term, path: string, env: _Env, ends: boolean) => readonly [readonly _Source[], readonly _Fact[]]}
+ * @type {(get: string, widens: readonly string[]) => (t: Term, path: string, env: _Env, ends: boolean) => readonly [readonly _Source[], readonly _Fact[]]}
  */
-const facts = get => {
+const facts = (get, widens) => {
     /** @type {readonly _Source[]} */
     const opaque = [['opaque']]
     /** @type {(t: Term, path: string, env: _Env, ends: boolean) => readonly [readonly _Source[], readonly _Fact[]]} */
@@ -254,7 +248,7 @@ const facts = get => {
         }
         /** The facts of terms whose values escape, at `path` and their index. @type {(ts: readonly Term[], path: string, env: _Env) => readonly _Fact[]} */
         const all = (ts, path, env) => ts.flatMap((x, j) => used(x, `${path}/${j}`, env, null))
-        const site = siteOf(t)
+        const site = siteOf(widens, t)
         if (site !== null) {
             /** @type {_Fact} */
             const fact = ['site', path, keysOf(site), site.every(([, x]) => isPure(x))]
@@ -288,7 +282,7 @@ const facts = get => {
             }
             case 'loop': {
                 const params = t[2].map(([k], j) => /** @type {_Local} */ ([k, `${path}#${j}`, k]))
-                const moved = !movable(t[2].map(([, , x]) => x))
+                const moved = !movable(widens)(t[2].map(([, , x]) => x))
                 const firsts = t[2].flatMap(([, , x], j) => used(x, `${path}/f${j}`, env, params[Number(j)][1]))
                 const inner = label_(params.reduce(bind, env), [t[1], params])
                 const [from, fs] = of(t[3], `${path}/b`, inner, ends)
@@ -303,7 +297,7 @@ const facts = get => {
                 if (params === null) { return [[], used(e, `${path}/v`, env, null)] }
                 // a loop's next state that is not a product of its parameters: none of them splits
                 if (e[0] !== 'make') { return [[], [...params.map(([, id]) => /** @type {_Fact} */ (['bad', id])), ...used(e, `${path}/v`, env, null)]] }
-                const moved = !movable(e[1].map(([, x]) => x))
+                const moved = !movable(widens)(e[1].map(([, x]) => x))
                 /** @type {readonly _Fact[]} */
                 const bad = moved ? params.map(([, id]) => /** @type {_Fact} */ (['bad', id])) : []
                 return [[], [...bad, ...e[1].flatMap(([k, x], j) => {
@@ -427,17 +421,19 @@ const withValues = (t, values) => {
  * origin; a hit means an existing binder or a spelling this rewrite would
  * bind twice in overlapping scopes (nested `let` / loop parameter). Match
  * arms each claim from the parent state alone, so disjoint arms may share
- * a spelling. A split `let`'s part binders and a split loop's parameter
- * parts are claimed before the body, so an arm that would reuse an
- * enclosing generated spelling still hits. `br` fields reuse `part`
- * spellings without claiming. Reads of a part do not claim.
+ * a spelling. Sibling product fields and call/op arguments do the same:
+ * each starts from the parent claims; only collision flags combine. A
+ * split `let`'s part binders and a split loop's parameter parts are
+ * claimed before the body, so an arm that would reuse an enclosing
+ * generated spelling still hits. `br` fields reuse `part` spellings
+ * without claiming. Reads of a part do not claim.
  *
  * @typedef {readonly (readonly [string, string])[]} _Claimed
  * @typedef {readonly [_Claimed, boolean]} _ClaimSt
  *
- * @type {(get: string, split: _Split, existing: readonly string[], widen: string) => (t: Term, path: string, env: _Env, key: string | null, st: _ClaimSt) => readonly [Term, _ClaimSt]}
+ * @type {(get: string, split: _Split, existing: readonly string[], widen: string, widens: readonly string[]) => (t: Term, path: string, env: _Env, key: string | null, st: _ClaimSt) => readonly [Term, _ClaimSt]}
  */
-const rewrite = (get, split, existing, widen) => {
+const rewrite = (get, split, existing, widen, widens) => {
     /** The keys of a local that the pass splits, by its path. @type {(id: string) => readonly string[] | null} */
     const keysAt = id => split.locals.find(([x]) => x === id)?.[1] ?? null
     /** Claim `n` as a binder from `origin`, or mark a collision. A spelling
@@ -485,48 +481,50 @@ const rewrite = (get, split, existing, widen) => {
                     /** @type {readonly [Term, _ClaimSt]} */ ([rest, stV]),
                 ), st2)
             }
-            // a prior round may have left the site under a widen `block`
-            if (isWidenBlock(t)) {
-                return moved(t[3], path, env, prefix, end, st)
+            // a prior round may have left the site under a pass-owned widen `block`
+            if (isWidenBlock(widens, t)) {
+                return moved(/** @type {readonly ['block', string, Type, Term]} */ (t)[3], path, env, prefix, end, st)
             }
-            const site = siteOf(t)
+            const site = siteOf(widens, t)
             if (site !== null) {
-                const [values, st1] = site.reduce(
+                // sibling field values: each from parent claims; OR hits
+                const [values, hit] = site.reduce(
                     (acc, [k, x], j) => {
-                        const [done, stA] = acc
-                        const [v, stB] = go(x, `${path}/s${j}`, env, null, stA)
-                        return /** @type {const} */ ([[...done, /** @type {const} */ ([k, v])], stB])
+                        const [done, hitA] = acc
+                        const [v, [, hitB]] = go(x, `${path}/s${j}`, env, null, [st[0], false])
+                        return /** @type {const} */ ([[...done, /** @type {const} */ ([k, v])], hitA || hitB])
                     },
-                    /** @type {readonly [readonly (readonly [string, Term])[], _ClaimSt]} */ ([[], st]),
+                    /** @type {readonly [readonly (readonly [string, Term])[], boolean]} */ ([[], st[1]]),
                 )
-                return end(values, st1)
+                return end(values, [st[0], hit])
             }
             // a split local, as `solve` leaves only these at the end of a chain: its parts
             const local = assertNotNullish(localOf(env, /** @type {readonly ['get', string]} */ (t)[1]))
             return end(assertNotNullish(keysAt(local[1])).map(k => /** @type {const} */ ([k, /** @type {Term} */ (['get', part(local[2], k)])])), st)
         }
-        // Before `siteOf`: it peels widen blocks, and a `block` must keep its
-        // wrapper while its body (a nested site from a prior round) is walked.
+        // Before `siteOf`: it peels pass-owned widen blocks, and a `block`
+        // must keep its wrapper while its body is walked.
         if (t[0] === 'block') {
             const [body, st1] = go(t[3], `${path}/b`, label_(env, [t[1], null]), key, st)
             return [['block', t[1], t[2], body], st1]
         }
-        const site = siteOf(t)
+        const site = siteOf(widens, t)
         if (site !== null && key !== null) {
             const at = site.findIndex(([k]) => k === key)
             const [v, st1] = go(site[Number(at)][1], `${path}/s${at}`, env, null, st)
             return [toAny(v), st1]
         }
         if (site !== null) {
-            const [values, st1] = site.reduce(
+            // sibling field values: each from parent claims; OR hits
+            const [values, hit] = site.reduce(
                 (acc, [, x], j) => {
-                    const [done, stA] = acc
-                    const [v, stB] = go(x, `${path}/s${j}`, env, null, stA)
-                    return /** @type {const} */ ([[...done, v], stB])
+                    const [done, hitA] = acc
+                    const [v, [, hitB]] = go(x, `${path}/s${j}`, env, null, [st[0], false])
+                    return /** @type {const} */ ([[...done, v], hitA || hitB])
                 },
-                /** @type {readonly [readonly Term[], _ClaimSt]} */ ([[], st]),
+                /** @type {readonly [readonly Term[], boolean]} */ ([[], st[1]]),
             )
-            return [withValues(t, values), st1]
+            return [withValues(t, values), [st[0], hit]]
         }
         const read = readOf(get, t)
         if (read !== null && split.reads.includes(path)) { return go(read[0], `${path}/0`, env, read[1], st) }
@@ -651,49 +649,53 @@ const rewrite = (get, split, existing, widen) => {
                 return from(0, env, [], st)
             }
             case 'op': {
-                const [args, st1] = t[2].reduce(
+                // sibling args: each from parent claims; OR hits
+                const [args, hit] = t[2].reduce(
                     (acc, x, j) => {
-                        const [done, stA] = acc
-                        const [v, stB] = go(x, `${path}/${j}`, env, null, stA)
-                        return /** @type {const} */ ([[...done, v], stB])
+                        const [done, hitA] = acc
+                        const [v, [, hitB]] = go(x, `${path}/${j}`, env, null, [st[0], false])
+                        return /** @type {const} */ ([[...done, v], hitA || hitB])
                     },
-                    /** @type {readonly [readonly Term[], _ClaimSt]} */ ([[], st]),
+                    /** @type {readonly [readonly Term[], boolean]} */ ([[], st[1]]),
                 )
-                return [t[3] === undefined ? ['op', t[1], args] : ['op', t[1], args, t[3]], st1]
+                return [t[3] === undefined ? ['op', t[1], args] : ['op', t[1], args, t[3]], [st[0], hit]]
             }
             case 'call': {
-                const [args, st1] = t[3].reduce(
+                // sibling args: each from parent claims; OR hits
+                const [args, hit] = t[3].reduce(
                     (acc, x, j) => {
-                        const [done, stA] = acc
-                        const [v, stB] = go(x, `${path}/${j}`, env, null, stA)
-                        return /** @type {const} */ ([[...done, v], stB])
+                        const [done, hitA] = acc
+                        const [v, [, hitB]] = go(x, `${path}/${j}`, env, null, [st[0], false])
+                        return /** @type {const} */ ([[...done, v], hitA || hitB])
                     },
-                    /** @type {readonly [readonly Term[], _ClaimSt]} */ ([[], st]),
+                    /** @type {readonly [readonly Term[], boolean]} */ ([[], st[1]]),
                 )
-                return [['call', t[1], t[2], args], st1]
+                return [['call', t[1], t[2], args], [st[0], hit]]
             }
             case 'call_ref': {
-                const [all, st1] = [t[1], ...t[2]].reduce(
+                // callee and args are sibling expressions
+                const [all, hit] = [t[1], ...t[2]].reduce(
                     (acc, x, j) => {
-                        const [done, stA] = acc
-                        const [v, stB] = go(x, `${path}/${j}`, env, null, stA)
-                        return /** @type {const} */ ([[...done, v], stB])
+                        const [done, hitA] = acc
+                        const [v, [, hitB]] = go(x, `${path}/${j}`, env, null, [st[0], false])
+                        return /** @type {const} */ ([[...done, v], hitA || hitB])
                     },
-                    /** @type {readonly [readonly Term[], _ClaimSt]} */ ([[], st]),
+                    /** @type {readonly [readonly Term[], boolean]} */ ([[], st[1]]),
                 )
                 const [c, ...args] = all
-                return [['call_ref', c, args], st1]
+                return [['call_ref', c, args], [st[0], hit]]
             }
             case 'make': {
-                const [fields, st1] = t[1].reduce(
+                // sibling product fields: each from parent claims; OR hits
+                const [fields, hit] = t[1].reduce(
                     (acc, [k, x], j) => {
-                        const [done, stA] = acc
-                        const [v, stB] = go(x, `${path}/${j}`, env, null, stA)
-                        return /** @type {const} */ ([[...done, /** @type {const} */ ([k, v])], stB])
+                        const [done, hitA] = acc
+                        const [v, [, hitB]] = go(x, `${path}/${j}`, env, null, [st[0], false])
+                        return /** @type {const} */ ([[...done, /** @type {const} */ ([k, v])], hitA || hitB])
                     },
-                    /** @type {readonly [readonly (readonly [string, Term])[], _ClaimSt]} */ ([[], st]),
+                    /** @type {readonly [readonly (readonly [string, Term])[], boolean]} */ ([[], st[1]]),
                 )
-                return [['make', fields], st1]
+                return [['make', fields], [st[0], hit]]
             }
             case 'field': {
                 const [v, st1] = go(t[1], `${path}/0`, env, null, st)
@@ -711,33 +713,42 @@ const rewrite = (get, split, existing, widen) => {
 
 /**
  * A function with what it only reads back split, once: the function itself
- * where nothing is.
+ * where nothing is. `widens` are labels prior rounds of `settled` introduced
+ * — only those blocks may be peeled to find a site.
  *
- * @type {(get: string) => (f: Fn) => Fn}
+ * @type {(get: string, widens: readonly string[]) => (f: Fn) => Fn}
  */
-const once = get => f => {
+const once = (get, widens) => f => {
     const existing = [...f.params.map(([k]) => k), ...binders(f.body)]
     // `return` is always open; prefer W, else W_, W__, …
     const widen = freshWiden([...labelsOf(f.body), 'return'])
     const env = f.params.reduce((e, [k]) => bind(e, [k, `param/${k}`, k]), top)
     // what the function answers leaves it
-    const [from, fs] = facts(get)(f.body, 'f', env, true)
+    const [from, fs] = facts(get, widens)(f.body, 'f', env, true)
     const params = f.params.map(([k]) => /** @type {_Fact} */ (['local', `param/${k}`, 'other']))
     const split = solve([...params, ...fs, ...from.map(s => /** @type {_Fact} */ (['escape', s]))])
     if (split.locals.length === 0 && split.reads.length === 0) { return f }
-    const [body, [, hit]] = rewrite(get, split, existing, widen)(f.body, 'f', env, null, [[], false])
+    const [body, [, hit]] = rewrite(get, split, existing, widen, widens)(f.body, 'f', env, null, [[], false])
     return hit ? f : { ...f, body }
 }
 
 /**
  * A function with what it only reads back split, until nothing more is:
  * an object that another holds is read back once the outer one is split.
+ * Each successful round's widen label is owned by the pass for later peels.
  *
  * @type {(get: string) => (f: Fn) => Fn}
  */
-const settled = get => f => {
-    const g = once(get)(f)
-    return g === f ? f : settled(get)(g)
+const settled = get => {
+    /** @type {(f: Fn, widens: readonly string[]) => Fn} */
+    const go = (f, widens) => {
+        const next = once(get, widens)(f)
+        if (next === f) { return f }
+        // same freshWiden inputs as `once` used on `f` before rewriting
+        const widen = freshWiden([...labelsOf(f.body), 'return'])
+        return go(next, [...widens, widen])
+    }
+    return f => go(f, [])
 }
 
 /**

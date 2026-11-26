@@ -448,6 +448,55 @@ export const proof = {
         [['true'], null, br('B', a)],
         [['false'], null, b],
     ])]])), read(get('r'), 'x'))),
+    // Ownership is not the W spelling: a user-authored block W must not be
+    // peeled even though the pass prefers that label for widen blocks.
+    userWidenLabelSite: () => same(let_('r', block('W', any, object([['x', match(c, [
+        [['true'], null, br('W', a)],
+        [['false'], null, b],
+    ])]])), read(get('r'), 'x'))),
+    // Sibling product fields each bind r.x in their own expression scope;
+    // claims do not collide across fields.
+    siblingFields: () => golden(
+        make([
+            ['first', let_('r', object([['x', a]]), read(get('r'), 'x'))],
+            ['second', let_('r', object([['x', b]]), read(get('r'), 'x'))],
+        ]),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    {',
+            '        first:',
+            '            let r.x =',
+            '                block W: any',
+            '                    a',
+            '            r.x,',
+            '        second:',
+            '            let r.x =',
+            '                block W: any',
+            '                    b',
+            '            r.x',
+            '    }',
+        ],
+    ),
+    // Sibling call arguments likewise isolate claims.
+    siblingArgs: () => golden(
+        call('Any', 'pair', [
+            let_('r', object([['x', a]]), read(get('r'), 'x')),
+            let_('r', object([['x', b]]), read(get('r'), 'x')),
+        ]),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    Any.pair(',
+            '        let r.x =',
+            '            block W: any',
+            '                a',
+            '        r.x,',
+            '        let r.x =',
+            '            block W: any',
+            '                b',
+            '        r.x',
+            '    )',
+        ],
+    ),
     // Initial and br both write `let t` under split local `s`: claiming
     // `s/t` (and `s.x` as both a let and a loop parameter) twice would bind
     // them in nested scopes, so the objects stay.
