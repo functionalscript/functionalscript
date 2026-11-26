@@ -217,6 +217,25 @@ export const proof = {
             '        "hi"',
         ],
     ),
+    // An open label W forces the widen block onto W_.
+    stringLitInBlockW: () => golden(
+        block('W', any, read(object([['x', s('hi')]]), 'x')),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    block W: any',
+            '        block W_: any',
+            '            "hi"',
+        ],
+    ),
+    stringLitInLoopW: () => golden(
+        loop('W', [['i', any, a]], () => read(object([['x', s('hi')]]), 'x')),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    loop W (i: any = a)',
+            '        block W_: any',
+            '            "hi"',
+        ],
+    ),
     loopBad: () => same(loop('L', [['s', any, object([['i', effect(a)]])], ['k', any, effect(b)]], (s_, k) => if_(read(s_, 'i'), next('L', [['s', object([['i', k]])], ['k', k]]), read(s_, 'i')))),
     brBad: () => same(loop('L', [['s', any, object([['i', a]])], ['k', any, b]], (s_, k) => if_(read(s_, 'i'), next('L', [['s', object([['i', effect(k)]])], ['k', effect(k)]]), read(s_, 'i')))),
     notPushed: () => same(let_('r', match(call('Containers', 'seal', [get('m')]), [[['object'], 'o', get('o')], [null, null, trap('not object')]]), read(get('r'), 'x'))),

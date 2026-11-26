@@ -26,7 +26,8 @@
  *   value may come from stays one, and so does every local that it passes
  *   through. A local that a parameter or an arm binds is never split.
  *   A string literal that a read answers is widened to `any` with a
- *   `block`, since the literal is `any.only(string)` and `get` answers
+ *   `block` whose label is fresh in the function (`W`, or `W_` when `W`
+ *   is open), since the literal is `any.only(string)` and `get` answers
  *   `any`.
  * - **How it splits.** A local `s` of keys `i` and `acc` is the locals
  *   `s.i` and `s.acc`, of `any`: a `let` binds each, a loop has a
@@ -86,11 +87,11 @@ const isPure = t => t[0] === 'get' || t[0] === 'lit'
  * A value as `get` would answer it: full `any`. A string literal is
  * `any.only(string)`, and standing in for a `get` would keep that subset
  * and break a later `match` that names another kind. A `block` of `any`
- * widens it at no cost.
+ * widens it at no cost; `widen` is a label not already open in the function.
  *
- * @type {(t: Term) => Term}
+ * @type {(widen: string) => (t: Term) => Term}
  */
-const asGet = t => t[0] === 'lit' && typeof t[2] === 'string' ? /** @type {Term} */ (['block', 'W', any, t]) : t
+const asGet = widen => t => t[0] === 'lit' && typeof t[2] === 'string' ? /** @type {Term} */ (['block', widen, any, t]) : t
 
 /**
  * The keys and the values of an object that a term builds as the lowering
@@ -142,6 +143,24 @@ const binders = t => {
         : t[0] === 'match' ? t[2].flatMap(([, binder]) => binder === null ? [] : [binder])
         : []
     return [...own, ...terms(t).flatMap(binders)]
+}
+
+/** The labels that a term opens. @type {(t: Term) => readonly string[]} */
+const labelsOf = t => {
+    const own = t[0] === 'block' || t[0] === 'loop' ? [t[1]] : []
+    return [...own, ...terms(t).flatMap(labelsOf)]
+}
+
+/**
+ * A label for a widen `block` that is not already open in the function, and
+ * not `return` (always in scope). Prefers `W`, then `W_`, `W__`, …
+ *
+ * @type {(taken: readonly string[]) => string}
+ */
+const freshWiden = taken => {
+    /** @type {(n: string) => string} */
+    const next = n => taken.includes(n) ? next(`${n}_`) : n
+    return next('W')
 }
 
 /** The keys of an object. @type {(site: _Site) => readonly string[]} */
@@ -363,9 +382,9 @@ const withValues = (t, values) => {
  * @typedef {readonly (readonly [string, string])[]} _Claimed
  * @typedef {readonly [_Claimed, boolean]} _ClaimSt
  *
- * @type {(get: string, split: _Split, existing: readonly string[]) => (t: Term, path: string, env: _Env, key: string | null, st: _ClaimSt) => readonly [Term, _ClaimSt]}
+ * @type {(get: string, split: _Split, existing: readonly string[], widen: string) => (t: Term, path: string, env: _Env, key: string | null, st: _ClaimSt) => readonly [Term, _ClaimSt]}
  */
-const rewrite = (get, split, existing) => {
+const rewrite = (get, split, existing, widen) => {
     /** The keys of a local that the pass splits, by its path. @type {(id: string) => readonly string[] | null} */
     const keysAt = id => split.locals.find(([x]) => x === id)?.[1] ?? null
     /** Claim `n` as a binder from `origin`, or mark a collision. @type {(st: _ClaimSt, n: string, origin: string) => _ClaimSt} */
@@ -383,6 +402,7 @@ const rewrite = (get, split, existing) => {
         const n = part(name, key)
         return [n, claim(st, n, `${name}\u0000${key}`)]
     }
+    const toAny = asGet(widen)
     /** @type {(t: Term, path: string, env: _Env, key: string | null, st: _ClaimSt) => readonly [Term, _ClaimSt]} */
     const go = (t, path, env, key, st) => {
         /**
@@ -407,7 +427,7 @@ const rewrite = (get, split, existing) => {
                     (acc, [k, x]) => {
                         const [body, stB] = acc
                         const [binder, stC] = bindPart(stB, name, k)
-                        return /** @type {const} */ ([['let', binder, asGet(x), body], stC])
+                        return /** @type {const} */ ([['let', binder, toAny(x), body], stC])
                     },
                     /** @type {readonly [Term, _ClaimSt]} */ ([rest, stV]),
                 ), st2)
@@ -432,7 +452,7 @@ const rewrite = (get, split, existing) => {
         if (site !== null && key !== null) {
             const at = site.findIndex(([k]) => k === key)
             const [v, st1] = go(site[Number(at)][1], `${path}/s${at}`, env, null, st)
-            return [asGet(v), st1]
+            return [toAny(v), st1]
         }
         if (site !== null) {
             const [values, st1] = site.reduce(
@@ -470,7 +490,7 @@ const rewrite = (get, split, existing) => {
                         (acc, [k, x]) => {
                             const [b, stA] = acc
                             const [binder, stC] = bindPart(stA, t[1], k)
-                            return /** @type {const} */ ([['let', binder, asGet(x), b], stC])
+                            return /** @type {const} */ ([['let', binder, toAny(x), b], stC])
                         },
                         /** @type {readonly [Term, _ClaimSt]} */ ([body, stB]),
                     )
@@ -618,13 +638,15 @@ const rewrite = (get, split, existing) => {
  */
 const once = get => f => {
     const existing = [...f.params.map(([k]) => k), ...binders(f.body)]
+    // `return` is always open; prefer W, else W_, W__, …
+    const widen = freshWiden([...labelsOf(f.body), 'return'])
     const env = f.params.reduce((e, [k]) => bind(e, [k, `param/${k}`, k]), top)
     // what the function answers leaves it
     const [from, fs] = facts(get)(f.body, 'f', env, true)
     const params = f.params.map(([k]) => /** @type {_Fact} */ (['local', `param/${k}`, 'other']))
     const split = solve([...params, ...fs, ...from.map(s => /** @type {_Fact} */ (['escape', s]))])
     if (split.locals.length === 0 && split.reads.length === 0) { return f }
-    const [body, [, hit]] = rewrite(get, split, existing)(f.body, 'f', env, null, [[], false])
+    const [body, [, hit]] = rewrite(get, split, existing, widen)(f.body, 'f', env, null, [[], false])
     return hit ? f : { ...f, body }
 }
 
