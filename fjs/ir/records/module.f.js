@@ -30,8 +30,9 @@
  *   open), unless it is already a `block` of full `any`. Locals and object
  *   sites are widened too: a parameter of `any.only(string)`, or a nested
  *   object of kind `object`, must not stand in for `get`, which answers
- *   `any`. A later round still finds a site under a widen `block` and may
- *   split it.
+ *   `any`. A later round still finds a site under a widen `block`
+ *   (`W`/`W_`/…) and may split it; a user-authored block is not peeled, so
+ *   a `br` to its label stays inside.
  * - **How it splits.** A local `s` of keys `i` and `acc` is the locals
  *   `s.i` and `s.acc`, of `any`: a `let` binds each, a loop has a
  *   parameter for each, and a `br` gives each. The `let`s of the chain that
@@ -89,11 +90,31 @@ const isPure = t => t[0] === 'get' || t[0] === 'lit'
 const isFullAny = ty => ty[0] === 'sealed' && ty[3] === null
 
 /**
- * A full-`any` widen `block`'s body, or the term itself.
+ * Whether a label is one this pass uses for widen blocks (`W`, `W_`, …).
+ * User-authored blocks with other names must not be peeled.
+ *
+ * @type {(n: string) => boolean}
+ */
+const isWidenLabel = n => {
+    if (n.length === 0 || n[0] !== 'W') { return false }
+    return n.slice(1).split('').every(c => c === '_')
+}
+
+/**
+ * A widen `block` this pass introduced (full `any`, label `W`/`W_`/…), or
+ * `null`.
+ *
+ * @type {(t: Term) => boolean}
+ */
+const isWidenBlock = t => t[0] === 'block' && isFullAny(t[2]) && isWidenLabel(t[1])
+
+/**
+ * A full-`any` widen `block`'s body, or the term itself. Does not peel a
+ * user-authored block (a `br` to its label would escape).
  *
  * @type {(t: Term) => Term}
  */
-const peelWiden = t => t[0] === 'block' && isFullAny(t[2]) ? peelWiden(t[3]) : t
+const peelWiden = t => isWidenBlock(t) ? peelWiden(t[3]) : t
 
 /**
  * The keys and the values of an object that a term builds as the lowering
@@ -406,10 +427,10 @@ const withValues = (t, values) => {
  * origin; a hit means an existing binder or a spelling this rewrite would
  * bind twice in overlapping scopes (nested `let` / loop parameter). Match
  * arms each claim from the parent state alone, so disjoint arms may share
- * a spelling. A split `let`'s part binders are claimed before its body, so
- * an arm that would reuse an enclosing generated spelling still hits.
- * `br` fields reuse `part` spellings without claiming. Reads of a part do
- * not claim.
+ * a spelling. A split `let`'s part binders and a split loop's parameter
+ * parts are claimed before the body, so an arm that would reuse an
+ * enclosing generated spelling still hits. `br` fields reuse `part`
+ * spellings without claiming. Reads of a part do not claim.
  *
  * @typedef {readonly (readonly [string, string])[]} _Claimed
  * @typedef {readonly [_Claimed, boolean]} _ClaimSt
@@ -465,7 +486,7 @@ const rewrite = (get, split, existing, widen) => {
                 ), st2)
             }
             // a prior round may have left the site under a widen `block`
-            if (t[0] === 'block' && isFullAny(t[2])) {
+            if (isWidenBlock(t)) {
                 return moved(t[3], path, env, prefix, end, st)
             }
             const site = siteOf(t)
@@ -565,7 +586,26 @@ const rewrite = (get, split, existing, widen) => {
             case 'loop': {
                 const params = t[2].map(([k], j) => /** @type {_Local} */ ([k, `${path}#${j}`, k]))
                 const inner = label_(params.reduce(bind, env), [t[1], params])
-                const [body, stBody] = go(t[3], `${path}/b`, inner, key, st)
+                // claim split parameter parts before the body so a match arm
+                // that would generate the same spelling hits against them
+                const [claimedParams, stClaim] = t[2].reduce(
+                    (acc, [k], j) => {
+                        const [done, stA] = acc
+                        const keys = keysAt(`${path}#${j}`)
+                        if (keys === null) { return /** @type {const} */ ([[...done, null], stA]) }
+                        const [parts, stB] = keys.reduce(
+                            (accP, key2) => {
+                                const [doneP, stP] = accP
+                                const [binder, stC] = bindPart(stP, k, key2)
+                                return /** @type {const} */ ([[...doneP, binder], stC])
+                            },
+                            /** @type {readonly [readonly string[], _ClaimSt]} */ ([[], stA]),
+                        )
+                        return /** @type {const} */ ([[...done, parts], stB])
+                    },
+                    /** @type {readonly [readonly (readonly string[] | null)[], _ClaimSt]} */ ([[], st]),
+                )
+                const [body, stBody] = go(t[3], `${path}/b`, inner, key, stClaim)
                 /** The loop, its split parameters' chains moved before it, from the `j`th on. @type {(j: number, env: _Env, done: readonly (readonly [string, Type, Term])[], st: _ClaimSt) => readonly [Term, _ClaimSt]} */
                 const from = (j, e, done, stF) => {
                     if (j === t[2].length) { return [['loop', t[1], done, body], stF] }
@@ -576,15 +616,10 @@ const rewrite = (get, split, existing, widen) => {
                         return from(j + 1, e, [...done, [k, type, v]], st1)
                     }
                     return moved(first, `${path}/f${j}`, e, k, (values, stV) => {
-                        const [params2, stP] = values.reduce(
-                            (acc, [key2, x]) => {
-                                const [doneP, stA] = acc
-                                const [binder, stC] = bindPart(stA, k, key2)
-                                return /** @type {const} */ ([[...doneP, /** @type {const} */ ([binder, any, x])], stC])
-                            },
-                            /** @type {readonly [readonly (readonly [string, Type, Term])[], _ClaimSt]} */ ([[], stV]),
-                        )
-                        return from(j + 1, e, [...done, ...params2], stP)
+                        // parts already claimed above; reuse their spellings
+                        const claimed = /** @type {readonly string[]} */ (claimedParams[Number(j)])
+                        const params2 = values.map(([key2, x], i) => /** @type {const} */ ([claimed[Number(i)], any, x]))
+                        return from(j + 1, e, [...done, ...params2], stV)
                     }, stF)
                 }
                 return from(0, env, [], stBody)

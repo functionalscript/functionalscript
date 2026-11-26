@@ -435,6 +435,19 @@ export const proof = {
         ]))],
         [['false'], null, a],
     ]))),
+    // Loop parameter `s`+`x.y` vs arm `s.x\`+`y`: claim params before the body.
+    collideLoopArmGenerated: () => same(loop('L', [['s', any, object([['x.y', a]])]], s_ => match(c, [
+        [['true'], null, let_('s.x\\', object([['y', b]]), make([
+            ['first', read(s_, 'x.y')],
+            ['second', read(get('s.x\\'), 'y')],
+        ]))],
+        [['false'], null, next('L', [['s', object([['x.y', a]])]])],
+    ]))),
+    // A user-authored block B around a site is not peeled: br B stays inside.
+    userBlockSite: () => same(let_('r', block('B', any, object([['x', match(c, [
+        [['true'], null, br('B', a)],
+        [['false'], null, b],
+    ])]])), read(get('r'), 'x'))),
     // Initial and br both write `let t` under split local `s`: claiming
     // `s/t` (and `s.x` as both a let and a loop parameter) twice would bind
     // them in nested scopes, so the objects stay.
