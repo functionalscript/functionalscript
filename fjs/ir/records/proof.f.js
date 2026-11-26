@@ -6,10 +6,12 @@
  * @import { Fn, Term } from '../types.ts'
  */
 
-import { assertEq } from '../../asserts/module.f.js'
+import { assertEq, assertOk } from '../../asserts/module.f.js'
 import { any, string } from '../l0/module.f.js'
-import { add, block, br, call, call_ref, codeOf, constant, f64, field, fn, get, if_, let_, lit, loop, make, match, n, next, trap, trunc_sat, u, variant } from '../module.f.js'
+import { add, block, bool, br, call, call_ref, codeOf, constant, f64, field, fn, get, if_, let_, lit, loop, make, match, n, next, trap, trunc_sat, u, variant } from '../module.f.js'
+import { checkPlain } from '../check/module.f.js'
 import { print } from '../print/module.f.js'
+import { records as l0 } from '../testlib.f.js'
 import { records } from './module.f.js'
 
 /** A string literal. @type {(s: string) => Term} */
@@ -65,7 +67,9 @@ export const proof = {
         [
             'fn f(a: any, b: any, c: any) -> any =',
             '    let r.x = a',
-            '    let r.y = Any.effect(b)',
+            '    let r.y =',
+            '        block W: any',
+            '            Any.effect(b)',
             '    r.x',
         ],
     ),
@@ -217,6 +221,29 @@ export const proof = {
             '        "hi"',
         ],
     ),
+    // A non-literal string-typed value (if of two string lits) also widens,
+    // so a later match may still name number (get would have answered any).
+    stringIf: () => {
+        const body = let_('r', object([['x', if_(c, s('a'), s('b'))]]), match(read(get('r'), 'x'), [[['number'], 'n', get('n')], [null, null, a]]))
+        const f = fn([['a', any], ['b', any], ['c', bool]], any, body)
+        const afterF = records('get')({ imports: [], functions: [['f', f]], exports: [] }).functions[0][1]
+        assertEq(print({ imports: [], functions: [['f', afterF]], exports: [] }), [
+            'fn f(a: any, b: any, c: bool) -> any =',
+            '    let r.x =',
+            '        block W: any',
+            '            if c then "a" else "b"',
+            '    match r.x',
+            '      number as n =>',
+            '        n',
+            '      else =>',
+            '        a',
+        ].map(line => `${line}\n`).join(''))
+        assertOk(checkPlain({
+            imports: l0.imports,
+            functions: [...l0.functions.filter(([k]) => k !== 'f'), ['f', afterF]],
+            exports: ['f'],
+        }))
+    },
     // An open label W forces the widen block onto W_.
     stringLitInBlockW: () => golden(
         block('W', any, read(object([['x', s('hi')]]), 'x')),

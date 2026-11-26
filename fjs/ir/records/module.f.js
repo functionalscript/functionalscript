@@ -25,10 +25,10 @@
  *   of a value that may be something else. Then every object that the
  *   value may come from stays one, and so does every local that it passes
  *   through. A local that a parameter or an arm binds is never split.
- *   A string literal that a read answers is widened to `any` with a
- *   `block` whose label is fresh in the function (`W`, or `W_` when `W`
- *   is open), since the literal is `any.only(string)` and `get` answers
- *   `any`.
+ *   A value that a read answers is widened to `any` with a `block` whose
+ *   label is fresh in the function (`W`, or `W_` when `W` is open), unless
+ *   it is already a local or a `block` of full `any`: a subset such as
+ *   `any.only(string)` must not stand in for `get`, which answers `any`.
  * - **How it splits.** A local `s` of keys `i` and `acc` is the locals
  *   `s.i` and `s.acc`, of `any`: a `let` binds each, a loop has a
  *   parameter for each, and a `br` gives each. The `let`s of the chain that
@@ -84,16 +84,6 @@ const label_ = (env, label) => ({ ...env, labels: [label, ...env.labels] })
 const isPure = t => t[0] === 'get' || t[0] === 'lit'
 
 /**
- * A value as `get` would answer it: full `any`. A string literal is
- * `any.only(string)`, and standing in for a `get` would keep that subset
- * and break a later `match` that names another kind. A `block` of `any`
- * widens it at no cost; `widen` is a label not already open in the function.
- *
- * @type {(widen: string) => (t: Term) => Term}
- */
-const asGet = widen => t => t[0] === 'lit' && typeof t[2] === 'string' ? /** @type {Term} */ (['block', widen, any, t]) : t
-
-/**
  * The keys and the values of an object that a term builds as the lowering
  * writes one, or `null`.
  *
@@ -119,6 +109,24 @@ const siteOf = t => {
             : pushed(inner, [[key[2], value], ...done])
     }
     return pushed(sealed[3][0], [])
+}
+
+/**
+ * A value as `get` would answer it: full `any`. A local is left as it is
+ * (split parts and parameters are already `any`); a `block` of full `any`
+ * is left as it is; an object site is left as it is so a later round can
+ * still split it. Every other term is wrapped in a `block` of `any`, so a
+ * subset such as `any.only(string)` — a string literal or `c ? "a" : "b"` —
+ * does not stand in for a `get` and break a later `match` that names another
+ * kind. `widen` is a label not already open in the function.
+ *
+ * @type {(widen: string) => (t: Term) => Term}
+ */
+const asGet = widen => t => {
+    if (t[0] === 'get') { return t }
+    if (t[0] === 'block' && t[2][0] === 'sealed' && t[2][3] === null) { return t }
+    if (siteOf(t) !== null) { return t }
+    return /** @type {Term} */ (['block', widen, any, t])
 }
 
 /**
