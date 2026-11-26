@@ -30,7 +30,7 @@ import { counting } from '../../../fjs/ir/l0/host/count/module.mjs'
 import { nanvmHost } from '../../../fjs/ir/l0/host/nanvm/module.mjs'
 import { f64, signature } from '../../../fjs/ir/module.f.js'
 import { host as nativeHost } from '../../../fjs/ir/native/host/module.mjs'
-import { v1EnabledTags } from '../../../fjs/ir/runtime/string/short.f.js'
+import { emitA, emitB, v1EnabledTags } from '../../../fjs/ir/runtime/string/short.f.js'
 import { emit } from '../../../fjs/ir/wasm/module.f.js'
 import { layoutOf } from '../../../fjs/ir/wasm/testlib.mjs'
 import * as programs from './benchmark.programs.mjs'
@@ -60,9 +60,7 @@ const plain = compile(fromText(here('./benchmark.typed.mjs'), { sumTo: signature
 
 const nanvm = nanvmHost(new WebAssembly.Module(readFileSync(here('../../../target/wasm32-unknown-unknown/release/nanvm_l0_wasm.wasm'))))
 
-/** Emit A: always dyn-ref (control). Emit B: shortWhenEnabled + v1 tags. */
-const emitA = /** @type {const} */ ({ kind: 'alwaysDynRef' })
-const emitB = /** @type {const} */ ({ kind: 'shortWhenEnabled', enabledTags: v1EnabledTags })
+/** Emit A: always dyn-ref (control). Emit B: shortWhenEnabled + v1 tags (NaNVM default). */
 
 /** Each program and its arguments: every argument is a value of `any`. */
 const cases = [

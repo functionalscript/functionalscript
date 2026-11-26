@@ -15,10 +15,10 @@
  *   ([short-strings.md](../../../../../doc/sasha-gil/ir/short-strings.md)
  *   S2): the host **accepts** every well-formed Sergey short-string tag
  *   in `read` / `kind` / `dup` / `drop` (pass-through bits, like a
- *   number). **Emission** is per String-manifest policy: default
- *   `alwaysDynRef` (variant A) keeps every made string a cell; pass
- *   `shortWhenEnabled` with enabled tags (B/C) to pack when a concrete
- *   tag fits, else the long path.
+ *   number). **Emission** is per String-manifest policy: this host
+ *   defaults to A (`emitA`, always dyn-ref) as the control; pass
+ *   `emitB` (`shortWhenEnabled` + v1 tags) to pack when a concrete tag
+ *   fits. NaNVM defaults to B after the S4 decision gate.
  * - **`dup` and `drop` count references.** On a dyn-ref they add or take
  *   one from its cell; on a scalar box they leave the bits alone. `Ref`'s
  *   `dup_ref` / `drop_ref` / `kind_ref` / `same_ref` do the same over
@@ -99,12 +99,11 @@
  * @import { Counting, StringEmit } from '../types.ts'
  */
 
-import { isShort, maxEnabledLen, packEnabled, unpack } from '../../../runtime/string/short.f.js'
+import { emitA, emitB, isShort, maxEnabledLen, packEnabled, unpack } from '../../../runtime/string/short.f.js'
 import { kind as valueKind } from '../../../../wasm/runtime/l0/module.f.js'
 import { view } from '../module.f.js'
 
-/** Default emit policy: variant A — every string stays a dyn-ref. @type {StringEmit} */
-const alwaysDynRef = { kind: 'alwaysDynRef' }
+export { emitA, emitB }
 
 /** The exponent's bits: a float whose exponent is not all ones is finite. */
 const EXP = 0x7FF0_0000_0000_0000n
@@ -202,11 +201,13 @@ const dataBase = 0x100
  * immediate or a counted cell, and whose memory holds `data` bytes of a
  * module's data segments at `data_base`, and whose table holds `entries`
  * of its code at `table_base`. `stringEmit` selects whether allocating
- * string imports may return a short box (B/C) or always a dyn-ref (A).
+ * string imports may return a short box (B) or always a dyn-ref (A).
+ * Default stays {@link emitA} (control / proof host); NaNVM defaults to
+ * {@link emitB}. Pass {@link emitB} for short emit on this host too.
  *
  * @type {(values: readonly unknown[], data?: number, entries?: number, stringEmit?: StringEmit) => Counting}
  */
-export const counting = (values, data = 0, entries = 0, stringEmit = alwaysDynRef) => {
+export const counting = (values, data = 0, entries = 0, stringEmit = emitA) => {
     /** @type {Map<bigint, { readonly value: unknown, readonly count: number }>} */
     const cells = new Map()
     /** The count at which each kept cell was kept. @type {Map<bigint, number>} */

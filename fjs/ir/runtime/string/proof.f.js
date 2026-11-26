@@ -11,8 +11,8 @@ import { check, checkPlain } from '../../check/module.f.js'
 import { lifetime } from '../../lifetime/module.f.js'
 import { definedBy } from '../../module.f.js'
 import {
-    EMPTY, a, allTags, atAlias, b, c, isShort, length, maxEnabledLen, ops, pack, packEnabled,
-    tagLen, tagOf, unit, unpack, v1EnabledTags, variants,
+    EMPTY, a, allTags, atAlias, b, c, emitA, emitB, isShort, length, maxEnabledLen, ops, pack,
+    packEnabled, tagLen, tagOf, unit, unpack, v1EnabledTags, variants,
 } from './module.f.js'
 import { module as irModule } from './ir.f.js'
 
@@ -43,6 +43,15 @@ export const proof = {
         assertEq(maxEnabledLen(v1EnabledTags), 2)
         assertEq(maxEnabledLen(allTags), 8)
         assertEq(maxEnabledLen(['empty']), 0)
+    },
+    // Host emit policies after the S4 decision gate: A control, B NaNVM default.
+    emitPolicies: () => {
+        assertEq(emitA.kind, 'alwaysDynRef')
+        assertEq(emitB.kind, 'shortWhenEnabled')
+        assertEq(emitB.enabledTags.join(), v1EnabledTags.join())
+        assertEq(a.emit.kind, emitA.kind)
+        assertEq(b.emit.kind, emitB.kind)
+        assertEq(b.enabledTags.join(), emitB.enabledTags.join())
     },
     // A: import-form baseline, never a short box.
     manifestA: () => {

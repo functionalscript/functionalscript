@@ -4,10 +4,12 @@
 S1: String module skeleton in
 [`fjs/ir/runtime/string`](../../../fjs/ir/runtime/string/module.f.js).
 S2: counting host and NaNVM L0 ABI **accept** short-string boxes; **emit**
-is per-variant (`alwaysDynRef` for A, `shortWhenEnabled` + v1 tags for
-B/C). S3: `linkString` merges B IR `length`/`unit` (short path; long miss
-still imports). S4: remeasure (`shortOps` primary, `repeat` secondary;
-variant B) in [benchmark.md](./benchmark.md).
+is per-variant (`alwaysDynRef` / `emitA` for A, `shortWhenEnabled` + v1
+tags / `emitB` for B/C). S3: `linkString` merges B IR `length`/`unit`
+(short path; long miss still imports). S4: remeasure (`shortOps`
+primary, `repeat` secondary; variant B) in [benchmark.md](./benchmark.md).
+**Decision gate:** NaNVM-targeted hosts default to B (`emitB`); counting
+stays A (`emitA`) as the dyn-ref control.
 
 This is the next runtime-in-IR phase after scalar Any
 ([runtime-in-ir.md](./runtime-in-ir.md); checkpoints through 4d-2 on
@@ -255,9 +257,12 @@ Goal: compare A/B/C **without rewriting callers**.
    - frame cost: locals per `str` for B (0) vs the **chosen** C layout;
    - optional: peak host string allocations; `repeat` wall clock as
      regression.
-5. **Decision gate.** After one remeasure PR, pick a default variant for
-   NaNVM-targeted builds; keep the others buildable behind the same
-   interface. Do not delete the losers until a later cleanup.
+5. **Decision gate.** **Closed:** NaNVM-targeted builds default to
+   variant B (`emitB` = `shortWhenEnabled` + v1 tags; linked
+   `length`/`unit`). Counting host and explicit callers keep A
+   (`emitA` / `alwaysDynRef`) as the control. C stays buildable behind
+   the same interface; do not delete it until a later cleanup. See
+   [benchmark.md §After short strings (S4)](./benchmark.md#after-short-strings-s4).
 
 ## Non-goals (first design / first coding stacks)
 
@@ -311,8 +316,8 @@ Stack with **git base** (child PR base = parent head). No GitHub
 | **S1** | String module skeleton in IR: interface + manifest hooks; short pack/unpack **helpers** unused by programs; proofs of bit round-trips; no link change. Prefer implementing behind the interface so a second variant can land as S1b without caller churn. **Shipped** in [`fjs/ir/runtime/string`](../../../fjs/ir/runtime/string/module.f.js) (manifests A/B/C; v1 enabled tags empty/`s1x16`/`s2x16`; C-flag provisional). |
 | **S2** | Host / counting-host / NaNVM ABI: accept short-string boxes; emission of shorts where a **concrete enabled tag** fits is a **per-variant policy** (off for A, on for B/C). Long path unchanged when no tag fits. **Shipped**. |
 | **S3** | Link / L1 string ops use the short path (template or linked IR); long miss still imports; parity proofs vs L0. **Shipped** (`linkString` + B IR). |
-| **S4** | Remeasure (short microbench primary, `repeat` secondary); update `benchmark.md`; record which variant / C layout was measured. **Shipped** (variant B; C not measured). |
-| **S5+** | Alternate variant (B↔C) behind the same interface; compare; optional `concat` inline policy from open Q4. |
+| **S4** | Remeasure (short microbench primary, `repeat` secondary); update `benchmark.md`; record which variant / C layout was measured. **Shipped** (variant B; C not measured). Decision gate: **B default** for NaNVM (`emitB`); A remains control (`emitA`). |
+| **S5+** | Alternate variant (B↔C) behind the same interface; compare; optional `concat` inline policy from open Q4; widen v1 tags if useful. |
 
 Short bigints and Heap stay **after** this experiment's measurement gate,
 as in the post-4e task list.

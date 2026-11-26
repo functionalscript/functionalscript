@@ -16,7 +16,7 @@ import { assert, assertEq, assertOk } from '../../../../asserts/module.f.js'
 import { write } from '../../../../media/wasm/binary/write/module.f.js'
 import { check } from '../../../check/module.f.js'
 import { add, bool, call, codeOf, f64, float, fn, get, if_, let_, lit, loop, lt, match, next, only, own, return_, throw_, u, unit } from '../../../module.f.js'
-import { EMPTY, isShort, pack, packEnabled, v1EnabledTags } from '../../../runtime/string/short.f.js'
+import { EMPTY, emitB, isShort, pack, packEnabled, v1EnabledTags } from '../../../runtime/string/short.f.js'
 import { emit } from '../../../wasm/module.f.js'
 import { layoutOf } from '../../../wasm/testlib.mjs'
 import { any, array, func, l0 } from '../../module.f.js'
@@ -36,8 +36,8 @@ const TRUE = i64(0xFFF0_0000_0000_0010n)
 const SHORT_EMPTY = i64(EMPTY)
 /** A forged dyn-ref of cell 0, for a read of no value. */
 const FORGED = i64(0x7FF0_0000_0000_0002n | (6n << 48n))
-/** Emit policy for String variants B/C. */
-const shortEmit = /** @type {const} */ ({ kind: 'shortWhenEnabled', enabledTags: v1EnabledTags })
+/** Emit policy for String variant B (same as NaNVM default after S4). */
+const shortEmit = emitB
 
 /** The cells that are alive, as text: each cell index and its count. @type {(h: Counting) => string} */
 const cells = h => h.live().map(([k, count]) => `${k}:${count}`).join()
@@ -95,8 +95,8 @@ export const proof = {
             assertEq(e, 'fjs:l0 host: not a value')
         }
     },
-    // S2: default emit is always dyn-ref (A); B/C emit shorts for enabled tags
-    // and keep the long path when no enabled tag fits.
+    // Decision gate: counting defaults to A (control); pass emitB for shorts.
+    // B packs enabled tags and keeps the long path when no enabled tag fits.
     shortEmit: () => {
         const a = counting([])
         const longEmpty = a.imports.from_unit(0x61)

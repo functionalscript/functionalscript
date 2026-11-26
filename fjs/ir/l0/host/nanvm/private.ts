@@ -42,8 +42,9 @@ export type _Nanvm = {
     readonly trap_text_length: () => number
     readonly trap_text_into: (ptr: number) => void
     /**
-     * `0` always dyn-ref (A); otherwise a bit mask of enabled short tags
-     * (B/C), bit `i` matching `allTags[i]` in the String short helpers.
+     * `0` always dyn-ref (`emitA`); otherwise a bit mask of enabled short
+     * tags (`emitB` / C), bit `i` matching `allTags[i]` in the String short
+     * helpers. NaNVM host defaults to B after the S4 decision gate.
      */
     readonly set_string_emit: (mask: number) => void
 }
