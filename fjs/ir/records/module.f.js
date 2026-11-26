@@ -26,11 +26,12 @@
  *   value may come from stays one, and so does every local that it passes
  *   through. A local that a parameter or an arm binds is never split.
  *   A value that a read answers is widened to `any` with a `block` whose
- *   label is fresh in the function (`W`, or `W_` when `W` is open), unless
- *   it is already a `block` of full `any`. Locals and object sites are
- *   widened too: a parameter of `any.only(string)`, or a nested object of
- *   kind `object`, must not stand in for `get`, which answers `any`. A
- *   later round still finds a site under a widen `block` and may split it.
+ *   label is fresh in the function (`W`, or `W_` when `W` or a `br W` is
+ *   open), unless it is already a `block` of full `any`. Locals and object
+ *   sites are widened too: a parameter of `any.only(string)`, or a nested
+ *   object of kind `object`, must not stand in for `get`, which answers
+ *   `any`. A later round still finds a site under a widen `block` and may
+ *   split it.
  * - **How it splits.** A local `s` of keys `i` and `acc` is the locals
  *   `s.i` and `s.acc`, of `any`: a `let` binds each, a loop has a
  *   parameter for each, and a `br` gives each. The `let`s of the chain that
@@ -164,15 +165,22 @@ const binders = t => {
     return [...own, ...terms(t).flatMap(binders)]
 }
 
-/** The labels that a term opens. @type {(t: Term) => readonly string[]} */
+/**
+ * The labels a term opens or targets: `block` / `loop` declarations, and
+ * `br` destinations (so a widen `block` does not capture an unresolved
+ * `br W`).
+ *
+ * @type {(t: Term) => readonly string[]}
+ */
 const labelsOf = t => {
-    const own = t[0] === 'block' || t[0] === 'loop' ? [t[1]] : []
+    const own = t[0] === 'block' || t[0] === 'loop' || t[0] === 'br' ? [t[1]] : []
     return [...own, ...terms(t).flatMap(labelsOf)]
 }
 
 /**
- * A label for a widen `block` that is not already open in the function, and
- * not `return` (always in scope). Prefers `W`, then `W_`, `W__`, …
+ * A label for a widen `block` that is not already open in the function, not
+ * a `br` target in it, and not `return` (always in scope). Prefers `W`,
+ * then `W_`, `W__`, …
  *
  * @type {(taken: readonly string[]) => string}
  */
@@ -396,8 +404,10 @@ const withValues = (t, values) => {
  * `path`, whose value is read at the key `key`, or used as it is where
  * `key` is `null`. Binder claims are threaded as a list of spelling →
  * origin; a hit means an existing binder or a spelling this rewrite would
- * bind twice (nested `let` / loop parameter). `br` fields reuse `part`
- * spellings without claiming. Reads of a part do not claim.
+ * bind twice in overlapping scopes (nested `let` / loop parameter). Match
+ * arms each claim from the parent state alone, so disjoint arms may share
+ * a spelling. `br` fields reuse `part` spellings without claiming. Reads
+ * of a part do not claim.
  *
  * @typedef {readonly (readonly [string, string])[]} _Claimed
  * @typedef {readonly [_Claimed, boolean]} _ClaimSt
@@ -528,15 +538,18 @@ const rewrite = (get, split, existing, widen) => {
             }
             case 'match': {
                 const [operand, st1] = go(t[1], `${path}/e`, env, null, st)
-                const [arms, st2] = t[2].reduce(
+                // each arm claims from the parent state alone: disjoint arms
+                // may bind the same spelling, and those binders do not outlive
+                // the match, so arm claims are not merged into the continuation
+                const [arms, hitArms] = t[2].reduce(
                     (acc, [variants, binder, x], j) => {
-                        const [done, stA] = acc
-                        const [body, stB] = go(x, `${path}/a${j}`, binder === null ? env : bind(env, [binder, `${path}/a${j}x`, binder]), key, stA)
-                        return /** @type {const} */ ([[...done, /** @type {const} */ ([variants, binder, body])], stB])
+                        const [done, hit] = acc
+                        const [body, [, hitBody]] = go(x, `${path}/a${j}`, binder === null ? env : bind(env, [binder, `${path}/a${j}x`, binder]), key, [st1[0], false])
+                        return /** @type {const} */ ([[...done, /** @type {const} */ ([variants, binder, body])], hit || hitBody])
                     },
-                    /** @type {readonly [Match[2], _ClaimSt]} */ ([[], st1]),
+                    /** @type {readonly [Match[2], boolean]} */ ([[], st1[1]]),
                 )
-                return [['match', operand, arms], st2]
+                return [['match', operand, arms], [st1[0], hitArms]]
             }
             case 'loop': {
                 const params = t[2].map(([k], j) => /** @type {_Local} */ ([k, `${path}#${j}`, k]))

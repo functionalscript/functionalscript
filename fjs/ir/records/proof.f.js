@@ -303,6 +303,36 @@ export const proof = {
             '            "hi"',
         ],
     ),
+    // A br target with no local declaration still reserves the label, so the
+    // widen block does not capture the branch.
+    brWidenTarget: () => golden(
+        let_('r', object([['x', br('W', a)]]), read(get('r'), 'x')),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    let r.x =',
+            '        block W_: any',
+            '            br W a',
+            '    r.x',
+        ],
+    ),
+    // Disjoint if arms may each bind r.x; claims do not collide across arms.
+    disjointArms: () => golden(
+        if_(c, let_('r', object([['x', a]]), read(get('r'), 'x')), let_('r', object([['x', b]]), read(get('r'), 'x'))),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    if c',
+            '    then',
+            '        let r.x =',
+            '            block W: any',
+            '                a',
+            '        r.x',
+            '    else',
+            '        let r.x =',
+            '            block W: any',
+            '                b',
+            '        r.x',
+        ],
+    ),
     loopBad: () => same(loop('L', [['s', any, object([['i', effect(a)]])], ['k', any, effect(b)]], (s_, k) => if_(read(s_, 'i'), next('L', [['s', object([['i', k]])], ['k', k]]), read(s_, 'i')))),
     brBad: () => same(loop('L', [['s', any, object([['i', a]])], ['k', any, b]], (s_, k) => if_(read(s_, 'i'), next('L', [['s', object([['i', effect(k)]])], ['k', effect(k)]]), read(s_, 'i')))),
     notPushed: () => same(let_('r', match(call('Containers', 'seal', [get('m')]), [[['object'], 'o', get('o')], [null, null, trap('not object')]]), read(get('r'), 'x'))),
