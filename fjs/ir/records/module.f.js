@@ -313,7 +313,16 @@ const facts = (get, widens) => {
                     return used(x, `${path}/v${j}`, env, p === undefined ? null : p[1])
                 })]]
             }
-            case 'block': { return [opaque, used(t[3], `${path}/b`, label_(env, [t[1], null]), null)] }
+            case 'block': {
+                // A pass-owned widen must not hide a later read's sources: after
+                // round one wraps `get(#0)` as `block W: #0`, round two's
+                // `get(..., "q")` still has to see the bind (and the site in
+                // `#0`'s initializer). A user-authored block stays opaque.
+                if (isWidenBlock(widens, t)) {
+                    return of(t[3], `${path}/b`, label_(env, [t[1], null]), ends)
+                }
+                return [opaque, used(t[3], `${path}/b`, label_(env, [t[1], null]), null)]
+            }
             case 'op': { return [opaque, all(t[2], path, env)] }
             case 'call': { return [opaque, all(t[3], path, env)] }
             case 'call_ref': { return [opaque, all([t[1], ...t[2]], path, env)] }

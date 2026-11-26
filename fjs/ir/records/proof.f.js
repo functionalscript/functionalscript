@@ -578,6 +578,18 @@ export const proof = {
             '    r.p.q',
         ],
     ),
+    // Outer get's argument is a `let` that yields the nested field (as
+    // from_fast lowers `r.p.q`): round one wraps the nested site as
+    // `block W: #0`, round two must still see through that widen and split.
+    nestedViaLet: () => golden(
+        read(let_('r', object([['p', object([['q', a]])], ['k', b]]), read(get('r'), 'p')), 'q'),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    let r.p.q = a',
+            '    let r.k = b',
+            '    r.p.q',
+        ],
+    ),
     // A narrowed parameter standing in for get must widen to full any, so a
     // later number arm still type-checks (get would have answered any).
     typedLocal: () => {
