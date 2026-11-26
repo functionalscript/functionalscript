@@ -10,9 +10,10 @@ import { assert, assertEq, assertError, assertOk, assertStructurallySame } from 
 import { check, checkPlain } from '../../check/module.f.js'
 import { lifetime } from '../../lifetime/module.f.js'
 import { definedBy } from '../../module.f.js'
+import { EMPTY } from '../box/module.f.js'
 import { a, atAlias, b, c, ops, variants } from './module.f.js'
 import {
-    EMPTY, allTags, emitA, emitB, enabledTagsOf, isShort, length, maxEnabledLen, pack,
+    allTags, emitA, emitB, enabledTagsOf, isShort, length, maxEnabledLen, pack,
     packEnabled, tagLen, tagOf, unit, unpack, v1EnabledTags,
 } from './short.f.js'
 import { module as anyModule } from '../any/module.f.js'
@@ -209,7 +210,7 @@ export const proof = {
         assertEq(definedBy(irModule), 'Any')
         assertEq(irModule.exports.join(), 'length,unit')
         assertEq(assertOk(checkPlain(irModule)).functions.map(([k]) => k).join(),
-            'isRef,dup,drop,kind,oob,unit2,unit3x16,unit4x7,unit5x7,unit6x7,unit7x7,unit8,length,unit')
+            'isRef,dup,drop,kind,oob,unit_s2x16,unit_s3x16,unit_s4x7,unit_s5x7,unit_s6x7,unit_s7x7,unit_s8x6,length,unit')
         assertEq(assertOk(check(assertOk(lifetime(irModule)))).exports.join(), 'length,unit')
         assertEq(b.length.kind, 'template')
         assertEq(b.unit.kind, 'template')
