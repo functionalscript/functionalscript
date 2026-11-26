@@ -451,3 +451,22 @@ node --cpu-prof doc/sasha-gil/ir/benchmark.run.mjs nanvm shortOps B   # a profil
 
 The files are prototypes, not part of the build, and each `.mjs` starts
 with `// @ts-nocheck`, as the folder's other companions do.
+
+### After the inline reference kind (D1)
+
+2026-11-26, Node 26.13.1, emit B, one run each on this container, on
+top of #4142 (before #4128, which splits `shortOps` and `repeat`'s loop
+state too).
+Any's `kind` of a reference reads its `tttt` bits in place of calling
+NaNVM's `kind_ref`; `checkedKind` keeps the call for a debug build.
+
+| Program | IR on NaNVM's `.wasm`, before | after | L0 calls, before | after |
+| --- | --- | --- | --- | --- |
+| `readFields` | 9.60 ms | 7.36 ms | 100,000 | 40,000 |
+| `callMany` | 1.90 ms | 1.68 ms | 14,000 | 10,000 |
+| `shortOps` | 35.20 ms | 33.64 ms | 310,025 | 190,016 |
+| `repeat` | 3.77 ms | 3.27 ms | 34,002 | 19,004 |
+| `bigSum` | 5.00 ms | 2.62 ms | 77,028 | 27,010 |
+
+The numeric programs make no L0 calls either way; their times moved
+only by noise.
