@@ -25,6 +25,9 @@
  *   of a value that may be something else. Then every object that the
  *   value may come from stays one, and so does every local that it passes
  *   through. A local that a parameter or an arm binds is never split.
+ *   A string literal that a read answers is widened to `any` with a
+ *   `block`, since the literal is `any.only(string)` and `get` answers
+ *   `any`.
  * - **How it splits.** A local `s` of keys `i` and `acc` is the locals
  *   `s.i` and `s.acc`, of `any`: a `let` binds each, a loop has a
  *   parameter for each, and a `br` gives each. The `let`s of the chain that
@@ -78,6 +81,16 @@ const label_ = (env, label) => ({ ...env, labels: [label, ...env.labels] })
 
 /** Whether a term does nothing: a local or a literal. @type {(t: Term) => boolean} */
 const isPure = t => t[0] === 'get' || t[0] === 'lit'
+
+/**
+ * A value as `get` would answer it: full `any`. A string literal is
+ * `any.only(string)`, and standing in for a `get` would keep that subset
+ * and break a later `match` that names another kind. A `block` of `any`
+ * widens it at no cost.
+ *
+ * @type {(t: Term) => Term}
+ */
+const asGet = t => t[0] === 'lit' && typeof t[2] === 'string' ? /** @type {Term} */ (['block', 'W', any, t]) : t
 
 /**
  * The keys and the values of an object that a term builds as the lowering
@@ -394,7 +407,7 @@ const rewrite = (get, split, existing) => {
                     (acc, [k, x]) => {
                         const [body, stB] = acc
                         const [binder, stC] = bindPart(stB, name, k)
-                        return /** @type {const} */ ([['let', binder, x, body], stC])
+                        return /** @type {const} */ ([['let', binder, asGet(x), body], stC])
                     },
                     /** @type {readonly [Term, _ClaimSt]} */ ([rest, stV]),
                 ), st2)
@@ -418,7 +431,8 @@ const rewrite = (get, split, existing) => {
         const site = siteOf(t)
         if (site !== null && key !== null) {
             const at = site.findIndex(([k]) => k === key)
-            return go(site[Number(at)][1], `${path}/s${at}`, env, null, st)
+            const [v, st1] = go(site[Number(at)][1], `${path}/s${at}`, env, null, st)
+            return [asGet(v), st1]
         }
         if (site !== null) {
             const [values, st1] = site.reduce(
@@ -456,7 +470,7 @@ const rewrite = (get, split, existing) => {
                         (acc, [k, x]) => {
                             const [b, stA] = acc
                             const [binder, stC] = bindPart(stA, t[1], k)
-                            return /** @type {const} */ ([['let', binder, x, b], stC])
+                            return /** @type {const} */ ([['let', binder, asGet(x), b], stC])
                         },
                         /** @type {readonly [Term, _ClaimSt]} */ ([body, stB]),
                     )

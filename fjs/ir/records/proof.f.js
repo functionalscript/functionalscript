@@ -198,6 +198,25 @@ export const proof = {
     ),
     kept: () => same(let_('r', object([['x', a]]), object([['k', read(get('r'), 'x')], ['all', object([['x', get('r')]])]]))),
     directImpure: () => same(read(object([['x', a], ['y', effect(b)]]), 'x')),
+    // A string literal is any.only(string); get answers any, so a block widens it.
+    stringLit: () => golden(
+        let_('r', object([['x', s('hi')]]), read(get('r'), 'x')),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    let r.x =',
+            '        block W: any',
+            '            "hi"',
+            '    r.x',
+        ],
+    ),
+    stringLitDirect: () => golden(
+        read(object([['x', s('hi')]]), 'x'),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    block W: any',
+            '        "hi"',
+        ],
+    ),
     loopBad: () => same(loop('L', [['s', any, object([['i', effect(a)]])], ['k', any, effect(b)]], (s_, k) => if_(read(s_, 'i'), next('L', [['s', object([['i', k]])], ['k', k]]), read(s_, 'i')))),
     brBad: () => same(loop('L', [['s', any, object([['i', a]])], ['k', any, b]], (s_, k) => if_(read(s_, 'i'), next('L', [['s', object([['i', effect(k)]])], ['k', effect(k)]]), read(s_, 'i')))),
     notPushed: () => same(let_('r', match(call('Containers', 'seal', [get('m')]), [[['object'], 'o', get('o')], [null, null, trap('not object')]]), read(get('r'), 'x'))),
