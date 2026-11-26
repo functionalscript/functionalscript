@@ -66,7 +66,12 @@ export const proof = {
             constants: own,
             functions: [['l1.add', fn([], f64, lit(f64c, 0))]],
             exports: [],
-        })
+        })        // A program's own name that is a reached linked name is refused, as linkAny and linkString refuse one.
+        assertEq(assertError(link(l1)({
+            imports: [],
+            functions: [['f', fn([], f64, call('self', 'l1.add', []))], ['l1.add', fn([], f64, lit(f64c, 3))]],
+            exports: ['f'],
+        })), 'l1.add is already a function or constant of the program')
     },
     linkAny: () => {
         /** @type {Module} */
@@ -91,7 +96,7 @@ export const proof = {
                 ['kind', fn([], f64, call('self', 'isRef', []))],
                 ['from_f64', fn([], f64, lit(f64c, 1))],
                 ['keep', fn([], f64, lit(f64c, 2))],
-                // everyKind covers each rewriteAny case (incl. Any and self).
+                // everyKind covers each case of the linker's walker (incl. Any and self).
                 ['all', fn([], f64, everyKind(k => k))],
             ],
             exports: ['kind', 'from_f64', 'keep'],
@@ -292,7 +297,7 @@ export const proof = {
             })(withAny)).functions.find(([k]) => k === 'string.length')?.[1].body,
             call('String', 'length', [get('s')]),
         )
-        // everyKind on the String stub covers each rewriteString case; name('#c0')
+        // everyKind on the String stub covers each case of the walker; name('#c0')
         // is an own function so constant('self', own) renames under rewriteOwn.
         assertOk(linkString({
             imports: stringModule.imports,
