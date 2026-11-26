@@ -418,7 +418,8 @@ export const notPrecise = /** @type {const} */ ('Not measured: Chromium rounds t
  * heap a garbage collection shrank during the run gives no comparison, or
  * where the linear memory did not grow, which only says the allocator reused
  * memory it had, not that the run used none. {@link notPrecise} where the
- * readings are Chromium's rounded ones.
+ * comparison would otherwise stand but the readings are Chromium's rounded
+ * ones.
  *
  * @type {(js: Runs['js'], other: Result<WasmRun, string> | undefined) => string | null}
  */
@@ -426,11 +427,13 @@ const growthAgainstJs = (js, other) => js[0] === 'error' || js[1].heap === null
     ? null
     : other === undefined
         ? null
-        : rounded(js[1].heap)
-            ? notPrecise
-            : other[0] === 'ok' && sameOutput(js[1], other[1]) && js[1].heap.after > js[1].heap.before && other[1].growth > 0
-                ? `${(other[1].growth / (js[1].heap.after - js[1].heap.before)).toFixed(1)}×`
-                : 'Not available'
+        : other[0] !== 'ok' || !sameOutput(js[1], other[1]) || other[1].growth <= 0
+            ? 'Not available'
+            : rounded(js[1].heap)
+                ? notPrecise
+                : js[1].heap.after > js[1].heap.before
+                    ? `${(other[1].growth / (js[1].heap.after - js[1].heap.before)).toFixed(1)}×`
+                    : 'Not available'
 
 /**
  * Rust→WASM linear-memory growth against the JavaScript heap, as
