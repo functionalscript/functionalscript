@@ -27,10 +27,10 @@ vvvv_vvvv_vvvv_vvvv
 vvvv_vvvv_vvvv_vvvv
 ```
 
-- `s111_1111_1111_..._v000` non-finite numbers, primitives `v: 48`,
-- `s111_1111_1111_..._v100` reference `v: 49`,
-- `s111_1111_1111_..._vv10` short string `v: 50`,
-- `s111_1111_1111_..._vvv1` short bigint. `v: 51`.
+- `s111_1111_1111_..._v000` non-finite numbers, primitives `sv: 49`,
+- `s111_1111_1111_..._v100` reference `sv: 50`,
+- `s111_1111_1111_..._vv10` short string `sv: 51`,
+- `s111_1111_1111_..._vvv1` short bigint. `sv: 52`.
 
 ## Types
 
@@ -68,22 +68,23 @@ For function we can have three functions
 
 Additional native functions such as `Object.is`, `structEq`, etc.
 
-## Short String 50 bit
+## Short String 51 bit
 
 Short string using a leading `...01`.
 Max length is 8 characters.
 
-|      |    |Occupied|
-|------|----|--------|
-|      |`0` |`1`     |
-|`1x16`|`16`|`17`    |
-|`2x16`|`32`|`33`    |
-|`3x16`|`48`|`49`    |
-|`4x7` |`28`|`29`    |
-|`5x7` |`35`|`36`    |
-|`6x7` |`42`|`43`    |
-|`7x7` |`49`|`50`    |
-|`8x6` |`48`|`49`    |
+|      |    |Offset|Occupied|
+|------|----|------|--------|
+|`1x16`|`16`|      |`17`    |
+|`2x16`|`32`|      |`31`    |
+|`3x16`|`48`|      |`49`    |
+|      |    |      |        |
+|`4x7` |`28`|      |`29`    |
+|`5x7` |`35`|      |`36`    |
+|`6x7` |`42`|      |`43`    |
+|`7x7` |`49`|      |`50`    |
+|      |    |      |        |
+|`8x6` |`48`|`2`   |`51`    |
 
 ## Reference
 
@@ -91,9 +92,9 @@ Max length is 8 characters.
 
 - `s` is static,
 - `tttt` is type:
-  - `0` - `string`
-  - `1` - `bigint`
-  - `2` - `object`
-  - `3` - `array`
-  - `4` - `function`
+  - `string`
+  - `bigint`
+  - `object`
+  - `array`
+  - `function`
 - `r` = `0` reserved.
