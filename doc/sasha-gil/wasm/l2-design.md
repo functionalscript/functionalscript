@@ -56,7 +56,10 @@ substitutions of the same bodies, checked by the same proof tables.
 - **Cost:** `String.fromCharCode` and `Object.entries` are built in one
   pass, through the builders of the L0 view
   ([l0-design.md §22](./l0-design.md#22-building-in-one-pass)). The bodies
-  are in [`fjs/wasm/runtime/l1/builtin`](../../../fjs/wasm/runtime/l1/builtin/module.f.js).
+  are in [`fjs/wasm/runtime/l1/builtin`](../../../fjs/wasm/runtime/l1/builtin/module.f.js),
+  except `charCodeAt`: since #4063 it is L1's own method call
+  ([`fjs/wasm/runtime/l1`](../../../fjs/wasm/runtime/l1/module.f.js)), which
+  answers the same for a string and calls the member for any other kind.
 
 ### 3. Statics link by name
 

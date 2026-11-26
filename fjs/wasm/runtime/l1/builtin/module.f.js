@@ -1,7 +1,7 @@
 /**
  * The bodies of today's natives as L1 operations
  * ([`l2-design.md` §2](../../../../../doc/sasha-gil/wasm/l2-design.md#2-todays-natives-become-l1-operations)):
- * the intrinsics `charCodeAt` and `slice` of
+ * the intrinsic `slice` of
  * [`fjs/js/intrinsic`](../../../../js/intrinsic/module.f.js), the statics
  * `String.fromCharCode` and `Object.entries`, and the helpers `entry` and
  * `hasEntry` of [`fjs/types/object/entry`](../../../../types/object/entry/module.f.js).
@@ -10,7 +10,10 @@
  *
  * [`fjs/js/runtime`](../../../../js/runtime/module.f.js) does not change:
  * the WASM backend binds these names to the bodies here, while the
- * interpreter and the Rust backend keep answering them natively.
+ * interpreter and the Rust backend keep answering them natively. Nothing
+ * binds them yet: `fjs/ir`'s lowering takes only the method calls that L1
+ * itself answers. `charCodeAt` is one of those since #4063, so its body is
+ * L1's [`charCodeAt`](../module.f.js), not one here.
  *
  * @module
  */
@@ -22,19 +25,6 @@ import {
 import { stringIndex, toIntegerOrInfinity, toNumber, toPropertyKey } from '../module.f.js'
 import { error } from '../error/module.f.js'
 import { numberToString } from '../native/module.f.js'
-
-/**
- * [`String.prototype.charCodeAt`](https://tc39.es/ecma262/#sec-string.prototype.charcodeat):
- * the UTF-16 unit of `s` at the position `at` converts to, or `NaN` outside
- * the string.
- *
- * @type {(s: unknown, at: unknown) => number}
- */
-export const charCodeAt = (s, at) => {
-    const n = length(asString(s))
-    const p = toIntegerOrInfinity(toNumber(at))
-    return p >= 0 && p < n ? unit(s, p) : NaN
-}
 
 /**
  * A position of [`String.prototype.slice`](https://tc39.es/ecma262/#sec-string.prototype.slice)
