@@ -27,8 +27,10 @@
  *   through. A local that a parameter or an arm binds is never split.
  *   A value that a read answers is widened to `any` with a `block` whose
  *   label is fresh in the function (`W`, or `W_` when `W` is open), unless
- *   it is already a local or a `block` of full `any`: a subset such as
- *   `any.only(string)` must not stand in for `get`, which answers `any`.
+ *   it is already a `block` of full `any`. Locals and object sites are
+ *   widened too: a parameter of `any.only(string)`, or a nested object of
+ *   kind `object`, must not stand in for `get`, which answers `any`. A
+ *   later round still finds a site under a widen `block` and may split it.
  * - **How it splits.** A local `s` of keys `i` and `acc` is the locals
  *   `s.i` and `s.acc`, of `any`: a `let` binds each, a loop has a
  *   parameter for each, and a `br` gives each. The `let`s of the chain that
@@ -82,13 +84,25 @@ const label_ = (env, label) => ({ ...env, labels: [label, ...env.labels] })
 /** Whether a term does nothing: a local or a literal. @type {(t: Term) => boolean} */
 const isPure = t => t[0] === 'get' || t[0] === 'lit'
 
+/** Whether a type is full `any` (not a subset). @type {(ty: Type) => boolean} */
+const isFullAny = ty => ty[0] === 'sealed' && ty[3] === null
+
+/**
+ * A full-`any` widen `block`'s body, or the term itself.
+ *
+ * @type {(t: Term) => Term}
+ */
+const peelWiden = t => t[0] === 'block' && isFullAny(t[2]) ? peelWiden(t[3]) : t
+
 /**
  * The keys and the values of an object that a term builds as the lowering
- * writes one, or `null`.
+ * writes one, or `null`. A full-`any` widen `block` around a site does not
+ * hide it: a later round may still split that site.
  *
  * @type {(t: Term) => _Site | null}
  */
 const siteOf = t => {
+    t = peelWiden(t)
     if (t[0] !== 'match' || t[2].length !== 2) { return null }
     const [[variants, binder, body], [rest, , other]] = t[2]
     const sealed = t[1]
@@ -111,20 +125,18 @@ const siteOf = t => {
 }
 
 /**
- * A value as `get` would answer it: full `any`. A local is left as it is
- * (split parts and parameters are already `any`); a `block` of full `any`
- * is left as it is; an object site is left as it is so a later round can
- * still split it. Every other term is wrapped in a `block` of `any`, so a
- * subset such as `any.only(string)` — a string literal or `c ? "a" : "b"` —
- * does not stand in for a `get` and break a later `match` that names another
- * kind. `widen` is a label not already open in the function.
+ * A value as `get` would answer it: full `any`. A `block` of full `any` is
+ * left as it is. Every other term — a local (a parameter may be
+ * `any.only(string)`), an object site (kind `object`), a string literal, an
+ * `if` of strings — is wrapped in a `block` of `any`, so a subset does not
+ * stand in for a `get` and break a later `match` that names another kind.
+ * `siteOf` still sees a site under that `block`, so a later round can split
+ * it. `widen` is a label not already open in the function.
  *
  * @type {(widen: string) => (t: Term) => Term}
  */
 const asGet = widen => t => {
-    if (t[0] === 'get') { return t }
-    if (t[0] === 'block' && t[2][0] === 'sealed' && t[2][3] === null) { return t }
-    if (siteOf(t) !== null) { return t }
+    if (t[0] === 'block' && isFullAny(t[2])) { return t }
     return /** @type {Term} */ (['block', widen, any, t])
 }
 
@@ -440,6 +452,10 @@ const rewrite = (get, split, existing, widen) => {
                     /** @type {readonly [Term, _ClaimSt]} */ ([rest, stV]),
                 ), st2)
             }
+            // a prior round may have left the site under a widen `block`
+            if (t[0] === 'block' && isFullAny(t[2])) {
+                return moved(t[3], path, env, prefix, end, st)
+            }
             const site = siteOf(t)
             if (site !== null) {
                 const [values, st1] = site.reduce(
@@ -455,6 +471,12 @@ const rewrite = (get, split, existing, widen) => {
             // a split local, as `solve` leaves only these at the end of a chain: its parts
             const local = assertNotNullish(localOf(env, /** @type {readonly ['get', string]} */ (t)[1]))
             return end(assertNotNullish(keysAt(local[1])).map(k => /** @type {const} */ ([k, /** @type {Term} */ (['get', part(local[2], k)])])), st)
+        }
+        // Before `siteOf`: it peels widen blocks, and a `block` must keep its
+        // wrapper while its body (a nested site from a prior round) is walked.
+        if (t[0] === 'block') {
+            const [body, st1] = go(t[3], `${path}/b`, label_(env, [t[1], null]), key, st)
+            return [['block', t[1], t[2], body], st1]
         }
         const site = siteOf(t)
         if (site !== null && key !== null) {
@@ -568,10 +590,6 @@ const rewrite = (get, split, existing, widen) => {
                     }, stF)
                 }
                 return from(0, env, [], st)
-            }
-            case 'block': {
-                const [body, st1] = go(t[3], `${path}/b`, label_(env, [t[1], null]), null, st)
-                return [['block', t[1], t[2], body], st1]
             }
             case 'op': {
                 const [args, st1] = t[2].reduce(

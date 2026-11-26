@@ -8,7 +8,7 @@
 
 import { assertEq, assertOk } from '../../asserts/module.f.js'
 import { any, string } from '../l0/module.f.js'
-import { add, block, bool, br, call, call_ref, codeOf, constant, f64, field, fn, get, if_, let_, lit, loop, make, match, n, next, trap, trunc_sat, u, variant } from '../module.f.js'
+import { add, block, bool, br, call, call_ref, codeOf, constant, f64, field, fn, get, if_, let_, lit, loop, make, match, n, next, only, trap, trunc_sat, u, variant } from '../module.f.js'
 import { checkPlain } from '../check/module.f.js'
 import { print } from '../print/module.f.js'
 import { records as l0 } from '../testlib.f.js'
@@ -50,8 +50,12 @@ export const proof = {
         let_('r', object([['x', a], ['y', b]]), read(get('r'), 'y')),
         [
             'fn f(a: any, b: any, c: any) -> any =',
-            '    let r.x = a',
-            '    let r.y = b',
+            '    let r.x =',
+            '        block W: any',
+            '            a',
+            '    let r.y =',
+            '        block W: any',
+            '            b',
             '    r.y',
         ],
     ),
@@ -59,14 +63,17 @@ export const proof = {
         read(object([['x', a]]), 'x'),
         [
             'fn f(a: any, b: any, c: any) -> any =',
-            '    a',
+            '    block W: any',
+            '        a',
         ],
     ),
     impure: () => golden(
         let_('r', object([['x', a], ['y', effect(b)]]), read(get('r'), 'x')),
         [
             'fn f(a: any, b: any, c: any) -> any =',
-            '    let r.x = a',
+            '    let r.x =',
+            '        block W: any',
+            '            a',
             '    let r.y =',
             '        block W: any',
             '            Any.effect(b)',
@@ -78,7 +85,13 @@ export const proof = {
         read(if_(c, object([['x', a]]), object([['x', b]])), 'x'),
         [
             'fn f(a: any, b: any, c: any) -> any =',
-            '    if c then a else b',
+            '    if c',
+            '    then',
+            '        block W: any',
+            '            a',
+            '    else',
+            '        block W: any',
+            '            b',
         ],
     ),
     armBinder: () => golden(
@@ -87,17 +100,23 @@ export const proof = {
             'fn f(a: any, b: any, c: any) -> any =',
             '    match c',
             '      object as q =>',
-            '        q',
+            '        block W: any',
+            '            q',
             '      else =>',
-            '        b',
+            '        block W: any',
+            '            b',
         ],
     ),
     chainSplit: () => golden(
         let_('s', let_('t', object([['a', a]]), object([['p', read(get('t'), 'a')]])), read(get('s'), 'p')),
         [
             'fn f(a: any, b: any, c: any) -> any =',
-            '    let s/t.a = a',
-            '    let s.p = s/t.a',
+            '    let s/t.a =',
+            '        block W: any',
+            '            a',
+            '    let s.p =',
+            '        block W: any',
+            '            s/t.a',
             '    s.p',
         ],
     ),
@@ -106,7 +125,9 @@ export const proof = {
         [
             'fn f(a: any, b: any, c: any) -> any =',
             '    let s/t = Any.effect(a)',
-            '    let s.p = s/t',
+            '    let s.p =',
+            '        block W: any',
+            '            s/t',
             '    s.p',
         ],
     ),
@@ -114,8 +135,12 @@ export const proof = {
         let_('r', object([['x', a]]), let_('q', get('r'), read(get('q'), 'x'))),
         [
             'fn f(a: any, b: any, c: any) -> any =',
-            '    let r.x = a',
-            '    let q.x = r.x',
+            '    let r.x =',
+            '        block W: any',
+            '            a',
+            '    let q.x =',
+            '        block W: any',
+            '            r.x',
             '    q.x',
         ],
     ),
@@ -180,8 +205,12 @@ export const proof = {
       ])),
         [
             'fn f(a: any, b: any, c: any) -> any =',
-            '    let r.x = a',
-            '    let r.y = b',
+            '    let r.x =',
+            '        block W: any',
+            '            a',
+            '    let r.y =',
+            '        block W: any',
+            '            b',
             '    {',
             '        o: trunc_sat(u(8), r.x),',
             '        p: add(r.y, 1.0 as f64),',
@@ -288,7 +317,9 @@ export const proof = {
         let_('r', object([['x', a]]), make([['x', read(get('r'), 'x')], ['z', br('Z', make([['k', a]]))], ['zz', get('zz')]])),
         [
             'fn f(a: any, b: any, c: any) -> any =',
-            '    let r.x = a',
+            '    let r.x =',
+            '        block W: any',
+            '            a',
             '    { x: r.x, z: br Z { k: a }, zz: zz }',
         ],
     ),
@@ -296,7 +327,9 @@ export const proof = {
         let_('r', object([['x', a]]), make([['x', read(get('r'), 'x')], ['l', loop('L', [['s', any, a]], () => br('L', get('m')))], ['b', block('B', any, br('B', a))]])),
         [
             'fn f(a: any, b: any, c: any) -> any =',
-            '    let r.x = a',
+            '    let r.x =',
+            '        block W: any',
+            '            a',
             '    {',
             '        x: r.x,',
             '        l:',
@@ -312,9 +345,15 @@ export const proof = {
         let_('r', object([['p', object([['q', a]])], ['p.q', b], ['s/\\', c]]), make([['x', read(read(get('r'), 'p'), 'q')], ['y', read(get('r'), 'p.q')], ['z', read(get('r'), 's/\\')]])),
         [
             'fn f(a: any, b: any, c: any) -> any =',
-            '    let r.p.q = a',
-            '    let r.p\\.q = b',
-            '    let r.s\\/\\\\ = c',
+            '    let r.p.q =',
+            '        block W_: any',
+            '            a',
+            '    let r.p\\.q =',
+            '        block W: any',
+            '            b',
+            '    let r.s\\/\\\\ =',
+            '        block W: any',
+            '            c',
             '    { x: r.p.q, y: r.p\\.q, z: r.s\\/\\\\ }',
         ],
     ),
@@ -326,7 +365,8 @@ export const proof = {
         [
             'fn f(a: any, b: any, c: any) -> any =',
             '    let r.x = a',
-            '    r.x',
+            '    block W: any',
+            '        r.x',
         ],
     ),
     reservedLoop: () => golden(
@@ -334,7 +374,8 @@ export const proof = {
         [
             'fn f(a: any, b: any, c: any) -> any =',
             '    loop L (s/: any = a)',
-            '        a',
+            '        block W: any',
+            '            a',
         ],
     ),
     reservedArm: () => golden(
@@ -343,7 +384,8 @@ export const proof = {
             'fn f(a: any, b: any, c: any) -> any =',
             '    match c',
             '      else as w\\ =>',
-            '        a',
+            '        block W: any',
+            '            a',
         ],
     ),
     collide: () => same(let_('r.x', b, let_('r', object([['x', a]]), read(get('r'), 'x')))),
@@ -369,7 +411,9 @@ export const proof = {
         [
             'fn f(a: any, b: any, c: any) -> any =',
             '    let p0.string = a',
-            '    let r.x = b',
+            '    let r.x =',
+            '        block W: any',
+            '            b',
             '    r.x',
         ],
     ),
@@ -377,7 +421,9 @@ export const proof = {
         let_('r', object([['x', a]]), let_('v', read(get('r'), 'x'), let_('w', get('b'), make([['v', get('v')], ['w', get('w')]])))),
         [
             'fn f(a: any, b: any, c: any) -> any =',
-            '    let r.x = a',
+            '    let r.x =',
+            '        block W: any',
+            '            a',
             '    let w = b',
             '    { v: r.x, w: w }',
         ],
@@ -386,9 +432,64 @@ export const proof = {
         let_('r', object([['p', object([['q', a]])], ['k', b]]), read(read(get('r'), 'p'), 'q')),
         [
             'fn f(a: any, b: any, c: any) -> any =',
-            '    let r.p.q = a',
-            '    let r.k = b',
+            '    let r.p.q =',
+            '        block W_: any',
+            '            a',
+            '    let r.k =',
+            '        block W: any',
+            '            b',
             '    r.p.q',
         ],
     ),
+    // A narrowed parameter standing in for get must widen to full any, so a
+    // later number arm still type-checks (get would have answered any).
+    typedLocal: () => {
+        const body = let_('r', object([['x', get('v')]]), match(read(get('r'), 'x'), [[['number'], 'k', get('k')], [null, null, get('n')]]))
+        const f = fn([['v', only(any, 'string')], ['n', any]], any, body)
+        const afterF = records('get')({ imports: [], functions: [['f', f]], exports: [] }).functions[0][1]
+        assertEq(print({ imports: [], functions: [['f', afterF]], exports: [] }), [
+            'fn f(v: any.only(string), n: any) -> any =',
+            '    let r.x =',
+            '        block W: any',
+            '            v',
+            '    match r.x',
+            '      number as k =>',
+            '        k',
+            '      else =>',
+            '        n',
+        ].map(line => `${line}\n`).join(''))
+        assertOk(checkPlain({
+            imports: l0.imports,
+            functions: [...l0.functions.filter(([k]) => k !== 'f'), ['f', afterF]],
+            exports: ['f'],
+        }))
+    },
+    // A nested object site substituted for get is kind object; widen it so a
+    // number arm still type-checks, while a later round can still split it
+    // (see nested above).
+    nestedObjectMatch: () => {
+        const body = let_('r', object([['x', object([['y', a]])]]), match(read(get('r'), 'x'), [[['number'], 'k', get('k')], [null, null, get('n')]]))
+        const f = fn([['a', any], ['n', any]], any, body)
+        const afterF = records('get')({ imports: [], functions: [['f', f]], exports: [] }).functions[0][1]
+        assertEq(print({ imports: [], functions: [['f', afterF]], exports: [] }), [
+            'fn f(a: any, n: any) -> any =',
+            '    let r.x =',
+            '        block W: any',
+            '            match Containers.seal(Containers.push_property(Containers.begin_object(1), "y", a))',
+            '              object as o =>',
+            '                o',
+            '              else =>',
+            "                trap('not object')",
+            '    match r.x',
+            '      number as k =>',
+            '        k',
+            '      else =>',
+            '        n',
+        ].map(line => `${line}\n`).join(''))
+        assertOk(checkPlain({
+            imports: l0.imports,
+            functions: [...l0.functions.filter(([k]) => k !== 'f'), ['f', afterF]],
+            exports: ['f'],
+        }))
+    },
 }
