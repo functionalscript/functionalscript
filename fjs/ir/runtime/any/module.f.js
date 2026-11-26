@@ -72,22 +72,31 @@ const scalarKind = b => let_('tag', and(shr(b, n(4n)), n(3n)), tag =>
 const stringLiteral = { variant: 'string', module: 'String', member: 'make_string' }
 
 /**
- * The interface that importers of this module see: L0's Any with `number`
- * among the copy variants, so a value narrowed to a number needs no count.
+ * The `any` that this module defines and its importers see: L0's Any with
+ * `number` among the copy variants, so a value narrowed to a number needs no
+ * count.
+ *
+ * @type {Interface['types']}
+ */
+const types = [['any', {
+    variants: kinds,
+    kind: 'kind',
+    carrier: 'i64',
+    dup: 'dup',
+    drop: 'drop',
+    copy: ['undefined', 'null', 'boolean', 'number'],
+    literal: stringLiteral,
+}]]
+
+/**
+ * The interface that importers of this module see: {@link types}, its
+ * constants and its functions.
  *
  * @type {Interface}
  */
 export const iface = {
     abi: 'fjs:l0',
-    types: [['any', {
-        variants: kinds,
-        kind: 'kind',
-        carrier: 'i64',
-        dup: 'dup',
-        drop: 'drop',
-        copy: ['undefined', 'null', 'boolean', 'number'],
-        literal: stringLiteral,
-    }]],
+    types,
     constants: [
         ['undefined', only(any, 'undefined')],
         ['null', only(any, 'null')],
@@ -113,18 +122,7 @@ export const iface = {
  *
  * @type {NonNullable<Module['defines']>}
  */
-export const defines = {
-    name: 'Any',
-    types: [['any', {
-        variants: kinds,
-        kind: 'kind',
-        carrier: 'i64',
-        dup: 'dup',
-        drop: 'drop',
-        copy: ['undefined', 'null', 'boolean', 'number'],
-        literal: stringLiteral,
-    }]],
-}
+export const defines = { name: 'Any', types }
 
 /**
  * Any's IR module: it defines `any`, imports `Ref`, and exports the

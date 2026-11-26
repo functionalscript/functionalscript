@@ -99,17 +99,20 @@ const unitBody = (s, i) => let_('b', unseal(s), b => if_(isShortBits(b),
     call('String', 'unit', [s, i])))
 
 /**
- * Unrolled unit at a fixed shift: compares `i` to each index so the shift
- * count stays a singleton below 64.
+ * Unrolled unit at a fixed shift, mapped by `of`: compares `i` to each index
+ * so the shift count stays a singleton below 64.
  *
- * @type {(b: Term, i: Term, shifts: readonly bigint[], mask: bigint) => Term}
+ * @type {(b: Term, i: Term, shifts: readonly bigint[], mask: bigint, of: (bits: Term) => Term) => Term}
  */
-const unitAt = (b, i, shifts, mask) => {
+const unitOf = (b, i, shifts, mask, of) => {
     /** @type {(k: number) => Term} */
     const go = k => k === shifts.length ? call('self', 'oob', [])
-        : if_(eq(i, n(BigInt(k))), and(shr(b, n(shifts[Number(k)])), n(mask)), go(k + 1))
+        : if_(eq(i, n(BigInt(k))), of(and(shr(b, n(shifts[Number(k)])), n(mask))), go(k + 1))
     return go(0)
 }
+
+/** {@link unitOf} where the bits are the unit itself. @type {(b: Term, i: Term, shifts: readonly bigint[], mask: bigint) => Term} */
+const unitAt = (b, i, shifts, mask) => unitOf(b, i, shifts, mask, bits => bits)
 
 /**
  * The hooks that Any's `defines` names, with the function they call, taken
@@ -148,15 +151,7 @@ export const module = {
             unitAt(b, i, [3n, 10n, 17n, 24n, 31n, 38n, 45n], 0x7fn))],
         // Eight 6-bit alphabet codes starting at bit 4.
         ['unit8', fn([['b', u(64)], ['i', index]], codeUnit, (b, i) =>
-            if_(eq(i, n(0n)), fromId6(and(shr(b, n(4n)), n(0x3fn))),
-                if_(eq(i, n(1n)), fromId6(and(shr(b, n(10n)), n(0x3fn))),
-                    if_(eq(i, n(2n)), fromId6(and(shr(b, n(16n)), n(0x3fn))),
-                        if_(eq(i, n(3n)), fromId6(and(shr(b, n(22n)), n(0x3fn))),
-                            if_(eq(i, n(4n)), fromId6(and(shr(b, n(28n)), n(0x3fn))),
-                                if_(eq(i, n(5n)), fromId6(and(shr(b, n(34n)), n(0x3fn))),
-                                    if_(eq(i, n(6n)), fromId6(and(shr(b, n(40n)), n(0x3fn))),
-                                        if_(eq(i, n(7n)), fromId6(and(shr(b, n(46n)), n(0x3fn))),
-                                            call('self', 'oob', []))))))))))],
+            unitOf(b, i, [4n, 10n, 16n, 22n, 28n, 34n, 40n, 46n], 0x3fn, fromId6))],
         ['length', fn([['s', string]], index, s => lengthBody(s))],
         ['unit', fn([['s', string], ['i', index]], codeUnit, (s, i) => unitBody(s, i))],
     ],

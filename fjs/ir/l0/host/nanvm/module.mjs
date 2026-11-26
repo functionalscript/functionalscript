@@ -65,7 +65,7 @@
  * @import { Host as NativeHost } from '../../../native/host/types.ts'
  */
 
-import { allTags, emitA, emitB } from '../../../runtime/string/short.f.js'
+import { allTags, emitA, emitB, enabledTagsOf } from '../../../runtime/string/short.f.js'
 import { write } from '../../../../media/wasm/binary/write/module.f.js'
 
 export { emitA, emitB }
@@ -76,11 +76,11 @@ export { emitA, emitB }
  * @type {(emit: StringEmit) => number}
  */
 const emitMask = emit => {
-    if (emit.kind !== 'shortWhenEnabled') { return 0 }
+    const enabled = enabledTagsOf(emit)
     /** @type {(i: number, acc: number) => number} */
     const go = (i, acc) => {
-        if (i === emit.enabledTags.length) { return acc }
-        const bit = allTags.indexOf(emit.enabledTags[Number(i)])
+        if (i === enabled.length) { return acc }
+        const bit = allTags.indexOf(enabled[Number(i)])
         if (bit < 0) { throw 'fjs:l0 nanvm: unknown short tag' }
         return go(i + 1, acc | (1 << bit))
     }

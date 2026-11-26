@@ -99,7 +99,7 @@
  * @import { Counting, StringEmit } from '../types.ts'
  */
 
-import { emitA, emitB, isShort, maxEnabledLen, packEnabled, unpack } from '../../../runtime/string/short.f.js'
+import { emitA, emitB, enabledTagsOf, isShort, maxEnabledLen, packEnabled, unpack } from '../../../runtime/string/short.f.js'
 import { kind as valueKind } from '../../../../wasm/runtime/l0/module.f.js'
 import { view } from '../module.f.js'
 
@@ -208,6 +208,9 @@ const dataBase = 0x100
  * @type {(values: readonly unknown[], data?: number, entries?: number, stringEmit?: StringEmit) => Counting}
  */
 export const counting = (values, data = 0, entries = 0, stringEmit = emitA) => {
+    /** The short encodings this host may make, and the most units any of them holds. */
+    const enabledTags = enabledTagsOf(stringEmit)
+    const maxLen = maxEnabledLen(enabledTags)
     /** @type {Map<bigint, { readonly value: unknown, readonly count: number }>} */
     const cells = new Map()
     /** The count at which each kept cell was kept. @type {Map<bigint, number>} */
@@ -240,9 +243,8 @@ export const counting = (values, data = 0, entries = 0, stringEmit = emitA) => {
         if (value === true) { return i64(TRUE) }
         if (value === false) { return i64(FALSE) }
         if (typeof value === 'number') { return numberBox(value) }
-        if (typeof value === 'string' && stringEmit.kind === 'shortWhenEnabled'
-            && value.length <= maxEnabledLen(stringEmit.enabledTags)) {
-            const packed = packEnabled(unitsOf(value), stringEmit.enabledTags)
+        if (typeof value === 'string' && value.length <= maxLen) {
+            const packed = packEnabled(unitsOf(value), enabledTags)
             if (packed[0] === 'ok') { return i64(packed[1]) }
         }
         const h = next
