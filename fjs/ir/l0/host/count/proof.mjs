@@ -16,6 +16,7 @@ import { assert, assertEq, assertOk } from '../../../../asserts/module.f.js'
 import { write } from '../../../../media/wasm/binary/write/module.f.js'
 import { check } from '../../../check/module.f.js'
 import { add, bool, call, codeOf, f64, float, fn, get, if_, let_, lit, loop, lt, match, next, only, own, return_, throw_, u, unit } from '../../../module.f.js'
+import { EMPTY, isShort, pack, packEnabled, v1EnabledTags } from '../../../runtime/string/short.f.js'
 import { emit } from '../../../wasm/module.f.js'
 import { layoutOf } from '../../../wasm/testlib.mjs'
 import { any, array, func, l0 } from '../../module.f.js'
@@ -31,8 +32,12 @@ const UNDEFINED = i64(0x7FF0_0000_0000_0020n)
 const NULL = i64(0x7FF0_0000_0000_0030n)
 const FALSE = i64(0x7FF0_0000_0000_0010n)
 const TRUE = i64(0xFFF0_0000_0000_0010n)
+/** Empty short-string box (Sergey EMPTY_STRING). */
+const SHORT_EMPTY = i64(EMPTY)
 /** A forged dyn-ref of cell 0, for a read of no value. */
 const FORGED = i64(0x7FF0_0000_0000_0002n | (6n << 48n))
+/** Emit policy for String variants B/C. */
+const shortEmit = /** @type {const} */ ({ kind: 'shortWhenEnabled', enabledTags: v1EnabledTags })
 
 /** The cells that are alive, as text: each cell index and its count. @type {(h: Counting) => string} */
 const cells = h => h.live().map(([k, count]) => `${k}:${count}`).join()
@@ -65,6 +70,55 @@ const one = lit(f64, 1)
 const zero = lit(f64, 0)
 
 export const proof = {
+    // S2: the host accepts well-formed short-string boxes as strings; dup/drop
+    // leave the bits alone; a bad short-family pattern traps.
+    shortAccept: () => {
+        const h = counting([])
+        assertEq(h.read(SHORT_EMPTY), '')
+        assertEq(h.imports.kind(SHORT_EMPTY), 4)
+        assertEq(h.imports.length(SHORT_EMPTY), 0)
+        assertEq(h.imports.dup(SHORT_EMPTY), SHORT_EMPTY)
+        h.imports.drop(SHORT_EMPTY)
+        assertEq(cells(h), '')
+        const one = assertOk(pack([0x61]))
+        const two = assertOk(pack([0x61, 0x62]))
+        assertEq(`${h.read(i64(one))} ${h.imports.unit(i64(one), 0)}`, 'a 97')
+        assertEq(`${h.read(i64(two))} ${h.imports.length(i64(two))}`, 'ab 2')
+        assert(isShort(one) && isShort(two))
+        // Bits in the short family that match no Sergey tag are not a value.
+        const junk = i64(0x7FF0_0000_0000_00E8n)
+        assert(isShort(BigInt.asUintN(64, junk)))
+        try {
+            h.read(junk)
+            throw 'expected not a value'
+        } catch (e) {
+            assertEq(e, 'fjs:l0 host: not a value')
+        }
+    },
+    // S2: default emit is always dyn-ref (A); B/C emit shorts for enabled tags
+    // and keep the long path when no enabled tag fits.
+    shortEmit: () => {
+        const a = counting([])
+        const longEmpty = a.imports.from_unit(0x61)
+        assertEq(`${a.read(longEmpty)} ${cells(a)}`, 'a 0:1')
+        assert(!isShort(BigInt.asUintN(64, longEmpty)))
+        a.imports.drop(longEmpty)
+        const b = counting([], 0, 0, shortEmit)
+        const empty = b.own('')
+        const one = b.imports.from_unit(0x62)
+        const two = b.imports.concat(one, b.imports.from_unit(0x63))
+        assertEq(`${b.read(empty)}|${b.read(one)}|${b.read(two)}`, '|b|bc')
+        assert(isShort(BigInt.asUintN(64, empty)))
+        assert(isShort(BigInt.asUintN(64, one)))
+        assert(isShort(BigInt.asUintN(64, two)))
+        assertEq(cells(b), '')
+        // Three UTF-16 units fit a Sergey tag but not the v1 enabled set → long.
+        assertEq(packEnabled([0x61, 0x62, 0x63], v1EnabledTags)[0], 'error')
+        assertEq(pack([0x61, 0x62, 0x63])[0], 'ok')
+        const miss = b.own('abc')
+        assertEq(`${b.read(miss)} ${cells(b)}`, `abc ${handleOf(miss)}:1`)
+        assert(!isShort(BigInt.asUintN(64, miss)))
+    },
     // `dup` adds one to a cell's count, `drop` takes one away and frees the cell at zero, and a made value is a new cell.
     counts: () => {
         const h = counting(['a'])

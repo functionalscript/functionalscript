@@ -7,8 +7,8 @@
 
 import { assert, assertEq, assertError, assertOk } from '../../../asserts/module.f.js'
 import {
-    EMPTY, a, allTags, atAlias, b, c, isShort, length, ops, pack, packEnabled, tagOf, unit, unpack,
-    v1EnabledTags, variants,
+    EMPTY, a, allTags, atAlias, b, c, isShort, length, maxEnabledLen, ops, pack, packEnabled,
+    tagLen, tagOf, unit, unpack, v1EnabledTags, variants,
 } from './module.f.js'
 
 /** @type {(s: string) => readonly number[]} */
@@ -29,6 +29,15 @@ export const proof = {
         assertEq(ops.join(), 'unpack,length,unit')
         assertEq(atAlias, 'at')
         assertEq(variants.map(v => v.id).join(), 'A,B,C')
+    },
+    // Emit hosts skip packing when length exceeds every enabled tag.
+    maxLen: () => {
+        assertEq(tagLen.empty, 0)
+        assertEq(tagLen.s8x6, 8)
+        assertEq(maxEnabledLen([]), -1)
+        assertEq(maxEnabledLen(v1EnabledTags), 2)
+        assertEq(maxEnabledLen(allTags), 8)
+        assertEq(maxEnabledLen(['empty']), 0)
     },
     // A: import-form baseline, never a short box.
     manifestA: () => {

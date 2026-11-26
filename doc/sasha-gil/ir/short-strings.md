@@ -1,10 +1,11 @@
 # Short strings in the IR
 
 2026-11-24. **Design approved** (Sasha, [#4118](https://github.com/functionalscript/functionalscript/pull/4118)).
-S1 coding: String module skeleton and short pack/unpack helpers live in
-[`fjs/ir/runtime/string`](../../../fjs/ir/runtime/string/module.f.js)
-(manifests A/B/C, bit round-trips; no host ABI or link change yet). S2–S4
-still ahead.
+S1: String module skeleton in
+[`fjs/ir/runtime/string`](../../../fjs/ir/runtime/string/module.f.js).
+S2: counting host and NaNVM L0 ABI **accept** short-string boxes; **emit**
+is per-variant (`alwaysDynRef` for A, `shortWhenEnabled` + v1 tags for
+B/C). S3–S4 still ahead.
 
 This is the next runtime-in-IR phase after scalar Any
 ([runtime-in-ir.md](./runtime-in-ir.md); checkpoints through 4d-2 on

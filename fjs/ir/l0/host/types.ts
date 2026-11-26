@@ -5,7 +5,18 @@
  */
 
 import type { Kind } from '../../../wasm/runtime/l0/types.ts'
+import type { ShortTag } from '../../runtime/string/types.ts'
 import type { Host as NativeHost } from '../../native/host/types.ts'
+
+/**
+ * Whether allocating string imports on a counting / NaNVM host may return
+ * a short-string box ([short-strings.md](../../../../doc/sasha-gil/ir/short-strings.md)
+ * S2). Matches String-manifest `emit` + `enabledTags`: A is always
+ * dyn-ref; B/C are short when an enabled tag fits.
+ */
+export type StringEmit =
+    | { readonly kind: 'alwaysDynRef' }
+    | { readonly kind: 'shortWhenEnabled', readonly enabledTags: readonly ShortTag[] }
 
 /**
  * The functions of the `fjs:l0` imports that [the interfaces of
@@ -115,11 +126,13 @@ export type Imports = {
  * `recover` frees what the trap abandoned, and answers the cells that it
  * freed, each a handle and the counts it took away.
  *
- * A copy value, `undefined`, `null`, a boolean or a number, is not counted:
- * where an import, `own` or `thrown` would make a new box of one, it answers
- * the value's own NaN-box bits, which no one owns, and a `dup` or a `drop`
- * of those bits is a no-op. A reference is a dyn-ref box that packs a cell
- * index; `dup` and `drop` count that cell.
+ * A copy value, `undefined`, `null`, a boolean, a number or a well-formed
+ * short-string box, is not counted: where an import, `own` or `thrown`
+ * would make a new box of one, it answers the value's own NaN-box bits,
+ * which no one owns, and a `dup` or a `drop` of those bits is a no-op. A
+ * reference is a dyn-ref box that packs a cell index; `dup` and `drop`
+ * count that cell. Short-string **emission** follows the host's
+ * {@link StringEmit} policy (default always dyn-ref).
  */
 export type Counting = {
     readonly imports: Imports
