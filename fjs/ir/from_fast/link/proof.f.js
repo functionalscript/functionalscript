@@ -179,6 +179,26 @@ export const proof = {
             functions: [['f', fn([], f64, call('Any', 'all', []))]],
             exports: ['f'],
         }))
+        // A function value of Any's own takes its linked name, and the function it names
+        // is linked, even when the program has a function of the same short name.
+        assertStructurallySame(assertOk(linkAny({
+            ...any,
+            functions: [...any.functions, ['helper', fn([], f64, lit(f64c, 7))], ['viaRef', fn([], f64, call_ref(codeOf('helper'), []))]],
+        })({
+            imports: l0,
+            functions: [['f', fn([], f64, call('Any', 'viaRef', []))], ['helper', fn([], f64, lit(f64c, 99))]],
+            exports: ['f'],
+        })).functions.filter(([k]) => k === 'any.viaRef' || k === 'any.helper' || k === 'helper'), [
+            ['helper', fn([], f64, lit(f64c, 99))],
+            ['any.helper', fn([], f64, lit(f64c, 7))],
+            ['any.viaRef', fn([], f64, call_ref(codeOf('any.helper'), []))],
+        ])
+        // A function value in a program's body stays the program's own.
+        assertStructurallySame(assertOk(linkAny(any)({
+            imports: l0,
+            functions: [['kind', fn([], f64, lit(f64c, 3))], ['f', fn([], f64, call_ref(codeOf('kind'), []))]],
+            exports: ['f'],
+        })).functions.find(([k]) => k === 'f')?.[1].body, call_ref(codeOf('kind'), []))
         // A program that already imports Ref keeps that import (minus Any).
         assertStructurallySame(assertOk(linkAny(any)({
             imports: [ref, ...l0],
@@ -289,6 +309,25 @@ export const proof = {
             functions: [['f', fn([], f64, call('String', 'length', []))]],
             exports: ['f'],
         }))
+        // A function value of String's own takes its linked name, and the function it names is linked.
+        assertStructurallySame(assertOk(linkString({
+            imports: stringModule.imports,
+            defines: stringDefines,
+            functions: [
+                ['helper', fn([], f64, lit(f64c, 7))],
+                ['length', fn([], f64, call_ref(codeOf('helper'), []))],
+            ],
+            exports: ['length'],
+        })({
+            imports: withAny.imports,
+            defines: programDefines,
+            functions: [['f', fn([], f64, call('String', 'length', []))], ['helper', fn([], f64, lit(f64c, 99))]],
+            exports: ['f'],
+        })).functions.filter(([k]) => k.startsWith('string.') || k === 'helper'), [
+            ['helper', fn([], f64, lit(f64c, 99))],
+            ['string.helper', fn([], f64, lit(f64c, 7))],
+            ['string.length', fn([], f64, call_ref(codeOf('string.helper'), []))],
+        ])
         assertEq(assertError(linkString(stringModule)({
             ...withAny,
             imports: withAny.imports.filter(([k]) => k !== 'String'),
