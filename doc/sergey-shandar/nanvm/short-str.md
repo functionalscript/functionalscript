@@ -2,6 +2,20 @@
 
 Short string using a leading `...01`.
 
+## Short String 31 bit
+
+Max length is 8 characters.
+
+|      |    |Offset|Occupied|
+|------|----|------|--------|
+|`1x16`|`16`|      |`17`    |
+|      |    |      |        |
+|`2x7` |`14`|      |`15`    |
+|`3x7` |`21`|      |`22`    |
+|`4x7` |`28`|      |`29`    |
+|      |    |      |        |
+|`5x6` |`30`|      |`31`    |
+
 ## Short String 49 bit
 
 Max length is 8 characters.
