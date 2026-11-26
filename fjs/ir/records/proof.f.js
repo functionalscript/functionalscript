@@ -555,6 +555,27 @@ export const proof = {
             '        if s.x then br L { s.x: b } else s.x',
         ],
     ),
+    // A moved let-chain in a split initializer is hoisted ahead of the loop;
+    // its binders still see loop-part claims, but distinct spellings (s/t.x\.y
+    // vs s.x\.y) split cleanly.
+    loopInitHoistedChain: () => golden(
+        loop('L', [['s', any, let_('t', object([['x.y', a]]), object([['x.y', read(get('t'), 'x.y')]]))]], () => a),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    let s/t.x\\.y = a',
+            '    loop L (s.x\\.y: any = s/t.x\\.y)',
+            '        a',
+        ],
+    ),
+    // Param name `s/t` is an existing binder; a sibling param `s` whose
+    // moved chain would claim `s/t` (then `s/t.x\.y`, matching the other
+    // param's part) must refuse rather than emit a duplicate binder.
+    loopInitHoistedCollision: () => same(
+        loop('L', [
+            ['s/t', any, object([['x.y', b]])],
+            ['s', any, let_('t', object([['x.y', a]]), object([['x.y', read(get('t'), 'x.y')]]))],
+        ], () => a),
+    ),
     // Initial and br both write `let t` under split local `s`: claiming
     // `s/t` (and `s.x` as both a let and a loop parameter) twice would bind
     // them in nested scopes, so the objects stay.

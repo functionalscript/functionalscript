@@ -442,14 +442,16 @@ const withValues = (t, values) => {
  * each starts from the parent claims; only collision flags combine. A
  * non-split `let`'s body likewise starts from the parent claims: the
  * initializer's binders do not outlive it. Match arms start from the
- * parent claims (not the operand's); a loop's initializers start from the
- * pre-loop claim state (not the body's, and not the split parameter parts
- * claimed for the body — those parts are not in scope in initializers),
- * and sibling non-split initializers each start from that state (OR hits
- * only). A split `let`'s part binders and a split loop's parameter parts
- * are claimed before the body, so an arm that would reuse an enclosing
- * generated spelling still hits. `br` fields reuse `part` spellings
- * without claiming. Reads of a part do not claim.
+ * parent claims (not the operand's); a loop's non-split initializers and
+ * moved site fields start from the pre-loop claim state (not the body's
+ * loop-part claims — those parts are not in scope in initializer
+ * expressions), and sibling non-split initializers each start from that
+ * state (OR hits only). A split initializer's moved chain is hoisted ahead
+ * of the loop, so its binders still see the loop-part claims. A split
+ * `let`'s part binders and a split loop's parameter parts are claimed
+ * before the body, so an arm that would reuse an enclosing generated
+ * spelling still hits. `br` fields reuse `part` spellings without
+ * claiming. Reads of a part do not claim.
  *
  * @typedef {readonly (readonly [string, string])[]} _Claimed
  * @typedef {readonly [_Claimed, boolean]} _ClaimSt
@@ -483,14 +485,18 @@ const rewrite = (get, split, existing, taken, widens, fullAny) => {
          * each name it binds, and what `end` makes of the value at each key
          * where the chain ends. What `end` writes stands inside the chain, whose
          * names no other name is, and reads the scope around it.
+         * `exprSt` is the claim list for expression-local scopes inside the
+         * chain (site field values): it may omit binders that the hoisted
+         * chain itself must still respect (loop-part claims). Defaults to
+         * `st`.
          *
-         * @type {(t: Term, path: string, env: _Env, prefix: string, end: (values: readonly (readonly [string, Term])[], st: _ClaimSt) => readonly [Term, _ClaimSt], st: _ClaimSt) => readonly [Term, _ClaimSt]}
+         * @type {(t: Term, path: string, env: _Env, prefix: string, end: (values: readonly (readonly [string, Term])[], st: _ClaimSt) => readonly [Term, _ClaimSt], st: _ClaimSt, exprSt?: _ClaimSt) => readonly [Term, _ClaimSt]}
          */
-        const moved = (t, path, env, prefix, end, st) => {
+        const moved = (t, path, env, prefix, end, st, exprSt = st) => {
             if (t[0] === 'let') {
                 const name = `${prefix}/${escape(t[1])}`
                 const st1 = claim(st, name, `${prefix}\u0000${t[1]}`)
-                const [rest, st2] = moved(t[3], `${path}/b`, bind(env, [t[1], path, name]), prefix, end, st1)
+                const [rest, st2] = moved(t[3], `${path}/b`, bind(env, [t[1], path, name]), prefix, end, st1, exprSt)
                 if (keysAt(path) === null) {
                     const [value, st3] = go(t[2], `${path}/v`, env, null, st2)
                     return [['let', name, value, rest], st3]
@@ -502,19 +508,19 @@ const rewrite = (get, split, existing, taken, widens, fullAny) => {
                         return /** @type {const} */ ([['let', binder, toAny(x), body], stC])
                     },
                     /** @type {readonly [Term, _ClaimSt]} */ ([rest, stV]),
-                ), st2)
+                ), st2, exprSt)
             }
             // a prior round may have left the site under a pass-owned widen `block`
             if (isWidenBlock(widens, t)) {
-                return moved(/** @type {readonly ['block', string, Type, Term]} */ (t)[3], path, env, prefix, end, st)
+                return moved(/** @type {readonly ['block', string, Type, Term]} */ (t)[3], path, env, prefix, end, st, exprSt)
             }
             const site = siteOf(widens, t)
             if (site !== null) {
-                // sibling field values: each from parent claims; OR hits
+                // sibling field values: expression-local (exprSt); OR hits
                 const [values, hit] = site.reduce(
                     (acc, [k, x], j) => {
                         const [done, hitA] = acc
-                        const [v, [, hitB]] = go(x, `${path}/s${j}`, env, null, [st[0], false])
+                        const [v, [, hitB]] = go(x, `${path}/s${j}`, env, null, [exprSt[0], false])
                         return /** @type {const} */ ([[...done, /** @type {const} */ ([k, v])], hitA || hitB])
                     },
                     /** @type {readonly [readonly (readonly [string, Term])[], boolean]} */ ([[], st[1]]),
@@ -630,10 +636,11 @@ const rewrite = (get, split, existing, taken, widens, fullAny) => {
                 )
                 const [body, [, hitBody]] = go(t[3], `${path}/b`, inner, key, stClaim)
                 /** The loop, its split parameters' chains moved before it, from the `j`th on.
-                 * Initializers see `st` (pre-loop claims), not `stClaim`: split
-                 * parameter parts are body-scope only. Sibling non-split
-                 * initializers each start from `st`'s binders; only their hit
-                 * flags combine. */
+                 * Non-split initializers and site field values see `st` (pre-loop
+                 * claims): split parameter parts are body-scope only. A split
+                 * initializer's `moved` chain is hoisted ahead of the loop, so
+                 * its binders use `stClaim` and still collide with loop parts;
+                 * only expression-local scopes inside the chain use `st`. */
                 /** @type {(j: number, env: _Env, done: readonly (readonly [string, Type, Term])[], hit: boolean) => readonly [Term, _ClaimSt]} */
                 const from = (j, e, done, hit) => {
                     if (j === t[2].length) { return [['loop', t[1], done, body], [st[0], hit]] }
@@ -648,7 +655,7 @@ const rewrite = (get, split, existing, taken, widens, fullAny) => {
                         const claimed = /** @type {readonly string[]} */ (claimedParams[Number(j)])
                         const params2 = values.map(([key2, x], i) => /** @type {const} */ ([claimed[Number(i)], any, x]))
                         return from(j + 1, e, [...done, ...params2], stV[1])
-                    }, [st[0], hit])
+                    }, [stClaim[0], hit], [st[0], false])
                 }
                 const [loopTerm, [, hitInit]] = from(0, env, [], st[1])
                 return [loopTerm, [st[0], hitInit || hitBody]]
