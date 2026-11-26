@@ -328,6 +328,11 @@ export const proof = {
             ['string.helper', fn([], f64, lit(f64c, 7))],
             ['string.length', fn([], f64, call_ref(codeOf('string.helper'), []))],
         ])
+        // A function value in a program's body stays the program's own.
+        assertStructurallySame(assertOk(linkString(stringModule)({
+            ...withAny,
+            functions: [...withAny.functions, ['h', fn([], f64, call_ref(codeOf('f'), []))]],
+        })).functions.find(([k]) => k === 'h')?.[1].body, call_ref(codeOf('f'), []))
         assertEq(assertError(linkString(stringModule)({
             ...withAny,
             imports: withAny.imports.filter(([k]) => k !== 'String'),
