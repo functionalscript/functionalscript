@@ -144,6 +144,31 @@ const siteOf = (widens, t) => {
 }
 
 /**
+ * The labels a term opens or targets: `block` / `loop` declarations, and
+ * `br` destinations (so a widen `block` does not capture an unresolved
+ * `br W`).
+ *
+ * @type {(t: Term) => readonly string[]}
+ */
+const labelsOf = t => {
+    const own = t[0] === 'block' || t[0] === 'loop' || t[0] === 'br' ? [t[1]] : []
+    return [...own, ...terms(t).flatMap(labelsOf)]
+}
+
+/**
+ * A label for a widen `block` that is not already open in the function, not
+ * a `br` target in it, and not `return` (always in scope). Prefers `W`,
+ * then `W_`, `W__`, …
+ *
+ * @type {(taken: readonly string[]) => string}
+ */
+const freshWiden = taken => {
+    /** @type {(n: string) => string} */
+    const next = n => taken.includes(n) ? next(`${n}_`) : n
+    return next('W')
+}
+
+/**
  * A value as `get` would answer it: full `any`. A `block` of full `any` is
  * left as it is. Every other term — a local (a parameter may be
  * `any.only(string)`), an object site (kind `object`), a string literal, an
@@ -186,31 +211,6 @@ const binders = t => {
         : t[0] === 'match' ? t[2].flatMap(([, binder]) => binder === null ? [] : [binder])
         : []
     return [...own, ...terms(t).flatMap(binders)]
-}
-
-/**
- * The labels a term opens or targets: `block` / `loop` declarations, and
- * `br` destinations (so a widen `block` does not capture an unresolved
- * `br W`).
- *
- * @type {(t: Term) => readonly string[]}
- */
-const labelsOf = t => {
-    const own = t[0] === 'block' || t[0] === 'loop' || t[0] === 'br' ? [t[1]] : []
-    return [...own, ...terms(t).flatMap(labelsOf)]
-}
-
-/**
- * A label for a widen `block` that is not already open in the function, not
- * a `br` target in it, and not `return` (always in scope). Prefers `W`,
- * then `W_`, `W__`, …
- *
- * @type {(taken: readonly string[]) => string}
- */
-const freshWiden = taken => {
-    /** @type {(n: string) => string} */
-    const next = n => taken.includes(n) ? next(`${n}_`) : n
-    return next('W')
 }
 
 /** The keys of an object. @type {(site: _Site) => readonly string[]} */
