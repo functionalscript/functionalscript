@@ -443,12 +443,13 @@ const withValues = (t, values) => {
  * non-split `let`'s body likewise starts from the parent claims: the
  * initializer's binders do not outlive it. Match arms start from the
  * parent claims (not the operand's); a loop's initializers start from the
- * pre-body claim state (not the body's), and sibling non-split initializers
- * each start from that state (OR hits only). A split `let`'s part binders
- * and a split loop's parameter parts are claimed before the body, so an
- * arm that would reuse an enclosing generated spelling still hits. `br`
- * fields reuse `part` spellings without claiming. Reads of a part do not
- * claim.
+ * pre-loop claim state (not the body's, and not the split parameter parts
+ * claimed for the body — those parts are not in scope in initializers),
+ * and sibling non-split initializers each start from that state (OR hits
+ * only). A split `let`'s part binders and a split loop's parameter parts
+ * are claimed before the body, so an arm that would reuse an enclosing
+ * generated spelling still hits. `br` fields reuse `part` spellings
+ * without claiming. Reads of a part do not claim.
  *
  * @typedef {readonly (readonly [string, string])[]} _Claimed
  * @typedef {readonly [_Claimed, boolean]} _ClaimSt
@@ -629,26 +630,27 @@ const rewrite = (get, split, existing, taken, widens, fullAny) => {
                 )
                 const [body, [, hitBody]] = go(t[3], `${path}/b`, inner, key, stClaim)
                 /** The loop, its split parameters' chains moved before it, from the `j`th on.
-                 * Initializers see `stClaim` (not the body's claims). Sibling
-                 * non-split initializers each start from `stClaim`'s binders;
-                 * only their hit flags combine. */
+                 * Initializers see `st` (pre-loop claims), not `stClaim`: split
+                 * parameter parts are body-scope only. Sibling non-split
+                 * initializers each start from `st`'s binders; only their hit
+                 * flags combine. */
                 /** @type {(j: number, env: _Env, done: readonly (readonly [string, Type, Term])[], hit: boolean) => readonly [Term, _ClaimSt]} */
                 const from = (j, e, done, hit) => {
-                    if (j === t[2].length) { return [['loop', t[1], done, body], [stClaim[0], hit]] }
+                    if (j === t[2].length) { return [['loop', t[1], done, body], [st[0], hit]] }
                     const [k, type, first] = t[2][Number(j)]
                     const keys = keysAt(`${path}#${j}`)
                     if (keys === null) {
-                        const [v, [, hitV]] = go(first, `${path}/f${j}`, e, null, [stClaim[0], false])
+                        const [v, [, hitV]] = go(first, `${path}/f${j}`, e, null, [st[0], false])
                         return from(j + 1, e, [...done, [k, type, v]], hit || hitV)
                     }
                     return moved(first, `${path}/f${j}`, e, k, (values, stV) => {
-                        // parts already claimed above; reuse their spellings
+                        // parts already claimed for the body; reuse their spellings
                         const claimed = /** @type {readonly string[]} */ (claimedParams[Number(j)])
                         const params2 = values.map(([key2, x], i) => /** @type {const} */ ([claimed[Number(i)], any, x]))
                         return from(j + 1, e, [...done, ...params2], stV[1])
-                    }, [stClaim[0], hit])
+                    }, [st[0], hit])
                 }
-                const [loopTerm, [, hitInit]] = from(0, env, [], stClaim[1])
+                const [loopTerm, [, hitInit]] = from(0, env, [], st[1])
                 return [loopTerm, [st[0], hitInit || hitBody]]
             }
             case 'br': {

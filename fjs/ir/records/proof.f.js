@@ -540,6 +540,21 @@ export const proof = {
             '        if k then br L { k: k, m: m } else m',
         ],
     ),
+    // Split loop param `s` claims `s.x` for the body; an initializer-local
+    // `s` that also splits to `s.x` must not see that claim (params are not
+    // in scope in their initializers).
+    loopInitPartClaims: () => golden(
+        loop('L', [['s', any, object([['x', let_('s', object([['x', a]]), read(get('s'), 'x'))]])]], s_ => if_(read(s_, 'x'), next('L', [['s', object([['x', b]])]]), read(s_, 'x'))),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    loop L (',
+            '        s.x: any =',
+            '            let s.x = a',
+            '            s.x',
+            '    )',
+            '        if s.x then br L { s.x: b } else s.x',
+        ],
+    ),
     // Initial and br both write `let t` under split local `s`: claiming
     // `s/t` (and `s.x` as both a let and a loop parameter) twice would bind
     // them in nested scopes, so the objects stay.
