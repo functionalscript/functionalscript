@@ -36,7 +36,8 @@
  *   `block W` is never peeled, so a `br` to its label stays inside. Each
  *   wrap picks a label fresh in the function and in the term it wraps, so
  *   a nested widen (outer `if` around an inner split read) does not reopen
- *   `W` inside `W`.
+ *   `W` inside `W`. A plain local of full `any` (a parameter of `any`)
+ *   is left as it is: it already answers what `get` would.
  * - **How it splits.** A local `s` of keys `i` and `acc` is the locals
  *   `s.i` and `s.acc`, of `any`: a `let` binds each, a loop has a
  *   parameter for each, and a `br` gives each. The `let`s of the chain that
@@ -151,13 +152,15 @@ const siteOf = (widens, t) => {
  * `siteOf` still sees a site under that `block`, so a later round can split
  * it. `taken` is labels already open in the function (`return` included);
  * the wrap also avoids labels that already appear in `t`, so nesting two
- * widens in one rewrite cannot reopen the same name. `settled` records
+ * widens in one rewrite cannot reopen the same name. A `get` of a name in
+ * `fullAny` (parameters of full `any`) is not wrapped. `settled` records
  * every new label so later rounds peel only that ownership.
  *
- * @type {(taken: readonly string[]) => (t: Term) => Term}
+ * @type {(taken: readonly string[], fullAny: readonly string[]) => (t: Term) => Term}
  */
-const asGet = taken => t => {
+const asGet = (taken, fullAny) => t => {
     if (t[0] === 'block' && isFullAny(t[2])) { return t }
+    if (t[0] === 'get' && fullAny.includes(t[1])) { return t }
     return /** @type {Term} */ (['block', freshWiden([...taken, ...labelsOf(t)]), any, t])
 }
 
@@ -428,17 +431,19 @@ const withValues = (t, values) => {
  * arms each claim from the parent state alone, so disjoint arms may share
  * a spelling. Sibling product fields and call/op arguments do the same:
  * each starts from the parent claims; only collision flags combine. A
- * split `let`'s part binders and a split loop's parameter parts are
- * claimed before the body, so an arm that would reuse an enclosing
- * generated spelling still hits. `br` fields reuse `part` spellings
- * without claiming. Reads of a part do not claim.
+ * non-split `let`'s body likewise starts from the parent claims: the
+ * initializer's binders do not outlive it. A split `let`'s part binders
+ * and a split loop's parameter parts are claimed before the body, so an
+ * arm that would reuse an enclosing generated spelling still hits. `br`
+ * fields reuse `part` spellings without claiming. Reads of a part do not
+ * claim.
  *
  * @typedef {readonly (readonly [string, string])[]} _Claimed
  * @typedef {readonly [_Claimed, boolean]} _ClaimSt
  *
- * @type {(get: string, split: _Split, existing: readonly string[], taken: readonly string[], widens: readonly string[]) => (t: Term, path: string, env: _Env, key: string | null, st: _ClaimSt) => readonly [Term, _ClaimSt]}
+ * @type {(get: string, split: _Split, existing: readonly string[], taken: readonly string[], widens: readonly string[], fullAny: readonly string[]) => (t: Term, path: string, env: _Env, key: string | null, st: _ClaimSt) => readonly [Term, _ClaimSt]}
  */
-const rewrite = (get, split, existing, taken, widens) => {
+const rewrite = (get, split, existing, taken, widens, fullAny) => {
     /** The keys of a local that the pass splits, by its path. @type {(id: string) => readonly string[] | null} */
     const keysAt = id => split.locals.find(([x]) => x === id)?.[1] ?? null
     /** Claim `n` as a binder from `origin`, or mark a collision. A spelling
@@ -457,7 +462,7 @@ const rewrite = (get, split, existing, taken, widens) => {
         const n = part(name, key)
         return [n, claim(st, n, `${name}\u0000${key}`)]
     }
-    const toAny = asGet(taken)
+    const toAny = asGet(taken, fullAny)
     /** @type {(t: Term, path: string, env: _Env, key: string | null, st: _ClaimSt) => readonly [Term, _ClaimSt]} */
     const go = (t, path, env, key, st) => {
         /**
@@ -546,8 +551,10 @@ const rewrite = (get, split, existing, taken, widens) => {
                     return value[0] === 'get' && t[2][0] !== 'get'
                         ? go(t[3], `${path}/b`, bind(env, [t[1], path, value[1]]), key, st1)
                         : (() => {
-                            const [body, st2] = go(t[3], `${path}/b`, bind(env, [t[1], path, t[1]]), key, st1)
-                            return /** @type {const} */ ([['let', t[1], value, body], st2])
+                            // initializer binders do not outlive the let: body
+                            // starts from parent claims; OR hits only
+                            const [body, [, hitB]] = go(t[3], `${path}/b`, bind(env, [t[1], path, t[1]]), key, [st[0], false])
+                            return /** @type {const} */ ([['let', t[1], value, body], [st[0], st1[1] || hitB]])
                         })()
                 }
                 return moved(t[2], `${path}/v`, env, t[1], (values, stV) => {
@@ -727,13 +734,15 @@ const once = (get, widens) => f => {
     const existing = [...f.params.map(([k]) => k), ...binders(f.body)]
     // `return` is always open; each wrap also avoids labels inside its term
     const taken = [...labelsOf(f.body), 'return']
+    // parameters of full `any` already answer get; do not wrap their gets
+    const fullAny = f.params.filter(([, ty]) => isFullAny(ty)).map(([k]) => k)
     const env = f.params.reduce((e, [k]) => bind(e, [k, `param/${k}`, k]), top)
     // what the function answers leaves it
     const [from, fs] = facts(get, widens)(f.body, 'f', env, true)
     const params = f.params.map(([k]) => /** @type {_Fact} */ (['local', `param/${k}`, 'other']))
     const split = solve([...params, ...fs, ...from.map(s => /** @type {_Fact} */ (['escape', s]))])
     if (split.locals.length === 0 && split.reads.length === 0) { return f }
-    const [body, [, hit]] = rewrite(get, split, existing, taken, widens)(f.body, 'f', env, null, [[], false])
+    const [body, [, hit]] = rewrite(get, split, existing, taken, widens, fullAny)(f.body, 'f', env, null, [[], false])
     return hit ? f : { ...f, body }
 }
 
