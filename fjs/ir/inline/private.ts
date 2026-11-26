@@ -17,7 +17,7 @@ export type _Names = {
     readonly local: (name: string) => Term
     /** The name that a local or a label takes where it is bound. */
     readonly bind: (name: string) => string
-    /** The labels of the loops of the body, whose parameters a `br` names too. */
+    /** The labels in scope that name loops, whose parameters a `br` to them names too. */
     readonly loops: readonly string[]
 }
 

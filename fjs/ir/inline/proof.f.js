@@ -6,7 +6,7 @@ import { assertEq, assertError, assertOk } from '../../asserts/module.f.js'
 import { any, l0 } from '../l0/module.f.js'
 import {
     add, block, br, call, call_ref, code, codeOf, constant, f64, f64c, field, float, fn, get, hint, if_, int, let_, lit, loop, lt,
-    make, match, n, next, own, return_, trunc_sat, u, variant, bool,
+    make, match, next, own, return_, trunc_sat, u, variant, bool,
 } from '../module.f.js'
 import { check } from '../check/module.f.js'
 import { lifetime } from '../lifetime/module.f.js'
@@ -151,6 +151,34 @@ export const proof = {
         'export f',
         '',
     ].join('\n')),
+    // A field of a made value is passed in place; a `br` to a block names its product's fields as they are, though a loop elsewhere has the block's label.
+    labels: () => {
+        const pair = /** @type {const} */ (['product', [['x', f64]]])
+        const body = fn([['a', f64]], f64, a => add(
+            field(block('l', pair, br('l', make([['x', a]]))), 'x'),
+            loop('l', [['x', f64, a]], x => if_(lt(x, one), next('l', [['x', add(x, one)]]), x)),
+        ))
+        assertEq(passed({
+            imports: [],
+            functions: [['g', hint('always', body)], ['f', fn([['a', f64]], f64, a => let_('p', make([['x', a]]), p => call('self', 'g', [field(p, 'x')])))]],
+            exports: ['f'],
+        }), [
+            'fn f(a: f64) -> f64 =',
+            '    let p = { x: a }',
+            '    block #i0.return: f64',
+            '        add(',
+            '            (',
+            '                block #i0.l: { x: f64 }',
+            '                    br #i0.l { x: p.x }',
+            '            ).x,',
+            '            loop #i0.l (#i0.x: f64 = p.x)',
+            '                if lt(#i0.x, 1.0) then br #i0.l { #i0.x: add(#i0.x, 1.0) } else #i0.x',
+            '        )',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+    },
     // A prefix that a name of the function starts with is skipped.
     fresh: () => assertEq(passed({
         imports: [],

@@ -13,8 +13,8 @@
  *   body leaves the block. The arguments are bound inside the block, in
  *   their order, so that the body consumes what it owns there.
  * - **A borrow of a value already made is passed in place.** A parameter
- *   that the function borrows, given a local, a literal, a constant or a
- *   function's code of its own type, reads that term itself, so the copy
+ *   that the function borrows, given a local, a literal, a constant, a
+ *   function's code, or a field of one of those, of its own type, reads that term itself, so the copy
  *   lends it as the call did, and the lifetime pass writes no `dup` of it.
  * - **An argument narrower than its parameter is widened** by a `block` of
  *   the parameter's type, since the body was checked at that type, and a
@@ -71,11 +71,11 @@ const fresh = (taken, n) => {
 /** Each name as it is. @type {_Names} */
 const asIs = { local: get, bind: x => x, loops: [] }
 
-/** The labels of the loops of a typed term. @type {(t: Typed) => readonly string[]} */
-const loops = ([, t]) => [...(t[0] === 'loop' ? [t[1]] : []), ...inside(t).flatMap(loops)]
+/** Names inside a region of the label `label`, a loop's or not, which hides any other region of that label. @type {(names: _Names, label: string, loop: boolean) => _Names} */
+const within = (names, label, loop) => ({ ...names, loops: [...names.loops.filter(l => l !== label), ...(loop ? [label] : [])] })
 
-/** Whether a term is a value already made, which a borrow may read in place. @type {(t: Term) => boolean} */
-const made = t => t[0] === 'get' || t[0] === 'lit' || t[0] === 'constant' || t[0] === 'code'
+/** Whether a term is a value already made, which a borrow may read in place: a local, a literal, a constant, a function's code, or a field of such a value. @type {(t: Term) => boolean} */
+const made = t => t[0] === 'get' || t[0] === 'lit' || t[0] === 'constant' || t[0] === 'code' || (t[0] === 'field' && made(t[1]))
 
 // terms
 
@@ -105,7 +105,7 @@ const copy = (pass, f, xs, args, n) => {
     const parts = f.params.map((param, j) => /** @type {const} */ ([param, xs[Number(j)][0], args[Number(j)]]))
     const inPlace = parts.flatMap(([param, type, a]) => !isOwn(param) && made(a) && equal(type, param[1]) ? [/** @type {const} */ ([param[0], a])] : [])
     /** @type {_Names} */
-    const names = { local: x => inPlace.find(([k]) => k === x)?.[1] ?? get(`${p}${x}`), bind: x => `${p}${x}`, loops: loops(f.body) }
+    const names = { local: x => inPlace.find(([k]) => k === x)?.[1] ?? get(`${p}${x}`), bind: x => `${p}${x}`, loops: [] }
     const [body, n2] = write(pass, names, f.body, n1)
     const bound = parts
         .filter(([[k]]) => !inPlace.some(([x]) => x === k))
@@ -169,12 +169,12 @@ const write = (pass, names, [type, t], n) => {
             return [['match', e, t[2].map(([, binder, , written], j) => /** @type {const} */ ([written, binder === null ? null : bind(binder), bodies[Number(j)]]))], n2]
         }
         case 'block': {
-            const [e, n1] = one(t[3], n)
+            const [e, n1] = write(pass, within(names, t[1], false), t[3], n)
             return [['block', bind(t[1]), t[2], e], n1]
         }
         case 'loop': {
             const [firsts, n1] = each(pass, names, t[2].map(([, , first]) => first), n)
-            const [body, n2] = one(t[3], n1)
+            const [body, n2] = write(pass, within(names, t[1], true), t[3], n1)
             return [['loop', bind(t[1]), t[2].map(([k, x], j) => /** @type {const} */ ([bind(k), x, firsts[Number(j)]])), body], n2]
         }
         case 'br': {
