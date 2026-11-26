@@ -406,8 +406,10 @@ const withValues = (t, values) => {
  * origin; a hit means an existing binder or a spelling this rewrite would
  * bind twice in overlapping scopes (nested `let` / loop parameter). Match
  * arms each claim from the parent state alone, so disjoint arms may share
- * a spelling. `br` fields reuse `part` spellings without claiming. Reads
- * of a part do not claim.
+ * a spelling. A split `let`'s part binders are claimed before its body, so
+ * an arm that would reuse an enclosing generated spelling still hits.
+ * `br` fields reuse `part` spellings without claiming. Reads of a part do
+ * not claim.
  *
  * @typedef {readonly (readonly [string, string])[]} _Claimed
  * @typedef {readonly [_Claimed, boolean]} _ClaimSt
@@ -525,12 +527,21 @@ const rewrite = (get, split, existing, widen) => {
                         })()
                 }
                 return moved(t[2], `${path}/v`, env, t[1], (values, stV) => {
-                    const [body, stB] = go(t[3], `${path}/b`, bind(env, [t[1], path, t[1]]), key, stV)
-                    return values.reduceRight(
+                    // claim part binders before the body so a match arm that
+                    // would generate the same spelling hits against them
+                    const [named, stC] = values.reduce(
                         (acc, [k, x]) => {
+                            const [done, stA] = acc
+                            const [binder, stB] = bindPart(stA, t[1], k)
+                            return /** @type {const} */ ([[...done, /** @type {const} */ ([binder, x])], stB])
+                        },
+                        /** @type {readonly [readonly (readonly [string, Term])[], _ClaimSt]} */ ([[], stV]),
+                    )
+                    const [body, stB] = go(t[3], `${path}/b`, bind(env, [t[1], path, t[1]]), key, stC)
+                    return named.reduceRight(
+                        (acc, [binder, x]) => {
                             const [b, stA] = acc
-                            const [binder, stC] = bindPart(stA, t[1], k)
-                            return /** @type {const} */ ([['let', binder, toAny(x), b], stC])
+                            return /** @type {const} */ ([['let', binder, toAny(x), b], stA])
                         },
                         /** @type {readonly [Term, _ClaimSt]} */ ([body, stB]),
                     )

@@ -425,6 +425,16 @@ export const proof = {
         ['first', read(get('r'), 'x.y')],
         ['second', read(get('r.x\\'), 'y')],
     ])))),
+    // Outer `r`+`x.y` around a match arm with `r.x\`+`y`: part binders are
+    // claimed before the body, so the arm collision still refuses (does not
+    // emit nested `r.x\.y` twice).
+    collideArmGenerated: () => same(let_('r', object([['x.y', a]]), match(c, [
+        [['true'], null, let_('r.x\\', object([['y', b]]), make([
+            ['first', read(get('r'), 'x.y')],
+            ['second', read(get('r.x\\'), 'y')],
+        ]))],
+        [['false'], null, a],
+    ]))),
     // Initial and br both write `let t` under split local `s`: claiming
     // `s/t` (and `s.x` as both a let and a loop parameter) twice would bind
     // them in nested scopes, so the objects stay.
