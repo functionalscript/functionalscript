@@ -6,7 +6,7 @@
  * @import { ShortTag } from './types.ts'
  */
 
-import { assert, assertEq, assertError, assertOk } from '../../../asserts/module.f.js'
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { check, checkPlain } from '../../check/module.f.js'
 import { lifetime } from '../../lifetime/module.f.js'
 import { definedBy } from '../../module.f.js'
@@ -14,6 +14,7 @@ import {
     EMPTY, a, allTags, atAlias, b, c, emitA, emitB, isShort, length, maxEnabledLen, ops, pack,
     packEnabled, tagLen, tagOf, unit, unpack, v1EnabledTags, variants,
 } from './module.f.js'
+import { module as anyModule } from '../any/module.f.js'
 import { module as irModule } from './ir.f.js'
 
 /** @type {(s: string) => readonly number[]} */
@@ -210,5 +211,9 @@ export const proof = {
         assertEq(assertOk(check(assertOk(lifetime(irModule)))).exports.join(), 'length,unit')
         assertEq(b.length.kind, 'template')
         assertEq(b.unit.kind, 'template')
+        // Any's definition and hooks are Any's own, not a copy that may answer another kind.
+        assertStructurallySame(irModule.defines, anyModule.defines)
+        const hooks = ['isRef', 'dup', 'drop', 'kind']
+        assertStructurallySame(irModule.functions.filter(([k]) => hooks.includes(k)), anyModule.functions.filter(([k]) => hooks.includes(k)))
     },
 }
