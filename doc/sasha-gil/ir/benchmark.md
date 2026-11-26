@@ -247,9 +247,47 @@ linkAny):
 `length`/`unit`). Counting host defaults to **A** (`emitA` /
 `alwaysDynRef`) as the control; pass `emitB` explicitly for short emit
 there. A and C stay buildable behind the same String interface. `shortOps`
-is still ~900× JavaScript — the next win is not more string packing but
-cutting record `find`/`item` / `Ref` on the loop state (or a flatter
-short-only loop). C vs B comparison waits on multi-local `str` (S5+).
+was still ~900× JavaScript here — record traffic on the loop state, fixed
+in [After records + length binders](#after-records--length-binders).
+
+### After records + length binders
+
+On branch `cursor/shortops-records-length-d9cd` (stacked on the S4 decision
+gate), 2026-11-25 (America/Los_Angeles). The records pass used to skip any
+function whose binders contained `.` / `/` / `\`, so a single `.length`
+(cast arms `p0.array` / `p0.string` / `p0.other`) kept the whole loop
+state as a Containers object. The pass now splits unless a generated name
+collides with an existing binder. Median of three runs on this container
+(4-core Intel Xeon, Node 26.13.1).
+
+| Program | Emit | JavaScript | IR on NaNVM's `.wasm` | IR on the counting host | NaNVM / JavaScript | L0 calls |
+| --- | --- | --- | --- | --- | --- | --- |
+| `shortOps` | A | 29.2 µs | 10.63 ms | 32.59 ms | 364× | 230,000 |
+| `shortOps` | B | 29.2 µs | 3.56 ms | 7.13 ms | 122× | 10,000 |
+| `repeat` | A | 4.0 µs | 1.31 ms | 2.83 ms | 329× | 18,021 |
+| `repeat` | B | 3.7 µs | 1.16 ms | 2.01 ms | 318× | 10,984 |
+
+Under B, `shortOps` L0 imports are only `concat` 10,000 — no
+`kind_ref` / `find` / `item` on the loop state. About **7×** faster than
+S4's B on NaNVM (26.19 ms → 3.56 ms); A also drops (38.98 ms → 10.63 ms)
+from the same split. `repeat` improves for the same reason.
+
+Full suite under emit B:
+
+| Program | JavaScript | Typed IR as WASM | IR on NaNVM's `.wasm` | IR on the counting host | NaNVM / JavaScript | Counting / NaNVM |
+| --- | --- | --- | --- | --- | --- | --- |
+| `sumTo` | 25.0 µs | 5.0 µs | 22.6 µs | 30.2 µs | 1× | 1.3× |
+| `sumToAny` | 25.2 µs | | 155.3 µs | 155.4 µs | 6× | 1.0× |
+| `fib` | 297 ns | 46 ns | 260 ns | 583 ns | 1× | 2.2× |
+| `readFields` | 24.8 µs | | 6.81 ms | 31.49 ms | 275× | 4.6× |
+| `callMany` | 2.5 µs | | 1.42 ms | 3.69 ms | 562× | 2.6× |
+| `shortOps` | 29.2 µs | | 3.56 ms | 7.13 ms | 122× | 2.0× |
+| `repeat` | 3.7 µs | | 1.16 ms | 2.01 ms | 318× | 1.7× |
+| `bigSum` | 7.7 µs | | 4.20 ms | 10.76 ms | 545× | 2.6× |
+
+`shortOps` under B is still ~120× JavaScript; the remaining cost is
+`concat` (and short-path length already linked). A rope for `concat` and
+variant C (S5+) stay the larger string levers.
 
 ## Where the time goes (historical: before linkAny)
 
@@ -396,14 +434,22 @@ The first profile, before the levers, had the handle layer at 94% of
    for `length`/`unit`; short-only microbench about 1.5× vs emit A. See
    [After short strings (S4)](#after-short-strings-s4).
 
+### Done after shortOps record traffic
+
+9. **Records pass vs length binders** (this branch): `.length` no longer
+   disables the records pass; `shortOps` under B drops from ~900× to
+   ~120× JavaScript. See
+   [After records + length binders](#after-records--length-binders).
+
 ### Left
 
 1. **Cancel `dup`/`drop` pairs in the lifetime pass** (medium): a few
    percent on reference-heavy programs that still call `Ref.dup_ref` /
    `drop_ref` (and on any leftover `dup`/`drop` pairs).
-2. **A rope for `concat`** (NaNVM, larger): would make `repeat` linear.
-3. **Short-string variant C / flatter short loops** (S5+): multi-local
-   `str`, or a shortOps shape that does not rebuild a record each step.
+2. **A rope for `concat`** (NaNVM, larger): would make `repeat` linear;
+   `shortOps` under B is now mostly `concat`.
+3. **Short-string variant C** (S5+): multi-local `str`; compare with B
+   once that lands.
 
 One limit stays as it was: a loop whose state starts as `f64` and becomes
 `any` is still refused (below). The records pass runs after the lowering,

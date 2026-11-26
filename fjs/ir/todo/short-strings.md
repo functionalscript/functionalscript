@@ -32,6 +32,9 @@ Design approved; S1 lands the skeleton under `fjs/ir/runtime/string`.
 - [x] **S4** — Remeasure (`shortOps` primary, `repeat` secondary; variant B); update `benchmark.md`
 - [x] **Decision gate** — NaNVM defaults to B (`emitB`); counting stays A (`emitA`) as control
 - [ ] Optional **S5+** — second variant behind the same interface; compare; optional wider tags
+- [x] **Records + length** — records pass no longer skips on `.length` binders;
+      `shortOps` under B ~120× JavaScript (was ~900×); see
+      [benchmark.md](../../../doc/sasha-gil/ir/benchmark.md#after-records--length-binders)
 
 ### Related
 
