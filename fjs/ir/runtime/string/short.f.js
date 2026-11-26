@@ -12,18 +12,7 @@
  */
 
 import { error, ok } from '../../../types/result/module.f.js'
-
-/** Non-finite exponent bits shared by every scalar NaN box. */
-const EXP = 0x7FF0_0000_0000_0000n
-
-/** Tag-2 mask: non-finite scalars vs references. */
-const TAG2 = 0x7FF0_0000_0000_0003n
-
-/** Scalar family under TAG2 (low two bits clear, exponent all ones). */
-const SCALAR = 0x7FF0_0000_0000_0000n
-
-/** Empty-string box. */
-export const EMPTY = 0x7FF0_0000_0000_0008n
+import { EMPTY, EXP, SCALAR, TAG2 } from '../box/module.f.js'
 
 /** `$`, `0`–`9`, `A`–`Z`, `_`, `a`–`z` — the 6-bit short-string alphabet. */
 const ALPHABET = /** @type {const} */ ([
@@ -106,10 +95,11 @@ export const isShort = b => (b & TAG2) === SCALAR && (b & 0xCn) !== 0n
  * [nan-box-patterns.md](../../../../doc/sasha-gil/ir/nan-box-patterns.md):
  * a value is in a pattern when `b & mask === value`. Field bits are free;
  * every other bit must match, so junk above a short tag is `not_short`.
+ * String's IR module tests them in this order too.
  *
  * @type {readonly (readonly [ShortTag, bigint, bigint])[]}
  */
-const patterns = [
+export const patterns = [
     ['empty', 0xFFFF_FFFF_FFFF_FFFFn, EMPTY],
     ['s1x16', 0xFFFF_FFFF_FF00_00FFn, 0x7FF0_0000_0000_0018n],
     ['s2x16', 0xFFFF_FF00_0000_00FFn, 0x7FF0_0000_0000_0028n],

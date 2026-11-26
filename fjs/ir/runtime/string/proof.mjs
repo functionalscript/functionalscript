@@ -19,7 +19,8 @@ import { lifetime } from '../../lifetime/module.f.js'
 import { call, fn, u } from '../../module.f.js'
 import { emit } from '../../wasm/module.f.js'
 import { module as anyModule } from '../any/module.f.js'
-import { EMPTY, pack } from './short.f.js'
+import { EMPTY } from '../box/module.f.js'
+import { pack } from './short.f.js'
 import { module as stringModule } from './ir.f.js'
 
 /** @type {(b: bigint) => bigint} */
