@@ -6,7 +6,7 @@ import { assertEq, assertError, assertOk } from '../../asserts/module.f.js'
 import { any, l0 } from '../l0/module.f.js'
 import {
     add, block, br, call, call_ref, code, codeOf, constant, f64, f64c, field, float, fn, get, hint, if_, int, let_, lit, loop, lt,
-    make, match, next, own, return_, trunc_sat, u, variant, bool,
+    make, match, next, own, return_, trunc_sat, u, unit, variant, bool,
 } from '../module.f.js'
 import { check } from '../check/module.f.js'
 import { lifetime } from '../lifetime/module.f.js'
@@ -39,11 +39,8 @@ export const proof = {
         exports: ['f'],
     }), [
         'fn f(a: f64) -> f64 =',
-        '    block #i1.return: f64',
-        '        let #i1.x =',
-        '            block #i0.return: f64',
-        '                add(a, 1.0)',
-        '        add(#i1.x, 1.0)',
+        '    let #i1.x = add(a, 1.0)',
+        '    add(#i1.x, 1.0)',
         '',
         'export f',
         '',
@@ -62,12 +59,8 @@ export const proof = {
         '    add(x, 1.0)',
         '',
         'fn g(a: f64) -> f64 =',
-        '    block #i0.return: f64',
-        '        block #i2.return: f64',
-        '            let #i2.x =',
-        '                block #i1.return: f64',
-        '                    add(a, 1.0)',
-        '            add(#i2.x, 1.0)',
+        '    let #i2.x = add(a, 1.0)',
+        '    add(#i2.x, 1.0)',
         '',
         'export g, add1',
         '',
@@ -135,18 +128,15 @@ export const proof = {
         'fn f(v: any) -> int(0, 8) =',
         '    match v',
         '      number as x =>',
-        '        block #i0.return: int(0, 8)',
-        '            let #i0.v =',
-        '                block #i0.: any',
-        '                    x',
-        '            Any.kind(#i0.v)',
+        '        let #i0.v =',
+        '            block #i0.: any',
+        '                x',
+        '        Any.kind(#i0.v)',
         '      else =>',
-        '        block #i2.return: int(0, 8)',
-        '            let #i2.v =',
-        '                block #i1.return: any',
-        '                    let #i1.v = v',
-        '                    #i1.v',
-        '            Any.kind(#i2.v)',
+        '        let #i2.v =',
+        '            let #i1.v = v',
+        '            #i1.v',
+        '        Any.kind(#i2.v)',
         '',
         'export f',
         '',
@@ -165,15 +155,14 @@ export const proof = {
         }), [
             'fn f(a: f64) -> f64 =',
             '    let p = { x: a }',
-            '    block #i0.return: f64',
-            '        add(',
-            '            (',
-            '                block #i0.l: { x: f64 }',
-            '                    br #i0.l { x: p.x }',
-            '            ).x,',
-            '            loop #i0.l (#i0.x: f64 = p.x)',
-            '                if lt(#i0.x, 1.0) then br #i0.l { #i0.x: add(#i0.x, 1.0) } else #i0.x',
-            '        )',
+            '    add(',
+            '        (',
+            '            block #i0.l: { x: f64 }',
+            '                br #i0.l { x: p.x }',
+            '        ).x,',
+            '        loop #i0.l (#i0.x: f64 = p.x)',
+            '            if lt(#i0.x, 1.0) then br #i0.l { #i0.x: add(#i0.x, 1.0) } else #i0.x',
+            '    )',
             '',
             'export f',
             '',
@@ -187,8 +176,7 @@ export const proof = {
     }), [
         'fn f(#i0.a: f64) -> f64 =',
         '    loop l (#i1.k: f64 = #i0.a)',
-        '        block #i2.return: f64',
-        '            add(#i1.k, 1.0)',
+        '        add(#i1.k, 1.0)',
         '',
         'export f',
         '',
@@ -205,7 +193,7 @@ export const proof = {
         const l = /** @type {const} */ (['sealed', 'L', 'l', null])
         /** @type {Module} */
         const m = {
-            imports: [['L', { abi: 'test', types: [['l', { variants: ['a', 'b'], kind: 'k', carrier: 'i32' }]], functions: [['k', { params: [['x', l]], result: int(0n, 1n) }]] }]],
+            imports: [['L', { abi: 'test', types: [['l', { variants: ['a', 'b'], kind: 'k', carrier: 'i32' }]], functions: [['k', { params: [['x', l]], result: int(0n, 1n) }], ['close', { params: [own('x', l)], result: unit }]] }]],
             functions: [
                 ['g', hint('always', fn([['x', l]], int(0n, 1n), x => call('L', 'k', [x])))],
                 ['f', fn([['x', l]], int(0n, 1n), x => match(x, [[['a'], 'y', call('self', 'g', [get('y')])], [['b'], null, call('self', 'g', [x])]]))],
@@ -213,14 +201,27 @@ export const proof = {
             exports: ['f'],
         }
         assertEq(assertError(inline(m)), 'g is inline always, and a call lends its x a linear value narrower than its parameter, which a copy would own')
-        assertEq(passed({ ...m, functions: [m.functions[0], ['f', fn([['x', l]], int(0n, 1n), x => call('self', 'g', [x]))]] }).split('\n').slice(-6).join('\n'), [
+        assertEq(passed({ ...m, functions: [m.functions[0], ['f', fn([['x', l]], int(0n, 1n), x => call('self', 'g', [x]))]] }).split('\n').slice(-5).join('\n'), [
             'fn f(x: l) -> u(1) =',
-            '    block #i0.return: u(1)',
-            '        L.k(x)',
+            '    L.k(x)',
             '',
             'export f',
             '',
         ].join('\n'))
+        // A call in a function that goes, inlined everywhere, is never copied.
+        assertOk(inline({ ...m, functions: [...m.functions.map(([k, f]) => /** @type {const} */ ([k, k === 'f' ? hint('always', f) : f])), ['e', fn([['x', l]], int(0n, 1n), x => call('L', 'k', [x]))]], exports: ['e'] }))
+        // A linear value that the function owns moves into a copy with no block, and a copy in a block is refused.
+        const close = hint('always', fn([own('x', l)], unit, x => call('L', 'close', [x])))
+        const closing = /** @type {(c: ReturnType<typeof fn>) => Module} */ (c => ({ ...m, functions: [['c', c], ['f', fn([own('x', l)], unit, x => call('self', 'c', [x]))]] }))
+        assertEq(passed(closing(close)).split('\n').slice(-6).join('\n'), [
+            'fn f(own x: l) -> unit =',
+            '    let #i0.x = x',
+            '    L.close(#i0.x)',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+        assertEq(assertError(inline(closing(hint('always', fn([own('x', l)], unit, x => return_(call('L', 'close', [x]))))))), 'c is inline always and owns its linear x, which a copy in a block could not take over')
     },
     // A module that the checker refuses is refused.
     refused: () => assertEq(assertError(inline({ imports: [], functions: [['f', hint('always', fn([], f64, () => call('self', 'f', [])))]], exports: [] })),

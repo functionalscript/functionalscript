@@ -5,13 +5,14 @@
  * [lifetime pass](../lifetime/module.f.js), which then counts the copies
  * as it counts any other term, and whose answer the checker checks again.
  *
- * - **A copy is a `block`.** A call `self.f(a, b)` becomes
- *   `block #i0.return: R (let #i0.a = a in let #i0.b = b in body)`, `R`
- *   the result of `f`, every local and label of the body with the call's
- *   own prefix, `#i0.`, which no name of the function starts with, so
- *   nothing that the copy binds is bound twice, and a `br return` of the
- *   body leaves the block. The arguments are bound inside the block, in
- *   their order, so that the body consumes what it owns there.
+ * - **A copy is its body, bound to the arguments.** A call `self.f(a, b)`
+ *   becomes `let #i0.a = a in let #i0.b = b in body`, every local and
+ *   label of the body with the call's own prefix, `#i0.`, which no name
+ *   of the function starts with, so nothing that the copy binds is bound
+ *   twice. Where the body has a `br return`, or is narrower than `f`'s
+ *   result `R`, the copy is `block #i0.return: R (...)`, which the `br`
+ *   leaves, with the arguments bound inside it, in their order, so that
+ *   the body consumes what it owns there.
  * - **A borrow of a value already made is passed in place.** A parameter
  *   that the function borrows, given a local, a literal, a constant, a
  *   function's code, or a field of one of those, of its own type, reads that term itself, so the copy
@@ -46,7 +47,7 @@
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { checkPlain } from '../check/module.f.js'
-import { block, equal, get, inside, interfacesOf, isCopy, isOwn } from '../module.f.js'
+import { block, equal, get, inside, interfacesOf, isCopy, isOwn, leaves } from '../module.f.js'
 
 // names
 
@@ -76,6 +77,16 @@ const asIs = { local: get, rename: x => x, loops: [] }
 
 /** Names inside a region of the label `label`, a loop's or not, which hides any other region of that label. @type {(names: _Names, label: string, loop: boolean) => _Names} */
 const within = (names, label, loop) => ({ ...names, loops: [...names.loops.filter(l => l !== label), ...(loop ? [label] : [])] })
+
+/**
+ * Whether a copy of `f`'s body needs a `block` around it: the body leaves
+ * by a `br return`, or it is of a narrower type than `f`'s result, which a
+ * caller may `match` on in full. A `block` lends the locals around it, so
+ * a copy has none where it need not.
+ *
+ * @type {(f: CheckedFn) => boolean}
+ */
+const blocked = f => leaves(f.body).includes('return') || !equal(f.body[0], f.result)
 
 /** Whether a term is a value already made, which a borrow may read in place: a local, a literal, a constant, a function's code, or a field of such a value. @type {(t: Term) => boolean} */
 const made = t => t[0] === 'get' || t[0] === 'lit' || t[0] === 'constant' || t[0] === 'code' || (t[0] === 'field' && made(t[1]))
@@ -117,7 +128,7 @@ const copy = (write, pass, f, xs, args, n) => {
             (b, [[k, t], type, a]) => ['let', `${p}${k}`, equal(type, t) ? a : block(p, t, a), b],
             body,
         )
-    return [block(`${p}return`, f.result, bound), n2]
+    return [blocked(f) ? block(`${p}return`, f.result, bound) : bound, n2]
 }
 
 /**
@@ -191,9 +202,12 @@ const write = (pass, names, [type, t], n) => {
 }
 
 /**
- * The first call in a typed term that the pass cannot copy, as the reason,
- * or `null`: one that lends a linear value narrower than its parameter,
- * which the copy would have to own.
+ * The first call in a typed term, or in the copies that the pass writes of
+ * it, that the pass cannot copy, as the reason, or `null`. A copy binds
+ * what it does not pass in place to a `let` that owns it, so a call may
+ * lend it no linear value narrower than its parameter; and a copy in a
+ * `block` lends the caller's locals to the arguments, so a linear value
+ * that the function owns may not move into one.
  *
  * @type {(inlined: _Pass['inlined'], linear: (t: Type) => boolean) => (t: Typed) => string | null}
  */
@@ -201,10 +215,12 @@ const uncopied = (inlined, linear) => {
     /** @type {(t: Typed) => string | null} */
     const go = ([, t]) => {
         const f = t[0] === 'call' && t[1] === 'self' ? inlined(t[2]) : null
-        const j = f === null || t[0] !== 'call' ? -1 : f.params.findIndex((param, k) => !isOwn(param) && linear(param[1]) && !equal(t[3][Number(k)][0], param[1]))
-        return f !== null && t[0] === 'call' && j >= 0
-            ? `${t[2]} is inline always, and a call lends its ${f.params[Number(j)][0]} a linear value narrower than its parameter, which a copy would own`
-            : inside(t).map(go).find(x => x !== null) ?? null
+        if (f === null || t[0] !== 'call') { return inside(t).map(go).find(x => x !== null) ?? null }
+        const lent = f.params.find((param, k) => !isOwn(param) && linear(param[1]) && !equal(t[3][Number(k)][0], param[1]))
+        const moved = blocked(f) ? f.params.find(param => isOwn(param) && linear(param[1])) : undefined
+        return lent !== undefined ? `${t[2]} is inline always, and a call lends its ${lent[0]} a linear value narrower than its parameter, which a copy would own`
+            : moved !== undefined ? `${t[2]} is inline always and owns its linear ${moved[0]}, which a copy in a block could not take over`
+            : [...t[3], f.body].map(go).find(x => x !== null) ?? null
     }
     return go
 }
@@ -235,7 +251,9 @@ export const inline = m => {
         const def = assertNotNullish(assertNotNullish(imports.find(([k]) => k === t[1]))[1].types.find(([k]) => k === t[2]))[1]
         return def.dup === undefined && !isCopy(def, t)
     }
-    const why = [...functions.map(([, f]) => f.body), ...constants.map(([, c]) => c.value)].map(uncopied(inlined, linear)).find(x => x !== null)
+    // Only what the module keeps is written, with the copies that it holds: a function inlined everywhere goes, unread.
+    const kept = functions.filter(([k]) => hintOf(k) !== 'always' || m.exports.includes(k))
+    const why = [...kept.map(([, f]) => f.body), ...constants.map(([, c]) => c.value)].map(uncopied(inlined, linear)).find(x => x !== null)
     if (why !== undefined && why !== null) { return error(why) }
     /** @type {readonly (readonly [string, Fn])[]} */
     const written = m.functions.flatMap(([k, f], j) => {
