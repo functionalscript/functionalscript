@@ -1,15 +1,20 @@
 /**
- * Proofs of the String runtime-module skeleton and short pack/unpack
- * bit round-trips ([short-strings.md](../../../../doc/sasha-gil/ir/short-strings.md) S1).
+ * Proofs of the String runtime-module skeleton, short pack/unpack bit
+ * round-trips (S1), and the B IR module for linked length/unit (S3)
+ * ([short-strings.md](../../../../doc/sasha-gil/ir/short-strings.md)).
  *
  * @import { ShortTag } from './types.ts'
  */
 
 import { assert, assertEq, assertError, assertOk } from '../../../asserts/module.f.js'
+import { check, checkPlain } from '../../check/module.f.js'
+import { lifetime } from '../../lifetime/module.f.js'
+import { definedBy } from '../../module.f.js'
 import {
     EMPTY, a, allTags, atAlias, b, c, isShort, length, maxEnabledLen, ops, pack, packEnabled,
     tagLen, tagOf, unit, unpack, v1EnabledTags, variants,
 } from './module.f.js'
+import { module as irModule } from './ir.f.js'
 
 /** @type {(s: string) => readonly number[]} */
 const unitsOf = s => [...s].map(ch => /** @type {number} */ (ch.codePointAt(0)))
@@ -185,5 +190,16 @@ export const proof = {
         assert((s7odd & 0x8000_0000_0000_0000n) !== 0n)
         assert((s8 & 0x8000_0000_0000_0000n) === 0n)
         assert((s3 & 0x8000_0000_0000_0000n) === 0n)
+    },
+    // S3: B IR module defines Any for unseal, exports length/unit, types clean.
+    irModule: () => {
+        assertEq(irModule.imports.map(([k]) => k).join(), 'Ref,String')
+        assertEq(definedBy(irModule), 'Any')
+        assertEq(irModule.exports.join(), 'length,unit')
+        assertEq(assertOk(checkPlain(irModule)).functions.map(([k]) => k).join(),
+            'isRef,dup,drop,kind,oob,unit2,unit3x16,unit4x7,unit5x7,unit6x7,unit7x7,unit8,length,unit')
+        assertEq(assertOk(check(assertOk(lifetime(irModule)))).exports.join(), 'length,unit')
+        assertEq(b.length.kind, 'template')
+        assertEq(b.unit.kind, 'template')
     },
 }
