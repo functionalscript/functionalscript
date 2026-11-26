@@ -2,47 +2,16 @@
  * String runtime-module for short strings in the IR
  * ([short-strings.md](../../../../doc/sasha-gil/ir/short-strings.md)):
  * one logical interface, three interchangeable manifests (A / B / C), short
- * pack/unpack helpers, and the B IR module that `linkString` merges for
- * length/unit (S3). Programs call String ops; they never import the helpers.
+ * pack/unpack helpers (in `short.f.js`), and the B IR module that
+ * `linkString` merges for length/unit (S3). Programs call String ops; they
+ * never import the helpers.
  *
  * @module
  *
  * @import { Manifest } from './types.ts'
  */
 
-import {
-    EMPTY as _EMPTY,
-    allTags as _allTags,
-    isShort as _isShort,
-    length as _length,
-    maxEnabledLen as _maxEnabledLen,
-    pack as _pack,
-    packEnabled as _packEnabled,
-    tagLen as _tagLen,
-    tagOf as _tagOf,
-    unit as _unit,
-    unpack as _unpack,
-    emitA as _emitA,
-    emitB as _emitB,
-    v1EnabledTags as _v1EnabledTags,
-} from './short.f.js'
-
-export const EMPTY = _EMPTY
-export const allTags = _allTags
-export const isShort = _isShort
-export const length = _length
-export const maxEnabledLen = _maxEnabledLen
-export const pack = _pack
-export const packEnabled = _packEnabled
-export const tagLen = _tagLen
-export const tagOf = _tagOf
-export const unit = _unit
-export const unpack = _unpack
-export const v1EnabledTags = _v1EnabledTags
-/** Emit A — always dyn-ref (control). Re-export of `short.f.js`. */
-export const emitA = _emitA
-/** Emit B — short when a v1 tag fits (NaNVM default). Re-export of `short.f.js`. */
-export const emitB = _emitB
+import { emitA, emitB } from './short.f.js'
 
 /**
  * Logical ops every String variant must expose to programs / emitters.
@@ -69,7 +38,6 @@ export const a = {
     length: { kind: 'import', op: 'length' },
     unit: { kind: 'import', op: 'unit' },
     emit: emitA,
-    enabledTags: [],
     longPath: 'fjs:l0',
 }
 
@@ -88,8 +56,7 @@ export const b = {
     unpack: { kind: 'null' },
     length: { kind: 'template', op: 'length' },
     unit: { kind: 'template', op: 'unit' },
-    emit: { kind: 'shortWhenEnabled' },
-    enabledTags: v1EnabledTags,
+    emit: emitB,
     longPath: 'fjs:l0',
 }
 
@@ -110,8 +77,7 @@ export const c = {
     unpack: { kind: 'template', op: 'unpack' },
     length: { kind: 'template', op: 'length' },
     unit: { kind: 'template', op: 'unit' },
-    emit: { kind: 'shortWhenEnabled' },
-    enabledTags: v1EnabledTags,
+    emit: emitB,
     longPath: 'fjs:l0',
     layout: 'C-flag',
 }

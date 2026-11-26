@@ -31,10 +31,17 @@ export type FunctionForm =
     | { readonly kind: 'template', readonly op: string }
     | { readonly kind: 'null' }
 
-/** Whether allocating string imports may return a short box. */
-export type EmitPolicy =
+/**
+ * Whether allocating string imports on a counting / NaNVM host may return
+ * a short-string box ([short-strings.md](../../../../doc/sasha-gil/ir/short-strings.md)
+ * S2 / S4 decision gate). Prefer named policies `emitA` / `emitB` from
+ * `short.f.js`: A is always dyn-ref (counting default); B is short when a
+ * v1-enabled tag fits (NaNVM default). A miss or a disabled tag is forced
+ * long, never refused.
+ */
+export type StringEmit =
     | { readonly kind: 'alwaysDynRef' }
-    | { readonly kind: 'shortWhenEnabled' }
+    | { readonly kind: 'shortWhenEnabled', readonly enabledTags: readonly ShortTag[] }
 
 /**
  * One String runtime-module variant: the interface programs see is fixed;
@@ -51,12 +58,8 @@ export type Manifest = {
     readonly length: FunctionForm
     /** L0 name `unit`; modular-runtime memo spelling `at` — one op. */
     readonly unit: FunctionForm
-    readonly emit: EmitPolicy
-    /**
-     * Short encodings this variant may emit. A miss or a disabled tag is
-     * forced long, never refused.
-     */
-    readonly enabledTags: readonly ShortTag[]
+    /** The host's emit policy for this variant, with its enabled tags. */
+    readonly emit: StringEmit
     /** Long-string import path when the short arm does not apply. */
     readonly longPath: string
     /** C-flag vs C-sentinel; only meaningful for variant C (open Q2). */

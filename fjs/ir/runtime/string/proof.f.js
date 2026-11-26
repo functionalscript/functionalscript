@@ -10,10 +10,11 @@ import { assert, assertEq, assertError, assertOk, assertStructurallySame } from 
 import { check, checkPlain } from '../../check/module.f.js'
 import { lifetime } from '../../lifetime/module.f.js'
 import { definedBy } from '../../module.f.js'
+import { a, atAlias, b, c, ops, variants } from './module.f.js'
 import {
-    EMPTY, a, allTags, atAlias, b, c, emitA, emitB, isShort, length, maxEnabledLen, ops, pack,
-    packEnabled, tagLen, tagOf, unit, unpack, v1EnabledTags, variants,
-} from './module.f.js'
+    EMPTY, allTags, emitA, emitB, enabledTagsOf, isShort, length, maxEnabledLen, pack,
+    packEnabled, tagLen, tagOf, unit, unpack, v1EnabledTags,
+} from './short.f.js'
 import { module as anyModule } from '../any/module.f.js'
 import { module as irModule } from './ir.f.js'
 
@@ -50,9 +51,11 @@ export const proof = {
         assertEq(emitA.kind, 'alwaysDynRef')
         assertEq(emitB.kind, 'shortWhenEnabled')
         assertEq(emitB.enabledTags.join(), v1EnabledTags.join())
-        assertEq(a.emit.kind, emitA.kind)
-        assertEq(b.emit.kind, emitB.kind)
-        assertEq(b.enabledTags.join(), emitB.enabledTags.join())
+        assertEq(a.emit, emitA)
+        assertEq(b.emit, emitB)
+        assertEq(c.emit, emitB)
+        assertEq(enabledTagsOf(emitA).length, 0)
+        assertEq(enabledTagsOf(emitB).join(), v1EnabledTags.join())
     },
     // A: import-form baseline, never a short box.
     manifestA: () => {
@@ -64,12 +67,12 @@ export const proof = {
         assertEq(a.unit.kind, 'import')
         assertEq(formOp(a.unit), 'unit')
         assertEq(a.emit.kind, 'alwaysDynRef')
-        assertEq(a.enabledTags.length, 0)
+        assertEq(enabledTagsOf(a.emit).length, 0)
         assertEq(a.requiresAny, 'any')
         assertEq(a.longPath, 'fjs:l0')
         assertEq(a.moduleName, 'fjs:l0/string')
         assertEq(a.version, '1')
-        assertEq(packEnabled(unitsOf('hi'), a.enabledTags)[0], 'error')
+        assertEq(packEnabled(unitsOf('hi'), enabledTagsOf(a.emit))[0], 'error')
     },
     // B: memory-saving; v1 tags; templates re-decode; no slots.
     manifestB: () => {
@@ -84,12 +87,12 @@ export const proof = {
         assertEq(b.requiresAny, 'nan')
         assertEq(b.moduleName, 'fjs:ir/string/memory')
         assertEq(b.longPath, 'fjs:l0')
-        assertEq(b.enabledTags.join(), v1EnabledTags.join())
-        assertEq(assertOk(packEnabled([], b.enabledTags)), EMPTY)
-        assertEq(assertOk(tagOf(assertOk(packEnabled(unitsOf('a'), b.enabledTags)))), 's1x16')
-        assertEq(assertOk(tagOf(assertOk(packEnabled(unitsOf('ab'), b.enabledTags)))), 's2x16')
+        assertEq(enabledTagsOf(b.emit).join(), v1EnabledTags.join())
+        assertEq(assertOk(packEnabled([], enabledTagsOf(b.emit))), EMPTY)
+        assertEq(assertOk(tagOf(assertOk(packEnabled(unitsOf('a'), enabledTagsOf(b.emit))))), 's1x16')
+        assertEq(assertOk(tagOf(assertOk(packEnabled(unitsOf('ab'), enabledTagsOf(b.emit))))), 's2x16')
         // four ASCII units fit s4x7, but that tag is not enabled → force long
-        assertEq(packEnabled(unitsOf('abcd'), b.enabledTags)[0], 'error')
+        assertEq(packEnabled(unitsOf('abcd'), enabledTagsOf(b.emit))[0], 'error')
         // U+0080 does not fit 4×7 either; still long, not refused as a third outcome
         assertEq(pack(unitsOf('ab\u0080c'))[0], 'error')
     },
@@ -104,7 +107,6 @@ export const proof = {
         assertEq(c.length.kind, 'template')
         assertEq(c.unit.kind, 'template')
         assertEq(c.emit.kind, 'shortWhenEnabled')
-        assertEq(c.enabledTags.join(), b.enabledTags.join())
         assertEq(c.requiresAny, 'nan')
         assertEq(c.moduleName, 'fjs:ir/string/cpu')
         assertEq(c.version, '1')
