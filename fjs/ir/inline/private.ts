@@ -4,7 +4,7 @@
  * @module
  */
 
-import type { CheckedFn, Term } from '../types.ts'
+import type { CheckedFn, Term, Typed } from '../types.ts'
 
 /**
  * How a body's names read where the pass writes it: at the top of a
@@ -16,7 +16,7 @@ export type _Names = {
     /** What a `get` of a local reads. */
     readonly local: (name: string) => Term
     /** The name that a local or a label takes where it is bound. */
-    readonly bind: (name: string) => string
+    readonly rename: (name: string) => string
     /** The labels in scope that name loops, whose parameters a `br` to them names too. */
     readonly loops: readonly string[]
 }
@@ -31,3 +31,9 @@ export type _Pass = {
 
 /** A term that the pass wrote, and the number of the next prefix. */
 export type _Written = readonly [Term, number]
+
+/**
+ * The pass's writer of a typed term, which the helpers that it calls take
+ * as an argument, since a module's constants are defined in their order.
+ */
+export type _Write = (pass: _Pass, names: _Names, t: Typed, n: number) => _Written

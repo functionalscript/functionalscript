@@ -200,6 +200,28 @@ export const proof = {
         assertEq(text.includes('self.isRef('), false)
         assertEq(text.includes('inline always fn isRef'), true)
     },
+    // A linear value narrower than its parameter is refused, since the copy would own it; one of the parameter's type is lent in place.
+    linear: () => {
+        const l = /** @type {const} */ (['sealed', 'L', 'l', null])
+        /** @type {Module} */
+        const m = {
+            imports: [['L', { abi: 'test', types: [['l', { variants: ['a', 'b'], kind: 'k', carrier: 'i32' }]], functions: [['k', { params: [['x', l]], result: int(0n, 1n) }]] }]],
+            functions: [
+                ['g', hint('always', fn([['x', l]], int(0n, 1n), x => call('L', 'k', [x])))],
+                ['f', fn([['x', l]], int(0n, 1n), x => match(x, [[['a'], 'y', call('self', 'g', [get('y')])], [['b'], null, call('self', 'g', [x])]]))],
+            ],
+            exports: ['f'],
+        }
+        assertEq(assertError(inline(m)), 'g is inline always, and a call lends its x a linear value narrower than its parameter, which a copy would own')
+        assertEq(passed({ ...m, functions: [m.functions[0], ['f', fn([['x', l]], int(0n, 1n), x => call('self', 'g', [x]))]] }).split('\n').slice(-6).join('\n'), [
+            'fn f(x: l) -> u(1) =',
+            '    block #i0.return: u(1)',
+            '        L.k(x)',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
+    },
     // A module that the checker refuses is refused.
     refused: () => assertEq(assertError(inline({ imports: [], functions: [['f', hint('always', fn([], f64, () => call('self', 'f', [])))]], exports: [] })),
         'f is inline always and calls itself through functions inline always, so its copies would never end'),
