@@ -1,6 +1,6 @@
 # A runtime written in the IR: slice 1, NaN-boxed scalars
 
-2026-11-23. Proposed, not decided. This is the first slice of the owner's
+2026-11-23. Built: all four checkpoints merged as #4094–#4116. This is the first slice of the owner's
 next task (2026-11-21): a runtime written in the IR itself, in the style of
 the [modular runtime](../wasm/modular-runtime.md) and
 [modular L0](../wasm/modular-l0.md), with the NaN box of
