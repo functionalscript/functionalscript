@@ -32,8 +32,10 @@
  *   that the rest reads is shadowed. A key or a name in a new name has
  *   `\`, `.` and `/` escaped by a `\`, so `s.p.q` is the key `q` of
  *   `s.p` and `s.p\.q` the key `p.q` of `s`, and no new name is another. A
- *   function that names a local with any of these three keeps every
- *   object, since a new name might be one of its own.
+ *   new split name that is already a binder of the function keeps every
+ *   object of that function, since the name would be one of its own (cast
+ *   arms like `p0.array` share the `.` spelling). Binders that only use
+ *   those characters for kind casts do not block an unrelated split.
  *   A read `get(s, 'i')` is `s.i`, and a `let` of such a read is no
  *   local of its own but `s.i` itself, so nothing copies it. A read of a
  *   term whose value may be such an object reads the key at each end of
@@ -114,9 +116,6 @@ const movable = values => values.filter(x => {
 
 /** A key or a name as a part of a new name: `\\`, `.` and `/` escaped. @type {(k: string) => string} */
 const escape = k => k.replaceAll('\\', '\\\\').replaceAll('.', '\\.').replaceAll('/', '\\/')
-
-/** Whether a name may be a new name, or a part of one. @type {(name: string) => boolean} */
-const reserved = name => name.includes('\\') || name.includes('.') || name.includes('/')
 
 /** The names that a term binds. @type {(t: Term) => readonly string[]} */
 const binders = t => {
@@ -339,15 +338,21 @@ const withValues = (t, values) => {
 /**
  * A function's body with what `split` says split: `rewrite` of a term at
  * `path`, whose value is read at the key `key`, or used as it is where
- * `key` is `null`.
+ * `key` is `null`. `collision.hit` becomes true when a new name is already
+ * a binder of the function.
  *
- * @type {(get: string, split: _Split) => (t: Term, path: string, env: _Env, key: string | null) => Term}
+ * @type {(get: string, split: _Split, existing: ReadonlySet<string>, collision: { hit: boolean }) => (t: Term, path: string, env: _Env, key: string | null) => Term}
  */
-const rewrite = (get, split) => {
+const rewrite = (get, split, existing, collision) => {
     /** The keys of a local that the pass splits, by its path. @type {(id: string) => readonly string[] | null} */
     const keysAt = id => split.locals.find(([x]) => x === id)?.[1] ?? null
+    /** A new binder name, or a collision with one the function already has. @type {(n: string) => string} */
+    const fresh = n => {
+        if (existing.has(n)) { collision.hit = true }
+        return n
+    }
     /** The name of a split local's value at a key. @type {(name: string, key: string) => string} */
-    const part = (name, key) => `${name}.${escape(key)}`
+    const part = (name, key) => fresh(`${name}.${escape(key)}`)
     /** @type {(t: Term, path: string, env: _Env, key: string | null) => Term} */
     const go = (t, path, env, key) => {
         /**
@@ -360,7 +365,7 @@ const rewrite = (get, split) => {
          */
         const moved = (t, path, env, prefix, end) => {
             if (t[0] === 'let') {
-                const name = `${prefix}/${escape(t[1])}`
+                const name = fresh(`${prefix}/${escape(t[1])}`)
                 const rest = moved(t[3], `${path}/b`, bind(env, [t[1], path, name]), prefix, end)
                 // a local of the chain that is split too: its parts, under its new name
                 return keysAt(path) === null ? ['let', name, go(t[2], `${path}/v`, env, null), rest]
@@ -461,12 +466,17 @@ const rewrite = (get, split) => {
  * @type {(get: string) => (f: Fn) => Fn}
  */
 const once = get => f => {
+    const existing = new Set([...f.params.map(([k]) => k), ...binders(f.body)])
     const env = f.params.reduce((e, [k]) => bind(e, [k, `param/${k}`, k]), top)
     // what the function answers leaves it
     const [from, fs] = facts(get)(f.body, 'f', env, true)
     const params = f.params.map(([k]) => /** @type {_Fact} */ (['local', `param/${k}`, 'other']))
     const split = solve([...params, ...fs, ...from.map(s => /** @type {_Fact} */ (['escape', s]))])
-    return split.locals.length === 0 && split.reads.length === 0 ? f : { ...f, body: rewrite(get, split)(f.body, 'f', env, null) }
+    if (split.locals.length === 0 && split.reads.length === 0) { return f }
+    /** @type {{ hit: boolean }} */
+    const collision = { hit: false }
+    const body = rewrite(get, split, existing, collision)(f.body, 'f', env, null)
+    return collision.hit ? f : { ...f, body }
 }
 
 /**
@@ -489,5 +499,5 @@ const settled = get => f => {
  */
 export const records = get => m => ({
     ...m,
-    functions: m.functions.map(([name, f]) => /** @type {const} */ ([name, [...f.params.map(([k]) => k), ...binders(f.body)].some(reserved) ? f : settled(get)(f)])),
+    functions: m.functions.map(([name, f]) => /** @type {const} */ ([name, settled(get)(f)])),
 })

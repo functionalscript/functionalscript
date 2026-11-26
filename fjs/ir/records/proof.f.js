@@ -242,9 +242,44 @@ export const proof = {
             '    { x: r.p.q, y: r.p\\.q, z: r.s\\/\\\\ }',
         ],
     ),
-    reservedLet: () => same(let_('r.x', a, read(object([['x', get('r.x')]]), 'x'))),
-    reservedLoop: () => same(loop('L', [['s/', any, a]], () => read(object([['x', a]]), 'x'))),
-    reservedArm: () => same(match(c, [[null, 'w\\', read(object([['x', a]]), 'x')]])),
+    // Cast-style binders no longer block an unrelated object: the pass still
+    // splits, and only a generated name that reuses an existing binder keeps
+    // the object (collide below).
+    reservedLet: () => golden(
+        let_('r.x', a, read(object([['x', get('r.x')]]), 'x')),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    let r.x = a',
+            '    r.x',
+        ],
+    ),
+    reservedLoop: () => golden(
+        loop('L', [['s/', any, a]], () => read(object([['x', a]]), 'x')),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    loop L (s/: any = a)',
+            '        a',
+        ],
+    ),
+    reservedArm: () => golden(
+        match(c, [[null, 'w\\', read(object([['x', a]]), 'x')]]),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    match c',
+            '      else as w\\ =>',
+            '        a',
+        ],
+    ),
+    collide: () => same(let_('r.x', b, let_('r', object([['x', a]]), read(get('r'), 'x')))),
+    castBinderSplit: () => golden(
+        let_('p0.string', a, let_('r', object([['x', b]]), read(get('r'), 'x'))),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    let p0.string = a',
+            '    let r.x = b',
+            '    r.x',
+        ],
+    ),
     aliased: () => golden(
         let_('r', object([['x', a]]), let_('v', read(get('r'), 'x'), let_('w', get('b'), make([['v', get('v')], ['w', get('w')]])))),
         [
