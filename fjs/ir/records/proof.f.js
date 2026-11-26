@@ -608,6 +608,32 @@ export const proof = {
             '            m',
         ],
     ),
+    // Moved chain: each let initializer binds r.x; rest's claims do not
+    // poison an earlier initializer (OR hits only from pre-rest claims).
+    movedLetInitClaims: () => golden(
+        let_('s',
+            let_('t', let_('r', object([['x', a]]), read(get('r'), 'x')),
+                let_('u', let_('r', object([['x', b]]), read(get('r'), 'x')),
+                    object([['p', get('u')], ['q', get('t')]]))),
+            read(get('s'), 'p')),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    let s/t =',
+            '        let r.x = a',
+            '        r.x',
+            '    let s/u =',
+            '        let r.x = b',
+            '        r.x',
+            '    let s.p =',
+            '        block W: any',
+            '            s/u',
+            '    let s.q =',
+            '        block W: any',
+            '            s/t',
+            '    s.p',
+        ],
+    ),
+
     // Initial and br both write `let t` under split local `s`: claiming
     // `s/t` (and `s.x` as both a let and a loop parameter) twice would bind
     // them in nested scopes, so the objects stay.

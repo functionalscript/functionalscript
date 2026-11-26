@@ -447,12 +447,13 @@ const withValues = (t, values) => {
  * loop-part claims — those parts are not in scope in initializer
  * expressions), and sibling non-split initializers each start from that
  * state (OR hits only). A split initializer's moved chain is hoisted ahead
- * of the loop, so its binders still see the loop-part claims. A split
- * `let`'s part binders and a split loop's parameter parts are claimed
- * before the body, so an arm that would reuse an enclosing generated
- * spelling still hits. Sibling non-split `br` state fields each start
- * from the pre-field claims (OR hits only); split `br` fields still reuse
- * `part` spellings without claiming. Reads of a part do not claim.
+ * of the loop, so its binders still see the loop-part claims. A moved
+ * chain's `let` initializer starts from the pre-rest claims (OR hits
+ * only). A split `let`'s part binders and a split loop's parameter parts
+ * are claimed before the body, so an arm that would reuse an enclosing
+ * generated spelling still hits. Sibling non-split `br` state fields each
+ * start from the pre-field claims (OR hits only); split `br` fields still
+ * reuse `part` spellings without claiming. Reads of a part do not claim.
  *
  * @typedef {readonly (readonly [string, string])[]} _Claimed
  * @typedef {readonly [_Claimed, boolean]} _ClaimSt
@@ -503,9 +504,11 @@ const rewrite = (get, split, existing, taken, widens, fullAny) => {
                 const expr1 = claim([exprSt[0], false], name, origin)
                 const hit1 = st1[1] || exprSt[1] || expr1[1]
                 const [rest, st2] = moved(t[3], `${path}/b`, bind(env, [t[1], path, name]), prefix, end, [st1[0], hit1], [expr1[0], hit1])
+                // initializer from pre-rest claims: rest's binders are a
+                // sibling expression scope (OR hits only)
                 if (keysAt(path) === null) {
-                    const [value, st3] = go(t[2], `${path}/v`, env, null, st2)
-                    return [['let', name, value, rest], st3]
+                    const [value, [, hitV]] = go(t[2], `${path}/v`, env, null, [st1[0], false])
+                    return [['let', name, value, rest], [st2[0], st2[1] || hitV]]
                 }
                 return moved(t[2], `${path}/v`, env, name, (values, stV) => values.reduceRight(
                     (acc, [k, x]) => {
@@ -513,8 +516,8 @@ const rewrite = (get, split, existing, taken, widens, fullAny) => {
                         const [binder, stC] = bindPart(stB, name, k)
                         return /** @type {const} */ ([['let', binder, toAny(x), body], stC])
                     },
-                    /** @type {readonly [Term, _ClaimSt]} */ ([rest, stV]),
-                ), st2, [expr1[0], hit1])
+                    /** @type {readonly [Term, _ClaimSt]} */ ([rest, [st2[0], st2[1] || stV[1]]]),
+                ), [st1[0], false])
             }
             // a prior round may have left the site under a pass-owned widen `block`
             if (isWidenBlock(widens, t)) {
