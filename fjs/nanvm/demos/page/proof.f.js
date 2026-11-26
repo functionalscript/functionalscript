@@ -19,7 +19,7 @@ import { ioError, notImplemented } from '../../../effects/module.f.js'
 import { run } from '../../../effects/mock/module.f.js'
 import { utf8 } from '../../../text/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
-import { buildDirectory, decode, heapChange, init, initWithIr, irL0Path, irModulePath, irPlace, irMemoryRatio, irRatio, loadWithIr, memoryRatio, modulesReady, signedBytes, jsOutput, load, milliseconds, placeName, ratio, runBoth, runIr, runJs, runWasm, rustMarkedPath, rustPath, samplePath, update, view, wasmDemo, wasmPath, watPath } from './module.f.js'
+import { buildDirectory, decode, heapChange, init, initWithIr, irL0Path, irModulePath, irPlace, irMemoryRatio, irRatio, loadWithIr, memoryRatio, modulesReady, signedBytes, jsOutput, load, milliseconds, notPrecise, placeName, ratio, rounded, roundedBytes, runBoth, runIr, runJs, runWasm, rustMarkedPath, rustPath, samplePath, update, view, wasmDemo, wasmPath, watPath } from './module.f.js'
 import { entry } from '../../../types/object/entry/module.f.js'
 import { toJson } from '../../../media/json/module.f.js'
 
@@ -238,6 +238,12 @@ export const proof = {
         // A JavaScript run that failed leaves no reading, in any browser.
         assertEq(memoryRatio({ ...grown, js: error('no js') }), null)
         assertEq(memoryRatio({ ...grown, wasm: ok({ run: { output: ok('other'), time: 1 }, memory: 0, growth: 5000 }) }), 'Not available')
+        // Rounded readings say so only where the comparison would otherwise stand.
+        const roundedHeap = { before: 15_200_000, after: 15_300_000 }
+        assertEq(memoryRatio(runs(roundedHeap, 5000)), notPrecise)
+        assertEq(memoryRatio(runs(roundedHeap, 0)), 'Not available')
+        assertEq(memoryRatio({ ...runs(roundedHeap, 5000), wasm: error('no wasm') }), 'Not available')
+        assertEq(memoryRatio({ ...runs(roundedHeap, 5000), wasm: ok({ run: { output: ok('other'), time: 1 }, memory: 0, growth: 5000 }) }), 'Not available')
     },
     irMemoryRatio: () => {
         /** @type {(heap: JsHeap | null, growth: number) => Runs} */
@@ -255,6 +261,20 @@ export const proof = {
         assertEq(irMemoryRatio({ ...grown, ir: error('no ir') }), 'Not available')
         assertEq(irMemoryRatio({ ...grown, js: error('no js') }), null)
         assertEq(irMemoryRatio({ ...grown, ir: ok({ run: { output: ok('other'), time: 1 }, memory: 0, growth: 5000 }) }), 'Not available')
+    },
+    roundedBytes: () => {
+        // Three significant digits from Chromium's least bucket up, as Chromium reports by default.
+        assert(roundedBytes(10_000_000))
+        assert(roundedBytes(15_200_000))
+        assert(roundedBytes(2_340_000_000))
+        // A precise reading, and a small one, which Chromium never rounds to.
+        assert(!roundedBytes(15_200_001))
+        assert(!roundedBytes(4_132_778))
+        assert(!roundedBytes(3000))
+        assert(rounded({ before: 15_200_000, after: 15_300_000 }))
+        // One precise reading is enough to show the change.
+        assert(!rounded({ before: 15_200_000, after: 15_200_123 }))
+        assert(!rounded({ before: 4_132_778, after: 44_100_946 }))
     },
     signedBytes: () => {
         assertEq(signedBytes(65536), '+65536 bytes')
@@ -289,6 +309,12 @@ export const proof = {
         assert(!noHeap.includes('Memory the Rust→WASM run added'))
         assert(!noHeap.includes('Not available') && !noHeap.includes('Memory: '))
         assertEq(heapChange({ before: 1024, after: 512 }), '-512 bytes, 1024 → 512')
+        // Chromium's rounded readings: the heap line says so, with no figure. The linear memory
+        // did not grow in this mock, so the comparison is not available whatever the readings.
+        const roundedShown = text(view('hi')(perform(page({}, null, 'ok', 15_200_000))(runBoth(hi)(ready))))
+        assert(roundedShown.includes(`Change in the whole page’s JavaScript heap across the run (Chromium): ${notPrecise}`))
+        assert(roundedShown.includes('Memory the Rust→WASM run added, as a multiple of the JavaScript heap’s growth (Chromium): Not available'))
+        assert(!roundedShown.includes('15200000'))
         assert(shown.includes('Rust→WASM running time, as a multiple of the JavaScript one: 1.0×'))
         assert(shown.includes('pub fn module() {}'))
         // The Rust is coloured, and its copy is the plain text.
