@@ -138,8 +138,17 @@ const ownGet = text => print(withoutLinkedAny(assertOk(over({}, text, { ...progr
 /** The IR of a program's text, which no table types, printed without the interfaces that it imports. @type {(text: string) => string} */
 const program = text => print(withoutLinkedAny(assertOk(over({}, text, programRuntime))))
 
-/** Why the lifetime pass, which types a program's plain stage as the checker does, refuses it. @type {(text: string) => string} */
-const refusedProgram = text => assertError(lifetime(assertOk(over({}, text, programRuntime))))
+/**
+ * Why a program is refused: by the inline pass at the end of the lowering,
+ * or by the lifetime pass, each of which types the plain stage as the
+ * checker does.
+ *
+ * @type {(text: string) => string}
+ */
+const refusedProgram = text => {
+    const m = over({}, text, programRuntime)
+    return m[0] === 'error' ? m[1] : assertError(lifetime(m[1]))
+}
 
 /**
  * A term of every kind, which calls, reads and names a function `name`
@@ -165,7 +174,9 @@ export const proof = {
             const m = assertOk(over({}, 'export const f = (a, b) => a + b * 2', programRuntime))
             assertEq(m.imports.map(([k]) => k).join(' '), 'Ref String BigInt Containers Functions Native')
             assert(definedBy(m) === 'Any')
-            assert(m.functions.find(([k]) => k === 'any.from_f64') !== undefined && m.functions.find(([k]) => k === 'any.isRef') !== undefined)
+            assert(m.functions.find(([k]) => k === 'any.from_f64') !== undefined && m.functions.find(([k]) => k === 'any.dup') !== undefined)
+            // Any's isRef is hinted always, so the inline pass writes it into the hooks and leaves it out.
+            assert(m.functions.find(([k]) => k === 'any.isRef') === undefined)
             const withLen = assertOk(over({}, 'export const f = a => a.length', programRuntime))
             assert(withLen.functions.find(([k]) => k === 'string.length') !== undefined)
         }
@@ -855,36 +866,11 @@ export const proof = {
             'export f',
             '',
         ].join('\n'))
-        assertEq(program('export const f = () => -(1n + 2n)'), 'fn f() -> any =\n    sub(0, add(1, 2))\n\nexport f\n')
-        assertEq(program('export const f = a => ({ a: 1 }).b'), [
-            'fn f(p0: any) -> any =',
-            '    { a: 1.0 }.b',
-            '',
-            'export f',
-            '',
-        ].join('\n'))
+        assertEq(program('export const f = () => -(1n + 2n) === -3n'), 'fn f() -> any =\n    Any.from_bool(eq(sub(0, add(1, 2)), -3))\n\nexport f\n')
+        // The lowering ends with the inline pass, which types the plain stage, so a program that the checker refuses is refused there.
+        assertEq(refusedProgram('export const f = () => -(1n + 2n)'), 'f: the body is int(-3, -3), not any')
         assertEq(refusedProgram('export const f = a => ({ a: 1 }).b'), 'f: { a: f64c } has no field b')
-        assertEq(program('export const f = a => ({ a: 1 }).b ? a : 1'), [
-            'const #n0: any.only(number) =',
-            '    Any.from_f64(1.0)',
-            '',
-            'fn f(p0: any) -> any =',
-            '    if { a: 1.0 }.b then p0 else self.#n0',
-            '',
-            'export f',
-            '',
-        ].join('\n'))
         assertEq(refusedProgram('export const f = a => ({ a: 1 }).b ? a : 1'), 'f: { a: f64c } has no field b')
-        assertEq(program('export const g = a => a\nexport const f = a => g(({ a: 1 }).b)'), [
-            'fn f(p0: any) -> any =',
-            '    g({ a: 1.0 }.b)',
-            '',
-            'fn g(p0: any) -> any =',
-            '    p0',
-            '',
-            'export f, g',
-            '',
-        ].join('\n'))
         assertEq(refusedProgram('export const g = a => a\nexport const f = a => g(({ a: 1 }).b)'), 'f: { a: f64c } has no field b')
         assertEq(program('export const g = a => a\nexport const f = a => g(1n)'), [
             'fn f(p0: any) -> any =',
@@ -897,16 +883,6 @@ export const proof = {
             '',
         ].join('\n'))
         assertEq(refusedProgram('export const g = a => a\nexport const f = a => g(1n + 2n)'), 'f: g\'s p0 is any, not int(3, 3)')
-        assertEq(program('export const g = a => a\nexport const f = a => g(a, 1)'), [
-            'fn f(p0: any) -> any =',
-            '    g(p0, 1.0)',
-            '',
-            'fn g(p0: any) -> any =',
-            '    p0',
-            '',
-            'export f, g',
-            '',
-        ].join('\n'))
         assertEq(refusedProgram('export const g = a => a\nexport const f = a => g(a, 1)'), 'f: g takes one argument, not 2')
         assertEq(assertError(over({}, 'export const f = a => typeof (1n + 2n)', programRuntime)), 'f: typeof of int(3, 3) is not in this slice')
         assertEq(assertError(over({}, 'export const f = a => (1n + 2n) + a', programRuntime)), 'f: add of int(3, 3) and any is not in this slice')

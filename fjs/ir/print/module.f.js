@@ -292,8 +292,8 @@ const lines = (t, pad) => {
 const showSignature = (name, { params, result, returns, fails, counts }) =>
     `fn ${name}(${params.map(([k, t, mode]) => `${mode === 'own' ? 'own ' : ''}${k}: ${show(t)}`).join(', ')}) -> ${show(result)}${returns === undefined ? '' : `, gives back ${returns}`}${fails === true ? ' may fail' : ''}${counts === undefined ? '' : ` counts ${counts}`}`
 
-/** A function as its signature and body. @type {(name: string, f: Fn) => readonly string[]} */
-const showFn = (name, f) => [`${showSignature(name, f)} =`, ...lines(f.body, '    ')]
+/** A function as its inline hint, if it has one, its signature and body. @type {(name: string, f: Fn) => readonly string[]} */
+const showFn = (name, f) => [`${f.inline === undefined ? '' : `inline ${f.inline} `}${showSignature(name, f)} =`, ...lines(f.body, '    ')]
 
 /** A constant as its type and its term. @type {(name: string, c: ConstantOf<Term>) => readonly string[]} */
 const showConstant = (name, { type, value }) => [`const ${name}: ${show(type)} =`, ...lines(value, '    ')]
