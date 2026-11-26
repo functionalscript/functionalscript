@@ -277,6 +277,19 @@ export const proof = {
         ['first', read(get('r'), 'x.y')],
         ['second', read(get('r.x\\'), 'y')],
     ])))),
+    // Initial and br both write `let t` under split local `s`: one origin
+    // (`s`+`t`), so the loop still splits.
+    loopChain: () => golden(
+        let_('s', let_('t', a, object([['x', get('t')]])), loop('L', [['s', any, get('s')]], () => br('L', make([['s', let_('t', b, object([['x', get('t')]]))]])))),
+        [
+            'fn f(a: any, b: any, c: any) -> any =',
+            '    let s/t = a',
+            '    let s.x = s/t',
+            '    loop L (s.x: any = s.x)',
+            '        let s/t = b',
+            '        br L { s.x: s/t }',
+        ],
+    ),
     castBinderSplit: () => golden(
         let_('p0.string', a, let_('r', object([['x', b]]), read(get('r'), 'x'))),
         [

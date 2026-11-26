@@ -33,11 +33,14 @@
  *   `\`, `.` and `/` escaped by a `\`, so `s.p.q` is the key `q` of
  *   `s.p` and `s.p\.q` the key `p.q` of `s`, and no new name is another. A
  *   new split name that is already a binder of the function, or that another
- *   split of the same rewrite would also write, keeps every object of that
- *   function: cast arms like `p0.array` share the `.` spelling, and escaped
- *   keys can make two origins spell the same (`r` + `x.y` and `r.x\` + `y`
- *   both write `r.x\.y`). Binders that only use those characters for kind
- *   casts do not block an unrelated split.
+ *   binder origin of the same rewrite would also write, keeps every object
+ *   of that function: cast arms like `p0.array` share the `.` spelling, and
+ *   escaped keys can make two origins spell the same (`r` + `x.y` and
+ *   `r.x\` + `y` both write `r.x\.y`). A chain binder's origin is its
+ *   prefix and name (`s` + `t` → `s/t`), so the initial and `br` values of
+ *   a loop that both write `let t` under the same split local share one
+ *   origin. Binders that only use those characters for kind casts do not
+ *   block an unrelated split.
  *   A read `get(s, 'i')` is `s.i`, and a `let` of such a read is no
  *   local of its own but `s.i` itself, so nothing copies it. A read of a
  *   term whose value may be such an object reads the key at each end of
@@ -340,138 +343,254 @@ const withValues = (t, values) => {
 /**
  * A function's body with what `split` says split: `rewrite` of a term at
  * `path`, whose value is read at the key `key`, or used as it is where
- * `key` is `null`. `collision.hit` becomes true when a binder name is already
- * a binder of the function, or when two binder origins of this rewrite would
- * write the same spelling. Reads of a part do not claim.
+ * `key` is `null`. Binder claims are threaded as a list of spelling →
+ * origin; a hit means an existing binder or two origins share a spelling.
+ * Reads of a part do not claim.
  *
- * @type {(get: string, split: _Split, existing: ReadonlySet<string>, collision: { hit: boolean }) => (t: Term, path: string, env: _Env, key: string | null) => Term}
+ * @typedef {readonly (readonly [string, string])[]} _Claimed
+ * @typedef {readonly [_Claimed, boolean]} _ClaimSt
+ *
+ * @type {(get: string, split: _Split, existing: ReadonlySet<string>) => (t: Term, path: string, env: _Env, key: string | null, st: _ClaimSt) => readonly [Term, _ClaimSt]}
  */
-const rewrite = (get, split, existing, collision) => {
+const rewrite = (get, split, existing) => {
     /** The keys of a local that the pass splits, by its path. @type {(id: string) => readonly string[] | null} */
     const keysAt = id => split.locals.find(([x]) => x === id)?.[1] ?? null
-    /**
-     * Spelling → origin that claimed it as a binder. A second origin for the
-     * same spelling is a collision; the same origin (let and loop param of
-     * one split local) is not. Reads do not claim.
-     *
-     * @type {Map<string, string>}
-     */
-    const claimed = new Map()
-    /** Claim `n` as a binder from `origin`, or mark a collision. @type {(n: string, origin: string) => string} */
-    const claim = (n, origin) => {
-        if (existing.has(n)) { collision.hit = true }
-        else {
-            const prev = claimed.get(n)
-            if (prev !== undefined && prev !== origin) { collision.hit = true }
-        }
-        claimed.set(n, origin)
-        return n
+    /** Claim `n` as a binder from `origin`, or mark a collision. @type {(st: _ClaimSt, n: string, origin: string) => _ClaimSt} */
+    const claim = (st, n, origin) => {
+        const [claimed, hit] = st
+        if (existing.has(n)) { return [claimed, true] }
+        const prev = claimed.find(([k]) => k === n)
+        if (prev !== undefined) { return prev[1] !== origin ? [claimed, true] : st }
+        return [[...claimed, [n, origin]], hit]
     }
     /** The spelling of a split local's value at a key (no claim). @type {(name: string, key: string) => string} */
     const part = (name, key) => `${name}.${escape(key)}`
-    /** Claim the part spelling as a binder of `(name, key)`. @type {(name: string, key: string) => string} */
-    const bindPart = (name, key) => claim(part(name, key), `${name}\u0000${key}`)
-    /** @type {(t: Term, path: string, env: _Env, key: string | null) => Term} */
-    const go = (t, path, env, key) => {
+    /** Claim the part spelling as a binder of `(name, key)`. @type {(st: _ClaimSt, name: string, key: string) => readonly [string, _ClaimSt]} */
+    const bindPart = (st, name, key) => {
+        const n = part(name, key)
+        return [n, claim(st, n, `${name}\u0000${key}`)]
+    }
+    /** @type {(t: Term, path: string, env: _Env, key: string | null, st: _ClaimSt) => readonly [Term, _ClaimSt]} */
+    const go = (t, path, env, key, st) => {
         /**
          * A chain of `let`s that makes a split local's value, `prefix/` before
          * each name it binds, and what `end` makes of the value at each key
          * where the chain ends. What `end` writes stands inside the chain, whose
          * names no other name is, and reads the scope around it.
          *
-         * @type {(t: Term, path: string, env: _Env, prefix: string, end: (values: readonly (readonly [string, Term])[]) => Term) => Term}
+         * @type {(t: Term, path: string, env: _Env, prefix: string, end: (values: readonly (readonly [string, Term])[], st: _ClaimSt) => readonly [Term, _ClaimSt], st: _ClaimSt) => readonly [Term, _ClaimSt]}
          */
-        const moved = (t, path, env, prefix, end) => {
+        const moved = (t, path, env, prefix, end, st) => {
             if (t[0] === 'let') {
-                const name = claim(`${prefix}/${escape(t[1])}`, `${path}\u0000${t[1]}`)
-                const rest = moved(t[3], `${path}/b`, bind(env, [t[1], path, name]), prefix, end)
-                // a local of the chain that is split too: its parts, under its new name
-                return keysAt(path) === null ? ['let', name, go(t[2], `${path}/v`, env, null), rest]
-                    : moved(t[2], `${path}/v`, env, name, values => values.reduceRight((body, [k, x]) => /** @type {Term} */ (['let', bindPart(name, k), x, body]), rest))
+                const name = `${prefix}/${escape(t[1])}`
+                // origin is prefix+name so initial and br chains of one loop share it
+                const st1 = claim(st, name, `${prefix}\u0000${t[1]}`)
+                const [rest, st2] = moved(t[3], `${path}/b`, bind(env, [t[1], path, name]), prefix, end, st1)
+                if (keysAt(path) === null) {
+                    const [value, st3] = go(t[2], `${path}/v`, env, null, st2)
+                    return [['let', name, value, rest], st3]
+                }
+                return moved(t[2], `${path}/v`, env, name, (values, stV) => values.reduceRight(
+                    (acc, [k, x]) => {
+                        const [body, stB] = acc
+                        const [binder, stC] = bindPart(stB, name, k)
+                        return /** @type {const} */ ([['let', binder, x, body], stC])
+                    },
+                    /** @type {readonly [Term, _ClaimSt]} */ ([rest, stV]),
+                ), st2)
             }
             const site = siteOf(t)
-            if (site !== null) { return end(site.map(([k, x], j) => /** @type {const} */ ([k, go(x, `${path}/s${j}`, env, null)]))) }
+            if (site !== null) {
+                const [values, st1] = site.reduce(
+                    (acc, [k, x], j) => {
+                        const [done, stA] = acc
+                        const [v, stB] = go(x, `${path}/s${j}`, env, null, stA)
+                        return /** @type {const} */ ([[...done, /** @type {const} */ ([k, v])], stB])
+                    },
+                    /** @type {readonly [readonly (readonly [string, Term])[], _ClaimSt]} */ ([[], st]),
+                )
+                return end(values, st1)
+            }
             // a split local, as `solve` leaves only these at the end of a chain: its parts
             const local = assertNotNullish(localOf(env, /** @type {readonly ['get', string]} */ (t)[1]))
-            return end(assertNotNullish(keysAt(local[1])).map(k => /** @type {const} */ ([k, /** @type {Term} */ (['get', part(local[2], k)])])))
+            return end(assertNotNullish(keysAt(local[1])).map(k => /** @type {const} */ ([k, /** @type {Term} */ (['get', part(local[2], k)])])), st)
         }
         const site = siteOf(t)
         if (site !== null && key !== null) {
             const at = site.findIndex(([k]) => k === key)
-            return go(site[Number(at)][1], `${path}/s${at}`, env, null)
+            return go(site[Number(at)][1], `${path}/s${at}`, env, null, st)
         }
-        if (site !== null) { return withValues(t, site.map(([, x], j) => go(x, `${path}/s${j}`, env, null))) }
+        if (site !== null) {
+            const [values, st1] = site.reduce(
+                (acc, [, x], j) => {
+                    const [done, stA] = acc
+                    const [v, stB] = go(x, `${path}/s${j}`, env, null, stA)
+                    return /** @type {const} */ ([[...done, v], stB])
+                },
+                /** @type {readonly [readonly Term[], _ClaimSt]} */ ([[], st]),
+            )
+            return [withValues(t, values), st1]
+        }
         const read = readOf(get, t)
-        if (read !== null && split.reads.includes(path)) { return go(read[0], `${path}/0`, env, read[1]) }
+        if (read !== null && split.reads.includes(path)) { return go(read[0], `${path}/0`, env, read[1], st) }
         switch (t[0]) {
             case 'get': {
                 const local = localOf(env, t[1])
-                return local === undefined ? t : key !== null ? ['get', part(local[2], key)] : ['get', local[2]]
+                return [local === undefined ? t : key !== null ? ['get', part(local[2], key)] : ['get', local[2]], st]
             }
             case 'let': {
                 const keys = keysAt(path)
                 if (keys === null) {
-                    const value = go(t[2], `${path}/v`, env, null)
+                    const [value, st1] = go(t[2], `${path}/v`, env, null, st)
                     // a read that is now a split local's part: the local is that part, with no copy of it
-                    return value[0] === 'get' && t[2][0] !== 'get' ? go(t[3], `${path}/b`, bind(env, [t[1], path, value[1]]), key)
-                        : ['let', t[1], value, go(t[3], `${path}/b`, bind(env, [t[1], path, t[1]]), key)]
+                    return value[0] === 'get' && t[2][0] !== 'get'
+                        ? go(t[3], `${path}/b`, bind(env, [t[1], path, value[1]]), key, st1)
+                        : (() => {
+                            const [body, st2] = go(t[3], `${path}/b`, bind(env, [t[1], path, t[1]]), key, st1)
+                            return /** @type {const} */ ([['let', t[1], value, body], st2])
+                        })()
                 }
-                return moved(t[2], `${path}/v`, env, t[1], values => values.reduceRight(
-                    (body, [k, x]) => /** @type {Term} */ (['let', bindPart(t[1], k), x, body]),
-                    go(t[3], `${path}/b`, bind(env, [t[1], path, t[1]]), key),
-                ))
+                return moved(t[2], `${path}/v`, env, t[1], (values, stV) => {
+                    const [body, stB] = go(t[3], `${path}/b`, bind(env, [t[1], path, t[1]]), key, stV)
+                    return values.reduceRight(
+                        (acc, [k, x]) => {
+                            const [b, stA] = acc
+                            const [binder, stC] = bindPart(stA, t[1], k)
+                            return /** @type {const} */ ([['let', binder, x, b], stC])
+                        },
+                        /** @type {readonly [Term, _ClaimSt]} */ ([body, stB]),
+                    )
+                }, st)
             }
             case 'match': {
-                return ['match', go(t[1], `${path}/e`, env, null), t[2].map(([variants, binder, x], j) => /** @type {const} */ ([
-                    variants, binder, go(x, `${path}/a${j}`, binder === null ? env : bind(env, [binder, `${path}/a${j}x`, binder]), key),
-                ]))]
+                const [operand, st1] = go(t[1], `${path}/e`, env, null, st)
+                const [arms, st2] = t[2].reduce(
+                    (acc, [variants, binder, x], j) => {
+                        const [done, stA] = acc
+                        const [body, stB] = go(x, `${path}/a${j}`, binder === null ? env : bind(env, [binder, `${path}/a${j}x`, binder]), key, stA)
+                        return /** @type {const} */ ([[...done, /** @type {const} */ ([variants, binder, body])], stB])
+                    },
+                    /** @type {readonly [Match[2], _ClaimSt]} */ ([[], st1]),
+                )
+                return [['match', operand, arms], st2]
             }
             case 'loop': {
                 const params = t[2].map(([k], j) => /** @type {_Local} */ ([k, `${path}#${j}`, k]))
                 const inner = label_(params.reduce(bind, env), [t[1], params])
-                const body = go(t[3], `${path}/b`, inner, key)
-                /** The loop, its split parameters' chains moved before it, from the `j`th on. @type {(j: number, env: _Env, done: readonly (readonly [string, Type, Term])[]) => Term} */
-                const from = (j, e, done) => {
-                    if (j === t[2].length) { return ['loop', t[1], done, body] }
+                const [body, stBody] = go(t[3], `${path}/b`, inner, key, st)
+                /** The loop, its split parameters' chains moved before it, from the `j`th on. @type {(j: number, env: _Env, done: readonly (readonly [string, Type, Term])[], st: _ClaimSt) => readonly [Term, _ClaimSt]} */
+                const from = (j, e, done, stF) => {
+                    if (j === t[2].length) { return [['loop', t[1], done, body], stF] }
                     const [k, type, first] = t[2][Number(j)]
                     const keys = keysAt(`${path}#${j}`)
-                    if (keys === null) { return from(j + 1, e, [...done, [k, type, go(first, `${path}/f${j}`, e, null)]]) }
-                    return moved(first, `${path}/f${j}`, e, k, values =>
-                        from(j + 1, e, [...done, ...values.map(([key2, x]) => /** @type {const} */ ([bindPart(k, key2), any, x]))]))
+                    if (keys === null) {
+                        const [v, st1] = go(first, `${path}/f${j}`, e, null, stF)
+                        return from(j + 1, e, [...done, [k, type, v]], st1)
+                    }
+                    return moved(first, `${path}/f${j}`, e, k, (values, stV) => {
+                        const [params2, stP] = values.reduce(
+                            (acc, [key2, x]) => {
+                                const [doneP, stA] = acc
+                                const [binder, stC] = bindPart(stA, k, key2)
+                                return /** @type {const} */ ([[...doneP, /** @type {const} */ ([binder, any, x])], stC])
+                            },
+                            /** @type {readonly [readonly (readonly [string, Type, Term])[], _ClaimSt]} */ ([[], stV]),
+                        )
+                        return from(j + 1, e, [...done, ...params2], stP)
+                    }, stF)
                 }
-                return from(0, env, [])
+                return from(0, env, [], stBody)
             }
             case 'br': {
                 const target = env.labels.find(([k]) => k === t[1])
                 const params = target === undefined ? null : target[1]
                 const e = t[2]
-                if (params === null || e[0] !== 'make') { return ['br', t[1], go(e, `${path}/v`, env, null)] }
-                /** The `br`, the split parameters' chains moved before it, from the `j`th field on. @type {(j: number, env: _Env, done: readonly (readonly [string, Term])[]) => Term} */
-                const from = (j, ee, done) => {
-                    if (j === e[1].length) { return ['br', t[1], ['make', done]] }
+                if (params === null || e[0] !== 'make') {
+                    const [v, st1] = go(e, `${path}/v`, env, null, st)
+                    return [['br', t[1], v], st1]
+                }
+                /** The `br`, the split parameters' chains moved before it, from the `j`th field on. @type {(j: number, env: _Env, done: readonly (readonly [string, Term])[], st: _ClaimSt) => readonly [Term, _ClaimSt]} */
+                const from = (j, ee, done, stF) => {
+                    if (j === e[1].length) { return [['br', t[1], ['make', done]], stF] }
                     const [k, x] = e[1][Number(j)]
                     const p = params.find(([name]) => name === k)
                     const keys = p === undefined ? null : keysAt(p[1])
-                    if (keys === null) { return from(j + 1, ee, [...done, [k, go(x, `${path}/v${j}`, ee, null)]]) }
-                    return moved(x, `${path}/v${j}`, ee, k, values =>
-                        from(j + 1, ee, [...done, ...values.map(([key2, y]) => /** @type {const} */ ([bindPart(k, key2), y]))]))
+                    if (keys === null) {
+                        const [v, st1] = go(x, `${path}/v${j}`, ee, null, stF)
+                        return from(j + 1, ee, [...done, [k, v]], st1)
+                    }
+                    return moved(x, `${path}/v${j}`, ee, k, (values, stV) => {
+                        const [fields, stP] = values.reduce(
+                            (acc, [key2, y]) => {
+                                const [doneF, stA] = acc
+                                const [binder, stC] = bindPart(stA, k, key2)
+                                return /** @type {const} */ ([[...doneF, /** @type {const} */ ([binder, y])], stC])
+                            },
+                            /** @type {readonly [readonly (readonly [string, Term])[], _ClaimSt]} */ ([[], stV]),
+                        )
+                        return from(j + 1, ee, [...done, ...fields], stP)
+                    }, stF)
                 }
-                return from(0, env, [])
+                return from(0, env, [], st)
             }
-            case 'block': { return ['block', t[1], t[2], go(t[3], `${path}/b`, label_(env, [t[1], null]), null)] }
+            case 'block': {
+                const [body, st1] = go(t[3], `${path}/b`, label_(env, [t[1], null]), null, st)
+                return [['block', t[1], t[2], body], st1]
+            }
             case 'op': {
-                const args = t[2].map((x, j) => go(x, `${path}/${j}`, env, null))
-                return t[3] === undefined ? ['op', t[1], args] : ['op', t[1], args, t[3]]
+                const [args, st1] = t[2].reduce(
+                    (acc, x, j) => {
+                        const [done, stA] = acc
+                        const [v, stB] = go(x, `${path}/${j}`, env, null, stA)
+                        return /** @type {const} */ ([[...done, v], stB])
+                    },
+                    /** @type {readonly [readonly Term[], _ClaimSt]} */ ([[], st]),
+                )
+                return [t[3] === undefined ? ['op', t[1], args] : ['op', t[1], args, t[3]], st1]
             }
-            case 'call': { return ['call', t[1], t[2], t[3].map((x, j) => go(x, `${path}/${j}`, env, null))] }
+            case 'call': {
+                const [args, st1] = t[3].reduce(
+                    (acc, x, j) => {
+                        const [done, stA] = acc
+                        const [v, stB] = go(x, `${path}/${j}`, env, null, stA)
+                        return /** @type {const} */ ([[...done, v], stB])
+                    },
+                    /** @type {readonly [readonly Term[], _ClaimSt]} */ ([[], st]),
+                )
+                return [['call', t[1], t[2], args], st1]
+            }
             case 'call_ref': {
-                const [c, ...args] = [t[1], ...t[2]].map((x, j) => go(x, `${path}/${j}`, env, null))
-                return ['call_ref', c, args]
+                const [all, st1] = [t[1], ...t[2]].reduce(
+                    (acc, x, j) => {
+                        const [done, stA] = acc
+                        const [v, stB] = go(x, `${path}/${j}`, env, null, stA)
+                        return /** @type {const} */ ([[...done, v], stB])
+                    },
+                    /** @type {readonly [readonly Term[], _ClaimSt]} */ ([[], st]),
+                )
+                const [c, ...args] = all
+                return [['call_ref', c, args], st1]
             }
-            case 'make': { return ['make', t[1].map(([k, x], j) => /** @type {const} */ ([k, go(x, `${path}/${j}`, env, null)]))] }
-            case 'field': { return ['field', go(t[1], `${path}/0`, env, null), t[2]] }
-            case 'variant': { return ['variant', t[1], t[2], go(t[3], `${path}/0`, env, null)] }
-            default: { return t }
+            case 'make': {
+                const [fields, st1] = t[1].reduce(
+                    (acc, [k, x], j) => {
+                        const [done, stA] = acc
+                        const [v, stB] = go(x, `${path}/${j}`, env, null, stA)
+                        return /** @type {const} */ ([[...done, /** @type {const} */ ([k, v])], stB])
+                    },
+                    /** @type {readonly [readonly (readonly [string, Term])[], _ClaimSt]} */ ([[], st]),
+                )
+                return [['make', fields], st1]
+            }
+            case 'field': {
+                const [v, st1] = go(t[1], `${path}/0`, env, null, st)
+                return [['field', v, t[2]], st1]
+            }
+            case 'variant': {
+                const [v, st1] = go(t[3], `${path}/0`, env, null, st)
+                return [['variant', t[1], t[2], v], st1]
+            }
+            default: { return [t, st] }
         }
     }
     return go
@@ -491,10 +610,8 @@ const once = get => f => {
     const params = f.params.map(([k]) => /** @type {_Fact} */ (['local', `param/${k}`, 'other']))
     const split = solve([...params, ...fs, ...from.map(s => /** @type {_Fact} */ (['escape', s]))])
     if (split.locals.length === 0 && split.reads.length === 0) { return f }
-    /** @type {{ hit: boolean }} */
-    const collision = { hit: false }
-    const body = rewrite(get, split, existing, collision)(f.body, 'f', env, null)
-    return collision.hit ? f : { ...f, body }
+    const [body, [, hit]] = rewrite(get, split, existing)(f.body, 'f', env, null, [[], false])
+    return hit ? f : { ...f, body }
 }
 
 /**
