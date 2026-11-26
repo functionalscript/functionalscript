@@ -36,15 +36,14 @@
  *   that the rest reads is shadowed. A key or a name in a new name has
  *   `\`, `.` and `/` escaped by a `\`, so `s.p.q` is the key `q` of
  *   `s.p` and `s.p\.q` the key `p.q` of `s`, and no new name is another. A
- *   new split name that is already a binder of the function, or that another
- *   binder origin of the same rewrite would also write, keeps every object
- *   of that function: cast arms like `p0.array` share the `.` spelling, and
- *   escaped keys can make two origins spell the same (`r` + `x.y` and
- *   `r.x\` + `y` both write `r.x\.y`). A chain binder's origin is its
- *   prefix and name (`s` + `t` → `s/t`), so the initial and `br` values of
- *   a loop that both write `let t` under the same split local share one
- *   origin. Binders that only use those characters for kind casts do not
- *   block an unrelated split.
+ *   new split name that is already a binder of the function, or that this
+ *   rewrite would write twice, keeps every object of that function: cast
+ *   arms like `p0.array` share the `.` spelling, escaped keys can make two
+ *   origins spell the same (`r` + `x.y` and `r.x\` + `y` both write
+ *   `r.x\.y`), and a loop whose initial and `br` chains both write `let t`
+ *   under `s` would bind `s/t` (or `s.x` as both a `let` and a parameter)
+ *   twice in nested scopes. Binders that only use those characters for kind
+ *   casts do not block an unrelated split.
  *   A read `get(s, 'i')` is `s.i`, and a `let` of such a read is no
  *   local of its own but `s.i` itself, so nothing copies it. A read of a
  *   term whose value may be such an object reads the key at each end of
@@ -384,8 +383,9 @@ const withValues = (t, values) => {
  * A function's body with what `split` says split: `rewrite` of a term at
  * `path`, whose value is read at the key `key`, or used as it is where
  * `key` is `null`. Binder claims are threaded as a list of spelling →
- * origin; a hit means an existing binder or two origins share a spelling.
- * Reads of a part do not claim.
+ * origin; a hit means an existing binder or a spelling this rewrite would
+ * bind twice (nested `let` / loop parameter). `br` fields reuse `part`
+ * spellings without claiming. Reads of a part do not claim.
  *
  * @typedef {readonly (readonly [string, string])[]} _Claimed
  * @typedef {readonly [_Claimed, boolean]} _ClaimSt
@@ -395,12 +395,13 @@ const withValues = (t, values) => {
 const rewrite = (get, split, existing, widen) => {
     /** The keys of a local that the pass splits, by its path. @type {(id: string) => readonly string[] | null} */
     const keysAt = id => split.locals.find(([x]) => x === id)?.[1] ?? null
-    /** Claim `n` as a binder from `origin`, or mark a collision. @type {(st: _ClaimSt, n: string, origin: string) => _ClaimSt} */
+    /** Claim `n` as a binder from `origin`, or mark a collision. A spelling
+     * already claimed — even from the same origin — hits: nested scopes
+     * would bind it twice (`s/t` before a loop and again on a `br`). */
+    /** @type {(st: _ClaimSt, n: string, origin: string) => _ClaimSt} */
     const claim = (st, n, origin) => {
         const [claimed, hit] = st
-        if (existing.includes(n)) { return [claimed, true] }
-        const prev = claimed.find(([k]) => k === n)
-        if (prev !== undefined) { return prev[1] !== origin ? [claimed, true] : st }
+        if (existing.includes(n) || claimed.find(([k]) => k === n) !== undefined) { return [claimed, true] }
         return [[...claimed, [n, origin]], hit]
     }
     /** The spelling of a split local's value at a key (no claim). @type {(name: string, key: string) => string} */
@@ -424,7 +425,6 @@ const rewrite = (get, split, existing, widen) => {
         const moved = (t, path, env, prefix, end, st) => {
             if (t[0] === 'let') {
                 const name = `${prefix}/${escape(t[1])}`
-                // origin is prefix+name so initial and br chains of one loop share it
                 const st1 = claim(st, name, `${prefix}\u0000${t[1]}`)
                 const [rest, st2] = moved(t[3], `${path}/b`, bind(env, [t[1], path, name]), prefix, end, st1)
                 if (keysAt(path) === null) {
@@ -562,15 +562,9 @@ const rewrite = (get, split, existing, widen) => {
                         return from(j + 1, ee, [...done, [k, v]], st1)
                     }
                     return moved(x, `${path}/v${j}`, ee, k, (values, stV) => {
-                        const [fields, stP] = values.reduce(
-                            (acc, [key2, y]) => {
-                                const [doneF, stA] = acc
-                                const [binder, stC] = bindPart(stA, k, key2)
-                                return /** @type {const} */ ([[...doneF, /** @type {const} */ ([binder, y])], stC])
-                            },
-                            /** @type {readonly [readonly (readonly [string, Term])[], _ClaimSt]} */ ([[], stV]),
-                        )
-                        return from(j + 1, ee, [...done, ...fields], stP)
+                        // field names match the loop parameters already claimed
+                        const fields = values.map(([key2, y]) => /** @type {const} */ ([part(k, key2), y]))
+                        return from(j + 1, ee, [...done, ...fields], stV)
                     }, stF)
                 }
                 return from(0, env, [], st)

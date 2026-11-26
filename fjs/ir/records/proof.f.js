@@ -353,18 +353,16 @@ export const proof = {
         ['first', read(get('r'), 'x.y')],
         ['second', read(get('r.x\\'), 'y')],
     ])))),
-    // Initial and br both write `let t` under split local `s`: one origin
-    // (`s`+`t`), so the loop still splits.
-    loopChain: () => golden(
+    // Initial and br both write `let t` under split local `s`: claiming
+    // `s/t` (and `s.x` as both a let and a loop parameter) twice would bind
+    // them in nested scopes, so the objects stay.
+    loopChain: () => same(
         let_('s', let_('t', a, object([['x', get('t')]])), loop('L', [['s', any, get('s')]], () => br('L', make([['s', let_('t', b, object([['x', get('t')]]))]])))),
-        [
-            'fn f(a: any, b: any, c: any) -> any =',
-            '    let s/t = a',
-            '    let s.x = s/t',
-            '    loop L (s.x: any = s.x)',
-            '        let s/t = b',
-            '        br L { s.x: s/t }',
-        ],
+    ),
+    // Same shape with a cast binder present: still refuses, does not emit
+    // checkPlain-invalid nested `s/t` / `s.x` bindings.
+    loopChainDotted: () => same(
+        let_('p0.string', a, let_('s', let_('t', a, object([['x', get('t')]])), loop('L', [['s', any, get('s')]], () => br('L', make([['s', let_('t', b, object([['x', get('t')]]))]]))))),
     ),
     castBinderSplit: () => golden(
         let_('p0.string', a, let_('r', object([['x', b]]), read(get('r'), 'x'))),
