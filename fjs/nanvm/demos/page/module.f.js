@@ -470,7 +470,7 @@ const runsDetail = ({ js, wasm, ir }) => [
         ]
         : [refusal(js[1])]),
     ...wasmShapedView('WebAssembly (Rust → NaNVM)', wasm),
-    ...(ir === undefined ? [] : wasmShapedView('WebAssembly (IR → NaNVM, linkAny)', ir)),
+    ...(ir === undefined ? [] : wasmShapedView('WebAssembly (IR → NaNVM, linkAny and linkString)', ir)),
 ]
 
 /** @type {(label: string, ratio: string | null) => readonly Node[]} */

@@ -307,7 +307,7 @@ export const proof = {
         const irReady = { ...ready, ir: ok(irInst) }
         const three = text(view('hi')(perform(page(files, instance([0x68, 0x69]), 'ok', 1024, irInst))(runBoth({ ...hi, ir: irPlace('hi') })(irReady))))
         assert(three.includes('IR→WASM startup (fetch and compile L0 + program): 3.0 ms'))
-        assert(three.includes('WebAssembly (IR → NaNVM, linkAny)'))
+        assert(three.includes('WebAssembly (IR → NaNVM, linkAny and linkString)'))
         assert(three.includes('Linear memory of the module so far: 65536 bytes'))
         assert(three.includes('Linear memory added by the run: +65536 bytes'))
         assert(three.includes('IR→WASM running time, as a multiple of the JavaScript one'))
