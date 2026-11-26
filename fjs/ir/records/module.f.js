@@ -340,25 +340,37 @@ const withValues = (t, values) => {
 /**
  * A function's body with what `split` says split: `rewrite` of a term at
  * `path`, whose value is read at the key `key`, or used as it is where
- * `key` is `null`. `collision.hit` becomes true when a new name is already
- * a binder of the function, or when two origins of this rewrite would write
- * the same spelling.
+ * `key` is `null`. `collision.hit` becomes true when a binder name is already
+ * a binder of the function, or when two binder origins of this rewrite would
+ * write the same spelling. Reads of a part do not claim.
  *
  * @type {(get: string, split: _Split, existing: ReadonlySet<string>, collision: { hit: boolean }) => (t: Term, path: string, env: _Env, key: string | null) => Term}
  */
 const rewrite = (get, split, existing, collision) => {
     /** The keys of a local that the pass splits, by its path. @type {(id: string) => readonly string[] | null} */
     const keysAt = id => split.locals.find(([x]) => x === id)?.[1] ?? null
-    /** Names this rewrite has already claimed. @type {Set<string>} */
-    const claimed = new Set()
-    /** A new binder name, or a collision with an existing or prior claim. @type {(n: string) => string} */
-    const fresh = n => {
-        if (existing.has(n) || claimed.has(n)) { collision.hit = true }
-        claimed.add(n)
+    /**
+     * Spelling → origin that claimed it as a binder. A second origin for the
+     * same spelling is a collision; the same origin (let and loop param of
+     * one split local) is not. Reads do not claim.
+     *
+     * @type {Map<string, string>}
+     */
+    const claimed = new Map()
+    /** Claim `n` as a binder from `origin`, or mark a collision. @type {(n: string, origin: string) => string} */
+    const claim = (n, origin) => {
+        if (existing.has(n)) { collision.hit = true }
+        else {
+            const prev = claimed.get(n)
+            if (prev !== undefined && prev !== origin) { collision.hit = true }
+        }
+        claimed.set(n, origin)
         return n
     }
-    /** The name of a split local's value at a key. @type {(name: string, key: string) => string} */
-    const part = (name, key) => fresh(`${name}.${escape(key)}`)
+    /** The spelling of a split local's value at a key (no claim). @type {(name: string, key: string) => string} */
+    const part = (name, key) => `${name}.${escape(key)}`
+    /** Claim the part spelling as a binder of `(name, key)`. @type {(name: string, key: string) => string} */
+    const bindPart = (name, key) => claim(part(name, key), `${name}\u0000${key}`)
     /** @type {(t: Term, path: string, env: _Env, key: string | null) => Term} */
     const go = (t, path, env, key) => {
         /**
@@ -371,11 +383,11 @@ const rewrite = (get, split, existing, collision) => {
          */
         const moved = (t, path, env, prefix, end) => {
             if (t[0] === 'let') {
-                const name = fresh(`${prefix}/${escape(t[1])}`)
+                const name = claim(`${prefix}/${escape(t[1])}`, `${path}\u0000${t[1]}`)
                 const rest = moved(t[3], `${path}/b`, bind(env, [t[1], path, name]), prefix, end)
                 // a local of the chain that is split too: its parts, under its new name
                 return keysAt(path) === null ? ['let', name, go(t[2], `${path}/v`, env, null), rest]
-                    : moved(t[2], `${path}/v`, env, name, values => values.reduceRight((body, [k, x]) => /** @type {Term} */ (['let', part(name, k), x, body]), rest))
+                    : moved(t[2], `${path}/v`, env, name, values => values.reduceRight((body, [k, x]) => /** @type {Term} */ (['let', bindPart(name, k), x, body]), rest))
             }
             const site = siteOf(t)
             if (site !== null) { return end(site.map(([k, x], j) => /** @type {const} */ ([k, go(x, `${path}/s${j}`, env, null)]))) }
@@ -405,7 +417,7 @@ const rewrite = (get, split, existing, collision) => {
                         : ['let', t[1], value, go(t[3], `${path}/b`, bind(env, [t[1], path, t[1]]), key)]
                 }
                 return moved(t[2], `${path}/v`, env, t[1], values => values.reduceRight(
-                    (body, [k, x]) => /** @type {Term} */ (['let', part(t[1], k), x, body]),
+                    (body, [k, x]) => /** @type {Term} */ (['let', bindPart(t[1], k), x, body]),
                     go(t[3], `${path}/b`, bind(env, [t[1], path, t[1]]), key),
                 ))
             }
@@ -425,7 +437,7 @@ const rewrite = (get, split, existing, collision) => {
                     const keys = keysAt(`${path}#${j}`)
                     if (keys === null) { return from(j + 1, e, [...done, [k, type, go(first, `${path}/f${j}`, e, null)]]) }
                     return moved(first, `${path}/f${j}`, e, k, values =>
-                        from(j + 1, e, [...done, ...values.map(([key2, x]) => /** @type {const} */ ([part(k, key2), any, x]))]))
+                        from(j + 1, e, [...done, ...values.map(([key2, x]) => /** @type {const} */ ([bindPart(k, key2), any, x]))]))
                 }
                 return from(0, env, [])
             }
@@ -442,7 +454,7 @@ const rewrite = (get, split, existing, collision) => {
                     const keys = p === undefined ? null : keysAt(p[1])
                     if (keys === null) { return from(j + 1, ee, [...done, [k, go(x, `${path}/v${j}`, ee, null)]]) }
                     return moved(x, `${path}/v${j}`, ee, k, values =>
-                        from(j + 1, ee, [...done, ...values.map(([key2, y]) => /** @type {const} */ ([part(k, key2), y]))]))
+                        from(j + 1, ee, [...done, ...values.map(([key2, y]) => /** @type {const} */ ([bindPart(k, key2), y]))]))
                 }
                 return from(0, env, [])
             }
