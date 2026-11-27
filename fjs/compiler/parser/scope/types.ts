@@ -27,7 +27,17 @@ export type _Trace = {
     readonly count: number
 }
 
+/** Consecutive function declarations under resolution in this lexical scope. */
+export type _FunctionRun = {
+    readonly end: number
+    readonly names: _Env
+    readonly ids: readonly BindingId[]
+    readonly edges: readonly { readonly from: number; readonly to: number; readonly metadata: ParseError['metadata'] }[]
+}
+
 export type _Scope = {
+    readonly run?: _FunctionRun | undefined
+    readonly groups?: readonly (readonly BindingId[])[]
     readonly names: _Env
     readonly origins: OrderedMap<BindingId>
     readonly trace: _Trace

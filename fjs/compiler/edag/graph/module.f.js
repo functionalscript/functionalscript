@@ -10,7 +10,7 @@
  *
  * @module
  *
- * @import { Exp } from '../../../edag/types.ts'
+ * @import { Exp, GroupMember } from '../../../edag/types.ts'
  * @import { Graph, Shape } from '../../../website/demo/graph/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  */
@@ -20,6 +20,11 @@ import { graphOf } from '../../../website/demo/graph/module.f.js'
 import { operatorShape, unsupported } from '../../graph/module.f.js'
 import { ok } from '../../../types/result/module.f.js'
 import { parsed } from '../../stage_demo/module.f.js'
+
+/** The group's or closure's captured slots, in frame order.
+ * @type {(slots: unknown) => readonly (readonly [string, unknown])[]}
+ */
+const framePorts = slots => /** @type {readonly unknown[]} */ (slots).map((slot, i) => [`frame ${i}`, slot])
 
 /**
  * How the walk reads one `Exp`: the operators the EDAG shares with FAST
@@ -57,9 +62,28 @@ export const _shapeOf = operatorShape({ array: '[]', object: '{}' })(exp => {
             kind: 'op', label: '=>',
             children: [
                 ['length', exp[1]],
-                .../** @type {readonly unknown[]} */ (exp[2]).map((slot, i) => /** @type {readonly [string, unknown]} */ ([`frame ${i}`, slot])),
+                ...framePorts(exp[2]),
                 ['body', exp[3], 'lazy'],
             ],
+        }
+    }
+    if (tag === 'group') {
+        const functions = /** @type {readonly GroupMember[]} */ (exp[2])
+        return {
+            kind: 'op', label: 'group',
+            children: [
+                ...framePorts(exp[1]),
+                ...functions.flatMap(([length, body], i) => /** @type {const} */ ([
+                    [`length ${i}`, length], [`body ${i}`, body, 'lazy'],
+                ])),
+            ],
+        }
+    }
+    if (tag === 'fn') { return { kind: 'op', label: `fn ${exp[2]}`, children: [['group', exp[1]]] } }
+    if (tag === 'self' && exp.length === 2) {
+        return {
+            owner: (v, port) => port.startsWith('body ') && v instanceof Array && v[0] === 'group',
+            portLabel: port => `${port} (self ${exp[1]})`,
         }
     }
     if (tag === 'self') { return { owner: (v, port) => port === 'body' && v instanceof Array && v[0] === '=>' } }

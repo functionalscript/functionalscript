@@ -11,6 +11,8 @@ export type _Syntax = {
 export type _Context = _Syntax & {
     readonly ids: readonly BindingId[]
     readonly captureAliases: readonly (readonly [PreparedFunction, readonly BindingId[]])[]
+    /** An unused read makes a pruned dependency visible to source name resolution. */
+    readonly sourceLinks: readonly (readonly [PreparedFunction, BindingId, BindingId])[]
     readonly runtime: boolean
     readonly aliases: readonly (readonly [BindingId, BindingId])[]
     readonly binding: BindingId | null

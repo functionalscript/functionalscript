@@ -55,6 +55,12 @@ const nodeShapeOf = (exp, msg) => {
 }
 
 export const proof = {
+    mutualCaptures: () => {
+        const g = ofText('const a = () => b; const b = () => a; export default [a, b];')
+        const first = nodeOf(g, '$0')
+        assert(g.edges.some(e => e.to === first && e.back === true))
+        assertEq(g.nodes.filter(n => n.label === '=>').length, 2)
+    },
     postTestLoopSourceShape: () => {
         const graph = sourceOf('export default c=>{do{}while(c);};')
         const loop = nodeOf(graph, 'do...while')

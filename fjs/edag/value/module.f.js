@@ -23,7 +23,7 @@
  * @import { Phantom } from '../../types/phantom/types.ts'
  */
 
-import { exp, intrinsicId, primitive, staticId } from '../module.f.js'
+import { exp, groupMember, intrinsicId, primitive, staticId } from '../module.f.js'
 import { array as rttiArray, number, string } from '../../rtti/module.f.js'
 
 const entrySchema = /** @type {const} */ (['entry'])
@@ -45,18 +45,20 @@ const schemasFor = recursiveValue => {
     const property = /** @type {const} */ ([':', string, value])
     const object = /** @type {const} */ (['{}', rttiArray(property)])
     const func = /** @type {const} */ (['=>', number, values, exp])
-    return { valueList: values, array, property, object, func }
+    const group = /** @type {const} */ (['group', values, rttiArray(groupMember)])
+    const groupFunction = /** @type {const} */ (['fn', group, number])
+    return { valueList: values, array, property, object, func, groupFunction }
 }
 
 /**
  * The raw recursive schema, pinned separately from its phantom annotation.
  * Undefined is tagged just as in EDAG, rather than a bare missing position.
  * @type {() => readonly ['or', typeof primitive, readonly ['undefined'],
- *  typeof array, typeof object, typeof func, typeof entryFunction, typeof hasEntryFunction, typeof structEqSchema, typeof intrinsicFunction, typeof staticFunction]}
+ *  typeof array, typeof object, typeof func, typeof groupFunction, typeof entryFunction, typeof hasEntryFunction, typeof structEqSchema, typeof intrinsicFunction, typeof staticFunction]}
  */
 export const _value = () => {
     const schemas = schemasFor(_value)
-    return ['or', primitive, ['undefined'], schemas.array, schemas.object, schemas.func,
+    return ['or', primitive, ['undefined'], schemas.array, schemas.object, schemas.func, schemas.groupFunction,
         entrySchema, hasEntrySchema, structEqSchema, intrinsicSchema, staticSchema]
 }
 
@@ -79,6 +81,9 @@ export const object = schemas.object
 
 /** A closure's length, evaluated captures and unevaluated invocation body. @type {readonly ['=>', typeof number, typeof values, typeof exp]} */
 export const func = schemas.func
+
+/** A group member selected from a group whose captures are evaluated. */
+export const groupFunction = schemas.groupFunction
 
 /**
  * The `entry` helper as a value, the EDAG's `['entry']` established: a

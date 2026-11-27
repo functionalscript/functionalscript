@@ -28,6 +28,16 @@ const capture = (id, escaped, written) => ({
 })
 
 export const proof = {
+    nestedGroupsAreRestoredWithTheirEnclosingScope: () => {
+        const a = [_sourceBinding(0), _sourceBinding(1)]
+        const b = [_sourceBinding(0), _sourceBinding(1)]
+        const root = _moduleScope()
+        const inner = { ..._regionScope(root, empty, null), groups: [a] }
+        const first = _restoredScope(inner, false)
+        const second = _restoredScope({ ..._regionScope(first, empty, null), groups: [b] }, false)
+        assertEq(second.groups?.[0], a)
+        assertEq(second.groups?.[1], b)
+    },
     bindingsAreFreshAndTraceBatchesKeepSourceOrder: () => {
         const first = _sourceBinding(0)
         const sameIndex = _sourceBinding(0)

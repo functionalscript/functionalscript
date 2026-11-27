@@ -36,6 +36,31 @@ const print = (statements, end) => unwrap(scopeTagged({ statements, exit: ['yiel
 const quoted = lines => lines.filter(line => !line.startsWith('static LITERAL_')).join('').includes('\"')
 
 export const proof = {
+    groupedClosures: () => {
+        const group = [x, y]
+        /** @type {(peer: BindingId) => Value} */
+        const member = peer => ['function', { ...fn, group, parameters: [], rest: null, self: null,
+            captures: [{ binding: rest, value: ['ref', rest] }, { binding: peer, value: ['ref', peer] }],
+            body: yielding([['array', [['ref', peer], ['ref', rest]]]]),
+        }]
+        /** @type {(slot: Value) => Block['statements']} */
+        const declarations = slot => [['define', rest, slot], ['define', x, member(y)], ['define', y, member(x)]]
+        const constant = print(declarations(42), ['ref', x])
+        assert(constant.includes('StaticAny::Function(&FUNCTION_1).load()'))
+        assert(constant.includes('StaticAny::Function(&FUNCTION_0).load()'))
+        assert(constant.includes('StaticAny::Number(f64::from_bits(0x4045000000000000)).load()'))
+        assertEq(constant.split('frame: &StaticArray(&[])').length, 3)
+        const generic = unwrap(scopeTagged({ statements: declarations(42), exit: ['yield', [['ref', x]]] },
+            { ...options, runtime: null }))
+        assert(generic.lines.map(untagged).join('\n').includes('A::function_group([_b2.clone()]'))
+        assert(generic.uses.vm.includes('GroupEntry'))
+        const dynamic = print(declarations(['+', 1]), ['ref', y])
+        assertEq(dynamic.split('A::function_group(').length, 2)
+        assert(dynamic.includes('runtime.clone()], [GroupEntry'))
+        assert(dynamic.includes('A::group_member(_self, 1).to_any()'))
+        assert(dynamic.includes('A::frame(_self)[0].clone()'))
+        assert(dynamic.includes('_group_b0.group_member(0)') && dynamic.includes('_group_b0.group_member(1)'))
+    },
     nativeOwnership: () => {
         /** @type {Block['statements']} */
         const aliases = [['define', x, ['+', 1]], ['define', y, ['ref', x]]]

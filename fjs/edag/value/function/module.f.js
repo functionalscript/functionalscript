@@ -25,7 +25,7 @@
  *
  * @module
  * @import { Exp } from '../../types.ts'
- * @import { EdagValue, Values, Closure } from '../types.ts'
+ * @import { EdagValue, Values, Closure, CodeFunction, Group, GroupFunction } from '../types.ts'
  * @import { ValueThunk } from '../control/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  * @import { _Part, _Copies, _Own } from './private.ts'
@@ -50,6 +50,9 @@ const copy = (copies, part) => {
     }
     return [[...copies, [part, items]], items]
 }
+
+/** Number of fixed parameters of a represented function. @type {(fn: CodeFunction) => number} */
+export const codeLength = fn => fn[0] === '=>' ? fn[1] : fn[1][2][Number(fn[2])][0]
 
 /** Build a fresh function with evaluated captures over its body code. @type {(length: number, captures: readonly ValueThunk[], template: Exp) => Result<Closure, EdagValue>} */
 export const func = (length, captures, template) => {
@@ -76,6 +79,19 @@ const each = own => (seen, values) => {
     return [seen, items]
 }
 
+/**
+ * Copy a group once, so every function copied out of it still names the same group.
+ * @type {(seen: RefMap, group: Group, own: _Own) => readonly [RefMap, Group]}
+ */
+const ownGroup = (seen, group, own) => {
+    const [known] = seen(group)
+    if (known !== undefined) { return [seen, /** @type {Group} */ (known)] }
+    const [next, slots] = each(own)(seen, group[1])
+    /** @type {Group} */
+    const result = ['group', slots, group[2].map(([length, body]) => [length, /** @type {Exp} */ (copy([], body)[1])])]
+    return [next(group, result)[1], result]
+}
+
 /** The value with its functions' bodies their own, and the values already answered. @type {_Own} */
 const own = (seen, value) => {
     if (!isArray(value)) { return [seen, value] }
@@ -92,6 +108,12 @@ const own = (seen, value) => {
             const [next, items] = each(own)(seen, value[1].map(([, , item]) => item))
             /** @type {EdagValue} */
             const result = ['{}', value[1].map(([, key], i) => [':', key, items[Number(i)]])]
+            return [next(value, result)[1], result]
+        }
+        case 'fn': {
+            const [next, group] = ownGroup(seen, value[1], own)
+            /** @type {GroupFunction} */
+            const result = ['fn', group, value[2]]
             return [next(value, result)[1], result]
         }
         case '=>': {

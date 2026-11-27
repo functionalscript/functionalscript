@@ -13,7 +13,7 @@
  *
  * @module
  * @import { ExpOp, StepOver, ItemsOver, Over } from '../types.ts'
- * @import { EdagValue, Values, Property, Array as ValueArray, Closure, Function as ValueFunction, Intrinsic, Runtime, Static } from '../value/types.ts'
+ * @import { EdagValue, Values, Property, Array as ValueArray, Closure, CodeFunction, Function as ValueFunction, Intrinsic, Runtime, Static } from '../value/types.ts'
  * @import { ValueResult } from '../value/control/types.ts'
  * @import { Body, Invoke, Outcome } from '../value/call/types.ts'
  * @import { Context, Evaluation, Evaluator, Tail } from './types.ts'
@@ -25,7 +25,7 @@ import { isArray } from '../../types/array/module.f.js'
 import { error, ok, okThen } from '../../types/result/module.f.js'
 import { array } from '../value/array/module.f.js'
 import { object } from '../value/object/module.f.js'
-import { func } from '../value/function/module.f.js'
+import { codeLength, func } from '../value/function/module.f.js'
 import { bind, call, invoker, prepare, settle } from '../value/call/module.f.js'
 import { entry, findProperty, functionAt, hasEntry, read } from '../value/property/module.f.js'
 import { throwValue } from '../value/control/module.f.js'
@@ -117,7 +117,7 @@ export const intrinsicCall = ([name], [receiver, ...args], invoke) => {
  * `self`, since the function the body is called as is the built-in; and,
  * with no runtime or no body for the id, the failure naming the static.
  *
- * @type {(runtime: Runtime | undefined, fn: Static, args: ValueArray, run: (body: Closure, fixed: Values, rest: ValueArray, self: Static) => Outcome, invoke: Invoke) => Outcome}
+ * @type {(runtime: Runtime | undefined, fn: Static, args: ValueArray, run: (body: CodeFunction, fixed: Values, rest: ValueArray, self: Static) => Outcome, invoke: Invoke) => Outcome}
  */
 export const staticCall = (runtime, fn, args, run, invoke) => {
     const [, values] = args
@@ -161,7 +161,7 @@ export const staticCall = (runtime, fn, args, run, invoke) => {
     const body = staticBody(runtime, fn, invoke)
     if (body[0] === 'error') { return body }
     if (body[1] === undefined) { return error(noStatic(fn[0])) }
-    const [fixed, rest] = bind(body[1][1], values)
+    const [fixed, rest] = bind(codeLength(body[1]), values)
     return run(body[1], fixed, rest, fn)
 }
 
@@ -179,8 +179,14 @@ export const staticCall = (runtime, fn, args, run, invoke) => {
  * @type {(run: (fn: Closure, context: Context) => Outcome) => (runtime: Runtime | undefined) => Invoke}
  */
 export const invokerWith = run => runtime => {
-    /** @type {(fn: Closure, fixed: Values, rest: ValueArray, self: ValueFunction) => Outcome} */
-    const closure = (fn, fixed, rest, self) => run(fn, { frame: fn[2], args: [], fixed, rest, self, runtime })
+    /** @type {(fn: CodeFunction, fixed: Values, rest: ValueArray, self: ValueFunction) => Outcome} */
+    const closure = (fn, fixed, rest, self) => {
+        if (fn[0] === '=>') { return run(fn, { frame: fn[2], args: [], fixed, rest, self, runtime }) }
+        const [, group, index] = fn
+        const [, frame, members] = group
+        const [length, body] = members[Number(index)]
+        return run(['=>', length, frame, body], { frame, args: [], fixed, rest, self: fn, runtime })
+    }
     /** @type {Invoke} */
     const invoke = (fn, fixed, rest) => {
         /** @type {Body} */
@@ -368,7 +374,10 @@ export const operation = evaluator => {
             // the function itself, the value the call was made on: the
             // analysis refuses a `self` outside a function, so none is a
             // precondition this evaluator restates as a thrown `undefined`
-            case 'self': { return [state, self === undefined ? error(['undefined']) : ok(self)] }
+            case 'self': {
+                if (node.length === 1) { return [state, self === undefined ? error(['undefined']) : ok(self)] }
+                return [state, self?.[0] === 'fn' ? ok(['fn', self[1], node[1]]) : error(['undefined'])]
+            }
             // the helper as a value: a fresh function each time, as `=>` makes one
             case 'entry': { return [state, ok(['entry'])] }
             case 'hasEntry': { return [state, ok(['hasEntry'])] }
@@ -402,6 +411,17 @@ export const operation = evaluator => {
             }
             case '[]': { return items(node[1], state) }
             case '{}': { return properties(node[1], state) }
+            case 'group': {
+                const [, captures, members] = node
+                // Only fn can consume this internal result. Member zero carries the
+                // evaluated group through the same value cache as every other node.
+                return then(items(captures, state), (value, next) => [next, ok(['fn',
+                    ['group', /** @type {ValueArray} */ (value)[1], members.map(([length, body]) => [length, expression(body)])], 0])])
+            }
+            case 'fn': {
+                return then(operand(node[1], state), (owner, next) =>
+                    [next, ok(['fn', /** @type {import('../value/types.ts').GroupFunction} */ (owner)[1], node[2]])])
+            }
             case '=>': {
                 const [, length, captures, body] = node
                 return then(items(captures, state), (value, next) => [next,

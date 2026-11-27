@@ -3,14 +3,14 @@
  * given; `ownBodies` gives each function of a value a copy of its own,
  * preserving sharing without merging distinct nodes.
  *
- * @import { EdagValue, Closure, Object as ValueObject } from '../types.ts'
+ * @import { EdagValue, Closure, GroupFunction, Object as ValueObject } from '../types.ts'
  */
 
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { isArray } from '../../../types/array/module.f.js'
 import { ok, error } from '../../../types/result/module.f.js'
 import { validateClosure } from '../closure/module.f.js'
-import { func, ownBodies } from './module.f.js'
+import { codeLength, func, ownBodies } from './module.f.js'
 
 /** A later capture that must never be evaluated. @type {() => never} */
 const skipped = () => { assert(false, 'a capture after a failure was evaluated') }
@@ -70,6 +70,20 @@ export const proof = {
     unevaluatedBody: () => {
         const template = /** @type {const} */ (['throw', 'body remains code'])
         assertEq(assertOk(func(0, [], template))[3], template)
+    },
+    groupMembers: () => {
+        const group = /** @type {const} */ (['group', [data], [[0, ['self', 1]], [1, ['frame', 0]]]])
+        const pair = /** @type {const} */ (['[]', [['fn', group, 0], ['fn', group, 1]]])
+        const copy = ownBodies(pair)
+        assertOk(validateClosure(copy))
+        const [, items] = /** @type {import('../types.ts').Array} */ (copy)
+        const [a, b] = /** @type {readonly GroupFunction[]} */ (items)
+        assertEq(a[1], b[1])
+        assertEq(a[1] === group, false)
+        assertEq(a[1][2][0][1] === group[2][0][1], false)
+        assertEq(codeLength(['=>', 2, [], 0]), 2)
+        assertEq(codeLength(a), 0)
+        assertEq(codeLength(b), 1)
     },
     ownBodies: {
         // What has no items and no body is the value itself.

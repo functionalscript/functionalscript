@@ -20,6 +20,9 @@ import type {
     array,
     arg,
     func,
+    group,
+    fn,
+    indexedSelf,
     call,
     comma,
     constructorId,
@@ -76,6 +79,9 @@ export type Exp =
     | In
     | MemberPresent
     | Function
+    | Group
+    | Fn
+    | IndexedSelf
     | Arg
     | Frame
 
@@ -265,6 +271,12 @@ export type Op0 = readonly[Op0Id]
 /** Function arity is canonical nonnegative integer metadata; the slots of its frame are an array operand. */
 export type Function = readonly ['=>', number, Exps, Exp]
 
+/** One member's fixed arity and its independently scoped body. */
+export type GroupMember = readonly [number, Exp]
+export type Group = readonly ['group', Exps, readonly GroupMember[]]
+export type Fn = readonly ['fn', Group, number]
+export type IndexedSelf = readonly ['self', number]
+
 /** Constant index, strictly smaller than the owning function's length. */
 export type Arg = readonly ['arg', number]
 
@@ -394,6 +406,8 @@ export type ItemsOver<E> = readonly (E | readonly ['...', E])[]
  */
 type Position<T, E, I> =
     Equal<T, Exp> extends true ? E :
+    Equal<T, Group> extends true ? E :
+    Equal<T, readonly GroupMember[]> extends true ? readonly (readonly [number, E])[] :
     Equal<T, Index> extends true ? I :
     Equal<T, Exps> extends true ? readonly E[] :
     Equal<T, readonly Items[]> extends true ? ItemsOver<E> :
@@ -436,6 +450,9 @@ type _OverIsClosed = Assert<And<
 // wrapped one is a tautology — `Ts<>` short-circuits to the annotation.
 
 type _ExpAssert = Assert<Check3<Exp, typeof _exp, typeof exp>>
+type _Group = Assert<Check<Group, typeof group>>
+type _Fn = Assert<Check<Fn, typeof fn>>
+type _IndexedSelf = Assert<Check<IndexedSelf, typeof indexedSelf>>
 type _Function = Assert<Check<Function, typeof func>>
 type _Arg = Assert<Check<Arg, typeof arg>>
 type _Frame = Assert<Check<Frame, typeof frame>>

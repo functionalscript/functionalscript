@@ -47,6 +47,16 @@ and frame positions. `Options.runtime` supplies the runtime expression for
 operations that need it, and `Options.text` supplies each prepared function's
 represented source text.
 
+Consecutive definitions of a function group share a capture frame. Dynamic
+groups emit one `A::function_group` call. Each body uses `A::group_member`
+to reach a sibling, including siblings returned as values. When the native
+backend can resolve the frame and every member at compile time, it emits a
+`StaticFunction` descriptor per member. Those bodies name the descriptors
+and their captured constants directly. Portable `.rs` modules use the group
+constructor for both cases. Their `IStaticFunction` bound includes VMs whose
+function values can only be constructed at run time. Loading a named Rust
+descriptor requires the concrete backend's `IStaticVm` capability.
+
 A terminal loop exit uses the same labelled `loop { ... }` spelling as a loop
 statement. It is the block's final expression, with no normal result or
 synthetic fallback. Returns and throws in its body retain their enclosing

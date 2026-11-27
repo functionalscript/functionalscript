@@ -77,6 +77,10 @@ const validateNode = (validate, value, visited) => {
             const r = validateProperties(validate, value[1], visited)
             return r[0] === 'error' ? prependPath('1', r) : r
         }
+        case 'fn': {
+            const r = validateValues(validate, value[1][1], visited)
+            return r[0] === 'error' ? prependPath('1', prependPath('1', r)) : r
+        }
         case '=>': {
             const r = validateValues(validate, value[2], visited)
             return r[0] === 'error' ? prependPath('2', r) : r
