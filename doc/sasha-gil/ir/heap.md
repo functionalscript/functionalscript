@@ -19,8 +19,9 @@ algorithm's shape, not measurements.
   picks when it links, as Any's `checkedKind` is picked
   ([#4144](https://github.com/functionalscript/functionalscript/pull/4144)).
 - **The bump arena first.** In a release build it has no header, counts
-  nothing and frees nothing. In a debug build it counts in an 8-byte
-  header, traps on a count of 0, and never reuses a block.
+  nothing and frees nothing. In a debug build it counts in the shared
+  header, keeps each block's size so that it can be walked, traps on a
+  count of 0, and never reuses a block.
 - **Paged size classes next, as the production heap**: mimalloc's core
   without its threads or its OS layer. A line heap in the style of RC Immix
   comes third, as an experiment.
@@ -157,8 +158,8 @@ already allows an arena under the same ABI.
 
 | | Release, `module` | Debug, `counted` |
 | --- | --- | --- |
-| Header | none | 8 bytes before the block: the count and the size |
-| `alloc(n)` | about 6 instructions | the same, and a store of the header |
+| Header | none | the 8-byte header that [every counting variant shares](#what-every-counting-variant-shares), whose tag stays 0 since no block is reused, and before it a word with the block's size, so that the arena can be walked in birth order: 16 bytes in all |
+| `alloc(n)` | about 6 instructions | the same, and two stores for the header |
 | A block whose count reaches 0 | none does | is never reused, so a stale reference finds 0 and traps |
 | `live()` | not exported | the blocks whose count has not reached 0, for balance checks in proofs |
 
@@ -225,7 +226,7 @@ release arena counts nothing and keeps no header.
 | Bits | Field | Why |
 | --- | --- | --- |
 | 0 to 31 | count | `dup` and `drop`; 0 marks a free block |
-| 32 to 39 | size class | a free needs no lookup; paged size classes keep it per page, so there it is spare |
+| 32 to 39 | size class | a free needs no lookup; paged size classes keep it per page, and the debug arena has no classes, so in both it is spare |
 | 40 to 47 | type within the kind | `release` tells, say, a flat string from a slice |
 | 48 to 63 | tag, in debug and test builds | a stale reference traps even after its block is reused |
 
