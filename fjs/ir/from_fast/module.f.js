@@ -173,13 +173,16 @@ import {
 import { native } from '../native/module.f.js'
 import { asAny, boolean, floats, inOrder, isAny, isFloat, nativeRow, numbered, numberPath, numberRow, numeric, primitive } from './numbers/module.f.js'
 import { records } from '../records/module.f.js'
+import { inline as inlineHinted } from '../inline/module.f.js'
 import { literals } from './literals/module.f.js'
 import { lengthRead } from './reads/module.f.js'
 import { everyLoop, filterLoops, locals as callbackLocals, names as callbackNames } from './callbacks/module.f.js'
+import { arrayBuilt, objectBuilt } from './spread/module.f.js'
 import { bindTerm, castCall, casts, getOf, isPure, isSpread, l1Of, linking, pure, refuse, settled, settledParts, standsFor, values } from './scope/module.f.js'
-import { link, linkAny, linkedName, uses } from './link/module.f.js'
+import { link, linkAny, linkString, linkedName, uses } from './link/module.f.js'
 import { show } from '../print/module.f.js'
-import { module as anyModule } from '../runtime/any/module.f.js'
+import { checked as checkedAny, module as anyModule } from '../runtime/any/module.f.js'
+import { module as stringModule } from '../runtime/string/ir.f.js'
 
 /** A count in a message: `one parameter`, `2 values`. @type {(k: number, noun: string) => string} */
 const count = (k, noun) => k === 1 ? `one ${noun}` : `${k} ${noun}s`
@@ -969,49 +972,6 @@ const spreadBy = name => (s, x) => {
     return ok(name === 'toIterable' ? made : cast(object, made, 'object', o => o))
 }
 
-/** The length of a spread array or object, as a float. @type {(x: Term) => Term} */
-const spreadLength = x => float(call('Containers', 'length', [x]))
-
-/**
- * A spread array or object pushed item by item, to the builder `b`: a
- * loop, labelled `at`, which pushes each of its items by `each`.
- *
- * @type {(each: (b: Term, x: Term, k: Term) => Term) => (b: Term, x: Term, at: string) => Term}
- */
-const itemByItem = each => (b, x, at) => {
-    const [lb, li, pushed] = ['b', 'i', 'pushed'].map(k => `${at}.${k}`)
-    return loop(
-        at,
-        [[lb, builder, b], [li, f64, lit(f64c, 0)]],
-        if_(
-            lt(get(li), spreadLength(x)),
-            exact(u(31), get(li), `${at}.k`, k => let_(pushed, each(get(lb), x, k), next(at, [[lb, get(pushed)], [li, add(get(li), lit(f64c, 1))]]))),
-            get(lb),
-        ),
-    )
-}
-
-/**
- * An array or an object built of parts, one or more of them spread:
- * `begin` of the count of their items, the items that stand alone and the
- * length of each spread array or object, which must be an index, then each
- * part in its order, an item by `one` and a spread by `many`, given the
- * label `label.j` for the part's place, then `seal` of the builder.
- *
- * @type {(label: string, parts: readonly _Part[], begin: (k: Term) => Term, one: (b: Term, x: Term, j: number) => Term, many: (b: Term, x: Term, at: string) => Term, seal: (b: Term) => Term) => Term}
- */
-const builtOf = (label, parts, begin, one, many, seal) => {
-    const total = parts.reduce((t, [spread, x]) => spread ? add(t, spreadLength(x)) : t, lit(f64c, parts.filter(([spread]) => !spread).length))
-    /** @type {(j: number, b: Term) => Term} */
-    const from = (j, b) => {
-        if (j === parts.length) { return seal(b) }
-        const [spread, x] = parts[Number(j)]
-        const name = `${label}.b${j}`
-        return let_(name, spread ? many(b, x, `${label}.${j}`) : one(b, x, j), from(j + 1, get(name)))
-    }
-    return exact(u(31), total, `${label}.n`, k => from(0, begin(k)))
-}
-
 /**
  * Each item of a part that stands alone boxed as a value of `any`, as an
  * item of an array or an argument of a call is, or why one is not.
@@ -1036,19 +996,8 @@ const boxedParts = (s, parts, what) => okList(parts.map(([many, x], k) => {
  */
 const spreadArray = (lowerValue, scope, items, what) => settledParts(lowerValue, scope, items, spreadBy('toIterable'), (s, parts) => {
     const boxed = boxedParts(s, parts, what)
-    return boxed[0] === 'error' ? boxed : ok(builtOf(
-        `S${s.depth}`,
-        boxed[1],
-        k => call('Containers', 'begin_array', [k]),
-        (b, x) => call('Containers', 'push', [b, x]),
-        (b, x) => call('Containers', 'push_all', [b, x]),
-        // `seal` answers array|object; `begin_array` makes an array alone, so narrow.
-        b => cast(array, call('Containers', 'seal', [b]), 'array', a => a),
-    ))
+    return boxed[0] === 'error' ? boxed : ok(arrayBuilt(`S${s.depth}`, boxed[1]))
 })
-
-/** Each key and value of a spread object, pushed one by one. */
-const pushEntries = itemByItem((b, x, k) => call('Containers', 'push_property', [b, call('Containers', 'key', [x, k]), call('Containers', 'item', [x, k])]))
 
 /**
  * An object of entries, one or more of them spread, as a program builds
@@ -1068,15 +1017,7 @@ const spreadObject = (lowerValue, scope, entries) => {
     const names = entries.map(e => typeof e[1] === 'string' ? e[1] : '')
     return settledParts(lowerValue, scope, items, spreadBy('objectSpread'), (s, parts) => {
         const boxed = boxedParts(s, parts, 'a value of an object')
-        return boxed[0] === 'error' ? boxed : ok(builtOf(
-            `S${s.depth}`,
-            boxed[1],
-            k => call('Containers', 'begin_object', [k]),
-            (b, x, j) => call('Containers', 'push_property', [b, lit(string, names[Number(j)]), x]),
-            pushEntries,
-            // `seal` answers array|object; `begin_object` makes an object alone, so narrow.
-            b => cast(object, call('Containers', 'seal', [b]), 'object', o => o),
-        ))
+        return boxed[0] === 'error' ? boxed : ok(objectBuilt(`S${s.depth}`, boxed[1], names))
     })
 }
 
@@ -2158,14 +2099,16 @@ const madeClosures = (lowerClosure, closures, todo) => {
  * whose interfaces it then imports, and, where the module reads L1's error
  * table, its specifier and the table, which [`errorTable`](./link/module.f.js#errortable)
  * reads from its text, and, for a program, L1's plain stage, which
- * [`link`](./link/module.f.js#link) merges into it; then the normalized FAST of the
+ * [`link`](./link/module.f.js#link) merges into it, and `checkedKind` for a debug build,
+ * where Any's `kind` of a reference is NaNVM's checked `kind_ref`, not its
+ * `tttt` bits; then the normalized FAST of the
  * module's text and its imports. The functions keep the order of the
  * exports. Each other definition of the module is a constant, named for
  * its place among them, `#c0` first, whose term reads the constants before
  * it; the module keeps those that the functions read, themselves or
  * through the constants that they read, in their order.
  *
- * @type {(signatures: Readonly<Record<string, Signature>>, runtime?: { readonly l0: string, readonly native: string, readonly errors?: { readonly specifier: string, readonly table: readonly (readonly [string, string])[] }, readonly l1?: Module } | null) => (fast: Block, imports?: readonly AstImport[]) => Result<Module, string>}
+ * @type {(signatures: Readonly<Record<string, Signature>>, runtime?: { readonly l0: string, readonly native: string, readonly errors?: { readonly specifier: string, readonly table: readonly (readonly [string, string])[] }, readonly l1?: Module, readonly checkedKind?: boolean } | null) => (fast: Block, imports?: readonly AstImport[]) => Result<Module, string>}
  */
 export const lower = (signatures, runtime = null) => ({ statements, exit }, imports = []) => {
     const table = Object.entries(signatures)
@@ -2309,6 +2252,6 @@ export const lower = (signatures, runtime = null) => ({ statements, exit }, impo
     /** @type {Module} */
     const m = { imports: interfaces, constants, functions: everything, exports: lowered.map(([key]) => key) }
     if (l1 === null) { return ok(literals(m)) }
-    // a program: L1's bodies linked in, then the objects that it only reads back split, then its boxed numbers made once (still as Any.from_f64), then Any's bodies linked in so scalar ops and those boxes are local
-    return okThen(linkAny(anyModule))(mapOk(x => literals(records('l1.get')(x)))(link(l1)(m)))
+    // a program: L1's bodies linked in, then the objects that it only reads back split, then its boxed numbers made once (still as Any.from_f64), then Any's bodies linked in so scalar ops and those boxes are local, then String's short-path length/unit, then the calls that a hint asks for inlined
+    return okThen(inlineHinted)(okThen(linkString(stringModule))(okThen(linkAny(runtime !== null && runtime.checkedKind === true ? checkedAny : anyModule))(mapOk(x => literals(records('l1.get')(x)))(link(l1)(m)))))
 }

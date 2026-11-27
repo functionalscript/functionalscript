@@ -23,12 +23,15 @@
  * **The JavaScript heap is shown only where the browser reports it**, which
  * Chromium alone does, as its change across the run, with the readings just
  * before and just after. Elsewhere the line is left out, as the page shows no
- * figure it cannot measure.
+ * figure it cannot measure. Chromium itself rounds the reading to three
+ * significant digits and refreshes it rarely, unless it is started with
+ * `--enable-precise-memory-info`; a rounded reading is not shown either, and
+ * the page says why.
  *
  * @module
  *
  * @import { Sandbox, SandboxResult, Write } from '../../../effects/common/types.ts'
- * @import { FetchText, Instantiate, JsHeapSize, WasmInstance } from '../../../effects/browser/types.ts'
+ * @import { FetchText, Instantiate, InstantiateIr, IrInstance, JsHeapSize, WasmInstance } from '../../../effects/browser/types.ts'
  * @import { Effect, IoChannel } from '../../../effects/types.ts'
  * @import { Element, Node } from '../../../media/html/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
@@ -36,12 +39,12 @@
  * @import { List } from '../../../types/list/types.ts'
  * @import { MemOperationMap } from '../../../effects/mock/types.ts'
  * @import { Demo, DemoEvent } from '../../../website/demo/types.ts'
- * @import { JsHeap, JsRun, Loaded, Place, Run, Runs, Sample, State, WasmRun } from './types.ts'
+ * @import { IrPlace, IrRun, JsHeap, JsRun, Loaded, Place, Run, Runs, Sample, State, WasmRun } from './types.ts'
  * @import { Marked } from '../../../text/marked/types.ts'
  */
 
 import { sandbox } from '../../../effects/common/module.f.js'
-import { fetchText, instantiate, jsHeapSize } from '../../../effects/browser/module.f.js'
+import { fetchText, instantiate, instantiateIr, jsHeapSize } from '../../../effects/browser/module.f.js'
 import { errorMessage, history, historyStep, mapStep, pure, pureOk, resultMapStep, resultStep, step } from '../../../effects/module.f.js'
 import { run as mockRun } from '../../../effects/mock/module.f.js'
 import { empty, msb, u8ListMsb } from '../../../types/bit_vec/module.f.js'
@@ -55,6 +58,7 @@ import { codeMarker, listingMarker } from '../../../website/style/module.f.js'
 import { assertNotNullish } from '../../../asserts/module.f.js'
 import { entry } from '../../../types/object/entry/module.f.js'
 import { generate } from '../../../types/array/generate/module.f.js'
+import { irExportName, irFileName, l0FileName } from '../ir/module.f.js'
 
 /** A sample's source, repository-relative, from its directory. @type {(directory: string) => string} */
 export const samplePath = directory => `${directory}/sample.f.js`
@@ -88,6 +92,25 @@ export const rustMarkedPath = name => `${buildDirectory}/${name}${rustMarkedExte
 /** The module every sample is in, as `cargo build` names it. */
 export const wasmPath = `${buildDirectory}/nanvm_demos.wasm`
 
+/** NaNVM L0, published beside the IR modules for the direct-to-WASM route. */
+export const irL0Path = `${buildDirectory}/${l0FileName}`
+
+/**
+ * An IR-emitted program module for a sample, published when the site is
+ * built from that sample's `ir.f.js`.
+ *
+ * @type {(name: string) => string}
+ */
+export const irModulePath = name => `${buildDirectory}/${irFileName(name)}`
+
+/**
+ * The IR place for a sample that has an `ir.f.js`: L0, the emitted module,
+ * and the `run` export.
+ *
+ * @type {(name: string) => IrPlace}
+ */
+export const irPlace = name => ({ l0Path: irL0Path, modulePath: irModulePath(name), exportName: irExportName })
+
 /**
  * A sample's disassembly: the functions Rust compiled from its module alone,
  * without NaNVM or `std`.
@@ -97,7 +120,14 @@ export const wasmPath = `${buildDirectory}/nanvm_demos.wasm`
 export const watPath = name => `${buildDirectory}/${name}.wat.marked`
 
 /** @type {State} */
-export const init = { source: ['loading'], rust: ['loading'], wat: ['loading'], wasm: ['loading'], runs: null }
+export const init = { source: ['loading'], rust: ['loading'], wat: ['loading'], wasm: ['loading'], ir: null, runs: null }
+
+/**
+ * Initial state for a page that also loads the IR route.
+ *
+ * @type {State}
+ */
+export const initWithIr = { ...init, ir: ['loading'] }
 
 /** @type {<T>(r: Result<T, IoChannel>) => Result<T, string>} */
 const loaded = r => r[0] === 'ok' ? r : error(errorMessage(r[1]))
@@ -132,6 +162,18 @@ export const load = place => {
     const rust = step(source, state => resultStep(fetchText(`/${rustMarkedPath(name)}`), r => pureOk({ ...state, rust: loadedMarked(r) })))
     const wat = step(rust, state => resultStep(fetchText(`/${watPath(name)}`), r => pureOk({ ...state, wat: loadedMarked(r) })))
     return step(wat, state => resultStep(instantiate(`/${wasmPath}`), r => pureOk({ ...state, wasm: loaded(r) })))
+}
+
+/**
+ * {@link load}, then NaNVM L0 and the IR-emitted program for the third route.
+ *
+ * @type {(place: Place, ir: IrPlace) => Effect<FetchText | Instantiate | InstantiateIr, State, never>}
+ */
+export const loadWithIr = (place, ir) => {
+    const files = step(load(place), state => pureOk(/** @type {State} */ ({ ...state, ir: ['loading'] })))
+    return step(files, state => resultStep(
+        instantiateIr(`/${ir.l0Path}`, `/${ir.modulePath}`, ir.exportName),
+        r => pureOk({ ...state, ir: loaded(r) })))
 }
 
 /** Bytes as text, refused unless they are UTF-8. @type {(bytes: List<number>) => Result<string, string>} */
@@ -249,18 +291,45 @@ export const runWasm = name => ({ exports }) => {
 }
 
 /**
- * Both runs, JavaScript first; the WebAssembly one only once the module has
- * loaded.
+ * Times one IR / direct-to-WASM call: the host-read value as text, and
+ * NaNVM L0 linear memory around the call. The displayed time is the export
+ * window `invoke` measures, not the sandbox wall that also covers host and
+ * program instantiation.
+ *
+ * @type {(instance: IrInstance) => Effect<Sandbox, Result<IrRun, string>, never>}
+ */
+export const runIr = ({ invoke }) => resultMapStep(sandbox(() => invoke()), r => {
+    const t = timed(/** @type {Result<SandboxResult<{ readonly value: unknown, readonly memory: number, readonly growth: number, readonly time: number }>, IoChannel>} */ (r))
+    if (t[0] === 'error') { return ok(t) }
+    const { value, memory, growth, time } = t[1].value
+    /** @type {Result<string, string>} */
+    const output = typeof value === 'string' ? ok(value) : error(`the IR export answered ${typeof value}, not a string`)
+    return ok(ok({ run: { output, time }, memory, growth }))
+})
+
+/**
+ * JavaScript, then Rust→WASM, then IR when the page has that route; each
+ * WASM path only once its module has loaded.
  *
  * @type {(sample: Sample) => (state: State) => Effect<Sandbox | JsHeapSize, State, never>}
  */
 export const runBoth = ({ place, program }) => state => {
-    const { wasm } = state
+    const { wasm, ir } = state
     const js = history(runJs(program))
     const both = historyStep(js, () => wasm[0] === 'ok'
         ? runWasm(placeName(place))(wasm[1])
         : pureOk(error(wasm[0] === 'loading' ? 'the module has not loaded yet' : wasm[1])))
-    return step(both, ([wasmRun, jsRun]) => pureOk(/** @type {State} */ ({ ...state, runs: { js: jsRun, wasm: wasmRun } })))
+    const withIr = historyStep(both, () => ir === null
+        ? pureOk(null)
+        : ir[0] === 'ok'
+            ? runIr(ir[1])
+            : pureOk(error(ir[0] === 'loading' ? 'the IR module has not loaded yet' : ir[1])))
+    return step(withIr, ([irRun, wasmRun, jsRun]) => pureOk(/** @type {State} */ ({
+        ...state,
+        runs: irRun === null
+            ? { js: jsRun, wasm: wasmRun }
+            : { js: jsRun, wasm: wasmRun, ir: /** @type {Result<IrRun, string>} */ (irRun) },
+    })))
 }
 
 /**
@@ -292,7 +361,19 @@ const outputView = output => output[0] === 'ok'
 const sameOutput = (js, wasm) => js.output[0] === 'ok' && wasm.run.output[0] === 'ok' && js.output[1] === wasm.run.output[1]
 
 /**
- * How many times as long the WebAssembly run took as the JavaScript one, or
+ * How many times as long a timed WASM-shaped run took as the JavaScript one,
+ * or "Not available" unless both wrote the same output, or where the
+ * JavaScript time reads `0`.
+ *
+ * @type {(js: Result<JsRun, string>, other: Result<WasmRun, string>) => string}
+ */
+const ratioAgainstJs = (js, other) => js[0] === 'ok' && other[0] === 'ok'
+    && sameOutput(js[1], other[1]) && js[1].time > 0
+    ? `${(other[1].run.time / js[1].time).toFixed(1)}×`
+    : 'Not available'
+
+/**
+ * How many times as long the Rust→WASM run took as the JavaScript one, or
  * "Not available" unless both runs wrote the same output, or where the
  * JavaScript time reads `0`, which a browser's coarse clock answers for a
  * short run. Runs that failed, or wrote different outputs, did not do the
@@ -300,13 +381,34 @@ const sameOutput = (js, wasm) => js.output[0] === 'ok' && wasm.run.output[0] ===
  *
  * @type {(runs: Runs) => string}
  */
-export const ratio = ({ js, wasm }) => js[0] === 'ok' && wasm[0] === 'ok'
-    && sameOutput(js[1], wasm[1]) && js[1].time > 0
-    ? `${(wasm[1].run.time / js[1].time).toFixed(1)}×`
-    : 'Not available'
+export const ratio = ({ js, wasm }) => ratioAgainstJs(js, wasm)
 
 /**
- * How many times as much memory the WebAssembly run added as the JavaScript
+ * How many times as long the IR / direct-to-WASM run took as the JavaScript
+ * one, on the same terms as {@link ratio}.
+ *
+ * @type {(runs: Runs) => string | null}
+ */
+export const irRatio = ({ js, ir }) => ir === undefined ? null : ratioAgainstJs(js, ir)
+
+/**
+ * Whether a reading of the heap is one that Chromium rounded: by default it
+ * reports the heap rounded to three significant digits, at least 10,000,000
+ * bytes, and the same reading for a long while after, so a run's change is
+ * almost always none. A precise reading has such a form once in 100,000.
+ *
+ * @type {(bytes: number) => boolean}
+ */
+export const roundedBytes = bytes => bytes >= 10_000_000 && [...bytes.toString().slice(3)].every(c => c === '0')
+
+/** Whether both readings of the heap are rounded ones. @type {(heap: JsHeap) => boolean} */
+export const rounded = ({ before, after }) => roundedBytes(before) && roundedBytes(after)
+
+/** What the page says in place of a figure that it cannot read from rounded readings. */
+export const notPrecise = /** @type {const} */ ('Not measured: Chromium rounds the JavaScript heap; start it with --enable-precise-memory-info for exact bytes')
+
+/**
+ * How many times as much memory a WASM-shaped run added as the JavaScript
  * one, as {@link ratio} compares their times: the linear memory the run
  * added against the change in the page's JavaScript heap. `null` where the
  * browser does not report the heap, which every browser but Chromium does
@@ -315,15 +417,39 @@ export const ratio = ({ js, wasm }) => js[0] === 'ok' && wasm[0] === 'ok'
  * both runs wrote the same output, where the heap did not grow, since a
  * heap a garbage collection shrank during the run gives no comparison, or
  * where the linear memory did not grow, which only says the allocator reused
- * memory it had, not that the run used none.
+ * memory it had, not that the run used none. {@link notPrecise} where the
+ * comparison would otherwise stand but the readings are Chromium's rounded
+ * ones.
+ *
+ * @type {(js: Runs['js'], other: Result<WasmRun, string> | undefined) => string | null}
+ */
+const growthAgainstJs = (js, other) => js[0] === 'error' || js[1].heap === null
+    ? null
+    : other === undefined
+        ? null
+        : other[0] !== 'ok' || !sameOutput(js[1], other[1]) || other[1].growth <= 0
+            ? 'Not available'
+            : rounded(js[1].heap)
+                ? notPrecise
+                : js[1].heap.after > js[1].heap.before
+                    ? `${(other[1].growth / (js[1].heap.after - js[1].heap.before)).toFixed(1)}×`
+                    : 'Not available'
+
+/**
+ * Rust→WASM linear-memory growth against the JavaScript heap, as
+ * {@link growthAgainstJs}.
  *
  * @type {(runs: Runs) => string | null}
  */
-export const memoryRatio = ({ js, wasm }) => js[0] === 'error' || js[1].heap === null
-    ? null
-    : wasm[0] === 'ok' && sameOutput(js[1], wasm[1]) && js[1].heap.after > js[1].heap.before && wasm[1].growth > 0
-        ? `${(wasm[1].growth / (js[1].heap.after - js[1].heap.before)).toFixed(1)}×`
-        : 'Not available'
+export const memoryRatio = ({ js, wasm }) => growthAgainstJs(js, wasm)
+
+/**
+ * IR→WASM linear-memory growth against the JavaScript heap, on the same
+ * terms as {@link memoryRatio}. `null` when the page has no IR route.
+ *
+ * @type {(runs: Runs) => string | null}
+ */
+export const irMemoryRatio = ({ js, ir }) => growthAgainstJs(js, ir)
 
 /** A change in memory, signed. @type {(bytes: number) => string} */
 export const signedBytes = bytes => `${bytes < 0 ? '-' : '+'}${Math.abs(bytes)} bytes`
@@ -343,10 +469,23 @@ export const heapChange = ({ before, after }) => `${signedBytes(after - before)}
  */
 const heapView = heap => heap === null
     ? []
-    : [stat('Change in the whole page’s JavaScript heap across the run (Chromium)', heapChange(heap))]
+    : [stat('Change in the whole page’s JavaScript heap across the run (Chromium)', rounded(heap) ? notPrecise : heapChange(heap))]
+
+/** @type {(title: string, run: Result<WasmRun, string>) => readonly Node[]} */
+const wasmShapedView = (title, run) => [
+    ['h3', {}, title],
+    ...(run[0] === 'ok'
+        ? [
+            ...outputView(run[1].run.output),
+            stat('Running time', milliseconds(run[1].run.time)),
+            stat('Linear memory of the module so far', `${run[1].memory} bytes`),
+            stat('Linear memory added by the run', signedBytes(run[1].growth)),
+        ]
+        : [refusal(run[1])]),
+]
 
 /** @type {(runs: Runs) => readonly Node[]} */
-const runsDetail = ({ js, wasm }) => [
+const runsDetail = ({ js, wasm, ir }) => [
     ['h3', {}, 'JavaScript'],
     ...(js[0] === 'ok'
         ? [
@@ -355,38 +494,59 @@ const runsDetail = ({ js, wasm }) => [
             ...heapView(js[1].heap),
         ]
         : [refusal(js[1])]),
-    ['h3', {}, 'WebAssembly'],
-    ...(wasm[0] === 'ok'
-        ? [
-            ...outputView(wasm[1].run.output),
-            stat('Running time', milliseconds(wasm[1].run.time)),
-            stat('Linear memory of the module so far', `${wasm[1].memory} bytes`),
-            stat('Linear memory added by the run', signedBytes(wasm[1].growth)),
-        ]
-        : [refusal(wasm[1])]),
+    ...wasmShapedView('WebAssembly (Rust → NaNVM)', wasm),
+    ...(ir === undefined ? [] : wasmShapedView('WebAssembly (IR → NaNVM, linkAny and linkString)', ir)),
 ]
 
-/** @type {(ratio: string | null) => readonly Node[]} */
-const memoryView = ratio => ratio === null
+/** @type {(label: string, ratio: string | null) => readonly Node[]} */
+const memoryView = (label, ratio) => ratio === null
     ? []
-    : [stat('Memory the WebAssembly run added, as a multiple of the JavaScript heap’s growth (Chromium)', ratio)]
+    : [stat(label, ratio)]
 
 /** @type {(runs: Runs) => readonly Node[]} */
-const runsView = runs => [
-    ...runsDetail(runs),
-    ['h3', {}, 'Comparison'],
-    stat('WebAssembly running time, as a multiple of the JavaScript one', ratio(runs)),
-    ...memoryView(memoryRatio(runs)),
+const runsView = runs => {
+    const ir = irRatio(runs)
+    return [
+        ...runsDetail(runs),
+        ['h3', {}, 'Comparison'],
+        stat('Rust→WASM running time, as a multiple of the JavaScript one', ratio(runs)),
+        ...memoryView(
+            'Memory the Rust→WASM run added, as a multiple of the JavaScript heap’s growth (Chromium)',
+            memoryRatio(runs)),
+        ...(ir === null
+            ? []
+            : [
+                stat('IR→WASM running time, as a multiple of the JavaScript one', ir),
+                ...memoryView(
+                    'Memory the IR→WASM run added, as a multiple of the JavaScript heap’s growth (Chromium)',
+                    irMemoryRatio(runs)),
+            ]),
+    ]
+}
+
+/**
+ * How long each module took to arrive and start, once it has.
+ *
+ * @type {(state: Pick<State, 'wasm' | 'ir'>) => readonly Node[]}
+ */
+export const startupView = ({ wasm, ir }) => [
+    ...(wasm[0] === 'ok'
+        ? [stat('Rust→WASM startup (fetch, compile and instantiate)', milliseconds(wasm[1].startup))]
+        : []),
+    ...(ir !== null && ir[0] === 'ok'
+        ? [stat('IR→WASM startup (fetch and compile L0 + program)', milliseconds(ir[1].startup))]
+        : []),
 ]
 
 /**
- * How long the module took to arrive and start, once it has.
+ * Whether every module Run needs has settled (ok or refused): Rust→WASM, and
+ * IR when the page has that route. A refusal still enables Run so JavaScript
+ * can run and the page can show the stored error — only `loading` blocks.
  *
- * @type {(state: Pick<State, 'wasm'>) => readonly Node[]}
+ * @type {(state: Pick<State, 'wasm' | 'ir'>) => boolean}
  */
-export const startupView = ({ wasm }) => wasm[0] === 'ok'
-    ? [stat('WebAssembly startup (fetch, compile and instantiate)', milliseconds(wasm[1].startup))]
-    : []
+export const modulesReady = state =>
+    state.wasm[0] !== 'loading' && (state.ir === null || state.ir[0] !== 'loading')
 
 /**
  * The files every WASM demo page shows, and its Run button: the source, with
@@ -394,34 +554,78 @@ export const startupView = ({ wasm }) => wasm[0] === 'ok'
  * disassembly. The program page and the function page differ in what they
  * draw after these, not in these.
  *
- * @type {(state: Pick<State, 'source' | 'rust' | 'wat'>, afterSource: (text: string) => readonly Node[]) => readonly Node[]}
+ * The Run control stays under the listings so the reader sees it where they
+ * finish reading; a status line under it says when modules are still loading
+ * (the runtime also fills `data-demo-status` while a click is in flight, so
+ * "Working…" is not only at the foot of a long WAT block).
+ *
+ * @type {(state: Pick<State, 'source' | 'rust' | 'wat' | 'wasm' | 'ir'>, afterSource: (text: string) => readonly Node[]) => readonly Node[]}
  */
-export const filesView = (state, afterSource) => [
-    caption('FunctionalScript source:'),
-    ...loadedView(state.source, text => [codeBlock(text, 'Copy the source', highlight(text)), ...afterSource(text)]),
-    caption('Rust that fjs compile writes from it, on the NaNVM runtime:'),
-    ...loadedView(state.rust, marked => [codeBlock(toText(marked), 'Copy the Rust', render(marked))]),
-    caption('WebAssembly text (WAT) of the functions compiled from this source, without the NaNVM runtime:'),
-    ...loadedView(state.wat, marked => [['div', { [codeMarker]: '', [listingMarker]: '' }, ['pre', ...render(marked)]]]),
-    ['p', {}, ['button', { type: 'button', name: 'run' }, 'Run']],
-]
+export const filesView = (state, afterSource) => {
+    const ready = modulesReady(state)
+    /** @type {Element} */
+    const run = ['p', {}, ['button', { type: 'button', name: 'run', ...(ready ? {} : { disabled: '' }) }, 'Run']]
+    /** @type {Element} */
+    const status = ['p', { 'data-demo-status': '' }]
+    /** @type {readonly Node[]} */
+    const waiting = ready
+        ? []
+        : [['p', {}, 'Waiting for modules to finish loading…']]
+    return [
+        caption('FunctionalScript source:'),
+        ...loadedView(state.source, text => [codeBlock(text, 'Copy the source', highlight(text)), ...afterSource(text)]),
+        caption('Rust that fjs compile writes from it, on the NaNVM runtime:'),
+        ...loadedView(state.rust, marked => [codeBlock(toText(marked), 'Copy the Rust', render(marked))]),
+        caption('WebAssembly text (WAT) of the functions compiled from this source, without the NaNVM runtime:'),
+        ...loadedView(state.wat, marked => [['div', { [codeMarker]: '', [listingMarker]: '' }, ['pre', ...render(marked)]]]),
+        run,
+        status,
+        ...waiting,
+    ]
+}
 
-/** @type {(name: string) => (state: State) => Element} */
-export const view = name => state => ['div', {},
-    ['p', {},
+/** @type {(hasIr: boolean) => readonly Node[]} */
+const intro = hasIr => hasIr
+    ? [
+        'The same FunctionalScript program, run three ways: as the JavaScript it already is; ',
+        'compiled by ', ['code', 'fjs compile'], ' to Rust on the NaNVM runtime, then to WebAssembly; ',
+        'and lowered through the IR (', ['code', 'from_fast'], ' + ', ['code', 'linkAny'], ' + ', ['code', 'linkString'],
+        ') directly to WebAssembly on NaNVM L0. ',
+        'Run calls each in turn and shows what it wrote and how long the call took.',
+    ]
+    : [
         'The same FunctionalScript program, run two ways: as the JavaScript it already is, ',
         'and compiled by ', ['code', 'fjs compile'], ' to Rust on the NaNVM runtime, then to WebAssembly. ',
-        'Run calls each in turn and shows what it wrote to standard output and how long the call took.'],
-    ...filesView(state, () => []),
-    ...startupView(state),
-    ...(state.runs === null ? [] : runsView(state.runs)),
-]
+        'Run calls each in turn and shows what it wrote to standard output and how long the call took.',
+    ]
 
-/** @type {(sample: Sample) => (state: State) => (event: DemoEvent) => Effect<FetchText | Instantiate | Sandbox | JsHeapSize, State, never>} */
+/** @type {(name: string) => (state: State) => Element} */
+export const view = name => state => {
+    /** @type {readonly Node[]} */
+    const results = state.runs === null
+        ? []
+        : [/** @type {Element} */ (['div', { 'data-demo-reveal': '' }, ...runsView(state.runs)])]
+    return ['div', {},
+        ['p', {}, ...intro(state.ir !== null)],
+        ...filesView(state, () => []),
+        ...startupView(state),
+        ...results,
+    ]
+}
+
+/** @type {(sample: Sample) => (state: State) => (event: DemoEvent) => Effect<FetchText | Instantiate | InstantiateIr | Sandbox | JsHeapSize, State, never>} */
 export const update = sample => state => event =>
-    event.kind === 'start' ? load(sample.place)
-    : event.kind === 'click' && entry(event, 'name') === 'run' ? runBoth(sample)(state)
-    : pureOk(state)
+    event.kind === 'start'
+        ? sample.ir === undefined ? load(sample.place) : loadWithIr(sample.place, sample.ir)
+        : event.kind === 'click' && entry(event, 'name') === 'run' ? runBoth(sample)(state)
+        : pureOk(state)
 
-/** @type {(sample: Sample) => Demo<State, DemoEvent, FetchText | Instantiate | Sandbox | JsHeapSize>} */
-export const wasmDemo = sample => ({ init, update: update(sample), view: view(placeName(sample.place)) })
+/** @type {(sample: Sample) => Demo<State, DemoEvent, FetchText | Instantiate | InstantiateIr | Sandbox | JsHeapSize>} */
+export const wasmDemo = sample => ({
+    init: sample.ir === undefined ? init : initWithIr,
+    update: update(sample),
+    view: view(placeName(sample.place)),
+    wait: state => state.ir !== null
+        ? 'timing JavaScript, Rust→WASM, and IR…'
+        : 'timing JavaScript and Rust→WASM…',
+})

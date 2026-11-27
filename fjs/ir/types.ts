@@ -203,11 +203,26 @@ export type Signature = {
     readonly counts?: 'dup' | 'drop'
 }
 
-/** A function: its parameters, its result, and a body that the label `return` leaves. */
+/**
+ * Whether the [inline pass](./inline/module.f.js) writes a function's body
+ * in place of each call of it: `always` at every call, `never` at none. A
+ * function with no hint is left to a later source of decisions, as a
+ * profile would be, and the pass leaves its calls for now. The checker
+ * refuses `always` on a function that reaches itself through calls of
+ * such functions alone, on one read as a value, and on a hook of a type
+ * that the module defines, which the lifetime pass and the emitter call.
+ */
+export type Inline = 'always' | 'never'
+
+/**
+ * A function: its parameters, its result, a body that the label `return`
+ * leaves, and, if it has one, its inline hint.
+ */
 export type FunctionOf<T> = {
     readonly params: readonly Param[]
     readonly result: Type
     readonly body: T
+    readonly inline?: Inline
 }
 
 /**

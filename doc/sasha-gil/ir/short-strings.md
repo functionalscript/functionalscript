@@ -1,16 +1,20 @@
 # Short strings in the IR
 
-2026-11-24. **Proposed, not decided. Design only** — this note names the
-runtime-module interface and an experiment plan; it ships no packing,
-host ABI change, `linkAny` string path, or proof that implements the
-feature. The owner asked for a **design gate on this phase** (modular
-String experiment before coding), separate from AGENTS.md's
-language-feature approval rule; S1–S4 wait on that decision.
+2026-11-24. **Design approved** (Sasha, [#4118](https://github.com/functionalscript/functionalscript/pull/4118)).
+S1: String module skeleton in
+[`fjs/ir/runtime/string`](../../../fjs/ir/runtime/string/module.f.js).
+S2: counting host and NaNVM L0 ABI **accept** short-string boxes; **emit**
+is per-variant (`alwaysDynRef` / `emitA` for A, `shortWhenEnabled` + v1
+tags / `emitB` for B/C). S3: `linkString` merges B IR `length`/`unit`
+(short path; long miss still imports). S4: remeasure (`shortOps`
+primary, `repeat` secondary; variant B) in [benchmark.md](./benchmark.md).
+**Decision gate:** NaNVM-targeted hosts default to B (`emitB`); counting
+stays A (`emitA`) as the dyn-ref control.
 
 This is the next runtime-in-IR phase after scalar Any
 ([runtime-in-ir.md](./runtime-in-ir.md); checkpoints through 4d-2 on
 `main` as [#4113](https://github.com/functionalscript/functionalscript/pull/4113),
-with 4e linking/remeasure assumed landing as #4114–#4116). It follows the
+with 4e linking/remeasure merged as #4114–#4116). It follows the
 [modular runtime](../wasm/modular-runtime.md) and
 [modular L0](../wasm/modular-l0.md) notes: several String implementations
 behind one module interface, swappable without rewriting callers.
@@ -28,7 +32,7 @@ hooks need no change when short strings appear
 What is still expensive is **reference-shaped** work. On the After
 linkAny table in [benchmark.md](./benchmark.md) (checkpoint 4e,
 [#4116](https://github.com/functionalscript/functionalscript/pull/4116)
-tip; assumed landing with #4114–#4115), `repeat` is about **950×**
+tip, merged with #4114–#4115), `repeat` is about **950×**
 JavaScript, and its L0 import profile is mostly `kind_ref` / `dup_ref` /
 `drop_ref` (plus container/string imports). The older third-run table on
 `main` before linkAny had `repeat` at 108× with `kind`/`dup`/`drop`
@@ -253,9 +257,12 @@ Goal: compare A/B/C **without rewriting callers**.
    - frame cost: locals per `str` for B (0) vs the **chosen** C layout;
    - optional: peak host string allocations; `repeat` wall clock as
      regression.
-5. **Decision gate.** After one remeasure PR, pick a default variant for
-   NaNVM-targeted builds; keep the others buildable behind the same
-   interface. Do not delete the losers until a later cleanup.
+5. **Decision gate.** **Closed:** NaNVM-targeted builds default to
+   variant B (`emitB` = `shortWhenEnabled` + v1 tags; linked
+   `length`/`unit`). Counting host and explicit callers keep A
+   (`emitA` / `alwaysDynRef`) as the control. C stays buildable behind
+   the same interface; do not delete it until a later cleanup. See
+   [benchmark.md §After short strings (S4)](./benchmark.md#after-short-strings-s4).
 
 ## Non-goals (first design / first coding stacks)
 
@@ -306,11 +313,11 @@ Stack with **git base** (child PR base = parent head). No GitHub
 | Slice | Ships (illustrative) |
 | --- | --- |
 | **S0** | This note + `fjs/ir/todo/short-strings.md` (design only). |
-| **S1** | String module skeleton in IR: interface + manifest hooks; short pack/unpack **helpers** unused by programs; proofs of bit round-trips; no link change. Prefer implementing behind the interface so a second variant can land as S1b without caller churn. |
-| **S2** | Host / counting-host / NaNVM ABI: accept short-string boxes; emission of shorts where a **concrete enabled tag** fits is a **per-variant policy** (off for A, on for B/C). Long path unchanged when no tag fits. |
-| **S3** | Link / L1 string ops use the short path (template or linked IR); long miss still imports; parity proofs vs L0. |
-| **S4** | Remeasure (short microbench primary, `repeat` secondary); update `benchmark.md`; record which variant / C layout was measured. |
-| **S5+** | Alternate variant (B↔C) behind the same interface; compare; optional `concat` inline policy from open Q4. |
+| **S1** | String module skeleton in IR: interface + manifest hooks; short pack/unpack **helpers** unused by programs; proofs of bit round-trips; no link change. Prefer implementing behind the interface so a second variant can land as S1b without caller churn. **Shipped** in [`fjs/ir/runtime/string`](../../../fjs/ir/runtime/string/module.f.js) (manifests A/B/C; v1 enabled tags empty/`s1x16`/`s2x16`; C-flag provisional). |
+| **S2** | Host / counting-host / NaNVM ABI: accept short-string boxes; emission of shorts where a **concrete enabled tag** fits is a **per-variant policy** (off for A, on for B/C). Long path unchanged when no tag fits. **Shipped**. |
+| **S3** | Link / L1 string ops use the short path (template or linked IR); long miss still imports; parity proofs vs L0. **Shipped** (`linkString` + B IR). |
+| **S4** | Remeasure (short microbench primary, `repeat` secondary); update `benchmark.md`; record which variant / C layout was measured. **Shipped** (variant B; C not measured). Decision gate: **B default** for NaNVM (`emitB`); A remains control (`emitA`). |
+| **S5+** | Alternate variant (B↔C) behind the same interface; compare; optional `concat` inline policy from open Q4; widen v1 tags if useful. |
 
 Short bigints and Heap stay **after** this experiment's measurement gate,
 as in the post-4e task list.

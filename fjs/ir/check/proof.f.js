@@ -5,12 +5,13 @@
 import { assert, assertEq, assertError, assertNotNullish, assertOk } from '../../asserts/module.f.js'
 import { any, builder, l0, ref, string } from '../l0/module.f.js'
 import {
-    add, and, block, bool, br, call, call_ref, canon, cast, code, codeOf, constant, countsBits, definedBy, div, eq, f64, f64c, field, float, fn, from_bits, get, i, if_, int,
+    add, and, block, bool, br, call, call_ref, canon, cast, code, codeOf, constant, countsBits, definedBy, div, eq, f64, f64c, field, float, fn, from_bits, get, hint, i, if_, int,
     let_, lit, loop, lt, make, match, mayFail, mul, n, neg, never, next, only, or, own, product, release, return_, seal, sealed, shl, shr, signature, sub,
     throw_, to_bits, trap, true_, trunc_sat, u, unit, unseal, variant, xor,
 } from '../module.f.js'
 import { show } from '../print/module.f.js'
 import { bits, constants, corners, counting, loops, records, referencing, samples, sealing, tagging, throws, unknown } from '../testlib.f.js'
+import { module as anyModule } from '../runtime/any/module.f.js'
 import { check, checkPlain, typeOf } from './module.f.js'
 
 /** A module of one function, `f`. @type {(params: readonly Param[], result: Type, body: Term) => Module} */
@@ -925,6 +926,23 @@ export const proof = {
         assertEq(pw({ ...referencing, imports: [['Alias', { abi: 'fjs:l0', types: [], constants: [['dup_ref', u(64)]], functions: [] }]] }), "the constant Alias.dup_ref and the function L0's Ref.dup_ref are both the import dup_ref of fjs:l0")
         // other functions of Ref, and its counting ones as the last term of each path, are the hooks' to call
         assertOk(checkPlain(with_([['dup', fn([['b', u(64)]], u(64), () => if_(r('same_ref', b, b), let_('k', r('kind_ref', b), () => if_(true_, r('dup_ref', b), b)), b))]])))
+    },
+    inline: () => {
+        /** A module of functions, `f` first, that exports `f`. @type {(fs: Module['functions']) => Module} */
+        const of = fs => ({ imports: [], functions: fs, exports: ['f'] })
+        const leaf = fn([['x', f64]], f64, x => add(x, one_))
+        /** A function of `x` that calls `g` of it. @type {(g: string) => ReturnType<typeof fn>} */
+        const calling = g => fn([['x', f64]], f64, x => call('self', g, [x]))
+        // a hint that the pass can keep: a chain of always, an exported one, never, and recursion through a function with no hint
+        assertOk(check(of([['f', hint('always', calling('g'))], ['g', hint('always', leaf)], ['h', hint('never', leaf)]])))
+        assertOk(check(of([['f', hint('always', calling('g'))], ['g', calling('f')]])))
+        // a hint that it cannot
+        assertEq(why(of([['f', /** @type {ReturnType<typeof fn>} */ ({ ...leaf, inline: /** @type {never} */ ('often') })]])), 'f: an inline hint is always or never, not often')
+        assertEq(why(of([['f', hint('always', calling('f'))]])), 'f is inline always and calls itself through functions inline always, so its copies would never end')
+        assertEq(why(of([['f', hint('always', calling('g'))], ['g', hint('always', calling('f'))]])), 'f is inline always and calls itself through functions inline always, so its copies would never end')
+        assertEq(why(of([['f', fn([], f64, () => call_ref(codeOf('g'), [one_]))], ['g', hint('always', leaf)]])), 'g is inline always and read as a value, which needs its code')
+        assertEq(why({ ...of([['f', leaf], ['g', hint('always', leaf)]]), constants: [['c', { type: code([['borrow', f64]], f64), value: codeOf('g') }]] }), 'g is inline always and read as a value, which needs its code')
+        assertEq(why({ ...anyModule, functions: anyModule.functions.map(([k, f]) => [k, k === 'drop' ? hint('always', f) : f]) }), 'drop is inline always and a hook of a type that the module defines, which the lifetime pass and the emitter call')
     },
     br: () => {
         assertEq(why(one([], f64, br('l', one_))), 'f: no label l')

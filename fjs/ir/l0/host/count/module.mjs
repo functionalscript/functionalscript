@@ -7,10 +7,18 @@
  * checkpoint 4e): a number, `undefined`, `null` or a boolean is its own
  * bits, and a reference packs a cell index in a dyn-ref box.
  *
- * - **A cell holds a counted value.** Strings, bigints, arrays, objects
- *   and functions live in cells. A handle in a dyn-ref box names a cell
- *   by its index. A handle that names no cell throws, and so does one
- *   whose cell a `drop` freed.
+ * - **A cell holds a counted value.** Long strings, bigints, arrays,
+ *   objects and functions live in cells. A handle in a dyn-ref box names
+ *   a cell by its index. A handle that names no cell throws, and so does
+ *   one whose cell a `drop` freed.
+ * - **Short strings are scalar boxes**
+ *   ([short-strings.md](../../../../../doc/sasha-gil/ir/short-strings.md)
+ *   S2): the host **accepts** every well-formed Sergey short-string tag
+ *   in `read` / `kind` / `dup` / `drop` (pass-through bits, like a
+ *   number). **Emission** is per String-manifest policy: this host
+ *   defaults to A (`emitA`, always dyn-ref) as the control; pass
+ *   `emitB` (`shortWhenEnabled` + v1 tags) to pack when a concrete tag
+ *   fits. NaNVM defaults to B after the S4 decision gate.
  * - **`dup` and `drop` count references.** On a dyn-ref they add or take
  *   one from its cell; on a scalar box they leave the bits alone. `Ref`'s
  *   `dup_ref` / `drop_ref` / `kind_ref` / `same_ref` do the same over
@@ -18,7 +26,7 @@
  * - **A copy value is not counted.** Any names `undefined`, `null`,
  *   `boolean` and `number` as its copy variants: `from_f64` and
  *   `from_bool` answer immediates, and a `dup` or a `drop` of one is a
- *   no-op.
+ *   no-op. A short-string box is the same for counting.
  * - **What a constant holds is kept.** Any's `undefined`, `null`, `true`
  *   and `false` are their NaN boxes, as immutable globals. `keep` keeps
  *   every cell alive at its count. `live` then tells what a call
@@ -88,54 +96,55 @@
  *
  * @module
  *
- * @import { Counting } from '../types.ts'
+ * @import { Counting, StringEmit } from '../types.ts'
  */
 
+import { emitA, emitB, enabledTagsOf, isShort, maxEnabledLen, packEnabled, unpack } from '../../../runtime/string/short.f.js'
 import { kind as valueKind } from '../../../../wasm/runtime/l0/module.f.js'
 import { view } from '../module.f.js'
+import { DYN_REF, FALSE, NAN, NULL, TRUE, UNDEFINED, isNumberBits, isRefBits } from '../../../runtime/box/module.f.js'
 
-/** The exponent's bits: a float whose exponent is not all ones is finite. */
-const EXP = 0x7FF0_0000_0000_0000n
-/** The bits that tell a non-finite number from the other scalars. */
-const TAG8 = 0x7FF0_0000_0000_00FFn
-/** The one NaN a number is boxed as. */
-const NAN = 0x7FF8_0000_0000_0000n
-/** The bits that tell a counted reference, and what they are for one. */
-const REF_TAG = 0xFFF0_0000_0000_0003n
-const DYN_REF = 0x7FF0_0000_0000_0002n
-
-/** The NaN box of `undefined`. */
-const UNDEFINED = 0x7FF0_0000_0000_0020n
-/** The NaN box of `null`. */
-const NULL = 0x7FF0_0000_0000_0030n
-/** The NaN box of `false`. */
-const FALSE = 0x7FF0_0000_0000_0010n
-/** The NaN box of `true`. */
-const TRUE = 0xFFF0_0000_0000_0010n
+export { emitA, emitB }
 
 /** An i64 as the WebAssembly JavaScript API passes one. @type {(b: bigint) => bigint} */
 const i64 = b => BigInt.asIntN(64, b)
 
-/** Whether bits are a number: finite, or non-finite with the number's tag. @type {(b: bigint) => boolean} */
-const isNumberBits = b => {
-    const x = BigInt.asUintN(64, b)
-    return (x & EXP) !== EXP || (x & TAG8) === EXP
-}
-
-/** Whether bits are a dynamic reference. @type {(b: bigint) => boolean} */
-const isRefBits = b => (BigInt.asUintN(64, b) & REF_TAG) === DYN_REF
 
 /**
- * Whether bits are a recognized scalar: a number, or one of Any's four
- * constant boxes. NaNVM's `dup` / `drop` only pass through inlines; anything
- * else goes through `get` / `take` and traps when unboxing fails.
+ * UTF-16 units of a JS string (surrogate pairs stay as two units).
+ *
+ * @type {(s: string) => readonly number[]}
+ */
+const unitsOf = s => Array.from({ length: s.length }, (_, i) => s.charCodeAt(i))
+
+/**
+ * Units of a well-formed short-string box, `'bad'` when the bits look
+ * short but match no Sergey tag, or `null` when they are not in the short
+ * family. A `'bad'` box must trap as not a value, never as a dyn-ref.
+ *
+ * @type {(b: bigint) => readonly number[] | 'bad' | null}
+ */
+const shortUnits = b => {
+    const x = BigInt.asUintN(64, b)
+    if (!isShort(x)) { return null }
+    const u = unpack(x)
+    return u[0] === 'ok' ? u[1] : 'bad'
+}
+
+/**
+ * Whether bits are a recognized scalar: a number, one of Any's four
+ * constant boxes, or a well-formed short string. NaNVM's `dup` / `drop`
+ * only pass through inlines; anything else goes through `get` / `take`
+ * and traps when unboxing fails.
  *
  * @type {(b: bigint) => boolean}
  */
 const isScalarBits = b => {
     if (isNumberBits(b)) { return true }
     const x = BigInt.asUintN(64, b)
-    return x === UNDEFINED || x === NULL || x === FALSE || x === TRUE
+    if (x === UNDEFINED || x === NULL || x === FALSE || x === TRUE) { return true }
+    const s = shortUnits(b)
+    return s !== null && s !== 'bad'
 }
 
 /** The cell index packed in a dyn-ref box. @type {(b: bigint) => bigint} */
@@ -165,11 +174,17 @@ const dataBase = 0x100
  * A counting host whose first boxes are those of `values`, each a scalar
  * immediate or a counted cell, and whose memory holds `data` bytes of a
  * module's data segments at `data_base`, and whose table holds `entries`
- * of its code at `table_base`.
+ * of its code at `table_base`. `stringEmit` selects whether allocating
+ * string imports may return a short box (B) or always a dyn-ref (A).
+ * Default stays {@link emitA} (control / proof host); NaNVM defaults to
+ * {@link emitB}. Pass {@link emitB} for short emit on this host too.
  *
- * @type {(values: readonly unknown[], data?: number, entries?: number) => Counting}
+ * @type {(values: readonly unknown[], data?: number, entries?: number, stringEmit?: StringEmit) => Counting}
  */
-export const counting = (values, data = 0, entries = 0) => {
+export const counting = (values, data = 0, entries = 0, stringEmit = emitA) => {
+    /** The short encodings this host may make, and the most units any of them holds. */
+    const enabledTags = enabledTagsOf(stringEmit)
+    const maxLen = maxEnabledLen(enabledTags)
     /** @type {Map<bigint, { readonly value: unknown, readonly count: number }>} */
     const cells = new Map()
     /** The count at which each kept cell was kept. @type {Map<bigint, number>} */
@@ -202,6 +217,10 @@ export const counting = (values, data = 0, entries = 0) => {
         if (value === true) { return i64(TRUE) }
         if (value === false) { return i64(FALSE) }
         if (typeof value === 'number') { return numberBox(value) }
+        if (typeof value === 'string' && value.length <= maxLen) {
+            const packed = packEnabled(unitsOf(value), enabledTags)
+            if (packed[0] === 'ok') { return i64(packed[1]) }
+        }
         const h = next
         next = h + 1n
         cells.set(h, { value, count: 1 })
@@ -215,6 +234,9 @@ export const counting = (values, data = 0, entries = 0) => {
         if (x === NULL) { return null }
         if (x === FALSE) { return false }
         if (x === TRUE) { return true }
+        const short = shortUnits(b)
+        if (short === 'bad') { throw 'fjs:l0 host: not a value' }
+        if (short !== null) { return String.fromCharCode(...short) }
         return cell(refHandle(b)).value
     }
     /** @type {(b: bigint) => bigint} */

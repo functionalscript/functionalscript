@@ -1,7 +1,7 @@
 ## Short strings in the IR
 
 **Priority:** P2
-**Status:** wip — design approved (Sasha, #4118); S1–S4 coding not started
+**Status:** wip — design approved (Sasha, #4118); S1–S4 done; decision gate closed (B default for NaNVM); S5+ open
 
 ### Problem
 
@@ -15,25 +15,26 @@ path without that interface would lock the experiment.
 
 ### Proposal
 
-Design only first: one String **runtime module interface**, several
-candidate implementations (host-backed baseline, NaN memory-saving, NaN
-CPU-saving), and an experiment plan that swaps variants without rewriting
-callers. Full note:
+One String **runtime module interface**, several candidate implementations
+(host-backed baseline, NaN memory-saving, NaN CPU-saving), and an experiment
+plan that swaps variants without rewriting callers. Full note:
 [`doc/sasha-gil/ir/short-strings.md`](../../../doc/sasha-gil/ir/short-strings.md).
-
-Do **not** start S1–S4 coding until the owner decides on that design
-(phase gate by request; not AGENTS.md language-feature approval).
+Design approved; S1 lands the skeleton under `fjs/ir/runtime/string`.
 
 ### Tasks
 
 - [x] Design note under `doc/sasha-gil/ir/` (interface, candidates, experiment, non-goals, open questions, later slices)
 - [x] Claim with this `todo/` and a docs-only PR
 - [x] Owner approval of the design (Sasha on [#4118](https://github.com/functionalscript/functionalscript/pull/4118); Sergey not required for this gate)
-- [ ] **S1** — String module skeleton + short pack/unpack helpers; unused by programs; no link change
-- [ ] **S2** — Host / NaNVM ABI accepts short boxes; emit policy is per-variant (off for A, on for B/C when a concrete enabled tag fits)
-- [ ] **S3** — Link / L1 string ops use the short path; parity vs L0
-- [ ] **S4** — Remeasure; update `benchmark.md`
-- [ ] Optional **S5+** — second variant behind the same interface; compare
+- [x] **S1** — String module skeleton + short pack/unpack helpers; unused by programs; no link change (`fjs/ir/runtime/string`)
+- [x] **S2** — Host / NaNVM ABI accepts short boxes; emit policy is per-variant (off for A, on for B/C when a concrete enabled tag fits)
+- [x] **S3** — Link / L1 string ops use the short path (`linkString` + B IR length/unit); parity vs L0
+- [x] **S4** — Remeasure (`shortOps` primary, `repeat` secondary; variant B); update `benchmark.md`
+- [x] **Decision gate** — NaNVM defaults to B (`emitB`); counting stays A (`emitA`) as control
+- [ ] Optional **S5+** — second variant behind the same interface; compare; optional wider tags
+- [x] **Records + length** — records pass no longer skips on `.length` binders;
+      `shortOps` under B ~120× JavaScript (was ~900×); see
+      [benchmark.md](../../../doc/sasha-gil/ir/benchmark.md#after-records--length-binders)
 
 ### Related
 

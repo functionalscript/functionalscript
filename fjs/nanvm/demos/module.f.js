@@ -175,12 +175,18 @@ export const markedPath = 'fjs/nanvm/demos/marked/module.f.js'
  */
 export const buildScriptPath = 'nanvm/demos/gen.build.sh'
 
+/** Where emit writes NaNVM L0 for the IR demo route. */
+export const irL0BuiltPath = `target/${wasmTarget}/release/nanvm_l0_wasm.wasm`
+
+/** Emits IR `.wasm` modules and copies NaNVM L0 into {@link buildDirectory}. */
+export const irEmitPath = 'fjs/nanvm/demos/ir/emit.mjs'
+
 /**
  * The script's text: the pinned Rust checked first, then the module built and
  * published with the WAT of each of `places`, then every sample's marked
- * Rust written beside them. Run in the shared shell, which
- * carries that Rust and the `wasm32` target: `./dev.sh sh
- * ./nanvm/demos/gen.build.sh`.
+ * Rust written beside them, then IR `.wasm` and NaNVM L0 for the direct-to-
+ * WASM demo route. Run in the shared shell, which carries that Rust and the
+ * `wasm32` target: `./dev.sh sh ./nanvm/demos/gen.build.sh`.
  *
  * @type {(places: readonly Place[]) => string}
  */
@@ -191,8 +197,10 @@ case "$(rustc --version)" in
 *) echo "nanvm/demos/wasm/ is built with Rust ${rust}, not $(rustc --version): run ./dev.sh sh ./${buildScriptPath}" >&2; exit 1 ;;
 esac
 cargo build -p nanvm-demos --release --target ${wasmTarget}
+cargo build -p nanvm-l0-wasm --release --target ${wasmTarget}
 node ./fjs/module.mjs run ./${publishPath} ${builtWasmPath} ${wasmPath} ${buildDirectory} ${places.map(placeName).join(' ')}
 node ./fjs/module.mjs run ./${markedPath}
+node ./${irEmitPath}
 `
 
 /**

@@ -5,7 +5,7 @@
 import { assert, assertEq } from '../asserts/module.f.js'
 import {
     abs, add, block, bool, br, call, call_ref, cast, code, codeOf, compareIn, constant, div, eq, equal, exact, f64, f64c, false_, field, fits, float, fn,
-    get, i, if_, inside, int, isCopy, isOwn, le, leaves, let_, lit, loop, lt, make, mayFail, match, mul, n, ne, neg, never, next, not, only, own, return_,
+    get, hint, i, if_, inside, int, isCopy, isOwn, le, leaves, let_, lit, loop, lt, make, mayFail, match, mul, n, ne, neg, never, next, not, only, own, return_,
     definedBy, interfacesOf, release, seal, sealed, signature, sqrt, sub, terms, throw_, trap, true_, trunc_sat, u, unit, unseal, variant,
 } from './module.f.js'
 
@@ -19,6 +19,12 @@ export const proof = {
         assert(equal(never, ['sum', []]))
         assert(equal(bool, ['sum', [['false', unit], ['true', unit]]]))
         assert(equal(code([['borrow', f64], ['own', unit]], f64), ['code', [['borrow', f64], ['own', unit]], f64]))
+    },
+    // A hint is one more part of the function, beside the parts that it keeps.
+    hint: () => {
+        const f = fn([['x', f64]], f64, x => x)
+        assertEq(hint('always', f).inline, 'always')
+        assert(equal(hint('never', f).body, f.body))
     },
     equal: () => {
         assert(equal([1, [2n, 'a']], [1, [2n, 'a']]))
