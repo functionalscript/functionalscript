@@ -2,7 +2,7 @@
 
 **Priority:** P2
 **Status:** wip — approved for implementation by @sergey-shandar in the
-[implementation request](https://chatgpt.com/c/6b09bd1d-d70c-83e8-ac35-915adb53201e).
+[implementation request](https://chatgpt.com/local/6b09bd1d-d70c-83e8-ac35-915adb53201e).
 
 ### Problem
 
