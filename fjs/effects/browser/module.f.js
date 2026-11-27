@@ -5,7 +5,7 @@
  * @module
  *
  * @import { Func } from '../types.ts'
- * @import { FetchText, Instantiate, JsHeapSize } from './types.ts'
+ * @import { FetchText, Instantiate, InstantiateIr, JsHeapSize } from './types.ts'
  */
 
 import { do_ } from '../module.f.js'
@@ -15,6 +15,9 @@ export const fetchText = do_('fetchText')
 
 /** @type {Func<Instantiate>} */
 export const instantiate = do_('instantiate')
+
+/** @type {Func<InstantiateIr>} */
+export const instantiateIr = do_('instantiateIr')
 
 /** @type {Func<JsHeapSize>} */
 export const jsHeapSize = do_('jsHeapSize')

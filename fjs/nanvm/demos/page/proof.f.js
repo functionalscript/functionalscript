@@ -5,7 +5,7 @@
  *
  * @import { Effect, IoChannel } from '../../../effects/types.ts'
  * @import { Sandbox } from '../../../effects/common/types.ts'
- * @import { FetchText, Instantiate, JsHeapSize, WasmInstance } from '../../../effects/browser/types.ts'
+ * @import { FetchText, Instantiate, InstantiateIr, IrInstance, JsHeapSize, WasmInstance } from '../../../effects/browser/types.ts'
  * @import { MemOperationMap } from '../../../effects/mock/types.ts'
  * @import { Element } from '../../../media/html/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
@@ -14,12 +14,12 @@
  */
 
 import { tagged } from '../../../text/marked/module.f.js'
-import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.js'
 import { ioError, notImplemented } from '../../../effects/module.f.js'
 import { run } from '../../../effects/mock/module.f.js'
 import { utf8 } from '../../../text/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
-import { buildDirectory, decode, heapChange, init, memoryRatio, signedBytes, jsOutput, load, milliseconds, placeName, ratio, runBoth, runJs, runWasm, rustMarkedPath, rustPath, samplePath, update, view, wasmDemo, wasmPath, watPath } from './module.f.js'
+import { buildDirectory, decode, heapChange, init, initWithIr, irL0Path, irModulePath, irPlace, irMemoryRatio, irRatio, loadWithIr, memoryRatio, modulesReady, signedBytes, jsOutput, load, milliseconds, notPrecise, placeName, ratio, rounded, roundedBytes, runBoth, runIr, runJs, runWasm, rustMarkedPath, rustPath, samplePath, update, view, wasmDemo, wasmPath, watPath } from './module.f.js'
 import { entry } from '../../../types/object/entry/module.f.js'
 import { toJson } from '../../../media/json/module.f.js'
 
@@ -68,14 +68,15 @@ const thrown = value => value === throws ? error('boom') : ok(value)
  * implement it, and `thrown` for a thunk that throws. `heap` is what the heap
  * reads, every time: `null` for a browser that does not report it.
  *
- * @type {(files: StringMap<string>, wasm: WasmInstance | null, sandbox?: 'ok' | 'notImplemented' | 'thrown', heap?: number | null | 'notImplemented') => MemOperationMap<FetchText | Instantiate | Sandbox | JsHeapSize, null>}
+ * @type {(files: StringMap<string>, wasm: WasmInstance | null, sandbox?: 'ok' | 'notImplemented' | 'thrown', heap?: number | null | 'notImplemented', ir?: IrInstance | null) => MemOperationMap<FetchText | Instantiate | InstantiateIr | Sandbox | JsHeapSize, null>}
  */
-const page = (files, wasm, sandbox = 'ok', heap = 1024) => ({
+const page = (files, wasm, sandbox = 'ok', heap = 1024, ir = null) => ({
     fetchText: path => s => {
         const text = entry(files, path)
         return [s, text === undefined ? error(ioError({ message: `${path}: HTTP 404` })) : ok(text)]
     },
     instantiate: path => s => [s, wasm === null ? error(ioError({ message: `${path}: HTTP 404` })) : ok(wasm)],
+    instantiateIr: (_l0, _program, _name) => s => [s, ir === null ? error(ioError({ message: 'IR: HTTP 404' })) : ok(ir)],
     sandbox: f => s => [s,
         sandbox === 'notImplemented' ? error(notImplemented('sandbox'))
         : sandbox === 'thrown' ? ok({ result: error('boom'), duration: 0 })
@@ -83,7 +84,7 @@ const page = (files, wasm, sandbox = 'ok', heap = 1024) => ({
     jsHeapSize: () => s => [s, heap === 'notImplemented' ? error(notImplemented('jsHeapSize')) : ok(heap)],
 })
 
-/** @type {<T>(map: MemOperationMap<FetchText | Instantiate | Sandbox | JsHeapSize, null>) => (effect: Effect<FetchText | Instantiate | Sandbox | JsHeapSize, T, never>) => T} */
+/** @type {<T>(map: MemOperationMap<FetchText | Instantiate | InstantiateIr | Sandbox | JsHeapSize, null>) => (effect: Effect<FetchText | Instantiate | InstantiateIr | Sandbox | JsHeapSize, T, never>) => T} */
 const perform = map => effect => {
     const [, result] = run(map)(null)(effect)
     assert(result[0] === 'ok')
@@ -106,6 +107,10 @@ export const proof = {
         assertEq(rustMarkedPath('hello'), 'nanvm/demos/wasm/hello.rs.marked')
         assertEq(wasmPath, `${buildDirectory}/nanvm_demos.wasm`)
         assertEq(watPath('hello'), `${buildDirectory}/hello.wat.marked`)
+        assertEq(irL0Path, `${buildDirectory}/nanvm_l0_wasm.wasm`)
+        assertEq(irModulePath('collatz'), `${buildDirectory}/collatz.ir.wasm`)
+        assertStructurallySame(irPlace('sort'), { l0Path: irL0Path, modulePath: irModulePath('sort'), exportName: 'run' })
+        assertEq(init.ir, null)
     },
     load: () => {
         assertStructurallySame(ready.source, ok('export default 1'))
@@ -113,11 +118,17 @@ export const proof = {
         // The disassembly's words with their kinds, read back from its tags.
         assertStructurallySame(ready.wat, ok([['('], ['module', 'keyword'], [')']]))
         assertEq(ready.wasm[0], 'ok')
+        assertEq(ready.ir, null)
         assertEq(ready.runs, null)
         // A file that does not arrive is the reason it is not shown.
         const missing = perform(page({}, null))(load(hi.place))
         assertStructurallySame(missing.source, error(`/fjs/nanvm/demos/hi/sample.f.js: HTTP 404`))
         assertStructurallySame(missing.wasm, error(`/${wasmPath}: HTTP 404`))
+        // An IR route loads L0 and the program module.
+        /** @type {IrInstance} */
+        const ir = { invoke: () => ({ value: 'hi\n', memory: 0x1_0000, growth: 0, time: 1 }), startup: 3 }
+        const withIr = perform(page(files, instance([0x68, 0x69]), 'ok', 1024, ir))(loadWithIr(hi.place, irPlace('hi')))
+        assertEq(withIr.ir?.[0], 'ok')
     },
     decode: () => {
         assertStructurallySame(decode([0x68, 0x69]), ok('hi'))
@@ -171,6 +182,30 @@ export const proof = {
         assertStructurallySame(loading.runs?.wasm, error('the module has not loaded yet'))
         const failed = perform(page({}, null))(runBoth(hi)({ ...init, wasm: error('gone') }))
         assertStructurallySame(failed.runs?.wasm, error('gone'))
+        // IR still loading, or refused: Run still times JavaScript and Rust→WASM.
+        /** @type {IrInstance} */
+        const irInst = { invoke: () => ({ value: 'hi', memory: 0x1_0000, growth: 0, time: 1 }), startup: 3 }
+        const irLoading = perform(page({}, null))(runBoth({ ...hi, ir: irPlace('hi') })({ ...ready, ir: ['loading'] }))
+        assertStructurallySame(irLoading.runs?.ir, error('the IR module has not loaded yet'))
+        const irFailed = perform(page({}, null))(runBoth({ ...hi, ir: irPlace('hi') })({ ...ready, ir: error('gone') }))
+        assertStructurallySame(irFailed.runs?.ir, error('gone'))
+        const irOk = perform(page({}, null, 'ok', 1024, irInst))(runBoth({ ...hi, ir: irPlace('hi') })({ ...ready, ir: ok(irInst) }))
+        assertEq(irOk.runs?.ir?.[0], 'ok')
+    },
+    runIr: () => {
+        /** @type {IrInstance} */
+        const irInst = { invoke: () => ({ value: 'hi', memory: 0x1_0000, growth: 0, time: 1 }), startup: 3 }
+        assertStructurallySame(
+            perform(page({}, null, 'ok', 1024, irInst))(runIr(irInst)),
+            ok({ run: { output: ok('hi'), time: 1 }, memory: 0x1_0000, growth: 0 }))
+        // A non-string export is refused, not stringified.
+        const notString = { invoke: () => ({ value: 1, memory: 0, growth: 0, time: 1 }), startup: 0 }
+        assertStructurallySame(
+            perform(page({}, null))(runIr(notString)),
+            ok({ run: { output: error('the IR export answered number, not a string'), time: 1 }, memory: 0, growth: 0 }))
+        // Sandbox refusal and a throw inside invoke.
+        assertStructurallySame(perform(page({}, null, 'notImplemented'))(runIr(irInst)), error('operation not implemented: sandbox'))
+        assertStructurallySame(perform(page({}, null, 'thrown'))(runIr(irInst)), error('it threw: boom'))
     },
     milliseconds: () => assertEq(milliseconds(1.54), '1.5 ms'),
     ratio: () => {
@@ -203,6 +238,43 @@ export const proof = {
         // A JavaScript run that failed leaves no reading, in any browser.
         assertEq(memoryRatio({ ...grown, js: error('no js') }), null)
         assertEq(memoryRatio({ ...grown, wasm: ok({ run: { output: ok('other'), time: 1 }, memory: 0, growth: 5000 }) }), 'Not available')
+        // Rounded readings say so only where the comparison would otherwise stand.
+        const roundedHeap = { before: 15_200_000, after: 15_300_000 }
+        assertEq(memoryRatio(runs(roundedHeap, 5000)), notPrecise)
+        assertEq(memoryRatio(runs(roundedHeap, 0)), 'Not available')
+        assertEq(memoryRatio({ ...runs(roundedHeap, 5000), wasm: error('no wasm') }), 'Not available')
+        assertEq(memoryRatio({ ...runs(roundedHeap, 5000), wasm: ok({ run: { output: ok('other'), time: 1 }, memory: 0, growth: 5000 }) }), 'Not available')
+    },
+    irMemoryRatio: () => {
+        /** @type {(heap: JsHeap | null, growth: number) => Runs} */
+        const runs = (heap, growth) => ({
+            js: ok({ output: ok(''), time: 1, heap }),
+            wasm: ok({ run: { output: ok(''), time: 1 }, memory: 0, growth: 0 }),
+            ir: ok({ run: { output: ok(''), time: 1 }, memory: 0x2_0000, growth }),
+        })
+        assertEq(irMemoryRatio(runs({ before: 1000, after: 3000 }, 5000)), '2.5×')
+        assertEq(irMemoryRatio(runs({ before: 1000, after: 3000 }, 0)), 'Not available')
+        assertEq(irMemoryRatio(runs(null, 5000)), null)
+        // No IR route: no line.
+        assertEq(irMemoryRatio({ js: ok({ output: ok(''), time: 1, heap: { before: 1000, after: 3000 } }), wasm: ok({ run: { output: ok(''), time: 1 }, memory: 0, growth: 0 }) }), null)
+        const grown = runs({ before: 1000, after: 3000 }, 5000)
+        assertEq(irMemoryRatio({ ...grown, ir: error('no ir') }), 'Not available')
+        assertEq(irMemoryRatio({ ...grown, js: error('no js') }), null)
+        assertEq(irMemoryRatio({ ...grown, ir: ok({ run: { output: ok('other'), time: 1 }, memory: 0, growth: 5000 }) }), 'Not available')
+    },
+    roundedBytes: () => {
+        // Three significant digits from Chromium's least bucket up, as Chromium reports by default.
+        assert(roundedBytes(10_000_000))
+        assert(roundedBytes(15_200_000))
+        assert(roundedBytes(2_340_000_000))
+        // A precise reading, and a small one, which Chromium never rounds to.
+        assert(!roundedBytes(15_200_001))
+        assert(!roundedBytes(4_132_778))
+        assert(!roundedBytes(3000))
+        assert(rounded({ before: 15_200_000, after: 15_300_000 }))
+        // One precise reading is enough to show the change.
+        assert(!rounded({ before: 15_200_000, after: 15_200_123 }))
+        assert(!rounded({ before: 4_132_778, after: 44_100_946 }))
     },
     signedBytes: () => {
         assertEq(signedBytes(65536), '+65536 bytes')
@@ -210,28 +282,40 @@ export const proof = {
         assertEq(signedBytes(0), '+0 bytes')
     },
     view: () => {
-        // Before loading: no startup and no runs.
+        // Before loading: no startup and no runs; Run stays disabled with a note.
         const first = text(view('hi')(init))
         assert(first.includes('Loading…'))
+        assert(first.includes('Waiting for modules to finish loading…'))
+        assert(!modulesReady(init))
+        assert(modulesReady(ready))
+        // A refused module still enables Run so JavaScript can run.
+        assert(modulesReady({ ...ready, wasm: error('gone') }))
+        assert(modulesReady({ ...ready, ir: error('no ir') }))
         assert(!first.includes('startup'))
         assert(!first.includes('"JavaScript"'))
         // Loaded, run, and an empty output said in words.
         const both = perform(page({}, null))(runBoth(hi)(ready))
         const shown = text(view('hi')(both))
-        assert(shown.includes('WebAssembly startup (fetch, compile and instantiate): 2.0 ms'))
+        assert(shown.includes('Rust→WASM startup (fetch, compile and instantiate): 2.0 ms'))
         assert(shown.includes('Running time: 1.0 ms'))
         assert(shown.includes('Linear memory of the module so far: 65536 bytes'))
         assert(shown.includes('Linear memory added by the run: +0 bytes'))
         // The heap did not grow in this mock, so there is no comparison.
-        assert(shown.includes('Memory the WebAssembly run added, as a multiple of the JavaScript heap’s growth (Chromium): Not available'))
+        assert(shown.includes('Memory the Rust→WASM run added, as a multiple of the JavaScript heap’s growth (Chromium): Not available'))
         assert(shown.includes('Change in the whole page’s JavaScript heap across the run (Chromium): +0 bytes, 1024 → 1024'))
         // No heap line where the browser does not report it.
         const noHeap = text(view('hi')(perform(page({}, null, 'ok', null))(runBoth(hi)(ready))))
         assert(!noHeap.includes('JavaScript heap'))
-        assert(!noHeap.includes('Memory the WebAssembly run added'))
+        assert(!noHeap.includes('Memory the Rust→WASM run added'))
         assert(!noHeap.includes('Not available') && !noHeap.includes('Memory: '))
         assertEq(heapChange({ before: 1024, after: 512 }), '-512 bytes, 1024 → 512')
-        assert(shown.includes('WebAssembly running time, as a multiple of the JavaScript one: 1.0×'))
+        // Chromium's rounded readings: the heap line says so, with no figure. The linear memory
+        // did not grow in this mock, so the comparison is not available whatever the readings.
+        const roundedShown = text(view('hi')(perform(page({}, null, 'ok', 15_200_000))(runBoth(hi)(ready))))
+        assert(roundedShown.includes(`Change in the whole page’s JavaScript heap across the run (Chromium): ${notPrecise}`))
+        assert(roundedShown.includes('Memory the Rust→WASM run added, as a multiple of the JavaScript heap’s growth (Chromium): Not available'))
+        assert(!roundedShown.includes('15200000'))
+        assert(shown.includes('Rust→WASM running time, as a multiple of the JavaScript one: 1.0×'))
         assert(shown.includes('pub fn module() {}'))
         // The Rust is coloured, and its copy is the plain text.
         assert(shown.includes('["span",{"data-token":"keyword"},"pub"]'))
@@ -243,6 +327,22 @@ export const proof = {
         assert(refused.includes('lost'))
         assert(refused.includes('no js'))
         assert(refused.includes('no wasm'))
+        // Three-route copy when the page has an IR module.
+        /** @type {IrInstance} */
+        const irInst = { invoke: () => ({ value: 'hi', memory: 0x1_0000, growth: 0x1_0000, time: 1 }), startup: 3 }
+        const irReady = { ...ready, ir: ok(irInst) }
+        const three = text(view('hi')(perform(page(files, instance([0x68, 0x69]), 'ok', 1024, irInst))(runBoth({ ...hi, ir: irPlace('hi') })(irReady))))
+        assert(three.includes('IR→WASM startup (fetch and compile L0 + program): 3.0 ms'))
+        assert(three.includes('WebAssembly (IR → NaNVM, linkAny and linkString)'))
+        assert(three.includes('Linear memory of the module so far: 65536 bytes'))
+        assert(three.includes('Linear memory added by the run: +65536 bytes'))
+        assert(three.includes('IR→WASM running time, as a multiple of the JavaScript one'))
+        assert(three.includes('Memory the IR→WASM run added, as a multiple of the JavaScript heap’s growth (Chromium): Not available'))
+        assertEq(irRatio({ js: ok({ output: ok('hi'), time: 2, heap: null }), wasm: ok({ run: { output: ok('hi'), time: 4 }, memory: 0, growth: 0 }), ir: ok({ run: { output: ok('hi'), time: 6 }, memory: 0, growth: 0 }) }), '3.0×')
+        assertEq(irRatio({ js: ok({ output: ok('hi'), time: 2, heap: null }), wasm: ok({ run: { output: ok('hi'), time: 4 }, memory: 0, growth: 0 }) }), null)
+        assertStructurallySame(
+            perform(page({}, null, 'ok', 1024, irInst))(runIr(irInst)),
+            ok({ run: { output: ok('hi'), time: 1 }, memory: 0x1_0000, growth: 0x1_0000 }))
     },
     update: () => {
         const map = page(files, instance([0x68, 0x69]))
@@ -251,10 +351,22 @@ export const proof = {
         assert(perform(map)(update(hi)(loaded)({ kind: 'click', name: 'run' })).runs !== null)
         assertEq(perform(map)(update(hi)(loaded)({ kind: 'click', name: 'other' })), loaded)
         assertEq(perform(map)(update(hi)(loaded)({ kind: 'input', name: 'x', value: '' })), loaded)
+        // An IR sample's start loads L0 and the program module.
+        /** @type {IrInstance} */
+        const irInst = { invoke: () => ({ value: 'hi', memory: 0x1_0000, growth: 0, time: 1 }), startup: 3 }
+        const irMap = page(files, instance([0x68, 0x69]), 'ok', 1024, irInst)
+        const withIr = perform(irMap)(update({ ...hi, ir: irPlace('hi') })(initWithIr)({ kind: 'start' }))
+        assertEq(withIr.ir?.[0], 'ok')
     },
     wasmDemo: () => {
         const demo = wasmDemo(hi)
         assertEq(demo.init, init)
         assert(text(demo.view(init)).includes('Run'))
+        assert(text(demo.view(init)).includes('two ways'))
+        assertEq(assertNotNullish(demo.wait)(init), 'timing JavaScript and Rust→WASM…')
+        const withIr = wasmDemo({ ...hi, ir: irPlace('hi') })
+        assertEq(withIr.init.ir?.[0], 'loading')
+        assert(text(withIr.view(withIr.init)).includes('three ways'))
+        assertEq(assertNotNullish(withIr.wait)(withIr.init), 'timing JavaScript, Rust→WASM, and IR…')
     },
 }

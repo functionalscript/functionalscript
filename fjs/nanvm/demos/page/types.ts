@@ -5,7 +5,7 @@
  */
 
 import type { Write } from '../../../effects/common/types.ts'
-import type { WasmInstance } from '../../../effects/browser/types.ts'
+import type { IrInstance, WasmInstance } from '../../../effects/browser/types.ts'
 import type { Effect } from '../../../effects/types.ts'
 import type { Result } from '../../../types/result/types.ts'
 import type { Marked } from '../../../text/marked/types.ts'
@@ -35,10 +35,23 @@ export type FunctionPlace = Place & {
     readonly calls: readonly ListedCall[]
 }
 
+/**
+ * Where an IR / direct-to-WASM program lives on the site: NaNVM L0, the
+ * emitted module, and the export the page calls. Absent on pages that keep
+ * only the JavaScript and Rust→WASM routes.
+ */
+export type IrPlace = {
+    readonly l0Path: string
+    readonly modulePath: string
+    readonly exportName: string
+}
+
 /** A sample: where it is, and the program itself, as the JavaScript run performs it. */
 export type Sample = {
     readonly place: Place
     readonly program: () => Effect<Write, unknown, unknown>
+    /** When set, the page also loads and times the IR / direct-to-WASM route. */
+    readonly ir?: IrPlace
 }
 
 /** A file the page loads: not yet, what it holds, or why there is nothing. */
@@ -79,10 +92,18 @@ export type WasmRun = {
     readonly growth: number
 }
 
-/** Both runs of one press of Run, or why one could not happen. */
+/**
+ * The IR / direct-to-WASM run: same shape as {@link WasmRun} — output and
+ * time, plus NaNVM L0 linear memory after the call and growth across it.
+ */
+export type IrRun = WasmRun
+
+/** The runs of one press of Run, or why one could not happen. */
 export type Runs = {
     readonly js: Result<JsRun, string>
     readonly wasm: Result<WasmRun, string>
+    /** Absent when the page has no IR route. */
+    readonly ir?: Result<IrRun, string>
 }
 
 export type State = {
@@ -90,5 +111,10 @@ export type State = {
     readonly rust: Loaded<Marked>
     readonly wat: Loaded<Marked>
     readonly wasm: Loaded<WasmInstance>
+    /**
+     * The IR module when this page has an IR route: loading, ready, or why
+     * not. `null` on pages that keep only JavaScript and Rust→WASM.
+     */
+    readonly ir: Loaded<IrInstance> | null
     readonly runs: Runs | null
 }

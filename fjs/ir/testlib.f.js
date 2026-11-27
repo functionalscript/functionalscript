@@ -19,6 +19,7 @@
  */
 
 import { any, builder, container, kinds, l0, ref } from './l0/module.f.js'
+import { isRefTerm } from './runtime/box/module.f.js'
 import {
     abs, add, and, block, bool, br, call, cast, constant, div, eq, exact, f64, f64c, false_, field, float, fn, from_bits, get, i,
     if_, int, le, let_, lit, loop, lt, make, match, mul, n, ne, neg, never, next, not, only, or, own, product, return_, shl, shr,
@@ -150,7 +151,7 @@ export const sealing = {
     defines: { name: 'Any', types: [['any', { variants: kinds, carrier: 'i64' }]] },
     functions: [
         ['carrierOf', fn([['v', only(any, 'undefined', 'null', 'boolean', 'number')]], u(64), v => unseal(v))],
-        ['isReference', fn([['v', any]], bool, v => eq(and(unseal(v), n(0xFFF0_0000_0000_0003n)), n(0x7FF0_0000_0000_0002n)))],
+        ['isReference', fn([['v', any]], bool, v => isRefTerm(unseal(v)))],
         ['boxOf', fn([['x', f64c]], only(any, 'number'), x => sealOf(only(any, 'number'), to_bits(x)))],
     ],
     exports: ['carrierOf', 'isReference', 'boxOf'],
@@ -204,8 +205,6 @@ export const counting = {
 /** A value of `referencing`, which its module defines and counts. */
 const refOf = sealed('R', 'ref')
 
-/** Whether bits are a NaN box of a reference, as Sergey's README lays one out. @type {(b: Term) => Term} */
-const isRefBits = b => eq(and(b, n(0xFFF0_0000_0000_0003n)), n(0x7FF0_0000_0000_0002n))
 
 /**
  * A module that defines a counted `R.ref` over NaNVM's NaN boxes, whose
@@ -223,8 +222,8 @@ export const referencing = {
     imports: [ref],
     defines: { name: 'R', types: [['ref', { variants: ['value'], carrier: 'i64', dup: 'dup', drop: 'drop' }]] },
     functions: [
-        ['dup', fn([['b', u(64)]], u(64), b => if_(isRefBits(b), call('Ref', 'dup_ref', [b]), b))],
-        ['drop', fn([['b', u(64)]], unit, b => if_(isRefBits(b), call('Ref', 'drop_ref', [b]), make([])))],
+        ['dup', fn([['b', u(64)]], u(64), b => if_(isRefTerm(b), call('Ref', 'dup_ref', [b]), b))],
+        ['drop', fn([['b', u(64)]], unit, b => if_(isRefTerm(b), call('Ref', 'drop_ref', [b]), make([])))],
         ['keep', fn([['v', refOf]], refOf, v => v)],
         ['take', fn([own('v', refOf)], refOf, v => v)],
         ['forget', fn([own('v', refOf)], u(8), () => n(1n))],

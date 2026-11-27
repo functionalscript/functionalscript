@@ -49,6 +49,9 @@ import { counting } from '../l0/host/count/module.mjs'
 import { fits, isOwn } from '../module.f.js'
 import { host as nativeHost } from '../native/host/module.mjs'
 import { emit } from './module.f.js'
+import { layoutOf } from './layout.mjs'
+
+export { layoutOf }
 
 /**
  * The host that `run` makes for each call: the counting host, unless
@@ -351,37 +354,6 @@ const agrees = given => (got, expected) => got[0] === 'trapped'
     ? expected[0] === 'trapped' && (typeof got[1] !== 'string' || got[1] === expected[1])
     : expected[0] !== 'trapped' && got[0] === expected[0]
         && (got[0] === 'threw' && expected[0] === 'threw' ? throwsAs(given)(got[1], expected[1]) : same(given)(got[1], expected[1]))
-
-/** The unsigned LEB128 numbers that `bytes` hold, one after another. @type {(bytes: Uint8Array) => readonly number[]} */
-const ulebs = bytes => {
-    /** @type {number[]} */
-    const out = []
-    let n = 0
-    let unit = 1
-    for (const b of bytes) {
-        n += (b % 0x80) * unit
-        if (b < 0x80) {
-            out.push(n)
-            n = 0
-            unit = 1
-        } else {
-            unit *= 0x80
-        }
-    }
-    return out
-}
-
-/**
- * What a module's `fjs.layout` asks for: the bytes of its data segments
- * and the entries of its table, `0` each where it has none.
- *
- * @type {(m: WebAssembly.Module) => { readonly data: number, readonly entries: number }}
- */
-export const layoutOf = m => {
-    const [section] = WebAssembly.Module.customSections(m, 'fjs.layout')
-    const [data = 0, , entries = 0] = section === undefined ? [] : ulebs(new Uint8Array(section))
-    return { data, entries }
-}
 
 /**
  * Checks and emits a module, compiles it on the host's engine, and calls
