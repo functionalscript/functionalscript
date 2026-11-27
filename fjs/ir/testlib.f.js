@@ -7,8 +7,10 @@
  * kind, as the third slice reads them, `loops`, the fourth slice's,
  * `records`, the fifth's, `constants`, `literals` and `arrays`, the
  * sixth's, and `throws`, the seventh's, which is in the plain stage, for
- * the lifetime pass, and `bits`, the bit operators and a float's bits that
- * a runtime written in the IR reads a NaN box with.
+ * the lifetime pass, `bits`, the bit operators and a float's bits that
+ * a runtime written in the IR reads a NaN box with, and `addressing`, the
+ * loads, the stores, `size` and `grow` of L0's `Memory`, which the heap of
+ * such a runtime keeps its blocks with.
  * The [host proof](./wasm/proof.mjs) runs them all against JavaScript
  * twins.
  *
@@ -18,7 +20,7 @@
  * @import { Module, Term, Type } from './types.ts'
  */
 
-import { any, builder, container, kinds, l0, ref } from './l0/module.f.js'
+import { any, builder, container, kinds, l0, memory, ref } from './l0/module.f.js'
 import { isRefTerm } from './runtime/box/module.f.js'
 import {
     abs, add, and, block, bool, br, call, cast, constant, div, eq, exact, f64, f64c, false_, field, float, fn, from_bits, get, i,
@@ -133,6 +135,40 @@ export const bits = {
         ['negBits', fn([['x', f64]], u(64), x => to_bits(canon(neg(x))))],
     ],
     exports: ['mask', 'either', 'flip', 'reference', 'shifted', 'drained', 'nibble', 'bitsOf', 'ofBits', 'signOf', 'negBits'],
+}
+
+/** L0's `Memory`'s function `name` of `args`, which the emitter writes as an instruction. @type {(name: string, args: readonly Term[]) => Term} */
+const memoryOf = (name, args) => call('Memory', name, args)
+
+/** A store of `n` bits of `v` at `a`, then a load of `m` bits there, which reads the store. @type {(n: number, m: number) => (a: Term, v: Term) => Term} */
+const storeThenLoad = (n, m) => (a, v) => let_('stored', memoryOf(`store${n}`, [a, v]), () => memoryOf(`load${m}`, [a]))
+
+/** A size of the memory in pages of 64 KiB, as `Memory` answers one. */
+const pages = int(0n, 0x1_0000n)
+
+/**
+ * L0's `Memory`, alone: a store of each width and a load of the same width
+ * at the same address, which answers what was stored, a load of 16 bits of
+ * 64 that were stored, which answers their low 16 bits, since the low byte
+ * comes first, the memory's size in pages, and a `grow`, which answers the
+ * size before or `-1`, and the size after one. Each store answers `unit`,
+ * which a `let` binds and nothing reads, and stays before its load.
+ *
+ * @type {Module}
+ */
+export const addressing = {
+    imports: [memory],
+    functions: [
+        ['stored8', fn([['a', u(32)], ['v', u(8)]], u(8), storeThenLoad(8, 8))],
+        ['stored16', fn([['a', u(32)], ['v', u(16)]], u(16), storeThenLoad(16, 16))],
+        ['stored32', fn([['a', u(32)], ['v', u(32)]], u(32), storeThenLoad(32, 32))],
+        ['stored64', fn([['a', u(32)], ['v', u(64)]], u(64), storeThenLoad(64, 64))],
+        ['lowFirst', fn([['a', u(32)], ['v', u(64)]], u(16), storeThenLoad(64, 16))],
+        ['pages', fn([], pages, memoryOf('size', []))],
+        ['grown', fn([['k', pages]], int(-1n, 0x1_0000n), k => memoryOf('grow', [k]))],
+        ['after', fn([['k', pages]], pages, k => let_('before', memoryOf('grow', [k]), () => memoryOf('size', [])))],
+    ],
+    exports: ['stored8', 'stored16', 'stored32', 'stored64', 'lowFirst', 'pages', 'grown', 'after'],
 }
 
 /**

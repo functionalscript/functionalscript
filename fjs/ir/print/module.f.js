@@ -19,6 +19,9 @@
  *     fn length(s: any.only(string)) -> u(31)
  * ```
  *
+ * An interface that the target binds with instructions of its own, as L0's
+ * `Memory`, says so after its ABI: `import Memory from fjs:l0, instructions`.
+ *
  * The module's constants come next, each as its type and the term that
  * `init` evaluates, and a term reads a constant as its module and its name,
  * `self.k` or `Any.undefined`.
@@ -304,9 +307,9 @@ const showTypes = types => types.flatMap(([type, { variants, kind, carrier, dup,
     `        ${kind === undefined ? '' : `kind: ${kind}, `}carrier: ${carrier}${dup === undefined ? '' : `, dup: ${dup}`}${drop === undefined ? '' : `, drop: ${drop}`}${copy === undefined ? '' : `, copy: ${copy.join(' | ')}`}${literal === undefined ? '' : `, literal: ${literal.variant} by ${literal.module}.${literal.member}`}`,
 ])
 
-/** An interface as its binding, its sealed types, its constants and its functions' signatures. @type {(name: string, i: Interface) => readonly string[]} */
-const showInterface = (name, { abi, types, constants = [], functions }) => [
-    `import ${name} from ${abi}`,
+/** An interface as its binding, whether the target binds it, its sealed types, its constants and its functions' signatures. @type {(name: string, i: Interface) => readonly string[]} */
+const showInterface = (name, { abi, instructions, types, constants = [], functions }) => [
+    `import ${name} from ${abi}${instructions === true ? ', instructions' : ''}`,
     ...showTypes(types),
     ...constants.map(([k, t]) => `    const ${k}: ${show(t)}`),
     ...functions.map(([k, s]) => `    ${showSignature(k, s)}`),

@@ -39,21 +39,30 @@
  *   `f` in the module's one `funcref` table, filled by an active element
  *   segment of the functions that any `code` term names. `call_ref` is
  *   `call_indirect` of that table, with the code value as the index. Where
- *   the module imports an interface, the loader makes the table, and the
- *   module imports it as `table`, with `table_base`, the index of its first
- *   entry, from the first interface's `abi`
+ *   the module imports an interface that a host binds, the loader makes
+ *   the table, and the module imports it as `table`, with `table_base`, the
+ *   index of its first entry, from the first such interface's `abi`
  *   ([L0 design §5](../../../doc/sasha-gil/wasm/l0-design.md#5-memory-and-table-made-by-the-loader-imported-by-both-modules)):
  *   the segment starts there, `code(f)` adds it to `f`'s place, and
  *   `fjs.layout` says how many entries the module needs. A host's
  *   `make_function` then calls the code at its index in the table it made
  *   ([slice 11b](../todo/slices.md#decisions-for-slice-11-2026-11-20)).
- *   A module that imports no interface hands no code to a host, so it
- *   keeps a table of its own.
+ *   A module that imports no such interface, L0's `Memory` alone or
+ *   nothing, hands no code to a host, so it keeps a table of its own.
  * - **A function that gives back a parameter is an import that answers
  *   nothing** ([definition.md's binding rule 3](../../../doc/sasha-gil/ir/definition.md#bindings)):
  *   the call keeps the parameter's value in a local named for the
  *   parameter, with a `local.tee` as it passes it, and reads it again after
  *   the call, as Containers' `push` gives back its builder.
+ * - **A function of L0's `Memory` is an instruction**, which the emitter
+ *   writes in place of a call: `load8` to `load64` and `store8` to
+ *   `store64` are the loads and stores of their widths, at natural
+ *   alignment, and `size` and `grow` are `memory.size` and `memory.grow`.
+ *   An interface that says `instructions` imports no function and no
+ *   constant, and a module that imports one imports the memory that the
+ *   loader makes, from the interface's `abi`, which is the one that its
+ *   literals' segment is in where it has string literals
+ *   ([heap.md](../../../doc/sasha-gil/ir/heap.md#memory-in-the-ir)).
  * - **A `match` of a `bool` is an `if`**, a `block` is a `block`, and a `br`
  *   is a `br`, or a `return` to the label `return`. Where a `match`, a
  *   `block`, a `loop` or a `call` is `never`, an `unreachable` follows it,
@@ -106,7 +115,7 @@
  * @import { BlockType, Bytes, Custom, Export, Expr, FuncType, Import, IndirectNameMap, Instruction, Locals, Module as WasmModule, NameMap, ValType } from '../../media/wasm/types.ts'
  * @import { Checked, Code, ConstantOf, Int, Interface, OpName, Sealed, SealedDef, Signature, Type, Typed, TypedArm } from '../types.ts'
  * @import { OrderedMap } from '../../types/ordered_map/types.ts'
- * @import { _Callee, _Code, _EmitTerm, _Env, _Target, _ValueOf } from './private.ts'
+ * @import { _Bound, _Callee, _Code, _EmitTerm, _Env, _Target, _ValueOf } from './private.ts'
  */
 
 import { assert, assertNotNullish } from '../../asserts/module.f.js'
@@ -246,6 +255,30 @@ const float = name => {
 const convert = t => width(t) === 32
     ? (signed(t) ? ['f64.convert_i32_s'] : ['f64.convert_i32_u'])
     : signed(t) ? ['f64.convert_i64_s'] : ['f64.convert_i64_u']
+
+// memory
+
+/**
+ * The instruction that the target binds each function of L0's `Memory`
+ * with, which the emitter writes in place of a call: a load or a store of
+ * the function's width at its natural alignment and no offset, a load of 8
+ * or 16 bits extended with zeros, and the one memory's `memory.size` and
+ * `memory.grow`.
+ *
+ * @type {OrderedMap<Instruction>}
+ */
+const memoryInstructions = fromEntries([
+    ['load8', ['i32.load8_u', { align: 0, offset: 0 }]],
+    ['load16', ['i32.load16_u', { align: 1, offset: 0 }]],
+    ['load32', ['i32.load', { align: 2, offset: 0 }]],
+    ['load64', ['i64.load', { align: 3, offset: 0 }]],
+    ['store8', ['i32.store8', { align: 0, offset: 0 }]],
+    ['store16', ['i32.store16', { align: 1, offset: 0 }]],
+    ['store32', ['i32.store', { align: 2, offset: 0 }]],
+    ['store64', ['i64.store', { align: 3, offset: 0 }]],
+    ['size', ['memory.size', 0]],
+    ['grow', ['memory.grow', 0]],
+])
 
 // terms
 
@@ -523,6 +556,12 @@ const term = (env, [type, t]) => {
         case 'op': { return operator(term, env, type, t[1], t[2]) }
         case 'call': {
             const [, module, name, args] = t
+            const bound = module === 'self' ? null : at(module)(env.bound)
+            if (bound !== null) {
+                // The target binds the function with an instruction, which takes the arguments as a call of it would.
+                const [instruction, ps] = assertNotNullish(at(name)(bound))
+                return sequence(term, env, args.map((x, k) => /** @type {const} */ ([x, ps[Number(k)]])), [instruction])
+            }
             const [index, params, back] = assertNotNullish(at(name)(module === 'self' ? env.functions : assertNotNullish(at(module)(env.imports))))
             /** @type {readonly (readonly [Typed, Type])[]} */
             const parts = args.map((x, k) => [x, params[Number(k)]])
@@ -703,10 +742,10 @@ const zero = t => t === 'f64' ? ['f64.const', 0n] : t === 'i64' ? ['i64.const', 
 
 /**
  * A checked module as a WASM module: an import for each function of each
- * interface that it imports, then for each function that makes its string
- * literals, then its memory where it has string literals, then a global for
- * each constant of the interfaces, and `data_base` where it has string
- * literals; then a function each of its own, in their order, `init` where
+ * interface that it imports from a host, then for each function that makes
+ * its string literals, then its memory where it has string literals or
+ * touches the memory, then a global for each constant of the interfaces,
+ * and `data_base` where it has string literals; then a function each of its own, in their order, `init` where
  * it has constants, and the start function where it has string literals, a
  * global for each string literal and then for each of its constants, a type
  * for each distinct signature and then for each distinct block type of
@@ -718,8 +757,11 @@ const zero = t => t === 'f64' ? ['f64.const', 0n] : t === 'i64' ? ['i64.const', 
  */
 export const emit = m => {
     const interfaces = fromEntries(interfacesOf(m))
-    const imported = m.imports.flatMap(([module, { abi, functions }]) => functions.map(([member, s]) => ({ module, abi, member, s })))
-    const importedConstants = m.imports.flatMap(([module, { abi, constants = [] }]) => constants.map(([member, t]) => ({ module, abi, member, t })))
+    // An interface that says instructions is the target's, so it imports no function and no constant.
+    const hosted = m.imports.filter(([, { instructions }]) => instructions !== true)
+    const targets = m.imports.filter(([, { instructions }]) => instructions === true)
+    const imported = hosted.flatMap(([module, { abi, functions }]) => functions.map(([member, s]) => ({ module, abi, member, s })))
+    const importedConstants = hosted.flatMap(([module, { abi, constants = [] }]) => constants.map(([member, t]) => ({ module, abi, member, t })))
     const { constants } = m
     const written = [...m.functions.flatMap(([, f]) => literalsOf(f.body)), ...constants.flatMap(([, c]) => literalsOf(c.value))]
     // A literal is made once for its type and its spelling.
@@ -732,8 +774,11 @@ export const emit = m => {
     }
     const made = literals.map(([t]) => makerOf(t))
     const makers = made.filter((x, k) => made.findIndex(y => y.abi === x.abi && y.member === x.member) === k)
-    // The memory and `data_base` come from the ABI of the first function that makes a literal: L0's, `fjs:l0`, for a string.
-    const memoryAbi = makers.length === 0 ? null : makers[0].abi
+    // `data_base` comes from the ABI of the first function that makes a literal: L0's, `fjs:l0`, for a string.
+    const dataAbi = makers.length === 0 ? null : makers[0].abi
+    // The memory comes from there, or from the ABI of the instructions, which the checker takes as one: a module imports one memory.
+    const memoryAbi = dataAbi ?? (targets.length === 0 ? null : targets[0][1].abi)
+    assert(targets.every(([, { abi }]) => abi === memoryAbi), memoryAbi)
     /** @type {readonly FuncType[]} */
     const init = constants.length === 0 ? [] : [{ params: [], results: [] }]
     /** @type {readonly FuncType[]} */
@@ -745,8 +790,8 @@ export const emit = m => {
     const needsTable = referenced.length > 0
         || m.functions.some(([, f]) => hasCallRef(f.body))
         || constants.some(([, c]) => hasCallRef(c.value))
-    // The loader makes the table where the module imports an interface, as it does the memory: a module that imports none hands no code to a host, and keeps a table of its own.
-    const tableAbi = needsTable && m.imports.length > 0 ? m.imports[0][1].abi : null
+    // The loader makes the table where the module imports an interface that a host binds, as it does the memory: a module that imports none hands no code to a host, and keeps a table of its own.
+    const tableAbi = needsTable && hosted.length > 0 ? hosted[0][1].abi : null
     const signatures = [
         ...imported.map(({ s }) => signature(interfaces, s)),
         ...makers.map(({ type }) => type),
@@ -761,11 +806,11 @@ export const emit = m => {
     const types = signatures.filter((s, k) => signatures.findIndex(x => same(x, s)) === k)
     const typeOf = /** @type {(k: number) => number} */ (k => types.findIndex(x => same(x, signatures[Number(k)])))
     const dataBase = importedConstants.length
-    const tableBase = dataBase + (memoryAbi === null ? 0 : 1)
+    const tableBase = dataBase + (dataAbi === null ? 0 : 1)
     const literalBase = tableBase + (tableAbi === null ? 0 : 1)
     const constantBase = literalBase + literals.length
     const globals = fromEntries([
-        ...m.imports.map(([module]) => /** @type {const} */ ([
+        ...hosted.map(([module]) => /** @type {const} */ ([
             module,
             fromEntries(importedConstants.flatMap((x, k) => x.module === module ? [/** @type {const} */ ([x.member, k])] : [])),
         ])),
@@ -775,16 +820,21 @@ export const emit = m => {
     const functions = fromEntries(m.functions.map(([name, f], k) => /** @type {const} */ ([name, callee(own + k, f)])))
     // A type that the module defines names its own functions, as `kind`, where an imported one names its interface's.
     const imports = fromEntries([
-        ...m.imports.map(([module]) => /** @type {const} */ ([
+        ...hosted.map(([module]) => /** @type {const} */ ([
             module,
             fromEntries(imported.flatMap((x, k) => x.module === module ? [/** @type {const} */ ([x.member, callee(k, x.s)])] : [])),
         ])),
         ...(m.defines === undefined ? [] : [/** @type {const} */ ([assertNotNullish(definedBy(m)), functions])]),
     ])
     const codeIndex = fromEntries(referenced.map((name, k) => /** @type {const} */ ([name, k])))
+    /** Each function of an interface that says instructions, one of L0's `Memory`, as the checker took. @type {OrderedMap<OrderedMap<_Bound>>} */
+    const bound = fromEntries(targets.map(([module, { functions }]) => /** @type {const} */ ([
+        module,
+        fromEntries(functions.map(([member, s]) => /** @type {const} */ ([member, /** @type {const} */ ([assertNotNullish(at(member)(memoryInstructions)), s.params.map(([, t]) => t)])]))),
+    ])))
     /** @type {_Env} */
     const base = {
-        locals: empty, labels: empty, depth: 0, next: 0, functions, imports, interfaces, types, globals, codes: codeIndex, tableBase: tableAbi === null ? null : tableBase,
+        locals: empty, labels: empty, depth: 0, next: 0, functions, imports, bound, interfaces, types, globals, codes: codeIndex, tableBase: tableAbi === null ? null : tableBase,
         literals: literals.map(([t, s], j) => /** @type {const} */ ([t, s, literalBase + j])),
     }
     const codes = m.functions.map(([, { params, result, body }]) => valueOf(term, {
@@ -821,7 +871,7 @@ export const emit = m => {
     /** @type {NameMap} */
     const globalNames = [
         ...importedConstants.map(({ module, member }, k) => /** @type {const} */ ([k, `${module}.${member}`])),
-        ...(memoryAbi === null ? [] : [/** @type {const} */ ([dataBase, 'data_base'])]),
+        ...(dataAbi === null ? [] : [/** @type {const} */ ([dataBase, 'data_base'])]),
         ...(tableAbi === null ? [] : [/** @type {const} */ ([tableBase, 'table_base'])]),
         ...literals.map(([, s], j) => /** @type {const} */ ([literalBase + j, `'${s}'`])),
         ...constants.map(([name], k) => /** @type {const} */ ([constantBase + k, name])),
@@ -834,7 +884,7 @@ export const emit = m => {
             ...(memoryAbi === null ? [] : [memoryImport(memoryAbi)]),
             ...(tableAbi === null ? [] : [tableImport(tableAbi, referenced.length)]),
             ...importedConstants.map(({ abi, member, t }) => globalImport(abi, member, carrier(interfaces, t)[0])),
-            ...(memoryAbi === null ? [] : [globalImport(memoryAbi, 'data_base', 'i32')]),
+            ...(dataAbi === null ? [] : [globalImport(dataAbi, 'data_base', 'i32')]),
             ...(tableAbi === null ? [] : [globalImport(tableAbi, 'table_base', 'i32')]),
         ],
         functions: [
@@ -862,7 +912,7 @@ export const emit = m => {
             init: /** @type {const} */ (['func', referenced.map(name => own + m.functions.findIndex(([k]) => k === name))]),
         }],
         dataCount: null,
-        data: memoryAbi === null ? [] : [{ mode: ['active', 0, [['global.get', dataBase]]], bytes }],
+        data: dataAbi === null ? [] : [{ mode: ['active', 0, [['global.get', dataBase]]], bytes }],
         customs: [
             {
                 after: 'code',
