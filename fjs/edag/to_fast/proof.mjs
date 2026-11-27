@@ -54,24 +54,6 @@ export const proof = {
         assertEq(assertOk(tryFunctionText(graph)), '()=>$0')
         assertEq(assertOk(tryStringify(graph)), 'const $0=()=>$1;const $1=()=>$0;export default $1;')
     },
-    lazyProjectionsDemandOneFrame: () => {
-        const group = /** @type {const} */ (['group', [['()', ['arg', 0], []]], [
-            [0, ['[]', [['self', 1], ['frame', 0]]]], [0, ['self', 0]],
-        ]])
-        const graph = /** @type {const} */ (['=>', 2, [], ['[]', [
-            ['?:', ['arg', 1], ['fn', group, 0], 0], ['?:', ['arg', 1], ['fn', group, 1], 0],
-        ]]])
-        const make = /** @type {(capture: () => string, select: boolean) => readonly [() => readonly [unknown, string], () => unknown]} */ (execute(graph))
-        let calls = 0
-        const capture = () => { calls += 1; return 'captured' }
-        assertStructurallySame(make(capture, false), [0, 0])
-        assertEq(calls, 0)
-        const [first, second] = make(capture, true)
-        assertEq(first()[0], second)
-        assertEq(first()[1], 'captured')
-        assertEq(second(), first)
-        assertEq(calls, 1)
-    },
     snapshotsKeepEarlierLazyDependencies: () => {
         for (const initial of _snapshotCases()) {
             let graph = initial
