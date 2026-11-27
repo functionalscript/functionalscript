@@ -6,6 +6,7 @@
  * @import { Block, BindingId, Function as FastFunction, Value } from '../../js/ast/types.ts'
  * @import { Exp, ExpOp } from '../types.ts'
  * @import { Analysis, Node } from '../analysis/types.ts'
+ * @import { EdagValue, Values } from '../value/types.ts'
  * @import { List } from '../../types/list/types.ts'
  */
 
@@ -15,14 +16,45 @@ import { analysis, identityAnalysis } from '../analysis/module.f.js'
 import { fromFast } from '../from_fast/module.f.js'
 import { fromAnalysis, functionFromAnalysis, toFast } from './module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
-import { memo } from '../memo/module.f.js'
+import { memo, invoke } from '../memo/module.f.js'
 import { vm } from '../amnesia/module.f.js'
 import { toData } from '../value/to_unknown/module.f.js'
 import { sourceReason } from './source/module.f.js'
+import { call } from '../value/call/module.f.js'
+import { read } from '../value/property/module.f.js'
+import { strictEqual } from '../value/semantics/module.f.js'
+import { ok } from '../../types/result/module.f.js'
+import { prepare } from '../../js/ast/prepare/module.f.js'
+import { stringify } from '../../js/ast/serializer/module.f.js'
+import { tryFunctionText, tryStringify } from '../../compiler/serializer/module.f.js'
+import { parse } from '../../compiler/source/module.f.js'
+import { _defaultExport, unresolved } from '../../compiler/edag/module.f.js'
 import { generate } from '../../types/array/module.f.js'
 
 /** Compare semantic graph tables without merging allocation identities. @type {(graph: Exp) => void} */
 const roundTrip = graph => assertStructurallySame(assertOk(analysis(fromFast(assertOk(toFast(graph))))), assertOk(analysis(graph)))
+
+/** @param {Exp} graph */
+const run = graph => memo(assertOk(identityAnalysis(graph)))({ args: [] })
+
+/** @type {(fn: EdagValue, args?: Values) => EdagValue} */
+const apply = (fn, args = []) => assertOk(call(ok(fn), args.map(arg => () => ok(arg)), invoke))
+
+/** @type {(value: EdagValue) => Values} */
+const elements = value => {
+    assert(value instanceof Array && value[0] === '[]')
+    return value[1]
+}
+
+/** Both writers emit FunctionalScript for these groups. Read each module back
+ * through the parser to exercise its declarations, captures, and export.
+ * @type {(graph: Exp) => readonly Exp[]} */
+const groupRoundTrips = graph => {
+    const fast = assertOk(toFast(graph))
+    /** @param {string} text */
+    const readBack = text => _defaultExport(unresolved(assertOk(parse('/group.f.js')(text))).edag)
+    return [graph, fromFast(fast), readBack(assertOk(tryStringify(graph))), readBack(stringify(prepare(fast), 'module', true))]
+}
 
 /** Earlier lazy owners must keep the dependencies used by their first demand. @type {() => readonly Exp[]} */
 export const _snapshotCases = () => {
@@ -53,6 +85,39 @@ export const _snapshotCases = () => {
 }
 
 export const proof = {
+    groupMembersRetainPeersAndTheirFrame: () => {
+        const group = /** @type {const} */ (['group', [['arg', 0]], [
+            [1, ['=>', 0, [['self', 1], ['arg', 0]], ['[]', [['frame', 0], ['frame', 1]]]]],
+            [0, ['[]', [['self', 0], ['frame', 0], ['rest']]]],
+        ]])
+        const graph = /** @type {const} */ (['=>', 1, [], ['[]', [['fn', group, 0], ['fn', group, 1]]]])
+        for (const candidate of groupRoundTrips(graph)) {
+            const make = assertOk(run(candidate))
+            const [first, second] = elements(apply(make, ['outer']))
+            const [again, captured, rest] = elements(apply(second, [1, 2]))
+            assert(strictEqual(again, first))
+            assertEq(captured, 'outer')
+            assertStructurallySame(rest, ['[]', [1, 2]])
+            const [other, arg] = elements(apply(apply(first, ['inner'])))
+            assert(strictEqual(other, second))
+            assertEq(arg, 'inner')
+            assertEq(assertOk(read(ok(first), 'length')), 1)
+            const [, next] = elements(apply(make, ['next']))
+            assertEq(elements(apply(next))[1], 'next')
+        }
+    },
+    aProjectionAloneDeclaresEveryMember: () => {
+        const group = /** @type {const} */ (['group', [], [[0, ['self', 1]], [0, ['self', 0]]]])
+        const graph = /** @type {const} */ (['fn', group, 1])
+        assertEq(assertOk(tryFunctionText(graph)), '()=>$0')
+        assertEq(assertOk(tryStringify(graph)), 'const $0=()=>$1;const $1=()=>$0;export default $1;')
+        for (const candidate of groupRoundTrips(graph)) {
+            const selected = assertOk(run(candidate))
+            const sibling = apply(selected)
+            assertEq(strictEqual(sibling, selected), false)
+            assert(strictEqual(apply(sibling), selected))
+        }
+    },
     selectedGroupEntry: () => {
         const group = /** @type {const} */ (['group', [], [[0, ['throw', ['self', 1]]], [0, ['self', 0]]]])
         const selected = /** @type {const} */ (['fn', group, 0])
@@ -87,8 +152,6 @@ export const proof = {
         assert(fn.body.statements.some(statement => statement[0] === 'define' && statement[3] === 'lazy'))
 
         const make = fromFast(block)
-        /** @param {Exp} graph */
-        const run = graph => memo(assertOk(identityAnalysis(graph)))({ args: [] })
         const failing = /** @type {const} */ (['=>', 0, [], ['throw', 'capture demanded']])
         assertStructurallySame(assertOk(run(['()', make, [failing, false]])), ['[]', [0, 0]])
         assertEq(assertError(run(['()', make, [failing, true]])), 'capture demanded')

@@ -105,7 +105,13 @@ const blockTasks = (block, context) => {
     for (const statement of block.statements) {
         const inner = { bound: scope }
         if (statement[0] === 'define') {
-            tasks = [...tasks, ...valueTasks([statement[2]], inner)]
+            const value = statement[2]
+            const group = value instanceof Array && value[0] === 'function' ? value[1].group : undefined
+            // A helper may scan a slice of a block. Only peers declared in
+            // that slice are local to its member initializers.
+            const bound = group === undefined ? scope : [...scope, ...block.statements.flatMap(peer =>
+                peer[0] === 'define' && group.includes(peer[1]) ? [peer[1]] : [])]
+            tasks = [...tasks, ...valueTasks([value], { bound })]
             scope = [...scope, statement[1]]
             continue
         }

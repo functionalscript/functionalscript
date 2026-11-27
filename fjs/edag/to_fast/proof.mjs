@@ -17,7 +17,7 @@ import { _snapshotCases } from './proof.f.js'
 import { fromFast } from '../from_fast/module.f.js'
 import { prepare } from '../../js/ast/prepare/module.f.js'
 import { stringify } from '../../js/ast/serializer/module.f.js'
-import { tryFunctionText, tryStringify } from '../../compiler/serializer/module.f.js'
+import { tryStringify } from '../../compiler/serializer/module.f.js'
 import { parse } from '../../compiler/transpiler/module.f.js'
 import { _defaultExport, unresolved } from '../../compiler/edag/module.f.js'
 
@@ -25,35 +25,6 @@ import { _defaultExport, unresolved } from '../../compiler/edag/module.f.js'
 const execute = graph => Function(`"use strict";return (${stringify(prepare(assertOk(toFast(graph))), 'expression', true)});`)()
 
 export const proof = {
-    groupMembersRetainPeersAndTheirFrame: () => {
-        const group = /** @type {const} */ (['group', [['arg', 0]], [
-            [1, ['=>', 0, [['self', 1], ['arg', 0]], ['[]', [['frame', 0], ['frame', 1]]]]],
-            [0, ['[]', [['self', 0], ['frame', 0], ['rest']]]],
-        ]])
-        const graph = /** @type {const} */ (['=>', 1, [], ['[]', [['fn', group, 0], ['fn', group, 1]]]])
-        const source = assertOk(tryStringify(graph))
-        const readBack = _defaultExport(unresolved(assertOk(parse('/group.f.js')(source))).edag)
-        for (const factory of [execute(graph), execute(fromFast(assertOk(toFast(graph)))), execute(readBack), Function(`return ${source.slice('export default '.length)}`)()]) {
-            const [first, second] = factory('outer')
-            const [again, captured, rest] = second(1, 2)
-            assertEq(again, first)
-            assertEq(captured, 'outer')
-            assertStructurallySame(rest, [1, 2])
-            const [other, arg] = first('inner')()
-            assertEq(other, second)
-            assertEq(arg, 'inner')
-            assertEq(first.length, 1)
-            assertEq(factory('next')[1]()[1], 'next')
-        }
-    },
-    aProjectionAloneDeclaresEveryMember: () => {
-        const group = /** @type {const} */ (['group', [], [[0, ['self', 1]], [0, ['self', 0]]]])
-        const graph = /** @type {const} */ (['fn', group, 1])
-        const value = /** @type {() => () => unknown} */ (execute(graph))
-        assertEq(value()(), value)
-        assertEq(assertOk(tryFunctionText(graph)), '()=>$0')
-        assertEq(assertOk(tryStringify(graph)), 'const $0=()=>$1;const $1=()=>$0;export default $1;')
-    },
     snapshotsKeepEarlierLazyDependencies: () => {
         for (const initial of _snapshotCases()) {
             let graph = initial
