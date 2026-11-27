@@ -27,23 +27,22 @@ vvvv_vvvv_vvvv_vvvv
 vvvv_vvvv_vvvv_vvvv
 ```
 
-- `s111_1111_1111_..._v000` non-finite numbers, primitives `sv: 49`,
-- `s111_1111_1111_..._v100` reference `sv: 50`,
-- `s111_1111_1111_..._vv10` short string `sv: 51`,
-- `s111_1111_1111_..._vvv1` short bigint. `sv: 52`.
+- `s111_1111_1111_vttt_..._vp00` values and pointers `sv: 50`,
+- `s111_1111_1111_vvvv_..._vv10` short string `sv: 51`,
+- `s111_1111_1111_vvvv_..._vvv1` short bigint. `sv: 52`.
 
 ## Types
 
-|   |           |
-|---|-----------|
-|`0`|`number`   |
-|`1`|`boolean`  |
-|`2`|`undefined`|
-|`3`|`object`   |
-|`4`|`array`    |
-|`5`|`string`   |
-|`6`|`bigint`   |
-|`7`|`function` |
+|     |           |options     |total|values              |
+|-----|-----------|------------|-----|--------------------|
+|`000`|`number`   |`v`         |1    |`Inf`, `-Inf`, `NaN`|
+|`001`|`undefined`|`v`         |2    |`undefined`         |
+|`010`|`boolean`  |`v`         |3    |`false`, `true`     |
+|`011`|`object`   |`v`,`p`,`sp`|6    |`null`, `{}`        |
+|`100`|`string`   |   ,`p`,`sp`|8    |                    |
+|`101`|`bigint`   |   ,`p`,`sp`|10   |                    |
+|`110`|`function` |`v`,`p`,`sp`|13   |                    |
+|`111`|`array`    |`v`,`p`,`sp`|16   |`[]`                |
 
 ## Non-Finite Numbers, Primitives
 
