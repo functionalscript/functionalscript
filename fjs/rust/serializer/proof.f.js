@@ -117,11 +117,14 @@ export const proof = {
     nativePrimitiveCaptures: () => {
         /** @type {Block['statements']} */
         const defs = [['define', x, undefined], ['define', y, ['ref', x]]]
-        const big = 0x1_0000_0000_0000_0002n
+        const big = /** @type {const} */ (0x1_0000_0000_0000_0002n)
         const rust = print(defs, captureReader(['very long string', big, ['ref', y], -0, 'very long string', big, null, true]))
-        const string = 'String::from_static(&LITERAL_1).to_any()'
-        const bigint = 'BigInt::from_static(&LITERAL_2).to_any()'
-        const expected = [string, bigint, 'Nullish::Undefined.to_any()', 'f64_any(0x8000000000000000)', string, bigint, 'Nullish::Null.to_any()', 'true.to_any()']
+        const string = /** @type {const} */ ('String::from_static(&LITERAL_1).to_any()')
+        const bigint = /** @type {const} */ ('BigInt::from_static(&LITERAL_2).to_any()')
+        const expected = /** @type {const} */ ([
+            string, bigint, 'Nullish::Undefined.to_any()', 'f64_any(0x8000000000000000)',
+            string, bigint, 'Nullish::Null.to_any()', 'true.to_any()',
+        ])
         assert(rust.includes(`Ok([${expected.join(', ')}]`))
     },
     nativeFunctionSelf: () => {
