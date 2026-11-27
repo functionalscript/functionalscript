@@ -277,10 +277,12 @@ release arena counts nothing and keeps no header.
   already does.
 - **Release without recursion.** Once a count reaches 0 its word is free,
   so it holds the link of the work list, a 32-bit offset that reaches any
-  block under the 4 GiB cap. `release` pops an object, drops
-  its counted fields, queues each child whose count reaches 0, and frees
-  the block, so a deep array needs no stack
-  ([deep-value-drop](../../../nanvm/lib/todo/deep-value-drop.md)).
+  block under the 4 GiB cap. `release` pops an object and writes 0 back
+  into its count word, so a stale `dup` or `drop` traps and the debug
+  recount reads no link as a count, even in the debug arena, whose `free`
+  does nothing. It then drops the object's counted fields, queues each
+  child whose count reaches 0, and frees the block, so a deep array needs
+  no stack ([deep-value-drop](../../../nanvm/lib/todo/deep-value-drop.md)).
 - **Reuse in place, later.** With size classes, a block that a drop frees
   can serve the next `alloc` of its class at once: Perceus's reuse
   ([Reinking, Xie, de Moura and Leijen](#sources)), which `try_unique` in
