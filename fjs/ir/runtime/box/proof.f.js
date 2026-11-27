@@ -7,8 +7,8 @@ import { assert, assertEq } from '../../../asserts/module.f.js'
 import { bitsOf } from '../../../types/number/module.f.js'
 import { and, eq, equal, if_, n, true_ } from '../../module.f.js'
 import {
-    DYN_REF, EMPTY, EXP, FALSE, NAN, NULL, REF_TAG, SCALAR, TAG2, TAG8, TRUE, UNDEFINED,
-    isNumberBits, isNumberTerm, isRefBits, isRefTerm,
+    BLOCK, DYN_REF, EMPTY, EXP, FALSE, IR_STRING, KIND, NAN, NULL, REF_TAG, SCALAR, TAG2, TAG8, TRUE, UNDEFINED,
+    blockTerm, isIrStringBits, isIrStringTerm, isNumberBits, isNumberTerm, isRefBits, isRefTerm,
 } from './module.f.js'
 
 /** Unsigned bits as the `i64` that the WebAssembly JavaScript API passes. @type {(b: bigint) => bigint} */
@@ -29,6 +29,9 @@ export const proof = {
         assertEq(UNDEFINED, 0x7FF0_0000_0000_0020n)
         assertEq(NULL, 0x7FF0_0000_0000_0030n)
         assertEq(EMPTY, 0x7FF0_0000_0000_0008n)
+        assertEq(KIND, 0x000F_0000_0000_0000n)
+        assertEq(IR_STRING, 0x7FF9_0000_0000_0002n)
+        assertEq(BLOCK, 0xFFFF_FFF8n)
         // The one NaN is the NaN that FunctionalScript's numbers have.
         assertEq(bitsOf(NaN), NAN)
     },
@@ -52,11 +55,26 @@ export const proof = {
         assert(!isRefBits(TRUE))
         assert(!isRefBits(EMPTY))
         assert(!isRefBits(bitsOf(2)))
+        // a long string in the IR heap is a reference too, whose kind nibble is 9 and whose low bits name its block
+        assert(isRefBits(IR_STRING | 0x1_0010n))
+        assertEq((IR_STRING | 0x1_0010n) & KIND, 9n << 48n)
+        assertEq((IR_STRING | 0x1_0010n) & BLOCK, 0x1_0010n)
+    },
+    // A long string in the IR heap, as an i64 or unsigned; NaNVM's references and the scalars are none.
+    isIrStringBits: () => {
+        assert(isIrStringBits(IR_STRING | 0x1_0010n))
+        assert(isIrStringBits(i64(IR_STRING | 0xFFFF_FFF8n)))
+        assert(!isIrStringBits(DYN_REF | (4n << 48n) | (5n << 2n)))
+        assert(!isIrStringBits(DYN_REF | (8n << 48n)))
+        assert(!isIrStringBits(i64(TRUE)))
+        assert(!isIrStringBits(0x7FF9_0000_0000_0000n))
     },
     // The IR terms test the same masks as the bigint tests.
     terms: () => {
         const b = n(1n)
         assert(equal(isRefTerm(b), eq(and(b, n(REF_TAG)), n(DYN_REF))))
         assert(equal(isNumberTerm(b), if_(eq(and(b, n(EXP)), n(EXP)), eq(and(b, n(TAG8)), n(EXP)), true_)))
+        assert(equal(isIrStringTerm(b), eq(and(b, n(0x000F_0000_0000_0000n)), n(0x0009_0000_0000_0000n))))
+        assert(equal(blockTerm(b), and(b, n(0xFFFF_FFF8n))))
     },
 }

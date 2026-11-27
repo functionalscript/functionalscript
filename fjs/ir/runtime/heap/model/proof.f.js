@@ -10,7 +10,7 @@
  */
 
 import { assert, assertEq, assertNotNullish } from '../../../../asserts/module.f.js'
-import { alloc, allocCounted, block, drop, dup, free, other, round, start, startCounted } from './module.f.js'
+import { alloc, allocCounted, block, drop, dup, free, other, round, start, startCounted, typeOf } from './module.f.js'
 
 /** The arena and the address of a block that fits. @type {(a: Arena, n: number) => readonly [Arena, number]} */
 const allocated = (a, n) => assertNotNullish(alloc(a, n))
@@ -102,6 +102,12 @@ export const proof = {
         assertEq(`${dup(e, p)} ${drop(e, p)} ${free(c, p)} ${free(assertNotNullish(free(e, p)), p)}`, 'null null null null')
         // nor does an address that no block has
         assertEq(`${dup(c, p + 8)} ${drop(c, p - 16)} ${free(e, 0)}`, 'null null null')
+    },
+    // A block's type is told while its count is above 0, and neither at 0 nor at an address that no block has.
+    typeOf: () => {
+        const [c, p] = counted(assertNotNullish(startCounted(1, 0x1_0000)), 0x40, 8)
+        const [e] = assertNotNullish(drop(c, p))
+        assertEq(`${typeOf(c, p)} ${typeOf(assertNotNullish(dup(c, p)), p)} ${typeOf(e, p)} ${typeOf(c, p + 8)}`, '64 64 null null')
     },
     // A block's 16 bytes count toward the region: a full region grows for a block of none, and a request that with
     // them needs more pages than any region holds is out of memory.

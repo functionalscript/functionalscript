@@ -21,8 +21,8 @@
  * - **The debug arena**, {@link Counted}, keeps 16 bytes before each block,
  *   and each block by its address, a map from offset to block: the size
  *   that `alloc` was asked for, the type, the count and whether a `free`
- *   took it, with how many blocks have a count above 0. `dup`, `drop` and
- *   `free` answer `null` where the debug arena traps.
+ *   took it, with how many blocks have a count above 0. `dup`, `drop`,
+ *   `free` and `typeOf` answer `null` where the debug arena traps.
  *
  * @module
  *
@@ -211,4 +211,15 @@ export const drop = (c, p) => {
 export const free = (c, p) => {
     const b = block(c, p)
     return b === null || b.count !== 0 || b.freed ? null : withBlock(c, p, { ...b, freed: true })
+}
+
+/**
+ * The type of block `p`, as the debug arena's `type_of` answers it, or
+ * `null` where no block is at `p` or its count is 0.
+ *
+ * @type {(c: Counted, p: number) => number | null}
+ */
+export const typeOf = (c, p) => {
+    const b = block(c, p)
+    return b === null || b.count === 0 ? null : b.t
 }

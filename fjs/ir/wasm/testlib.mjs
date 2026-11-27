@@ -85,6 +85,15 @@ export const onHost = (h, f) => {
     }
 }
 
+/**
+ * A host that `run` would make now, for a proof that makes its modules
+ * itself: the counting host, or the one that `onHost` gives, which counts
+ * it among those that `run` made.
+ *
+ * @type {(values: readonly unknown[], data?: number, entries?: number) => Counting}
+ */
+export const hostOf = (values, data, entries) => host(values, data, entries)
+
 /** @type {(v: _Value) => v is _Any} */
 const isAny = v => typeof v === 'object'
 

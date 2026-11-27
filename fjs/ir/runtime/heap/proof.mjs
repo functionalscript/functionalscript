@@ -7,7 +7,7 @@
  * block's bytes as they were written. In debug, the same sequences mixed
  * with `dup`, `drop` and `free` of the blocks so far also keep the model's
  * counts, in each header and in `live()`, and trap where the model refuses
- * them. Memory that runs out traps where the model runs out, and so does a
+ * them, and `type_of` tells each block's type while its count is above 0. Memory that runs out traps where the model runs out, and so does a
  * `free` in release.
  *
  * Prefer `node --test` for this file
@@ -21,7 +21,7 @@ import { assert, assertEq, assertNotNullish, assertOk } from '../../../asserts/m
 import { write } from '../../../media/wasm/binary/write/module.f.js'
 import { check } from '../../check/module.f.js'
 import { emit } from '../../wasm/module.f.js'
-import { alloc, allocCounted, block, drop, dup, free, other, round, start, startCounted } from './model/module.f.js'
+import { alloc, allocCounted, block, drop, dup, free, other, round, start, startCounted, typeOf } from './model/module.f.js'
 import { counted, module } from './module.f.js'
 
 /** A module's WebAssembly module, compiled once. @type {(m: Module) => WebAssembly.Module} */
@@ -48,6 +48,7 @@ const load = (compiled, most) => {
      *     readonly drop: (p: number) => number
      *     readonly free: (p: number) => unknown
      *     readonly live: () => number
+     *     readonly type_of: (p: number) => number
      * }} Heap
      */
     const memory = new WebAssembly.Memory({ initial: 1, maximum: most })
@@ -184,7 +185,8 @@ const matches = (memory, { arena, live, blocks }, born) => {
  * Runs `steps` operations from `seed` on a debug arena that may grow to
  * `most` pages, beside the model: allocations, and `dup`, `drop` and `free`
  * of blocks so far, which trap where the model refuses them, while `live()`
- * answers the model's count after each. Answers how many steps ran before
+ * answers the model's count after each, and `type_of` the type of the block
+ * that each took, or traps where the model tells none. Answers how many steps ran before
  * both ran out of memory, or `steps`, how many operations trapped, and how
  * many regions the arena started.
  *
@@ -241,6 +243,8 @@ const runCounted = (seed, steps, most) => {
             } else {
                 model = step(free(model, p), () => heap.free(p), () => undefined) ?? model
             }
+            const t = typeOf(model, p)
+            if (t === null) { assert(traps(() => heap.type_of(p)), p) } else { assertEq(heap.type_of(p), t) }
         }
         assertEq(heap.live(), model.live)
     }
@@ -288,7 +292,8 @@ export const proof = {
     countedOutOfMemory: () => {
         for (const seed of [5, 6, 7]) { assert(runCounted(seed, 10_000, 40)[0] < 10_000) }
     },
-    // Debug refuses an address that no block has, a count of 0, a free of a live block and a second free.
+    // Debug refuses an address that no block has, a count of 0, a free of a live block and a second free, and
+    // tells a block's type only while its count is above 0.
     misuse: () => {
         const { heap } = load(debug, 0x1_0000)
         const p = heap.alloc(1, 8)
@@ -296,10 +301,13 @@ export const proof = {
             assert(traps(() => heap.dup(q)), q)
             assert(traps(() => heap.drop(q)), q)
             assert(traps(() => heap.free(q)), q)
+            assert(traps(() => heap.type_of(q)), q)
         }
+        assertEq(heap.type_of(p), 1)
         assert(traps(() => heap.free(p)))
         heap.dup(p)
         assertEq(`${heap.drop(p)} ${heap.drop(p)} ${heap.live()}`, '0 1 0')
+        assert(traps(() => heap.type_of(p)))
         assert(traps(() => heap.dup(p)))
         assert(traps(() => heap.drop(p)))
         heap.free(p)
