@@ -5,7 +5,7 @@
 import { assertEq } from '../../asserts/module.f.js'
 import { any, string } from '../l0/module.f.js'
 import {
-    add, block, bool, br, call, call_ref, code, codeOf, f64, f64c, field, fn, get, hint, i, if_, int, let_, lit, loop, make, match, n, never, next, only,
+    add, block, bool, br, call, call_ref, code, codeOf, f64, f64c, field, fn, get, hint, i, if_, int, let_, lit, loop, make, match, misuse, n, never, next, only,
     product, return_, sealed, trap, true_, trunc_sat, u, unit, variant,
 } from '../module.f.js'
 import { addressing, bits, constants, corners, loops, records, referencing, samples, sealing, tagging, unknown } from '../testlib.f.js'
@@ -130,10 +130,15 @@ export const proof = {
     '    add(call_ref(code(sum), a, b), 0.0 as f64)',
     '',
     ].join('\n')),
-    // A reason is quoted, and so is a quote in it. A trap is on one line, where its term is.
+    // A reason is quoted, and so is a quote in it. A trap is on one line, where its term is, and one on misuse reads as its builder.
     trap: () => assertEq(print({
         imports: [],
-        functions: [['f', fn([], never, trap("it's \\ there"))], ['g', fn([['b', bool]], f64, b => if_(b, trap('no'), n(1n)))]],
+        functions: [
+            ['f', fn([], never, trap("it's \\ there"))],
+            ['g', fn([['b', bool]], f64, b => if_(b, trap('no'), n(1n)))],
+            ['h', fn([], never, misuse("it's a bug"))],
+            ['k', fn([['b', bool]], f64, b => if_(b, misuse('no'), n(1n)))],
+        ],
         exports: [],
     }), [
     'fn f() -> never =',
@@ -141,6 +146,12 @@ export const proof = {
     '',
     'fn g(b: bool) -> f64 =',
     "    if b then trap('no') else 1",
+    '',
+    'fn h() -> never =',
+    "    misuse('it\\'s a bug')",
+    '',
+    'fn k(b: bool) -> f64 =',
+    "    if b then misuse('no') else 1",
     '',
     ].join('\n')),
     // An inline hint reads before `fn`.

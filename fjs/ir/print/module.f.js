@@ -35,14 +35,15 @@
  * carrier alone, and a function that gives back a parameter says so after
  * its result: `-> builder, gives back b`. A function of an interface that
  * may fail says so last, as definition.md marks it:
- * `fn throw(own v: any) -> never may fail`.
+ * `fn throw(own v: any) -> never may fail`. A trap on misuse reads as the
+ * builder that makes it: `misuse('count of 0')`.
  *
  * The text is for people and for golden proofs. Nothing reads it back: the
  * IR passes from one stage to the next as data.
  *
  * @module
  *
- * @import { ArmOf, ConstantOf, Fn, Int, Interface, Module, Parts, Sealed, SealedDef, Signature, Term, Type } from '../types.ts'
+ * @import { ArmOf, ConstantOf, Fn, Int, Interface, Module, Parts, Sealed, SealedDef, Signature, Term, Trap, Type } from '../types.ts'
  */
 
 import { encodeScalar } from '../../basen/base16/module.f.js'
@@ -149,10 +150,10 @@ const transfer = label => label === 'return' ? 'return' : `br ${label}`
 /** Whether a `match` is an `if_`: its arms are `true`, then `false`, and name nothing. @type {(arms: readonly ArmOf<Term>[]) => boolean} */
 const isIf = arms => equal(arms.map(([variants, binder]) => [variants, binder]), [[['true'], null], [['false'], null]])
 
-/** A trap's reason, quoted: `trap('not number')`. @type {(reason: string) => string} */
-const showTrap = reason => {
+/** A trap as its builder writes it, the reason quoted: `trap('not number')`, or `misuse('count of 0')` for one on misuse. @type {(t: Trap) => string} */
+const showTrap = ([, reason, mark]) => {
     const quoted = [...reason].map(c => c === "'" || c === '\\' ? `\\${c}` : c).join('')
-    return `trap('${quoted}')`
+    return `${mark ?? 'trap'}('${quoted}')`
 }
 
 /** The range that `trunc_sat` saturates to or the type that `seal` makes, as the first of its parts, and nothing for any other operator. @type {(t: Int | Sealed | undefined) => readonly string[]} */
@@ -200,7 +201,7 @@ const flat = t => {
             const value = flat(t[2])
             return value === null ? null : `${transfer(t[1])} ${value}`
         }
-        case 'trap': { return showTrap(t[1]) }
+        case 'trap': { return showTrap(t) }
         case 'constant': { return `${t[1]}.${t[2]}` }
         default: { return null }
     }
@@ -287,7 +288,7 @@ const lines = (t, pad) => {
         case 'loop': { return [...loopHead(lines, pad, t[1], t[2]), ...lines(t[3], inner)] }
         case 'br': { return after(transfer(t[1]), t[2]) }
         case 'constant': { return [`${pad}${t[1]}.${t[2]}`] }
-        default: { return [`${pad}${showTrap(t[1])}`] }
+        default: { return [`${pad}${showTrap(t)}`] }
     }
 }
 

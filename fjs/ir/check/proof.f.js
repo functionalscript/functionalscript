@@ -6,7 +6,7 @@ import { assert, assertEq, assertError, assertNotNullish, assertOk } from '../..
 import { any, builder, l0, memory, ref, string } from '../l0/module.f.js'
 import {
     add, and, block, bool, br, call, call_ref, canon, cast, code, codeOf, constant, countsBits, definedBy, div, eq, f64, f64c, field, float, fn, from_bits, get, hint, i, if_, int,
-    let_, lit, loop, lt, make, match, mayFail, mul, n, neg, never, next, only, or, own, product, release, return_, seal, sealed, shl, shr, signature, sub,
+    let_, lit, loop, lt, make, match, mayFail, misuse, mul, n, neg, never, next, only, or, own, product, release, return_, seal, sealed, shl, shr, signature, sub,
     throw_, to_bits, trap, true_, trunc_sat, u, unit, unseal, variant, xor,
 } from '../module.f.js'
 import { show } from '../print/module.f.js'
@@ -689,6 +689,10 @@ export const proof = {
             f('a', to('b')), f('b', to('c')), f('c', if_(lt(x, x), trap('no'), x)),
             f('d', to('e')), f('e', to('d')), f('g', to('g')), f('h', add(to('d'), to('a'))),
         ], exports: [] }), 'a: true, b: true, c: true, d: false, e: false, g: false, h: true')
+        // A trap on misuse adds nothing, so a call of a function that has only one cannot fail either; a trap beside it still may.
+        assertEq(bits({ imports: l0, functions: [
+            f('m', if_(lt(x, x), misuse('no'), x)), f('p', to('m')), f('q', if_(lt(x, x), misuse('no'), trap('no'))),
+        ], exports: [] }), 'm: false, p: false, q: true')
         assertEq(bits({ imports: l0, functions: [['k', fn([['v', any]], never, v => throw_(call('Any', 'dup', [v])))]], exports: [] }), 'k: true')
         assertEq(bits(samples).includes('true'), false)
     },
@@ -883,6 +887,11 @@ export const proof = {
         // a hook may not fail, since the pass writes it after the effects are inferred
         assertEq(why(counter({}, [['drop', fn([['b', u(64)]], unit, () => trap('no drop'))]])), "C.cell's drop may fail, and the drops that the lifetime pass writes cannot")
         assertEq(why(counter({}, [['dup', fn([['b', u(64)]], u(64), () => trap('no dup'))]])), "C.cell's dup may fail, and the dups that the lifetime pass writes cannot")
+        // but it may trap on misuse, which is no failure
+        assertEq(assertOk(checkPlain(counter({}, [
+            ['dup', fn([['b', u(64)]], u(64), b => if_(eq(b, n(0n)), misuse('count of 0'), b))],
+            ['drop', fn([['b', u(64)]], unit, b => if_(eq(b, n(0n)), misuse('count of 0'), make([])))],
+        ]))).functions.filter(([k]) => k === 'dup' || k === 'drop').map(([k, f]) => `${k}: ${f.fails}`).join(', '), 'dup: false, drop: false')
         // only the lifetime pass copies, drops, seals a counted variant and releases
         const v = get('v')
         /** Why the plain stage of a module is refused. @type {(m: Module) => string} */

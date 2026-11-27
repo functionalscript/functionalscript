@@ -16,7 +16,7 @@ import { kinds, ref } from '../../l0/module.f.js'
 import { FALSE, NULL, TRUE, UNDEFINED, isNumberTerm, isRefTerm } from '../box/module.f.js'
 import {
     and, bool, call, canon, constant, eq, f64, f64c, fn, from_bits, hint, if_, int, let_,
-    make, n, ne, only, own, seal, sealed, shr, signature, to_bits, trap, u, unit, unseal,
+    make, misuse, n, ne, only, own, seal, sealed, shr, signature, to_bits, u, unit, unseal,
 } from '../../module.f.js'
 
 /** A value of unknown kind, as this module defines it. */
@@ -100,15 +100,17 @@ export const defines = { name: 'Any', types }
 /**
  * The kind of a reference's bits read from its `tttt` nibble, which holds
  * L0's kind (4 string to 8 function), with no call: bits whose nibble is
- * none of those trap. NaNVM does not check the handle here, so the bits of
- * a dropped reference answer the kind they had; `dup`, `drop` and `same`
- * still go through `Ref`, which checks it. The lifetime pass and the owned
- * check keep a checked program from reading a reference that it dropped.
+ * none of those are forged, and trap as a misuse, so `kind` may not fail,
+ * as `checked`'s `kind_ref` may not. NaNVM does not check the handle here,
+ * so the bits of a dropped reference answer the kind they had; `dup`,
+ * `drop` and `same` still go through `Ref`, which checks it. The lifetime
+ * pass and the owned check keep a checked program from reading a reference
+ * that it dropped.
  *
  * @type {(b: Term) => Term}
  */
 const tagKind = b => let_('t', and(shr(b, n(48n)), n(0xFn)), t =>
-    [4n, 5n, 6n, 7n, 8n].reduceRight((rest, k) => if_(eq(t, n(k)), n(k), rest), trap('not a value')))
+    [4n, 5n, 6n, 7n, 8n].reduceRight((rest, k) => if_(eq(t, n(k)), n(k), rest), misuse('not a value')))
 
 /**
  * The kind of a reference's bits as NaNVM answers it: `Ref.kind_ref`, which
