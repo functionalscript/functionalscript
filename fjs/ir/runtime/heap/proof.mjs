@@ -13,7 +13,8 @@
  * Prefer `node --test` for this file
  * ([fjs/AGENTS.md §1.6](../../../AGENTS.md#16-a-host-proof-is-for-an-effect-and-for-nothing-else)).
  *
- * @import { Counted } from './model/module.f.js'
+ * @import { Module } from '../../types.ts'
+ * @import { Counted } from './model/types.ts'
  */
 
 import { assert, assertEq, assertNotNullish, assertOk } from '../../../asserts/module.f.js'
@@ -23,8 +24,6 @@ import { emit } from '../../wasm/module.f.js'
 import { alloc, allocCounted, block, drop, dup, free, other, round, start, startCounted } from './model/module.f.js'
 import { counted, module } from './module.f.js'
 
-/** @typedef {import('../../types.ts').Module} Module */
-
 /** A module's WebAssembly module, compiled once. @type {(m: Module) => WebAssembly.Module} */
 const compile = m => new WebAssembly.Module(new Uint8Array(write(emit(assertOk(check(m))))))
 
@@ -33,24 +32,24 @@ const release = compile(module)
 const debug = compile(counted)
 
 /**
- * The heap's functions that the proofs call.
- *
- * @typedef {{
- *     readonly alloc: (t: number, n: number) => number
- *     readonly dup: (p: number) => unknown
- *     readonly drop: (p: number) => number
- *     readonly free: (p: number) => unknown
- *     readonly live: () => number
- * }} Heap
- */
-
-/**
  * An arena of `compiled` on a memory of one page that may grow to `most`,
- * after `init`: its functions and the memory.
+ * after `init`: the heap's functions that the proofs call, and the memory.
  *
- * @type {(compiled: WebAssembly.Module, most: number) => { readonly heap: Heap, readonly memory: WebAssembly.Memory }}
+ * @param {WebAssembly.Module} compiled
+ * @param {number} most
  */
 const load = (compiled, most) => {
+    /**
+     * The heap's functions that the proofs call.
+     *
+     * @typedef {{
+     *     readonly alloc: (t: number, n: number) => number
+     *     readonly dup: (p: number) => unknown
+     *     readonly drop: (p: number) => number
+     *     readonly free: (p: number) => unknown
+     *     readonly live: () => number
+     * }} Heap
+     */
     const memory = new WebAssembly.Memory({ initial: 1, maximum: most })
     const { exports } = new WebAssembly.Instance(compiled, { 'fjs:l0': { memory } })
     const init = /** @type {() => void} */ (exports.init)

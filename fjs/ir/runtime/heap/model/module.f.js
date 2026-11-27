@@ -26,7 +26,7 @@
  *
  * @module
  *
- * @import { OrderedMap } from '../../../../types/ordered_map/types.ts'
+ * @import { Arena, Block, Counted } from './types.ts'
  */
 
 import { at as entryAt, empty, setReplace } from '../../../../types/ordered_map/module.f.js'
@@ -42,43 +42,6 @@ const chunk = 16
 
 /** The bytes that the debug arena keeps before each block: the size word, then the header. */
 const header = 16
-
-/**
- * What the arena keeps: the memory's size in pages and the most that the
- * host lets it grow to, where its state words are, the pointer, and the end
- * of the region that the pointer is in.
- *
- * @typedef {{
- *     readonly pages: number
- *     readonly most: number
- *     readonly state: number
- *     readonly top: number
- *     readonly end: number
- * }} Arena
- */
-
-/**
- * A block of the debug arena: the size that `alloc` was asked for, its
- * type, its count, and whether a `free` took it.
- *
- * @typedef {{
- *     readonly n: number
- *     readonly t: number
- *     readonly count: number
- *     readonly freed: boolean
- * }} Block
- */
-
-/**
- * What the debug arena keeps: the arena, how many blocks have a count above
- * 0, and each block by its address, in decimal.
- *
- * @typedef {{
- *     readonly arena: Arena
- *     readonly live: number
- *     readonly blocks: OrderedMap<Block>
- * }} Counted
- */
 
 /** `n` rounded up to 8. @type {(n: number) => number} */
 export const round = n => n + 7 - (n + 7) % 8

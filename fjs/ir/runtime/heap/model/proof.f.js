@@ -5,13 +5,12 @@
  * arena runs out of memory where the host refuses or past `0xFFFF_0000`.
  * The debug arena keeps 16 bytes before each block and counts in a map
  * from offset to block, and refuses what its WASM traps on.
+ *
+ * @import { Arena, Counted } from './types.ts'
  */
 
 import { assert, assertEq, assertNotNullish } from '../../../../asserts/module.f.js'
 import { alloc, allocCounted, block, drop, dup, free, other, round, start, startCounted } from './module.f.js'
-
-/** @typedef {import('./module.f.js').Arena} Arena */
-/** @typedef {import('./module.f.js').Counted} Counted */
 
 /** The arena and the address of a block that fits. @type {(a: Arena, n: number) => readonly [Arena, number]} */
 const allocated = (a, n) => assertNotNullish(alloc(a, n))

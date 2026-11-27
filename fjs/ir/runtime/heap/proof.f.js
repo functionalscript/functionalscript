@@ -6,6 +6,8 @@
  * bump of the pointer, and the debug `dup` checks the address and the count
  * before it adds 1. The [host proof](./proof.mjs) runs both against the
  * [model](./model/module.f.js).
+ *
+ * @import { Module } from '../../types.ts'
  */
 
 import { assertEq, assertNotNullish, assertOk } from '../../../asserts/module.f.js'
@@ -14,8 +16,6 @@ import { check } from '../../check/module.f.js'
 import { equal, u } from '../../module.f.js'
 import { emit } from '../../wasm/module.f.js'
 import { counted, iface, module } from './module.f.js'
-
-/** @typedef {import('../../types.ts').Module} Module */
 
 /** The interface's functions by name. */
 const names = iface.functions.map(([k]) => k)
