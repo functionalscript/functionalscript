@@ -6,7 +6,7 @@
  * stack, including the value blocks introduced by source logical lowering.
  *
  * @module
- * @import { Exp, ExpOp } from '../types.ts'
+ * @import { Exp, ExpOp, Group, GroupMember } from '../types.ts'
  * @import { BindingId, Block, Definition, Exit, Function as FastFunction, Loop, Operator, Statement, Step, Value } from '../../js/ast/types.ts'
  * @import { Environment, Lowered, Transfer } from './types.ts'
  * @import { Binding, Context, ExitOwner, Link, Node, Ordered, OrderScope, Scope, Summaries, Summary, Visit, _BlockTask, _Control, _ControlTask, _ValueTask } from './private.ts'
@@ -254,6 +254,9 @@ const orderedStep = (scope, pending, value) => {
     }
 }
 
+/** @type {(ids: readonly BindingId[], value: Value) => number} */
+const peerIndex = (ids, value) => value instanceof Array && value[0] === 'ref' ? ids.indexOf(value[1]) : -1
+
 /** @type {(node: Node, parts: readonly Summary[], external: readonly BindingId[]) => Summary} */
 const summary = (node, parts, external) => {
     /** @type {Summary} */
@@ -263,7 +266,8 @@ const summary = (node, parts, external) => {
         if (!(value instanceof Array)) { return empty }
         if (value[0] === 'ref') { return { ...empty, references: [value[1]], prefix: [value[1]], demand: [value[1]], fails: external.includes(value[1]), diverges: external.includes(value[1]) } }
         if (value[0] === 'function') {
-            const captures = parts.slice(0, -1)
+            const group = value[1].group
+            const captures = group === undefined ? parts.slice(0, -1) : parts.slice(0, -1).filter((_, i) => peerIndex(group, value[1].captures[Number(i)].value) < 0)
             return { ...empty, references: captures.flatMap(part => part.references), prefix: prefixReads(captures), demand: prefixReads(captures, true), fails: captures.some(part => part.fails), diverges: captures.some(part => part.diverges) }
         }
         if (value[0] === 'block') { return { ...empty, references: parts[0].references, prefix: parts[0].prefix, demand: parts[0].demand, fails: parts[0].fails, diverges: parts[0].diverges } }
@@ -433,8 +437,8 @@ const lowerValues = (valueTask, input, context) => {
     return each(0, null)
 }
 
-/** The canonical scalar invocation loop reuses its owning function. @type {(blockTask: _BlockTask, valueTask: _ValueTask, fn: FastFunction, loop: Loop, context: Context) => Task<Lowered>} */
-const scalarRoot = (blockTask, valueTask, fn, loop, context) => call(() => {
+/** The canonical scalar invocation loop reuses its owning function. @type {(blockTask: _BlockTask, valueTask: _ValueTask, fn: FastFunction, loop: Loop, context: Context, self: Exp) => Task<Lowered>} */
+const scalarRoot = (blockTask, valueTask, fn, loop, context, self) => call(() => {
     const parts = assertNotNullish(scalarLoopOf(loop))
     /** @type {(index: number, scope: Scope) => Task<Lowered>} */
     const aliases = (index, scope) => call(() => {
@@ -444,7 +448,6 @@ const scalarRoot = (blockTask, valueTask, fn, loop, context) => call(() => {
         }
         return bind(valueTask(loop.initial[0], { ...context, scope }), parameter => {
             const inner = { ...context, scope: scopeOf([[loop.parameters[0], parameter.exp]], scope) }
-            const self = fn.self === null ? /** @type {Exp} */ (['self']) : lookup(context.scope, fn.self)
             return bind(valueTask(parts.condition, inner), condition =>
                 bind(blockTask(parts.step, { ...inner, transfer: { kind: 'scalar', self } }), step =>
                     done({ exp: ['?:', condition.exp, anchored(step), parameter.exp], anchors: [...parameter.anchors, ...condition.anchors] })))
@@ -453,8 +456,8 @@ const scalarRoot = (blockTask, valueTask, fn, loop, context) => call(() => {
     return aliases(0, context.scope)
 })
 
-/** @type {(blockTask: _BlockTask, valueTask: _ValueTask, fn: FastFunction, context: Context) => Task<Lowered>} */
-const functionValue = (blockTask, valueTask, source, context) => call(() => {
+/** @type {(source: FastFunction) => FastFunction} */
+const prepareFunction = source => {
     if (source.parameters.length > maxLength) { throw 'a function exceeds the fixed-parameter limit' }
     const lifted = _forwardReturns(liftReturns(source.body, source.target), source.target)
     const memoized = normalizeMemo(lifted, [], source.target, source.self)
@@ -465,34 +468,95 @@ const functionValue = (blockTask, valueTask, source, context) => call(() => {
     const normalized = completeTransfers(prepared, originalRoot)
     const scalar = rootLoopOf(normalized)
     const matched = scalar !== null && scalarLoopOf(scalar) !== null ? null : invocationRootOf(normalized)
-    const fn = owning.root !== null ? _directOwningInvocationRoot(normalized, owning.root.target)
+    return owning.root !== null ? _directOwningInvocationRoot(normalized, owning.root.target)
         : matched !== null ? directInvocationRoot(normalized, matched) : normalized
+}
+
+/** Lay out all eager captures once. Only operations need frame slots.
+ * @type {(captures: readonly Lowered[]) => { readonly captured: readonly Exp[]; readonly slots: readonly ExpOp[]; readonly anchors: readonly Exp[] }}
+ */
+const captureFrame = captures => {
+    const placed = orderedOperands(captures, values => ['[]', values])
+    const values = assertNotNullish(entry(placed, 'values'))
+    const candidates = values.filter(exp => exp instanceof Array)
+    const slots = candidates.filter((node, i) => candidates.findIndex(other => sameCapture(other, node)) === i)
+    return { captured: values, slots, anchors: placed.anchors }
+}
+
+/** Each invocation scope has its own read nodes, including when several bodies share a frame.
+ * @type {(blockTask: _BlockTask, valueTask: _ValueTask, source: FastFunction, fn: FastFunction, captures: Environment, self: Exp, context: Context) => Task<GroupMember>}
+ */
+const functionBody = (blockTask, valueTask, source, fn, captures, self, context) => {
+    /** @type {Environment} */
+    const inner = [
+        ...fn.parameters.map((id, i) => /** @type {const} */ ([id, ['arg', i]])),
+        ...(fn.rest === null ? [] : [/** @type {const} */ ([fn.rest, ['rest']])]),
+        ...(fn.self === null ? [] : [/** @type {const} */ ([fn.self, self])]),
+        ...captures,
+    ]
+    const known = context.external.length === 0 ? context.summaries : noEntries
+    /** @type {Context} */
+    const local = { ...context, external: [], summaries: fn === source && context.external.length === 0 ? known : mapOf([...mapEntries(known), ...mapEntries(summaries(['block', fn.body], known))]), scope: scopeOf(inner), transfer: { kind: 'default' }, functionTarget: fn.target, memoPrepared: true }
+    const root = rootLoopOf(fn)
+    return bind(root === null ? blockTask(fn.body, local) : scalarRoot(blockTask, valueTask, fn, root, local, self), body =>
+        done([fn.parameters.length, anchored(body)]))
+}
+
+/** @type {(exp: Exp, slots: readonly ExpOp[], reads: readonly Exp[]) => Exp} */
+const frameRead = (exp, slots, reads) => exp instanceof Array ? reads[Number(slots.findIndex(slot => sameCapture(slot, exp)))] : exp
+
+/** @type {(blockTask: _BlockTask, valueTask: _ValueTask, fn: FastFunction, context: Context) => Task<Lowered>} */
+const functionValue = (blockTask, valueTask, source, context) => call(() => {
+    const fn = prepareFunction(source)
     return bind(lowerValues(valueTask, fn.captures.map(capture => capture.value), { ...context, transfer: { kind: 'default' } }), captures => {
-        const placed = orderedOperands(captures, values => ['[]', values])
-        const placedValues = assertNotNullish(entry(placed, 'values'))
-        const candidates = placedValues.filter(exp => exp instanceof Array)
-        const slots = candidates.filter((node, i) => candidates.findIndex(other => sameCapture(other, node)) === i)
-        const reads = slots.map((_, i) => /** @type {Exp} */ (['frame', i]))
-        /** @type {Environment} */
-        const inner = [
-            ...fn.parameters.map((id, i) => /** @type {const} */ ([id, ['arg', i]])),
-            ...(fn.rest === null ? [] : [/** @type {const} */ ([fn.rest, ['rest']])]),
-            ...(fn.self === null ? [] : [/** @type {const} */ ([fn.self, ['self']])]),
-            ...fn.captures.map((capture, i) => {
-                const value = placedValues[Number(i)]
-                return /** @type {const} */ ([capture.binding,
-                    value instanceof Array ? reads[Number(slots.findIndex(node => sameCapture(node, value)))] : value,
-                ])
-            }),
-        ]
-        const known = context.external.length === 0 ? context.summaries : noEntries
-        /** @type {Context} */
-        const local = { ...context, external: [], summaries: fn === source && context.external.length === 0 ? known : mapOf([...mapEntries(known), ...mapEntries(summaries(['block', fn.body], known))]), scope: scopeOf(inner), transfer: { kind: 'default' }, functionTarget: fn.target, memoPrepared: true }
-        const root = rootLoopOf(fn)
-        return bind(root === null ? blockTask(fn.body, local) : scalarRoot(blockTask, valueTask, fn, root, local), body =>
-            done({ exp: ['=>', fn.parameters.length, slots, anchored(body)], anchors: placed.anchors }))
+        const frame = captureFrame(captures)
+        const reads = frame.slots.map((_, i) => /** @type {Exp} */ (['frame', i]))
+        const bindings = fn.captures.map((capture, i) => /** @type {const} */ ([capture.binding, frameRead(frame.captured[Number(i)], frame.slots, reads)]))
+        return bind(functionBody(blockTask, valueTask, source, fn, bindings, ['self'], context), ([arity, body]) =>
+            done({ exp: ['=>', arity, frame.slots, body], anchors: frame.anchors }))
     })
 })
+
+/** Peer captures are reads of the member's own group. All other captures are
+ * evaluated at the declaration site, in member and capture order.
+ * @type {(blockTask: _BlockTask, valueTask: _ValueTask, statements: readonly Statement[], start: number, ids: readonly BindingId[], context: Context) => Task<{ readonly scope: Scope; readonly anchors: readonly Exp[] }>}
+ */
+const groupTask = (blockTask, valueTask, statements, start, ids, context) => {
+    const sources = ids.map((id, i) => {
+        const definition = statements[Number(start + i)]
+        assert(definition[0] === 'define' && definition[1] === id && definition[2] instanceof Array && definition[2][0] === 'function')
+        return definition[2][1]
+    })
+    const functions = sources.map(prepareFunction)
+    const external = functions.flatMap(fn => fn.captures.filter(capture => peerIndex(ids, capture.value) < 0))
+    return bind(lowerValues(valueTask, external.map(capture => capture.value), { ...context, transfer: { kind: 'default' } }), values => {
+        const frame = captureFrame(values)
+        /** @type {(index: number, offset: number, bodies: List<GroupMember>) => Task<{ readonly scope: Scope; readonly anchors: readonly Exp[] }>} */
+        const each = (index, offset, bodies) => call(() => {
+            if (index === ids.length) {
+                /** @type {Group} */
+                const group = ['group', frame.slots, toArray(bodies).toReversed()]
+                return done({ scope: scopeOf(ids.map((id, i) => [id, ['fn', group, i]]), context.scope), anchors: [...frame.anchors, ...frame.slots] })
+            }
+            const fn = functions[Number(index)]
+            const peers = ids.map((_, i) => /** @type {Exp} */ (['self', i]))
+            const reads = frame.slots.map((_, i) => /** @type {Exp} */ (['frame', i]))
+            /** @type {Environment} */
+            let bindings = []
+            let next = offset
+            for (const capture of fn.captures) {
+                const peer = peerIndex(ids, capture.value)
+                const value = peer >= 0 ? peers[Number(peer)] : frameRead(frame.captured[Number(next)], frame.slots, reads)
+                if (peer < 0) { next += 1 }
+                bindings = [...bindings, [capture.binding, value]]
+            }
+            const following = next
+            return bind(functionBody(blockTask, valueTask, sources[Number(index)], fn, bindings, peers[Number(index)], context), body =>
+                each(index + 1, following, { first: body, tail: bodies }))
+        })
+        return each(0, 0, null)
+    })
+}
 
 /** Memo admission leaves only established values to capture. @type {(blockTask: _BlockTask, valueTask: _ValueTask, loop: Loop, context: Context) => Task<{ readonly value: Lowered; readonly bindings: Environment; readonly results: readonly BindingId[] }>} */
 const loopTask = (blockTask, valueTask, loop, context) => call(() => {
@@ -720,7 +784,10 @@ const controlTaskWith = (blockTask, valueTask) => {
             }
             const statement = block.statements[Number(index)]
             if (statement[0] === 'define') {
-                return bind(definitionTask(valueTask, statement, current, required, !entry.includes(statement[1])), value => each(index + 1, value.scope, { head: anchors, tail: value.anchors }))
+                const group = statement[2] instanceof Array && statement[2][0] === 'function' ? statement[2][1].group : undefined
+                const task = group === undefined ? definitionTask(valueTask, statement, current, required, !entry.includes(statement[1]))
+                    : groupTask(blockTask, valueTask, block.statements, index, group, current)
+                return bind(task, value => each(index + (group?.length ?? 1), value.scope, { head: anchors, tail: value.anchors }))
             }
             if (statement[0] === 'loop') {
                 return bind(loopTask(blockTask, valueTask, statement[1], current), ({ value, bindings, results }) => each(index + 1, scopeOf(bindings, scope),
@@ -766,7 +833,10 @@ const blockTask = (block, context) => {
             }
             const statement = block.statements[Number(index)]
             if (statement[0] === 'define') {
-                return bind(definitionTask(valueTask, statement, current, required), value => each(index + 1, value.scope, { head: anchors, tail: value.anchors }))
+                const group = statement[2] instanceof Array && statement[2][0] === 'function' ? statement[2][1].group : undefined
+                const task = group === undefined ? definitionTask(valueTask, statement, current, required)
+                    : groupTask(blockTask, valueTask, block.statements, index, group, current)
+                return bind(task, value => each(index + (group?.length ?? 1), value.scope, { head: anchors, tail: value.anchors }))
             }
             if (statement[0] === 'loop') {
                 return bind(loopTask(blockTask, valueTask, statement[1], current), ({ value, bindings, results }) => each(index + 1,

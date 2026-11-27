@@ -105,6 +105,7 @@ const graphStep = (a, step) => {
 /** Preserve ordinary operation spelling while changing operand vocabulary. @type {(a: Analysis, node: Node) => Operator<Operand>} */
 const graphOperator = (a, node) => {
     switch (node[0]) {
+        case 'fn': { return ['.', node[1], node[2]] }
         case '[]': { return ['array', node[1]] }
         case '{}': { return ['object', node[1]] }
         case 'memberPresent': { return ['memberPresent', node[1], graphKey(a, node[2])] }
@@ -151,19 +152,29 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
     const holdsSelf = scopeHolds(a, 'self')
     const ids = a.nodes.map((_, index) => external.find(([node]) => node === index)?.[1] ?? ({ index }))
     const width = count + 32
-    const contexts = a.nodes.map((node, index) => {
+    /** @type {(index: number, length: number, slots: number, peers: readonly BindingId[], member?: number) => Omit<Context, 'functions' | 'regions' | 'deferred'>} */
+    const contextOf = (index, length, slots, peers, member) => {
         const base = count + index * width
         return {
-            target: /** @type {FunctionTarget} */ ({ kind: 'function', index }),
-            parameters: generate(node[0] === '=>' ? node[1] : 0, k => ({ index: base + k })),
+            target: member === undefined ? { kind: 'function', index } : { kind: 'function', index, member },
+            parameters: generate(length, k => ({ index: base + k })),
             rest: { index: base + 16 },
             self: { index: base + 17 },
-            captures: generate(node[0] === '=>' ? node[2].length : 0, k => ({ index: base + 32 + k })),
+            captures: generate(slots, k => ({ index: base + 32 + k })),
+            peers,
             loop: { index: base + 18 },
             result: { index: base + 19 },
         }
+    }
+    const contexts = a.nodes.map((node, i) => contextOf(i, node[0] === '=>' ? node[1] : 0, node[0] === '=>' ? node[2].length : 0, []))
+    // All projections in this region refer to the same declaration objects.
+    const groups = a.nodes.map((node, i) => {
+        if (node[0] !== 'group') { return null }
+        const peers = node[2].map((_, k) => ({ index: count + i * width + k }))
+        const slots = node[1].map((_, k) => ({ index: count + i * width + peers.length + k }))
+        return { peers, slots, members: node[2].map(([length], k) => contextOf(i, length, slots.length, peers, k)) }
     })
-    const rootContext = { target: /** @type {FunctionTarget} */ ({ kind: 'function', index: -1 }), parameters: invocation.parameters ?? generate(Math.max(0, ...a.nodes.map(node => node[0] === 'arg' ? node[1] + 1 : 0)), index => ({ index: -32 - index })), rest: invocation.rest ?? { index: -1 }, self: invocation.self ?? { index: -2 }, captures: invocation.captures ?? generate(Math.max(0, ...a.nodes.map(node => node[0] === 'frame' ? node[1] + 1 : 0)), index => ({ index: -64 - index })), loop: { index: -3 }, result: { index: -4 } }
+    const rootContext = { peers: [], target: /** @type {FunctionTarget} */ ({ kind: 'function', index: -1 }), parameters: invocation.parameters ?? generate(Math.max(0, ...a.nodes.map(node => node[0] === 'arg' ? node[1] + 1 : 0)), index => ({ index: -32 - index })), rest: invocation.rest ?? { index: -1 }, self: invocation.self ?? { index: -2 }, captures: invocation.captures ?? generate(Math.max(0, ...a.nodes.map(node => node[0] === 'frame' ? node[1] + 1 : 0)), index => ({ index: -64 - index })), loop: { index: -3 }, result: { index: -4 } }
     /** @type {(context: Context, bound: PersistentSet<number>, roots: readonly Operand[], done: Done<Block>) => Work} */
     const region = (context, bound, given, done) => () => {
         // A root before the last is evaluated for what it does, and a read
@@ -186,8 +197,52 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
                 case 'arg': { return deliver(done, ['ref', context.parameters[Number(node[1])]]) }
                 case 'rest': { return deliver(done, ['ref', context.rest]) }
                 case 'args': { return deliver(done, ['ref', invocation.args ?? rootContext.rest]) }
-                case 'self': { return deliver(done, ['ref', context.self]) }
+                case 'self': { return deliver(done, ['ref', node.length === 1 ? context.self : context.peers[Number(node[1])]]) }
                 case 'frame': { return deliver(done, ['ref', context.captures[Number(node[1])]]) }
+                case 'group': {
+                    const group = assertNotNullish(groups[Number(i)])
+                    /** @type {(entry: readonly [number, Operand], k: number, next: Done<Statement>) => Work} */
+                    const defineMember = ([, body], k, next) => {
+                        const member = group.members[Number(k)]
+                        return region({ ...member, functions: context.functions, regions: [], deferred: [] }, empty, [body], raw => {
+                            const placed = _joinResults(terminal(raw))
+                            const exit = /** @type {Extract<Block['exit'], readonly ['yield', readonly Value[]]>} */ (placed.exit)
+                            const uses = freeBindings(placed, [])
+                            /** @type {FastFunction} */
+                            const fn = {
+                                target: member.target, group: group.peers,
+                                parameters: member.parameters, rest: uses.includes(member.rest) ? member.rest : null, self: null,
+                                captures: [
+                                    ...group.slots.map((slot, j) => ({ binding: member.captures[Number(j)], value: /** @type {const} */ (['ref', slot]) })),
+                                    ...group.peers.filter(peer => uses.includes(peer)).map(peer => ({ binding: peer, value: /** @type {const} */ (['ref', peer]) })),
+                                ],
+                                body: placed.exit[0] === 'throw' ? placed : { statements: placed.statements, exit: ['return', member.target, exit[1][0]] },
+                            }
+                            return deliver(next, ['define', group.peers[Number(k)], ['function', fn], 'required'])
+                        })
+                    }
+                    const peers = group.peers.map(peer => /** @type {const} */ (['ref', peer]))
+                    return gather(node[1], (slot, k, next) => valueOf(context, bound, slot, value =>
+                        deliver(next, /** @type {Statement} */ (['define', group.slots[Number(k)], value, 'required']))), captures =>
+                        gather(node[2], defineMember, members => deliver(done, ['block', {
+                            statements: [...captures, ...members], exit: ['yield', [['array', peers]]],
+                        }])))
+                }
+                case 'fn': {
+                    const owner = /** @type {import('../analysis/types.ts').Ref} */ (node[1])[1]
+                    const peer = assertNotNullish(groups[Number(owner)]).peers[Number(node[2])]
+                    if (has(owner)(bound)) {
+                        // A deferred or externally supplied group has one bundle
+                        // of members. An ordinary group has lexical declarations.
+                        return context.deferred.includes(owner) || external.some(([i]) => i === owner)
+                            ? deliver(done, ['.', ['ref', ids[Number(owner)]], node[2]])
+                            : deliver(done, ['ref', peer])
+                    }
+                    return valueOf(context, bound, node[1], value => {
+                        const group = terminal(/** @type {readonly ['block', Block]} */ (value)[1])
+                        return deliver(done, ['block', { statements: group.statements, exit: ['yield', [['ref', peer]]] }])
+                    })
+                }
                 case '=>': {
                     /** @type {(outer: Context, bound: PersistentSet<number>, i: number, done: Done<FastFunction>) => Work} */
                     const functionOf = (outer, bound, i, done) => () => {
@@ -245,7 +300,7 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
         const repeatedHere = all.filter(i => has(i)(repeatedNodes) && !isRead(a.nodes[Number(i)]))
         // A value used only within one operand belongs to that operand's
         // region, after the preceding operands and their implicit work.
-        const operands = node === null ? [] : node[0] === '=>' ? node[2] : operatorOperands(graphOperator(a, node))
+        const operands = node === null ? [] : node[0] === 'group' ? node[1] : node[0] === '=>' ? node[2] : operatorOperands(graphOperator(a, node))
         const uses = repeatedHere.map(i => operands.filter(operand => reachable(a, ownOperandsOf, bound)([operand]).includes(i)))
         // A function that reads itself is named here, at the region's start,
         // and its captures with it. What they hold is then needed here too,
@@ -283,7 +338,7 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
             const stable = (/** @type {Operand} */ value) => !(value instanceof Array) || has(value[1])(bound) || established.includes(value[1]) || isRead(a.nodes[Number(value[1])])
             if (node[0] === '[]') { return node[1].every(item => !isSpread(item) && stable(item)) }
             if (node[0] === '{}') { return node[1].every(entry => entry[0] === ':' && !(entry[1] instanceof Array) && stable(entry[2])) }
-            return node.length === 1 || node[0] === '=>' && node[2].every(value => !(value instanceof Array) || has(value[1])(bound) || established.includes(value[1]) || isRead(a.nodes[Number(value[1])]))
+            return node.length === 1 || node[0] === 'group' && node[1].every(stable) || node[0] === '=>' && node[2].every(stable)
         }
         const candidates = setValues(fromValues([...owners, ...named.filter(i => prefix.includes(i) || movable(i))])).filter(i => !has(i)(bound)).toSorted((x, y) => x - y)
         let owned = setValues(fromValues([...candidates, ...shared.filter(i => promoted.includes(i))])).toSorted((x, y) => x - y)
@@ -351,9 +406,18 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
         }
         /** @type {Context} */
         const inner = { ...localContext, deferred: [...context.deferred, ...lazy] }
-        return gather(plans, (plan, _, next) => valueOf(inner, plan.own === null ? available : remove(plan.own)(available), plan.value, value => deliver(next, /** @type {Statement} */ (['define', plan.binding, value, plan.mode]))), statements => roots.length === 0
-            ? deliver(done, { statements, exit: ['yield', [undefined]] })
-            : valueOf(inner, available, roots[Number(roots.length - 1)], value => deliver(done, { statements, exit: ['yield', [value]] })))
+        return gather(plans, (plan, _, next) => valueOf(inner, plan.own === null ? available : remove(plan.own)(available), plan.value, value => {
+            // The group itself is never a language value. A required group is
+            // established by declaring its members; its projections name them.
+            if (plan.mode === 'required' && plan.own !== null && groups[Number(plan.own)] !== null) {
+                return deliver(next, terminal(/** @type {readonly ['block', Block]} */ (value)[1]).statements)
+            }
+            return deliver(next, [/** @type {Statement} */ (['define', plan.binding, value, plan.mode])])
+        }), parts => {
+            const statements = parts.flat()
+            return roots.length === 0 ? deliver(done, { statements, exit: ['yield', [undefined]] })
+                : valueOf(inner, available, roots[Number(roots.length - 1)], value => deliver(done, { statements, exit: ['yield', [value]] }))
+        })
     }
 
     /** Placement and terminal eligibility are shared by naming and emission. @type {(i: number, functions: Context['functions'], done: Done<_FunctionBody>) => Work} */
@@ -436,7 +500,12 @@ export const toFast = root => mapOk(fromAnalysis)(okThen(checked)(identityAnalys
  */
 export const functionFromAnalysis = (a, index) => {
     const block = fromAnalysis({ ...a, root: ['#', index] })
-    const found = block.statements.find(statement => statement[0] === 'define' && statement[2] instanceof Array && statement[2][0] === 'function' && statement[2][1].target.index === index)
+    const node = a.nodes[Number(index)]
+    const found = block.statements.find(statement => {
+        if (statement[0] !== 'define' || !(statement[2] instanceof Array) || statement[2][0] !== 'function') { return false }
+        const fn = statement[2][1]
+        return node[0] === 'fn' ? fn.target.index === /** @type {import('../analysis/types.ts').Ref} */ (node[1])[1] && fn.target.member === node[2] : fn.target.index === index
+    })
     return found !== undefined
         ? /** @type {readonly ['function', FastFunction]} */ (/** @type {Extract<Statement, readonly ['define', unknown, unknown, unknown]>} */ (found)[2])[1]
         : /** @type {readonly ['function', FastFunction]} */ (/** @type {Extract<Block['exit'], readonly ['yield', readonly Value[]]>} */ (block.exit)[1][0])[1]

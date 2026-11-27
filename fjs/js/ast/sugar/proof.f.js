@@ -44,6 +44,21 @@ const fn = source => {
 }
 
 export const proof = {
+    groupMembersShareTheirFASTBindings: () => {
+        const source = 'const p=()=>0; const a=()=>b,b=()=>c,c=()=>a; const x=()=>y; const y=()=>[x,p]; export default x'
+        const statements = normalize(assertOk(parse('')(source)), []).body.statements
+        const first = statements[1]
+        const second = statements[2]
+        assert(first[0] === 'define' && first[2] instanceof Array && first[2][0] === 'function')
+        assert(second[0] === 'define' && second[2] instanceof Array && second[2][0] === 'function')
+        const group = first[2][1].group
+        assertEq(group, second[2][1].group)
+        assertEq(group?.[0], first[1])
+        assertEq(group?.[1], second[1])
+        const peer = first[2][1].captures[0].value
+        assert(peer instanceof Array && peer[0] === 'ref')
+        assertEq(peer[1], second[1])
+    },
     objectRestExcludesSourceKeysAndKeepsEnumerationOrder: () => {
         /** @type {readonly (readonly [string, unknown])[]} */
         const cases = [

@@ -85,6 +85,7 @@ export const _restoredScope = (scope, held) => {
     return {
         ..._traced({ ...outer, trace: scope.region ? { ...outer.trace, bindings: [...outer.trace.bindings, ...trace.bindings] } : outer.trace }, [event]),
         sourceOrigins: [...outer.sourceOrigins, ...scope.sourceOrigins],
+        ...(scope.groups === undefined ? {} : { groups: [...outer.groups ?? [], ...scope.groups] }),
         captures: [...outer.captures, ...(held ? kept.map(capture => ({ ...capture, escaped: true })) : kept)],
     }
 }

@@ -24,7 +24,7 @@ export type _Chain = {
 }
 
 /** A binding a module defines, and the edges its node draws: what defines it. */
-export type _Definition = readonly [id: BindingId, children: readonly _Child[]]
+export type _Definition = readonly [id: BindingId, children: readonly _Child[], recursive?: boolean]
 
 
 /** Deferred depth-first work in the binding-definition scan. */

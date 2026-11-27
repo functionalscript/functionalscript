@@ -5,6 +5,7 @@
  */
 
 import { graphOfText, _shapeOf } from './module.f.js'
+import { graphOf } from '../../../website/demo/graph/module.f.js'
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { unwrap } from '../../../types/result/module.f.js'
 import { hasEntry } from '../../../types/object/entry/module.f.js'
@@ -42,6 +43,23 @@ export const proof = {
             // one port per slot, named as the body reads it
             const captures = nodeShapeOf(['=>', 0, [['[]', []], ['args']], ['frame', 1]], 'expected a shape')
             assertStructurallySame(captures.children, [['length', 0], ['frame 0', ['[]', []]], ['frame 1', ['args']], ['body', ['frame', 1], 'lazy']])
+        },
+        group: () => {
+            const group = ['group', [9], [[0, ['self', 1]], [1, ['self', 0]]]]
+            const drawing = graphOf(_shapeOf)(['fn', group, 0])
+            assertStructurallySame(drawing.nodes.map(n => n.label), ['fn 0', 'group'])
+            assertStructurallySame(drawing.edges.filter(e => e.back === true).map(e => [e.from, e.to, e.label, e.kind]), [
+                [1, 1, 'body 0 (self 1)', 'lazy'], [1, 1, 'body 1 (self 0)', 'lazy'],
+            ])
+            assertStructurallySame(nodeShapeOf(group, 'group').children, [
+                ['frame 0', 9], ['length 0', 0], ['body 0', ['self', 1], 'lazy'],
+                ['length 1', 1], ['body 1', ['self', 0], 'lazy'],
+            ])
+            const shape = _shapeOf(['self', 0])
+            assert(hasEntry(shape, 'owner'))
+            assert(!shape.owner(group, 'frame 0'))
+            assert(!shape.owner(['=>'], 'body 1'))
+            assert(!shape.owner(null, 'body 1'))
         },
         // Every Op0 name the EDAG has of its own draws inline, and
         // the three part by meaning where `Op0Id` groups them by

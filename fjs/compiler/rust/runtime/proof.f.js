@@ -1,4 +1,4 @@
-/** @import { Exp } from '../../../edag/types.ts' */
+/** @import { Exp, Group } from '../../../edag/types.ts' */
 import { assert, assertEq, assertError, assertOk } from '../../../asserts/module.f.js'
 import { fromTagged } from '../../../text/marked/module.f.js'
 import { occurrences } from '../../../types/string/module.f.js'
@@ -30,6 +30,16 @@ const inOrder = (rust, fragments) => {
 }
 
 export const proof = {
+    groupedBuiltIns: () => {
+        /** @type {Group} */
+        const group = ['group', [], [[0, ['self', 1]], [0, ['self', 0]]]]
+        const statics = object([['Object.first', ['fn', group, 0]], ['Object.second', ['fn', group, 1]]])
+        const rust = assertOk(generateRuntime(module(statics)))
+        assert(rust.includes('Some("function first() { [native code] }")'))
+        assert(rust.includes('Some("function second() { [native code] }")'))
+        const duplicate = object([['Object.first', ['fn', group, 0]], ['Object.again', ['fn', group, 0]]])
+        assert(refusal(module(duplicate)).includes('a function two built-ins name'))
+    },
     unusedStaticsPreserveThrows: () => {
         /** @type {readonly (readonly [number, string])[]} */
         const cases = [[123, '0x405ec00000000000'], [7, '0x401c000000000000']]

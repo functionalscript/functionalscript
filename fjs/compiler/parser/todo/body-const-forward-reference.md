@@ -23,11 +23,10 @@ so it would read the module's `x` — a plausible wrong value — and the
 program is refused instead
 ([DESIGN.md §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
 
-The refusal is a gap, not a rule of the language: nothing leaks through
-such a program, and the language refuses at compile time only what could
-leak a side effect. It is the body's case of
-[forward references](../../../../spec/todo/3140-forward-references.md),
-which a module's `const`s have too (`const not found` today).
+Consecutive mutually recursive function declarations now resolve in both a
+module and a function body. Neither example above forms a function group.
+Ordinary eager reads before initialization and captures of a later
+non-function binding remain open.
 
 ### Direction
 
@@ -37,9 +36,8 @@ own statements is the body's, read before its declaration — a failure when
 evaluated, as JavaScript's temporal dead zone is — and one from a function
 written in the body is a capture of that `const`, which the frame can hold
 only once the `const` is established, so the function has to be built after
-it. How the EDAG spells the failure and the late frame is the
-implementation's to decide, together with
-[forward references](../../../../spec/todo/3140-forward-references.md).
+it. The EDAG representation for the failure and the late capture remains
+open.
 
 ### Tasks
 

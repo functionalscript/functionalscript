@@ -850,7 +850,8 @@ const normalizedBlock = (source, environment, context, retained = []) => {
     let statements = []
     let hasLoopExit = false
     let hasFunctionExit = false
-    for (const statement of source.statements) {
+    for (let index = 0; index < source.statements.length; index += 1) {
+        const statement = source.statements[Number(index)]
         if (statement[0] === 'return' || statement[0] === 'throw') {
             const made = normalizedStateWith(stateTask)(inner, context)(statement[0] === 'return' ? statement[2] : statement[1])
             const exit = statement[0] === 'return' ? /** @type {const} */ (['return', statement[1], made.value]) : /** @type {const} */ (['throw', made.value])
@@ -865,6 +866,19 @@ const normalizedBlock = (source, environment, context, retained = []) => {
                 hasLoopExit: hasLoopExit || loop === context.loop, hasFunctionExit }
         }
         if (statement[0] === 'initialize') {
+            const members = context.groups.find(group => group[0] === statement[1].ids[0])
+            if (members !== undefined) {
+                const group = members.map(id => binding(id.index))
+                inner = [...inner, ...members.map((id, i) => /** @type {const} */ ([id, reference(group[Number(i)])]))]
+                for (let i = 0; i < group.length; i += 1) {
+                    const member = source.statements[Number(index + i)]
+                    assert(member[0] === 'initialize' && member[2] instanceof Array && member[2][0] === 'function')
+                    const fn = functionValueWith(normalizedBlock, stateTask)(member[2][1], inner, context)
+                    statements = [...statements, ['define', group[Number(i)], ['function', { ...fn, group }], 'required']]
+                }
+                index += group.length - 1
+                continue
+            }
             const value = normalizedStateWith(stateTask)(inner, context)(statement[2])
             statements = [...statements, ...value.statements]
             if (!value.normal) { return { block: pruneAliases({ statements, exit: ['yield', []] }, []), environment: value.environment, normal: false, hasLoopExit, hasFunctionExit } }
@@ -976,7 +990,7 @@ export const tryNormalize = (resolved, imports) => {
     const environment = resolved.imports.flatMap((imported, i) => imported.binding === null ? [] : [[imported.binding, reference(established[Number(representatives[Number(i)])])]])
     const scopes = scopesOf(resolved.scope)
     /** @type {Context} */
-    const context = { bindings: resolved.bindings, scopes, loop: null, breakRegion: null,
+    const context = { bindings: resolved.bindings, scopes, groups: resolved.groups ?? [], loop: null, breakRegion: null,
         writes: sourceWrites(resolved.body, fromEntries(scopes.map(scope => /** @type {const} */ ([scope.target, eventFacts(scope.events).writes])))) }
     const nodes = mapEntries(context.writes).map(([node]) => node)
     const equality = nodes.find(node => node instanceof Array && (node[0] === '==' || node[0] === '!='))

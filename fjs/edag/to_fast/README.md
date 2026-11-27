@@ -37,6 +37,16 @@ definition invocation-local memo storage, demanded on its first executed read.
 A failed initializer does not mark its storage complete. A loop recreates its
 iteration-local definitions and capture snapshots each iteration.
 
+A function group establishes its frame once, followed by consecutive member
+declarations. Each member can read its peers through those bindings. A
+projection of a required group reads its member directly. A deferred group
+stores its members together on first demand, so later projections see the
+same closures. Source output retains a group even when a peer reference that
+formed it was in dead code. If the remaining references no longer connect
+all the members, the writer adds unused peer reads to complete a cycle.
+Resolving the written declarations recovers the group, and lowering drops
+the unused reads again.
+
 An enclosing binding already owns its established callee or capture value.
 Nested regions read that binding instead of declaring the same nominal identity
 again. Explicit comma demands retain their evaluation through a fresh discarded

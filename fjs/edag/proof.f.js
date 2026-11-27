@@ -248,7 +248,7 @@ export const proof = {
         assertEq(helperLength('charCodeAt'), 2)
         for (const id of helperIds) { assert(isHelper([id]), id) }
         for (const node of [['Object.is'], ['entry', 1], ['=>', 0], 'entry', [], null]) { assert(!isHelper(node), node) }
-        for (const node of [['=>', 0, [], 1], ['entry'], ['hasEntry'], ['structEq'], ['refMap'], ['slice'], ['charCodeAt']]) { assert(isFunctionNode(node), node) }
+        for (const node of [['=>', 0, [], 1], ['fn', ['group', [], [[0, 1], [0, 2]]], 0], ['entry'], ['hasEntry'], ['structEq'], ['refMap'], ['slice'], ['charCodeAt']]) { assert(isFunctionNode(node), node) }
         for (const node of [['Object.is'], ['slice', 1], ['[]', []], 'entry', [], null]) { assert(!isFunctionNode(node), node) }
     },
     staticIds: () => {

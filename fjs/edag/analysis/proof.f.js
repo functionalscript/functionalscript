@@ -64,6 +64,40 @@ const empty = ['[]', []]
 const first = ['=>', 0, [], ['.', ['rest'], 0]]
 
 export const proof = {
+    groupScopes: () => {
+        const group = /** @type {const} */ (['group', [42], [[1, ['arg', 0]], [0, ['self', 0]]]])
+        for (const build of [analysis, identityAnalysis]) {
+            const a = assertOk(checked(assertOk(build(['fn', group, 1]))))
+            assertStructurallySame(a.scope, [2, 2, -1, -1])
+            assertStructurallySame(a.member, [0, 1, -1, -1])
+            assert(scopeHolds(a, 'self')(2, 1))
+            assert(!scopeHolds(a, 'self')(2, 0))
+        }
+        const shared = /** @type {const} */ (['self', 0])
+        assertError(analysis(['fn', ['group', [], [[0, shared], [0, shared]]], 0]))
+        assertError(analysis(['fn', ['group', [], [[0.5, 0], [0, 0]]], 0]))
+    },
+    invalidGroupBindings: () => {
+        /** @type {readonly Exp[]} */
+        const cases = [
+            ['group', [], [[0, 1], [0, 2]]],
+            ['[]', [['group', [], [[0, 1], [0, 2]]]]],
+            ['fn', ['group', [], [[0, 1]]], 0],
+            ['fn', ['group', [], [[17, 1], [0, 2]]], 0],
+            ['fn', ['group', [], [[0, 1], [0, 2]]], 2],
+            ['fn', ['group', [], [[0, ['self']], [0, 2]]], 0],
+            ['fn', ['group', [], [[0, ['self', 2]], [0, 2]]], 1],
+            ['fn', ['group', [], [[1, 0], [0, ['arg', 0]]]], 1],
+            ['fn', ['group', [1], [[0, ['frame', 1]], [0, 2]]], 0],
+            ['=>', 0, [], ['self', 0]],
+        ]
+        for (const e of cases) {
+            const a = assertOk(analysis(e))
+            assertError(checked(a))
+            const root = a.root
+            if (root instanceof Array) { assertError(checked(a, root[1])) }
+        }
+    },
     booleanOperand: () => {
         assertStructurallySame(nodesOf(['Boolean', ['[]', []]]), [['[]', []], ['Boolean', ['#', 0]]])
         assertStructurallySame(nodesOf(['Boolean', ['undefined']]), [['undefined'], ['Boolean', ['#', 0]]])
@@ -128,6 +162,7 @@ export const proof = {
         /** @type {Ref} */
         const b = ['#', 1]
         assertStructurallySame(ownOperandsOf(['=>', 2, [a, 42], b]), [a, 42])
+        assertStructurallySame(ownOperandsOf(['group', [a], [[0, b], [1, a]]]), [a])
         assertStructurallySame(ownOperandsOf(['=>', 0, [], 7]), [])
         assertStructurallySame(ownOperandsOf(['+', a, b]), [a, b])
     },

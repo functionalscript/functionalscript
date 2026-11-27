@@ -234,13 +234,13 @@ the same binding resolution, graph construction, analysis, and output pipeline.
       group for implementation.
 - [x] Keep both forms. A standalone function keeps `['=>', length, slots, body]`,
       including its existing self-tail-call recovery.
-- [ ] The EDAG: `['group', slots, functions]`, `['fn', group, index]` and
+- [x] The EDAG: `['group', slots, functions]`, `['fn', group, index]` and
       `['self', index]`.
-- [ ] The language rule: consecutive function `const`s that refer to each
+- [x] The language rule: consecutive function `const`s that refer to each
       other are one group, and a use of a group before its last function
       is a compilation error.
 - [x] NaNVM function values share their group allocation and select siblings by index.
-- [ ] Every compiler consumer of a function: the analysis, both interpreters, both
+- [x] Every compiler consumer of a function: the analysis, both interpreters, both
       writers and the Rust backend. A group of
       constants is written as static functions that name each other, with
       no `StaticGroup`.
@@ -251,7 +251,7 @@ the same binding resolution, graph construction, analysis, and output pipeline.
       of the same body and not the other, which no executor is held to:
       the requirement goes, and a grammar that maps two rules differently
       writes them differently.
-- [ ] The same rule in a function body
+- [x] The same rule in a function body
       ([`body-const-forward-reference.md`](../../fjs/compiler/parser/todo/body-const-forward-reference.md)).
 
 ### Related

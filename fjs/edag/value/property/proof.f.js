@@ -32,6 +32,11 @@ const functionValue = assertOk(func(1, [() => ok(data)], ['frame', 0]))
 const nonIndices = /** @type {const} */ (['-1', '-0', '01', '+1', '1.0', '1.5', '1e0', ' 1', '1 ', '', '4294967295'])
 
 export const proof = {
+    groupMember: () => {
+        const fn = /** @type {const} */ (['fn', ['group', [], [[1, ['self', 1]], [0, ['self', 0]]]], 0])
+        expectValue(fn, 'length', 1)
+        missing(fn, '0')
+    },
     storedProperty: () => {
         const property = /** @type {const} */ ([':', 'value', undefinedValue])
         const receiver = /** @type {const} */ (['{}', [property]])

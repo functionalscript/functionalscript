@@ -31,6 +31,7 @@
 
 import { error } from '../../../types/result/module.f.js'
 import { array } from '../array/module.f.js'
+import { codeLength } from '../function/module.f.js'
 import { isFunction } from '../semantics/module.f.js'
 import { helperLength, isHelper } from '../../module.f.js'
 
@@ -60,7 +61,7 @@ export const prepare = (callee, args) => {
     if (!isFunction(fn)) { return error(['undefined']) }
     // a helper takes as many as its `length` says; a static function's are
     // bound where its body is found, so none is here
-    const length = fn[0] === '=>' ? fn[1] : isHelper(fn) ? helperLength(fn[0]) : 0
+    const length = fn[0] === '=>' || fn[0] === 'fn' ? codeLength(fn) : isHelper(fn) ? helperLength(fn[0]) : 0
     const [fixed, rest] = bind(length, argumentsArray[1])
     return ['call', fn, fixed, rest]
 }

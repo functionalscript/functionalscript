@@ -45,7 +45,7 @@ export type _Names = {
 export type _Task =
     | { readonly kind: 'value'; readonly context: _Context; readonly value: Value; readonly result: boolean }
     | { readonly kind: 'block'; readonly callable?: Function; readonly context: _Context; readonly block: Block; readonly result: boolean; readonly functionBody: boolean; readonly valueBlock: boolean }
-    | { readonly kind: 'statement'; readonly context: _Context; readonly statement: Statement }
+    | { readonly kind: 'statement'; readonly context: _Context; readonly statement: Statement; readonly members?: readonly Function[] }
     | { readonly kind: 'steps'; readonly context: _Context; readonly step: Step<Value> | undefined; readonly property: boolean; readonly member: boolean }
 
 export type _Output = Printed<string | readonly string[]>

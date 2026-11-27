@@ -53,7 +53,8 @@ export type Node = Over<ExpOp, Operand, IndexOperand>
  * each node listed after its operands and on the first edge that reaches
  * it — a function of the graph alone, so two analyses of one graph are one
  * table. A node whose scope is `-1` is at the module level; any other scope
- * is the index of the `=>` whose body holds the node, which comes after it,
+ * is the index of the function or group whose body holds the node. A group
+ * also supplies the member index in `member`. The owner comes after it,
  * as a node comes after its operands. `shared` is every entry written at
  * more than one place, in index order: reached by more than one edge, or
  * through an entry that is itself written at more than one place, since an
@@ -72,6 +73,8 @@ export type Analysis = {
     readonly root: Operand
     readonly nodes: readonly Node[]
     readonly scope: readonly number[]
+    /** Inside a group body, the executing member. Absent on tables without groups. */
+    readonly member?: readonly number[]
     readonly shared: readonly number[]
     readonly exps: readonly ExpOp[]
 }

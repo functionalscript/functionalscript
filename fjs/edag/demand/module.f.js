@@ -34,7 +34,9 @@ const itemPrefix = items => items.map(item => [isSpread(item) ? item[1] : item])
 const prefix = (node, selected) => {
     /** @type {(values: readonly Exp[]) => readonly _Step[]} */
     const values = values => values.map(value => [value])
-    if (node.length === 1 || node[0] === 'arg' || node[0] === 'frame') { return [] }
+    if (node.length === 1 || node[0] === 'arg' || node[0] === 'frame' || node[0] === 'self') { return [] }
+    if (node[0] === 'fn') { return [[node[1]]] }
+    if (node[0] === 'group') { return values(node[1]) }
     if (node[0] === '=>') { return values(node[2]) }
     if (node[0] === ',') { return values(node[1]) }
     if (node[0] === '[]') { return itemPrefix(node[1]) }

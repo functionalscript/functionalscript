@@ -26,9 +26,6 @@ import { tagged, untagged } from '../../text/marked/module.f.js'
 import { bindingTagged, scopeTagged as preparedScope, valueTagged } from '../../rust/serializer/module.f.js'
 import { generate } from '../../types/array/generate/module.f.js'
 
-/** No override to a function's canonical representation. @type {(e: Exp) => string | undefined} */
-const noText = () => undefined
-
 /**
  * The fragment boundary owns synthetic invocation inputs; all ordinary nested
  * function bindings are checked by the graph owner before conversion.
@@ -37,7 +34,7 @@ const noText = () => undefined
 const functionError = a => {
     for (let i = 0; i < a.nodes.length; i += 1) {
         const node = a.nodes[Number(i)]
-        if (node[0] !== '=>') { continue }
+        if (node[0] !== '=>' && node[0] !== 'group') { continue }
         const result = checked(a, i)
         if (result[0] === 'error') { return result[1] }
     }
@@ -63,7 +60,7 @@ export const needsRuntime = root => visit(withBodies)(root).some(([node]) => {
 
 /**
  * Bindings supplied to a fragment are not rediscovered by target serialization.
- * @type {(root: Exp, shared: readonly (readonly [Exp, string])[], text: (e: Exp) => string | undefined, runtime: string | null) => Result<{readonly block: Block, readonly external: readonly External[], readonly options: Options}, readonly unknown[]>}
+ * @type {(root: Exp, shared: readonly (readonly [Exp, string])[], text: ((e: ExpOp) => string | undefined) | undefined, runtime: string | null) => Result<{readonly block: Block, readonly external: readonly External[], readonly options: Options}, readonly unknown[]>}
  */
 const converted = (root, shared, text, runtime) => {
     const analyzed = identityAnalysis(root)
@@ -94,13 +91,19 @@ const converted = (root, shared, text, runtime) => {
         { binding: self, text: 'Function::new(self_.clone()).to_any()', uses: [['vm', 'Function'], ['vm', 'ToAny']] },
     ]
     const block = prepare(fromAnalysis(a, supplied.map(e => [e.index, e.binding]), { parameters, captures, args, rest, self }))
-    const options = { runtime: runtime !== null && needsRuntime(root) ? runtime : null, text: (/** @type {import('../../js/ast/prepare/types.ts').Function} */ fn) => text(a.exps[Number(fn.target.index)]) ?? functionStringify(fn) }
+    /** @type {Options} */
+    const options = { runtime: runtime !== null && needsRuntime(root) ? runtime : null, text: text === undefined ? functionStringify : fn => {
+        const owner = a.exps[Number(fn.target.index)]
+        const member = fn.target.member
+        const source = member === undefined ? owner : a.exps.find(n => n[0] === 'fn' && n[1] === owner && n[2] === member)
+        return (source === undefined ? undefined : text(source)) ?? functionStringify(fn)
+    } }
     return ok({ block, external, options })
 }
 
 /** The primitive/constructor cases expose values; operations expose Results. @type {(root: Exp) => boolean} */
 const resultRoot = root => root instanceof Array && !isStatic(root) && !isIntrinsic(root)
-    && !['undefined', 'args', 'arg', 'rest', 'frame', 'self', 'entry', 'hasEntry', 'structEq', 'refMap', '=>', '{}'].includes(root[0])
+    && !['undefined', 'args', 'arg', 'rest', 'frame', 'self', 'entry', 'hasEntry', 'structEq', 'refMap', '=>', 'fn', '{}'].includes(root[0])
     && (root[0] !== '[]' || root[1].some(v => v instanceof Array && v[0] === '...'))
 
 /**
@@ -108,19 +111,19 @@ const resultRoot = root => root instanceof Array && !isStatic(root) && !isIntrin
  * Eager nested operations use the corpus's Result-returning scope wrapper.
  * @type {(shared: readonly (readonly [Exp, string])[], runtime?: string | null) => (root: Exp) => Result<string, readonly unknown[]>}
  */
-export const expExprTagged = (shared, runtime = null) => root => okThen(({ block, external, options }) => mapOk(([text]) => text)(valueTagged(['block', block], options, external, resultRoot(root))))(converted(root, shared, noText, runtime))
+export const expExprTagged = (shared, runtime = null) => root => okThen(({ block, external, options }) => mapOk(([text]) => text)(valueTagged(['block', block], options, external, resultRoot(root))))(converted(root, shared, undefined, runtime))
 
 /** The same expression with presentation tags removed. @type {(shared: readonly (readonly [Exp, string])[], runtime?: string | null) => (root: Exp) => Result<string, readonly unknown[]>} */
 export const expExpr = (shared, runtime = null) => root => mapOk(untagged)(expExprTagged(shared, runtime)(root))
 
-/** A graph scope through the common conversion and preparation passes. @type {(root: Exp, text?: (e: Exp) => string | undefined, runtime?: string | null, native?: boolean) => Result<Scope, readonly unknown[]>} */
-export const scopeTagged = (root, text = noText, runtime = null, native = false) => okThen(({ block, external, options }) => preparedScope(block, options, external, native))(converted(root, [], text, runtime))
+/** A graph scope through the common conversion and preparation passes. @type {(root: Exp, text?: (e: ExpOp) => string | undefined, runtime?: string | null, native?: boolean) => Result<Scope, readonly unknown[]>} */
+export const scopeTagged = (root, text = undefined, runtime = null, native = false) => okThen(({ block, external, options }) => preparedScope(block, options, external, native))(converted(root, [], text, runtime))
 
 /** A corpus scope over its supplied names, through the same prepared serializer. @type {(shared: readonly (readonly [Exp, string])[], runtime?: string | null) => (root: Exp) => Result<readonly string[], readonly unknown[]>} */
-export const statementsOf = (shared, runtime = null) => root => okThen(({ block, external, options }) => mapOk(({ lines }) => lines.map(untagged))(preparedScope(block, options, external)))(converted(root, shared, noText, runtime))
+export const statementsOf = (shared, runtime = null) => root => okThen(({ block, external, options }) => mapOk(({ lines }) => lines.map(untagged))(preparedScope(block, options, external)))(converted(root, shared, undefined, runtime))
 
 /** A corpus-supplied name uses the target's ordinary prepared binding spelling. @type {(shared: readonly (readonly [Exp, string])[], name: string, runtime?: string | null) => (root: Exp) => Result<string, readonly unknown[]>} */
-export const bindingLine = (shared, name, runtime = null) => root => okThen(({ block, external, options }) => mapOk(([text]) => untagged(text))(bindingTagged(name, ['block', block], options, external)))(converted(root, shared, noText, runtime))
+export const bindingLine = (shared, name, runtime = null) => root => okThen(({ block, external, options }) => mapOk(([text]) => untagged(text))(bindingTagged(name, ['block', block], options, external)))(converted(root, shared, undefined, runtime))
 
 /** A graph's own-scope read metadata. @type {(tag: string) => (root: Exp) => boolean} */
 const reads = tag => root => visit(operandsOf)(root).some(([node]) => node instanceof Array && node[0] === tag)

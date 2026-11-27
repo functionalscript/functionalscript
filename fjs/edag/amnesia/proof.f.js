@@ -102,6 +102,21 @@ const methods = ['{}', [
 const constMethods = ['=>', 0, [], methods]
 
 export const proof = {
+    groupsInResults: () => {
+        const group = /** @type {const} */ (['group', [], [[0, ['self', 1]], [0, ['self', 0]]]])
+        const a = /** @type {const} */ (['fn', group, 0])
+        const b = /** @type {const} */ (['fn', group, 1])
+        const make = /** @type {const} */ (['=>', 0, [], ['{}', [[':', 'members', ['[]', [a, b]]]]]])
+        const pair = /** @type {const} */ (['.', ['()', make, []], 'members'])
+        eq(['===', ['()', ['.', pair, 0], []], ['.', pair, 1]], true)
+        // A group reached through a returned closure stays established too.
+        const closure = /** @type {const} */ (['()', ['=>', 0, [], ['=>', 0, [a], ['frame', 0]]], []])
+        eq(['===', ['()', closure, []], ['()', closure, []]], true)
+        // A shared subtree with only ordinary members can still be recomputed.
+        const repeated = /** @type {const} */ (['{}', [[':', 'a', 1]]])
+        const plain = /** @type {const} */ (['()', ['=>', 1, [], ['[]', [['arg', 0], ['arg', 0]]]], [repeated]])
+        eq(['===', plain, plain], false)
+    },
     // A context's runtime reaches a member call in the expression and in
     // every function it calls: the callee its `dot` answers for the
     // receiver under `startsWith`, a function answering the receiver, is

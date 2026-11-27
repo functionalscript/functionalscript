@@ -40,9 +40,9 @@
   by that word, which is refused as a capture shadowed is
   ([functions](../README.md)). A function nested in it captures the name as
   it captures any other value around it, so `const f = x => () => f(x);`
-  recurs through the inner function. Reading a *later* `const`, and so two
-  functions calling each other, is still refused
-  ([forward-references](../../todo/3140-forward-references.md)).
+  recurs through the inner function. Consecutive mutually recursive functions
+  share one capture frame and may name any member of their
+  [function group](../../bindings/constants/README.md#function-groups).
 
 ## Examples
 

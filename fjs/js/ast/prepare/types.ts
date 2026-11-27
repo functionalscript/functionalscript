@@ -22,6 +22,9 @@ export type Value =
 export type Capture = { readonly binding: BindingId; readonly value: Value }
 
 export type Function = {
+    /** Consecutive declarations in member order. Group captures refer to
+     * sibling declarations or to frame bindings established before the group. */
+    readonly group?: readonly BindingId[]
     readonly target: FunctionTarget
     readonly parameters: readonly BindingId[]
     readonly rest: BindingId | null

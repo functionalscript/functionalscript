@@ -53,6 +53,34 @@ export const _snapshotCases = () => {
 }
 
 export const proof = {
+    selectedGroupEntry: () => {
+        const group = /** @type {const} */ (['group', [], [[0, ['throw', ['self', 1]]], [0, ['self', 0]]]])
+        const selected = /** @type {const} */ (['fn', group, 0])
+        roundTrip(selected)
+        const a = assertOk(identityAnalysis(selected))
+        const owner = a.nodes.findIndex(node => node[0] === 'group')
+        const binding = { index: 10 }
+        assertStructurallySame(fromAnalysis(a, [[owner, binding]]).exit, ['yield', [['.', ['ref', binding], 0]]])
+        assertEq(functionFromAnalysis(a, /** @type {readonly ['#', number]} */ (a.root)[1]).target.member, 0)
+        const shared = /** @type {const} */ (['[]', []])
+        const repeated = assertOk(identityAnalysis(['fn', ['group', [['[]', [shared, shared]]], [
+            [0, ['self', 1]], [0, ['[]', [['frame', 0], ['self', 0]]]],
+        ]], 1]))
+        assertEq(functionFromAnalysis(repeated, /** @type {readonly ['#', number]} */ (repeated.root)[1]).target.member, 1)
+    },
+    sharedGroupFrame: () => {
+        const group = /** @type {const} */ (['group', [['arg', 0]], [
+            [0, ['[]', [['self', 1], ['frame', 0]]]], [1, ['[]', [['self', 0], ['arg', 0], ['rest']]]],
+        ]])
+        roundTrip(['=>', 1, [], ['[]', [['fn', group, 0], ['fn', group, 1]]]])
+        const lazy = /** @type {const} */ (['group', [['()', ['arg', 0], []]], group[2]])
+        const select = /** @type {const} */ (['=>', 2, [], ['[]', [
+            ['?:', ['arg', 1], ['fn', lazy, 0], 0], ['?:', ['arg', 1], ['fn', lazy, 1], 0],
+        ]]])
+        const block = assertOk(toFast(select))
+        const fn = /** @type {readonly ['function', FastFunction]} */ (/** @type {Extract<Block['exit'], readonly ['yield', unknown]>} */ (block.exit)[1][0])[1]
+        assert(fn.body.statements.some(statement => statement[0] === 'define' && statement[3] === 'lazy'))
+    },
     // A named import is its module's computations, then the export it
     // selects. Once those are bound, reading them again does nothing, so the
     // selection is the export alone. A computation still deferred is
