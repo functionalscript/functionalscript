@@ -68,9 +68,18 @@ Every variant does the same jobs:
 - **Count.** A reference's `dup` and `drop` become an increment and a
   decrement of its object's count. Today they are the `Ref.dup_ref` and
   `Ref.drop_ref` imports into NaNVM ([defined-hooks.md](./defined-hooks.md)).
-- **Keep static objects apart.** A literal lives in a data segment, and
-  its box has the `s` bit set ([nan-box-patterns.md](./nan-box-patterns.md)),
-  so it is never counted.
+- **Keep literals and constants alive.** The start function builds each
+  string and bigint literal once, `init` evaluates each other module
+  constant once, and a use of either is a borrow that is never dropped
+  ([L0 design §6](../wasm/l0-design.md#6-literals-built-once-at-start-up),
+  [slice 6's decisions](../../../fjs/ir/todo/slices.md#decisions-for-slice-6-2026-11-14)).
+  So each is a block like any other. Where the heap counts, the
+  constant's own reference keeps its count at 1 or more, and the recount
+  takes the constants as roots ([A caught throw](#a-caught-throw)).
+  Compile-time `stat` data, whose box has the `s` bit set
+  ([nan-box-patterns.md](./nan-box-patterns.md)) and which nothing counts,
+  comes later
+  ([type-system.md, open question 13](./type-system.md#open-questions)).
 - **Recover after a throw.** The host's `enter`, `leave` and `recover`
   undo what the frames that a throw abandons held
   ([L0 design §21](../wasm/l0-design.md#21-the-host-is-an-l0-client)).
@@ -219,13 +228,18 @@ release arena counts nothing and keeps no header.
   traps on a dropped handle today. It is one compare on a word that is
   loaded anyway.
 - **Tags, in debug and test builds only.** A wasm32 offset without its 2
-  alignment bits takes 30 of the box's 46 payload bits and leaves 16. A tag
-  for each allocation, in both the box and the header, makes a stale
-  reference trap even after its block is reused, as NaNVM's 14-bit
-  generations do now ([abi.rs](../../../nanvm/lib/src/l0/abi.rs)). It
-  costs a compare on every access through a reference, the one check with
-  a steady cost, so release builds leave it out; count-0 traps and the
-  debug arena catch stale references in tests.
+  alignment bits takes 30 of the box's 46 payload bits and leaves 16. Each
+  block keeps a tag in its header, `alloc` copies it into the reference
+  that it answers, and a free moves it on, so a stale reference traps even
+  after its block is reused. A block whose tag has taken all 65,536 values
+  is retired, never reused, so no reference ever names two objects. That
+  is how NaNVM keeps its 14-bit generations exact today: `Slab::take`
+  retires a slot whose generations are spent
+  ([abi.rs](../../../nanvm/lib/src/l0/abi.rs)). A retired block costs
+  memory only in the builds that check, and only once it has been
+  allocated 65,536 times. A tag costs a compare on every access through a
+  reference, the one check with a steady cost, so release builds leave it
+  out; count-0 traps and the debug arena catch stale references in tests.
 - **The size class comes from the type.** The data lowering knows each
   object's size. For a record or a literal array it is a constant, so
   `alloc` inlines with a constant class; for `concat` it is computed in
@@ -334,8 +348,8 @@ undo what the abandoned frames held.
 one object: `dup_ref` makes a new handle
 ([abi.rs](../../../nanvm/lib/src/l0/abi.rs)). Each handle records its
 birth. A program keeps no value across a call of the host but its
-literals, so every handle made since `enter` belonged to an abandoned
-frame, and `recover` frees exactly those.
+constants, literals among them, so every handle made since `enter`
+belonged to an abandoned frame, and `recover` frees exactly those.
 
 **Why it stops being exact.** With the count in the object's header, a
 reference is the object's offset, and `dup` adds 1 to the object's count
@@ -353,14 +367,14 @@ header.
 **The recount from the roots.** When no program frame is left on the
 stack, every live reference is in a root or inside a live object. The
 roots are the host's handles, since references reach the host only as
-handles ([pointer-width.md](./pointer-width.md#decision)), and any runtime
-global that holds an object. The thrown value and a call's result are
-handles by then. The recount:
+handles ([pointer-width.md](./pointer-width.md#decision)), and every
+constant that holds an object: the program's, literals included, and the
+runtime's own. The thrown value and a call's result are handles by then.
+The recount:
 
 1. sets the count of every counted object to 0;
 2. walks from the roots with its own work list, adds 1 for each reference
-   that it meets, and queues an object the first time it reaches it,
-   skipping static objects;
+   that it meets, and queues an object the first time it reaches it;
 3. frees every block that it never reached, builders that abandoned frames
    left open included.
 
