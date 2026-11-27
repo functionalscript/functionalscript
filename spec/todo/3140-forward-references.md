@@ -225,6 +225,9 @@ language rule).
 
 ### Tasks
 
+The compiler step covers module and local groups together: each passes through
+the same binding resolution, graph construction, analysis, and output pipeline.
+
 - [x] A function reading its own `const`'s name, `e` above: the function
       itself, [`["self"]`](../../todo/edag-stage1-discussion.md).
 - [x] Record the language designer's explicit approval of the function
