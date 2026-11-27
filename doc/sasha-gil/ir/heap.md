@@ -85,7 +85,11 @@ Every variant does the same jobs:
   ([L0 design §21](../wasm/l0-design.md#21-the-host-is-an-l0-client)).
 - **Serve both targets.** On WASM the heap is linear memory, and on Rust
   one buffer read by offset ([pointer-width.md](./pointer-width.md#decision)).
-  So the allocator is IR code over memory, not a native allocator.
+  So the allocator is IR code over memory, not a native allocator. Both
+  cap the heap at 4 GiB, as wasm32 does anyway, so one layout serves both:
+  a 32-bit count, a 32-bit link and a 16-bit tag fit any block. A larger
+  Rust buffer is later work: it would need a count that checks for
+  overflow, a wider link and a narrower tag.
 - **Grow, never shrink.** `memory.grow` adds pages of 64 KiB, and WASM
   cannot give pages back: `memory.discard` is still a proposal, which
   Wasmtime does not implement. Running out of memory traps, as
@@ -220,30 +224,26 @@ release arena counts nothing and keeps no header.
 | 40 to 47 | type within the kind | `release` tells, say, a flat string from a slice |
 | 48 to 63 | tag, in debug and test builds | a stale reference traps even after its block is reused |
 
-- **Counts cannot overflow on wasm32.** The references to one object are
-  at most the 8-byte slots of 4 GiB, 2^29, plus those on the stack, so 32
-  bits suffice. Rust's buffer can be larger, so there an increment checks
-  for overflow and traps.
+- **Counts cannot overflow.** The references to one object are at most
+  the 8-byte slots of 4 GiB, 2^29, plus those on the stack, so 32 bits
+  suffice on both targets, since both cap the heap at 4 GiB.
 - **A free block traps.** `dup` and `drop` trap on a count of 0, as NaNVM
   traps on a dropped handle today. It is one compare on a word that is
   loaded anyway.
 - **Tags, in debug and test builds only.** A wasm32 offset without its 2
-  alignment bits takes 30 of the box's 46 payload bits and leaves 16.
-  Rust's buffer can be larger
-  ([pointer-width.md](./pointer-width.md#decision)), so a debug or test
-  build caps it at 4 GiB there too, and both targets keep one layout; a
-  release build has no tag, and its offsets may take all 46 bits. Each
-  block keeps a tag in its header, `alloc` copies it into the reference
-  that it answers, and a free moves it on, so a stale reference traps even
-  after its block is reused. A block whose tag has taken all 65,536 values
-  is retired, never reused, so no reference ever names two objects. That
-  is how NaNVM keeps its 14-bit generations exact today: `Slab::take`
-  retires a slot whose generations are spent
-  ([abi.rs](../../../nanvm/lib/src/l0/abi.rs)). A retired block costs
-  memory only in the builds that check, and only once it has been
-  allocated 65,536 times. A tag costs a compare on every access through a
-  reference, the one check with a steady cost, so release builds leave it
-  out; count-0 traps and the debug arena catch stale references in tests.
+  alignment bits takes 30 of the box's 46 payload bits and leaves 16, and
+  so does a Rust offset under the same cap. Each block keeps a tag in its
+  header, `alloc` copies it into the reference that it answers, and a free
+  moves it on, so a stale reference traps even after its block is reused.
+  A block whose tag has taken all 65,536 values is retired, never reused,
+  so no reference ever names two objects. That is how NaNVM keeps its
+  14-bit generations exact today: `Slab::take` retires a slot whose
+  generations are spent ([abi.rs](../../../nanvm/lib/src/l0/abi.rs)). A
+  retired block costs memory only in the builds that check, and only once
+  it has been allocated 65,536 times. A tag costs a compare on every
+  access through a reference, the one check with a steady cost, so
+  release builds leave it out; count-0 traps and the debug arena catch
+  stale references in tests.
 - **The size class comes from the type.** The data lowering knows each
   object's size. For a record or a literal array it is a constant, so
   `alloc` inlines with a constant class; for `concat` it is computed in
@@ -260,7 +260,8 @@ release arena counts nothing and keeps no header.
   makes a new view of the memory after each call, as the NaNVM host
   already does.
 - **Release without recursion.** Once a count reaches 0 its word is free,
-  so it holds the link of the work list. `release` pops an object, drops
+  so it holds the link of the work list, a 32-bit offset that reaches any
+  block under the 4 GiB cap. `release` pops an object, drops
   its counted fields, queues each child whose count reaches 0, and frees
   the block, so a deep array needs no stack
   ([deep-value-drop](../../../nanvm/lib/todo/deep-value-drop.md)).
