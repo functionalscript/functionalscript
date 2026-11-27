@@ -19,6 +19,8 @@
  *   host refuses or that reaches past it is out of memory, `null`.
  *
  * @module
+ *
+ * @import { Arena } from './types.ts'
  */
 
 /** The bytes of a page. */
@@ -29,20 +31,6 @@ const lastPage = 0xFFFF
 
 /** The pages that a full region asks for at least: 1 MiB. */
 const chunk = 16
-
-/**
- * What the arena keeps: the memory's size in pages and the most that the
- * host lets it grow to, where its state words are, the pointer, and the end
- * of the region that the pointer is in.
- *
- * @typedef {{
- *     readonly pages: number
- *     readonly most: number
- *     readonly state: number
- *     readonly top: number
- *     readonly end: number
- * }} Arena
- */
 
 /** `n` rounded up to 8. @type {(n: number) => number} */
 export const round = n => n + 7 - (n + 7) % 8
