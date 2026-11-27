@@ -26,7 +26,7 @@ import { ARRAY, FUNCTION, OBJECT, STRING, asNumber, kind, length } from '../../w
 import { stringEquals, stringIndex, stringLess, toBoolean } from '../../wasm/runtime/l1/module.f.js'
 import { any, array, container, func, l0 } from '../l0/module.f.js'
 import { add, call, call_ref, code, codeOf, f64, fn, get, n, u } from '../module.f.js'
-import { addressing, arrays, bits, constants, corners, literals, loops, records, samples, unknown } from '../testlib.f.js'
+import { addressing, arrays, bits, constants, corners, literals, loops, narrowing, records, samples, unknown } from '../testlib.f.js'
 import { edges, held, product, run, spellings, trap } from './testlib.mjs'
 
 // arrays
@@ -277,6 +277,10 @@ const twins = {
     lowFirst: ([, v]) => int(v) & 0xffffn,
     grown: ([k]) => grows(k) ? 0n : -1n,
     after: ([k]) => grows(k) ? int(k) : 0n,
+    fitted: ([a, b]) => int(a) + int(b) <= 0xFFFF_FFFFn ? int(a) + int(b) : 0n,
+    low: ([w]) => int(w) < 0x1_0000_0000n ? w : 0n,
+    nonzero: ([w]) => w === 0n ? 1n : w,
+    withinFive: ([x]) => int(x) < -5n ? -5n : int(x) <= 5n ? x : 5n,
 }
 
 /** Values of `any` for the string comparisons: strings that share a prefix, the two ends of a unit, a pair of surrogates, and values of other kinds, which trap. */
@@ -341,6 +345,8 @@ const inputs = {
     stored32: product([offsets(4n), edges(u(32))]),
     stored64: product([offsets(8n), edges(u(64))]),
     lowFirst: product([offsets(8n), edges(u(64))]),
+    low: each([0n, 1n, 0xFFFF_FFFFn, 0x1_0000_0000n, 0x1_0000_0001n, 0xFFFF_FFFF_FFFF_FFFFn]),
+    withinFive: each([-(1n << 63n), -6n, -5n, -4n, 0n, 4n, 5n, 6n, (1n << 63n) - 1n]),
     grown: growths,
     after: growths,
 }
@@ -354,6 +360,8 @@ export const proof = {
     // the low byte first, at an offset that is not aligned too, in a page that each call grows for itself, and `grow`
     // adds pages up to the most that an address reaches.
     addressing: () => run(addressing, twins, inputs),
+    // A local that a comparison narrows is read in the narrower word: an i64 that fits 32 bits is wrapped.
+    narrowing: () => run(narrowing, twins, inputs),
     unknown: () => run(unknown, twins, inputs),
     loops: () => run(loops, twins, inputs),
     records: () => run(records, twins, inputs),
