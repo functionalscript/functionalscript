@@ -1,7 +1,7 @@
 ## A heap in the IR: the bump arena first
 
 **Priority:** P2
-**Status:** wip — design proposed ([heap.md](../../../doc/sasha-gil/ir/heap.md)); the owner chose the arena first, counted in debug builds only (2026-11-26)
+**Status:** wip — design proposed ([heap.md](../../../doc/sasha-gil/ir/heap.md)); the owner took the review's five choices and the arena counted in debug builds only (2026-11-26), and memory as an interface of instructions (2026-11-27)
 
 ### Problem
 
@@ -21,12 +21,17 @@ it counts in a header and traps on misuse. Memory enters the IR as a
 
 ### Tasks
 
-- [ ] Design note and this `todo/`, the claim
+- [x] Design note and this `todo/`, the claim
 - [ ] Owner approval of the design, and answers to its open questions
+      (memory and the five choices answered; how a build asks for debug,
+      the first client, and a trap for misuse still open)
 - [ ] **H1** — `Memory`: loads and stores of 8 to 64 bits, `size` and `grow`;
-      the emitter writes them as instructions and imports the loader's memory
-- [ ] **H2** — The arena under `fjs/ir/runtime/heap`: `module` for release,
-      `counted` for debug, with proofs on the counting host
+      the emitter writes them as instructions and imports the loader's
+      memory, and an effect of their own keeps their calls in place
+- [ ] **H2** — The arena under `fjs/ir/runtime/heap`, in the IR's eDSL:
+      `module` for release, `counted` for debug, with proofs on the
+      counting host against a plain FunctionalScript model; it needs the
+      answer on a trap for misuse first
 - [ ] **H3** — The first client: long strings in the IR heap, after a note on
       NaNVM holding references into it
 - [ ] **H4** — Paged size classes behind the same interface, and a `recover`
@@ -40,3 +45,6 @@ it counts in a header and traps on misuse. Memory enters the IR as a
   IR, and the order in which the rest moves
 - [#4144](https://github.com/functionalscript/functionalscript/pull/4144):
   the debug-variant pattern this follows
+- [line-heap.md](./line-heap.md): the third variant, an experiment
+- [recover-by-exceptions.md](./recover-by-exceptions.md): the other way to
+  recover a caught throw, an experiment
