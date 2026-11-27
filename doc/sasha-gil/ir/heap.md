@@ -177,7 +177,9 @@ already allows an arena under the same ABI.
 Memory is cut into pages, and each page serves one size class with its own
 free list and a count of used blocks. A class allocates from its current
 page. A page whose count reaches 0 goes back to a shared pool, where any
-class can take it. An object above 8 KiB takes whole pages. A page's
+class can take it, except in the builds that check tags
+([Tags](#what-every-counting-variant-shares)). An object above 8 KiB takes
+whole pages. A page's
 record is found from the address: the page index is the address shifted
 right by 16, into a side table.
 
@@ -237,19 +239,22 @@ release arena counts nothing and keeps no header.
   traps on a dropped handle today. It is one compare on a word that is
   loaded anyway.
 - **Tags, in debug and test builds only.** A wasm32 offset without its 2
-  alignment bits takes 30 of the box's 46 payload bits and leaves 16, and
-  so does a Rust offset under the same cap. Each block keeps a tag in its
+  alignment bits takes 30 of the box's 46 payload bits and leaves 16, and so
+  does a Rust offset under the same cap. Each block keeps a tag in its
   header, `alloc` copies it into the reference that it answers, and a free
-  moves it on, so a stale reference traps even after its block is reused.
-  A block whose tag has taken all 65,536 values is retired, never reused,
-  so no reference ever names two objects. That is how NaNVM keeps its
-  14-bit generations exact today: `Slab::take` retires a slot whose
-  generations are spent ([abi.rs](../../../nanvm/lib/src/l0/abi.rs)). A
-  retired block costs memory only in the builds that check, and only once
-  it has been allocated 65,536 times. A tag costs a compare on every
-  access through a reference, the one check with a steady cost, so
-  release builds leave it out; count-0 traps and the debug arena catch
-  stale references in tests.
+  moves it on, so a stale reference traps even after its block is reused. A
+  block whose tag has taken all 65,536 values is retired, never reused, so
+  no reference ever names two objects. That is how NaNVM keeps its 14-bit
+  generations exact today: `Slab::take` retires a slot whose generations are
+  spent ([abi.rs](../../../nanvm/lib/src/l0/abi.rs)). A retired block costs
+  memory only in the builds that check, and only once it has been allocated
+  65,536 times. For the same reason, storage keeps its shape in those
+  builds: a page that empties stays with its class instead of going back to
+  the pool, and the pages of a freed large object are not reused, so a
+  header never moves and its tag only moves on. A tag costs a compare on
+  every access through a reference, the one check with a steady cost, so
+  release builds leave it out; count-0 traps and the debug arena catch stale
+  references in tests.
 - **The size class comes from the type.** The data lowering knows each
   object's size. For a record or a literal array it is a constant, so
   `alloc` inlines with a constant class; for `concat` it is computed in
@@ -490,11 +495,12 @@ Each check catches what the one before it misses.
   It is the counting host's `live` check
   ([count host](../../../fjs/ir/l0/host/count/module.mjs)) moved into the
   heap, and it costs a compare.
-- **The recount as a checker.** In a debug build, the recount runs at every
-  outermost return and compares its counts with the stored ones. A stored
-  count above the recount is a missed `drop`; one below it, or a reference
-  into a free block, is a `drop` too many. Unlike the balance check, it
-  names the object and its type.
+- **The recount as a checker.** In a debug build, the recount also runs at
+  every outermost return as a check: it counts into a table of its own,
+  leaves the headers alone, and compares its counts with the stored ones. A
+  stored count above the recount is a missed `drop`; one below it, or a
+  reference into a free block, is a `drop` too many. Unlike the balance
+  check, it names the object and its type.
 - **Poisoned blocks.** A debug free fills the block with a reserved box
   that every operation refuses, so a read through a stale reference fails
   at once instead of reading the next object.
