@@ -780,8 +780,10 @@ instructions.
   moves calls brings the checker's inference of Memory's effect.
 
 The `addressing` module of [`testlib.f.js`](./testlib.f.js) stores and
-loads each width, reads the low 16 bits of 64, and grows the memory, on
-the counting host's memory.
+loads each width and reads the low 16 bits of 64, each call in a page
+that it grows for itself, and answers how much `grow` changes the size.
+So it holds on either host's memory: the counting host's, and NaNVM's,
+whose stack takes the memory's start.
 
 ## What every slice refuses
 
