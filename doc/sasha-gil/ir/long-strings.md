@@ -122,6 +122,15 @@ Chosen: A, a kind nibble of its own for each IR kind, 9 for a string. An IR
 string's box is then `0x7FF9_0000_0000_0002 | p`, where `p`, the block's
 address, is 8-aligned and leaves the reference tag's two bits clear.
 
+Bits 32 to 47 stay 0 in H3, since no block is reused. From H4 on, where
+blocks are reused, a debug or test build keeps a 16-bit tag in each
+block's header
+([heap.md](./heap.md#what-every-counting-variant-shares)), and the box
+carries it in those bits: `0x7FF9_0000_0000_0002 | tag << 32 | p`. `alloc`
+answers only an address today, so H4 also decides how the tag reaches the
+box: from `alloc`, beside the address, or from the header, where Any boxes
+the address.
+
 | Option | Bits | For | Against |
 | --- | --- | --- | --- |
 | A. A kind nibble of its own (chosen) | `tttt` from 9 up: 9 a string, and later 10 a bigint, 11 an array, 12 an object and 13 a function; the address in bits 3 to 31 | NaNVM's handles keep their 46 bits; heap.md's 16-bit tag fits in bits 32 to 47; one compare tells both the heap and the kind | `kind` maps 9 to 13 back to L0's 4 to 8: one test and a subtraction |

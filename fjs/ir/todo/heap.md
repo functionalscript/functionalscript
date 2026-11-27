@@ -66,8 +66,11 @@ it counts in a header and traps on misuse. Memory enters the IR as a
 - [ ] **H4** — Paged size classes behind the same interface, and a `recover`
       that recounts from the roots, with the record at each region's start
       that leads a walk of every block from region to region, which the
-      debug arena takes too, and the root table that holds the references
-      of constants and of the host, which the recount reads
+      debug arena takes too, the root table that holds the references
+      of constants and of the host, which the recount reads, and the tag
+      that a debug or test build copies from a block's header into bits 32
+      to 47 of its box
+      ([long-strings.md, choice 3](../../../doc/sasha-gil/ir/long-strings.md#3-the-box-of-a-reference-into-the-ir-heap))
 
 ### Related
 
