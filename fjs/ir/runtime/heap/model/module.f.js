@@ -22,7 +22,13 @@
  *   and each block by its address, a map from offset to block: the size
  *   that `alloc` was asked for, the type, the count and whether a `free`
  *   took it, with how many blocks have a count above 0. `dup`, `drop`,
- *   `free` and `typeOf` answer `null` where the debug arena traps.
+ *   `free` and `typeOf` answer `null` where the debug arena traps, which is
+ *   wherever no block starts.
+ * - **The debug arena's pages.** Its `init` takes five pages: the state's,
+ *   whose last KiB is the bitmap of block starts of the first region, and
+ *   four for the directory of bitmaps. Each later region keeps a KiB of
+ *   bitmap per page in its tail, so it takes a page more for each 32 that
+ *   its block needs, ends where the bitmaps start, and is always new.
  *
  * @module
  *
@@ -42,6 +48,12 @@ const chunk = 16
 
 /** The bytes that the debug arena keeps before each block: the size word, then the header. */
 const header = 16
+
+/** The pages that the debug arena's `init` takes: the state's, and four for the directory. */
+const countedPages = 5
+
+/** The bytes of a page's bitmap of block starts, which the debug arena keeps in the tail of the page's region. */
+const bitmap = 0x400
 
 /** `n` rounded up to 8. @type {(n: number) => number} */
 export const round = n => n + 7 - (n + 7) % 8
@@ -100,34 +112,67 @@ const taken = (a, g, k) => {
 
 /**
  * The arena whose region cannot hold `size` more bytes, after the memory
- * grew by the larger of the request and {@link chunk} pages, or by the
- * request alone, or `null` where the host refuses both, or where no region
- * could hold the request.
+ * grew by the larger of the pages that `need` answers for the request and
+ * {@link chunk}, or by those alone, and `taken` made a region of them; or
+ * `null` where the host refuses both, or where no region could hold the
+ * request.
  *
- * @type {(a: Arena, size: number) => Arena | null}
+ * @type {(need: (size: number) => number, taken: (a: Arena, g: number, k: number) => Arena | null) => (a: Arena, size: number) => Arena | null}
  */
-const grown = (a, size) => {
-    const need = pagesOf(size)
-    if (need > lastPage) { return null }
-    const k = need < chunk ? chunk : need
+const grownBy = (need, taken) => (a, size) => {
+    const pages = need(size)
+    if (pages > lastPage) { return null }
+    const k = pages < chunk ? chunk : pages
     const g = grow(a.pages, a.most, k)
     if (g !== null) { return taken({ ...a, pages: a.pages + k }, g, k) }
-    const h = grow(a.pages, a.most, need)
-    return h === null ? null : taken({ ...a, pages: a.pages + need }, h, need)
+    const h = grow(a.pages, a.most, pages)
+    return h === null ? null : taken({ ...a, pages: a.pages + pages }, h, pages)
 }
 
 /**
  * The arena with a block of `size` bytes, and where the block starts, or
- * `null` where it is out of memory. A region that grew holds the block.
+ * `null` where it is out of memory. A region that `grown` made holds the
+ * block.
  *
- * @type {(a: Arena, size: number) => readonly [Arena, number] | null}
+ * @type {(grown: (a: Arena, size: number) => Arena | null) => (a: Arena, size: number) => readonly [Arena, number] | null}
  */
-const placed = (a, size) => {
+const placedBy = grown => (a, size) => {
     const p = fit(a, size)
     if (p !== null) { return p }
     const b = grown(a, size)
     return b === null ? null : fit(b, size)
 }
+
+/** The release arena's {@link placedBy}: a region takes the pages that hold the request. */
+const placed = placedBy(grownBy(pagesOf, taken))
+
+/**
+ * The pages that a region of the debug arena takes for `size` bytes: those
+ * that hold them, and one more for each 32 of those, for the bitmaps in its
+ * tail.
+ *
+ * @type {(size: number) => number}
+ */
+const countedNeed = size => {
+    const k = pagesOf(size)
+    return k + (k + 31 - (k + 31) % 32) / 32
+}
+
+/**
+ * The debug arena after a full region took `k` new pages from page `g` on:
+ * always a new region, which ends where the bitmaps of its pages start, a
+ * KiB each. `null` where they reach past the last page.
+ *
+ * @type {(a: Arena, g: number, k: number) => Arena | null}
+ */
+const countedTaken = (a, g, k) => {
+    const last = g + k
+    if (g >= lastPage || last > lastPage) { return null }
+    return { ...a, top: g * page, end: last * page - k * bitmap }
+}
+
+/** The debug arena's {@link placedBy}. */
+const placedCounted = placedBy(grownBy(countedNeed, countedTaken))
 
 /**
  * The arena with its next block of `n` bytes, and the block's address, or
@@ -147,14 +192,19 @@ export const alloc = (a, n) => placed(a, round(n))
 export const other = (a, k) => grow(a.pages, a.most, k) === null ? a : { ...a, pages: a.pages + k }
 
 /**
- * The debug arena that `init` makes, as {@link start} does, with no
- * blocks.
+ * The debug arena that `init` makes in a memory of `pages` pages, which the
+ * host lets grow to `most`, with no blocks: its state at the start of the
+ * first of five new pages, its first region the rest of that page but for
+ * the page's bitmap, and its directory the other four. `null` where the
+ * memory cannot grow by five pages before the last.
  *
  * @type {(pages: number, most: number) => Counted | null}
  */
 export const startCounted = (pages, most) => {
-    const arena = start(pages, most)
-    return arena === null ? null : { arena, live: 0, blocks: empty }
+    const g = grow(pages, most, countedPages)
+    if (g === null || g + countedPages > lastPage) { return null }
+    const state = g * page
+    return { arena: { pages: pages + countedPages, most, state, top: state + 16, end: state + page - bitmap }, live: 0, blocks: empty }
 }
 
 /**
@@ -165,7 +215,7 @@ export const startCounted = (pages, most) => {
  * @type {(c: Counted, t: number, n: number) => readonly [Counted, number] | null}
  */
 export const allocCounted = (c, t, n) => {
-    const r = placed(c.arena, header + round(n))
+    const r = placedCounted(c.arena, header + round(n))
     if (r === null) { return null }
     const [arena, at] = r
     const p = at + header

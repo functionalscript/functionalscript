@@ -898,18 +898,26 @@ H3.
   reference finds a count of 0 and traps.
 - **`live()`** answers how many blocks have a count above 0, from a third
   state word, for balance checks.
+- **A bitmap of block starts.** Each page that a region holds has a KiB of
+  bitmap, a bit for each 8 bytes, which `alloc` sets where a block starts.
+  A region keeps its pages' bitmaps in its tail and ends where they start,
+  so it takes a page more for each 32 that its block needs, and is always
+  new. The directory, four pages after the state's that `init` takes,
+  holds the address of each page's bitmap, or 0. A check costs two loads,
+  and the release arena none.
 - **Every misuse traps**: an address that is not 8-aligned, is below the
-  first block or is past the pointer; a `dup` or a `drop` of a count of
-  0; a `free` of a block whose count is above 0, or a second `free`; and a
-  count or `live()` that would pass 32 bits, which no run reaches. An
-  address inside a block passes the address checks, and only a walk of
-  its region would catch it.
+  first block, or whose bit is not set, as inside a block, in a region's
+  tail, in a page that no region holds or past the pointer, though what is
+  there reads as a header; a `dup` or a `drop` of a count of 0; a `free`
+  of a block whose count is above 0, or a second `free`; and a count or
+  `live()` that would pass 32 bits, which no run reaches.
 - **The fast path checks the pointer**, which is never past `0xFFFF_0000`,
   so that the block after its 16 bytes is a `u(32)`: one compare more,
   beside the stores of the two words and of `live`.
 - **Both variants grow alike.** One pair of functions grows a full region,
-  given the bytes before each block, and a request that with them needs
-  more pages than a region holds is out of memory.
+  given the pages that a request needs and how the new pages become a
+  region, and a request that needs more pages than a region holds is out
+  of memory. The release arena's code is as it was.
 - **The model keeps each block by its address**, with its size, type,
   count and whether it was freed. The
   [host proof](./runtime/heap/proof.mjs) runs seeded sequences of

@@ -7,8 +7,10 @@
  * block's bytes as they were written. In debug, the same sequences mixed
  * with `dup`, `drop` and `free` of the blocks so far also keep the model's
  * counts, in each header and in `live()`, and trap where the model refuses
- * them, and `type_of` tells each block's type while its count is above 0. Memory that runs out traps where the model runs out, and so does a
- * `free` in release.
+ * them, as on every address where no block starts, though what is there
+ * reads as a header, and `type_of` tells each block's type while its count
+ * is above 0. Memory that runs out traps where the model runs out, and so
+ * does a `free` in release.
  *
  * Prefer `node --test` for this file
  * ([fjs/AGENTS.md §1.6](../../../AGENTS.md#16-a-host-proof-is-for-an-effect-and-for-nothing-else)).
@@ -312,5 +314,43 @@ export const proof = {
         assert(traps(() => heap.drop(p)))
         heap.free(p)
         assert(traps(() => heap.free(p)))
+    },
+    // Debug refuses every address where no block starts, and changes nothing there: inside a block, though its
+    // payload holds what reads as a header with a count of 1, between blocks, in a region's tail and its bitmaps,
+    // in the directory, and in a page that another allocator grew below the pointer.
+    inside: () => {
+        const { heap, memory } = load(debug, 0x1_0000)
+        const p = heap.alloc(1, 40)
+        const q = heap.alloc(2, 0)
+        const foreign = memory.grow(1) * 0x1_0000
+        const r = heap.alloc(3, 0x1_0000)
+        const state = p - 32
+        assert(foreign < r && r < 0x1_0000_0000, [foreign, r])
+        /** The 8-aligned addresses from `from` on, below `to`. @type {(from: number, to: number) => number[]} */
+        const span = (from, to) => Array.from({ length: (to - from) / 8 }, (_, k) => from + 8 * k)
+        // a count of 1 in every word where a header could be read
+        const ones = [...span(p, p + 40), ...span(foreign, foreign + 64)]
+        const words = new DataView(memory.buffer)
+        for (const at of ones) { words.setUint32(at, 1, true) }
+        const probes = [
+            ...span(p + 8, q + 48).filter(a => a !== q),
+            ...span(state + 0xFC00 - 8, state + 0xFC00 + 16),
+            ...span(state + 0x1_0000, state + 0x1_0000 + 40),
+            ...span(foreign + 8, foreign + 72),
+            r + 8, r + 16, r + 0x1_0000 + 16,
+        ]
+        for (const a of probes) {
+            assert(traps(() => heap.dup(a)), a)
+            assert(traps(() => heap.drop(a)), a)
+            assert(traps(() => heap.free(a)), a)
+        }
+        assert(ones.every(at => new DataView(memory.buffer).getUint32(at, true) === 1))
+        // the blocks still count, and nothing that was refused took a live block
+        assertEq(heap.live(), 3)
+        for (const b of [p, q, r]) {
+            heap.dup(b)
+            assertEq(`${heap.drop(b)} ${heap.drop(b)}`, '0 1')
+        }
+        assertEq(heap.live(), 0)
     },
 }

@@ -165,7 +165,8 @@ already allows an arena under the same ABI.
 | | Release, `module` | Debug, `counted` |
 | --- | --- | --- |
 | Header | none | the 8-byte header that [every counting variant shares](#what-every-counting-variant-shares), whose tag stays 0 since no block is reused, and before it a word with the block's size, so that the arena can be walked in birth order, and with a mark once the block is freed: 16 bytes in all |
-| `alloc(t, n)` | about 6 instructions | the same, a check of the pointer, the stores of the size word and the header, and an update of `live()` |
+| Where blocks start | not kept | a bit for each 8 bytes, set where a block starts: a KiB of bitmap per page in its region's tail, found through a directory of a word per page of the memory, so that an address where no block starts traps |
+| `alloc(t, n)` | about 6 instructions | the same, a check of the pointer, the stores of the size word, the header and the block's bit, and an update of `live()` |
 | A block whose count reaches 0 | none does | is never reused, so a stale reference finds 0 and traps |
 | `live()` | not exported | the blocks whose count has not reached 0, for balance checks in proofs |
 
