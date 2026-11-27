@@ -149,13 +149,13 @@ const moduleOf = refKind => ({
                         if_(ne(and(b, n(0xCn)), n(0n)), n(4n),
                             scalarKind(b)))))))],
         // A number's bits as an f64c; a float as a number's bits.
-        ['to_f64', fn([['v', number]], f64c, v => canon(from_bits(unseal(v))))],
-        ['from_f64', fn([['x', f64]], number, x => seal(number, to_bits(canon(x))))],
+        ['to_f64', hint('always', fn([['v', number]], f64c, v => canon(from_bits(unseal(v)))))],
+        ['from_f64', hint('always', fn([['x', f64]], number, x => seal(number, to_bits(canon(x)))))],
         // A boolean's sign bit; a bool as the true or false box.
-        ['to_bool', fn([['v', boolean]], bool, v => ne(shr(unseal(v), n(63n)), n(0n)))],
-        ['from_bool', fn([['b', bool]], boolean, b => if_(b, seal(boolean, n(TRUE)), seal(boolean, n(FALSE))))],
+        ['to_bool', hint('always', fn([['v', boolean]], bool, v => ne(shr(unseal(v), n(63n)), n(0n))))],
+        ['from_bool', hint('always', fn([['b', bool]], boolean, b => if_(b, seal(boolean, n(TRUE)), seal(boolean, n(FALSE)))))],
         // Reference identity through NaNVM, which traps on a dropped or forged box.
-        ['same', fn([['a', reference], ['b', reference]], bool, (a, b) => call('Ref', 'same_ref', [unseal(a), unseal(b)]))],
+        ['same', hint('always', fn([['a', reference], ['b', reference]], bool, (a, b) => call('Ref', 'same_ref', [unseal(a), unseal(b)])))],
         // Owned-stage helpers for proofs on NaNVM: copy, move, drop, and the constants.
         ['keep', fn([['v', any]], any, v => v)],
         ['take', fn([own('v', any)], any, v => v)],
