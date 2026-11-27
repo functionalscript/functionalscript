@@ -295,10 +295,11 @@ IR heap, and [defined-hooks.md](./defined-hooks.md#the-hooks) refuses a
 hook that may fail. So Memory brings a second effect of one bit: a call of
 a function that touches the memory keeps its place, and is neither removed
 nor merged, whether or not it may fail. A function written in the IR
-touches the memory when it calls one that does, which the checker infers
-as it infers `fails`. No pass moves, removes or merges calls today, so the
-bit binds the passes to come, and H1 proves that the passes that exist
-keep every Memory call where it was.
+touches the memory when it calls one that does. No pass moves, removes or
+merges calls today, so the bit binds the passes to come: the first of them
+brings the checker's inference of it, as the checker infers `fails`, and
+until then H1 proves that the passes that exist keep every Memory call
+where it was.
 
 **What else the low level needs.** `clz`, for the class of a size computed
 at run time, which paged size classes need and the arena does not; and
