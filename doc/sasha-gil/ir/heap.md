@@ -229,7 +229,7 @@ release arena counts nothing and keeps no header.
 | --- | --- | --- |
 | 0 to 31 | count | `dup` and `drop`; 0 marks a free block |
 | 32 to 39 | size class | a free needs no lookup; paged size classes keep it per page, and the debug arena has no classes, so in both it is spare |
-| 40 to 47 | type within the kind | `release` tells, say, a flat string from a slice |
+| 40 to 47 | type, the kind included | `release` and the recount reach an object by its offset alone, from a work list that holds no box, and find its fields from this byte: a flat string's, say, or a slice's |
 | 48 to 63 | tag, in debug and test builds | a stale reference traps even after its block is reused |
 
 - **Counts cannot overflow.** The references to one object are at most
@@ -243,18 +243,19 @@ release arena counts nothing and keeps no header.
   does a Rust offset under the same cap. Each block keeps a tag in its
   header, `alloc` copies it into the reference that it answers, and a free
   moves it on, so a stale reference traps even after its block is reused. A
-  block whose tag has taken all 65,536 values is retired, never reused, so
-  no reference ever names two objects. That is how NaNVM keeps its 14-bit
-  generations exact today: `Slab::take` retires a slot whose generations are
-  spent ([abi.rs](../../../nanvm/lib/src/l0/abi.rs)). A retired block costs
-  memory only in the builds that check, and only once it has been allocated
-  65,536 times. For the same reason, storage keeps its shape in those
-  builds: a page that empties stays with its class instead of going back to
-  the pool, and the pages of a freed large object are not reused, so a
-  header never moves and its tag only moves on. A tag costs a compare on
-  every access through a reference, the one check with a steady cost, so
-  release builds leave it out; count-0 traps and the debug arena catch stale
-  references in tests.
+  block whose tag has taken all 65,536 values is retired, never reused: it
+  keeps a count of 0 and takes a reserved type, which the recount's sweep
+  passes over, so no reference ever names two objects. That is how NaNVM
+  keeps its 14-bit generations exact today: `Slab::take` retires a slot
+  whose generations are spent ([abi.rs](../../../nanvm/lib/src/l0/abi.rs)).
+  A retired block costs memory only in the builds that check, and only once
+  it has been allocated 65,536 times. For the same reason, storage keeps its
+  shape in those builds: a page that empties stays with its class instead of
+  going back to the pool, and the pages of a freed large object are not
+  reused, so a header never moves and its tag only moves on. A tag costs a
+  compare on every access through a reference, the one check with a steady
+  cost, so release builds leave it out; count-0 traps and the debug arena
+  catch stale references in tests.
 - **The size class comes from the type.** The data lowering knows each
   object's size. For a record or a literal array it is a constant, so
   `alloc` inlines with a constant class; for `concat` it is computed in
@@ -416,10 +417,13 @@ The recount:
 1. sets the count of every block to 0;
 2. walks from the roots with its own work list, adds 1 for each reference
    that it meets, and queues an object the first time it reaches it;
-3. empties every free list and rebuilds it by a sweep of the heap: each
-   block whose count is still 0, free before or never reached, builders
-   that abandoned frames left open included, goes back on its list, so
-   none is listed twice.
+3. rebuilds the allocator's own records by a sweep of the heap. It
+   empties every free list and clears every page's count of used blocks.
+   Then each block whose count is still 0, free before or never reached,
+   builders that abandoned frames left open included, goes back on its
+   list, so none is listed twice, and every other block adds 1 to its
+   page's count. A retired block is passed over, and a page left with no
+   used block goes where a free would send it.
 
 It is exact and costs nothing on the normal path. A recovered throw costs
 about one mark and sweep of the heap. It needs what every counting variant
