@@ -73,13 +73,38 @@ export const proof = {
             [0, ['[]', [['self', 1], ['frame', 0]]]], [1, ['[]', [['self', 0], ['arg', 0], ['rest']]]],
         ]])
         roundTrip(['=>', 1, [], ['[]', [['fn', group, 0], ['fn', group, 1]]]])
-        const lazy = /** @type {const} */ (['group', [['()', ['arg', 0], []]], group[2]])
+    },
+    lazyProjectionsDemandOneFrame: () => {
+        const lazy = /** @type {const} */ (['group', [['()', ['arg', 0], []]], [
+            [0, ['[]', [['self', 1], ['frame', 0]]]],
+            [0, ['[]', [['self', 0], ['frame', 0]]]],
+        ]])
         const select = /** @type {const} */ (['=>', 2, [], ['[]', [
             ['?:', ['arg', 1], ['fn', lazy, 0], 0], ['?:', ['arg', 1], ['fn', lazy, 1], 0],
         ]]])
         const block = assertOk(toFast(select))
         const fn = /** @type {readonly ['function', FastFunction]} */ (/** @type {Extract<Block['exit'], readonly ['yield', unknown]>} */ (block.exit)[1][0])[1]
         assert(fn.body.statements.some(statement => statement[0] === 'define' && statement[3] === 'lazy'))
+
+        const make = fromFast(block)
+        /** @param {Exp} graph */
+        const run = graph => memo(assertOk(identityAnalysis(graph)))({ args: [] })
+        const failing = /** @type {const} */ (['=>', 0, [], ['throw', 'capture demanded']])
+        assertStructurallySame(assertOk(run(['()', make, [failing, false]])), ['[]', [0, 0]])
+        assertEq(assertError(run(['()', make, [failing, true]])), 'capture demanded')
+
+        // Each call of the capture function allocates an array. Both
+        // members must return the very same array and one another.
+        const pair = /** @type {const} */ (['()', make, [['=>', 0, [], ['[]', []]], true]])
+        const first = /** @type {const} */ (['.', pair, 0])
+        const second = /** @type {const} */ (['.', pair, 1])
+        const left = /** @type {const} */ (['()', first, []])
+        const right = /** @type {const} */ (['()', second, []])
+        const captured = /** @type {const} */ (['.', left, 1])
+        assertStructurallySame(assertOk(run(['[]', [
+            captured, ['===', captured, ['.', right, 1]],
+            ['===', ['.', left, 0], second], ['===', ['.', right, 0], first],
+        ]])), ['[]', [['[]', []], true, true, true]])
     },
     // A named import is its module's computations, then the export it
     // selects. Once those are bound, reading them again does nothing, so the
