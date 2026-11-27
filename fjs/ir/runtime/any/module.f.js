@@ -15,7 +15,7 @@
 import { kinds, ref } from '../../l0/module.f.js'
 import { FALSE, NULL, TRUE, UNDEFINED, isNumberTerm, isRefTerm } from '../box/module.f.js'
 import {
-    and, bool, call, canon, constant, eq, f64, f64c, fn, from_bits, if_, int, let_,
+    and, bool, call, canon, constant, eq, f64, f64c, fn, from_bits, hint, if_, int, let_,
     make, n, ne, only, own, seal, sealed, shr, signature, to_bits, trap, u, unit, unseal,
 } from '../../module.f.js'
 
@@ -136,8 +136,8 @@ const moduleOf = refKind => ({
         ['true', { type: boolean, value: seal(boolean, n(TRUE)) }],
     ],
     functions: [
-        // Whether bits are a dynamic reference.
-        ['isRef', fn([['b', u(64)]], bool, b => isRefTerm(b))],
+        // Whether bits are a dynamic reference: two bit operations, which the inline pass writes into each hook that asks.
+        ['isRef', hint('always', fn([['b', u(64)]], bool, b => isRefTerm(b)))],
         // Hooks over bits: count a reference through Ref, pass every other box through.
         ['dup', fn([['b', u(64)]], u(64), b => if_(call('self', 'isRef', [b]), call('Ref', 'dup_ref', [b]), b))],
         ['drop', fn([['b', u(64)]], unit, b => if_(call('self', 'isRef', [b]), call('Ref', 'drop_ref', [b]), make([])))],

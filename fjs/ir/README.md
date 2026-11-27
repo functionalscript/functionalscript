@@ -50,6 +50,7 @@ programs faster, and a program's module functions may call themselves.
 |[`lifetime`](./lifetime/module.f.js)      |the lifetime pass: a module's plain stage to its owned stage           |
 |[`print`](./print/module.f.js)           |the IR as text, for review and golden proofs                           |
 |[`records`](./records/module.f.js)       |the records pass: an object only read back by its keys, split in locals|
+|[`inline`](./inline/module.f.js)         |the inline pass: a function's body at each call that its hint asks for |
 |[`wasm`](./wasm/module.f.js)             |the emitter, to the AST of [`fjs/media/wasm`](../media/wasm/README.md) |
 |[`from_fast`](./from_fast/README.md)      |the lowering from normalized FAST, with the types from a table         |
 |[`l0`](./l0/module.f.js)                 |the interfaces of L0 as data, and `any`, the type that they seal       |
