@@ -343,10 +343,11 @@ export const proof = {
             assert(traps(() => heap.dup(a)), a)
             assert(traps(() => heap.drop(a)), a)
             assert(traps(() => heap.free(a)), a)
+            assert(traps(() => heap.type_of(a)), a)
         }
         assert(ones.every(at => new DataView(memory.buffer).getUint32(at, true) === 1))
-        // the blocks still count, and nothing that was refused took a live block
-        assertEq(heap.live(), 3)
+        // the blocks still count and tell their types, and nothing that was refused took a live block
+        assertEq(`${heap.live()} ${[p, q, r].map(b => heap.type_of(b)).join()}`, '3 1,2,3')
         for (const b of [p, q, r]) {
             heap.dup(b)
             assertEq(`${heap.drop(b)} ${heap.drop(b)}`, '0 1')

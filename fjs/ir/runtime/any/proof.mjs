@@ -8,7 +8,7 @@
  * it in the arena, in debug down to the `free` at a count of 0, while the
  * host's own references keep their counts as before and nothing leaks.
  * The checked variant refuses a block whose count is 0, a block of another
- * type and a box with stray bits. [NaNVM's
+ * type, an address inside a block and a box with stray bits. [NaNVM's
  * test](../../l0/host/nanvm/nanvm.test.mjs) runs these again with NaNVM's
  * `.wasm` as the host. A run on the engine is an effect by the owner's
  * ruling, until such runs move into files of their own
@@ -160,7 +160,8 @@ export const proof = {
         }
     },
     // The checked variant asks the debug arena the block's type: it refuses a freed block, a block of another
-    // type and a box with bits that no block's address has, which the plain variant reads as a string.
+    // type, an address inside a block and a box with bits that no block's address has, which the plain variant
+    // reads as a string.
     checked: () => {
         const plain = load(plainAny, debugArena)
         const checked = load(checkedAny, debugArena)
@@ -169,9 +170,9 @@ export const proof = {
             const q = heap.alloc(0x60, 8)
             const r = heap.alloc(stringType, 8)
             assertEq(any.forget(box(p)), 1)
-            const refused = [box(p), box(q), box(r) | 1n << 40n, box(r) | 4n]
+            const refused = [box(p), box(q), box(r + 8), box(r) | 1n << 40n, box(r) | 4n]
             assertEq(refused.map(s => traps(() => any.kind(s)) ? 'trap' : `${any.kind(s)}`).join(),
-                any === checked.any ? 'trap,trap,trap,trap' : '4,4,4,4')
+                any === checked.any ? 'trap,trap,trap,trap,trap' : '4,4,4,4,4')
             assertEq(any.kind(box(r)), 4)
         }
     },
