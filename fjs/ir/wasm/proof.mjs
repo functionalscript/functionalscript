@@ -25,8 +25,8 @@ import { assert } from '../../asserts/module.f.js'
 import { ARRAY, FUNCTION, OBJECT, STRING, asNumber, kind, length } from '../../wasm/runtime/l0/module.f.js'
 import { stringEquals, stringIndex, stringLess, toBoolean } from '../../wasm/runtime/l1/module.f.js'
 import { any, array, container, func, l0 } from '../l0/module.f.js'
-import { add, call, call_ref, code, codeOf, f64, fn, get, n } from '../module.f.js'
-import { arrays, bits, constants, corners, literals, loops, records, samples, unknown } from '../testlib.f.js'
+import { add, call, call_ref, code, codeOf, f64, fn, get, n, u } from '../module.f.js'
+import { addressing, arrays, bits, constants, corners, literals, loops, records, samples, unknown } from '../testlib.f.js'
 import { edges, held, product, run, spellings, trap } from './testlib.mjs'
 
 // arrays
@@ -260,6 +260,14 @@ const twins = {
     ofBits: ([b]) => ofBits(int(b)),
     signOf: ([x]) => bitsOf(num(x)) >> 63n,
     negBits: ([x]) => Number.isNaN(num(x)) ? 0x7FF8_0000_0000_0000n : bitsOf(-num(x)),
+    stored8: ([, v]) => v,
+    stored16: ([, v]) => v,
+    stored32: ([, v]) => v,
+    stored64: ([, v]) => v,
+    lowFirst: ([, v]) => int(v) & 0xffffn,
+    pages: () => 1n,
+    grown: ([k]) => 1n + int(k) <= 0x1_0000n ? 1n : -1n,
+    after: ([k]) => 1n + int(k) <= 0x1_0000n ? 1n + int(k) : 1n,
 }
 
 /** Values of `any` for the string comparisons: strings that share a prefix, the two ends of a unit, a pair of surrogates, and values of other kinds, which trap. */
@@ -277,6 +285,19 @@ const bounds = [
 
 /** One argument of each of the values. @type {(xs: readonly _Value[]) => readonly (readonly _Value[])[]} */
 const each = xs => xs.map(x => [x])
+
+/**
+ * Addresses for a store and a load of `bytes` bytes, in the one page that the
+ * counting host makes for a module that asks for no data: the first byte
+ * past those that the host keeps, one that is not aligned, and the last
+ * place where the bytes fit.
+ *
+ * @type {(bytes: bigint) => readonly _Value[]}
+ */
+const addresses = bytes => [0x100n, 0x103n, 0x1_0000n - bytes]
+
+/** Pages to grow by: none, one, two, and more than a 32-bit address reaches, where `grow` answers `-1`. */
+const growths = each([0n, 1n, 2n, 0x1_0000n])
 
 /**
  * The arguments of the functions that the edges do not suit: `pow` recurses
@@ -307,6 +328,13 @@ const inputs = {
     stringIndex: each(spellings),
     fib: each([...counts, 20, 78.5]),
     steps: each(counts),
+    stored8: product([addresses(1n), edges(u(8))]),
+    stored16: product([addresses(2n), edges(u(16))]),
+    stored32: product([addresses(4n), edges(u(32))]),
+    stored64: product([addresses(8n), edges(u(64))]),
+    lowFirst: product([addresses(8n), edges(u(64))]),
+    grown: growths,
+    after: growths,
 }
 
 export const proof = {
@@ -314,6 +342,9 @@ export const proof = {
     corners: () => run(corners, twins, inputs),
     // The bit operators and a float's bits, on the edges of their types.
     bits: () => run(bits, twins, inputs),
+    // L0's Memory on the memory that the host makes: a load reads what a store wrote, of each width, the low byte
+    // first, at an address that is not aligned too, and `grow` adds pages up to the most that an address reaches.
+    addressing: () => run(addressing, twins, inputs),
     unknown: () => run(unknown, twins, inputs),
     loops: () => run(loops, twins, inputs),
     records: () => run(records, twins, inputs),

@@ -702,8 +702,10 @@ Containers over GC types, not a variant of the Heap module.
 
 Each step is one stack of pull requests, and each keeps every proof green.
 
-1. **H1, memory at the low level**: the `Memory` interface, its effect, the
-   checker's rules for it, and the emitter. No runtime change yet.
+1. **H1, memory at the low level**: the `Memory` interface, which says
+   `instructions`, the checker's rules for it, the emitter, and proofs that
+   the passes keep its calls in place. The effect's inference comes with
+   the first pass that moves calls. No runtime change yet.
 2. **H2, the arena** under `fjs/ir/runtime/heap`, `module` for release and
    `counted` for debug, proven against the FunctionalScript model before
    any program uses it.

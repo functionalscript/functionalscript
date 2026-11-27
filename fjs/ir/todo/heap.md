@@ -25,9 +25,13 @@ it counts in a header and traps on misuse. Memory enters the IR as a
 - [ ] Owner approval of the design, and answers to its open questions
       (memory and the five choices answered; how a build asks for debug,
       the first client, and a trap for misuse still open)
-- [ ] **H1** — `Memory`: loads and stores of 8 to 64 bits, `size` and `grow`;
+- [x] **H1** — `Memory`: loads and stores of 8 to 64 bits, `size` and `grow`;
       the emitter writes them as instructions and imports the loader's
-      memory, and an effect of their own keeps their calls in place
+      memory, and an effect of their own keeps their calls in place: L0's
+      `Memory` says `instructions`, the checker takes only it or a part of
+      it as such, and proofs show that the passes keep each of its calls
+      where it was; the effect's inference comes with the first pass that
+      moves calls
 - [ ] **H2** — The arena under `fjs/ir/runtime/heap`, in the IR's eDSL:
       `module` for release, `counted` for debug, with proofs on the
       counting host against a plain FunctionalScript model; it needs the
