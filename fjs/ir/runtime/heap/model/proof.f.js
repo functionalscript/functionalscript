@@ -3,12 +3,12 @@
  * full region grows the memory by 16 pages or by the request, new pages
  * extend the region where they follow it and start one elsewhere, and the
  * arena runs out of memory where the host refuses or past `0xFFFF_0000`.
+ *
+ * @import { Arena } from './types.ts'
  */
 
 import { assert, assertEq, assertNotNullish } from '../../../../asserts/module.f.js'
 import { alloc, other, round, start } from './module.f.js'
-
-/** @typedef {import('./module.f.js').Arena} Arena */
 
 /** The arena and the address of a block that fits. @type {(a: Arena, n: number) => readonly [Arena, number]} */
 const allocated = (a, n) => assertNotNullish(alloc(a, n))
