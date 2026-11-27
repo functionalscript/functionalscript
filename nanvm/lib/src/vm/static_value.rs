@@ -48,10 +48,10 @@ pub struct StaticBigInt {
 pub struct StaticArray<A: IVm>(pub &'static [StaticAny<A>]);
 /// Own properties in VM enumeration order, with unique keys.
 pub struct StaticObject<A: IVm>(pub &'static [(&'static StaticString, StaticAny<A>)]);
+/// A module function whose code refers directly to its captured constants.
 pub struct StaticFunction<A: IVm> {
     pub code: StaticCode<A>,
     pub length: u32,
-    pub frame: &'static StaticArray<A>,
     pub text: Option<&'static StaticString>,
 }
 
@@ -100,17 +100,9 @@ mod tests {
         vm::{IComplex, ToArray, ToString},
     };
 
-    fn capture(
-        self_: &<Naive as IVm>::InternalFunction,
-        _: Array<Naive>,
-    ) -> Result<Any<Naive>, Any<Naive>> {
-        Ok(Naive::frame(self_)[0].clone())
-    }
-
-    static FRAME: StaticArray<Naive> = StaticArray(&[StaticAny::Number(42.0)]);
+    static CAPTURED: StaticArray<Naive> = StaticArray(&[StaticAny::Number(42.0)]);
     static FUNCTION: StaticFunction<Naive> = StaticFunction {
-        code: capture,
-        frame: &FRAME,
+        code: |_, _| Ok(Array::from_static(&CAPTURED).to_any()),
         length: 1,
         text: Some(&ascii("x => captured")),
     };
@@ -131,7 +123,10 @@ mod tests {
         let f = Function::from_static(&FUNCTION);
         assert_eq!(f.length(), 1);
         assert_eq!(f.text(), Ok("x => captured".into()));
-        assert_eq!(f.call([].to_array()), Ok(42.0.to_any()));
+        assert_eq!(
+            f.call([].to_array()),
+            Ok(Array::from_static(&CAPTURED).to_any())
+        );
         assert_ne!(
             Object::from_static(&EMPTY),
             Object::from_static(&OTHER_EMPTY)
@@ -140,7 +135,21 @@ mod tests {
             Naive::load_object(&EMPTY).address(),
             core::ptr::addr_of!(EMPTY) as usize
         );
-        assert_eq!(Array::from_static(&FRAME), Array::from_static(&FRAME));
+    }
+
+    #[test]
+    fn static_self_has_descriptor_identity() {
+        static SELF: StaticFunction<Naive> = StaticFunction {
+            code: |_, _| Ok(Function::from_static(&SELF).to_any()),
+            length: 0,
+            text: None,
+        };
+        static OTHER: StaticFunction<Naive> = StaticFunction { ..SELF };
+        let f = Function::from_static(&SELF);
+        assert_eq!(f.call([].to_array()), Ok(f.clone().to_any()));
+        assert_ne!(f, Function::from_static(&OTHER));
+        assert_ne!(f, Naive::static_function(SELF.code, 0, [].to_array(), None));
+        assert!(f.text().is_err());
     }
 
     #[test]

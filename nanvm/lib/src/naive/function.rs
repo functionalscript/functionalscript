@@ -10,20 +10,19 @@ pub(super) enum Text {
     Vm(crate::vm::String<Naive>),
 }
 
-/// What a `naive` function holds: its code, its `length`, the frame it
-/// captured, and its text, where it has one.
-struct Closure {
-    descriptor: Option<&'static StaticFunction<Naive>>,
+pub struct Closure {
     code: StaticCode<Naive>,
     length: u32,
     frame: Array<Naive>,
     text: Option<Text>,
 }
 
-/// Dynamic closures use their allocation for identity. A loaded constant
-/// uses its descriptor, including when loaded again with a fresh frame wrapper.
+/// A function's identity is the address of its descriptor or runtime closure.
 #[derive(Clone)]
-pub struct Function(Rc<Closure>);
+pub enum Function {
+    Static(&'static StaticFunction<Naive>),
+    Closure(Rc<Closure>),
+}
 
 impl Function {
     pub(super) fn new(
@@ -32,8 +31,7 @@ impl Function {
         frame: Array<Naive>,
         text: Option<Text>,
     ) -> Self {
-        Function(Rc::new(Closure {
-            descriptor: None,
+        Self::Closure(Rc::new(Closure {
             code,
             length,
             frame,
@@ -41,20 +39,11 @@ impl Function {
         }))
     }
 
-    pub(super) fn from_static(value: &'static StaticFunction<Naive>) -> Self {
-        Self(Rc::new(Closure {
-            descriptor: Some(value),
-            code: value.code,
-            length: value.length,
-            frame: Array::from_static(value.frame),
-            text: value
-                .text
-                .map(|text| Text::Vm(crate::vm::String::from_static(text))),
-        }))
-    }
-
     pub fn frame(&self) -> &Array<Naive> {
-        &self.0.frame
+        match self {
+            Self::Static(_) => panic!("a static descriptor has no capture frame"),
+            Self::Closure(closure) => &closure.frame,
+        }
     }
 }
 
@@ -63,26 +52,36 @@ impl IComplex<Naive> for Function {
         self.address() == other.address()
     }
     fn address(&self) -> usize {
-        self.0.descriptor.map_or_else(
-            || Rc::as_ptr(&self.0) as usize,
-            |value| core::ptr::from_ref(value) as usize,
-        )
+        match self {
+            Self::Static(descriptor) => core::ptr::from_ref(*descriptor) as usize,
+            Self::Closure(closure) => Rc::as_ptr(closure) as usize,
+        }
     }
 }
 
 impl IFunction<Naive> for Function {
     fn call(&self, args: Array<Naive>) -> Result<Any<Naive>, Any<Naive>> {
-        (self.0.code)(self, args)
+        let code = match self {
+            Self::Static(descriptor) => descriptor.code,
+            Self::Closure(closure) => closure.code,
+        };
+        code(self, args)
     }
 
     fn length(&self) -> u32 {
-        self.0.length
+        match self {
+            Self::Static(descriptor) => descriptor.length,
+            Self::Closure(closure) => closure.length,
+        }
     }
 
     fn text(&self) -> Option<crate::vm::String<Naive>> {
-        self.0.text.as_ref().map(|text| match text {
-            Text::Utf8(s) => (*s).into(),
-            Text::Vm(s) => s.clone(),
-        })
+        match self {
+            Self::Static(descriptor) => descriptor.text.map(crate::vm::String::from_static),
+            Self::Closure(closure) => closure.text.as_ref().map(|text| match text {
+                Text::Utf8(s) => (*s).into(),
+                Text::Vm(s) => s.clone(),
+            }),
+        }
     }
 }

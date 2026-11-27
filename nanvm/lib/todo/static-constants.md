@@ -27,8 +27,9 @@ time, binary size and reference counts is not measured.
 Write a constant as a Rust `static`, and let a value be a reference to one.
 
 - [The static descriptors](../src/vm/static_value.rs) name their VM wherever
-  a function can occur. A `StaticFunction<A>` holds its `StaticCode<A>`
-  directly. Strings and big integers contain only primitive data and are
+  a function can occur. A `StaticFunction<A>` holds its `StaticCode<A>`,
+  arity and optional source text. Its code reads captured constants directly.
+  Strings and big integers contain only primitive data and are
   shared across VM types. A hand-written module can declare named statics
   for a concrete VM. Emitting them for generic modules is still open.
 - Turning a static into a value is the VM's. The VM's trait converts each
@@ -147,18 +148,18 @@ and the same data is a data segment in WebAssembly.
 - [x] Emit native module-level arrays of primitive literals, preserving a distinct
   descriptor per array literal site.
 - [x] Emit native module-level objects with literal string keys and primitive values.
-- [x] Emit static native module-level functions with an empty frame.
-- [x] Emit static frames for module-level functions capturing other static functions.
+- [x] Emit static native module-level functions without captures.
+- [x] Load captured static functions by descriptor in module-level functions.
 - [x] Generate the common runtime for the native application with the same static descriptors.
 - [x] Emit static objects with properties that refer to named static functions.
-- [x] Allow native function frames to capture named static objects and their aliases.
+- [x] Allow native functions to capture named static objects and their aliases.
 - [x] Emit static objects with properties that refer to named static objects and their aliases.
 - [x] Emit native module-level arrays with entries that refer to named static functions and objects.
-- [x] Reuse named native static arrays and their aliases in arrays, objects, and function frames.
-- [x] Emit native static function frames with primitive captures and immutable aliases.
+- [x] Reuse named native static arrays and their aliases in arrays, objects, and captured bindings.
+- [x] Emit native static functions with primitive captures and immutable aliases.
 - [x] Emit inline nested array and object literals as native static containers.
 - [x] Emit inline static functions as entries in native static arrays and objects.
-- [ ] Extend static containers to composite members and function frames to other static values.
+- [ ] Extend static containers to composite members and function captures to other static values.
 - [ ] Have the Rust serializer write constants as statics.
 
 ### Related

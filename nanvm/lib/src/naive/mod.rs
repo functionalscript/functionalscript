@@ -38,7 +38,7 @@ impl IVm for Naive {
         f(&self.0)
     }
 
-    /// `naive` holds a static function, and makes a function no other way.
+    /// Construct a runtime closure from static Rust code and its capture frame.
     fn static_function(
         code: StaticCode<Naive>,
         length: u32,
@@ -77,6 +77,6 @@ impl IStaticVm for Naive {
         object::Object::Static(value)
     }
     fn load_function(value: &'static StaticFunction<Self>) -> Self::InternalFunction {
-        Function::from_static(value)
+        Function::Static(value)
     }
 }

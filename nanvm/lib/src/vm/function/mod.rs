@@ -11,11 +11,11 @@ use crate::vm::{Any, Array, IFunction, IVm, String, error};
 /// [`IStaticFunction`](crate::vm::IStaticFunction), and [`Function::new`]
 /// wraps.
 ///
-/// Compared by identity, an `Rc` in `naive`: every construction is a new
-/// function, as JavaScript makes a new function of every evaluation of an
-/// arrow, and `(() => 1) === (() => 1)` is `false`. A built-in is no kind
-/// apart: it is a closure of the runtime value, `vm::runtime`, built once
-/// and read from the value, so `Object.is === Object.is` holds because
+/// In `naive` a function loaded from a static descriptor takes its identity
+/// from that descriptor.
+/// Each runtime closure gets a fresh `Rc`, so `(() => 1) === (() => 1)`
+/// is `false`. A built-in is a function of the runtime value, `vm::runtime`,
+/// built once and read from the value, so `Object.is === Object.is` holds because
 /// both reads find the one closure, and its text is the NativeFunction
 /// text the compiled runtime gave it (`fjs/js/runtime/README.md`, "How
 /// NaNVM finds it").

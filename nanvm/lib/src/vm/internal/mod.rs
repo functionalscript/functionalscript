@@ -83,6 +83,7 @@ pub trait IVm: Sized + Clone + From<Unpacked<Self>> + 'static {
         frame: Array<Self>,
         text: Option<crate::vm::String<Self>>,
     ) -> Function<Self>;
-    /// The frame `static_function` was given, read by the code through its `self_`.
+    /// The frame given to a runtime closure. Only functions constructed with
+    /// [`Self::static_function`] or [`Self::function_with_text`] have a frame.
     fn frame(self_: &Self::InternalFunction) -> &Array<Self>;
 }
