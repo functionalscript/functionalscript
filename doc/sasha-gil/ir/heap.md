@@ -228,7 +228,11 @@ release arena counts nothing and keeps no header.
   traps on a dropped handle today. It is one compare on a word that is
   loaded anyway.
 - **Tags, in debug and test builds only.** A wasm32 offset without its 2
-  alignment bits takes 30 of the box's 46 payload bits and leaves 16. Each
+  alignment bits takes 30 of the box's 46 payload bits and leaves 16.
+  Rust's buffer can be larger
+  ([pointer-width.md](./pointer-width.md#decision)), so a debug or test
+  build caps it at 4 GiB there too, and both targets keep one layout; a
+  release build has no tag, and its offsets may take all 46 bits. Each
   block keeps a tag in its header, `alloc` copies it into the reference
   that it answers, and a free moves it on, so a stale reference traps even
   after its block is reused. A block whose tag has taken all 65,536 values
@@ -393,6 +397,21 @@ outermost call returns or recovers. Until then the abandoned objects stay,
 with counts too high: late, but safe. Effects come back to the host as
 values, so a `catch` thunk may always run as an outermost call, and the
 deferral may never be needed; not every host has been checked for this.
+
+**While NaNVM holds references into the IR heap.** From H3 until
+containers move to the IR heap ([Order of work](#order-of-work)), a NaNVM
+array or object may be the only owner of an IR string. The recount cannot
+walk NaNVM's values, so it would free that string under a live container,
+and as a checker it would report the container's reference as a missed
+`drop`. Until NaNVM holds no reference into the IR heap, the recount
+therefore either takes the references that NaNVM's live values hold as
+roots, which NaNVM would list, or does not run. When it does not run,
+`recover` frees nothing in the IR heap: late, but safe, as above. NaNVM's
+own `recover` still frees its handles, and their release drops what they
+held in the IR heap. The note on NaNVM's references before H3 decides
+which ([open question 2](#open-questions)). The proposal is to wait: a
+list of NaNVM's references is Rust code that step 5 removes again, and
+until then only a caught throw leaks.
 
 **In the arena** nothing is freed anyway, so its `recover` only clears the
 thrown value. In debug its counts stay too high after a caught throw, as
@@ -645,7 +664,9 @@ Each step is one stack of pull requests, and each keeps every proof green.
    ([L0 design §5](../wasm/l0-design.md#5-memory-and-table-made-by-the-loader-imported-by-both-modules)).
    That handover needs a note of its own first.
 4. **H4, paged size classes** with the recount from the roots, measured
-   against the arena, which is the ceiling, and against NaNVM.
+   against the arena, which is the ceiling, and against NaNVM. While NaNVM
+   holds references into the IR heap, the recount takes them as roots or
+   waits ([A caught throw](#a-caught-throw)).
 5. **Containers, functions and bigints** move to the IR heap kind by kind,
    until NaNVM holds no references.
 6. **The experiments**: the [line heap](../../../fjs/ir/todo/line-heap.md)
@@ -708,7 +729,10 @@ These edits wait until this note is decided.
 2. **The first client.** Long strings in the arena mean that NaNVM's
    arrays and objects hold references into the IR heap. In release such a
    reference needs no count; in debug NaNVM must call the heap's `dup` and
-   `drop`. That needs a note of its own before H3.
+   `drop`. That needs a note of its own before H3. The same note decides
+   how H4's recount sees those references: NaNVM lists them as roots, or
+   the recount waits until NaNVM holds none. Waiting is the proposal
+   ([A caught throw](#a-caught-throw)).
 3. **A trap for misuse.** The debug arena traps on a count of 0, and every
    heap traps when the memory cannot grow. A `trap` fails, so `alloc`
    would fail, and with it every function that allocates, though
