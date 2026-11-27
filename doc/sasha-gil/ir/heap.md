@@ -74,8 +74,9 @@ Every variant does the same jobs:
   ([L0 design §6](../wasm/l0-design.md#6-literals-built-once-at-start-up),
   [slice 6's decisions](../../../fjs/ir/todo/slices.md#decisions-for-slice-6-2026-11-14)).
   So each is a block like any other. Where the heap counts, the
-  constant's own reference keeps its count at 1 or more, and the recount
-  takes the constants as roots ([A caught throw](#a-caught-throw)).
+  constant's own reference keeps its count at 1 or more, and the start
+  function and `init` put that reference in the root table, where the
+  recount finds it ([The root table](#the-root-table)).
   Compile-time `stat` data, whose box has the `s` bit set
   ([nan-box-patterns.md](./nan-box-patterns.md)) and which nothing counts,
   comes later
@@ -122,13 +123,17 @@ each variant does:
 | `drop(p)`: one owner less | answers `false` | takes 1, traps on 0, and answers `true` at 0 | the same |
 | `free(p)`, once released | never called | nothing: the block is never reused | pushes the block on its class's list |
 | `live()` | not exported | the blocks whose count has not reached 0 | the same, in debug builds |
+| `root(p)`: keep an owned reference where the heap finds it, and answer its entry | puts it in the root table | the same | the same |
+| `unroot(i)`: hand back the reference of entry `i` | frees the entry | the same | the same |
 | `recover()` | clears the thrown value | the same | recounts from the roots |
 
 `drop` answers whether the caller must release what the block holds: the
 derived `release` then drops each counted field and calls `free`. `enter`
 and `leave` count the program calls in progress, so that `recover` knows
 when no program frame is live
-([A caught throw](#a-caught-throw)).
+([A caught throw](#a-caught-throw)). `root` and `unroot` keep the
+references that constants and the host hold, which the heap cannot see
+where they are ([The root table](#the-root-table)).
 
 A program that uses the heap correctly gives the same results on every
 variant, and the debug arena traps where it does not.
@@ -330,7 +335,8 @@ below.
 The IR has no mutable globals. A module constant records, once in `init`,
 where `Memory.grow` put the heap's first region, and the region's first
 bytes hold the state: for the arena, the pointer, the region's end and, in
-debug, the live count; later, the class heads and the thrown value. When
+debug, the live count; later, the class heads, the thrown value and where
+the root table is. When
 the region is full, `alloc` grows the memory. Where the new pages follow
 the region, it extends the region; elsewhere it starts a new region there
 and leaves the old one's tail unused. NaNVM's allocator grows the same
@@ -339,6 +345,27 @@ answered. That changes
 [L0 design §5](../wasm/l0-design.md#5-memory-and-table-made-by-the-loader-imported-by-both-modules),
 where the runtime owns everything outside the regions that the loader
 reserves.
+
+### The root table
+
+The heap is a module of its own. It sees neither the program's globals nor
+the host's handles, so the references that they hold are handed to it.
+`root(p)` moves an owned reference into a table that the heap keeps in its
+memory and answers the entry; `unroot(i)` hands the reference back.
+
+- **Constants.** The start function and `init` root each constant that
+  holds a heap object, once, and never unroot it. The program goes on
+  reading the constant from its own global, as a borrow of the entry.
+- **The host.** A reference crosses to the host as an entry, whose index
+  is the host's handle, and the host's drop of a handle unroots its
+  reference and drops it. Entries are reused as NaNVM's slots are, with a
+  generation in the handle, so a stale handle traps
+  ([abi.rs](../../../nanvm/lib/src/l0/abi.rs)).
+
+So the table is the one that references need anyway, since they cross the
+host boundary only as handles
+([pointer-width.md](./pointer-width.md#decision)), and the recount finds
+every root in it ([A caught throw](#a-caught-throw)).
 
 ## A caught throw
 
@@ -371,10 +398,11 @@ header.
 
 **The recount from the roots.** When no program frame is left on the
 stack, every live reference is in a root or inside a live object. The
-roots are the host's handles, since references reach the host only as
-handles ([pointer-width.md](./pointer-width.md#decision)), and every
-constant that holds an object: the program's, literals included, and the
-runtime's own. The thrown value and a call's result are handles by then.
+roots are the entries of the root table ([The root table](#the-root-table)):
+the host's handles, since references reach the host only as handles, and
+every constant that holds an object, the program's, literals included,
+and the runtime's own. The thrown value and a call's result are handles by
+then.
 The recount:
 
 1. sets the count of every counted object to 0;
@@ -405,14 +433,15 @@ array or object may be the only owner of an IR string. The recount cannot
 walk NaNVM's values, so it would free that string under a live container,
 and as a checker it would report the container's reference as a missed
 `drop`. Until NaNVM holds no reference into the IR heap, the recount
-therefore either takes the references that NaNVM's live values hold as
-roots, which NaNVM would list, or does not run. When it does not run,
+therefore either finds the references that NaNVM's values hold among its
+roots, which NaNVM would put in the root table as it stores them, or does
+not run. When it does not run,
 `recover` frees nothing in the IR heap: late, but safe, as above. NaNVM's
 own `recover` still frees its handles, and their release drops what they
 held in the IR heap. The note on NaNVM's references before H3 decides
-which ([open question 2](#open-questions)). The proposal is to wait: a
-list of NaNVM's references is Rust code that step 5 removes again, and
-until then only a caught throw leaks.
+which ([open question 2](#open-questions)). The proposal is to wait:
+rooting them is Rust code that step 5 removes again, and until then only
+a caught throw leaks.
 
 **In the arena** nothing is freed anyway, so its `recover` only clears the
 thrown value. In debug its counts stay too high after a caught throw, as
@@ -663,7 +692,9 @@ Each step is one stack of pull requests, and each keeps every proof green.
    NaNVM needs the heap's `dup` and `drop` for them, through the table that
    the loader gives both modules
    ([L0 design §5](../wasm/l0-design.md#5-memory-and-table-made-by-the-loader-imported-by-both-modules)).
-   That handover needs a note of its own first.
+   That handover needs a note of its own first. The root table comes with
+   them: a long string is the first IR object that a constant or the host
+   holds.
 4. **H4, paged size classes** with the recount from the roots, measured
    against the arena, which is the ceiling, and against NaNVM. While NaNVM
    holds references into the IR heap, the recount takes them as roots or
@@ -731,7 +762,7 @@ These edits wait until this note is decided.
    arrays and objects hold references into the IR heap. In release such a
    reference needs no count; in debug NaNVM must call the heap's `dup` and
    `drop`. That needs a note of its own before H3. The same note decides
-   how H4's recount sees those references: NaNVM lists them as roots, or
+   how H4's recount sees those references: NaNVM roots them, or
    the recount waits until NaNVM holds none. Waiting is the proposal
    ([A caught throw](#a-caught-throw)).
 3. **A trap for misuse.** The debug arena traps on a count of 0, and every

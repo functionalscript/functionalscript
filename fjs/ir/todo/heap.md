@@ -33,7 +33,8 @@ it counts in a header and traps on misuse. Memory enters the IR as a
       counting host against a plain FunctionalScript model; it needs the
       answer on a trap for misuse first
 - [ ] **H3** — The first client: long strings in the IR heap, after a note on
-      NaNVM holding references into it
+      NaNVM holding references into it, with the root table that holds
+      the references of constants and of the host
 - [ ] **H4** — Paged size classes behind the same interface, and a `recover`
       that recounts from the roots
 
