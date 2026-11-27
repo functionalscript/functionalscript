@@ -331,7 +331,8 @@ const definitions = ({ parameters, body }) => {
             switch (s[0]) {
                 case 'define': {
                     const [, id, v, mode] = s
-                    return [{ definition: [id, [mode === 'lazy' ? ['value', v, 'lazy'] : ['value', v]]] }, ...value(v)]
+                    const recursive = v instanceof Array && v[0] === 'function' && v[1].group !== undefined
+                    return [{ definition: [id, [mode === 'lazy' ? ['value', v, 'lazy'] : ['value', v]], recursive] }, ...value(v)]
                 }
                 case 'block': { return [...s[1].map(bare), ...block(s[2])] }
                 case 'if': { return [...s[1].map(bare), ...value(s[2]), ...block(s[3]), ...block(s[4])] }
@@ -464,7 +465,8 @@ export const fastGraph = module => {
         }
         if (hasEntry(r, 'kind')) { return targetShape(v) }
         const position = defined.findIndex(([id]) => id === v)
-        return { kind: 'binding', label: `$${position}`, children: assertNotNullish(defined[Number(position)])[1] }
+        const [, children, recursive] = assertNotNullish(defined[Number(position)])
+        return { kind: 'binding', label: `$${position}`, children, recursive }
     }
     const operators = operatorShape({ array: 'array', object: 'object' })(exp => {
         switch (exp[0]) {

@@ -14,6 +14,7 @@ export type Context = {
     readonly parameters: readonly BindingId[]
     readonly rest: BindingId
     readonly self: BindingId
+    readonly peers: readonly BindingId[]
     readonly captures: readonly BindingId[]
     readonly loop: BindingId
     readonly result: BindingId

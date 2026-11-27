@@ -139,6 +139,13 @@ export const proof = /** @type {const} */ ({
                 ],
             })
         },
+        backToPart: () => {
+            /** @type {(v: unknown) => Shape<unknown>} */
+            const shape = v => v === 'part'
+                ? { owner: () => true, portLabel: port => `${port} (part)` }
+                : arrayShape(v)
+            assertEq(graphOf(shape)(['part']).edges[0].label, '0 (part)')
+        },
         // A node shape can explicitly permit recursive uses of its own
         // identity. Both direct and mutual recursion close with back edges;
         // a later shared use still points forward to the one definition.

@@ -26,6 +26,7 @@ export type BindingOrigin = {
 export type ResolvedModule = SourceModule & {
     readonly scope: BindingScope
     readonly bindings: readonly Binding[]
+    readonly groups?: readonly (readonly BindingId[])[]
     readonly origins: readonly BindingOrigin[]
 }
 

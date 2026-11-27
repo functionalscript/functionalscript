@@ -9,6 +9,7 @@ export type Environment = readonly (readonly [BindingId, Value])[]
 export type Context = {
     readonly bindings: readonly Binding[]
     readonly scopes: readonly BindingScope[]
+    readonly groups: readonly (readonly BindingId[])[]
     readonly loop: {
         readonly target: LoopTarget
         readonly sources: readonly BindingId[]

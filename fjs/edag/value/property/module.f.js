@@ -18,13 +18,14 @@
  * compiler/admission contract and are not revalidated.
  *
  * @module
- * @import { EdagValue, Values, Object as ValueObject, Property, Runtime, Function as ValueFunction, Static, Closure } from '../types.ts'
+ * @import { EdagValue, Values, Object as ValueObject, Property, Runtime, Function as ValueFunction, Static, CodeFunction } from '../types.ts'
  * @import { Invoke } from '../call/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  * @import { ValueResult } from '../control/types.ts'
  */
 
 import { arrayIndex } from '../../../js/array_index/module.f.js'
+import { codeLength } from '../function/module.f.js'
 import { isArray } from '../../../types/array/module.f.js'
 import { ok, error } from '../../../types/result/module.f.js'
 import { helperLength, isHelper, isStatic, noStatic } from '../../module.f.js'
@@ -84,7 +85,7 @@ export const functionAt = (object, path) => {
  * `static` itself. `Object.entries` is never asked for: no body defines
  * it, and every executor answers it natively.
  *
- * @type {(runtime: Runtime | undefined, fn: Static, invoke: Invoke) => Result<Closure | undefined, EdagValue>}
+ * @type {(runtime: Runtime | undefined, fn: Static, invoke: Invoke) => Result<CodeFunction | undefined, EdagValue>}
  */
 export const staticBody = (runtime, fn, invoke) => {
     const read = functionAt(runtime, ['static'])
@@ -92,7 +93,7 @@ export const staticBody = (runtime, fn, invoke) => {
     const answer = call(ok(read), [() => ok(fn[0])], invoke)
     if (answer[0] === 'error') { return answer }
     const body = answer[1]
-    return ok(isArray(body) && body[0] === '=>' ? /** @type {Closure} */ (body) : undefined)
+    return ok(isArray(body) && (body[0] === '=>' || body[0] === 'fn') ? body : undefined)
 }
 
 /**
@@ -111,7 +112,7 @@ const staticLength = (fn, runtime, invoke) => {
     if (fn[0] === 'Object.entries' || fn[0] === 'String.fromCharCode' || fn[0] === 'Math.trunc' || fn[0] === 'Math.floor' || fn[0] === 'Math.abs' || fn[0] === 'Math.sqrt' || fn[0] === 'Math.ceil' || fn[0] === 'Math.clz32') { return ok(1) }
     const body = invoke === undefined ? ok(undefined) : staticBody(runtime, fn, invoke)
     if (body[0] === 'error') { return body }
-    return body[1] === undefined ? error(noStatic(fn[0])) : ok(body[1][1])
+    return body[1] === undefined ? error(noStatic(fn[0])) : ok(codeLength(body[1]))
 }
 
 /** Read a resolved property, preserving a failed receiver unchanged; the runtime, where the reader has one and an invoker to ask it through, answers a static function's `length`. @type {(receiver: ValueResult, key: string, runtime?: Runtime, invoke?: Invoke) => ValueResult} */
@@ -127,7 +128,7 @@ export const read = (receiver, key, runtime, invoke) => {
     switch (value[0]) {
         case '[]': { return indexed(value[1], key) }
         case '{}': { return field(value, key) }
-        case '=>': { return ok(key === 'length' ? value[1] : ['undefined']) }
+        case 'fn': case '=>': { return ok(key === 'length' ? codeLength(value) : ['undefined']) }
         default: { return error(['undefined']) }
     }
 }

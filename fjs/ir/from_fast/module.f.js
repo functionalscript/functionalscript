@@ -1552,6 +1552,9 @@ const lift = (lowerValue, scope, f) => {
     const no = refuse(scope)
     const c = scope.closureOf(f)
     if (c === null) { return no('a function as a value is not in this slice') }
+    // make_function builds an independent frame. Lifting a sibling as one
+    // of its slots would recursively build the same group.
+    if (f.group !== undefined) { return no('a function group as a value is not in this slice') }
     if (f.self !== null) { return no('a function that calls itself is not in this slice') }
     const frame = arrayOf(lowerValue, scope, c.frame.map(({ value: v }) => v))
     if (frame[0] === 'error') { return frame }

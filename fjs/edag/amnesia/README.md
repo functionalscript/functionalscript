@@ -2,7 +2,10 @@
 
 Amnesia walks an EDAG directly and returns `Result<EdagValue, EdagValue>`.
 It is an execution model for proofs: every incoming edge evaluates its node
-again unless the caller supplies an established value. Use
+again unless the caller supplies an established value or the node establishes
+a function group. A group and a call result exposing one of its members are
+retained for the invocation, so that following two paths to one member
+preserves its identity. Use
 [Memo](../memo/module.f.js) when shared code must evaluate once per invocation.
 Both executors use the same represented [operations](../operations/module.f.js).
 

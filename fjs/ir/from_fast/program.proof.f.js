@@ -1519,6 +1519,8 @@ export const proof = {
         assertEq(assertError(over({}, 'const g = x => x >>> 1 + g(x)\nexport const f = x => g(x)', programRuntime)), '#h0: >>> is not in this slice')
         // A function that calls itself, not in a loop, is refused.
         assertEq(assertError(over({}, 'export const f = a => {\n    const g = x => 1 + g(x)\n    return g\n}', programRuntime)), 'f: a function that calls itself is not in this slice')
+        assertEq(assertError(over({}, 'export const f = n => { const a = x => x ? n : b; const b = x => x ? a : n; return a; }', programRuntime)),
+            'f: a function group as a value is not in this slice')
         // A capture of a function that calls itself, a refusal in the lifted code, which names the code, and a capture of an
         // import that the module refuses.
         assertEq(assertError(over({}, 'export const f = a => {\n    const g = x => 1 + g(x)\n    return () => g\n}', programRuntime)), 'f: a function that calls itself is not in this slice')

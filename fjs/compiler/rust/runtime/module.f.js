@@ -39,7 +39,7 @@
  *
  * @module
  *
- * @import { Exp } from '../../../edag/types.ts'
+ * @import { Exp, ExpOp } from '../../../edag/types.ts'
  * @import { Uses } from '../../../edag/rust/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  * @import { _BuiltIn, _Resolved, _Sequenced, _Table } from './private.ts'
@@ -104,7 +104,7 @@ const resolve = root => {
     const node = sequenced(root).value
     if (!(node instanceof Array)) { return ['other', node] }
     const [id, a, key] = /** @type {readonly any[]} */ (node)
-    if (id === '=>') { return ['function', node] }
+    if (id === '=>' || id === 'fn') { return ['function', node] }
     if (isStatic(node) && isNative(staticPath(node[0]))) { return ['native', node] }
     if (id === '.' && node.length === 3 && typeof key === 'string') {
         const property = literalProperties(a)?.find(p => p[1] === key)
@@ -138,6 +138,10 @@ const builtIns = table => {
     return mapOk((/** @type {readonly (readonly _BuiltIn[])[]} */ lists) => lists.flat())(okList(entries.map(builtIn)))
 }
 
+/** Distinct projections of the same member denote one callable.
+ * @type {(a: readonly unknown[], b: readonly unknown[]) => boolean} */
+const sameFunction = (a, b) => a === b || a[0] === 'fn' && b[0] === 'fn' && a[1] === b[1] && a[2] === b[2]
+
 /**
  * The module's `runtime` export, the value, and every built-in its
  * `statics` export names, {@link builtIns}. Or the refusal: a module that
@@ -157,7 +161,7 @@ const table = root => {
     const statics = exports.findLast(p => p[1] === 'statics')
     if (statics === undefined) { return error(['no `statics` export of an object literal', root]) }
     return okThen((/** @type {readonly _BuiltIn[]} */ all) => {
-        const twice = all.find((b, i) => all.findIndex(c => c.node === b.node) !== i)
+        const twice = all.find((b, i) => all.findIndex(c => sameFunction(c.node, b.node)) !== i)
         /** @type {readonly Exp[]} */
         const initializers = exports.filter(p => p[1] === 'statics' || p[1] === 'runtime').map(p => p[2])
         /** @type {Exp} */
@@ -175,9 +179,9 @@ const table = root => {
  * @type {(sections: _Table, native: boolean) => Result<{ readonly lines: readonly string[], readonly uses: Uses, readonly bound: string }, readonly unknown[]>}
  */
 const valueLines = ({ builtIns, value }, native) => {
-    /** @type {(node: Exp) => string | undefined} */
+    /** @type {(node: ExpOp) => string | undefined} */
     const text = node => {
-        const named = builtIns.find(b => b.node === node)
+        const named = builtIns.find(b => sameFunction(b.node, node))
         return named === undefined ? undefined : nativeFunctionText(`${assertNotNullish(entry(named, 'name')).split('.').at(-1)}`)
     }
     return mapOk((/** @type {{ readonly lines: readonly string[], readonly uses: Uses, readonly bound: string }} */ { lines, uses, bound }) => ({

@@ -24,11 +24,12 @@ export const proof = /** @type {const} */ ({
             ['[]', [first, second]],
             [',', [first, second]],
             ['=>', 0, [first, second], 0],
+            ['fn', ['group', [first, second], [[0, ['self', 1]], [0, ['self', 0]]]], 0],
             ['{}', [[':', 'a', first], [':', 'b', second]]],
             ['()', fn, [first, second]],
             ['===', first, second],
             ['!==', first, second],
-            ['[]', [['undefined'], ['arg', 0], ['frame', 0], first, second]],
+            ['[]', [['undefined'], ['arg', 0], ['frame', 0], ['self', 1], first, second]],
         ])) {
             assertEq(demandsInOrder(exp, [first, second]), true)
         }

@@ -8,7 +8,9 @@
  * @import { ValueResult } from '../../../edag/value/control/types.ts'
  */
 
-import { assert, assertEq, assertError, assertOk } from '../../../asserts/module.f.js'
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
+import { toFast } from '../../../edag/to_fast/module.f.js'
+import { prepare } from '../prepare/module.f.js'
 import { identityAnalysis } from '../../../edag/analysis/module.f.js'
 import { invoke, memo } from '../../../edag/memo/module.f.js'
 import { call } from '../../../edag/value/call/module.f.js'
@@ -41,6 +43,20 @@ const invokeSource = (source, args = []) => {
 }
 
 export const proof = {
+    sourceKeepsPrunedGroupReferences: () => {
+        /** @type {(source: string) => import('../../../edag/types.ts').Exp} */
+        const graph = source => _defaultExport(unresolved(assertOk(parse('/group.f.js')(source))).edag)
+        for (const source of [
+            'const a=()=>{return 0;const x=b};const b=()=>a;export default [a,b]',
+            'const a=()=>{const x=b;return 0};const b=()=>{const x=a;return 0};export default [a,b]',
+            'export default n=>{const a=()=>[b,n];const b=()=>a;return [a,b]}',
+        ]) {
+            const original = graph(source)
+            const block = prepare(assertOk(toFast(original)), { sourceLoops: true })
+            const written = stringify(block)
+            assertStructurallySame(assertOk(identityAnalysis(graph(written))), assertOk(identityAnalysis(original)))
+        }
+    },
     emptyAlternativeSpellsAnAdmittedTerminatingGuard: () => {
         const target = /** @type {const} */ ({ kind: 'function', index: 0 })
         const selected = id(0)

@@ -17,7 +17,12 @@ type _CoreExcludesLogical = Assert<Equal<Extract<CoreBinaryTag, '&&' | '||' | '?
 
 /** Identity is object identity; the index only supplies deterministic presentation. */
 export type BindingId = { readonly index: number }
-export type FunctionTarget = { readonly kind: 'function'; readonly index: number }
+export type FunctionTarget = {
+    readonly kind: 'function'
+    readonly index: number
+    /** When index names an EDAG group, the member whose body this target owns. */
+    readonly member?: number
+}
 export type LoopTarget = { readonly kind: 'loop'; readonly index: number }
 
 /** A spread has no independent value or evaluation region. */
@@ -110,6 +115,9 @@ export type Capture = { readonly binding: BindingId; readonly value: Value }
 
 /** Parameters, rest, self and captures are immutable bindings like local values. */
 export type Function = {
+    /** Consecutive declarations in member order. Group captures refer to
+     * sibling declarations or to frame bindings established before the group. */
+    readonly group?: readonly BindingId[]
     readonly target: FunctionTarget
     readonly parameters: readonly BindingId[]
     readonly rest: BindingId | null

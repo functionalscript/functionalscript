@@ -21,6 +21,7 @@ import { chunkText, tagged, untagged } from '../../../text/marked/module.f.js'
 import { _name as symbol, _binding as declaration, _resolve as resolve } from './names/module.f.js'
 import { _helperChunks } from './intrinsic/module.f.js'
 import { _memberPresentChunks } from './member_present/module.f.js'
+import { isFunctionGroup } from '../../../edag/group/module.f.js'
 import { isHelper } from '../../../edag/module.f.js'
 import { eagerLayers, prefixLayer } from '../../../compiler/ast/module.f.js'
 import { maxLength } from '../../../types/function/length/module.f.js'
@@ -110,11 +111,41 @@ const functionBindings = fn => scan([['function', fn]]).bindings
 /** @type {(block: Block) => readonly BindingId[]} */
 const blockBindings = block => scan([['block', block]]).bindings
 
+/**
+ * Source resolution uses lexical references to recognize a group. A reference
+ * in dead code can disappear from the EDAG. Restore only missing links of a
+ * cycle, each as an unused const read that disappears when read back.
+ * @type {(functions: readonly PreparedFunction[]) => Context['sourceLinks']}
+ */
+const sourceGroupLinks = functions => {
+    const groups = setValues(setFromValues(functions.flatMap(fn => fn.group === undefined ? [] : [fn.group])))
+    return groups.flatMap(group => {
+        // Each occurrence of the group declares all members in order.
+        const members = functions.filter(fn => fn.group === group).map((fn, index) => ({ fn, from: index % group.length }))
+        const edges = members.flatMap(({ fn, from }) => fn.captures.flatMap(({ value }) => {
+            // Group construction establishes every frame slot before the
+            // consecutive member definitions. Each capture names a slot or a peer.
+            const to = group.indexOf(/** @type {readonly ['ref', BindingId]} */ (value)[1])
+            return to < 0 ? [] : [{ from, to }]
+        }))
+        if (isFunctionGroup(0, group.length - 1, edges)) { return [] }
+        return members.flatMap(({ fn, from }) => {
+            const to = (from + 1) % group.length
+            return edges.some(edge => edge.from === from && edge.to === to) ? []
+                : [/** @type {const} */ ([fn, group[Number(to)], { index: from }])]
+        })
+    })
+}
+
 /** Allocate presentation-only capture aliases before rendering any scope. @type {(ids: readonly BindingId[], syntax: Syntax, runtime: boolean, external: boolean) => Context} */
 const contextFor = (ids, syntax, runtime, external) => {
     const functions = setValues(setFromValues(assertNotNullish(entry(syntax, 'values')).flatMap(value => value instanceof Array && value[0] === 'function' ? [value[1]] : [])))
     const captureAliases = functions.map(fn => /** @type {const} */ ([fn, fn.captures.map((_, index) => ({ index }))]))
-    return { ids: setValues(setFromValues([...ids, ...captureAliases.flatMap(([, bindings]) => bindings)])), ...syntax, captureAliases, runtime, aliases: [], binding: null, external }
+    const sourceLinks = runtime ? [] : sourceGroupLinks(functions)
+    return {
+        ids: setValues(setFromValues([...ids, ...captureAliases.flatMap(([, bindings]) => bindings), ...sourceLinks.map(([, , binding]) => binding)])),
+        ...syntax, captureAliases, sourceLinks, runtime, aliases: [], binding: null, external,
+    }
 }
 
 /** @type {(context: Context, fn: PreparedFunction) => readonly BindingId[]} */
@@ -388,7 +419,9 @@ const functionText = (expression, renderBlock, context, fn) => {
     const returns = fn.body.statements.length === 0 && fn.body.exit[0] === 'return'
     const drafted = returns ? expression(inner, /** @type {Extract<Block['exit'], readonly ['return', unknown, Value]>} */ (fn.body.exit)[2]) : renderBlock(inner, fn.body, 'return')
     const placed = several ? inPlace(drafted, locals.map(local => name(inner, local)), fn.captures.map(capture => name(initial, capture.binding))) : drafted
-    const preface = placed === null ? fn.captures.map((capture, index) => `${keyword('const')} ${declared(inner, locals[Number(index)])}=${name(initial, capture.binding)};`).join('') : ''
+    const link = context.sourceLinks.find(([owner]) => owner === fn)
+    const read = link === undefined ? '' : `${keyword('const')} ${declared(inner, link[2])}=${name(initial, link[1])};`
+    const preface = read + (placed === null ? fn.captures.map((capture, index) => `${keyword('const')} ${declared(inner, locals[Number(index)])}=${name(initial, capture.binding)};`).join('') : '')
     const text = placed ?? drafted
     // a block's text for a body that only returns is its `return` statement
     const statements = returns ? `${keyword('return')} ${text};` : text

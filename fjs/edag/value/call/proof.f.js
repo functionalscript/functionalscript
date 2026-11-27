@@ -35,6 +35,15 @@ const expectCall = (length, items, expectedFixed, expectedRest) => {
 }
 
 export const proof = {
+    groupBindings: () => {
+        const fn = /** @type {const} */ (['fn', ['group', [], [[1, ['self', 1]], [0, ['self', 0]]]], 0])
+        assertOk(call(ok(fn), [() => ok(7), () => ok(8)], (actual, fixed, rest) => {
+            assertEq(fn, actual)
+            assertStructurallySame(fixed, [7])
+            assertStructurallySame(rest, ['[]', [8]])
+            return ok(1)
+        }))
+    },
     fixedSlots: () => {
         expectCall(0, [], [], [])
         expectCall(0, [() => ok(null), () => ok(undefinedValue)], [], [null, undefinedValue])
