@@ -1,0 +1,42 @@
+## A heap in the IR: the bump arena first
+
+**Priority:** P2
+**Status:** wip — design proposed ([heap.md](../../../doc/sasha-gil/ir/heap.md)); the owner chose the arena first, counted in debug builds only (2026-11-26)
+
+### Problem
+
+The runtime written in the IR has Any and short strings, and no heap, so
+every object still lives in NaNVM, and every reference still costs import
+calls: `dup_ref`, `drop_ref` and the container imports
+([benchmark.md](../../../doc/sasha-gil/ir/benchmark.md#after-the-inline-reference-kind-d1)).
+
+### Proposal
+
+A Heap runtime module written in the IR, in variants behind one interface,
+as String's are ([short-strings.md](./short-strings.md)). First the bump
+arena: in a release build it neither counts nor frees, and in a debug build
+it counts in a header and traps on misuse. Memory enters the IR as a
+`Memory` interface that the emitter writes as instructions. Full note:
+[`doc/sasha-gil/ir/heap.md`](../../../doc/sasha-gil/ir/heap.md).
+
+### Tasks
+
+- [ ] Design note and this `todo/`, the claim
+- [ ] Owner approval of the design, and answers to its open questions
+- [ ] **H1** — `Memory`: loads and stores of 8 to 64 bits, `size` and `grow`;
+      the emitter writes them as instructions and imports the loader's memory
+- [ ] **H2** — The arena under `fjs/ir/runtime/heap`: `module` for release,
+      `counted` for debug, with proofs on the counting host
+- [ ] **H3** — The first client: long strings in the IR heap, after a note on
+      NaNVM holding references into it
+- [ ] **H4** — Paged size classes behind the same interface, and a `recover`
+      that recounts from the roots
+
+### Related
+
+- [type-system.md, The floor](../../../doc/sasha-gil/ir/type-system.md#the-floor-state-lives-in-one-module):
+  the state lives in one module, Heap
+- [runtime-in-ir.md](../../../doc/sasha-gil/ir/runtime-in-ir.md): Any in the
+  IR, and the order in which the rest moves
+- [#4144](https://github.com/functionalscript/functionalscript/pull/4144):
+  the debug-variant pattern this follows
