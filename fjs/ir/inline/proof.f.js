@@ -1,4 +1,5 @@
 /**
+ * @import { Checked, Typed } from '../types.ts'
  * @import { Module } from '../types.ts'
  */
 
@@ -12,7 +13,8 @@ import { check } from '../check/module.f.js'
 import { lifetime } from '../lifetime/module.f.js'
 import { print } from '../print/module.f.js'
 import { module as anyModule } from '../runtime/any/module.f.js'
-import { inline } from './module.f.js'
+import { emit } from '../wasm/module.f.js'
+import { inline, inlineHooks } from './module.f.js'
 
 const one = lit(f64c, 1)
 
@@ -29,6 +31,22 @@ const passed = m => {
     const written = assertOk(inline(m))
     assertOk(check(assertOk(lifetime(written))))
     return print(written)
+}
+
+
+/** The functions that a typed term calls of its own module. @type {(t: Typed) => readonly string[]} */
+const selfCalls = ([, t]) => {
+    /** @type {readonly Typed[]} */
+    const parts = t[0] === 'let' ? [t[2], t[3]] : t[0] === 'op' ? t[2] : t[0] === 'call' ? t[3] : t[0] === 'call_ref' ? [t[1], ...t[2]]
+        : t[0] === 'make' ? t[1].map(([, x]) => x) : t[0] === 'field' ? [t[1]] : t[0] === 'variant' || t[0] === 'block' ? [t[3]]
+        : t[0] === 'match' ? [t[1], ...t[2].map(([, , x]) => x)] : t[0] === 'loop' ? [...t[2].map(([, , x]) => x), t[3]] : t[0] === 'br' ? [t[2]] : []
+    return [...(t[0] === 'call' && t[1] === 'self' ? [t[2]] : []), ...parts.flatMap(selfCalls)]
+}
+
+/** Any's module with `dup` and `kind` hinted too, through both passes and the checker. @type {() => Checked} */
+const anyChecked = () => {
+    const hinted = { ...anyModule, functions: anyModule.functions.map(([k, f]) => /** @type {const} */ ([k, k === 'dup' || k === 'kind' ? hint('always', f) : f])) }
+    return assertOk(check(assertOk(lifetime(assertOk(inline(hinted))))))
 }
 
 export const proof = {
@@ -181,6 +199,22 @@ export const proof = {
         'export f',
         '',
     ].join('\n')),
+    // The hooks that Any hints stay as functions, and each call of them that the lifetime pass wrote is a copy of the hook's body.
+    hooks: () => {
+        const m = anyChecked()
+        const calls = m.functions.flatMap(([, f]) => selfCalls(f.body))
+        assertEq(calls.filter(k => k === 'dup' || k === 'drop' || k === 'kind').length > 0, true)
+        const out = inlineHooks(m)
+        assertEq(out.functions.map(([k]) => k).join(' '), m.functions.map(([k]) => k).join(' '))
+        assertEq(out.functions.flatMap(([, f]) => selfCalls(f.body)).filter(k => k === 'dup' || k === 'drop' || k === 'kind').join(' '), '')
+        // The emitter takes the copies.
+        emit(out)
+    },
+    // A module with no hook hinted is left as it is.
+    noHooks: () => {
+        const m = assertOk(check(assertOk(lifetime({ imports: [], functions: [['f', fn([['a', f64]], f64, a => a)]], exports: ['f'] }))))
+        assertEq(inlineHooks(m), m)
+    },
     // Any's hooks hold copies of isRef, and the module still checks.
     any: () => {
         const hinted = { ...anyModule, functions: anyModule.functions.map(([k, f]) => /** @type {const} */ ([k, k === 'isRef' ? hint('always', f) : f])) }
