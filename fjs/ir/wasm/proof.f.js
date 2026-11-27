@@ -13,7 +13,7 @@ import { assert } from '../../asserts/module.f.js'
 import { add, bool, call, call_ref, code, codeOf, f64, f64c, fn, get, hint, i, if_, int, let_, lit, n, never, only, own, seal, sealed, signature, throw_, trap, true_, u, unseal } from '../module.f.js'
 import { check } from '../check/module.f.js'
 import { any, l0, memory, string } from '../l0/module.f.js'
-import { addressing, arrays, bits, constants, corners, counting, literals, loops, records, samples, sealing, tagging, unknown } from '../testlib.f.js'
+import { addressing, arrays, bits, constants, corners, counting, literals, loops, narrowing, records, samples, sealing, tagging, unknown } from '../testlib.f.js'
 import { inline } from '../inline/module.f.js'
 import { lifetime } from '../lifetime/module.f.js'
 import { records as recordsPass } from '../records/module.f.js'
@@ -2730,6 +2730,82 @@ export const proof = {
     },
     // Memory beside L0, before it or after, imports one memory, from Memory's ABI, which is where the literals'
     // segment is too, and a load is an instruction among the calls of L0's functions.
+    // A local that a branch on a comparison narrows keeps its word, and a read of it in the branch wraps an i64 that fits
+    // 32 bits: the 33-bit sum after its check, a u(64) below 2^32, and an i(64) between -5 and 5.
+    narrowing: () => assertEq(wat(emitted(narrowing)), [
+    "(module",
+    "  (type (;0;) (func (param i32 i32) (result i32)))",
+    "  (type (;1;) (func (param i64) (result i32)))",
+    "  (type (;2;) (func (param i64) (result i64)))",
+    "  (export \"fitted\" (func $fitted))",
+    "  (export \"low\" (func $low))",
+    "  (export \"nonzero\" (func $nonzero))",
+    "  (export \"withinFive\" (func $withinFive))",
+    "  (func $fitted (;0;) (type 0) (param $a i32) (param $b i32) (result i32)",
+    "    (local $q i64)",
+    "    local.get $a",
+    "    i64.extend_i32_u",
+    "    local.get $b",
+    "    i64.extend_i32_u",
+    "    i64.add",
+    "    local.set $q",
+    "    local.get $q",
+    "    i64.const 4294967295",
+    "    i64.le_u",
+    "    if (result i32) ;; label = @1",
+    "      local.get $q",
+    "      i32.wrap_i64",
+    "    else",
+    "      i32.const 0",
+    "    end",
+    "  )",
+    "  (func $low (;1;) (type 1) (param $w i64) (result i32)",
+    "    local.get $w",
+    "    i64.const 4294967296",
+    "    i64.lt_u",
+    "    if (result i32) ;; label = @1",
+    "      local.get $w",
+    "      i32.wrap_i64",
+    "    else",
+    "      i32.const 0",
+    "    end",
+    "  )",
+    "  (func $nonzero (;2;) (type 2) (param $w i64) (result i64)",
+    "    local.get $w",
+    "    i64.const 0",
+    "    i64.eq",
+    "    if (result i64) ;; label = @1",
+    "      i64.const 1",
+    "    else",
+    "      local.get $w",
+    "    end",
+    "  )",
+    "  (func $withinFive (;3;) (type 1) (param $x i64) (result i32)",
+    "    local.get $x",
+    "    i64.const -5",
+    "    i64.lt_s",
+    "    if (result i32) ;; label = @1",
+    "      i32.const 0",
+    "    else",
+    "      i32.const 1",
+    "    end",
+    "    if (result i32) ;; label = @1",
+    "      local.get $x",
+    "      i64.const 5",
+    "      i64.le_s",
+    "      if (result i32) ;; label = @2",
+    "        local.get $x",
+    "        i32.wrap_i64",
+    "      else",
+    "        i32.const 5",
+    "      end",
+    "    else",
+    "      i32.const -5",
+    "    end",
+    "  )",
+    ")",
+    "",
+    ].join('\n')),
     memoryBeside: () => {
         /** A module of a load and the length of a string literal, over `imports`. @type {(imports: Module['imports']) => ReturnType<typeof emit>} */
         const loading = imports => emitted({

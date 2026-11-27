@@ -36,6 +36,11 @@ it counts in a header and traps on misuse. Memory enters the IR as a
       not count as failing, as the card on a trap for misuse recommends
       (2026-11-27; the owner's answer is still open), so Any's `kind` no
       longer fails
+- [x] **H2b** — Flow refinement's rule 2: a branch on `lt`, `le` or `eq` of
+      two integers, or on its negation, narrows a local, and the emitter
+      reads it in the narrower word, so the arena's pointer arithmetic
+      needs no masks (2026-11-27, the card's recommended option; the
+      owner's answer is still open)
 - [ ] **H2** — The arena under `fjs/ir/runtime/heap`, in the IR's eDSL:
       `module` for release, `counted` for debug, with proofs on the
       counting host against a plain FunctionalScript model; it traps on

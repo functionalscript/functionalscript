@@ -6,7 +6,7 @@ import { assert, assertEq, assertError, assertNotNullish, assertOk } from '../..
 import { any, builder, l0, memory, ref, string } from '../l0/module.f.js'
 import {
     add, and, block, bool, br, call, call_ref, canon, cast, code, codeOf, constant, countsBits, definedBy, div, eq, f64, f64c, field, float, fn, from_bits, get, hint, i, if_, int,
-    let_, lit, loop, lt, make, match, mayFail, misuse, mul, n, neg, never, next, only, or, own, product, release, return_, seal, sealed, shl, shr, signature, sub,
+    le, let_, lit, loop, lt, make, match, mayFail, misuse, mul, n, ne, neg, never, next, not, only, or, own, product, release, return_, seal, sealed, shl, shr, signature, sub,
     throw_, to_bits, trap, true_, trunc_sat, u, unit, unseal, variant, xor,
 } from '../module.f.js'
 import { show } from '../print/module.f.js'
@@ -416,6 +416,52 @@ export const proof = {
         assertEq(why(one(b, f64, if_(get('b'), y, one_))), 'f: no local y')
         assertEq(why(one(b, f64, if_(get('b'), one_, true_))), 'f: match: its arms are f64c, bool, which no one type holds')
         assertEq(why(one(b, u(64), if_(get('b'), n(-1n), lit(u(64), 1n)))), 'f: match: int(-1, 18446744073709551615) needs more than one word')
+    },
+    // A branch on a comparison of integers sees each operand that is a local at the range that the other's allows,
+    // and so does a branch on its negation; nothing else narrows a local.
+    refinement: () => {
+        const s = get('s')
+        const k = get('k')
+        const b = get('b')
+        const p = /** @type {const} */ ([['s', u(8)], ['k', int(0n, 100n)], ['b', u(64)], ['x', f64]])
+        /** The type of a body over `p`. @type {(body: Term) => string} */
+        const typed = body => bodyType(one(p, u(64), body))
+        // lt and le, in either branch, with the local on either side
+        assertEq(typed(if_(lt(s, n(10n)), s, n(0n))), 'int(0, 9)')
+        assertEq(typed(if_(lt(s, n(10n)), n(10n), s)), 'int(10, 255)')
+        assertEq(typed(if_(le(s, n(10n)), s, n(0n))), 'int(0, 10)')
+        assertEq(typed(if_(le(s, n(10n)), n(11n), s)), 'int(11, 255)')
+        assertEq(typed(if_(lt(n(10n), s), s, n(11n))), 'int(11, 255)')
+        assertEq(typed(if_(le(n(10n), s), n(9n), s)), 'int(0, 9)')
+        // both operands are locals, each bounded by the other's range
+        assertEq(typed(if_(lt(s, k), s, n(0n))), 'int(0, 99)')
+        assertEq(typed(if_(lt(s, k), k, n(1n))), 'int(1, 100)')
+        assertEq(typed(if_(lt(s, k), n(0n), k)), 'int(0, 100)')
+        assertEq(typed(if_(le(s, k), n(101n), s)), 'int(1, 255)')
+        assertEq(typed(if_(le(s, k), n(0n), k)), 'int(0, 100)')
+        // an eq that holds leaves the overlap; one that does not takes a single value off an end only
+        assertEq(typed(if_(eq(s, n(3n)), s, n(3n))), 'int(3, 3)')
+        assertEq(typed(if_(eq(s, k), s, n(0n))), 'int(0, 100)')
+        assertEq(typed(if_(eq(b, n(0n)), n(1n), b)), 'int(1, 18446744073709551615)')
+        assertEq(typed(if_(eq(n(255n), s), n(0n), s)), 'int(0, 254)')
+        assertEq(typed(if_(eq(s, n(3n)), n(0n), s)), 'u(8)')
+        assertEq(typed(if_(eq(s, k), n(0n), s)), 'u(8)')
+        // a negation, as not and ne write it, swaps the branches; refinements nest
+        assertEq(typed(if_(ne(b, n(0n)), b, n(1n))), 'int(1, 18446744073709551615)')
+        assertEq(typed(if_(not(lt(s, n(10n))), s, n(10n))), 'int(10, 255)')
+        assertEq(typed(if_(lt(s, n(10n)), if_(le(n(5n), s), s, n(5n)), n(5n))), 'int(5, 9)')
+        // a 33-bit sum that its check fits back into 32 bits, as an allocator's pointer
+        assertEq(bodyType(one([['a', u(32)], ['c', u(32)]], u(32), let_('q', add(get('a'), get('c')), q => if_(le(q, n(0xFFFF_FFFFn)), q, n(0n))))), 'u(32)')
+        // nothing else narrows: an empty range, floats, an operand that is no local, an arm of both outcomes,
+        // and a match whose arms are not all bool literals
+        assertEq(typed(if_(lt(s, n(0n)), s, n(0n))), 'u(8)')
+        assertEq(bodyType(one(p, f64, if_(lt(x, one_), x, one_))), 'f64')
+        assertEq(typed(if_(lt(add(s, n(1n)), n(10n)), s, n(0n))), 'u(8)')
+        assertEq(typed(match(lt(s, n(10n)), [[null, null, s]])), 'u(8)')
+        assertEq(typed(if_(match(lt(s, n(10n)), [[['true'], null, true_], [['false'], null, lt(s, n(5n))]]), s, n(0n))), 'u(8)')
+        assertEq(typed(if_(match(lt(s, n(10n)), [[['true'], null, true_], [['false'], null, true_]]), s, n(0n))), 'u(8)')
+        // without the check, the sum is refused
+        assertEq(why(one([['a', u(32)], ['c', u(32)]], u(32), add(get('a'), get('c')))), 'f: the body is int(0, 8589934590), not u(32)')
     },
     block: () => {
         assertEq(why(one([], f64, block('l', f64, block('l', f64, one_)))), 'f: the label l is in scope already')

@@ -807,6 +807,39 @@ tells misuse from failure.
   NaNVM's `kind_ref`, did not.
 - **The printer writes it as its builder**: `misuse('count of 0')`.
 
+## What flow refinement adds
+
+The second part of H2, the IR's heap
+([heap.md](../../doc/sasha-gil/ir/heap.md#order-of-work)), whose pointers
+are sums of `u(32)` values that a check fits back into 32 bits: rule 2 of
+[type-system.md's flow refinement](../../doc/sasha-gil/ir/type-system.md#flow-refinement-is-two-rules),
+which `narrow` and `clamp` will be written with.
+
+- **A branch on a comparison narrows its operands.** In each arm of a
+  `match` of `lt`, `le` or `eq` of two integers, an operand that is a local
+  has the range that the other operand's allows: after `lt(i, n(10n))`,
+  `i: u(8)` is `int(0, 9)` in the true arm and `int(10, 255)` in the false
+  one. An `eq` that holds leaves both in their overlap, and one that does
+  not takes the other's one value off an end: in the false arm of
+  `eq(w, n(0n))`, a `w: u(64)` is at least 1.
+- **So does a branch on its negation**: a `match` of a bool whose arms
+  answer bool literals, as `not` and `ne` write one, passes on what the
+  outcomes of its own operand teach.
+- **Nothing else narrows.** The checker keeps one range per local and
+  nothing that relates two locals, so after `lt(i, k)` it knows the range
+  of each, not that `i` is below `k`. An operand that is no local, a float
+  and an arm of both outcomes narrow nothing, and neither does a range that
+  would be empty, which no run reaches.
+- **The emitter reads a narrowed local in the narrower word.** A local
+  keeps the word of the type that it was bound at, and where its range
+  now fits 32 bits, a read of an `i64` local is followed by an
+  `i32.wrap_i64`, which keeps its value.
+
+The `narrowing` module of [`testlib.f.js`](./testlib.f.js) fits a sum of
+two `u(32)` back into one, reads a `u(64)` below 2^32 as a `u(32)`, a
+count that is not 0, and an `i(64)` from -5 to 5, and the host proof runs
+it against its twins.
+
 ## What every slice refuses
 
 Everything else is refused with the function's name and the reason, never

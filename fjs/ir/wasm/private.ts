@@ -28,8 +28,14 @@ export type _Bound = readonly [instruction: Instruction, params: readonly Type[]
 export type _Target = readonly ['block', Type] | readonly ['loop', readonly (readonly [local: number, type: Type])[]]
 
 /**
+ * A name that holds a value: its first local, and the type that it was
+ * bound at, which a branch on a comparison may narrow where it is read.
+ */
+export type _Local = readonly [local: number, type: Type]
+
+/**
  * The scope of a term: the first index of each local that holds a value,
- * the depth of the structure that each label names and what it is, how deep
+ * and the type that it was bound at, the depth of the structure that each label names and what it is, how deep
  * the term stands, the first local that no term before it took, the
  * module's functions, the functions of each interface that it imports
  * from a host, those that the target binds with instructions, by their
@@ -42,7 +48,7 @@ export type _Target = readonly ['block', Type] | readonly ['loop', readonly (rea
  * spelling.
  */
 export type _Env = {
-    readonly locals: OrderedMap<number>
+    readonly locals: OrderedMap<_Local>
     readonly labels: OrderedMap<readonly [depth: number, target: _Target]>
     readonly depth: number
     readonly next: number
