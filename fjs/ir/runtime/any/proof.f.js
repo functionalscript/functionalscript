@@ -100,4 +100,12 @@ export const proof = {
         assertEq(assertOk(checkPlain(checked)).functions.map(([k]) => k).join(),
             assertOk(checkPlain(module)).functions.map(([k]) => k).join())
     },
+    // Forged bits trap as a misuse in both variants, so no function of either may fail, as the interface says of each.
+    effect: () => {
+        /** @type {(m: import('../../types.ts').Module) => string} */
+        const failing = m => assertOk(checkPlain(m)).functions.flatMap(([k, { fails }]) => fails ? [k] : []).join()
+        assertEq(failing(module), '')
+        assertEq(failing(checked), '')
+        assert(iface.functions.every(([, { fails }]) => fails !== true))
+    },
 }

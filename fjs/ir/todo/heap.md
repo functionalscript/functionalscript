@@ -32,10 +32,14 @@ it counts in a header and traps on misuse. Memory enters the IR as a
       it as such, and proofs show that the passes keep each of its calls
       where it was; the effect's inference comes with the first pass that
       moves calls
+- [x] **H2a** — A trap on misuse, `misuse(reason)`, that the checker does
+      not count as failing, as the card on a trap for misuse recommends
+      (2026-11-27; the owner's answer is still open), so Any's `kind` no
+      longer fails
 - [ ] **H2** — The arena under `fjs/ir/runtime/heap`, in the IR's eDSL:
       `module` for release, `counted` for debug, with proofs on the
-      counting host against a plain FunctionalScript model; it needs the
-      answer on a trap for misuse first
+      counting host against a plain FunctionalScript model; it traps on
+      misuse by H2a's mark
 - [ ] **H3** — The first client: long strings in the IR heap, after a note on
       NaNVM holding references into it, with the root table that holds
       the references of constants and of the host

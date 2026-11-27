@@ -785,6 +785,28 @@ that it grows for itself, and answers how much `grow` changes the size.
 So it holds on either host's memory: the counting host's, and NaNVM's,
 whose stack takes the memory's start.
 
+## What a trap on misuse adds
+
+The first part of H2, the IR's heap
+([heap.md, open question 3](../../doc/sasha-gil/ir/heap.md#open-questions)):
+a trap that the checker does not count as failing, as
+[L0 design §11](../../doc/sasha-gil/wasm/l0-design.md#11-misuse-traps-and-only-calls-fail)
+tells misuse from failure.
+
+- **`misuse(reason)`**, in [`module.f.js`](./module.f.js), is a `trap`
+  marked `misuse`, `['trap', reason, 'misuse']`. It stands where only a
+  bug of the caller leads, or memory that cannot grow, and it traps as
+  `trap` does: the emitter writes an `unreachable`, and every pass keeps
+  the term as it is.
+- **The checker does not count it.** A function whose only traps are on
+  misuse may not fail, and neither may a call of it, so a hook may hold
+  one, as a heap's debug `drop` will on a count of 0.
+- **Any's `kind` may not fail.** Its trap on forged bits is a misuse, so
+  no function of either of Any's variants may fail, as its interface says
+  of each; before, the plain `kind` failed and the checked one, which asks
+  NaNVM's `kind_ref`, did not.
+- **The printer writes it as its builder**: `misuse('count of 0')`.
+
 ## What every slice refuses
 
 Everything else is refused with the function's name and the reason, never

@@ -303,7 +303,7 @@ A function's body is one term. There are sixteen forms.
 | Control | `block(label, T, body)` | a region that a `br` can leave with a `T` |
 | | `loop(label, parameters, body)` | a region that a `br` can repeat; its value is its body's |
 | | `br(label, e)` | the one transfer |
-| | `trap(reason)` | a failure at a named point |
+| | `trap(reason)` | a failure at a named point; marked `misuse`, a trap that does not count as failing |
 
 - **Locals are never reassigned.** A `let` binds once, and a loop's state
   is its parameters, so the IR is in SSA form by construction
@@ -375,7 +375,10 @@ A function may fail, by a trap or a throw, or it cannot
 An interface declares the bit, and the checker infers it for a function
 written in the IR, repeating over a module until no function changes. A
 call that cannot fail may be moved, merged or removed, and a call that may
-fail keeps its order.
+fail keeps its order. A trap on misuse, `misuse(reason)`, does not count:
+only a bug of the caller reaches it, or memory that cannot grow, as with
+L0's traps on misuse, which declare nothing
+([L0 design §11](../wasm/l0-design.md#11-misuse-traps-and-only-calls-fail)).
 
 ### Stages
 

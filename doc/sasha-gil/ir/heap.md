@@ -803,7 +803,9 @@ These edits wait until this note is decided.
    of the `fails` that its trap on a forged box gives it today. The
    proposal for H2 is a mark on `trap`. The other way, a Memory function
    that traps where a condition does not hold, keeps the terms as they are
-   but puts a general check into Memory.
+   but puts a general check into Memory. H2a writes the proposal,
+   `misuse(reason)`, while the answer is open
+   ([README](../../../fjs/ir/README.md#what-a-trap-on-misuse-adds)).
 
 ## Sources
 
