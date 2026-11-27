@@ -10,7 +10,7 @@
  * Prefer `node --test` for this file
  * ([fjs/AGENTS.md §1.6](../../../AGENTS.md#16-a-host-proof-is-for-an-effect-and-for-nothing-else)).
  *
- * @import { Arena } from './model/module.f.js'
+ * @import { Arena } from './model/types.ts'
  */
 
 import { assert, assertEq, assertNotNullish, assertOk } from '../../../asserts/module.f.js'
