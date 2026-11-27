@@ -337,12 +337,14 @@ The IR has no mutable globals. A module constant records, once in `init`,
 where `Memory.grow` put the heap's first region, and the region's first
 bytes hold the state: for the arena, the pointer, the region's end and, in
 debug, the live count; later, the class heads, the thrown value and where
-the root table is. When
-the region is full, `alloc` grows the memory. Where the new pages follow
-the region, it extends the region; elsewhere it starts a new region there
-and leaves the old one's tail unused. NaNVM's allocator grows the same
-memory, and each allocator uses only the pages that its own `grow`
-answered. That changes
+the root table is. When the region is full, `alloc` grows the memory.
+Where the new pages follow the region, it extends the region; elsewhere it
+starts a new region there and leaves the old one's tail unused. Each
+region holds, in its first word, where the next region starts and where
+its own blocks end, which `alloc` writes when it leaves the region, so a
+walk of the heap, the recount's included, goes from region to region in
+birth order. NaNVM's allocator grows the same memory, and each allocator
+uses only the pages that its own `grow` answered. That changes
 [L0 design §5](../wasm/l0-design.md#5-memory-and-table-made-by-the-loader-imported-by-both-modules),
 where the runtime owns everything outside the regions that the loader
 reserves.
@@ -406,11 +408,13 @@ and the runtime's own. The thrown value and a call's result are handles by
 then.
 The recount:
 
-1. sets the count of every counted object to 0;
+1. sets the count of every block to 0;
 2. walks from the roots with its own work list, adds 1 for each reference
    that it meets, and queues an object the first time it reaches it;
-3. frees every block that it never reached, builders that abandoned frames
-   left open included.
+3. empties every free list and rebuilds it by a sweep of the heap: each
+   block whose count is still 0, free before or never reached, builders
+   that abandoned frames left open included, goes back on its list, so
+   none is listed twice.
 
 It is exact and costs nothing on the normal path. A recovered throw costs
 about one mark and sweep of the heap. It needs what every counting variant
