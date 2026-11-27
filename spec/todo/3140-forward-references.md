@@ -243,6 +243,8 @@ the same binding resolution, graph construction, analysis, and output pipeline.
       writers, the Rust backend and NaNVM's function value. A group of
       constants is written as static functions that name each other, with
       no `StaticGroup`.
+- [ ] Migrate EBNF and its callers together so each named rule has a body
+      and the compiler can build its own grammar.
 - [ ] `fjs/ebnf`: rules that name each other as functions of one group, in
       place of `reference`, `define` and `definitions`, and the compiler's
       grammar. `referenceMappingsKeepIdentity` in
