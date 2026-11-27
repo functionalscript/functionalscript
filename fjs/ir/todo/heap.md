@@ -47,7 +47,9 @@ it counts in a header and traps on misuse. Memory enters the IR as a
 - [x] **H2d** — The debug arena, `counted`: the header, the size word before
       it, the traps on misuse and `live()`, proven against the model's map
       from offset to block; `free` also traps on a live block and on a
-      second `free`, which it marks in the size word
+      second `free`, which it marks in the size word; a bitmap of block
+      starts, through a directory of pages, makes every address where no
+      block starts trap
 - [x] **H3 note** — [long-strings.md](../../../doc/sasha-gil/ir/long-strings.md):
       long strings are the first client, and NaNVM holds no reference into
       the IR heap, since a long IR string is copied into a NaNVM string

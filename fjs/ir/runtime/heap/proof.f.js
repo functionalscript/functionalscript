@@ -3,8 +3,9 @@
  * its exports are the Heap interface's functions with their signatures,
  * and `live` in debug, none may fail, since running out of memory and
  * every misuse trap as a misuse, the fast path of the release `alloc` is a
- * bump of the pointer, and the debug `dup` checks the address and the count
- * before it adds 1. The [host proof](./proof.mjs) runs both against the
+ * bump of the pointer, and the debug `dup` checks that a block starts at
+ * the address, in its page's bitmap, and the count before it adds 1. The
+ * [host proof](./proof.mjs) runs both against the
  * [model](./model/module.f.js).
  *
  * @import { Module } from '../../types.ts'
@@ -54,7 +55,7 @@ export const proof = {
         /** @type {(m: Module) => string} */
         const fails = m => assertOk(check(m)).functions.map(([k, { fails }]) => `${k}: ${fails}`).join(', ')
         assertEq(fails(module), 'alloc: false, grown: false, taken: false, dup: false, drop: false, free: false')
-        assertEq(fails(counted), 'alloc: false, grown: false, taken: false, dup: false, drop: false, free: false, live: false')
+        assertEq(fails(counted), 'alloc: false, grown: false, taken: false, paged: false, dup: false, drop: false, free: false, live: false')
     },
     // The release fast path loads the pointer, moves it past the rounded size where the region holds it, and answers
     // where it was.
@@ -97,10 +98,11 @@ export const proof = {
         "  )",
         "",
     ].join('\n')),
-    // The debug `dup` refuses an address that no block has and a count of 0 or one that cannot grow, then adds 1.
+    // The debug `dup` refuses an address that is not 8-aligned, is below the first block or whose bit is not set in
+    // its page's bitmap, which the directory finds, and a count of 0 or one that cannot grow, then adds 1.
     countedDup: () => assertEq(wat(counted, 'dup'), [
-        "  (func $dup (;3;) (type 2) (param $p i32)",
-        "    (local $header i32) (local $count i32)",
+        "  (func $dup (;4;) (type 3) (param $p i32)",
+        "    (local $bitmap i32) (local $header i32) (local $count i32)",
         "    local.get $p",
         "    i32.const 7",
         "    i32.and",
@@ -116,36 +118,70 @@ export const proof = {
         "        unreachable",
         "      else",
         "        global.get $state",
-        "        i32.load",
+        "        i32.const 65536",
+        "        i32.add",
         "        local.get $p",
-        "        i32.lt_u",
+        "        i32.const 16",
+        "        i32.shr_u",
+        "        i32.const 2",
+        "        i32.shl",
+        "        i32.add",
+        "        i32.load",
+        "        local.set $bitmap",
+        "        local.get $bitmap",
+        "        i32.const 0",
+        "        i32.eq",
         "        if ;; label = @3",
         "          unreachable",
         "        else",
+        "          local.get $bitmap",
         "          local.get $p",
+        "          i32.const 65535",
+        "          i32.and",
         "          i32.const 8",
-        "          i32.sub",
-        "          local.set $header",
-        "          local.get $header",
+        "          i32.shr_u",
+        "          i32.const 2",
+        "          i32.shl",
+        "          i32.or",
         "          i32.load",
-        "          local.set $count",
-        "          local.get $count",
+        "          local.get $p",
+        "          i32.const 3",
+        "          i32.shr_u",
+        "          i32.const 31",
+        "          i32.and",
+        "          i32.shr_u",
+        "          i32.const 1",
+        "          i32.and",
         "          i32.const 0",
         "          i32.eq",
         "          if ;; label = @4",
         "            unreachable",
         "          else",
+        "            local.get $p",
+        "            i32.const 8",
+        "            i32.sub",
+        "            local.set $header",
+        "            local.get $header",
+        "            i32.load",
+        "            local.set $count",
         "            local.get $count",
-        "            i32.const -1",
+        "            i32.const 0",
         "            i32.eq",
         "            if ;; label = @5",
         "              unreachable",
         "            else",
-        "              local.get $header",
         "              local.get $count",
-        "              i32.const 1",
-        "              i32.add",
-        "              i32.store",
+        "              i32.const -1",
+        "              i32.eq",
+        "              if ;; label = @6",
+        "                unreachable",
+        "              else",
+        "                local.get $header",
+        "                local.get $count",
+        "                i32.const 1",
+        "                i32.add",
+        "                i32.store",
+        "              end",
         "            end",
         "          end",
         "        end",
