@@ -59,6 +59,20 @@ export const proof = {
         assert(peer instanceof Array && peer[0] === 'ref')
         assertEq(peer[1], second[1])
     },
+    functionGroupsInLoopsKeepTheirPeersAndOuterCaptures: () => {
+        const source = `const run = step => {
+            let n = 0;
+            while (n < 3) {
+                const a = () => b;
+                const b = () => [a, step];
+                const [again, delta] = a()();
+                if (again !== a) { return -1 }
+                n += delta;
+            }
+            return n;
+        }; export default run(2)`
+        assertStructurallySame(result(source), { default: 4 })
+    },
     objectRestExcludesSourceKeysAndKeepsEnumerationOrder: () => {
         /** @type {readonly (readonly [string, unknown])[]} */
         const cases = [
