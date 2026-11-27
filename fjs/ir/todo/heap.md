@@ -47,7 +47,9 @@ it counts in a header and traps on misuse. Memory enters the IR as a
 - [x] **H2d** — The debug arena, `counted`: the header, the size word before
       it, the traps on misuse and `live()`, proven against the model's map
       from offset to block; `free` also traps on a live block and on a
-      second `free`, which it marks in the size word
+      second `free`, which it marks in the size word; a bitmap of block
+      starts, through a directory of pages, makes every address where no
+      block starts trap
 - [ ] **H3** — The first client: long strings in the IR heap, after a note on
       NaNVM holding references into it, with the root table that holds
       the references of constants and of the host
