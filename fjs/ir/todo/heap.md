@@ -1,7 +1,7 @@
 ## A heap in the IR: the bump arena first
 
 **Priority:** P2
-**Status:** wip — design proposed ([heap.md](../../../doc/sasha-gil/ir/heap.md)); the owner took the review's five choices and the arena counted in debug builds only (2026-11-26), and memory as an interface of instructions (2026-11-27)
+**Status:** wip — design proposed ([heap.md](../../../doc/sasha-gil/ir/heap.md)); the owner took the review's five choices and the arena counted in debug builds only (2026-11-26), memory as an interface of instructions (2026-11-27), and the six choices of the first client, long strings ([long-strings.md](../../../doc/sasha-gil/ir/long-strings.md), 2026-11-27)
 
 ### Problem
 
@@ -23,8 +23,8 @@ it counts in a header and traps on misuse. Memory enters the IR as a
 
 - [x] Design note and this `todo/`, the claim
 - [ ] Owner approval of the design, and answers to its open questions
-      (memory and the five choices answered; how a build asks for debug,
-      the first client, and a trap for misuse still open)
+      (memory, the five choices, how a build asks for debug and the
+      first client answered; a trap for misuse still open)
 - [x] **H1** — `Memory`: loads and stores of 8 to 64 bits, `size` and `grow`;
       the emitter writes them as instructions and imports the loader's
       memory, and an effect of their own keeps their calls in place: L0's
@@ -48,13 +48,26 @@ it counts in a header and traps on misuse. Memory enters the IR as a
       it, the traps on misuse and `live()`, proven against the model's map
       from offset to block; `free` also traps on a live block and on a
       second `free`, which it marks in the size word
-- [ ] **H3** — The first client: long strings in the IR heap, after a note on
-      NaNVM holding references into it, with the root table that holds
-      the references of constants and of the host
+- [x] **H3 note** — [long-strings.md](../../../doc/sasha-gil/ir/long-strings.md):
+      long strings are the first client, and NaNVM holds no reference into
+      the IR heap, since a long IR string is copied into a NaNVM string
+      wherever it crosses; the root table waits for H4 (the owner chose A
+      on each of the six choices, 2026-11-27)
+- [ ] **H3a** — IR references in Any: kind nibble 9, and hooks that send an
+      IR reference to the Heap's `dup`, `drop` and `free`
+- [ ] **H3b** — Long strings in the IR: String's `concat`, `substring`,
+      `length` and `unit` over blocks of a length and 16-bit units
+- [ ] **H3c** — The crossing: a long IR string that crosses into NaNVM
+      becomes a NaNVM string, and the IR drops its reference
+- [ ] **H3d** — The heap linked, the release arena by default and
+      `counted` under `debug`, and measured against today's long path
+- [ ] **H3e** — benchmark.md's new rows, and what H3d's numbers change in
+      the notes
 - [ ] **H4** — Paged size classes behind the same interface, and a `recover`
       that recounts from the roots, with the record at each region's start
       that leads a walk of every block from region to region, which the
-      debug arena takes too
+      debug arena takes too, and the root table that holds the references
+      of constants and of the host, which the recount reads
 
 ### Related
 
@@ -67,3 +80,7 @@ it counts in a header and traps on misuse. Memory enters the IR as a
 - [line-heap.md](./line-heap.md): the third variant, an experiment
 - [recover-by-exceptions.md](./recover-by-exceptions.md): the other way to
   recover a caught throw, an experiment
+- [long-strings.md](../../../doc/sasha-gil/ir/long-strings.md): H3, the
+  first client
+- [one-byte-strings.md](./one-byte-strings.md): long strings of 8-bit
+  units, a String variant of their own, an experiment
