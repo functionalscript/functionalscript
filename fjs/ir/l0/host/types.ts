@@ -5,7 +5,11 @@
  */
 
 import type { Kind } from '../../../wasm/runtime/l0/types.ts'
+import type { StringEmit } from '../../runtime/string/types.ts'
 import type { Host as NativeHost } from '../../native/host/types.ts'
+
+/** The String module's emit policy, as the hosts take it. */
+export type { StringEmit }
 
 /**
  * The functions of the `fjs:l0` imports that [the interfaces of
@@ -115,11 +119,15 @@ export type Imports = {
  * `recover` frees what the trap abandoned, and answers the cells that it
  * freed, each a handle and the counts it took away.
  *
- * A copy value, `undefined`, `null`, a boolean or a number, is not counted:
- * where an import, `own` or `thrown` would make a new box of one, it answers
- * the value's own NaN-box bits, which no one owns, and a `dup` or a `drop`
- * of those bits is a no-op. A reference is a dyn-ref box that packs a cell
- * index; `dup` and `drop` count that cell.
+ * A copy value, `undefined`, `null`, a boolean, a number or a well-formed
+ * short-string box, is not counted: where an import, `own` or `thrown`
+ * would make a new box of one, it answers the value's own NaN-box bits,
+ * which no one owns, and a `dup` or a `drop` of those bits is a no-op. A
+ * reference is a dyn-ref box that packs a cell index; `dup` and `drop`
+ * count that cell. Short-string **emission** follows the host's
+ * {@link StringEmit} policy: NaNVM defaults to B (`emitB`); the counting
+ * host defaults to A (`emitA`) as the dyn-ref control
+ * ([short-strings.md](../../../../doc/sasha-gil/ir/short-strings.md) S4).
  */
 export type Counting = {
     readonly imports: Imports

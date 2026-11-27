@@ -39,6 +39,7 @@ import { write } from '../../../../media/wasm/binary/write/module.f.js'
 import { check } from '../../../check/module.f.js'
 import { lifetime as lifetimePass } from '../../../lifetime/module.f.js'
 import { module as anyModule } from '../../../runtime/any/module.f.js'
+import { isShort, packEnabled, v1EnabledTags } from '../../../runtime/string/short.f.js'
 import { emit } from '../../../wasm/module.f.js'
 import { held, onHost, run } from '../../../wasm/testlib.mjs'
 import { proof as wasm } from '../../../wasm/proof.mjs'
@@ -188,7 +189,13 @@ test('a module that defines Any sees the NaN boxes', () => {
         carrierOf: ([v]) => boxed(held(v)),
         isReference: ([v]) => {
             const x = held(v)
-            return x !== null && ['string', 'bigint', 'object', 'function'].includes(typeof x)
+            if (x === null) { return false }
+            // Short strings are scalar boxes under emit B (NaNVM default); long stay refs.
+            if (typeof x === 'string') {
+                const units = [...x].map(ch => /** @type {number} */ (ch.codePointAt(0)))
+                return packEnabled(units, v1EnabledTags)[0] === 'error'
+            }
+            return ['bigint', 'object', 'function'].includes(typeof x)
         },
         boxOf: ([x]) => ({ any: x }),
     }, {}))
@@ -265,8 +272,8 @@ test("Any's IR module agrees with L0 on NaNVM and leaks no reference", () => {
         if (k === 2) {
             if (call('to_bool', v) !== h.imports.to_bool(v)) { throw ['to_bool', v] }
         }
-        // isRef matches whether L0's kind is a reference kind
-        const ref = k >= 4
+        // isRef matches dyn-ref boxes; short-string scalars (kind 4) are not refs.
+        const ref = k >= 4 && !isShort(BigInt.asUintN(64, /** @type {bigint} */ (v)))
         if ((call('isRef', v) === 1) !== ref) { throw ['isRef', v, k, call('isRef', v)] }
     }
     // from_f64 / from_bool round-trip through L0's view

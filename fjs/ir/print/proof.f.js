@@ -5,7 +5,7 @@
 import { assertEq } from '../../asserts/module.f.js'
 import { any, string } from '../l0/module.f.js'
 import {
-    add, block, bool, br, call, call_ref, code, codeOf, f64, f64c, field, fn, get, i, if_, int, let_, lit, loop, make, match, n, never, next, only,
+    add, block, bool, br, call, call_ref, code, codeOf, f64, f64c, field, fn, get, hint, i, if_, int, let_, lit, loop, make, match, n, never, next, only,
     product, return_, sealed, trap, true_, trunc_sat, u, unit, variant,
 } from '../module.f.js'
 import { bits, constants, corners, loops, records, referencing, samples, sealing, tagging, unknown } from '../testlib.f.js'
@@ -141,6 +141,19 @@ export const proof = {
     '',
     'fn g(b: bool) -> f64 =',
     "    if b then trap('no') else 1",
+    '',
+    ].join('\n')),
+    // An inline hint reads before `fn`.
+    hints: () => assertEq(print({
+        imports: [],
+        functions: [['f', hint('always', fn([], f64, n(1n)))], ['g', hint('never', fn([], f64, n(2n)))]],
+        exports: [],
+    }), [
+    'inline always fn f() -> f64 =',
+    '    1',
+    '',
+    'inline never fn g() -> f64 =',
+    '    2',
     '',
     ].join('\n')),
     // A sealed type that is not counted names its tag and its carrier only, and a parameter that the callee owns reads `own`.

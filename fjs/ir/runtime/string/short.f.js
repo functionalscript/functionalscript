@@ -8,22 +8,11 @@
  * @module
  *
  * @import { Result } from '../../../types/result/types.ts'
- * @import { ShortTag } from './types.ts'
+ * @import { ShortTag, StringEmit } from './types.ts'
  */
 
 import { error, ok } from '../../../types/result/module.f.js'
-
-/** Non-finite exponent bits shared by every scalar NaN box. */
-const EXP = 0x7FF0_0000_0000_0000n
-
-/** Tag-2 mask: non-finite scalars vs references. */
-const TAG2 = 0x7FF0_0000_0000_0003n
-
-/** Scalar family under TAG2 (low two bits clear, exponent all ones). */
-const SCALAR = 0x7FF0_0000_0000_0000n
-
-/** Empty-string box. */
-export const EMPTY = 0x7FF0_0000_0000_0008n
+import { EMPTY, EXP, SCALAR, TAG2 } from '../box/module.f.js'
 
 /** `$`, `0`–`9`, `A`–`Z`, `_`, `a`–`z` — the 6-bit short-string alphabet. */
 const ALPHABET = /** @type {const} */ ([
@@ -47,6 +36,57 @@ export const allTags = /** @type {const} */ ([
  */
 export const v1EnabledTags = /** @type {const} */ (['empty', 's1x16', 's2x16'])
 
+/**
+ * Emit A — every allocating string import returns a dyn-ref (control).
+ * Pass explicitly when a NaNVM-targeted host should not emit shorts.
+ *
+ * @type {{ readonly kind: 'alwaysDynRef' }}
+ */
+export const emitA = { kind: 'alwaysDynRef' }
+
+/**
+ * Emit B — short box when a v1-enabled tag fits (S4 decision gate default
+ * for NaNVM-targeted builds). Same tags as {@link v1EnabledTags}.
+ *
+ * @type {{ readonly kind: 'shortWhenEnabled', readonly enabledTags: typeof v1EnabledTags }}
+ */
+export const emitB = { kind: 'shortWhenEnabled', enabledTags: v1EnabledTags }
+
+/**
+ * The short encodings that `emit` may make: none for A.
+ *
+ * @type {(emit: StringEmit) => readonly ShortTag[]}
+ */
+export const enabledTagsOf = emit => emit.kind === 'shortWhenEnabled' ? emit.enabledTags : []
+
+/** Unit count each Sergey tag encodes when it fits: its index in {@link allTags}. @type {Readonly<Record<ShortTag, number>>} */
+export const tagLen = {
+    empty: 0,
+    s1x16: 1,
+    s2x16: 2,
+    s3x16: 3,
+    s4x7: 4,
+    s5x7: 5,
+    s6x7: 6,
+    s7x7: 7,
+    s8x6: 8,
+}
+
+/**
+ * Longest unit count any tag in `enabled` can hold, or `-1` when none.
+ *
+ * @type {(enabled: readonly ShortTag[]) => number}
+ */
+export const maxEnabledLen = enabled => {
+    /** @type {(i: number, max: number) => number} */
+    const go = (i, max) => {
+        if (i === enabled.length) { return max }
+        // A tag's index in `allTags` is the unit count it holds, as `tagLen` says.
+        return go(i + 1, Math.max(max, allTags.indexOf(enabled[Number(i)])))
+    }
+    return enabled.length === 0 ? -1 : go(0, -1)
+}
+
 /** Whether bits are a short-string scalar (README `is_short_string`). @type {(b: bigint) => boolean} */
 export const isShort = b => (b & TAG2) === SCALAR && (b & 0xCn) !== 0n
 
@@ -55,10 +95,11 @@ export const isShort = b => (b & TAG2) === SCALAR && (b & 0xCn) !== 0n
  * [nan-box-patterns.md](../../../../doc/sasha-gil/ir/nan-box-patterns.md):
  * a value is in a pattern when `b & mask === value`. Field bits are free;
  * every other bit must match, so junk above a short tag is `not_short`.
+ * String's IR module tests them in this order too.
  *
  * @type {readonly (readonly [ShortTag, bigint, bigint])[]}
  */
-const patterns = [
+export const patterns = [
     ['empty', 0xFFFF_FFFF_FFFF_FFFFn, EMPTY],
     ['s1x16', 0xFFFF_FFFF_FF00_00FFn, 0x7FF0_0000_0000_0018n],
     ['s2x16', 0xFFFF_FF00_0000_00FFn, 0x7FF0_0000_0000_0028n],

@@ -1862,7 +1862,8 @@ export const proof = {
         assert(m.defines !== undefined && m.defines.name === 'Any')
         const names = m.functions.map(([k]) => k)
         assert(names.includes('l1.add') && names.includes('l1.toPrimitive'))
-        assert(names.includes('any.kind') && names.includes('any.from_f64') && names.includes('any.isRef'))
+        // Any's isRef is hinted always, so the inline pass writes it into its callers and leaves it out.
+        assert(names.includes('any.kind') && names.includes('any.from_f64') && !names.includes('any.isRef'))
         assert(names.includes('kind'))
         assert(!names.includes('l1.toIterable') && !names.includes('l1.objectSpread'))
         const text = print({ ...m, imports: [] })

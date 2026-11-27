@@ -1,6 +1,7 @@
 /**
  * Proofs of [how a program links L1](./module.f.js): the linked names, the
- * names that a term calls or reads, `link`, `linkAny` and `errorTable`.
+ * names that a term calls or reads, `link`, `linkAny`, `linkString` and
+ * `errorTable`.
  *
  * @module
  *
@@ -8,13 +9,14 @@
  * @import { Module, Term } from '../../types.ts'
  */
 
-import { assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import {
     add, block, bool, br, call, call_ref, codeOf, constant, f64, f64c, field, fn, get, let_, lit, loop, make, match, trap, true_, trunc_sat, u, variant,
 } from '../../module.f.js'
-import { l0, ref } from '../../l0/module.f.js'
+import { l0, ref, string } from '../../l0/module.f.js'
+import { module as stringModule } from '../../runtime/string/ir.f.js'
 import { sourceOf } from '../testlib.f.js'
-import { errorTable, link, linkAny, linkedAnyName, linkedName, uses } from './module.f.js'
+import { errorTable, link, linkAny, linkString, linkedAnyName, linkedName, linkedStringName, uses } from './module.f.js'
 
 /**
  * A term of every kind, which calls, reads and names a function and a
@@ -64,7 +66,12 @@ export const proof = {
             constants: own,
             functions: [['l1.add', fn([], f64, lit(f64c, 0))]],
             exports: [],
-        })
+        })        // A program's own name that is a reached linked name is refused, as linkAny and linkString refuse one.
+        assertEq(assertError(link(l1)({
+            imports: [],
+            functions: [['f', fn([], f64, call('self', 'l1.add', []))], ['l1.add', fn([], f64, lit(f64c, 3))]],
+            exports: ['f'],
+        })), 'l1.add is already a function or constant of the program')
     },
     linkAny: () => {
         /** @type {Module} */
@@ -89,7 +96,7 @@ export const proof = {
                 ['kind', fn([], f64, call('self', 'isRef', []))],
                 ['from_f64', fn([], f64, lit(f64c, 1))],
                 ['keep', fn([], f64, lit(f64c, 2))],
-                // everyKind covers each rewriteAny case (incl. Any and self).
+                // everyKind covers each case of the linker's walker (incl. Any and self).
                 ['all', fn([], f64, everyKind(k => k))],
             ],
             exports: ['kind', 'from_f64', 'keep'],
@@ -177,6 +184,26 @@ export const proof = {
             functions: [['f', fn([], f64, call('Any', 'all', []))]],
             exports: ['f'],
         }))
+        // A function value of Any's own takes its linked name, and the function it names
+        // is linked, even when the program has a function of the same short name.
+        assertStructurallySame(assertOk(linkAny({
+            ...any,
+            functions: [...any.functions, ['helper', fn([], f64, lit(f64c, 7))], ['viaRef', fn([], f64, call_ref(codeOf('helper'), []))]],
+        })({
+            imports: l0,
+            functions: [['f', fn([], f64, call('Any', 'viaRef', []))], ['helper', fn([], f64, lit(f64c, 99))]],
+            exports: ['f'],
+        })).functions.filter(([k]) => k === 'any.viaRef' || k === 'any.helper' || k === 'helper'), [
+            ['helper', fn([], f64, lit(f64c, 99))],
+            ['any.helper', fn([], f64, lit(f64c, 7))],
+            ['any.viaRef', fn([], f64, call_ref(codeOf('any.helper'), []))],
+        ])
+        // A function value in a program's body stays the program's own.
+        assertStructurallySame(assertOk(linkAny(any)({
+            imports: l0,
+            functions: [['kind', fn([], f64, lit(f64c, 3))], ['f', fn([], f64, call_ref(codeOf('kind'), []))]],
+            exports: ['f'],
+        })).functions.find(([k]) => k === 'f')?.[1].body, call_ref(codeOf('kind'), []))
         // A program that already imports Ref keeps that import (minus Any).
         assertStructurallySame(assertOk(linkAny(any)({
             imports: [ref, ...l0],
@@ -204,6 +231,131 @@ export const proof = {
             functions: [['f', fn([], f64, call('Any', 'from_f64', []))]],
             exports: ['f'],
         }))
+    },
+    linkString: () => {
+        assertEq(linkedStringName('length'), 'string.length')
+        // Needs a post-linkAny program that defines Any and imports String.
+        assertEq(assertError(linkString(stringModule)({
+            imports: l0,
+            functions: [],
+            exports: [],
+        })), 'the program does not define Any')
+        /** @type {Module} */
+        const anyStub = {
+            imports: [ref],
+            defines: {
+                name: 'Any',
+                types: [['any', {
+                    variants: ['string'],
+                    kind: 'kind',
+                    carrier: 'i64',
+                    dup: 'dup',
+                    drop: 'drop',
+                    copy: [],
+                }]],
+            },
+            functions: [
+                ['isRef', fn([], f64, lit(f64c, 0))],
+                ['dup', fn([], f64, lit(f64c, 0))],
+                ['drop', fn([], f64, lit(f64c, 0))],
+                ['kind', fn([], f64, lit(f64c, 0))],
+            ],
+            exports: ['kind'],
+        }
+        const withAny = assertOk(linkAny(anyStub)({
+            imports: l0,
+            // A constant that calls String.length covers rewriteProgram on constants.
+            constants: [['#len', {
+                type: u(31),
+                value: call('String', 'length', [constant('String', 'empty')]),
+            }]],
+            functions: [
+                ['f', fn([['s', string]], u(31), s => call('String', 'length', [s]))],
+                ['g', fn([['s', string], ['i', u(31)]], u(16), (s, i) => call('String', 'unit', [s, i]))],
+            ],
+            exports: ['f', 'g'],
+        }))
+        const linked = assertOk(linkString(stringModule)(withAny))
+        assert(linked.imports.find(([k]) => k === 'String') !== undefined)
+        assertStructurallySame(linked.functions.find(([k]) => k === 'f')?.[1].body, call('self', 'string.length', [get('s')]))
+        assertStructurallySame(linked.functions.find(([k]) => k === 'g')?.[1].body, call('self', 'string.unit', [get('s'), get('i')]))
+        assertStructurallySame(linked.constants?.find(([k]) => k === '#len')?.[1].value,
+            call('self', 'string.length', [constant('String', 'empty')]))
+        assert(linked.functions.find(([k]) => k === 'string.length') !== undefined)
+        assert(linked.functions.find(([k]) => k === 'string.unit') !== undefined)
+        const stringDefines = stringModule.defines
+        assert(stringDefines !== undefined)
+        const programDefines = withAny.defines
+        assert(programDefines !== undefined)
+        // Long-miss String.length inside the linked body stays an import (rewriteImports false).
+        assertStructurallySame(
+            assertOk(linkString({
+                imports: stringModule.imports,
+                defines: stringDefines,
+                functions: [['length', fn([['s', string]], u(31), s => call('String', 'length', [s]))]],
+                exports: ['length'],
+            })(withAny)).functions.find(([k]) => k === 'string.length')?.[1].body,
+            call('String', 'length', [get('s')]),
+        )
+        // everyKind on the String stub covers each case of the walker; name('#c0')
+        // is an own function so constant('self', own) renames under rewriteOwn.
+        assertOk(linkString({
+            imports: stringModule.imports,
+            defines: stringDefines,
+            functions: [
+                ['length', fn([], f64, everyKind(k => k === '#c0' ? 'unit' : k))],
+                ['unit', fn([], f64, lit(f64c, 0))],
+                ['add', fn([], f64, lit(f64c, 0))],
+            ],
+            exports: ['length'],
+        })({
+            imports: withAny.imports,
+            defines: programDefines,
+            functions: [['f', fn([], f64, call('String', 'length', []))]],
+            exports: ['f'],
+        }))
+        // A function value of String's own takes its linked name, and the function it names is linked.
+        assertStructurallySame(assertOk(linkString({
+            imports: stringModule.imports,
+            defines: stringDefines,
+            functions: [
+                ['helper', fn([], f64, lit(f64c, 7))],
+                ['length', fn([], f64, call_ref(codeOf('helper'), []))],
+            ],
+            exports: ['length'],
+        })({
+            imports: withAny.imports,
+            defines: programDefines,
+            functions: [['f', fn([], f64, call('String', 'length', []))], ['helper', fn([], f64, lit(f64c, 99))]],
+            exports: ['f'],
+        })).functions.filter(([k]) => k.startsWith('string.') || k === 'helper'), [
+            ['helper', fn([], f64, lit(f64c, 99))],
+            ['string.helper', fn([], f64, lit(f64c, 7))],
+            ['string.length', fn([], f64, call_ref(codeOf('string.helper'), []))],
+        ])
+        // A function value in a program's body stays the program's own.
+        assertStructurallySame(assertOk(linkString(stringModule)({
+            ...withAny,
+            functions: [...withAny.functions, ['h', fn([], f64, call_ref(codeOf('f'), []))]],
+        })).functions.find(([k]) => k === 'h')?.[1].body, call_ref(codeOf('f'), []))
+        assertEq(assertError(linkString(stringModule)({
+            ...withAny,
+            imports: withAny.imports.filter(([k]) => k !== 'String'),
+        })), 'the program imports no String')
+        assertEq(assertError(linkString(stringModule)({
+            ...withAny,
+            functions: [
+                ...withAny.functions,
+                ['string.length', fn([], f64, lit(f64c, 0))],
+            ],
+        })), 'string.length is already a function or constant of the program')
+        assertEq(assertError(linkString(stringModule)({
+            ...withAny,
+            constants: [
+                ...(withAny.constants ?? []),
+                ['string.unit', { type: f64, value: lit(f64c, 0) }],
+            ],
+        })), 'string.unit is already a function or constant of the program')
     },
     errorTable: () => {
         assertStructurallySame(assertOk(errorTable(fast("export const error = { a: 'TypeError: a', b: 'RangeError: b' }"))), [['a', 'TypeError: a'], ['b', 'RangeError: b']])

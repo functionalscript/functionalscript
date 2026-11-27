@@ -146,10 +146,30 @@ mod tests {
         };
         static OTHER: StaticFunction<Naive> = StaticFunction { ..SELF };
         let f = Function::from_static(&SELF);
+        assert!(Naive::frame(f.internal()).is_empty());
         assert_eq!(f.call([].to_array()), Ok(f.clone().to_any()));
         assert_ne!(f, Function::from_static(&OTHER));
         assert_ne!(f, Naive::static_function(SELF.code, 0, [].to_array(), None));
         assert!(f.text().is_err());
+    }
+
+    #[test]
+    fn static_functions_name_one_another_by_descriptor() {
+        static FIRST: StaticFunction<Naive> = StaticFunction {
+            code: |_, _| Ok(Function::from_static(&SECOND).to_any()),
+            length: 0,
+            text: None,
+        };
+        static SECOND: StaticFunction<Naive> = StaticFunction {
+            code: |_, _| Ok(Function::from_static(&FIRST).to_any()),
+            length: 0,
+            text: None,
+        };
+        let first = Function::from_static(&FIRST);
+        let second = Function::from_static(&SECOND);
+        assert_ne!(first, second);
+        assert_eq!(first.call([].to_array()), Ok(second.clone().to_any()));
+        assert_eq!(second.call([].to_array()), Ok(first.clone().to_any()));
     }
 
     #[test]

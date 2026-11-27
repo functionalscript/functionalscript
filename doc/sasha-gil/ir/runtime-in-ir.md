@@ -1,6 +1,6 @@
 # A runtime written in the IR: slice 1, NaN-boxed scalars
 
-2026-11-23. Proposed, not decided. This is the first slice of the owner's
+2026-11-23. Built: all four checkpoints merged as #4094–#4116. This is the first slice of the owner's
 next task (2026-11-21): a runtime written in the IR itself, in the style of
 the [modular runtime](../wasm/modular-runtime.md) and
 [modular L0](../wasm/modular-l0.md), with the NaN box of
@@ -154,9 +154,10 @@ make them ([choice 6](#6-the-tests-are-the-frames)).
   still export `kind`, and slice 5's rule inlines a helper that is not
   exported at each call. Any's constants (`undefined`, `null`, `true`,
   `false`) become the module's globals under `any.*`. The calls that stay
-  imports are NaNVM's: `kind_ref`, `dup_ref`, `drop_ref` and `same_ref`,
-  which take a box that is a reference and trap on a dropped or forged
-  one.
+  imports are NaNVM's: `dup_ref`, `drop_ref` and `same_ref`, which take
+  a box that is a reference and trap on a dropped or forged one, and
+  `kind_ref` in a debug build only: otherwise `kind` reads a reference's
+  `tttt` bits itself.
 - **Alternative:** Any as a separate `.wasm` in import form, the modular
   L0's portable mode. Each call stays a call across modules, which is
   today's cost.
@@ -191,7 +192,7 @@ string 4, bigint 5, array 6, object 7, function 8), not the README's
 | --- | --- |
 | a number (`is_number`) | 3 |
 | `x & 1 == 1`, a short bigint | 5 (a later slice) |
-| `x & 2 == 2`, a reference | `kind_ref(x)`: NaNVM checks the handle is live and returns its `tttt` |
+| `x & 2 == 2`, a reference | its `tttt` bits, with no call (a `tttt` outside 4 to 8 traps); a debug build (`checkedKind`) calls `kind_ref(x)`, where NaNVM also checks the handle is live |
 | a scalar with `x & 0xC != 0`, a short string | 4 (a later slice) |
 | a scalar with tag `(x >> 4) & 3` = 1, boolean | 2 |
 | tag 2, undefined | 0 |
@@ -225,11 +226,9 @@ Each is one PR that leaves every proof green, so it can merge on its own.
    L0 view on the parity tables, linking it into programs, and the demos
    measured. It may land as several PRs.
 
-Short strings come after: String's group of the box, and its functions
-inline for a short string and NaNVM's for a long one. Design (interface,
-interchangeable implementations, experiment plan) is in
-[short-strings.md](./short-strings.md) (approved). S1 skeleton:
-[`fjs/ir/runtime/string`](../../../fjs/ir/runtime/string/module.f.js).
+Short strings: design in [short-strings.md](./short-strings.md) (approved).
+S1 skeleton: [`fjs/ir/runtime/string`](../../../fjs/ir/runtime/string/module.f.js).
+S2: counting host / NaNVM ABI accept short boxes; emit per variant.
 
 ## Open questions
 

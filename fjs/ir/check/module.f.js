@@ -50,6 +50,11 @@
  *   call of a function that may fail, of an interface or of the module,
  *   repeating over the module until no function changes. The module that
  *   it answers writes the bit beside each function.
+ * - **An inline hint is one that the inline pass can keep.** A function
+ *   hinted `always` reaches itself through no chain of calls of such
+ *   functions, is read as no value, and is no hook of a type that the
+ *   module defines, since the lifetime pass and the emitter call those
+ *   after the [inline pass](../inline/module.f.js) has run.
  *
  * @module
  *
@@ -63,7 +68,7 @@ import { error, ok, okList, unwrap } from '../../types/result/module.f.js'
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
 import { at, empty, fromEntries, setReplace } from '../../types/ordered_map/module.f.js'
-import { bool, compareIn, definedBy, equal, f64, f64c, fits, inside, int, interfacesOf, isCopy, isOwn, never, product, u, unit } from '../module.f.js'
+import { bool, compareIn, definedBy, equal, f64, f64c, fits, inside, int, interfacesOf, isCopy, isOwn, never, product, terms, u, unit } from '../module.f.js'
 import { quote, show } from '../print/module.f.js'
 import { checkOwned } from './owned/module.f.js'
 import { ref } from '../l0/module.f.js'
@@ -1219,6 +1224,55 @@ const misdefined = (m, own) => {
     }).find(x => x !== null) ?? null
 }
 
+/** The names of the module's functions that a term reads as values. @type {(t: Term) => readonly string[]} */
+const codes = t => [...(t[0] === 'code' ? [t[1]] : []), ...terms(t).flatMap(codes)]
+
+/** The functions of the module that a term calls. @type {(t: Term) => readonly string[]} */
+const callees = t => [...(t[0] === 'call' && t[1] === 'self' ? [t[2]] : []), ...terms(t).flatMap(callees)]
+
+/**
+ * Why a function's inline hint does not hold, or `null` where each does: a
+ * hint is `always` or `never`, and a function hinted `always` reaches
+ * itself through no chain of calls of such functions, since its copies
+ * would never end, is read as no value, since a value needs its code, and
+ * is no hook of a type that the module defines, since the lifetime pass
+ * and the emitter call a hook after the inline pass has run.
+ *
+ * @type {(m: Module) => string | null}
+ */
+const misinlined = m => {
+    const strange = m.functions.find(([, { inline }]) => inline !== undefined && inline !== 'always' && inline !== 'never')
+    if (strange !== undefined) { return `${strange[0]}: an inline hint is always or never, not ${/** @type {unknown} */ (strange[1].inline)}` }
+    const always = m.functions.flatMap(([k, f]) => f.inline === 'always' ? [/** @type {const} */ ([k, f])] : [])
+    const hooks = (m.defines?.types ?? []).flatMap(([, { kind, dup, drop }]) => [kind, dup, drop])
+    const values = [...m.functions.flatMap(([, f]) => codes(f.body)), ...(m.constants ?? []).flatMap(([, c]) => codes(c.value))]
+    /** The functions hinted `always` that `f` calls. @type {(body: Term) => readonly string[]} */
+    const next = body => callees(body).filter(g => always.some(([k]) => k === g))
+    /** Whether `f` reaches itself through calls of functions hinted `always`. @type {(f: string, body: Term) => boolean} */
+    const cycles = (f, body) => {
+        let todo = next(body)
+        /** @type {readonly string[]} */
+        let seen = []
+        let k = 0
+        while (k < todo.length) {
+            const g = todo[Number(k)]
+            k = k + 1
+            if (!seen.includes(g)) {
+                seen = [...seen, g]
+                todo = [...todo, ...next(assertNotNullish(always.find(([x]) => x === g))[1].body)]
+            }
+        }
+        return seen.includes(f)
+    }
+    const hook = always.find(([k]) => hooks.includes(k))
+    const value = always.find(([k]) => values.includes(k))
+    const cycle = always.find(([k, f]) => cycles(k, f.body))
+    return hook !== undefined ? `${hook[0]} is inline always and a hook of a type that the module defines, which the lifetime pass and the emitter call`
+        : value !== undefined ? `${value[0]} is inline always and read as a value, which needs its code`
+        : cycle !== undefined ? `${cycle[0]} is inline always and calls itself through functions inline always, so its copies would never end`
+        : null
+}
+
 /**
  * A module's stage, checked: the plain stage, or the owned one, which the
  * lifetime pass writes and where alone the pass's forms for a counted type
@@ -1241,7 +1295,7 @@ const checkStage = (m, owned) => {
     const scoped = own === null ? interfaces : interfaces.map(([k, i]) => /** @type {const} */ ([k, k === own ? { ...i, types: plainTypes } : i]))
     // The loader links what the module imports, and the makers of the literals of the types that it defines, but none of its own functions.
     const loaded = own === null ? m.imports : [...m.imports, /** @type {const} */ ([own, { abi: own, types: plainTypes, functions: [] }])]
-    const why = mine ?? unscoped(env, scoped, m.functions, [], [], loaded)
+    const why = mine ?? unscoped(env, scoped, m.functions, [], [], loaded) ?? misinlined(m)
     const names = m.functions.map(([name]) => name)
     const missing = m.exports.find(k => !names.includes(k))
     const again = twiceIn(m.exports)

@@ -13,7 +13,7 @@ import { lifetime } from '../../lifetime/module.f.js'
 import { definedBy, fn, lit } from '../../module.f.js'
 import { print } from '../../print/module.f.js'
 import { emit } from '../../wasm/module.f.js'
-import { iface, module } from './module.f.js'
+import { checked, iface, module } from './module.f.js'
 
 /** @type {(m: import('../../types.ts').Module) => string} */
 const emittedWat = m => wat(emit(assertOk(check(assertOk(lifetime(m))))))
@@ -91,5 +91,13 @@ export const proof = {
         assert(text.includes('(import "fjs:l0" "drop_ref"'))
         assert(text.includes('(import "fjs:l0" "kind_ref"'))
         assert(text.includes('(import "fjs:l0" "same_ref"'))
+    },
+    // `kind` reads a reference's kind from its `tttt` bits; the checked
+    // variant asks L0's `kind_ref`, which also refuses a dead reference.
+    kindOfRef: () => {
+        assert(!emittedWat(module).includes('call $Ref.kind_ref'))
+        assert(emittedWat(checked).includes('call $Ref.kind_ref'))
+        assertEq(assertOk(checkPlain(checked)).functions.map(([k]) => k).join(),
+            assertOk(checkPlain(module)).functions.map(([k]) => k).join())
     },
 }

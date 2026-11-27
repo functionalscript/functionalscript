@@ -52,6 +52,24 @@ export const callMany = (f, n) => {
     return s.acc
 }
 
+/**
+ * Short-string microbench (S4): `s` stays within v1 enabled tags
+ * (`empty` / `s1x16` / `s2x16`, max length 2). Each step concats `s + s`
+ * (still short when `s` is one unit) and adds both lengths. Primary wall
+ * clock for short emit + linked `length`; `repeat` stays the long-path check.
+ *
+ * @type {(s: any, n: any) => any}
+ */
+export const shortOps = (s, n) => {
+    const zero = n - n
+    let state = { i: zero, acc: zero }
+    while (state.i < n) {
+        const t = s + s
+        state = { i: state.i + 1, acc: state.acc + s.length + t.length }
+    }
+    return state.acc
+}
+
 /** @type {(n: any, e: any) => any} */
 export const repeat = (n, e) => {
     const zero = n - n

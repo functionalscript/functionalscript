@@ -1,15 +1,23 @@
 /**
- * Proofs of the String runtime-module skeleton and short pack/unpack
- * bit round-trips ([short-strings.md](../../../../doc/sasha-gil/ir/short-strings.md) S1).
+ * Proofs of the String runtime-module skeleton, short pack/unpack bit
+ * round-trips (S1), and the B IR module for linked length/unit (S3)
+ * ([short-strings.md](../../../../doc/sasha-gil/ir/short-strings.md)).
  *
  * @import { ShortTag } from './types.ts'
  */
 
-import { assert, assertEq, assertError, assertOk } from '../../../asserts/module.f.js'
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
+import { check, checkPlain } from '../../check/module.f.js'
+import { lifetime } from '../../lifetime/module.f.js'
+import { definedBy } from '../../module.f.js'
+import { EMPTY } from '../box/module.f.js'
+import { a, atAlias, b, c, ops, variants } from './module.f.js'
 import {
-    EMPTY, a, allTags, atAlias, b, c, isShort, length, ops, pack, packEnabled, tagOf, unit, unpack,
-    v1EnabledTags, variants,
-} from './module.f.js'
+    allTags, emitA, emitB, enabledTagsOf, isShort, length, maxEnabledLen, pack,
+    packEnabled, tagLen, tagOf, unit, unpack, v1EnabledTags,
+} from './short.f.js'
+import { module as anyModule } from '../any/module.f.js'
+import { module as irModule } from './ir.f.js'
 
 /** @type {(s: string) => readonly number[]} */
 const unitsOf = s => [...s].map(ch => /** @type {number} */ (ch.codePointAt(0)))
@@ -30,6 +38,26 @@ export const proof = {
         assertEq(atAlias, 'at')
         assertEq(variants.map(v => v.id).join(), 'A,B,C')
     },
+    // Emit hosts skip packing when length exceeds every enabled tag.
+    maxLen: () => {
+        assertEq(tagLen.empty, 0)
+        assertEq(tagLen.s8x6, 8)
+        assertEq(maxEnabledLen([]), -1)
+        assertEq(maxEnabledLen(v1EnabledTags), 2)
+        assertEq(maxEnabledLen(allTags), 8)
+        assertEq(maxEnabledLen(['empty']), 0)
+    },
+    // Host emit policies after the S4 decision gate: A control, B NaNVM default.
+    emitPolicies: () => {
+        assertEq(emitA.kind, 'alwaysDynRef')
+        assertEq(emitB.kind, 'shortWhenEnabled')
+        assertEq(emitB.enabledTags.join(), v1EnabledTags.join())
+        assertEq(a.emit, emitA)
+        assertEq(b.emit, emitB)
+        assertEq(c.emit, emitB)
+        assertEq(enabledTagsOf(emitA).length, 0)
+        assertEq(enabledTagsOf(emitB).join(), v1EnabledTags.join())
+    },
     // A: import-form baseline, never a short box.
     manifestA: () => {
         assertEq(a.id, 'A')
@@ -40,12 +68,12 @@ export const proof = {
         assertEq(a.unit.kind, 'import')
         assertEq(formOp(a.unit), 'unit')
         assertEq(a.emit.kind, 'alwaysDynRef')
-        assertEq(a.enabledTags.length, 0)
+        assertEq(enabledTagsOf(a.emit).length, 0)
         assertEq(a.requiresAny, 'any')
         assertEq(a.longPath, 'fjs:l0')
         assertEq(a.moduleName, 'fjs:l0/string')
         assertEq(a.version, '1')
-        assertEq(packEnabled(unitsOf('hi'), a.enabledTags)[0], 'error')
+        assertEq(packEnabled(unitsOf('hi'), enabledTagsOf(a.emit))[0], 'error')
     },
     // B: memory-saving; v1 tags; templates re-decode; no slots.
     manifestB: () => {
@@ -60,12 +88,12 @@ export const proof = {
         assertEq(b.requiresAny, 'nan')
         assertEq(b.moduleName, 'fjs:ir/string/memory')
         assertEq(b.longPath, 'fjs:l0')
-        assertEq(b.enabledTags.join(), v1EnabledTags.join())
-        assertEq(assertOk(packEnabled([], b.enabledTags)), EMPTY)
-        assertEq(assertOk(tagOf(assertOk(packEnabled(unitsOf('a'), b.enabledTags)))), 's1x16')
-        assertEq(assertOk(tagOf(assertOk(packEnabled(unitsOf('ab'), b.enabledTags)))), 's2x16')
+        assertEq(enabledTagsOf(b.emit).join(), v1EnabledTags.join())
+        assertEq(assertOk(packEnabled([], enabledTagsOf(b.emit))), EMPTY)
+        assertEq(assertOk(tagOf(assertOk(packEnabled(unitsOf('a'), enabledTagsOf(b.emit))))), 's1x16')
+        assertEq(assertOk(tagOf(assertOk(packEnabled(unitsOf('ab'), enabledTagsOf(b.emit))))), 's2x16')
         // four ASCII units fit s4x7, but that tag is not enabled → force long
-        assertEq(packEnabled(unitsOf('abcd'), b.enabledTags)[0], 'error')
+        assertEq(packEnabled(unitsOf('abcd'), enabledTagsOf(b.emit))[0], 'error')
         // U+0080 does not fit 4×7 either; still long, not refused as a third outcome
         assertEq(pack(unitsOf('ab\u0080c'))[0], 'error')
     },
@@ -80,7 +108,6 @@ export const proof = {
         assertEq(c.length.kind, 'template')
         assertEq(c.unit.kind, 'template')
         assertEq(c.emit.kind, 'shortWhenEnabled')
-        assertEq(c.enabledTags.join(), b.enabledTags.join())
         assertEq(c.requiresAny, 'nan')
         assertEq(c.moduleName, 'fjs:ir/string/cpu')
         assertEq(c.version, '1')
@@ -176,5 +203,20 @@ export const proof = {
         assert((s7odd & 0x8000_0000_0000_0000n) !== 0n)
         assert((s8 & 0x8000_0000_0000_0000n) === 0n)
         assert((s3 & 0x8000_0000_0000_0000n) === 0n)
+    },
+    // S3: B IR module defines Any for unseal, exports length/unit, types clean.
+    irModule: () => {
+        assertEq(irModule.imports.map(([k]) => k).join(), 'Ref,String')
+        assertEq(definedBy(irModule), 'Any')
+        assertEq(irModule.exports.join(), 'length,unit')
+        assertEq(assertOk(checkPlain(irModule)).functions.map(([k]) => k).join(),
+            'isRef,dup,drop,kind,oob,unit_s2x16,unit_s3x16,unit_s4x7,unit_s5x7,unit_s6x7,unit_s7x7,unit_s8x6,length,unit')
+        assertEq(assertOk(check(assertOk(lifetime(irModule)))).exports.join(), 'length,unit')
+        assertEq(b.length.kind, 'template')
+        assertEq(b.unit.kind, 'template')
+        // Any's definition and hooks are Any's own, not a copy that may answer another kind.
+        assertStructurallySame(irModule.defines, anyModule.defines)
+        const hooks = ['isRef', 'dup', 'drop', 'kind']
+        assertStructurallySame(irModule.functions.filter(([k]) => hooks.includes(k)), anyModule.functions.filter(([k]) => hooks.includes(k)))
     },
 }

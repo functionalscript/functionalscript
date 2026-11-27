@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Host proof that the sort and Collatz IR programs lower, emit, and run on
  * NaNVM L0 with the same report text as JavaScript — the effect is
@@ -17,41 +16,17 @@
 
 import { existsSync, readFileSync } from 'node:fs'
 import { test } from 'node:test'
-import { assert, assertEq, assertOk } from '../../../asserts/module.f.js'
-import { write } from '../../../media/wasm/binary/write/module.f.js'
-import { check } from '../../../ir/check/module.f.js'
-import { lower } from '../../../ir/from_fast/module.f.js'
-import { errorTable } from '../../../ir/from_fast/link/module.f.js'
-import { l1Runtime, l1Whole, sourceOf } from '../../../ir/from_fast/testlib.f.js'
-import { lifetime } from '../../../ir/lifetime/module.f.js'
+import { assert, assertEq } from '../../../asserts/module.f.js'
 import { nanvmHost } from '../../../ir/l0/host/nanvm/module.mjs'
 import { host as nativeHost } from '../../../ir/native/host/module.mjs'
-import { emit } from '../../../ir/wasm/module.f.js'
 import { layoutOf } from '../../../ir/wasm/layout.mjs'
 import { run as collatzJs } from '../collatz/ir.f.js'
 import { run as sortJs } from '../sort/ir.f.js'
 import { bindIr } from './host.mjs'
+import { here, programBytes } from './lower.mjs'
 import { irExportName, l0FileName } from './module.f.js'
 
-const here = path => new URL(`../../../../${path}`, import.meta.url)
 const l0Path = here(`target/wasm32-unknown-unknown/release/${l0FileName}`)
-
-const fromText = (path, table, runtime) => {
-    const { fast, imports } = assertOk(sourceOf(readFileSync(path, 'utf8')))
-    return assertOk(lower(table, runtime)(fast, imports))
-}
-
-const compile = m => {
-    const [tag, checked] = check(m)
-    assert(tag === 'ok', checked)
-    return new WebAssembly.Module(new Uint8Array(write(emit(checked))))
-}
-
-const errors = assertOk(errorTable(assertOk(sourceOf(readFileSync(here('fjs/wasm/runtime/l1/error/module.f.js'), 'utf8'))).fast))
-const runtime = {
-    ...l1Runtime(errors),
-    l1: fromText(here('fjs/wasm/runtime/l1/module.f.js'), l1Whole, l1Runtime(errors)),
-}
 
 /** @type {() => WebAssembly.Module} */
 const loadL0 = () => {
@@ -63,9 +38,9 @@ const loadL0 = () => {
     return new WebAssembly.Module(readFileSync(l0Path))
 }
 
-/** @type {(l0: WebAssembly.Module, path: string, js: () => string) => void} */
-const checkProgram = (l0, path, js) => {
-    const mod = compile(assertOk(lifetime(fromText(here(path), {}, runtime))))
+/** @type {(l0: WebAssembly.Module, name: string, js: () => string) => void} */
+const checkProgram = (l0, name, js) => {
+    const mod = new WebAssembly.Module(programBytes(name))
     const { data, entries } = layoutOf(mod)
     assert(data >= 0)
     assert(entries >= 0)
@@ -76,12 +51,12 @@ const checkProgram = (l0, path, js) => {
 }
 
 test('collatz', () => {
-    checkProgram(loadL0(), 'fjs/nanvm/demos/collatz/ir.f.js', collatzJs)
+    checkProgram(loadL0(), 'collatz', collatzJs)
 })
 
 // Sort is heavy on NaNVM containers; still must match JavaScript.
 test('sort', () => {
-    checkProgram(loadL0(), 'fjs/nanvm/demos/sort/ir.f.js', sortJs)
+    checkProgram(loadL0(), 'sort', sortJs)
 })
 
 // nanvmHost is reachable so the suite stays meaningful if bindIr drifts.
