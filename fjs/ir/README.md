@@ -840,6 +840,42 @@ two `u(32)` back into one, reads a `u(64)` below 2^32 as a `u(32)`, a
 count that is not 0, and an `i(64)` from -5 to 5, and the host proof runs
 it against its twins.
 
+## What the bump arena adds
+
+The third part of H2, the IR's heap
+([heap.md](../../doc/sasha-gil/ir/heap.md#the-bump-arena)): the Heap
+interface and its release variant, written in the IR's eDSL over L0's
+`Memory`, in [`runtime/heap/module.f.js`](./runtime/heap/module.f.js).
+
+- **The interface** is `alloc(t, n)`, a block of `n` bytes, 8-aligned, for
+  an object of type `t`; `dup(p)` and `drop(p)`, which answers whether the
+  caller must release what the block holds; and `free(p)`, after the
+  release. An address is a `u(32)`, and a size is at most `0xFFFF_FFF8`.
+- **The release arena keeps no header.** `alloc` rounds the size up to 8,
+  moves the pointer past the block and answers where it was. `dup` does
+  nothing, `drop` answers `false`, and `free`, which only a release calls,
+  traps on misuse.
+- **Its state is a page that `init` grows the memory by.** The constant
+  `state` keeps where the page starts, and its first words hold the
+  pointer and the end of the pointer's region. The first blocks start 16
+  bytes in.
+- **A full region grows the memory** by the larger of the request and 16
+  pages, or by the request alone where the host refuses that. New pages
+  that follow the region extend it, and elsewhere, where another allocator
+  grew the memory in between, they start a new region.
+- **No byte of the arena is past `0xFFFF_0000`**, so every address and
+  every end fit 32 bits, which flow refinement proves: the sum of the
+  pointer and a size is a `u(32)` again where it is at most the end.
+  Memory that cannot grow, or would reach past that, traps on misuse: out
+  of memory.
+- **A plain FunctionalScript [model](./runtime/heap/model/module.f.js)**
+  keeps what the arena keeps in its state words, and the
+  [host proof](./runtime/heap/proof.mjs) runs seeded sequences of
+  allocations of every size on both, with another allocator growing the
+  memory between them. Every address must be the model's, no block may
+  overwrite another or the state, and memory that runs out must trap
+  where the model runs out.
+
 ## What every slice refuses
 
 Everything else is refused with the function's name and the reason, never
