@@ -136,7 +136,7 @@ sentence that says so:
     plausible wrong value. All parameter names are bound before any
     default is resolved, so the read finds the parameter and is refused
     at it, as a read of a later `const` is
-    ([forward references](./3140-forward-references.md)). JavaScript
+    ([constant declarations](../bindings/constants/README.md)). JavaScript
     accepts the read inside a function the default writes,
     `(a = () => b, b) => a()`, which reads `b` once called; it is
     refused here too, as the same read of a later `const` is.
@@ -278,7 +278,7 @@ default reads — each a refusal rather than another value.
   reads through.
 - [Destructuring](../bindings/destructuring/README.md) — the patterns whose defaults
   this designs with the parameters', as it asks.
-- [Forward references](./3140-forward-references.md) and
+- [Function groups](../design/function-groups.md) and
   [body const forward reference](../../fjs/compiler/parser/todo/body-const-forward-reference.md)
   — the refusals a later parameter and a shadowed capture meet.
 - [ECMAScript `FunctionDeclarationInstantiation`](https://tc39.es/ecma262/multipage/ordinary-and-exotic-objects-behaviours.html#sec-functiondeclarationinstantiation)

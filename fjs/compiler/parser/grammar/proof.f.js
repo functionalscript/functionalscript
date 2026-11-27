@@ -22,7 +22,7 @@ import {
     module, elements, func, group, identifier, importStatement, items, lastStatement, entry, loopBlock, loopCase, loopElse, loopIfStatement, loopStatement, loopSwitch, member, object, parameters, paren, statement,
     afterCase, caseTail, bodyNameStatement, forStatement, nameExpression, moduleStatement, parenGroup, parenthesized, primitive, sym, symbolOf, symbolsOf, template, terminator, value, whileStatement,
 } from './module.f.js'
-import { definitions, statementContinuations } from './module.f.js'
+import { statementContinuations } from './module.f.js'
 import { entry as valueAt } from '../../../types/object/entry/module.f.js'
 import { dedup } from '../../../types/array/module.f.js'
 
@@ -30,7 +30,7 @@ import { dedup } from '../../../types/array/module.f.js'
 // type for `tsc` to unroll through `parser`'s return type (TS2589); the
 // rules are widened to `Rule` here, where only acceptance is read.
 /** The source grammar declares JavaScript's greedy indexing continuation. @type {typeof predictiveParser} */
-const parser = (rule, set = [], greedy = statementContinuations) => predictiveParser(rule, set, greedy, definitions)
+const parser = (rule, set = [], greedy = statementContinuations) => predictiveParser(rule, set, greedy)
 
 const parseModule = parser(/** @type {Rule} */ (module))
 
@@ -90,6 +90,13 @@ const categoryNames = /** @type {const} */ ([
 ])
 
 export const proof = /** @type {const} */ ({
+    exportedRulesKeepTheirMappingKeys: () => {
+        const [, exits] = loopStatement()
+        assertEq(exits.return, terminator.return)
+        assertEq(exits.bareReturn, terminator.bareReturn)
+        assertEq(exits.throw, terminator.throw)
+        assertEq(branchBlock()[1][1], branchContents)
+    },
     postTestLoopsKeepTheirWrittenBoundaries: () => {
         assertStructurallySame(read('do{}while(false)export default 0;'), ['ok'])
         assertStructurallySame(read('export default ()=>{do{continue;}while(false);};'), ['ok'])

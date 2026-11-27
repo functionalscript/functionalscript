@@ -26,13 +26,10 @@ DataJS decoder. Their shape is checked with `isObject`, which rejects null,
 arrays and primitives. Prototype inspection and admission of foreign host
 objects belong at a separately defined host boundary.
 
-`toData(rule, definitions)` also accepts the front end's separately defined
-references. It registers the reference identity before lowering its supplied
-body, so mutually recursive bodies share the same rules and rewrite mappings
-keep their identity keys. The body is emitted under the reference's name,
-just as a `const` thunk's payload is, without an extra data or AST node.
-Missing reached definitions and duplicate definition identities are refused;
-unused bodies are not lowered.
+`toData(rule)` registers a rule function before visiting its body.
+Mutually recursive functions can therefore name one another. The body
+is emitted under the function's name, and a mapping can use that
+function as its key.
 
 ## Why not the classical form
 

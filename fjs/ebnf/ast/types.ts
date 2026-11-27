@@ -37,7 +37,7 @@
 import type { Assert } from '../../asserts/types.ts'
 import type { BoundedArray } from '../../types/array/types.ts'
 import type { Equal } from '../../types/ts/types.ts'
-import type { Const, Reference, Rule, Tuple, Variant, Set, Repeat, Option } from '../types.ts'
+import type { Const, Rule, Tuple, Variant, Set, Repeat, Option } from '../types.ts'
 
 /**
  * One symbol, and what the grammar ignored about it: where it came from, or,
@@ -92,8 +92,6 @@ export type Children<R extends Rule, I, O = never> =
     // Const: the thunk and its payload are one rule, so the thunk's mapping
     // receives the payload's node.
     R extends Const<infer D> ? Children<D, I, O> :
-    // A separately defined reference has the body's node, with no extra row.
-    R extends Reference<infer D> ? Children<D, I, O> :
     // Set
     R extends () => readonly['set'] ? never :
     R extends Set ? Meta<I> :
@@ -107,8 +105,6 @@ type _MO = 'mo'
 
 type _Any = Assert<Equal<Ast<Rule, _MI, _MO>, _AnyAst<_MI, _MO>>>
 type _AnyChildren = Assert<Equal<Children<Rule, _MI, _MO>, _AnyAst<_MI, _MO>>>
-type _Reference = Assert<Equal<Children<Reference<readonly [42, null]>, _MI, _MO>, Children<readonly [42, null], _MI, _MO>>>
-type _ReferenceAst = Assert<Equal<Ast<Reference<readonly [42, null]>, _MI>, Ast<readonly [42, null], _MI>>>
 
 type _Number = Assert<Equal<Ast<number, _MI, _MO>, Meta<_MO> | Meta<_MI>>>
 type _Number0 = Assert<Equal<Ast<42, _MI, _MO>, Meta<_MO> | Meta<_MI, 42>>>

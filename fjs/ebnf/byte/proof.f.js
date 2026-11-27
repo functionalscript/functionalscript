@@ -12,7 +12,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.js'
 import { fromArrayLike } from '../../types/list/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
-import { define, eof, range, rangeEncode, reference, repeatFrom0, repeatFrom1, set, times, unicodeMax } from '../module.f.js'
+import { eof, range, rangeEncode, repeatFrom0, repeatFrom1, set, times, unicodeMax } from '../module.f.js'
 import { mapping } from '../ll1/module.f.js'
 import { ascii as asciiBytes, byte, byteArray, byteLength, byteParser, bytes, meta, not, symbols, symbolsOf } from './module.f.js'
 import { generate } from '../../types/array/module.f.js'
@@ -127,11 +127,6 @@ export const proof = {
         assertEq(byteLength([0.5]), null)
     },
     byteParser: {
-        reference: () => {
-            const ref = reference()
-            const parse = byteParser([ref, eof], [], [define(ref)('ab')])
-            assertEq(unwrap(parse(symbols(ascii('ab'))))[1], 2)
-        },
         // A grammar over every rule form — a string, a number, `not`,
         // `bytes`, a repeat, a `const` thunk, a tuple, a variant, EOF — that
         // reads a header line and takes the rest as bytes, with the two
@@ -209,14 +204,6 @@ export const proof = {
         },
         // Every rule the lowering met is checked, wherever it sits.
         throw: {
-            referenceString: () => {
-                const ref = reference()
-                return byteParser(ref, [], [define(ref)('é')])
-            },
-            referenceSymbol: () => {
-                const ref = reference()
-                return byteParser(ref, [], [define(ref)(0x100)])
-            },
             string: () => byteParser('é'),
             stringUnderRepeat: () => byteParser(times(2)('a€')),
             symbol: () => byteParser(0x100),

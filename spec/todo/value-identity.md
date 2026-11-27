@@ -18,6 +18,12 @@ A JS-hosted EDAG interpreter with fresh allocations returns `false`. A compiler 
 
 ### Proposed exception to JavaScript agreement
 
+The implemented [function group rule](../design/function-groups.md) already
+specifies one stable identity for a group and member index and permits
+separately written functions of equal content to share an identity. The
+wider proposal below includes alias splitting and canonicalization choices
+that remain open.
+
 The proposed exception to rule 2 concerns object and function references. On a non-CAVM, the result of `Object.is(a, b)` is *unspecified* subject to one bound. **A `true` result implies equal content.** Different content therefore always compares `false`. A `false` result is inconclusive, even for `Object.is(x, x)` on a single variable holding a reference. Neither result promises what a later comparison will return. Whether or where an alias splits stays open. On a CAVM, content determines the answer for a fixed semantics version. [Language principles](../principles/README.md) · [Decision on alias splitting](https://github.com/functionalscript/functionalscript/pull/4076#issuecomment-7078093043) · [Language-design proposal](https://github.com/functionalscript/functionalscript/pull/4080)
 
 The practical example is running the serialized program on another VM. The compiler's `.edag.data.js` output retains the comparison and its operands. Executing that graph on a CAVM gives `true` because both records have the same ordered content. If the first execution writes its result to `.json` or `.data.js`, loading that value gives the original `false`. [Program and value outputs](../command-line/output.md#evaluation-and-projection)
@@ -97,7 +103,7 @@ Test the properties the algorithm promises. For the grammar-rule map, run the ge
 - [ ] **Reconcile the published contract after approval.**
   - Record the rule 2 exception and its effects on branches and exported results in the [language principles](../principles/README.md) and [compatibility tracker](../../todo/fjs-javascript-compatibility.md#one-authoritative-contract).
   - Update the [reference-map API](../built-ins/reference-map/README.md) and its [cross-run guarantee](../built-ins/reference-map/README.md#only-a-mapping). A lookup returns the newest write whose key comparison succeeds. A previously written key can miss, and answers can differ across executors or runs.
-  - Update the [helper identity decision](../design/object-identity.md#decisions) and [function identity examples](../functions/names-and-identity/README.md) to reflect each approved change. Today they promise that aliases of one written body compare identical and separately written copies of the same body compare distinct.
+  - Update the [helper identity decision](../design/object-identity.md#decisions) and [function identity examples](../functions/names-and-identity/README.md) to reflect each approved change. The implemented function rule already permits separately written functions of equal content to compare equal. The earlier recognized-helper decision is recorded separately.
 - [ ] **Closure folding (language decision).** Decide the CAVM's versioned canonical code/frame rules and the separate [map identity question](#map-identity). Record which prior identity decisions this supersedes and publish examples of CAVM equality.
 - [ ] **Library change.** Implement the ordered helper and migrate content assertions. Include reordered keys, shared children, missing entries, signed zeros and function leaves.
 - [ ] **Backend optimization.** Recognize the helper as a pattern instruction after its semantics are tested. Compare the instruction with the executable definition under the same identity choices. Verify the constant-time identity fast path on a reference-comparing VM and the shared equality operation on a CAVM.

@@ -62,9 +62,8 @@ const evaluate = (a, context, root, invoke) => {
 
     // The evaluator is built once for the invocation and travels in the
     // state, beside the cache. `operand` and `tail` are what it is built
-    // from and each calls it, which a `const` cannot say of a later one
-    // (`../../../spec/todo/3140-forward-references.md`); read from the
-    // state, it is a value they are handed. The two settle differently and
+    // from and each calls it by reading the value handed to it in the
+    // state. The two settle differently and
     // share no helper taking the settling as a parameter: that helper would
     // be one more host frame per level of a nested graph, the margin
     // `../todo/stack-safety.md` counts.

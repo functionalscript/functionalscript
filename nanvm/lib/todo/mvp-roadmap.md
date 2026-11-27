@@ -354,7 +354,7 @@ counts them, a refusal met in an import under the import's construct:
 | 11 | a global name: `Object`, `Array`, `String`, `JSON`, `Boolean`, `parseFloat` | [2360](../../../spec/todo/2360-built-in.md), [2365](../../../spec/todo/2365-global-names.md) |
 | 9 | `new Map`, `new Set` | the container migration above |
 | 9 | a computed member, `a[i]` | [computed-property-key](../../../fjs/compiler/todo/computed-property-key.md), [2330](../../../spec/todo/2330-property-accessor.md) |
-| 6 | a later `const` | [3140](../../../spec/todo/3140-forward-references.md), or reordering |
+| 6 | a later `const` | [function groups](../../../spec/design/function-groups.md) for mutual recursion, or reordering |
 | 5 | `export { … }`, with and without `from` | [export-lists](../../../spec/todo/export-lists.md), or `export const` |
 | 3 | `in` | in the language with a string-literal key ([`in`](../../../spec/operators/in/README.md)); a computed key is `hasEntry` |
 | 3 | an escape the tokenizer refuses, `'\0'` | [2460](../../../spec/todo/2460-js-string-literals.md) |

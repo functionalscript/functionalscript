@@ -482,14 +482,9 @@ has no structural hash without a fixpoint. With `["self"]` a recursive
 function is an ordinary DAG, so content addressing (subject 9) works for
 recursion with no special machinery.
 
-- **Mutual recursion is not covered.** `["self"]` reaches only the
-  innermost enclosing function; `a` calling `b` calling `a`
-  ([function-frame](../spec/design/3111-function-frame.md) has exactly this example)
-  is a cycle *between* functions. Either the partner is passed as an
-  argument, or mutually recursive functions form a hashed **group** with
-  members addressed by index. Open, and it belongs with subject 9 —
-  it is the same "hash a cycle" problem `["self"]` solves for the direct
-  case.
+- **Mutual recursion** uses a tagged group shared by all its member functions.
+  An indexed `["self", index]` reaches the member through that group and
+  keeps the graph finite. [Function groups](../spec/design/function-groups.md).
 - **Binds to the innermost enclosing function**, exactly like
   `["args"]` — so once `["=>", …]` nests, a node using `["self"]`
   cannot be shared across nesting depths. That is the closed-scope
@@ -1335,19 +1330,18 @@ the **graph**, not a tree expansion:
   the closed-scope model ([Operations](#operations)) makes each function
   body a self-contained graph, so it hashes independently and no
   reference is context-dependent across a boundary.
-- Still open: **mutual recursion**, where `a` calls `b` calls `a`. That
-  is a cycle *between* functions, which `["self"]` does not reach —
-  either the partner is passed as an argument, or the group is hashed
-  together with members addressed by index.
+- **Mutual recursion** has a finite graph. Hash the group with its shared
+  captures and bodies, then address each member by its index. See
+  [function groups](../spec/design/function-groups.md).
 
 #### 10. Free variables: module consts, imports, built-ins
 
 **Status:** open
 
-**The source rule: declare before use, plus self.** A nested function may
-reference any `const` defined *before* it, and itself — nothing else
-([forward-references](../spec/todo/3140-forward-references.md),
-[spec/README.md](../spec/README.md)):
+**Source bindings.** A nested function may reference earlier constants,
+itself and the other members of its mutually recursive group. An eager
+read of a later value is still refused. See
+[constant declarations](../spec/bindings/constants/README.md).
 
 ```ts
 const a = 0
@@ -1363,13 +1357,9 @@ const b = 3
 In `f`'s body, `a` is a captured value — frame slot 0 — while `f()` is
 `["()", ["self"], []]`, needing no frame entry at all.
 
-This is exactly what makes frames constructible. `["=>", frame, body]`
-evaluates its `frame` operand *first*, so every captured value must
-already exist; a forward reference would need a value that does not
-exist yet — a cycle, which subject 5 forbids. And it is why `["self"]`
-must be a primitive rather than a frame slot: self-reference is the one
-case where a function legitimately refers to something that does not
-exist when its frame is built.
+Every captured value must exist when the frame is constructed. A recursive
+read is an instruction in the body. For a single function it reads its own
+binding, and for a function group it reads a member by index.
 
 **The relaxation is an acyclicity rule.** Allowing a forward reference
 whenever the referent's computation graph does not depend on the
@@ -1379,26 +1369,17 @@ sound because *textual order is not observable*: module consts are pure
 reorder them. What must hold is the dependency DAG, not the source
 order — the EDAG encodes no source order at all.
 
-**For now the design is built around `["self"]`** — direct
-self-reference is a primitive, and everything else arrives through the
-frame. A later redesign (a group mechanism for mutual recursion, or a
-different binding scheme entirely) is expected and welcome: breaking
-changes that improve the design are the repository's norm
-([DESIGN.md §2](../doc/DESIGN.md)), and nothing here is load-bearing for
-compatibility yet.
-
-Mutual recursion stays excluded even under the relaxation (`b` would
-depend on `f`), consistent with the open item in subject 9. Note that
-3140's proposed workaround —
+The source language admits forward reads within complete mutually
+recursive function groups. General reordering of value declarations stays
+a proposal. Consider an object that refers to itself in its own initializer.
 
 ```ts
 const x = { a: () => x.b(), b: () => x.a() }
 ```
 
-— is not merely a forward reference: under the frame model each closure
-would capture `x` while `x` is still being constructed, a cycle in the
-*value* graph. It needs the group mechanism from subject 9 (or passing
-the partner as an argument), not just relaxed ordering.
+Each closure would capture `x` while the object is being constructed.
+This forms a cycle in the value graph, so this spelling remains refused.
+Consecutive function declarations express the mutual recursion directly.
 
 The EDAG's only leaves are constants and bindings — `["arg", N]`, `["rest"]`
 and `["frame", i]` in a function, the import `["args"]` in a module (subject 2).
