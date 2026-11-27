@@ -3,7 +3,8 @@
 **Priority:** P2 — the rule is written and nothing new may break it, but the
 tree still holds host proofs from before it, and each one reads as precedent
 to whoever opens it next.
-**Status:** open — the survey below counts files; none is classified yet.
+**Status:** open — the survey below counts files; none is classified yet,
+but one class has the owner's ruling: [engine runs](#engine-runs).
 
 ### Problem
 
@@ -61,6 +62,23 @@ proof, one of three things is true, and §1.6 says what follows:
   measure it before and after to confirm.
 
 A host proof left with no case is deleted.
+
+### Engine runs
+
+The owner's ruling, 2026-11-27, on
+[#4150](https://github.com/functionalscript/functionalscript/pull/4150):
+a host proof that compiles modules of the IR to WebAssembly and runs them
+on the host's engine, against twins in JavaScript, proves an effect for
+now, and stays in its `proof.mjs`. `fjs/ir/wasm/proof.mjs` is one, and so
+are the proofs that NaNVM's test runs again on its `.wasm`. What only an
+engine settles is whether a module that the emitter writes validates and
+computes what the IR means, and FunctionalScript runs no WebAssembly. New
+engine runs may join them, as the runtime in the IR grows.
+
+They are not to stay there: the owner wants them moved into files of
+their own, outside the host proofs, which CI runs by name, as it runs
+`fjs/ir/l0/host/nanvm/nanvm.test.mjs`
+([engine runs in files of their own](../fjs/ir/todo/engine-runs.md)).
 
 ### Tasks
 
