@@ -119,7 +119,7 @@ each variant does:
 
 | Function | Release arena, `module` | Debug arena, `counted` | Paged size classes |
 | --- | --- | --- | --- |
-| `alloc(n)`: a block of `n` bytes, 8-aligned | moves the pointer | moves the pointer past a header with a count of 1 | pops the free list of `n`'s class |
+| `alloc(t, n)`: a block of `n` bytes, 8-aligned, for an object of type `t` | moves the pointer | moves the pointer past a header with a count of 1 and the type `t` | pops the free list of `n`'s class and writes the same header |
 | `dup(p)`: one owner more | nothing | adds 1, and traps on a count of 0 | the same |
 | `drop(p)`: one owner less | answers `false` | takes 1, traps on 0, and answers `true` at 0 | the same |
 | `free(p)`, once released | never called | nothing: the block is never reused | pushes the block on its class's list |
@@ -128,6 +128,10 @@ each variant does:
 | `unroot(i)`: hand back the reference of entry `i` | frees the entry | the same | the same |
 | `recover()` | clears the thrown value | the same | recounts from the roots |
 
+`t` is the header's type byte, the kind included, which `release` and the
+recount read: `alloc(O, fields, capacity)` lowers to `alloc` with `O`'s
+type and size, both of which the data lowering knows
+([What every counting variant shares](#what-every-counting-variant-shares)).
 `drop` answers whether the caller must release what the block holds: the
 derived `release` then drops each counted field and calls `free`. `enter`
 and `leave` count the program calls in progress, so that `recover` knows
@@ -150,8 +154,8 @@ variant as copy, and the lifetime pass then writes no `dup` and no `drop`.
 
 ### The bump arena
 
-One region and a pointer that only moves up. `alloc(n)` rounds `n` up to 8
-bytes, moves the pointer, and grows the memory when the region is full.
+One region and a pointer that only moves up. `alloc(t, n)` rounds `n` up to
+8 bytes, moves the pointer, and grows the memory when the region is full.
 Nothing is ever freed, so memory only grows.
 [L0 design §10](../wasm/l0-design.md#10-lifetime-reference-counting-borrowed-arguments-owned-results)
 already allows an arena under the same ABI.
@@ -159,7 +163,7 @@ already allows an arena under the same ABI.
 | | Release, `module` | Debug, `counted` |
 | --- | --- | --- |
 | Header | none | the 8-byte header that [every counting variant shares](#what-every-counting-variant-shares), whose tag stays 0 since no block is reused, and before it a word with the block's size, so that the arena can be walked in birth order: 16 bytes in all |
-| `alloc(n)` | about 6 instructions | the same, and two stores for the header |
+| `alloc(t, n)` | about 6 instructions | the same, and two stores for the header |
 | A block whose count reaches 0 | none does | is never reused, so a stale reference finds 0 and traps |
 | `live()` | not exported | the blocks whose count has not reached 0, for balance checks in proofs |
 
