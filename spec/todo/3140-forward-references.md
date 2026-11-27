@@ -1,8 +1,8 @@
 ## Forward references
 
 **Priority:** P2
-**Status:** open — the function group below is the language designer's
-design; its explicit approval for implementation is not recorded yet
+**Status:** wip — approved for implementation by @sergey-shandar in the
+[implementation request](https://chatgpt.com/c/6b09bd1d-d70c-83e8-ac35-915adb53201e).
 
 ### Problem
 
@@ -227,17 +227,18 @@ language rule).
 
 - [x] A function reading its own `const`'s name, `e` above: the function
       itself, [`["self"]`](../../todo/edag-stage1-discussion.md).
-- [ ] Record the language designer's explicit approval of the function
+- [x] Record the language designer's explicit approval of the function
       group for implementation.
-- [ ] Decide one form or two: whether a function that refers to no other
-      keeps `['=>', length, slots, body]`.
+- [x] Keep both forms. A standalone function keeps `['=>', length, slots, body]`,
+      including its existing self-tail-call recovery.
 - [ ] The EDAG: `['group', slots, functions]`, `['fn', group, index]` and
       `['self', index]`.
 - [ ] The language rule: consecutive function `const`s that refer to each
       other are one group, and a use of a group before its last function
       is a compilation error.
-- [ ] Every consumer of a function: the analysis, both interpreters, both
-      writers, the Rust backend and NaNVM's function value. A group of
+- [x] NaNVM function values share their group allocation and select siblings by index.
+- [ ] Every compiler consumer of a function: the analysis, both interpreters, both
+      writers and the Rust backend. A group of
       constants is written as static functions that name each other, with
       no `StaticGroup`.
 - [ ] `fjs/ebnf`: rules that name each other as functions of one group, in

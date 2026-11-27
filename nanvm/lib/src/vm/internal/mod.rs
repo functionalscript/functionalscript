@@ -8,7 +8,7 @@ pub use icomplex::IComplex;
 pub use icontainer::IContainer;
 pub use ifunction::IFunction;
 pub use iobject::IObject;
-pub use istatic_function::{IStaticFunction, StaticCode};
+pub use istatic_function::{GroupEntry, IStaticFunction, StaticCode};
 
 use crate::{
     sign::Sign,
@@ -83,6 +83,13 @@ pub trait IVm: Sized + Clone + From<Unpacked<Self>> + 'static {
         frame: Array<Self>,
         text: Option<crate::vm::String<Self>>,
     ) -> Function<Self>;
-    /// The frame `static_function` was given, read by the code through its `self_`.
-    fn frame(self_: &Self::InternalFunction) -> &Array<Self>;
+    /// Make the members over one frame and return the first member as a handle.
+    fn function_group<const S: usize, const N: usize>(
+        frame: [Any<Self>; S],
+        entries: [GroupEntry<Self>; N],
+    ) -> Function<Self>;
+    /// Select a member of the same group. Compiled code supplies an in-range index.
+    fn group_member(self_: &Self::InternalFunction, index: usize) -> Function<Self>;
+    /// The frame shared by the members or captured by a single closure.
+    fn frame(self_: &Self::InternalFunction) -> &[Any<Self>];
 }

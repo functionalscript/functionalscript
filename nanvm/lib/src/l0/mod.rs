@@ -455,7 +455,7 @@ pub fn call<A: IVm>(f: &Any<A>, args: &Any<A>) -> Result<Any<A>, Any<A>> {
 /// running, read through the code's `self_`.
 pub fn frame<A: IVm>(self_: &A::InternalFunction, i: u32) -> Any<A> {
     let frame = A::frame(self_);
-    frame[index("frame", i, frame.length())].clone()
+    frame[index("frame", i, frame.len() as u32) as usize].clone()
 }
 
 /// L0 `text`: a function's text, or `undefined` for a function that has

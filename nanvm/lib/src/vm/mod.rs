@@ -37,7 +37,9 @@ pub use crate::vm::{
     array::{Array, to_array::ToArray},
     bigint::BigInt,
     function::Function,
-    internal::{IComplex, IContainer, IFunction, IObject, IStaticFunction, IVm, StaticCode},
+    internal::{
+        GroupEntry, IComplex, IContainer, IFunction, IObject, IStaticFunction, IVm, StaticCode,
+    },
     iterator_record::IteratorRecord,
     lambda::{OptionLambda, OptionPropertyLambda, PropertyLambda},
     nullish::Nullish,
