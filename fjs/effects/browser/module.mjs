@@ -17,13 +17,19 @@ import { ok } from '../../types/result/module.f.js'
  *
  * @type {(path: string) => Promise<Response>}
  */
-const fetchOk = async path => {
+export const fetchOk = async path => {
     const response = await fetch(path)
     if (!response.ok) { throw new Error(`${path}: HTTP ${response.status}`) }
     return response
 }
 
-/** @type {ToAsyncOperationMap<BrowserOp>} */
+/**
+ * The shared browser handlers. `instantiateIr` is supplied by the demo
+ * runtime ([`nanvm/demos/ir`](../../nanvm/demos/ir/host.mjs)), which knows
+ * NaNVM L0; this map keeps fetch, empty-import instantiate, and the heap.
+ *
+ * @type {ToAsyncOperationMap<Exclude<BrowserOp, import('./types.ts').InstantiateIr>>}
+ */
 export const browserOperationMap = {
     fetchText: path => io(async () => (await fetchOk(path)).text()),
     // Fetched whole and then compiled, not streamed: streaming compilation

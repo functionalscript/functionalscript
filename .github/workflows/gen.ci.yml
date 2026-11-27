@@ -352,6 +352,10 @@
           "shell": "bash"
         },
         {
+          "run": "mise exec -- node --test ./fjs/nanvm/demos/ir/ir.test.mjs",
+          "shell": "bash"
+        },
+        {
           "run": "mise exec -- npm start ci publish",
           "shell": "bash",
           "if": "always() && steps.init.outcome == 'success' && github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)",
@@ -966,7 +970,7 @@
           "if": "steps.init.outputs.hit-spidermonkey-compile != 'true' || steps.init.outputs.hit-spidermonkey-suite != 'true'"
         },
         {
-          "run": "test \"$(mise -E spidermonkey exec -- js --version)\" = \"JavaScript-C153.7.0\"",
+          "run": "test \"$(mise -E spidermonkey exec -- js --version)\" = \"JavaScript-C153.8.0\"",
           "shell": "bash",
           "if": "steps.init.outputs.hit-spidermonkey-compile != 'true' || steps.init.outputs.hit-spidermonkey-suite != 'true'"
         },

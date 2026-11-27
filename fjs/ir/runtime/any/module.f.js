@@ -13,9 +13,10 @@
  */
 
 import { kinds, ref } from '../../l0/module.f.js'
+import { FALSE, NULL, TRUE, UNDEFINED, isNumberTerm, isRefTerm } from '../box/module.f.js'
 import {
-    and, bool, call, canon, constant, eq, f64, f64c, fn, from_bits, if_, int, let_,
-    make, n, ne, only, own, seal, sealed, shr, signature, to_bits, true_, u, unit, unseal,
+    and, bool, call, canon, constant, eq, f64, f64c, fn, from_bits, hint, if_, int, let_,
+    make, n, ne, only, own, seal, sealed, shr, signature, to_bits, trap, u, unit, unseal,
 } from '../../module.f.js'
 
 /** A value of unknown kind, as this module defines it. */
@@ -29,34 +30,6 @@ const number = only(any, 'number')
 
 /** A reference of `any`: an array, an object or a function. */
 const reference = only(any, 'array', 'object', 'function')
-
-/** The exponent's bits: a float whose exponent is not all ones is finite. */
-const EXP = 0x7FF0_0000_0000_0000n
-
-/** The bits that tell a non-finite number from the other scalars. */
-const TAG8 = 0x7FF0_0000_0000_00FFn
-
-/** The NaN box of `false`. */
-const FALSE = 0x7FF0_0000_0000_0010n
-
-/** The NaN box of `true`. */
-const TRUE = 0xFFF0_0000_0000_0010n
-
-/** The NaN box of `undefined`. */
-const UNDEFINED = 0x7FF0_0000_0000_0020n
-
-/** The NaN box of `null`. */
-const NULL = 0x7FF0_0000_0000_0030n
-
-/** The mask and pattern of a dynamic reference, as Sergey's README lays one out. */
-const REF_TAG = 0xFFF0_0000_0000_0003n
-const DYN_REF = 0x7FF0_0000_0000_0002n
-
-/** Whether bits are a number: finite, or non-finite with the number's tag. @type {(b: Term) => Term} */
-const isNumberBits = b => if_(eq(and(b, n(EXP)), n(EXP)), eq(and(b, n(TAG8)), n(EXP)), true_)
-
-/** Whether bits are a dynamic reference. @type {(b: Term) => Term} */
-const isRefBits = b => eq(and(b, n(REF_TAG)), n(DYN_REF))
 
 /**
  * L0's kind of a scalar tag `(b >> 4) & 3`: boolean 2, undefined 0, null 1,
@@ -72,22 +45,31 @@ const scalarKind = b => let_('tag', and(shr(b, n(4n)), n(3n)), tag =>
 const stringLiteral = { variant: 'string', module: 'String', member: 'make_string' }
 
 /**
- * The interface that importers of this module see: L0's Any with `number`
- * among the copy variants, so a value narrowed to a number needs no count.
+ * The `any` that this module defines and its importers see: L0's Any with
+ * `number` among the copy variants, so a value narrowed to a number needs no
+ * count.
+ *
+ * @type {Interface['types']}
+ */
+const types = [['any', {
+    variants: kinds,
+    kind: 'kind',
+    carrier: 'i64',
+    dup: 'dup',
+    drop: 'drop',
+    copy: ['undefined', 'null', 'boolean', 'number'],
+    literal: stringLiteral,
+}]]
+
+/**
+ * The interface that importers of this module see: {@link types}, its
+ * constants and its functions.
  *
  * @type {Interface}
  */
 export const iface = {
     abi: 'fjs:l0',
-    types: [['any', {
-        variants: kinds,
-        kind: 'kind',
-        carrier: 'i64',
-        dup: 'dup',
-        drop: 'drop',
-        copy: ['undefined', 'null', 'boolean', 'number'],
-        literal: stringLiteral,
-    }]],
+    types,
     constants: [
         ['undefined', only(any, 'undefined')],
         ['null', only(any, 'null')],
@@ -107,25 +89,46 @@ export const iface = {
 }
 
 /**
- * Any's IR module: it defines `any`, imports `Ref`, and exports the
- * functions and constants of {@link iface}, plus `isRef` for proofs.
+ * How this module defines `any`: its variants, its carrier, and the hooks
+ * that tell its kind and count it. A module that defines Any for its own
+ * check, as String's IR module does, takes this one.
  *
- * @type {Module}
+ * @type {NonNullable<Module['defines']>}
  */
-export const module = {
+export const defines = { name: 'Any', types }
+
+/**
+ * The kind of a reference's bits read from its `tttt` nibble, which holds
+ * L0's kind (4 string to 8 function), with no call: bits whose nibble is
+ * none of those trap. NaNVM does not check the handle here, so the bits of
+ * a dropped reference answer the kind they had; `dup`, `drop` and `same`
+ * still go through `Ref`, which checks it. The lifetime pass and the owned
+ * check keep a checked program from reading a reference that it dropped.
+ *
+ * @type {(b: Term) => Term}
+ */
+const tagKind = b => let_('t', and(shr(b, n(48n)), n(0xFn)), t =>
+    [4n, 5n, 6n, 7n, 8n].reduceRight((rest, k) => if_(eq(t, n(k)), n(k), rest), trap('not a value')))
+
+/**
+ * The kind of a reference's bits as NaNVM answers it: `Ref.kind_ref`, which
+ * checks that the handle is live and that `tttt` is the kind it keeps for
+ * it, and traps otherwise.
+ *
+ * @type {(b: Term) => Term}
+ */
+const checkedKind = b => call('Ref', 'kind_ref', [b])
+
+/**
+ * Any's IR module with the kind of a reference given by `refKind`: it
+ * defines `any`, imports `Ref`, and exports the functions and constants of
+ * {@link iface}, plus `isRef` for proofs.
+ *
+ * @type {(refKind: (b: Term) => Term) => Module}
+ */
+const moduleOf = refKind => ({
     imports: [ref],
-    defines: {
-        name: 'Any',
-        types: [['any', {
-            variants: kinds,
-            kind: 'kind',
-            carrier: 'i64',
-            dup: 'dup',
-            drop: 'drop',
-            copy: ['undefined', 'null', 'boolean', 'number'],
-            literal: stringLiteral,
-        }]],
-    },
+    defines,
     constants: [
         ['undefined', { type: only(any, 'undefined'), value: seal(only(any, 'undefined'), n(UNDEFINED)) }],
         ['null', { type: only(any, 'null'), value: seal(only(any, 'null'), n(NULL)) }],
@@ -133,16 +136,16 @@ export const module = {
         ['true', { type: boolean, value: seal(boolean, n(TRUE)) }],
     ],
     functions: [
-        // Whether bits are a dynamic reference.
-        ['isRef', fn([['b', u(64)]], bool, b => isRefBits(b))],
+        // Whether bits are a dynamic reference: two bit operations, which the inline pass writes into each hook that asks.
+        ['isRef', hint('always', fn([['b', u(64)]], bool, b => isRefTerm(b)))],
         // Hooks over bits: count a reference through Ref, pass every other box through.
         ['dup', fn([['b', u(64)]], u(64), b => if_(call('self', 'isRef', [b]), call('Ref', 'dup_ref', [b]), b))],
         ['drop', fn([['b', u(64)]], unit, b => if_(call('self', 'isRef', [b]), call('Ref', 'drop_ref', [b]), make([])))],
-        // L0's kind from the box: numbers, short bigints, references, short strings, then scalar tags.
+        // L0's kind from the box: numbers, short bigints, references (by `refKind`), short strings, then scalar tags.
         ['kind', fn([['v', any]], int(0n, 8n), v => let_('b', unseal(v), b =>
-            if_(isNumberBits(b), n(3n),
+            if_(isNumberTerm(b), n(3n),
                 if_(eq(and(b, n(1n)), n(1n)), n(5n),
-                    if_(call('self', 'isRef', [b]), call('Ref', 'kind_ref', [b]),
+                    if_(call('self', 'isRef', [b]), refKind(b),
                         if_(ne(and(b, n(0xCn)), n(0n)), n(4n),
                             scalarKind(b)))))))],
         // A number's bits as an f64c; a float as a number's bits.
@@ -166,4 +169,21 @@ export const module = {
         'isRef', 'kind', 'to_f64', 'from_f64', 'to_bool', 'from_bool', 'same', 'dup', 'drop',
         'keep', 'take', 'forget', 'undefinedOf', 'nullOf', 'falseOf', 'trueOf',
     ],
-}
+})
+
+/**
+ * Any's IR module, which programs link: the kind of a reference is read
+ * from its bits ({@link tagKind}).
+ *
+ * @type {Module}
+ */
+export const module = moduleOf(tagKind)
+
+/**
+ * Any's IR module for a debug build: the kind of a reference is NaNVM's
+ * checked `kind_ref` ({@link checkedKind}), so a dropped or forged reference
+ * traps there too. `lower` links it where its runtime says `checkedKind`.
+ *
+ * @type {Module}
+ */
+export const checked = moduleOf(checkedKind)

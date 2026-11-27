@@ -66,7 +66,7 @@ import { decode, filesView, load as loadFiles, placeName, startupView, stat } fr
 import { spell } from '../spell/module.f.js'
 
 /** @type {State} */
-export const init = { source: ['loading'], rust: ['loading'], wat: ['loading'], wasm: ['loading'], edag: [], calls: null }
+export const init = { source: ['loading'], rust: ['loading'], wat: ['loading'], wasm: ['loading'], ir: null, edag: [], calls: null }
 
 /** How many times a timed run makes its call. */
 export const repetitions = 1000
@@ -111,8 +111,8 @@ export const edagView = text => {
  *
  * @type {(place: Place) => Effect<FetchText | Instantiate, State, never>}
  */
-export const load = place => mapStep(loadFiles(place), ({ source, rust, wat, wasm }) =>
-    ({ source, rust, wat, wasm, edag: source[0] === 'ok' ? edagView(source[1]) : [], calls: null }))
+export const load = place => mapStep(loadFiles(place), ({ source, rust, wat, wasm, ir }) =>
+    ({ source, rust, wat, wasm, ir, edag: source[0] === 'ok' ? edagView(source[1]) : [], calls: null }))
 
 /**
  * What `call_sample` answers for a call when no sample is loaded:
