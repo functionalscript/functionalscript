@@ -44,13 +44,17 @@ it counts in a header and traps on misuse. Memory enters the IR as a
 - [x] **H2c** — The Heap interface and the release arena, `module`, under
       `fjs/ir/runtime/heap`, in the IR's eDSL, with a plain FunctionalScript
       model and a host proof that runs both on the same seeded sequences
-- [ ] **H2** — The debug arena, `counted`: the header, the size word before
-      it, the traps on misuse and `live()`, proven against the model too
+- [x] **H2d** — The debug arena, `counted`: the header, the size word before
+      it, the traps on misuse and `live()`, proven against the model's map
+      from offset to block; `free` also traps on a live block and on a
+      second `free`, which it marks in the size word
 - [ ] **H3** — The first client: long strings in the IR heap, after a note on
       NaNVM holding references into it, with the root table that holds
       the references of constants and of the host
 - [ ] **H4** — Paged size classes behind the same interface, and a `recover`
-      that recounts from the roots
+      that recounts from the roots, with the record at each region's start
+      that leads a walk of every block from region to region, which the
+      debug arena takes too
 
 ### Related
 

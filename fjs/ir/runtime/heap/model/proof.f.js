@@ -3,15 +3,27 @@
  * full region grows the memory by 16 pages or by the request, new pages
  * extend the region where they follow it and start one elsewhere, and the
  * arena runs out of memory where the host refuses or past `0xFFFF_0000`.
+ * The debug arena keeps 16 bytes before each block and counts in a map
+ * from offset to block, and refuses what its WASM traps on.
  */
 
 import { assert, assertEq, assertNotNullish } from '../../../../asserts/module.f.js'
-import { alloc, other, round, start } from './module.f.js'
+import { alloc, allocCounted, block, drop, dup, free, other, round, start, startCounted } from './module.f.js'
 
 /** @typedef {import('./module.f.js').Arena} Arena */
+/** @typedef {import('./module.f.js').Counted} Counted */
 
 /** The arena and the address of a block that fits. @type {(a: Arena, n: number) => readonly [Arena, number]} */
 const allocated = (a, n) => assertNotNullish(alloc(a, n))
+
+/** The debug arena and the address of a block of type `t` that fits. @type {(c: Counted, t: number, n: number) => readonly [Counted, number]} */
+const counted = (c, t, n) => assertNotNullish(allocCounted(c, t, n))
+
+/** The block at `p` as its size, type, count and whether it was freed. @type {(c: Counted, p: number) => string} */
+const shown = (c, p) => {
+    const b = block(c, p)
+    return b === null ? 'none' : `${b.n} ${b.t} ${b.count} ${b.freed}`
+}
 
 export const proof = {
     round: () => {
@@ -68,5 +80,39 @@ export const proof = {
         assert(alloc(last, 0x8000) !== null)
         const full = assertNotNullish(start(0xFFFE, 0x1_0000))
         assertEq(alloc(full, 0x1_0000), null)
+    },
+    // The debug arena's first block starts 32 bytes into the state's page, after its size word and header, and the
+    // pointer moves past both and the rounded size.
+    counted: () => {
+        const c = assertNotNullish(startCounted(1, 0x1_0000))
+        assertEq(`${c.live} ${c.arena.top}`, '0 65552')
+        const [d, p] = counted(c, 7, 5)
+        const [e, q] = counted(d, 9, 0)
+        assertEq(`${p} ${d.arena.top} ${q} ${e.arena.top} ${e.live}`, '65568 65576 65592 65592 2')
+        assertEq(`${shown(e, p)}, ${shown(e, q)}, ${shown(e, p + 8)}`, '5 7 1 false, 0 9 1 false, none')
+        assertEq(startCounted(1, 1), null)
+    },
+    // dup adds 1, drop takes 1 and answers whether the count reached 0, and only a block at 0 takes a free, once.
+    counts: () => {
+        const [c, p] = counted(assertNotNullish(startCounted(1, 0x1_0000)), 3, 8)
+        const [d, first] = assertNotNullish(drop(assertNotNullish(dup(c, p)), p))
+        const [e, last] = assertNotNullish(drop(d, p))
+        assertEq(`${shown(d, p)}, ${first}, ${shown(e, p)}, ${last}, ${d.live} ${e.live}`, '8 3 1 false, false, 8 3 0 false, true, 1 0')
+        assertEq(shown(assertNotNullish(free(e, p)), p), '8 3 0 true')
+        // a count of 0 takes no dup and no drop, a count above 0 no free, and a freed block no second free
+        assertEq(`${dup(e, p)} ${drop(e, p)} ${free(c, p)} ${free(assertNotNullish(free(e, p)), p)}`, 'null null null null')
+        // nor does an address that no block has
+        assertEq(`${dup(c, p + 8)} ${drop(c, p - 16)} ${free(e, 0)}`, 'null null null')
+    },
+    // A block's 16 bytes count toward the region: a full region grows for a block of none, and a request that with
+    // them needs more pages than any region holds is out of memory.
+    headers: () => {
+        const c = assertNotNullish(startCounted(1, 0x1_0000))
+        const [d] = counted(c, 0, c.arena.end - c.arena.top - 16)
+        assertEq(d.arena.top, d.arena.end)
+        const [e, q] = counted(d, 0, 0)
+        assertEq(`${q - d.arena.end} ${e.arena.pages} ${e.arena.end}`, '16 18 1179648')
+        assertEq(allocCounted(c, 0, 0xFFFF_FFF8), null)
+        assertEq(alloc(assertNotNullish(start(1, 0x1_0000)), 0xFFFF_FFF8), null)
     },
 }
