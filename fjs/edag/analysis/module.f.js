@@ -712,9 +712,10 @@ const bindingError = ({ nodes, scope, member, root: program }, root = -1) => {
             return 'a group is not a value'
         }
         if (node[0] === 'self' && owner !== null) {
-            if (owner[0] === 'group' ? node.length !== 2 || !isIndex(node[1]) || node[1] >= owner[2].length : node.length !== 1) {
-                return 'invalid group self index or scope'
-            }
+            if (owner[0] === 'group') {
+                if (node.length !== 2) { return 'invalid group self index or scope' }
+                if (!isIndex(node[1]) || node[1] >= owner[2].length) { return 'invalid group self index or scope' }
+            } else if (node.length !== 1) { return 'invalid group self index or scope' }
         }
         if (node[0] === 'arg') {
             const length = owner?.[0] === 'group' ? owner[2][Number(member?.[Number(i)])][0] : owner?.[0] === '=>' ? owner[1] : 0
