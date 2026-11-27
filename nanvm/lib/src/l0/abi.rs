@@ -796,8 +796,8 @@ pub fn call(f: i64, args: i64) -> i64 {
 pub fn frame(self_: i64, i: i32) -> i64 {
     let f = super::as_function("frame", &get("frame", self_));
     let frame = A::frame(f.internal());
-    let n = frame.length().saturating_sub(1);
-    put(frame[super::index("frame", i as u32, n) + 1].clone())
+    let n = (frame.len() as u32).saturating_sub(1);
+    put(frame[super::index("frame", i as u32, n) as usize + 1].clone())
 }
 
 /// L0 `text`.

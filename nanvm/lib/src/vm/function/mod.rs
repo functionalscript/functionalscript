@@ -11,14 +11,9 @@ use crate::vm::{Any, Array, IFunction, IVm, String, error};
 /// [`IStaticFunction`](crate::vm::IStaticFunction), and [`Function::new`]
 /// wraps.
 ///
-/// Compared by identity, an `Rc` in `naive`: every construction is a new
-/// function, as JavaScript makes a new function of every evaluation of an
-/// arrow, and `(() => 1) === (() => 1)` is `false`. A built-in is no kind
-/// apart: it is a closure of the runtime value, `vm::runtime`, built once
-/// and read from the value, so `Object.is === Object.is` holds because
-/// both reads find the one closure, and its text is the NativeFunction
-/// text the compiled runtime gave it (`fjs/js/runtime/README.md`, "How
-/// NaNVM finds it").
+/// Functions compare by identity. A group member is identified by its group and
+/// its index, and a module constant by its static descriptor. A built-in read
+/// twice from the runtime is the same function.
 #[derive(Clone)]
 pub struct Function<A: IVm>(A::InternalFunction);
 
@@ -39,6 +34,10 @@ impl<A: IVm> Function<A> {
     /// function without one (`error::function_text`).
     pub fn text(&self) -> Result<String<A>, Any<A>> {
         self.0.text().ok_or_else(error::function_text)
+    }
+    /// Select a member from a compiler-created function group.
+    pub fn group_member(&self, index: usize) -> Self {
+        A::group_member(&self.0, index)
     }
     /// The VM's own value.
     pub(crate) fn internal(&self) -> &A::InternalFunction {

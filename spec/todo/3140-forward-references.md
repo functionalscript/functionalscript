@@ -236,8 +236,9 @@ language rule).
 - [ ] The language rule: consecutive function `const`s that refer to each
       other are one group, and a use of a group before its last function
       is a compilation error.
-- [ ] Every consumer of a function: the analysis, both interpreters, both
-      writers, the Rust backend and NaNVM's function value. A group of
+- [x] NaNVM function values share their group allocation and select siblings by index.
+- [ ] Every compiler consumer of a function: the analysis, both interpreters, both
+      writers and the Rust backend. A group of
       constants is written as static functions that name each other, with
       no `StaticGroup`.
 - [ ] `fjs/ebnf`: rules that name each other as functions of one group, in
