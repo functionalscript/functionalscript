@@ -150,6 +150,16 @@ const saturated = (lo, hi) => ([x]) => {
     return k < lo ? lo : hi < k ? hi : k
 }
 
+/**
+ * Whether a memory grows by `k` pages, of those that the proof asks for, on
+ * either host: 0, 1 and 2 pages fit, and 65,536 never does, since with the
+ * page or more that a memory starts with they pass the most that a 32-bit
+ * address reaches.
+ *
+ * @type {(k: _Value) => boolean}
+ */
+const grows = k => int(k) < 0x1_0000n
+
 /** What each exported function computes, on the same arguments. @type {StringMap<_Twin>} */
 const twins = {
     max: ([a, b]) => num(a) < num(b) ? b : a,
@@ -265,9 +275,8 @@ const twins = {
     stored32: ([, v]) => v,
     stored64: ([, v]) => v,
     lowFirst: ([, v]) => int(v) & 0xffffn,
-    pages: () => 1n,
-    grown: ([k]) => 1n + int(k) <= 0x1_0000n ? 1n : -1n,
-    after: ([k]) => 1n + int(k) <= 0x1_0000n ? 1n + int(k) : 1n,
+    grown: ([k]) => grows(k) ? 0n : -1n,
+    after: ([k]) => grows(k) ? int(k) : 0n,
 }
 
 /** Values of `any` for the string comparisons: strings that share a prefix, the two ends of a unit, a pair of surrogates, and values of other kinds, which trap. */
@@ -287,14 +296,13 @@ const bounds = [
 const each = xs => xs.map(x => [x])
 
 /**
- * Addresses for a store and a load of `bytes` bytes, in the one page that the
- * counting host makes for a module that asks for no data: the first byte
- * past those that the host keeps, one that is not aligned, and the last
- * place where the bytes fit.
+ * Offsets for a store and a load of `bytes` bytes, in the page that the
+ * call grows for itself: the page's first byte, one that is not aligned, and
+ * the last place where the bytes fit.
  *
  * @type {(bytes: bigint) => readonly _Value[]}
  */
-const addresses = bytes => [0x100n, 0x103n, 0x1_0000n - bytes]
+const offsets = bytes => [0n, 3n, 0x1_0000n - bytes]
 
 /** Pages to grow by: none, one, two, and more than a 32-bit address reaches, where `grow` answers `-1`. */
 const growths = each([0n, 1n, 2n, 0x1_0000n])
@@ -328,11 +336,11 @@ const inputs = {
     stringIndex: each(spellings),
     fib: each([...counts, 20, 78.5]),
     steps: each(counts),
-    stored8: product([addresses(1n), edges(u(8))]),
-    stored16: product([addresses(2n), edges(u(16))]),
-    stored32: product([addresses(4n), edges(u(32))]),
-    stored64: product([addresses(8n), edges(u(64))]),
-    lowFirst: product([addresses(8n), edges(u(64))]),
+    stored8: product([offsets(1n), edges(u(8))]),
+    stored16: product([offsets(2n), edges(u(16))]),
+    stored32: product([offsets(4n), edges(u(32))]),
+    stored64: product([offsets(8n), edges(u(64))]),
+    lowFirst: product([offsets(8n), edges(u(64))]),
     grown: growths,
     after: growths,
 }
@@ -342,8 +350,9 @@ export const proof = {
     corners: () => run(corners, twins, inputs),
     // The bit operators and a float's bits, on the edges of their types.
     bits: () => run(bits, twins, inputs),
-    // L0's Memory on the memory that the host makes: a load reads what a store wrote, of each width, the low byte
-    // first, at an address that is not aligned too, and `grow` adds pages up to the most that an address reaches.
+    // L0's Memory on the memory that either host makes, NaNVM's too: a load reads what a store wrote, of each width,
+    // the low byte first, at an offset that is not aligned too, in a page that each call grows for itself, and `grow`
+    // adds pages up to the most that an address reaches.
     addressing: () => run(addressing, twins, inputs),
     unknown: () => run(unknown, twins, inputs),
     loops: () => run(loops, twins, inputs),

@@ -140,35 +140,53 @@ export const bits = {
 /** L0's `Memory`'s function `name` of `args`, which the emitter writes as an instruction. @type {(name: string, args: readonly Term[]) => Term} */
 const memoryOf = (name, args) => call('Memory', name, args)
 
-/** A store of `n` bits of `v` at `a`, then a load of `m` bits there, which reads the store. @type {(n: number, m: number) => (a: Term, v: Term) => Term} */
-const storeThenLoad = (n, m) => (a, v) => let_('stored', memoryOf(`store${n}`, [a, v]), () => memoryOf(`load${m}`, [a]))
+/**
+ * A store of `bits` bits of `v` at offset `o` of a page that the call grows
+ * for itself, then a load of `read` bits there, which reads the store. The
+ * page starts where the memory ended before the `grow`, so it holds none of
+ * a host's bytes: NaNVM keeps its stack at the memory's start, and the
+ * counting host bytes of its own. The mask keeps the address a `u(32)`, so
+ * that it takes 32-bit instructions, and changes it only where the memory
+ * already has all 65,536 pages; a `grow` that the host refuses otherwise
+ * leaves the address past the memory, where the store traps.
+ *
+ * @type {(bits: number, read: number) => (o: Term, v: Term) => Term}
+ */
+const storeThenLoad = (bits, read) => (o, v) => let_('end', memoryOf('size', []), end =>
+    let_('grown', memoryOf('grow', [n(1n)]), () =>
+        let_('a', add(mul(and(end, n(0xFFFFn)), n(0x1_0000n)), o), a =>
+            let_('stored', memoryOf(`store${bits}`, [a, v]), () => memoryOf(`load${read}`, [a])))))
 
 /** A size of the memory in pages of 64 KiB, as `Memory` answers one. */
 const pages = int(0n, 0x1_0000n)
 
 /**
- * L0's `Memory`, alone: a store of each width and a load of the same width
- * at the same address, which answers what was stored, a load of 16 bits of
- * 64 that were stored, which answers their low 16 bits, since the low byte
- * comes first, the memory's size in pages, and a `grow`, which answers the
- * size before or `-1`, and the size after one. Each store answers `unit`,
- * which a `let` binds and nothing reads, and stays before its load.
+ * L0's `Memory`, alone, on any host's memory: a store of each width and a
+ * load of the same width at the same offset of a page that the call grows,
+ * which answers what was stored; a load of 16 bits of 64 that were stored,
+ * which answers their low 16 bits, since the low byte comes first; what a
+ * `grow` answers, the size before it, less the size that `size` answered
+ * just before, so 0, or `-1` where the host refuses; and how much a `grow`
+ * changes the size. A host decides how large its memory starts, so only
+ * changes are answered. Each store answers `unit`, which a `let` binds and
+ * nothing reads, and stays before its load.
  *
  * @type {Module}
  */
 export const addressing = {
     imports: [memory],
     functions: [
-        ['stored8', fn([['a', u(32)], ['v', u(8)]], u(8), storeThenLoad(8, 8))],
-        ['stored16', fn([['a', u(32)], ['v', u(16)]], u(16), storeThenLoad(16, 16))],
-        ['stored32', fn([['a', u(32)], ['v', u(32)]], u(32), storeThenLoad(32, 32))],
-        ['stored64', fn([['a', u(32)], ['v', u(64)]], u(64), storeThenLoad(64, 64))],
-        ['lowFirst', fn([['a', u(32)], ['v', u(64)]], u(16), storeThenLoad(64, 16))],
-        ['pages', fn([], pages, memoryOf('size', []))],
-        ['grown', fn([['k', pages]], int(-1n, 0x1_0000n), k => memoryOf('grow', [k]))],
-        ['after', fn([['k', pages]], pages, k => let_('before', memoryOf('grow', [k]), () => memoryOf('size', [])))],
+        ['stored8', fn([['o', u(16)], ['v', u(8)]], u(8), storeThenLoad(8, 8))],
+        ['stored16', fn([['o', u(16)], ['v', u(16)]], u(16), storeThenLoad(16, 16))],
+        ['stored32', fn([['o', u(16)], ['v', u(32)]], u(32), storeThenLoad(32, 32))],
+        ['stored64', fn([['o', u(16)], ['v', u(64)]], u(64), storeThenLoad(64, 64))],
+        ['lowFirst', fn([['o', u(16)], ['v', u(64)]], u(16), storeThenLoad(64, 16))],
+        ['grown', fn([['k', pages]], int(-0x1_0001n, 0x1_0000n), k => let_('before', memoryOf('size', []), before =>
+            let_('g', memoryOf('grow', [k]), g => if_(eq(g, n(-1n)), n(-1n), sub(g, before)))))],
+        ['after', fn([['k', pages]], int(-0x1_0000n, 0x1_0000n), k => let_('before', memoryOf('size', []), before =>
+            let_('grown', memoryOf('grow', [k]), () => sub(memoryOf('size', []), before))))],
     ],
-    exports: ['stored8', 'stored16', 'stored32', 'stored64', 'lowFirst', 'pages', 'grown', 'after'],
+    exports: ['stored8', 'stored16', 'stored32', 'stored64', 'lowFirst', 'grown', 'after'],
 }
 
 /**
