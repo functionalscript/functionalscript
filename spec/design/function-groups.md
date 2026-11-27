@@ -5,7 +5,7 @@ index within the group. A function body can therefore read a sibling without
 creating a back edge in its capture frame. The original proposal records the
 language designer's design of 2026-11-25. The designer approved implementation
 on 2026-11-27. [Proposal](https://github.com/functionalscript/functionalscript/pull/4120)
-and [implementation request](https://chatgpt.com/c/6b09bd1d-d70c-83e8-ac35-915adb53201e).
+and [implementation request](https://chatgpt.com/local/6b09bd1d-d70c-83e8-ac35-915adb53201e).
 
 ## Source and graph
 
