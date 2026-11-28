@@ -209,7 +209,14 @@ on NaNVM, the same as the uncurried one.
    a call that answers the next.
 4. **A known failure.** A closed node that fails is left to fail at every
    call. It could become a `throw` of the value it failed with.
-5. **A module that does not initialize in reasonable time.** A code
+5. **A function of a group.** A closed call into a
+   [function group](../../../spec/design/function-groups.md) is made like any
+   other, and a group a body builds is rebuilt with the node that reads it.
+   A function that is a member of a group, `['fn', group, index]` as a
+   value, is answered as itself: the closed nodes of a member's body are
+   not evaluated, since its captures are the group's and the other members
+   read them by the same place.
+6. **A module that does not initialize in reasonable time.** A code
    output now initializes the module, as a data output always did: a module
    whose initialization overflows the host's stack or does not end stops
    `fjs compile` for `.js` and `.rs` too, where it used to be written
@@ -246,7 +253,7 @@ on NaNVM, the same as the uncurried one.
 - [ ] Release builds of the whole compiler from the graph and from the
       value, and the start-up of each.
 - [ ] Profile the interpreter and the writers on the whole compiler.
-- [ ] Open questions 1 to 4.
+- [ ] Open questions 1 to 5.
 - [ ] Record §3's new standing in
       [`../execution-models.md`](../execution-models.md).
 

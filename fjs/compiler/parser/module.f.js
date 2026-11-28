@@ -15,6 +15,7 @@
  * @import { ValueAccess, ValueArray, ValueBinary, ValueIn, ValueInstanceOf, ValueKey, ValueCall, ValueComma, ValueConditional, ValueEntryFunction, ValueHasEntryFunction, ValueRefMap, ValueIntrinsic, ValueEntry, ValueItem, ValueMember, ValueObject, ValueStatic, ValueSpread, ValueStep, ValueUnary, _AccessFrame, _Bound, _CallFrame, _CasePath, _ChainFrame, _ChainPart, _CommaFrame, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _DeclarationKind, _Env, _Self, _Evaluated, _Frame, _ForOfFrame, _LateFrame, _LoopBodyFrame, _LoopSwitchFrame, _PatternFrame, _Plan, _Ref, _Scope, _Stack, _State } from './private.ts'
  */
 
+import { functionName, memberClosed, memberPlan, scopeAt } from './groups/module.f.js'
 import { declarations } from './declarations/module.f.js'
 import { _flattenedStandalone as flattenedStandalone, _hasArmThrow as hasArmThrow, _regionBlock as regionBlock } from './block/module.f.js'
 import { returnedBlock, hasRetainedReturn } from '../../js/ast/sugar/completion/module.f.js'
@@ -602,7 +603,7 @@ const patternRound = (stack, scope, frame) => {
 }
 
 /** A function's declaration is its self only where no parameter/local shadows it. @type {(scope: _Scope, word: string) => _Ref | null} */
-const bound = (scope, word) => at(word)(scope.names) ?? (scope.self === word
+const bound = (scope, word) => at(word)(scope.names) ?? (scope.run === undefined ? null : at(word)(scope.run.names)) ?? (scope.self === word
     ? { id: assertNotNullish(scope.selfBinding), kind: 'self', assignable: scope.selfVariable } : null)
 
 /** Retain lexical read evidence for existing capture-shadow admission, without frames. @type {(body: _Scope, word: string, outer: readonly [_Scope, _Ref]) => readonly [_Scope, _Ref]} */
@@ -1805,7 +1806,8 @@ const closed = (stack, scope, body) => {
     const value = scope.region ? ['block', body] : scope.structEq ? ['structEq'] : ['function', {
         target: scope.trace.target, length: scope.count, parameters: scope.parameters, rest: scope.rest === null ? null : expansion(scope.rest), self: scope.selfBinding, body,
     }]
-    return [stack, restoredScope(scope, !scope.region && !isCalledWhereWritten(stack)), ok(value)]
+    const outer = restoredScope(scope, !scope.region && !isCalledWhereWritten(stack))
+    return [stack, memberClosed(outer, scope), ok(value)]
 }
 
 /**
@@ -1823,6 +1825,12 @@ const loopRound = (stack, scope, frame) => {
         ? declarations(statement[1]).map(declaration => /** @type {const} */ (['const', declaration])) : [statement]) } }
     while (true) {
         const { block, index } = frame
+        const [ready, prepared] = scopeAt(scope, index, i => {
+            const item = block[Number(i)]
+            return item?.[0] === 'const' ? functionName(item[1]) : null
+        })
+        if (ready === 'error') { return [stack, scope, error(prepared)] }
+        scope = prepared
         if (index === block.length) {
             if (frame.open) { return [stack, scope, ok(['block', { statements: toArray(frame.done), exit: ['yield', undefined] }])] }
             const statements = toArray(frame.done)
@@ -1869,8 +1877,9 @@ const loopRound = (stack, scope, frame) => {
         const { target } = statement
         const value = declarationValue(statement)
         const namespace = namespaceOf(target, value)
-        const [tag, plan] = constPlan(bodyBindable(scope))(target, value, namespace)
-        if (tag === 'error') { return [stack, scope, error(plan)] }
+        const [tag, parsed] = constPlan(bodyBindable(scope))(target, value, namespace)
+        if (tag === 'error') { return [stack, scope, error(parsed)] }
+        const plan = memberPlan(scope, index, parsed)
         return [{ top: { ...frame, plan, assigned: null }, rest: stack }, declared(scope, plan, kind), declaredValue(kind, target, value, namespace, plan)]
     }
 }
@@ -2087,7 +2096,7 @@ const resolvedModule = (source, scope) => {
     const reassigned = bindings.filter(fact => fact.isMutable).map(fact => fact.id)
     const escape = scope.captures.find(capture => capture.escaped && reassigned.includes(capture.id))
     if (escape !== undefined) { return error(escape.refusal) }
-    return ok({ ...source, scope: trace, bindings, origins: scope.sourceOrigins })
+    return ok({ ...source, scope: trace, bindings, origins: scope.sourceOrigins, ...(scope.groups?.length ? { groups: scope.groups } : {}) })
 }
 
 /**
@@ -2140,7 +2149,15 @@ const foldModule = ({ imports, statements: syntaxStatements, exported, thrown: f
                 : statement.bindings.map((binding, i) => ({ ...record, name: assertNotNullish(entry(binding, 'name')), binding: ids[Number(i)] }))),
         ]
     }
-    for (const statement of statements) {
+    for (let index = 0; index <= statements.length; index += 1) {
+        const [ready, prepared] = scopeAt(scope, index, i => {
+            const item = statements[Number(i)]
+            return item?.[0] === 'const' ? functionName(item[1].declaration) : null
+        })
+        if (ready === 'error') { return error(prepared) }
+        scope = prepared
+        if (index === statements.length) { break }
+        const statement = statements[Number(index)]
         if (statement[0] === 'block') {
             if (unterminated(previous, statement[1])) { return error(unexpectedToken(statement[1].start)) }
             previous = statement[1]
@@ -2181,8 +2198,9 @@ const foldModule = ({ imports, statements: syntaxStatements, exported, thrown: f
         if (unterminated(previous, declaration)) { return error(unexpectedToken(declaration.start)) }
         previous = declaration
         const namespace = namespaceOf(target, node)
-        const [tag, plan] = constPlan(bindable(scope.names))(target, node, namespace)
-        if (tag === 'error') { return error(plan) }
+        const [tag, parsed] = constPlan(bindable(scope.names))(target, node, namespace)
+        if (tag === 'error') { return error(parsed) }
+        const plan = memberPlan(scope, index, parsed)
         const then = named ? plan.names.find(([name]) => nameOf(name) === 'then') : undefined
         if (then !== undefined) { return error({ message: 'reserved export name then', metadata: then[0].metadata }) }
         // a function that is the whole value of a declaration of one name is

@@ -7,7 +7,7 @@
  * convenience — the ordinary FunctionalScript panic `fjs/AGENTS.md` §1.5
  * describes, exactly what the `throw` cases below need.
  *
- * @import { Exp, Property, Spread } from '../types.ts'
+ * @import { Exp, Group, Property, Spread } from '../types.ts'
  * @import { Printed, Scope, Uses } from './types.ts'
  * @import { Result } from '../../types/result/types.ts'
  */
@@ -86,6 +86,18 @@ const refusalReason = e => {
 }
 
 export const proof = {
+    groupMemberTextAndBinding: () => {
+        /** @type {Group} */
+        const group = ['group', [], [[0, ['self', 1]], [0, ['self', 0]]]]
+        /** @type {Exp} */
+        const first = ['fn', group, 0]
+        const rust = unwrap(scopeTagged(first, node => node === first ? 'first' : undefined)).lines.map(untagged).join('\n')
+        assert(rust.includes('text: Some("first")'))
+        assert(rust.includes('text: Some("()=>$0")'))
+        assert(printed(first).includes('A::group_member(_self, 1)'))
+        const bad = nodeExpr(['fn', ['group', [], [[0, ['self', 2]], [0, ['self', 0]]]], 0])
+        assertEq(bad[0], 'error')
+    },
     /** Boolean is a runtime body, including inside a captured function. */
     booleanRuntime: () => {
         assertStructurallySame(scoped(['Boolean', 0]), [

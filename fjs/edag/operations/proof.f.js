@@ -59,6 +59,12 @@ const under = (runtime, node) => vm({ ...context, runtime })(node)
 const throws = ['{}', [[':', 'valueOf', ['=>', 0, [], ['throw', 'conversion']]]]]
 
 export const proof = /** @type {const} */ ({
+    groupMemberCall: () => {
+        const group = /** @type {const} */ (['group', [['+', 20, 22]], [[0, ['self', 1]], [0, ['frame', 0]]]])
+        const selected = /** @type {const} */ (['fn', group, 0])
+        eq(['()', ['()', selected, []], []], 42)
+        failure(['self', 0])
+    },
     structuralEquality: () => {
         eq(['()', ['structEq'], []], true)
         eq(['.', ['structEq'], 'length'], 2)

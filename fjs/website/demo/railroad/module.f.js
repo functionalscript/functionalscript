@@ -325,8 +325,8 @@ export const codePointGuide = 'Follow a track from left to right; a pill is text
  *
  * @type {(page: GrammarPage) => Demo<null, DemoEvent>}
  */
-export const grammarDemo = ({ grammar, definitions, alphabet, description, guide, selections }) => {
-    const [ruleSet, root, names] = toData(grammar, definitions)
+export const grammarDemo = ({ grammar, alphabet, description, guide, selections }) => {
+    const [ruleSet, root, names] = toData(grammar)
     /** @type {(rule: Rule) => string} */
     const nameOf = rule => rule === grammar ? root : assertNotNullish(mapGet(names, rule))
     /** @type {(name: string, step: string | number) => string} */

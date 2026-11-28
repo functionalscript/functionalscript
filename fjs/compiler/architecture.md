@@ -76,8 +76,11 @@ placement, capture analysis or parallel-update analysis.
 
 ## Graph and output contracts
 
-References to one binding denote one value. Distinct equal allocations and
-function constructions remain distinct. Conditional evaluation does not make
+References to one binding denote one value. The current graph builder
+preserves distinct allocation nodes. A function group is one shared node
+whose member functions are identified by index, and executors may share
+separately written functions with identical content. See
+[function groups](../../spec/bindings/constants/README.md#function-groups). Conditional evaluation does not make
 an earlier required initializer optional. A lazy-only dependency stays in the
 region where it can be reached.
 

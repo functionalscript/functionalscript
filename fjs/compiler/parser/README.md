@@ -125,6 +125,20 @@ callbacks during one ordered walk before shared binding analysis.
 Intermediate frame forwarding for a deeper closure is a graph-construction
 concern and adds no synthetic source reads.
 
+### Mutually recursive function declarations
+
+A run of consecutive named function `const` declarations reserves a binding
+identity for each member. The resolver follows actual captures, including a
+read in a default parameter or a nested closure. A forward read is admitted
+when the declarations it spans form a contiguous strongly connected component.
+The same rule applies in a module and in a function body.
+
+The resolved module records the member identities in declaration order. Sugar
+establishes their immutable FAST bindings together and marks the functions
+with that shared list. Graph construction can then distinguish a peer read
+from a capture of an enclosing value. Ordinary functions retain their usual
+self and capture bindings.
+
 ## The grammar is written down
 
 [`./grammar`](./grammar/module.f.js) holds it:

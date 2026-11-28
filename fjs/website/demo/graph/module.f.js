@@ -226,7 +226,7 @@ export const graphOf =
                 const advanced = [{ ...top, next: top.next + 1 }, rest]
                 const c = shape(child)
                 if (hasEntry(c, 'owner')) {
-                    walk = withEdge(walk, { from: top.id, to: ownerOf(advanced, c.owner), label, kind, back: true })
+                    walk = withEdge(walk, { from: top.id, to: ownerOf(advanced, c.owner), label: c.portLabel?.(label) ?? label, kind, back: true })
                     stack = advanced
                 } else if (hasEntry(c, 'inline')) {
                     walk = withEdge(walk, { from: top.id, to: c, label, kind })

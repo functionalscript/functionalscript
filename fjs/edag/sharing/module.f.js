@@ -103,7 +103,10 @@ export const visit = operands => {
  */
 const ordinaryOperandsOf = node => {
     const [id] = node
-    return id === '=>' ? /** @type {readonly unknown[]} */ (node[2])
+    return id === 'group' ? /** @type {readonly unknown[]} */ (node[1])
+        : id === 'fn' ? [node[1]]
+        : id === 'self' ? []
+        : id === '=>' ? /** @type {readonly unknown[]} */ (node[2])
         : id === 'arg' || isHelper(node) ? []
         // the constructor name is metadata, not a string-literal operand
         : id === 'instanceof' ? [node[1]]
@@ -192,7 +195,9 @@ export const operandsOf = node => isChain(node[0])
  *
  * @type {(node: readonly unknown[]) => readonly unknown[]}
  */
-export const withBodies = node => node[0] === '=>' ? [...operandsOf(node), node[3]] : operandsOf(node)
+export const withBodies = node => node[0] === '=>' ? [...operandsOf(node), node[3]]
+    : node[0] === 'group' ? [...operandsOf(node), .../** @type {readonly import('../types.ts').GroupMember[]} */ (node[2]).map(([, body]) => body)]
+    : operandsOf(node)
 
 /**
  * The distinct nodes an EDAG reaches from more than one place, in dependency

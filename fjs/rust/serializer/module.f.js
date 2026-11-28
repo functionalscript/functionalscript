@@ -358,6 +358,13 @@ const represented = (s, text) => s.native
 /** @type {(s: _Context, fn: PreparedFunction) => _StaticBindings | undefined} */
 const staticCaptures = (s, fn) => s.moduleInit === true && s.names !== undefined ? mapGet(s.names.staticFunctions, fn) : undefined
 
+/** A peer is supplied by the group on entry, so it occupies no frame slot.
+ * @type {(fn: PreparedFunction, value: Value) => number} */
+const peerIndex = (fn, value) => value instanceof Array && value[0] === 'ref' ? fn.group?.indexOf(value[1]) ?? -1 : -1
+
+/** @type {(fn: PreparedFunction) => PreparedFunction['captures']} */
+const frameCaptures = fn => fn.group === undefined ? fn.captures : fn.captures.filter(c => peerIndex(fn, c.value) < 0)
+
 /** The concrete VM needs the trait in scope for its associated functions. @type {(s: _Context) => Printed<string>} */
 const staticFunction = s => [s.native ? 'A::function_with_text' : 'A::static_function', s.native ? [['vm', 'IVm']] : []]
 
@@ -385,12 +392,21 @@ const loadStatic = (s, v) => isDescriptor(v)
 /** One callable's explicit invocation environment. @type {(s: _Context, fn: PreparedFunction) => _Context} */
 const closureContext = (s, fn) => {
     const captures = staticCaptures(s, fn)
-    const held = s.runtime === null || captures !== undefined ? null : `A::frame(_self)[${num(`${fn.captures.length}`)}]`
+    const slots = frameCaptures(fn)
+    const held = s.runtime === null || captures !== undefined ? null : `A::frame(_self)[${num(`${slots.length}`)}]`
     const bindings = [
         ...fn.parameters.map((id, i) => /** @type {const} */ ([id, argRead(i)])),
-        ...fn.captures.map((c, i) => /** @type {const} */ ([c.binding, captures === undefined
+        ...slots.map((c, i) => /** @type {const} */ ([c.binding, captures === undefined
             ? cat([['A::frame', s.native ? [['vm', 'IVm']] : []], `(_self)[${num(`${i}`)}].clone()`])
             : loadStatic(s, mapGet(captures, c.binding))])),
+        ...fn.captures.flatMap(c => {
+            const i = peerIndex(fn, c.value)
+            if (i < 0) { return [] }
+            const value = captures === undefined
+                ? cat([['A::group_member', s.native ? [['vm', 'IVm']] : []], `(_self, ${num(`${i}`)})`, toAny])
+                : loadStatic(s, mapGet(/** @type {_Names} */ (s.names).staticBindings, /** @type {readonly BindingId[]} */ (fn.group)[Number(i)]))
+            return [/** @type {const} */ ([c.binding, value])]
+        }),
         ...(fn.self === null ? [] : [/** @type {const} */ ([fn.self, cat([vm('Function'), captures === undefined ? '::new(_self.clone())' : '::from_static(_descriptor)', toAny])])]),
     ]
     return { ...s, moduleInit: false, runtime: held, bindings, captures }
@@ -756,6 +772,34 @@ const memo = (s, m) => map1((/** @type {readonly string[]} */ body) => [
     ])};`,
 ])(block(s, m.initializer, false, false, true))
 
+/** A group member is always introduced by a required definition.
+ * @type {(st: Statement) => PreparedFunction | null} */
+const definedMember = st => st[0] === 'define' && st[2] instanceof Array && st[2][0] === 'function' && st[2][1].group !== undefined
+    ? st[2][1] : null
+
+/** @type {(s: _Context, statements: readonly Statement[]) => readonly _Task[]} */
+const statementTasks = (s, statements) => statements.map((statement, i) => {
+    const member = definedMember(statement)
+    const ids = member?.group
+    if (ids === undefined || statement[1] !== ids[0]) { return { kind: 'statement', context: s, statement } }
+    const members = statements.slice(i, i + ids.length).map(st => /** @type {PreparedFunction} */ (definedMember(st)))
+    return { kind: 'statement', context: s, statement, members }
+})
+
+/** One allocation carries every entry and its shared capture frame.
+ * @type {(s: _Context, groupName: string, members: readonly PreparedFunction[]) => Result<Printed<string>, readonly unknown[]>} */
+const groupDeclaration = (s, groupName, members) => {
+    const frame = frameCaptures(members[0]).map(c => expression(s, c.value, false))
+    const held = s.runtime === null ? frame : [...frame, plain(`${s.runtime}.clone()`)]
+    const entries = members.map(fn => cat([vm('GroupEntry'), ' { code: |_self, _args| ', functionBody(s, fn),
+        `, length: ${num(`${fn.parameters.length}`)}, text: Some(${str(unwrap(stringLiteral(s.text(fn))))}) }`]))
+    return flat(map1((/** @type {readonly string[]} */ slots) => cat([
+        `${kw('let')} ${groupName} = `, ['A::function_group', s.native ? [['vm', 'IVm']] : []], '(',
+        `[${slots.join(', ')}]`,
+        ', [', ...entries.flatMap((item, i) => [i === 0 ? '' : ', ', item]), ']);',
+    ]))(all(held)))
+}
+
 /** A prepared instruction has exactly one Rust spelling. @type {(s: _Context, st: Statement) => Result<Printed<readonly string[]>, readonly unknown[]>} */
 const statement = (s, st) => ok(/** @type {Printed<readonly string[]>} */ (mapGet(/** @type {NonNullable<_Context['ready']>} */ (s.ready)[10], st)))
 
@@ -765,8 +809,8 @@ const loopText = (s, loop) => map1(parts => [`'${loopLabel(s, loop[1])}: ${kw('l
 /** One binding spelling for compiler temporaries and corpus-supplied names. @type {(name: string, mutable: boolean, value: Result<Printed<string>, readonly unknown[]>) => Result<Printed<string>, readonly unknown[]>} */
 const declaration = (name, mutable, value) => map1(text => `${kw('let')} ${mutable ? `${kw('mut')} ` : ''}${name}: Any<A> = ${text};`)(value)
 
-/** @type {(s: _Context, st: Statement) => Result<Printed<readonly string[]>, readonly unknown[]>} */
-const statementReady = (s, st) => {
+/** @type {(s: _Context, st: Statement, members?: readonly PreparedFunction[]) => Result<Printed<readonly string[]>, readonly unknown[]>} */
+const statementReady = (s, st, members) => {
     if (st[0] === 'define' && s.ownership !== undefined && mapHas(s.ownership.aliases, st[1])) { return ok(code([])) }
     const ref = namedDescriptor(s, st)
     if (ref !== undefined) {
@@ -774,6 +818,14 @@ const statementReady = (s, st) => {
         const decl = ref.definition.kind === 'Function' ? functionDeclaration(s, ref.definition.fn, name) : containerDeclaration(s, name, ref.definition)
         return map2((item, local) => [item, local])(ok(decl),
             declaration(binding(s, ref.id), false, ok(loadStatic(s, ref))))
+    }
+    const member = definedMember(st)
+    if (member?.group !== undefined && st[0] === 'define') {
+        const name = `_group${binding(s, member.group[0])}`
+        const index = member.group.indexOf(st[1])
+        const local = declaration(binding(s, st[1]), false, ok(cat([`${name}.group_member(${num(`${index}`)})`, toAny])))
+        return members === undefined ? map1(value => [value])(local)
+            : map2((decl, value) => [decl, value])(groupDeclaration(s, name, members), local)
     }
     switch (st[0]) {
         case 'define': case 'slot': { return map1(text => [text])(declaration(binding(s, st[1]), st[0] === 'slot' && st[3], expression(s, st[2], false))) }
@@ -932,12 +984,16 @@ const children = task => {
             const end = exit[0] === 'yield' ? exit[1].length === 0 ? [] : [valueTask(s, exit[1][0], task.result)]
                 : exit[0] === 'return' ? [valueTask(s, exit[2], true)]
                     : exit[0] === 'throw' ? [valueTask(s, exit[1])] : exit[0] === 'loop' ? loopTasks(s, exit) : []
-            return [...region.statements.map(statement => /** @type {_Task} */ ({ kind: 'statement', context: s, statement })), ...end]
+            return [...statementTasks(s, region.statements), ...end]
         }
         case 'statement': {
             const st = task.statement
             const ref = namedDescriptor(s, st)
             if (ref !== undefined) { return definitionTasks(s, ref.definition) }
+            if (definedMember(st) !== null) {
+                if (task.members === undefined) { return [] }
+                return [...frameCaptures(task.members[0]).map(c => valueTask(s, c.value)), ...task.members.map(fn => functionTask(s, fn))]
+            }
             switch (st[0]) {
                 case 'define': case 'slot': case 'write': { return [valueTask({ ...s, owner: st }, st[2])] }
                 case 'memo': { return [blockTask({ ...s, moduleInit: false }, st[1].initializer, false, false, true)] }
@@ -978,7 +1034,7 @@ const completed = (task, dependencies, values) => {
     switch (task.kind) {
         case 'value': { return expressionReady(s, task.value, task.result) }
         case 'block': { return blockReady(s, task.block, task.result, task.functionBody, task.valueBlock) }
-        case 'statement': { return statementReady(s, task.statement) }
+        case 'statement': { return statementReady(s, task.statement, task.members) }
         // `'steps'`, the one kind left: every task is built in this module
         default: { return stepsReady(s, task.step, task.property, task.member) }
     }
@@ -1001,18 +1057,22 @@ const spellingWalk = walk({
     },
 })
 
+/** @type {(fn: PreparedFunction) => readonly BindingId[]} */
+const invocationBindings = fn => [...fn.parameters, ...[fn.rest, fn.self].flatMap(id => id === null ? [] : [id]), ...fn.captures.map(c => c.binding)]
+
 /** Identities in one instruction, including hidden storage and invocation names. @type {(task: _Task) => readonly BindingId[]} */
 const instructionBindings = task => {
     if (task.kind === 'value') {
         const value = task.value
         if (!(value instanceof Array)) { return [] }
         if (value[0] === 'ref' || value[0] === 'demand') { return [value[1]] }
-        if (value[0] !== 'function') { return [] }
-        const fn = value[1]
-        return [...fn.parameters, ...[fn.rest, fn.self].flatMap(id => id === null ? [] : [id]), ...fn.captures.map(c => c.binding)]
+        return value[0] === 'function' ? invocationBindings(value[1]) : []
     }
     if (task.kind !== 'statement') { return [] }
     const st = task.statement
+    if (task.members !== undefined) {
+        return [.../** @type {readonly BindingId[]} */ (task.members[0].group), ...task.members.flatMap(invocationBindings)]
+    }
     switch (st[0]) {
         case 'define': case 'slot': case 'write': { return [st[1]] }
         case 'memo': { return [st[1].binding, st[1].valueSlot, st[1].doneSlot] }
@@ -1079,6 +1139,16 @@ const bodyNeedsRuntime = (s, fn) => {
     return false
 }
 
+/** Every captured slot must be expressible as static data, and the body may not
+ * depend on a runtime argument supplied at module initialization.
+ * @type {(s: _Context, known: _StaticBindings, fn: PreparedFunction) => _StaticBindings | null} */
+const constantCaptures = (s, known, fn) => {
+    const slots = frameCaptures(fn)
+    const captures = fromEntries(slots.flatMap(({ binding, value }) =>
+        staticEntry(known, value).map(item => /** @type {const} */ ([binding, item]))))
+    return size(captures) === slots.length && !bodyNeedsRuntime({ ...s, captures }, fn) ? captures : null
+}
+
 /** Target naming walks the prepared instructions, never the source graph. @type {(root: _Task) => _Names} */
 const namesOf = root => {
     /** @type {Stack<_Task | _ContainerVisit>} */
@@ -1110,6 +1180,22 @@ const namesOf = root => {
         let tail = rest
         if (root.context.native) {
             if (top.context.moduleInit && top.kind === 'statement' && top.statement[0] === 'define') {
+                if (top.members !== undefined) {
+                    const members = top.members
+                    const known = staticBindings
+                    const captures = members.map(fn => constantCaptures(top.context, known, fn))
+                    if (captures.every(member => member !== null)) {
+                        const ids = /** @type {readonly BindingId[]} */ (members[0].group)
+                        for (let i = 0; i < members.length; i += 1) {
+                            const fn = members[Number(i)]
+                            const id = ids[Number(i)]
+                            staticFunctions = mapSet(staticFunctions, fn, /** @type {_StaticBindings} */ (captures[Number(i)]))
+                            staticBindings = mapSet(staticBindings, id, { id, definition: { kind: 'Function', fn } })
+                            const text = top.context.text(fn)
+                            if (!mapHas(literals, text)) { literals = mapSet(literals, text, size(literals)) }
+                        }
+                    }
+                }
                 const [, id, value] = top.statement
                 for (const item of staticEntry(staticBindings, value)) {
                     staticBindings = mapSet(staticBindings, id, item)
@@ -1120,10 +1206,8 @@ const namesOf = root => {
                 const owner = top.context.owner
                 const def = owner?.[0] === 'define' && owner[2] === v ? owner[1] : null
                 if (v[0] === 'function') {
-                    const known = staticBindings
-                    const captures = fromEntries(v[1].captures.flatMap(({ binding, value }) =>
-                        staticEntry(known, value).map(item => /** @type {const} */ ([binding, item]))))
-                    if (size(captures) === v[1].captures.length && !bodyNeedsRuntime({ ...top.context, captures }, v[1])) {
+                    const captures = constantCaptures(top.context, staticBindings, v[1])
+                    if (captures !== null) {
                         staticFunctions = mapSet(staticFunctions, v[1], captures)
                         if (def !== null) { staticBindings = mapSet(staticBindings, def, { id: def, definition: { kind: 'Function', fn: v[1] } }) }
                     }

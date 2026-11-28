@@ -16,7 +16,7 @@ discussion does not authorize a different successful answer.
 
 | model | reuse | JavaScript identity-compatible |
 |---|---|---|
-| [Amnesia](#1-amnesia) | none | no |
+| [Amnesia](#1-amnesia) | function groups and calls returning their members | no |
 | [JS-compatible](#2-js-compatible-execution) | node identity, per function invocation | yes |
 | [Global memoization](#3-global-memoization) | node identity, across invocations | no |
 | [Content-addressable VM](#4-content-addressable-vm) | content identity | no |
@@ -35,8 +35,10 @@ keeps its value. [Program and value outputs](../../spec/command-line/output.md#e
 
 ## 1. Amnesia
 
-[Amnesia](amnesia/README.md) is a tree-walking evaluator. It remembers no node
-values: every incoming edge evaluates its target again.
+[Amnesia](amnesia/README.md) is a tree-walking evaluator. Most incoming edges evaluate
+their target again. Each group and each call result exposing one of its
+members is retained for the invocation. A peer returned by a member has the
+same identity as the corresponding projection of the original group.
 
 ```js
 const shared = ['[]', [1, 2]]

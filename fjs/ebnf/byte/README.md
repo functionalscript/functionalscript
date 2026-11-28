@@ -38,12 +38,11 @@ one `Meta<Byte>` per byte with one shared metadata record, in the shape of
 
 ## What `byteParser` refuses, and what it cannot
 
-`byteParser(rule, set, definitions)` is `parser` from [`../ll1`](../ll1/README.md) behind
+`byteParser(rule, set)` is `parser` from [`../ll1`](../ll1/README.md) behind
 a check of the grammar against the alphabet, run before any input over the
 identity map `toData` returns — the map is keyed by every rule the lowering
 met, a string literal included, so the literal is checked as the text it is;
-the payloads it does not key separately, behind a `const` thunk or a defined
-reference, are checked through the thunk or its supplied definition:
+a `const` thunk's payload is checked by calling the thunk:
 
 - a **string** that is not ASCII;
 - a **symbol** that is not a byte — negative, fractional, `-0`, or `256`

@@ -23,6 +23,7 @@ const classifications = [
     [['[]', []], true, 'object'],
     [['{}', []], true, 'object'],
     [['=>', 0, [], 0], true, 'function'],
+    [['fn', ['group', [], [[0, 1], [0, 2]]], 0], true, 'function'],
     [['entry'], true, 'function'],
     [['hasEntry'], true, 'function'],
     [['slice'], true, 'function'],
@@ -52,6 +53,13 @@ const deep = value => {
 }
 
 export const proof = {
+    indexedFunctionIdentity: () => {
+        const group = /** @type {const} */ (['group', [], [[0, ['self', 1]], [0, ['self', 0]]]])
+        const first = /** @type {const} */ (['fn', group, 0])
+        compare(first, ['fn', group, 0], true, true)
+        compare(first, ['fn', group, 1], false, false)
+        compare(first, ['fn', ['group', [], group[2]], 0], false, false)
+    },
     depth: () => {
         const left = deep(0)
         assertEq(structEq(left, deep(0)), true)

@@ -51,6 +51,9 @@ export const proof = /** @type {const} */ ({
     },
     functions: () => {
         accept(['=>', 0, [], ['undefined']])
+        accept(['fn', ['group', [7], [[0, ['self', 1]], [1, ['frame', 0]]]], 1])
+        reject(['fn', ['group', [['+', 1, 2]], [[0, 1], [1, 0]]], 0])
+        reject(['group', [], [[0, 1], [0, 2]]])
         accept(['=>', 1, [2], ['+', ['frame', 0], ['arg', 0]]])
         accept(['=>', 0, [['[]', [1]], ['=>', 0, [], 2]], ['rest']])
         // A nested function's slots are expressions in the invocation body,

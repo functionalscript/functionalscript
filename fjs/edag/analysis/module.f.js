@@ -101,7 +101,7 @@ const ref = i => ['#', i]
 export const mergeable = node => {
     if (isIntrinsic(node)) { return false }
     switch (node[0]) {
-        case '[]': case '{}': case '=>': case 'entry': case 'hasEntry': case 'structEq': case 'refMap': case '()': case '?.()': { return false }
+        case '[]': case '{}': case '=>': case 'group': case 'entry': case 'hasEntry': case 'structEq': case 'refMap': case '()': case '?.()': { return false }
         case '.': case '?.': { return node.length === 3 }
         default: { return true }
     }
@@ -217,7 +217,7 @@ const step = walk => scope => (state, k) => {
     }
 }
 
-/** An operation with no operands is its own entry. @type {_Handler<Op0, Node>} */
+/** An operation with no operands is its own entry. @type {_Handler<Op0 | import('../types.ts').IndexedSelf, Node>} */
 const o0 = () => () => (state, e) => [state, e]
 
 /** A leaf with metadata — a binding read's index — and no operand: its own entry. @type {_Handler<Arg | Frame, Node>} */
@@ -349,6 +349,24 @@ const handlers = {
         const [u, b] = walk(e)(t, body)
         return [u, ['=>', length, f, b]]
     },
+    group: walk => scope => (state, group) => {
+        const [, slots, members] = group
+        const [captured, frame] = each(walk(scope))(state, slots)
+        let current = captured
+        /** @type {readonly (readonly [number, Operand])[]} */
+        let bodies = []
+        for (let index = 0; index < members.length; index += 1) {
+            const [length, body] = members[Number(index)]
+            const [next, root] = walk({ group, index })(current, body)
+            current = isIndex(length) ? next : { ...next, problem: next.problem ?? 'invalid function length' }
+            bodies = [...bodies, [length, root]]
+        }
+        return [current, ['group', frame, bodies]]
+    },
+    fn: walk => scope => (state, [, group, index]) => {
+        const [next, owner] = walk(scope)(state, group)
+        return [next, ['fn', owner, index]]
+    },
     ',': walk => scope => (state, [, xs]) => {
         const [t, ops] = each(walk(scope))(state, xs)
         return [t, [',', ops]]
@@ -454,6 +472,8 @@ export const operandsOf = node => {
         case '{}': { return node[1].flatMap(propertyOperands) }
         case ',': { return node[1] }
         case '=>': { return [...node[2], node[3]] }
+        case 'group': { return [...node[1], ...node[2].map(([, body]) => body)] }
+        case 'fn': { return [node[1]] }
         case '.': case '?.': {
             const [, a, b, k] = node
             return [a, b, ...stepOperands(k)]
@@ -482,7 +502,7 @@ export const operandsOf = node => {
  *
  * @type {(node: Node) => readonly Operand[]}
  */
-export const ownOperandsOf = node => node[0] === '=>' ? node[2] : operandsOf(node)
+export const ownOperandsOf = node => node[0] === '=>' ? node[2] : node[0] === 'group' ? node[1] : operandsOf(node)
 
 /** One referenced entry per edge; primitive operands name no entry. @type {(node: Node) => readonly number[]} */
 const refs = node => operandsOf(node).flatMap(named)
@@ -520,7 +540,7 @@ const places = (root, nodes) => {
  */
 const sharedByIdentity = (e, visited) => {
     const entries = mapEntries(visited)
-    const shared = fromEntries([e, ...entries.flatMap(([n]) => n[0] === '=>' ? [n[3]] : [])].flatMap(sharedNodesOf).map(n => /** @type {const} */ ([n, true])))
+    const shared = fromEntries([e, ...entries.flatMap(([n]) => n[0] === '=>' ? [n[3]] : n[0] === 'group' ? n[2].map(([, body]) => body) : [])].flatMap(sharedNodesOf).map(n => /** @type {const} */ ([n, true])))
     return entries.flatMap(([n, [i]]) => mapHas(shared, n) ? [i] : [])
 }
 
@@ -554,6 +574,7 @@ export const restoreNode = (exps, node) => {
             ? ['...', restore(exps, p[1])]
             : [':', restore(exps, p[1]), restore(exps, p[2])])] }
         case '=>': { return ['=>', node[1], node[2].map(x => restore(exps, x)), restore(exps, node[3])] }
+        case 'group': { return ['group', node[1].map(x => restore(exps, x)), node[2].map(([length, body]) => [length, restore(exps, body)])] }
         case ',': { return [',', node[1].map(x => restore(exps, x))] }
         case '()': { return ['()', restore(exps, node[1]), restoreItems(exps, node[2])] }
         case '?.()': {
@@ -603,7 +624,10 @@ const table = merges => e => {
     return ok({
         root,
         nodes,
-        scope: entries.map(x => x.scope === null ? -1 : assertNotNullish(mapGet(visited, x.scope))[0]),
+        scope: entries.map(x => x.scope === null ? -1 : assertNotNullish(mapGet(visited, x.scope instanceof Array ? x.scope : x.scope.group))[0]),
+        ...(nodes.some(n => n[0] === 'group') ? {
+            member: entries.map(({ scope }) => scope !== null && !(scope instanceof Array) ? scope.index : -1),
+        } : {}),
         shared: merges ? places(root, nodes).flatMap((n, i) => n > 1 ? [i] : []) : sharedByIdentity(e, visited),
         exps: expsOf(merges, nodes, visited),
     })
@@ -641,11 +665,12 @@ export const identityAnalysis = table(false)
  * and of every function in turn: the table is read once for a kind, and
  * each function is then a lookup.
  *
- * @type {(a: Analysis, kind: Node[0]) => (i: number) => boolean}
+ * @type {(a: Analysis, kind: Node[0]) => (i: number, member?: number) => boolean}
  */
-export const scopeHolds = ({ nodes, scope }, kind) => {
+export const scopeHolds = ({ nodes, scope, member }, kind) => {
     const scopes = fromValues(nodes.flatMap((n, j) => n[0] === kind ? [scope[Number(j)]] : []))
-    return i => has(i)(scopes)
+    return (i, index) => index === undefined ? has(i)(scopes) : nodes.some((n, j) =>
+        n[0] === kind && scope[Number(j)] === i && member?.[Number(j)] === index)
 }
 
 /** Whether an entry belongs to a function or a nested body it creates. @type {(scope: readonly number[], root: number, i: number) => boolean} */
@@ -667,22 +692,45 @@ const withinScope = (scope, root, i) => {
  * complete graph.
  * @type {(a: Analysis, root?: number) => string | null}
  */
-const bindingError = ({ nodes, scope }, root = -1) => {
+const bindingError = ({ nodes, scope, member, root: program }, root = -1) => {
+    const selected = nodes[Number(root)]
+    const scopeRoot = selected?.[0] === 'fn' ? /** @type {Ref} */ (selected[1])[1] : root
     for (let i = 0; i < nodes.length; i += 1) {
         const node = nodes[Number(i)]
-        if (root !== -1 && !withinScope(scope, root, i)) { continue }
+        if (root !== -1 && i !== root && !withinScope(scope, scopeRoot, i)) { continue }
         const owner = scope[Number(i)] === -1 ? null : nodes[Number(scope[Number(i)])]
         if (node[0] === 'args' && owner !== null) { return 'module args in a function' }
         if (node[0] === 'rest' && owner === null) { return 'the arguments outside a function' }
         if (node[0] === 'self' && owner === null) { return 'self outside a function' }
         if (node[0] === '=>' && node[1] > maxLength) { return `a function length above ${maxLength}` }
+        if (node[0] === 'group') {
+            if (node[2].length < 2) { return 'a group needs at least two functions' }
+            if (node[2].some(([length]) => length > maxLength)) { return `a function length above ${maxLength}` }
+            if (program instanceof Array && program[1] === i) { return 'a group is not a value' }
+        }
+        if (node[0] === 'fn') {
+            // The schema admits only a group node in this operand position.
+            const ref = /** @type {Ref} */ (node[1])
+            const group = /** @type {Extract<Node, readonly ['group', ...readonly unknown[]]>} */ (nodes[Number(ref[1])])
+            if (!isIndex(node[2]) || node[2] >= group[2].length) { return 'invalid group function index' }
+        } else if (member !== undefined && operandsOf(node).some(x => x instanceof Array && nodes[Number(x[1])][0] === 'group')) {
+            return 'a group is not a value'
+        }
+        if (node[0] === 'self' && owner !== null) {
+            if (owner[0] === 'group') {
+                if (node.length !== 2) { return 'invalid group self index or scope' }
+                if (!isIndex(node[1]) || node[1] >= owner[2].length) { return 'invalid group self index or scope' }
+            } else if (node.length !== 1) { return 'invalid group self index or scope' }
+        }
         if (node[0] === 'arg') {
-            if (owner === null || owner[0] !== '=>' || !isIndex(node[1]) || node[1] >= owner[1]) {
+            const length = owner?.[0] === 'group' ? owner[2][Number(member?.[Number(i)])][0] : owner?.[0] === '=>' ? owner[1] : 0
+            if (!isIndex(node[1]) || node[1] >= length) {
                 return 'invalid fixed parameter index or scope'
             }
         }
         if (node[0] === 'frame') {
-            if (owner === null || owner[0] !== '=>' || !isIndex(node[1]) || node[1] >= owner[2].length) {
+            const count = owner?.[0] === 'group' ? owner[1].length : owner?.[0] === '=>' ? owner[2].length : 0
+            if (!isIndex(node[1]) || node[1] >= count) {
                 return 'invalid frame slot index or scope'
             }
         }

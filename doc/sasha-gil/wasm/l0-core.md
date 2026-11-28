@@ -105,11 +105,10 @@ into L1.
 
 ## Lifetime
 
-The heap is acyclic today. A function names itself through its `self_`,
-never through its frame, and mutual recursion between `const` declarations
-is refused
-([3140-forward-references.md](../../../spec/todo/3140-forward-references.md)).
-Reference counting is therefore sound without a cycle collector.
+A function names itself through its `self_`. Mutually recursive functions
+share a group of code entries and reach each other by index. This leaves
+the heap acyclic and allows reference counting without a cycle collector.
+[Function groups](../../../spec/design/function-groups.md).
 
 | Option | Runtime | Program |
 | --- | --- | --- |

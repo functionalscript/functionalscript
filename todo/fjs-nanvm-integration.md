@@ -1774,7 +1774,7 @@ the rows' members.
 | 27 | a global name: `Object`, `Array`, `String`, `BigInt`, `JSON`, `Math`, `Boolean`, `parseFloat`, `encodeURIComponent` ([2360](../spec/todo/2360-built-in.md), [2365](../spec/todo/2365-global-names.md)) |
 | 26 | a block whose end is reachable: a body of calls with no `return` (`assert(…)`), an `if` with no terminator, `else` among them, a `switch` with no `default` or with `break` ([3210](../spec/todo/3210-reachable-block-end.md), [3230](../spec/todo/3230-switch.md)) |
 | 19 | a property name a prototype owns: `name` 12 times, `concat`, `reduce`, `sub`, `push`, `with` |
-| 18 | a read of a later `const` ([3140](../spec/todo/3140-forward-references.md)) |
+| 18 | a read of a later `const` ([function groups](../spec/design/function-groups.md) cover mutually recursive functions) |
 | 17 | `export { … }`, with and without `from` |
 | 15 | `new Map`, `new Set` |
 | 10 | `in` |

@@ -31,7 +31,7 @@
  *
  * @module
  *
- * @import { Exp } from '../../edag/types.ts'
+ * @import { Exp, ExpOp } from '../../edag/types.ts'
  * @import { Scope } from '../../edag/rust/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { Marked } from '../../text/marked/types.ts'
@@ -73,7 +73,7 @@ const vmBound = root => holdsFunction(root) ? 'IStaticFunction' : 'IVm'
  * module's parameter, or is `null` for the runtime module itself, which
  * has none and may use nothing it defines.
  *
- * @type {(root: Exp, text: ((e: Exp) => string | undefined) | undefined, runtime: string | null, native?: boolean) => Result<Scope, readonly unknown[]>}
+ * @type {(root: Exp, text: ((e: ExpOp) => string | undefined) | undefined, runtime: string | null, native?: boolean) => Result<Scope, readonly unknown[]>}
  */
 const body = (root, text, runtime, native) => {
     const [kind, a] = okThen(checked)(analysis(root))
@@ -96,7 +96,7 @@ const body = (root, text, runtime, native) => {
  * gives its built-ins. `runtime` is the parameter's name, or `null` for
  * none.
  *
- * @type {(name: string, text: ((e: Exp) => string | undefined) | undefined, runtime: string | null, native?: boolean) => (root: Exp) => Result<{ readonly lines: readonly string[], readonly uses: Scope['uses'], readonly bound: string }, readonly unknown[]>}
+ * @type {(name: string, text: ((e: ExpOp) => string | undefined) | undefined, runtime: string | null, native?: boolean) => (root: Exp) => Result<{ readonly lines: readonly string[], readonly uses: Scope['uses'], readonly bound: string }, readonly unknown[]>}
  */
 export const itemTagged = (name, text, runtime, native = false) => root => mapOk((/** @type {Scope} */ { lines, uses }) => {
     const bound = vmBound(root)

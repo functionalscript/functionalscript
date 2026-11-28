@@ -45,13 +45,12 @@ const captureKey = (a, slot) => {
     const node = a.nodes[Number(slot[1])]
     if (node[0] === 'undefined') { return null }
     return ['arg', 'rest', 'frame', 'self'].includes(node[0])
-        ? `${node[0]}:${node[0] === 'arg' || node[0] === 'frame' ? node[1] : 0}`
+        ? `${node[0]}:${node[0] === 'arg' || node[0] === 'frame' || node[0] === 'self' && node.length === 2 ? node[1] : 0}`
         : `node:${slot[1]}`
 }
 
-/** @type {(a: Analysis, index: number, node: Extract<Node, readonly ['=>', ...unknown[]]>) => string | null} */
-const captureReason = (a, index, node) => {
-    const slots = node[2]
+/** @type {(a: Analysis, index: number, slots: readonly Operand[]) => string | null} */
+const captureReason = (a, index, slots) => {
     const names = slots.map(slot => captureKey(a, slot)).filter(key => key !== null)
     if (size(fromValues(names)) !== names.length) { return 'a frame slot that repeats another' }
     return slots.some((_, k) => !a.nodes.some((read, j) => a.scope[Number(j)] === index && read[0] === 'frame' && read[1] === k)) ? 'a frame slot the body never reads' : null
@@ -83,10 +82,12 @@ const graphRefusal = (a, module) => {
             pending = [...node[1].map(value => ({ value, module: current.module })), ...rest]
             continue
         }
-        if (node[0] === '=>') {
-            const why = captureReason(a, index, node)
+        if (node[0] === '=>' || node[0] === 'group') {
+            const slots = node[0] === '=>' ? node[2] : node[1]
+            const why = captureReason(a, index, slots)
             if (why !== null) { return [why, a.exps[Number(index)]] }
-            pending = [...node[2].map(value => ({ value, module: false })), { value: node[3], module: false }, ...rest]
+            const bodies = node[0] === '=>' ? [node[3]] : node[2].map(([, body]) => body)
+            pending = [...[...slots, ...bodies].map(value => ({ value, module: false })), ...rest]
             continue
         }
         if (node[0] === '.' || node[0] === '?.' || node[0] === '?.()') {

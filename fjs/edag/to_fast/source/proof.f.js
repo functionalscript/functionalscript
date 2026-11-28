@@ -80,6 +80,14 @@ export const proof = {
         assertEq(reason(['=>', 0, [array], ['=>', 0, [['frame', 0]], ['frame', 0]]]), null)
         assertEq(reason(['[]', [['=>', 0, [], 1], ['=>', 0, [], 1]]]), null)
     },
+    groups: () => {
+        assertEq(reason(['fn', ['group', [], [[0, ['self', 1]], [0, ['self', 0]]]], 0]), null)
+        assertEq(reason(['fn', ['group', [], [
+            [0, ['=>', 0, [['self', 0], ['self', 1]], ['[]', [['frame', 0], ['frame', 1]]]]],
+            [0, ['self', 0]],
+        ]], 0]), null)
+        assertEq(reason(['fn', ['group', [], [[0, ['self', 1]], [0, 7]]], 0]), null)
+    },
     sourceShapes: () => {
         assertEq(reason(1), null)
         assertEq(reason(['args']), 'a args node')

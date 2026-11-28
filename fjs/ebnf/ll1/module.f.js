@@ -21,7 +21,7 @@
  * @import { RangeSet } from '../../types/range_set/types.ts'
  * @import { StringSet } from '../../types/string_set/types.ts'
  * @import { Ast, Children, Meta } from '../ast/types.ts'
- * @import { Definition, Rule } from '../types.ts'
+ * @import { Rule } from '../types.ts'
  * @import { EmptyTagMap, RuleNameMap, RuleSet, RuleVisitor } from '../data/types.ts'
  * @import { FirstMap, Mapping, Parser, RewriteSet } from './types.ts'
  * @import { _FirstState, _Follows, _Frame, _Mappers, _RepeatFrame, _Visit } from './private.ts'
@@ -487,11 +487,10 @@ export const parserRuleSet = (ruleSet, entry, greedy = empty) => {
  * @param {R} rule
  * @param {RewriteSet<I, O>} [set]
  * @param {RangeSet} [greedy] Explicit FIRST/FOLLOW continuation symbols; consumption wins.
- * @param {readonly Definition[]} [definitions] Bodies of separately declared reference rules.
  * @returns {Parser<Ast<R, I, O>, I>}
  */
-export const parser = (rule, set = [], greedy = empty, definitions = []) => {
-    const [ruleSet, entry, names] = toData(rule, definitions)
+export const parser = (rule, set = [], greedy = empty) => {
+    const [ruleSet, entry, names] = toData(rule)
     return /** @type {Parser<any, any>} */ (build(ruleSet, emptyTagMap(ruleSet), entry, mappersOf(names)(set), greedy))
 }
 

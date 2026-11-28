@@ -13,7 +13,6 @@ import { one as c } from '../text/ascii/module.f.js'
 import { parser } from './ll1/module.f.js'
 import { units, utf16 } from './utf16/module.f.js'
 import {
-    define,
     eof,
     join,
     joined,
@@ -21,7 +20,6 @@ import {
     option,
     range,
     rangeEncode,
-    reference,
     remove,
     repeat,
     repeatFrom,
@@ -46,16 +44,6 @@ const boundaries = a => {
 }
 
 export const proof = {
-    referencesHaveDistinctIdentities: () => {
-        const first = reference()
-        const second = reference()
-        assert(first !== second)
-        assertStructurallySame(first(), ['ref'])
-        const body = /** @type {const} */ ({ end: null })
-        const pair = define(first)(body)
-        assertEq(pair[0], first)
-        assertEq(pair[1], body)
-    },
     // A closed two-symbol range, exclusive above: `'0'..'9'` is `[48, 58]`.
     range: () => {
         assertStructurallySame(boundaries(range('09')), [c('0'), c('9') + 1])

@@ -206,6 +206,28 @@ export const proof = {
         assert(first === pairOf)
         assert(second === five)
     },
+    group: () => {
+        // `() => { const even = …; const odd = …; return [even(2), x] }`:
+        // a closed call into a function group is made, and the group goes
+        // with the node it was read by
+        /** @type {Exp} */
+        const members = ['group', [], [
+            [1, ['?:', ['===', ['arg', 0], 0], true, ['()', ['self', 1], [['-', ['arg', 0], 1]]]]],
+            [1, ['?:', ['===', ['arg', 0], 0], false, ['()', ['self', 0], [['-', ['arg', 0], 1]]]]],
+        ]]
+        /** @type {Closure} */
+        const fn = ['=>', 1, [], ['[]', [['()', ['fn', members, 0], [2]], ['arg', 0]]]]
+        const result = closure(fn)
+        same(result, ['=>', 1, [], ['[]', [true, ['arg', 0]]]])
+        agree(fn, result, [7])
+    },
+    groupFunction: () => {
+        // a function of a group is answered as itself: nothing is
+        // precomputed in a member's body yet
+        /** @type {EdagValue} */
+        const member = ['fn', ['group', [], [[0, ['+', 2, 2]]]], 0]
+        assertEq(run(member), member)
+    },
     existing: () => {
         // what exists is never made again: a container nothing changed in
         // is itself, and beside a function that changed its neighbours are

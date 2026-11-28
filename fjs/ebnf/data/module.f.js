@@ -13,9 +13,9 @@
  *
  * @import { Entry } from '../../types/object/types.ts'
  * @import { StringSet } from '../../types/string_set/types.ts'
- * @import { DataRule, Definition, Rule as FRule, Thunk } from '../types.ts'
+ * @import { DataRule, Rule as FRule, Thunk } from '../types.ts'
  * @import { EmptyTag, EmptyTagMap, GrammarData, Rule, RuleNameMap, RuleSet, RuleVisitor, Sequence, Terminal, Variant } from './types.ts'
- * @import { _Definitions, _Lower, _Lowered, _State } from './private.ts'
+ * @import { _Lower, _Lowered, _State } from './private.ts'
  */
 
 import { assert } from '../../asserts/module.f.js'
@@ -26,7 +26,7 @@ import { entry } from '../../types/object/entry/module.f.js'
 import { fromUndefined } from '../../types/nullable/module.f.js'
 import { intersection, isRangeSet, rangeSet } from '../../types/range_set/module.f.js'
 import { contains, empty as noStrings, set as stringSetAdd } from '../../types/string_set/module.f.js'
-import { empty as emptyMap, mapGet, mapHas, mapSet } from '../../types/map/module.f.js'
+import { empty as emptyMap, mapGet, mapSet } from '../../types/map/module.f.js'
 
 const { isSafeInteger, MAX_SAFE_INTEGER } = Number
 const { entries, fromEntries, keys, is: sameValue } = Object
@@ -354,7 +354,7 @@ const lowerData = (lowerRule, state, hint, dr) => {
 /**
  * A thunk is named before its info is read, so a rule that names itself
  * finds itself. A `const` thunk *is* the rule its body spells, under the
- * thunk's name, as a `ref` is its separately supplied body; a `set` is
+ * thunk's name. A `set` is
  * clipped to the domain, which drops a generic
  * complement's `-Infinity` and anything below `0`; a `repeat` lowers its
  * item under its own name.
@@ -363,9 +363,9 @@ const lowerData = (lowerRule, state, hint, dr) => {
  * refused here rather than dropped: the data form's own arity check never
  * sees the front-end tuple, only what this emitted from it.
  *
- * @type {(lowerRule: _Lower, definitions: _Definitions, state: _State, hint: string, fr: Thunk) => _Lowered<string>}
+ * @type {(lowerRule: _Lower, state: _State, hint: string, fr: Thunk) => _Lowered<string>}
  */
-const lowerThunk = (lowerRule, definitions, state, hint, fr) => {
+const lowerThunk = (lowerRule, state, hint, fr) => {
     const name = freshName(state.taken)(hint)
     const registered = register(state, name, fr)
     const info = fr()
@@ -377,13 +377,6 @@ const lowerThunk = (lowerRule, definitions, state, hint, fr) => {
         case 'const': {
             assert(info.length === 2, ['not a const', name, info])
             const [next, rule] = lowerBody(lowerRule, registered, name, payload)
-            return [emit(next, name, rule), name]
-        }
-        case 'ref': {
-            assert(info.length === 1, ['not a reference', name, info])
-            const body = mapGet(definitions, fr)
-            assert(body !== undefined, ['undefined reference', name])
-            const [next, rule] = lowerBody(lowerRule, registered, name, body)
             return [emit(next, name, rule), name]
         }
         case 'set': {
@@ -405,29 +398,15 @@ const lowerThunk = (lowerRule, definitions, state, hint, fr) => {
  * by `===`, so a thunk, an array or an object met twice is one named rule,
  * and a number or a string met twice is one rule by value.
  *
- * @type {(definitions: _Definitions) => _Lower}
+ * @type {_Lower}
  */
-const lower = definitions => {
-    /** @type {_Lower} */
-    const rule = (state, hint, fr) => {
-        // The memo keys by SameValueZero, so `-0` would find `0`'s rule
-        // and inherit it; it is refused before the lookup, as it is everywhere.
-        assert(!sameValue(fr, -0), ['not a symbol', fr])
-        const known = mapGet(state.names, fr)
-        if (known !== undefined) { return [state, known] }
-        return typeof fr === 'function' ? lowerThunk(rule, definitions, state, hint, fr) : lowerData(rule, state, hint, fr)
-    }
-    return rule
-}
-
-/** @type {(definitions: readonly Definition[]) => _Definitions} */
-const definitionsMap = definitions => {
-    /** @type {_Definitions} */
-    const initial = emptyMap
-    return definitions.reduce((map, [reference, body]) => {
-        assert(!mapHas(map, reference), 'duplicate reference definition')
-        return mapSet(map, reference, body)
-    }, initial)
+const lower = (state, hint, fr) => {
+    // The memo keys by SameValueZero, so `-0` would find `0`'s rule
+    // and inherit it; it is refused before the lookup, as it is everywhere.
+    assert(!sameValue(fr, -0), ['not a symbol', fr])
+    const known = mapGet(state.names, fr)
+    if (known !== undefined) { return [state, known] }
+    return typeof fr === 'function' ? lowerThunk(lower, state, hint, fr) : lowerData(lower, state, hint, fr)
 }
 
 /** @type {RuleNameMap} */
@@ -447,14 +426,10 @@ const initial = { names: noNames, taken: noStrings, ruleSet: {} }
  * the identity map, never by guessing generated names. Every rule emitted
  * is reachable from the entry, since the walk from the entry is the emission.
  *
- * Definitions supply bodies for reference rules. A reached reference must
- * have exactly one definition; duplicate definitions are refused even when
- * unreachable. Unreached bodies are not lowered.
- *
- * @type {(fr: FRule, definitions?: readonly Definition[]) => GrammarData}
+ * @type {(fr: FRule) => GrammarData}
  */
-export const toData = (fr, definitions = []) => {
-    const [{ names, ruleSet }, entry] = lower(definitionsMap(definitions))(initial, '', fr)
+export const toData = fr => {
+    const [{ names, ruleSet }, entry] = lower(initial, '', fr)
     validate(ruleSet, entry)
     return [ruleSet, entry, names]
 }

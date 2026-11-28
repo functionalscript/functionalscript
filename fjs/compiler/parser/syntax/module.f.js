@@ -54,7 +54,7 @@ import { mapping, parser } from '../../../ebnf/ll1/module.f.js'
 import { entry as ownEntry, hasEntry } from '../../../types/object/entry/module.f.js'
 import { fromValues, has as setHas } from '../../../types/set/module.f.js'
 import {
-    arrayExpressionStatement, arrayStatementValue, statementContinuations, definitions, binaryOpTag, body, bodyNameStatement, callArguments, constStatement, constructorCallee, newExpression, newExpressionStatement, module, eagerTail, importBinding, importBindings,
+    arrayExpressionStatement, arrayStatementValue, statementContinuations, binaryOpTag, body, bodyNameStatement, constStatement, constructorCallee, newExpression, newExpressionStatement, module, eagerTail, importBinding, importBindings,
     importStatement, item, lastStatement, letStatement, elements, entries, entry, loopElse, loopStatement, member, moduleStatement, parameterNames, parenItems, symbolsOf, template, terminator, unary, unaryOperand, value, values,
 } from '../grammar/module.f.js'
 
@@ -1195,7 +1195,7 @@ const targetOf = ([tag, branch]) => {
 
 /**
  * Share the classic/iteration header read after preserving the target's spelling.
- * @type {(node: Children<Pick<ForHeader, 'const' | 'let'>, ModuleTokenWithMetadata, Out>) => readonly [ModuleTokenWithMetadata, PlainBindingTarget, Ast<ForNamedLetTail, ModuleTokenWithMetadata, Out>]}
+ * @type {(node: Children<Pick<ReturnType<ForHeader>[1], 'const' | 'let'>, ModuleTokenWithMetadata, Out>) => readonly [ModuleTokenWithMetadata, PlainBindingTarget, Ast<ForNamedLetTail, ModuleTokenWithMetadata, Out>]}
  */
 const forDeclarationOf = node => {
     const [kind, branch] = node
@@ -1693,9 +1693,6 @@ export const mappings = [
     map(item, toItem),
     map(values, toValues),
     map(elements, toElements),
-    // a call's arguments are that same list, reached through a rule of its
-    // own, so the same reader serves both
-    map(callArguments, toValues),
     map(member, _toMember),
     map(entry, toEntry),
     map(entries, toEntries),
@@ -1721,7 +1718,7 @@ export const mappings = [
 // The tree of a whole module is too deep a type for `tsc` to unroll
 // through `parser`'s return type (TS2589); the rule is widened to `Rule`
 // here, and `moduleAt` reads the one symbol the match is.
-const parseModule = parser(/** @type {Rule} */ (module), mappings, statementContinuations, definitions)
+const parseModule = parser(/** @type {Rule} */ (module), mappings, statementContinuations)
 
 /**
  * Reads the token list as the syntax tree of a module: the tokenizer's

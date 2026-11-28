@@ -22,11 +22,11 @@
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Ast, Meta } from '../ast/types.ts'
  * @import { Parser, RewriteSet } from '../ll1/types.ts'
- * @import { Definition, Rule, Set } from '../types.ts'
+ * @import { Rule, Set } from '../types.ts'
  * @import { Byte } from './types.ts'
  */
 
-import { assert, assertNotNullish } from '../../asserts/module.f.js'
+import { assert } from '../../asserts/module.f.js'
 import { tryFold } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { isByte } from '../../types/number/module.f.js'
@@ -179,13 +179,13 @@ const isAscii = s => codePoints(s).every(isAsciiCodePoint)
  * boundaries runs to infinity from the last one, so `['set', 256]` holds no
  * byte and every symbol above. A tuple, a variant and a repeat carry no symbol
  * of their own, and the rules under them are met on their own. A `const`
- * thunk's payload or a reference's body is not: the lowering names it under
+ * thunk's payload is not: the lowering names it under
  * the thunk and never registers it separately, so the check follows the
- * thunk or definition to a bare string or number as if it were the key.
+ * thunk to a bare string or number as if it were the key.
  *
- * @type {(rule: Rule, definitions: readonly Definition[]) => void}
+ * @type {(rule: Rule) => void}
  */
-const check = (rule, definitions) => {
+const check = rule => {
     if (typeof rule === 'string') {
         assert(isAscii(rule), ['a string in a byte grammar is ASCII', rule])
     } else if (typeof rule === 'number') {
@@ -196,10 +196,7 @@ const check = (rule, definitions) => {
             const [, ...s] = info
             assert(s.length % 2 === 0 && s.every(b => b >= 0 && b <= byteEnd), ['a set in a byte grammar holds bytes only', s])
         } else if (info[0] === 'const') {
-            check(info[1], definitions)
-        } else if (info[0] === 'ref') {
-            const [, body] = assertNotNullish(definitions.find(([reference]) => reference === rule))
-            check(body, definitions)
+            check(info[1])
         }
     }
     return undefined
@@ -213,9 +210,8 @@ const check = (rule, definitions) => {
  * The check runs over the identity map `toData` returns, which is keyed by
  * every rule the lowering met — a string literal included, so the literal
  * is checked as the text it is, before its code points become sets. The one
- * payloads the map does not key are a `const` thunk's and a reference's,
- * which the lowering names under their identities; the check follows the
- * thunk or supplied definition to each. A text
+ * payload the map does not key is a `const` thunk's, which the lowering
+ * names under the thunk. The check follows the thunk to its payload. A text
  * argument to `set` or `range` is lowered eagerly by its constructor and
  * cannot be seen here: `set('é')` reaches the map as the set `[233, 234]`,
  * which is `bytes(0xE9)` spelled another way, and is accepted as that.
@@ -230,13 +226,12 @@ const check = (rule, definitions) => {
  * @template [O=never]
  * @param {R} rule
  * @param {RewriteSet<I, O>} [set]
- * @param {readonly Definition[]} [definitions] Bodies of separately declared reference rules.
  * @returns {Parser<Ast<R, I, O>, I>}
  */
-export const byteParser = (rule, set = [], definitions = []) => {
-    const [, , names] = toData(rule, definitions)
+export const byteParser = (rule, set = []) => {
+    const [, , names] = toData(rule)
     for (const [key] of mapEntries(names)) {
-        check(key, definitions)
+        check(key)
     }
-    return parser(rule, set, [], definitions)
+    return parser(rule, set)
 }

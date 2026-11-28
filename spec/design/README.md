@@ -1,6 +1,6 @@
 # Language Specification: Design
 
-Design decisions and sketches for the unimplemented parts of the system. They
+Design decisions and sketches for the language and its implementations. They
 are not open work and carry no issue header; the open work is in
 [`spec/todo/`](../todo/README.md). The numbered ones moved from the main spec
 README and keep their old section numbers:
@@ -14,5 +14,6 @@ README and keep their old section numbers:
 |[serialization](./serialization.md)|§9 — EDAG as data, CBOR, bytecode as VM-internal|
 |[vm-command-format](./vm-command-format.md)|NPN command format of the VM|
 |[design-principles](./design-principles.md)|design principles of the "ideal" FJS `0.*`|
+|[function groups](./function-groups.md)|Mutual recursion, shared capture frames and function identity|
 |[function-frame](./3111-function-frame.md)|NaNVM function objects: frames and captured values, VM-internal|
 |[call-like-instructions](./9100-call-like-instructions.md)|VM-internal bytecode for calls|

@@ -369,12 +369,9 @@ precisely.
    case: the generator prints a function as a closure, which cannot name
    itself, so a call to `self` is `Any::call` on the value `self_` is.
 
-Mutual recursion between two independently-hashed functions (`a` calls `b`
-calls `a`) stays out of scope, exactly as the language spec currently scopes
-it out ([3140-forward-references](../../../spec/todo/3140-forward-references.md),
-edag-stage1-discussion subjects 9–10): neither `["self"]` nor this design
-reaches it, and it needs the group/hashing mechanism those documents already
-flag as open.
+Mutually recursive functions share a group. A body reads a peer by its
+index, and each function's identity includes that index and the group.
+[Function groups](../../../spec/design/function-groups.md).
 
 #### Staged plan
 
