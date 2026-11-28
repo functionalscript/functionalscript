@@ -50,6 +50,7 @@ programs faster, and a program's module functions may call themselves.
 |[`lifetime`](./lifetime/module.f.js)      |the lifetime pass: a module's plain stage to its owned stage           |
 |[`print`](./print/module.f.js)           |the IR as text, for review and golden proofs                           |
 |[`records`](./records/module.f.js)       |the records pass: an object only read back by its keys, split in locals|
+|[`inline`](./inline/module.f.js)         |the inline pass: a function's body at each call that its hint asks for |
 |[`wasm`](./wasm/module.f.js)             |the emitter, to the AST of [`fjs/media/wasm`](../media/wasm/README.md) |
 |[`from_fast`](./from_fast/README.md)      |the lowering from normalized FAST, with the types from a table         |
 |[`l0`](./l0/module.f.js)                 |the interfaces of L0 as data, and `any`, the type that they seal       |
@@ -211,9 +212,9 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
   is called by its named exports, and L0 §20's `init`, which answers the
   main module's default export, is not built yet.
 - **Constants on the host**: the [counting host](./l0/host/count/module.mjs)
-  makes Any's four constants as cells `-1` to `-4`, each counted once for
-  its global, and keeps what `init` makes, since nothing drops a constant.
-  Each call after `init` must leave every cell as `init` left it.
+  makes Any's four constants as their NaN boxes (checkpoint 4e), immutable
+  globals of those bits, and keeps what `init` makes, since nothing drops a
+  constant. Each call after `init` must leave every cell as `init` left it.
 - **The lowering of a module-level definition**: each definition of a
   module that is not a function is
   [a constant](./from_fast/README.md#constants), `#c0`, `#c1`, … by its
@@ -467,13 +468,13 @@ const bytes = write(emit(unwrap(check({ imports: [], functions: [['max', max]], 
 ## What copy variants add
 
 - **An interface's copy variants**: a counted type may name some of its
-  variants as copy, each once, as Any names `undefined`, `null` and
-  `boolean`. A value of a subset that holds only those, such as Any's
-  constants, is used as a float is: the lifetime pass writes no `dup` and
-  no `drop` of it, and the owned-stage check takes it where a parameter
-  owns its argument.
-- **The counting host** makes such values immediates: Any's constant
-  cells, whose counts a `dup` or a `drop` leaves.
+  variants as copy, each once, as Any names `undefined`, `null`,
+  `boolean` and (in the IR module) `number`. A value of a subset that holds
+  only those, such as Any's constants, is used as a float is: the lifetime
+  pass writes no `dup` and no `drop` of it, and the owned-stage check takes
+  it where a parameter owns its argument.
+- **The counting host** makes such values immediates: their NaN-box bits,
+  which a `dup` or a `drop` leaves alone.
 
 ## What 11a adds
 
@@ -724,8 +725,120 @@ The `counting` module of [`testlib.f.js`](./testlib.f.js) defines a counted
 `C.cell` whose hooks give the bits back and do nothing, so its owned stage
 runs on any engine. `referencing` defines a counted `R.ref` whose hooks
 count a NaN box's reference through `Ref` and pass any other box through,
-as Any's will; it runs on NaNVM's `.wasm`, which finds no live handle
+as Any's do; it runs on NaNVM's `.wasm`, which finds no live handle
 after it.
+
+Checkpoint 4d-2: [`runtime/any`](./runtime/any/module.f.js) is Any itself
+in the IR — `isRef`, `kind`, hooks, the scalar conversions, `same`, and the
+four constants, with `number` among the copy variants. Its proofs check the
+module; the NaNVM host proves it against L0 on the same boxes. Checkpoint
+4e links it into programs (`linkAny` after L1's `link`), moves the counting
+host to NaN boxes, and remeasures the IR benchmarks.
+
+Short strings: [`runtime/string`](./runtime/string/module.f.js) is the
+String runtime-module (manifests A/B/C, pack/unpack helpers); S2 teaches
+the host/NaNVM ABI to accept and emit short boxes; S3's `linkString`
+merges B IR `length`/`unit` after `linkAny` (long miss still imports);
+S4 remeasures `shortOps` / `repeat` under emit B in
+[benchmark.md](../../doc/sasha-gil/ir/benchmark.md)
+([short-strings.md](../../doc/sasha-gil/ir/short-strings.md)).
+
+## What L0's Memory adds
+
+The first step of the IR's heap, H1
+([heap.md](../../doc/sasha-gil/ir/heap.md#memory-in-the-ir)): memory at
+the low level, as an interface whose functions are the target's own
+instructions.
+
+- **`Memory`**, in [`l0/module.f.js`](./l0/module.f.js) beside `l0`,
+  not in it: `load8` to `load64` take an address, a `u(32)`, and answer
+  a `u(8)` to a `u(64)`, the low byte first; `store8` to `store64` take
+  an address and a value and answer `unit`; `size()` answers the
+  memory's size in 64 KiB pages, and `grow(n)` adds `n` pages and
+  answers the size before, or `-1`. None may fail: an address past the
+  memory traps, which is a misuse, as a bad reference is to `Ref`.
+- **An interface that says `instructions`** is bound by the target, not
+  by a host, and the checker takes only `Memory`, or a part of it under
+  any name, of its ABI, with no types and no constants, and each function
+  with `Memory`'s signature and marks. A host makes a literal, so a
+  function of such an interface makes none. The printer writes the flag
+  after the ABI: `import Memory from fjs:l0, instructions`.
+- **The emitter writes each call as its instruction**, at natural
+  alignment and no offset: `i32.load8_u` to `i64.load`, `i32.store8` to
+  `i64.store`, `memory.size` and `memory.grow`. It imports no function
+  and no constant for the interface, and imports the loader's memory
+  from its ABI, with a `fjs.layout` of no bytes where the module has no
+  literals. A module imports one memory, so the checker refuses one
+  whose literals are made in another ABI's, and a constant or a function
+  of Memory's ABI named `memory`. The table comes from the first
+  interface that a host binds, so a module of Memory alone keeps its own.
+- **Its calls keep their place.** A store answers `unit`, which nothing
+  reads, and must stay. No pass moves, removes or merges a call today:
+  the inline pass copies a body with its calls in order, the records pass
+  moves nothing past a call, and the lifetime pass adds only `dup`s and
+  `drop`s. A proof runs a store through all three. The first pass that
+  moves calls brings the checker's inference of Memory's effect.
+
+The `addressing` module of [`testlib.f.js`](./testlib.f.js) stores and
+loads each width and reads the low 16 bits of 64, each call in a page
+that it grows for itself, and answers how much `grow` changes the size.
+So it holds on either host's memory: the counting host's, and NaNVM's,
+whose stack takes the memory's start.
+
+## What a trap on misuse adds
+
+The first part of H2, the IR's heap
+([heap.md, open question 3](../../doc/sasha-gil/ir/heap.md#open-questions)):
+a trap that the checker does not count as failing, as
+[L0 design §11](../../doc/sasha-gil/wasm/l0-design.md#11-misuse-traps-and-only-calls-fail)
+tells misuse from failure.
+
+- **`misuse(reason)`**, in [`module.f.js`](./module.f.js), is a `trap`
+  marked `misuse`, `['trap', reason, 'misuse']`. It stands where only a
+  bug of the caller leads, or memory that cannot grow, and it traps as
+  `trap` does: the emitter writes an `unreachable`, and every pass keeps
+  the term as it is.
+- **The checker does not count it.** A function whose only traps are on
+  misuse may not fail, and neither may a call of it, so a hook may hold
+  one, as a heap's debug `drop` will on a count of 0.
+- **Any's `kind` may not fail.** Its trap on forged bits is a misuse, so
+  no function of either of Any's variants may fail, as its interface says
+  of each; before, the plain `kind` failed and the checked one, which asks
+  NaNVM's `kind_ref`, did not.
+- **The printer writes it as its builder**: `misuse('count of 0')`.
+
+## What flow refinement adds
+
+The second part of H2, the IR's heap
+([heap.md](../../doc/sasha-gil/ir/heap.md#order-of-work)), whose pointers
+are sums of `u(32)` values that a check fits back into 32 bits: rule 2 of
+[type-system.md's flow refinement](../../doc/sasha-gil/ir/type-system.md#flow-refinement-is-two-rules),
+which `narrow` and `clamp` will be written with.
+
+- **A branch on a comparison narrows its operands.** In each arm of a
+  `match` of `lt`, `le` or `eq` of two integers, an operand that is a local
+  has the range that the other operand's allows: after `lt(i, n(10n))`,
+  `i: u(8)` is `int(0, 9)` in the true arm and `int(10, 255)` in the false
+  one. An `eq` that holds leaves both in their overlap, and one that does
+  not takes the other's one value off an end: in the false arm of
+  `eq(w, n(0n))`, a `w: u(64)` is at least 1.
+- **So does a branch on its negation**: a `match` of a bool whose arms
+  answer bool literals, as `not` and `ne` write one, passes on what the
+  outcomes of its own operand teach.
+- **Nothing else narrows.** The checker keeps one range per local and
+  nothing that relates two locals, so after `lt(i, k)` it knows the range
+  of each, not that `i` is below `k`. An operand that is no local, a float
+  and an arm of both outcomes narrow nothing, and neither does a range that
+  would be empty, which no run reaches.
+- **The emitter reads a narrowed local in the narrower word.** A local
+  keeps the word of the type that it was bound at, and where its range
+  now fits 32 bits, a read of an `i64` local is followed by an
+  `i32.wrap_i64`, which keeps its value.
+
+The `narrowing` module of [`testlib.f.js`](./testlib.f.js) fits a sum of
+two `u(32)` back into one, reads a `u(64)` below 2^32 as a `u(32)`, a
+count that is not 0, and an `i(64)` from -5 to 5, and the host proof runs
+it against its twins.
 
 ## What every slice refuses
 

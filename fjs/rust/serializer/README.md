@@ -42,10 +42,14 @@ import uses; the target does not rediscover those bindings.
 
 Binding and loop target object identities determine names. Diagnostic indices
 provide readable stems, with distinct suffixes when different identities have
-equal indices. Invocation parameters and captures use their explicit argument
-and frame positions. `Options.runtime` supplies the runtime expression for
-operations that need it, and `Options.text` supplies each prepared function's
-represented source text.
+equal indices. Parameters use their argument positions. In native output a
+module-level function whose captures are all static and whose body needs no
+runtime can have a `StaticFunction` descriptor. Its body reads captured
+constants directly and loads its own descriptor for a self-reference.
+Functions created at run time read their captures by frame position.
+`Options.runtime` supplies the runtime expression for operations that need
+it, and `Options.text` supplies each prepared function's represented source
+text.
 
 A terminal loop exit uses the same labelled `loop { ... }` spelling as a loop
 statement. It is the block's final expression, with no normal result or

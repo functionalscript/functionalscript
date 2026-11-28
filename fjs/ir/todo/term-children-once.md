@@ -16,7 +16,7 @@ Around them, passes re-spell the child table for one node kind's sake:
   Only `let`, `match` and `loop` have binders; the other cases restate
   `inside`. Its answer is used as a set, so it is
   `[...binders(t), ...inside(t).flatMap(bound)]`.
-- `linkedTerm` in [`from_fast/link`](../from_fast/link/module.f.js)
+- `renamed` (the one walker that `link`, `linkAny` and `linkString` share) in [`from_fast/link`](../from_fast/link/module.f.js)
   rebuilds every node kind to change a few: `call`, `code` and
   `constant`.
 - `named` in `lifetime` threads a counter through the children of
@@ -39,8 +39,8 @@ Beside `terms`:
 - one child table, generic over the child, so `terms` and `inside` are
   one function;
 - its inverse, `withTerms(t, parts)`: the node rebuilt over new
-  children. `linkedTerm` is then the cases it changes and
-  `withTerms(t, terms(t).map(linkedTerm))`, and `named`'s pass-through
+  children. `renamed` is then the cases it changes and
+  `withTerms(t, terms(t).map(go))`, and `named`'s pass-through
   cases are its default;
 - `binders(t)`, so `bound` is one expression;
 - in `emit`, one `bodies` list that the collectors map over.

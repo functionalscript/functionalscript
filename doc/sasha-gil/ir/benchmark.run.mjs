@@ -11,10 +11,11 @@
 //
 // Then, from the repository's root:
 //
-//   node doc/sasha-gil/ir/benchmark.run.mjs          the table of times
-//   node doc/sasha-gil/ir/benchmark.run.mjs calls    L0 calls per program
-//   node doc/sasha-gil/ir/benchmark.run.mjs l0       the cost of one L0 call
-//   node --cpu-prof doc/sasha-gil/ir/benchmark.run.mjs nanvm <program>
+//   node doc/sasha-gil/ir/benchmark.run.mjs              times (emit A, always dyn-ref)
+//   node doc/sasha-gil/ir/benchmark.run.mjs table B      times with short emit (variant B)
+//   node doc/sasha-gil/ir/benchmark.run.mjs calls B      L0 calls with short emit
+//   node doc/sasha-gil/ir/benchmark.run.mjs l0           the cost of one L0 call
+//   node --cpu-prof doc/sasha-gil/ir/benchmark.run.mjs nanvm <program> [A|B]
 //                                                    one program on NaNVM, 3 s, to profile
 
 import { readFileSync } from 'node:fs'
@@ -29,6 +30,7 @@ import { counting } from '../../../fjs/ir/l0/host/count/module.mjs'
 import { nanvmHost } from '../../../fjs/ir/l0/host/nanvm/module.mjs'
 import { f64, signature } from '../../../fjs/ir/module.f.js'
 import { host as nativeHost } from '../../../fjs/ir/native/host/module.mjs'
+import { emitA, emitB, v1EnabledTags } from '../../../fjs/ir/runtime/string/short.f.js'
 import { emit } from '../../../fjs/ir/wasm/module.f.js'
 import { layoutOf } from '../../../fjs/ir/wasm/testlib.mjs'
 import * as programs from './benchmark.programs.mjs'
@@ -58,6 +60,8 @@ const plain = compile(fromText(here('./benchmark.typed.mjs'), { sumTo: signature
 
 const nanvm = nanvmHost(new WebAssembly.Module(readFileSync(here('../../../target/wasm32-unknown-unknown/release/nanvm_l0_wasm.wasm'))))
 
+/** Emit A: always dyn-ref (control). Emit B: shortWhenEnabled + v1 tags (NaNVM default). */
+
 /** Each program and its arguments: every argument is a value of `any`. */
 const cases = [
     ['sumTo', [10_000]],
@@ -65,11 +69,17 @@ const cases = [
     ['fib', [70]],
     ['readFields', [{ x: 2, y: 3 }, 10_000]],
     ['callMany', [(a, b) => a + b, 1_000]],
+    ['shortOps', ['a', 10_000]],
     ['repeat', [1_000, '']],
     ['bigSum', [1_000n, 1n]],
 ]
 
-const [mode = 'table', only] = process.argv.slice(2)
+const argv = process.argv.slice(2)
+const mode = argv[0] ?? 'table'
+const emitArg = argv.find(a => a === 'A' || a === 'B')
+const emitLabel = emitArg ?? 'A'
+const stringEmit = emitLabel === 'B' ? emitB : emitA
+const only = argv.find(a => a !== mode && a !== 'A' && a !== 'B')
 
 /** Nanoseconds a call of `f` takes: the median of batches of 10, after a warm-up. */
 const time = (f, budget = mode === 'table' ? 500 : 3000) => {
@@ -86,26 +96,28 @@ const time = (f, budget = mode === 'table' ? 500 : 3000) => {
 }
 
 /** A host whose L0 imports count their calls into `tally`. */
-const tallied = (make, tally) => (values, d, e) => {
-    const h = make(values, d, e)
+const tallied = (make, tally) => (values, d, e, se) => {
+    const h = make(values, d, e, se)
     const imports = Object.fromEntries(Object.entries(h.imports).map(([k, f]) => [k,
         typeof f !== 'function' ? f : (...xs) => {
             tally.set(k, (tally.get(k) ?? 0) + 1)
             return f(...xs)
         }]))
-    return { ...h, imports }
+    // Caller cleanup after the export returns is not a program import.
+    return { ...h, imports, dropResult: h.imports.drop }
 }
 
 /** The program `name` on a host that `make` makes, with `args` as its first values: a call of it, which reads and drops its result. */
-const onHost = (make, name, args) => {
-    const h = make(args, data, entries)
+const onHost = (make, name, args, se = stringEmit) => {
+    const h = make(args, data, entries, se)
     const { exports } = new WebAssembly.Instance(untyped, { 'fjs:l0': h.imports, 'fjs:l1-native': h.native ?? nativeHost(h.read, h.own, h.fail) })
     if (typeof exports.init === 'function') { exports.init() }
     h.keep()
+    const dropResult = h.dropResult ?? h.imports.drop
     return () => {
         const r = exports[name](...h.first)
         const v = h.read(r)
-        h.imports.drop(r)
+        dropResult(r)
         return v
     }
 }
@@ -114,6 +126,7 @@ const fmt = ns => ns >= 1e6 ? `${(ns / 1e6).toFixed(2)} ms` : ns >= 1e3 ? `${(ns
 
 const table = () => {
     const { exports } = new WebAssembly.Instance(plain, {})
+    console.log(`emit ${emitLabel} (${stringEmit.kind}${emitLabel === 'B' ? `, tags ${v1EnabledTags.join('/')}` : ''})`)
     console.log('| Program | JavaScript | Typed IR as WASM | IR on NaNVM\'s .wasm | IR on the counting host | NaNVM / JavaScript | Counting / NaNVM |')
     console.log('| --- | --- | --- | --- | --- | --- | --- |')
     for (const [name, args] of cases) {
@@ -135,6 +148,7 @@ const table = () => {
 }
 
 const calls = () => {
+    console.log(`emit ${emitLabel} (${stringEmit.kind}${emitLabel === 'B' ? `, tags ${v1EnabledTags.join('/')}` : ''})`)
     console.log('| Program | L0 calls | Most called |')
     console.log('| --- | --- | --- |')
     for (const [name, args] of cases) {
@@ -178,7 +192,7 @@ const l0 = () => {
 const profile = () => {
     const found = cases.find(([k]) => k === only)
     if (found === undefined) { throw new Error(`no program ${only}`) }
-    console.log(only, fmt(time(onHost(nanvm, ...found))))
+    console.log(only, `emit ${emitLabel}`, fmt(time(onHost(nanvm, ...found))))
 }
 
 const modes = { table, calls, l0, nanvm: profile }

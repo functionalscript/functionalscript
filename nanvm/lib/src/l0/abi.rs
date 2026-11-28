@@ -13,12 +13,17 @@
 //!   choices 1 and 2 say. A number is its own `f64` bits, with one NaN,
 //!   and `undefined`, `null`, `false` and `true` are the four constants:
 //!   these take no slot, `dup` answers them as they are and `drop` leaves
-//!   them alone. Every other value is a reference,
-//!   `0x7FF | kind << 48 | handle << 2`: `kind` is L0's kind, and the
-//!   handle is an index into a table of `naive` values, 32 bits, with the
-//!   slot's generation in the 14 above, so a handle used after its `drop`
-//!   traps even when its slot holds a new value. A reference is one owned
-//!   handle: `dup` makes a new one and `drop` frees one.
+//!   them alone. A well-formed **short string** is the same: the ABI
+//!   **accepts** every Sergey short-string tag
+//!   ([short-strings.md](../../../../doc/sasha-gil/ir/short-strings.md) S2);
+//!   [`set_string_emit`] takes a bit mask of enabled tags (`0` = always
+//!   dyn-ref / variant A; non-zero = B/C when a set bit's tag fits), and a
+//!   miss stays a dyn-ref. Every other value is a
+//!   reference, `0x7FF | kind << 48 | handle << 2`: `kind` is L0's kind,
+//!   and the handle is an index into a table of `naive` values, 32 bits,
+//!   with the slot's generation in the 14 above, so a handle used after
+//!   its `drop` traps even when its slot holds a new value. A reference
+//!   is one owned handle: `dup` makes a new one and `drop` frees one.
 //! - **A builder is an `i32` handle,** an index into a table of open
 //!   builders, with a generation the same way.
 //! - **Bytes** cross through [`with_memory`], which stands in for the
@@ -46,6 +51,7 @@
 //! the memory, `out of bounds`.
 
 pub mod native;
+pub mod short;
 #[cfg(test)]
 mod test;
 
@@ -59,7 +65,7 @@ use super::{Builder, trap};
 use crate::common::sized_index::SizedIndex;
 use crate::{
     naive::Naive,
-    vm::{Any, Array, Function, IVm, ToAny, ToArray},
+    vm::{Any, Array, Function, IVm, ToAny, ToArray, ToString},
 };
 
 type A = Naive;
@@ -127,7 +133,14 @@ fn inline_kind(h: i64) -> Option<super::Kind> {
         UNDEFINED => Some(super::Kind::Undefined),
         NULL => Some(super::Kind::Null),
         FALSE | TRUE => Some(super::Kind::Boolean),
-        _ => None,
+        _ => {
+            let x = h as u64;
+            if short::is_short(x) {
+                short::tag_of(x).map(|_| super::Kind::String)
+            } else {
+                None
+            }
+        }
     }
 }
 
@@ -142,6 +155,9 @@ fn unbox(h: i64) -> Option<Boxed> {
         NULL => return Some(Boxed::Inline(super::null())),
         FALSE | TRUE => return Some(Boxed::Inline(super::from_bool(h == TRUE))),
         _ => {}
+    }
+    if short::is_short(x) {
+        return short::unpack(x).map(|units| Boxed::Inline(units.to_string().to_any()));
     }
     (x & REF_TAG == DYN_REF).then_some(Boxed::Ref {
         handle: (x >> 2) & ((1 << (INDEX_BITS + GENERATION_BITS)) - 1),
@@ -259,6 +275,9 @@ struct State {
     marks: Vec<u64>,
     /// The value of the last [`throw`], and the births before it.
     thrown: Option<(V, u64)>,
+    /// Bit mask of short tags allocating string ops may emit (`0` = always
+    /// dyn-ref / variant A; see [`short::tags_from_mask`]).
+    string_emit_mask: u32,
 }
 
 impl State {
@@ -283,8 +302,17 @@ impl State {
             births: 0,
             marks: Vec::new(),
             thrown: None,
+            string_emit_mask: 0,
         }
     }
+}
+
+/// String emit policy for allocating L0 string imports: `0` is variant A
+/// (always dyn-ref); a non-zero mask enables short emit for the tags whose
+/// bits are set ([`short::ALL_TAGS`] order), matching the counting host's
+/// `enabledTags`.
+pub fn set_string_emit(mask: u32) {
+    with(|s| s.string_emit_mask = mask);
 }
 
 /// The state, and whether a change of it is under way. A `RefCell` would
@@ -411,7 +439,8 @@ fn take(name: &str, h: i64) -> V {
 }
 
 /// A new owned box: a number, `undefined`, `null` and the booleans are
-/// their own bits, so they never take a slot.
+/// their own bits, so they never take a slot. A string may be a short box
+/// when [`set_string_emit`] enables a tag that fits.
 fn put(v: V) -> i64 {
     let kind = super::kind(&v);
     match kind {
@@ -419,6 +448,21 @@ fn put(v: V) -> i64 {
         super::Kind::Null => return NULL,
         super::Kind::Boolean => return from_bool(super::to_bool(&v) as i32),
         super::Kind::Number => return number(super::to_f64(&v)),
+        super::Kind::String => {
+            let mask = with(|s| s.string_emit_mask);
+            if mask != 0 {
+                let enabled = short::tags_from_mask(mask);
+                let len = super::length(&v) as usize;
+                // Skip the unit copy when no enabled tag can hold `len`.
+                if short::max_enabled_len(&enabled).is_some_and(|max| len <= max) {
+                    let mut units: Vec<u16> = core::iter::repeat_n(0, len).collect();
+                    super::read_units(&v, 0, &mut units);
+                    if let Some(bits) = short::pack_enabled(&units, &enabled) {
+                        return bits as i64;
+                    }
+                }
+            }
+        }
         _ => {}
     }
     let handle = with(|s| {
@@ -796,8 +840,8 @@ pub fn call(f: i64, args: i64) -> i64 {
 pub fn frame(self_: i64, i: i32) -> i64 {
     let f = super::as_function("frame", &get("frame", self_));
     let frame = A::frame(f.internal());
-    let n = frame.length().saturating_sub(1);
-    put(frame[super::index("frame", i as u32, n) + 1].clone())
+    let n = (frame.len() as u32).saturating_sub(1);
+    put(frame[super::index("frame", i as u32, n) as usize + 1].clone())
 }
 
 /// L0 `text`.

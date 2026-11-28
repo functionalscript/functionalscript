@@ -11,6 +11,9 @@
  * and one that counts the type that it defines does so through `Ref`,
  * NaNVM's functions of references, with no leak and no double drop
  * ([checkpoint 4d-1](../../../../../doc/sasha-gil/ir/defined-hooks.md)).
+ * Any's own module in the IR
+ * ([checkpoint 4d-2](../../../../../doc/sasha-gil/ir/defined-hooks.md#steps))
+ * agrees with L0 on the same boxes.
  *
  * NaNVM's `.wasm` is built first, by
  *
@@ -35,6 +38,8 @@ import { referencing, sealing } from '../../../testlib.f.js'
 import { write } from '../../../../media/wasm/binary/write/module.f.js'
 import { check } from '../../../check/module.f.js'
 import { lifetime as lifetimePass } from '../../../lifetime/module.f.js'
+import { module as anyModule } from '../../../runtime/any/module.f.js'
+import { isShort, packEnabled, v1EnabledTags } from '../../../runtime/string/short.f.js'
 import { emit } from '../../../wasm/module.f.js'
 import { held, onHost, run } from '../../../wasm/testlib.mjs'
 import { proof as wasm } from '../../../wasm/proof.mjs'
@@ -184,7 +189,13 @@ test('a module that defines Any sees the NaN boxes', () => {
         carrierOf: ([v]) => boxed(held(v)),
         isReference: ([v]) => {
             const x = held(v)
-            return x !== null && ['string', 'bigint', 'object', 'function'].includes(typeof x)
+            if (x === null) { return false }
+            // Short strings are scalar boxes under emit B (NaNVM default); long stay refs.
+            if (typeof x === 'string') {
+                const units = [...x].map(ch => /** @type {number} */ (ch.codePointAt(0)))
+                return packEnabled(units, v1EnabledTags)[0] === 'error'
+            }
+            return ['bigint', 'object', 'function'].includes(typeof x)
         },
         boxOf: ([x]) => ({ any: x }),
     }, {}))
@@ -217,6 +228,91 @@ test('a module that counts the type it defines counts NaNVM references through i
         const moved = call('take', h.imports.dup(v))
         if (typeof moved !== 'bigint') { throw ['take', moved] }
         h.imports.drop(moved)
+    }
+    const cells = h.live()
+    if (cells.length !== 0) { throw ['leaked', cells] }
+})
+
+test("Any's IR module agrees with L0 on NaNVM and leaks no reference", () => {
+    const owned = lifetimePass(anyModule)
+    if (owned[0] === 'error') { throw owned[1] }
+    const checked = check(owned[1])
+    if (checked[0] === 'error') { throw checked[1] }
+    const compiled = new WebAssembly.Module(new Uint8Array(write(emit(checked[1]))))
+    const values = [undefined, null, false, true, 0, -0, 1.5, NaN, Infinity, -Infinity, 'ab', 12345678901234567890n, [1, 2], { x: 1 }, () => 0]
+    const h = host(values)
+    const { exports } = new WebAssembly.Instance(compiled, { 'fjs:l0': h.imports })
+    if (typeof exports.init === 'function') { exports.init() }
+    h.keep()
+    /** @type {(name: string, ...args: readonly unknown[]) => unknown} */
+    const call = (name, ...args) => {
+        const f = exports[name]
+        if (typeof f !== 'function') { throw name }
+        return f(...args)
+    }
+    // the four constants are the NaN boxes L0 uses (i64 as signed bigint)
+    for (const [name, bits] of /** @type {const} */ ([
+        ['undefinedOf', 0x7FF0_0000_0000_0020n],
+        ['nullOf', 0x7FF0_0000_0000_0030n],
+        ['falseOf', 0x7FF0_0000_0000_0010n],
+        ['trueOf', 0xFFF0_0000_0000_0010n],
+    ])) {
+        const want = BigInt.asIntN(64, bits)
+        if (call(name) !== want) { throw [name, call(name), want] }
+    }
+    // kind, and the scalar conversions, agree with L0 on every first cell
+    for (const v of h.first) {
+        if (call('kind', v) !== h.imports.kind(v)) { throw ['kind', v, call('kind', v), h.imports.kind(v)] }
+        const k = h.imports.kind(v)
+        if (k === 3) {
+            const got = call('to_f64', v)
+            const want = h.imports.to_f64(v)
+            if (!Object.is(got, want)) { throw ['to_f64', v, got, want] }
+        }
+        if (k === 2) {
+            if (call('to_bool', v) !== h.imports.to_bool(v)) { throw ['to_bool', v] }
+        }
+        // isRef matches dyn-ref boxes; short-string scalars (kind 4) are not refs.
+        const ref = k >= 4 && !isShort(BigInt.asUintN(64, /** @type {bigint} */ (v)))
+        if ((call('isRef', v) === 1) !== ref) { throw ['isRef', v, k, call('isRef', v)] }
+    }
+    // from_f64 / from_bool round-trip through L0's view
+    for (const x of [0, -0, 1.5, NaN, Infinity, -Infinity, 1e-300, 1e300]) {
+        const a = call('from_f64', x)
+        const b = h.imports.from_f64(x)
+        if (typeof a !== 'bigint' || a !== b) { throw ['from_f64', x, a, b] }
+        if (!Object.is(call('to_f64', a), h.imports.to_f64(b))) { throw ['from_f64 round', x] }
+        h.imports.drop(/** @type {bigint} */ (a))
+    }
+    for (const b of /** @type {const} */ ([0, 1])) {
+        const a = call('from_bool', b)
+        const c = h.imports.from_bool(b)
+        if (a !== c) { throw ['from_bool', b, a, c] }
+        if (call('to_bool', a) !== h.imports.to_bool(c)) { throw ['from_bool round', b] }
+    }
+    // a non-0/1 i32 still selects the true box, as L0's from_bool does
+    if (call('from_bool', 7) !== h.imports.from_bool(1)) { throw ['from_bool', 7] }
+    // same agrees with L0 on pairs of array/object/function; hooks copy and drop every reference with no leak
+    const containers = h.first.filter(v => h.imports.kind(v) >= 6)
+    for (const a of containers) {
+        for (const b of containers) {
+            if (call('same', a, b) !== h.imports.same(a, b)) { throw ['same', a, b] }
+        }
+    }
+    for (const a of h.first.filter(v => h.imports.kind(v) >= 4)) {
+        const copy = call('keep', a)
+        if (typeof copy !== 'bigint') { throw ['keep', copy] }
+        if (h.imports.kind(a) >= 6 && call('same', a, copy) !== 1) { throw ['same after keep', a, copy] }
+        if (call('forget', copy) !== 1) { throw 'forget' }
+        const moved = call('take', h.imports.dup(a))
+        if (typeof moved !== 'bigint') { throw ['take', moved] }
+        h.imports.drop(moved)
+    }
+    // numbers and other scalars: keep/forget through hooks that pass bits through
+    for (const v of h.first.filter(x => h.imports.kind(x) <= 3)) {
+        const copy = call('keep', v)
+        if (copy !== v) { throw ['keep scalar', v, copy] }
+        if (call('forget', copy) !== 1) { throw 'forget scalar' }
     }
     const cells = h.live()
     if (cells.length !== 0) { throw ['leaked', cells] }

@@ -3,14 +3,15 @@
  */
 
 import { assert, assertEq, assertError, assertNotNullish, assertOk } from '../../asserts/module.f.js'
-import { any, builder, l0, ref, string } from '../l0/module.f.js'
+import { any, builder, l0, memory, ref, string } from '../l0/module.f.js'
 import {
-    add, and, block, bool, br, call, call_ref, canon, cast, code, codeOf, constant, countsBits, definedBy, div, eq, f64, f64c, field, float, fn, from_bits, get, i, if_, int,
-    let_, lit, loop, lt, make, match, mayFail, mul, n, neg, never, next, only, or, own, product, release, return_, seal, sealed, shl, shr, signature, sub,
+    add, and, block, bool, br, call, call_ref, canon, cast, code, codeOf, constant, countsBits, definedBy, div, eq, f64, f64c, field, float, fn, from_bits, get, hint, i, if_, int,
+    le, let_, lit, loop, lt, make, match, mayFail, misuse, mul, n, ne, neg, never, next, not, only, or, own, product, release, return_, seal, sealed, shl, shr, signature, sub,
     throw_, to_bits, trap, true_, trunc_sat, u, unit, unseal, variant, xor,
 } from '../module.f.js'
 import { show } from '../print/module.f.js'
 import { bits, constants, corners, counting, loops, records, referencing, samples, sealing, tagging, throws, unknown } from '../testlib.f.js'
+import { module as anyModule } from '../runtime/any/module.f.js'
 import { check, checkPlain, typeOf } from './module.f.js'
 
 /** A module of one function, `f`. @type {(params: readonly Param[], result: Type, body: Term) => Module} */
@@ -416,6 +417,52 @@ export const proof = {
         assertEq(why(one(b, f64, if_(get('b'), one_, true_))), 'f: match: its arms are f64c, bool, which no one type holds')
         assertEq(why(one(b, u(64), if_(get('b'), n(-1n), lit(u(64), 1n)))), 'f: match: int(-1, 18446744073709551615) needs more than one word')
     },
+    // A branch on a comparison of integers sees each operand that is a local at the range that the other's allows,
+    // and so does a branch on its negation; nothing else narrows a local.
+    refinement: () => {
+        const s = get('s')
+        const k = get('k')
+        const b = get('b')
+        const p = /** @type {const} */ ([['s', u(8)], ['k', int(0n, 100n)], ['b', u(64)], ['x', f64]])
+        /** The type of a body over `p`. @type {(body: Term) => string} */
+        const typed = body => bodyType(one(p, u(64), body))
+        // lt and le, in either branch, with the local on either side
+        assertEq(typed(if_(lt(s, n(10n)), s, n(0n))), 'int(0, 9)')
+        assertEq(typed(if_(lt(s, n(10n)), n(10n), s)), 'int(10, 255)')
+        assertEq(typed(if_(le(s, n(10n)), s, n(0n))), 'int(0, 10)')
+        assertEq(typed(if_(le(s, n(10n)), n(11n), s)), 'int(11, 255)')
+        assertEq(typed(if_(lt(n(10n), s), s, n(11n))), 'int(11, 255)')
+        assertEq(typed(if_(le(n(10n), s), n(9n), s)), 'int(0, 9)')
+        // both operands are locals, each bounded by the other's range
+        assertEq(typed(if_(lt(s, k), s, n(0n))), 'int(0, 99)')
+        assertEq(typed(if_(lt(s, k), k, n(1n))), 'int(1, 100)')
+        assertEq(typed(if_(lt(s, k), n(0n), k)), 'int(0, 100)')
+        assertEq(typed(if_(le(s, k), n(101n), s)), 'int(1, 255)')
+        assertEq(typed(if_(le(s, k), n(0n), k)), 'int(0, 100)')
+        // an eq that holds leaves the overlap; one that does not takes a single value off an end only
+        assertEq(typed(if_(eq(s, n(3n)), s, n(3n))), 'int(3, 3)')
+        assertEq(typed(if_(eq(s, k), s, n(0n))), 'int(0, 100)')
+        assertEq(typed(if_(eq(b, n(0n)), n(1n), b)), 'int(1, 18446744073709551615)')
+        assertEq(typed(if_(eq(n(255n), s), n(0n), s)), 'int(0, 254)')
+        assertEq(typed(if_(eq(s, n(3n)), n(0n), s)), 'u(8)')
+        assertEq(typed(if_(eq(s, k), n(0n), s)), 'u(8)')
+        // a negation, as not and ne write it, swaps the branches; refinements nest
+        assertEq(typed(if_(ne(b, n(0n)), b, n(1n))), 'int(1, 18446744073709551615)')
+        assertEq(typed(if_(not(lt(s, n(10n))), s, n(10n))), 'int(10, 255)')
+        assertEq(typed(if_(lt(s, n(10n)), if_(le(n(5n), s), s, n(5n)), n(5n))), 'int(5, 9)')
+        // a 33-bit sum that its check fits back into 32 bits, as an allocator's pointer
+        assertEq(bodyType(one([['a', u(32)], ['c', u(32)]], u(32), let_('q', add(get('a'), get('c')), q => if_(le(q, n(0xFFFF_FFFFn)), q, n(0n))))), 'u(32)')
+        // nothing else narrows: an empty range, floats, an operand that is no local, an arm of both outcomes,
+        // and a match whose arms are not all bool literals
+        assertEq(typed(if_(lt(s, n(0n)), s, n(0n))), 'u(8)')
+        assertEq(bodyType(one(p, f64, if_(lt(x, one_), x, one_))), 'f64')
+        assertEq(typed(if_(lt(add(s, n(1n)), n(10n)), s, n(0n))), 'u(8)')
+        assertEq(typed(match(lt(s, n(10n)), [[null, null, s]])), 'u(8)')
+        assertEq(typed(if_(match(lt(s, n(10n)), [[['true'], null, true_], [['false'], null, lt(s, n(5n))]]), s, n(0n))), 'u(8)')
+        assertEq(typed(if_(match(lt(s, n(10n)), [[['true'], null, true_], [['false'], null, true_]]), s, n(0n))), 'u(8)')
+        // without the check, the sum is refused
+        assertEq(why(one([['a', u(32)], ['c', u(32)]], u(32), add(get('a'), get('c')))), 'f: the body is int(0, 8589934590), not u(32)')
+    },
     block: () => {
         assertEq(why(one([], f64, block('l', f64, block('l', f64, one_)))), 'f: the label l is in scope already')
         assertEq(why(one([], f64, block('return', f64, one_))), 'f: the label return is in scope already')
@@ -614,6 +661,64 @@ export const proof = {
         assertEq(assertError(typeOf({ ...scope, locals: [], result: unit })(one_)), 'f: unit is not in this slice')
         assertEq(assertError(typeOf({ ...scope, locals: [], functions: [['g', signature([['b', unit]], f64)]] })(one_)), 'g: unit is not in this slice')
     },
+    // L0's Memory says instructions, so the target binds its functions with instructions of its own, and an interface
+    // that says so is Memory or a part of it, with its ABI and its signatures, under any name
+    // (heap.md, Memory in the IR). The memory that its functions touch is the loader's, from its ABI.
+    memory: () => {
+        const [, { functions: all }] = memory
+        const pages = int(0n, 0x1_0000n)
+        // Loads, stores, size and grow are calls that cannot fail, so neither can a function that makes them.
+        assertEq(assertOk(check({
+            imports: [memory],
+            functions: [
+                ['peek', fn([['a', u(32)]], u(8), a => call('Memory', 'load8', [a]))],
+                ['poke', fn([['a', u(32)], ['v', u(64)]], u(64), (a, v) => let_('stored', call('Memory', 'store64', [a, v]), () => call('Memory', 'load64', [a])))],
+                ['grown', fn([], pages, let_('before', call('Memory', 'grow', [n(1n)]), () => call('Memory', 'size', [])))],
+            ],
+            exports: [],
+        })).functions.map(([k, f]) => `${k}: ${show(f.body[0])} ${f.fails}`).join(', '), 'peek: u(8) false, poke: u(64) false, grown: int(0, 65536) false')
+        /** The part of Memory of the functions that `names` names. @type {(names: readonly string[]) => Interface} */
+        const part = names => ({ abi: 'fjs:l0', instructions: true, types: [], functions: all.filter(([k]) => names.includes(k)) })
+        // A part of Memory under a name of its own says instructions too, beside Memory or alone, and the names of
+        // its parameters are its own.
+        assertOk(check({ imports: [memory, ['Bytes', part(['load8', 'store8'])]], functions: [['f', fn([['a', u(32)]], u(8), a => call('Bytes', 'load8', [a]))]], exports: [] }))
+        const load8 = signature([['a', u(32)]], u(8))
+        assertOk(check(importing({ ...part([]), functions: [['load8', signature([['address', u(32)]], u(8))]] })))
+        /** Why the checker refuses `part(['load8'])` with `i` over it, beside L0. @type {(i: Partial<Interface>) => string} */
+        const bad = i => why(importing({ ...part(['load8']), ...i }))
+        assertEq(bad({ abi: 'test:bad' }), "Bad says instructions, so it is L0's Memory, of fjs:l0, not of test:bad")
+        const unmade = 'Bad says instructions, so it has no types and no constants, which the target would not make'
+        assertEq(bad({ types: [['t', { variants: ['a'], carrier: 'i32' }]] }), unmade)
+        assertEq(bad({ constants: [['c', f64]] }), unmade)
+        assertEq(bad({ functions: [['peek', load8]] }), "Bad says instructions, and peek is no function of L0's Memory, which the target binds")
+        /** Why Bad's `load8`, shown as `s`, is not Memory's. @type {(s: string) => string} */
+        const unlike = s => `Bad.load8 is L0's Memory.load8, which is (a: u(32)) -> u(8), not ${s}`
+        assertEq(bad({ functions: [['load8', signature([['a', u(32)]], u(16))]] }), unlike('(a: u(32)) -> u(16)'))
+        assertEq(bad({ functions: [['load8', signature([own('a', u(32))], u(8))]] }), unlike('(own a: u(32)) -> u(8)'))
+        // A mark is a part of the signature: what it gives back, whether it may fail, and how it counts on bits.
+        assertEq(bad({ functions: [['load8', signature([['a', u(32)]], u(8), 'a')]] }), unlike('(a: u(32)) -> u(8), gives back a'))
+        assertEq(bad({ functions: [['load8', mayFail(load8)]] }), unlike('(a: u(32)) -> u(8), may fail'))
+        assertEq(bad({ functions: [['load8', countsBits('dup', load8)]] }), unlike('(a: u(32)) -> u(8), counts dup'))
+        // A host makes a literal, so no function that the target binds makes one.
+        const label = sealed('Label', 'label')
+        /** An interface of a type of one variant, whose literals `module`'s `member` makes, and of `functions`. @type {(module: string, member: string, functions: Interface['functions']) => Interface} */
+        const labels = (module, member, functions) => ({ abi: 'test:label', types: [['label', { variants: ['text'], carrier: 'i64', literal: { variant: 'text', module, member } }]], functions })
+        assertEq(why({ imports: [memory, ['Label', labels('Memory', 'load64', [])]], functions: [['f', fn([], bool, let_('l', lit(label, 'a'), () => true_))]], exports: [] }),
+            "f: Memory makes the literals of label, and it says instructions, so its functions are the target's, and none makes a literal")
+        // The loader gives the memory from Memory's ABI, so no constant or function of that ABI is named memory, and it
+        // gives data_base only to a module that makes literals.
+        /** A module that imports Memory and `i`, as Bad. @type {(i: Interface) => Module} */
+        const beside = i => ({ imports: [memory, ['Bad', i]], functions: [], exports: [] })
+        assertEq(why(beside({ abi: 'fjs:l0', types: [], functions: [['memory', signature([], f64)]] })),
+            'the function Bad.memory is the import memory of fjs:l0, which the loader gives a module that touches the memory')
+        assertEq(why(beside({ abi: 'fjs:l0', types: [], constants: [['memory', f64]], functions: [] })),
+            'the constant Bad.memory is the import memory of fjs:l0, which the loader gives a module that touches the memory')
+        assertOk(check(beside({ abi: 'fjs:l0', types: [], constants: [['data_base', f64]], functions: [] })))
+        // A module imports one memory, so the literals that it makes are made in Memory's, as L0's are.
+        assertEq(why(beside(labels('Bad', 'make', [['make', signature([['p', u(32)], ['n', u(32)]], sealed('Bad', 'label'))]]))),
+            'the literals of Bad.label are made in the memory of test:label, and Memory touches the memory of fjs:l0, but a module imports one memory')
+        assertOk(check({ imports: [...l0, memory], functions: [], exports: [] }))
+    },
     // The checker infers whether each function may fail: by a trap or a throw in it, by a call of an interface's function
     // that may fail, or by a call of the module's that may, to a fixed point. Functions that call each other and nothing
     // that may fail cannot, and neither does a module's plain stage change the bits.
@@ -630,6 +735,10 @@ export const proof = {
             f('a', to('b')), f('b', to('c')), f('c', if_(lt(x, x), trap('no'), x)),
             f('d', to('e')), f('e', to('d')), f('g', to('g')), f('h', add(to('d'), to('a'))),
         ], exports: [] }), 'a: true, b: true, c: true, d: false, e: false, g: false, h: true')
+        // A trap on misuse adds nothing, so a call of a function that has only one cannot fail either; a trap beside it still may.
+        assertEq(bits({ imports: l0, functions: [
+            f('m', if_(lt(x, x), misuse('no'), x)), f('p', to('m')), f('q', if_(lt(x, x), misuse('no'), trap('no'))),
+        ], exports: [] }), 'm: false, p: false, q: true')
         assertEq(bits({ imports: l0, functions: [['k', fn([['v', any]], never, v => throw_(call('Any', 'dup', [v])))]], exports: [] }), 'k: true')
         assertEq(bits(samples).includes('true'), false)
     },
@@ -824,6 +933,11 @@ export const proof = {
         // a hook may not fail, since the pass writes it after the effects are inferred
         assertEq(why(counter({}, [['drop', fn([['b', u(64)]], unit, () => trap('no drop'))]])), "C.cell's drop may fail, and the drops that the lifetime pass writes cannot")
         assertEq(why(counter({}, [['dup', fn([['b', u(64)]], u(64), () => trap('no dup'))]])), "C.cell's dup may fail, and the dups that the lifetime pass writes cannot")
+        // but it may trap on misuse, which is no failure
+        assertEq(assertOk(checkPlain(counter({}, [
+            ['dup', fn([['b', u(64)]], u(64), b => if_(eq(b, n(0n)), misuse('count of 0'), b))],
+            ['drop', fn([['b', u(64)]], unit, b => if_(eq(b, n(0n)), misuse('count of 0'), make([])))],
+        ]))).functions.filter(([k]) => k === 'dup' || k === 'drop').map(([k, f]) => `${k}: ${f.fails}`).join(', '), 'dup: false, drop: false')
         // only the lifetime pass copies, drops, seals a counted variant and releases
         const v = get('v')
         /** Why the plain stage of a module is refused. @type {(m: Module) => string} */
@@ -925,6 +1039,27 @@ export const proof = {
         assertEq(pw({ ...referencing, imports: [['Alias', { abi: 'fjs:l0', types: [], constants: [['dup_ref', u(64)]], functions: [] }]] }), "the constant Alias.dup_ref and the function L0's Ref.dup_ref are both the import dup_ref of fjs:l0")
         // other functions of Ref, and its counting ones as the last term of each path, are the hooks' to call
         assertOk(checkPlain(with_([['dup', fn([['b', u(64)]], u(64), () => if_(r('same_ref', b, b), let_('k', r('kind_ref', b), () => if_(true_, r('dup_ref', b), b)), b))]])))
+    },
+    inline: () => {
+        /** A module of functions, `f` first, that exports `f`. @type {(fs: Module['functions']) => Module} */
+        const of = fs => ({ imports: [], functions: fs, exports: ['f'] })
+        const leaf = fn([['x', f64]], f64, x => add(x, one_))
+        /** A function of `x` that calls `g` of it. @type {(g: string) => ReturnType<typeof fn>} */
+        const calling = g => fn([['x', f64]], f64, x => call('self', g, [x]))
+        // a hint that the pass can keep: a chain of always, an exported one, never, and recursion through a function with no hint
+        assertOk(check(of([['f', hint('always', calling('g'))], ['g', hint('always', leaf)], ['h', hint('never', leaf)]])))
+        assertOk(check(of([['f', hint('always', calling('g'))], ['g', calling('f')]])))
+        // a hint that it cannot
+        assertEq(why(of([['f', /** @type {ReturnType<typeof fn>} */ ({ ...leaf, inline: /** @type {never} */ ('often') })]])), 'f: an inline hint is always or never, not often')
+        assertEq(why(of([['f', hint('always', calling('f'))]])), 'f is inline always and calls itself through functions inline always, so its copies would never end')
+        assertEq(why(of([['f', hint('always', calling('g'))], ['g', hint('always', calling('f'))]])), 'f is inline always and calls itself through functions inline always, so its copies would never end')
+        assertEq(why(of([['f', fn([], f64, () => call_ref(codeOf('g'), [one_]))], ['g', hint('always', leaf)]])), 'g is inline always and read as a value, which needs its code')
+        assertEq(why({ ...of([['f', leaf], ['g', hint('always', leaf)]]), constants: [['c', { type: code([['borrow', f64]], f64), value: codeOf('g') }]] }), 'g is inline always and read as a value, which needs its code')
+        // A hook may be hinted: the emitter copies it. Any's drop is.
+        assertEq(anyModule.functions.find(([k]) => k === 'drop')?.[1].inline, 'always')
+        assertOk(checkPlain({ ...anyModule, functions: anyModule.functions.map(([k, f]) => [k, k === 'dup' ? hint('always', f) : f]) }))
+        // A kind may not be: the emitter writes a call of it in each match of the type.
+        assertEq(assertError(checkPlain({ ...anyModule, functions: anyModule.functions.map(([k, f]) => [k, k === 'kind' ? hint('always', f) : f]) })), 'kind is inline always and the kind of a type that the module defines, which the emitter calls in each match of it')
     },
     br: () => {
         assertEq(why(one([], f64, br('l', one_))), 'f: no label l')

@@ -287,19 +287,6 @@ const bigintExpr = v => {
  */
 const numberExpr = v => cat([unstable('f64_any'), `(${num(f64Bits(v))})`])
 
-/** @type {(v: null | boolean | number | string | bigint | undefined) => Result<Printed<string>, readonly unknown[]>} */
-const primitiveExpr = v => {
-    if (v === undefined) { return ok(undefinedAny) }
-    if (v === null) { return ok(cat([vm('Nullish'), '::Null', toAny])) }
-    switch (typeof v) {
-        case 'boolean': { return ok(cat([lit(`${v}`), toAny])) }
-        case 'number': { return ok(numberExpr(v)) }
-        case 'string': { return ok(stringCall('string_any')(v)) }
-        case 'bigint': { return ok(bigintExpr(v)) }
-        default: { throw ['not a primitive', v] }
-    }
-}
-
 /** Load a native literal by its module-local descriptor. @type {(s: _Context, v: string | bigint) => Printed<string>} */
 const loadLiteral = (s, v) => {
     const id = mapGet(/** @type {_Names} */ (s.names).literals, v)
@@ -311,6 +298,19 @@ const stringKey = (s, v) => s.native ? loadLiteral(s, v) : stringCall('string_ke
 
 /** @type {(s: _Context, v: string) => Printed<string>} */
 const stringAny = (s, v) => s.native ? cat([loadLiteral(s, v), toAny]) : stringCall('string_any')(v)
+
+/** @type {(s: _Context, v: null | boolean | number | string | bigint | undefined) => Printed<string>} */
+const primitiveExpr = (s, v) => {
+    if (v === undefined) { return undefinedAny }
+    if (v === null) { return cat([vm('Nullish'), '::Null', toAny]) }
+    switch (typeof v) {
+        case 'boolean': { return cat([lit(`${v}`), toAny]) }
+        case 'number': { return numberExpr(v) }
+        case 'string': { return stringAny(s, v) }
+        case 'bigint': { return s.native ? cat([loadLiteral(s, v), toAny]) : bigintExpr(v) }
+        default: { throw ['not a primitive', v] }
+    }
+}
 
 /** Stable local spelling by identity; underscore permits required unused values. @type {(s: _Context, id: BindingId) => string} */
 const binding = (s, id) => /** @type {string} */ (mapGet(/** @type {_Names} */ (s.names).bindings, id))
@@ -356,19 +356,7 @@ const represented = (s, text) => s.native
     : code(`Some(${str(unwrap(stringLiteral(text)))})`)
 
 /** @type {(s: _Context, fn: PreparedFunction) => _StaticBindings | undefined} */
-const staticFrame = (s, fn) => s.moduleInit === true && s.names !== undefined ? mapGet(s.names.staticFunctions, fn) : undefined
-
-/** One callable's explicit invocation environment. @type {(s: _Context, fn: PreparedFunction) => _Context} */
-const closureContext = (s, fn) => {
-    const captures = staticFrame(s, fn)
-    const held = s.runtime === null || captures !== undefined ? null : `A::frame(_self)[${num(`${fn.captures.length}`)}]`
-    const bindings = [
-        ...fn.parameters.map((id, i) => /** @type {const} */ ([id, argRead(i)])),
-        ...fn.captures.map((c, i) => /** @type {const} */ ([c.binding, cat([['A::frame', s.native ? [['vm', 'IVm']] : []], `(_self)[${num(`${i}`)}].clone()`])])),
-        ...(fn.self === null ? [] : [/** @type {const} */ ([fn.self, cat([vm('Function'), '::new(_self.clone())', toAny])])]),
-    ]
-    return { ...s, moduleInit: false, runtime: held, bindings, captures }
-}
+const staticCaptures = (s, fn) => s.moduleInit === true && s.names !== undefined ? mapGet(s.names.staticFunctions, fn) : undefined
 
 /** The concrete VM needs the trait in scope for its associated functions. @type {(s: _Context) => Printed<string>} */
 const staticFunction = s => [s.native ? 'A::function_with_text' : 'A::static_function', s.native ? [['vm', 'IVm']] : []]
@@ -387,6 +375,26 @@ const descriptorItem = (s, ref) => cat([vm('StaticAny'), `::${ref.definition.kin
 
 /** @type {(v: _StaticValue) => v is _Descriptor} */
 const isDescriptor = v => typeof v === 'object' && v !== null
+
+/** Load a module constant by its descriptor or literal at the point of use.
+ * @type {(s: _Context, v: _StaticValue) => Printed<string>} */
+const loadStatic = (s, v) => isDescriptor(v)
+    ? cat([vm(v.definition.kind), `::from_static(&${descriptorName(s, v)})`, toAny])
+    : primitiveExpr(s, v)
+
+/** One callable's explicit invocation environment. @type {(s: _Context, fn: PreparedFunction) => _Context} */
+const closureContext = (s, fn) => {
+    const captures = staticCaptures(s, fn)
+    const held = s.runtime === null || captures !== undefined ? null : `A::frame(_self)[${num(`${fn.captures.length}`)}]`
+    const bindings = [
+        ...fn.parameters.map((id, i) => /** @type {const} */ ([id, argRead(i)])),
+        ...fn.captures.map((c, i) => /** @type {const} */ ([c.binding, captures === undefined
+            ? cat([['A::frame', s.native ? [['vm', 'IVm']] : []], `(_self)[${num(`${i}`)}].clone()`])
+            : loadStatic(s, mapGet(captures, c.binding))])),
+        ...(fn.self === null ? [] : [/** @type {const} */ ([fn.self, cat([vm('Function'), captures === undefined ? '::new(_self.clone())' : '::from_static(_descriptor)', toAny])])]),
+    ]
+    return { ...s, moduleInit: false, runtime: held, bindings, captures }
+}
 
 /** @type {(s: _Context, v: _StaticValue) => Printed<string>} */
 const staticItem = (s, v) => {
@@ -408,27 +416,27 @@ const namedDescriptor = (s, st) => {
     return isDescriptor(ref) && ref.id === st[1] ? ref : undefined
 }
 
-/** @type {(s: _Context, fn: PreparedFunction) => Printed<string>} */
-const functionBody = (s, fn) => {
+/** @type {(s: _Context, fn: PreparedFunction, descriptor?: string) => Printed<string>} */
+const functionBody = (s, fn, descriptor) => {
+    // A shared prepared body can belong to distinct inline statics. Bind this occurrence's address.
+    const self = descriptor === undefined || fn.self === null ? [] : [`${kw('let')} _descriptor = &${descriptor};`]
     const rest = fn.rest === null ? [] : [`${kw('let')} ${binding(s, fn.rest)}: Any<A> = _args.rest(${num(`${fn.parameters.length}`)}).to_any();`]
     const [lines, uses] = completedBlock(s, fn, true, true)
-    return [braced([...rest, ...lines]), uses]
+    return [braced([...self, ...rest, ...lines]), uses]
 }
 
 /** @type {(s: _Context, fn: PreparedFunction, name: string) => Printed<string>} */
 const functionDeclaration = (s, fn, name) => {
     const names = /** @type {_Names} */ (s.names)
-    const frame = /** @type {_StaticBindings} */ (mapGet(names.staticFunctions, fn))
     const id = mapGet(names.literals, s.text(fn))
     return cat([`${kw('static')} ${name}: `, vm('StaticFunction'),
-        `<A> = StaticFunction { code: |_self, _args| `, functionBody(s, fn), `, length: ${num(`${fn.parameters.length}`)}, frame: &`, vm('StaticArray'), '(&[',
-        ...fn.captures.flatMap((c, i) => [i === 0 ? '' : ', ', staticItem(s, mapGet(frame, c.binding))]),
-        `]), text: Some(&LITERAL_${id}) };`])
+        '<A> = StaticFunction { code: |_self, _args| ', functionBody(s, fn, name),
+        `, length: ${num(`${fn.parameters.length}`)}, text: Some(&LITERAL_${id}) };`])
 }
 
 /** @type {(s: _Context, fn: PreparedFunction) => Result<Printed<string>, readonly unknown[]>} */
 const closure = (s, fn) => {
-    if (staticFrame(s, fn) !== undefined) {
+    if (staticCaptures(s, fn) !== undefined) {
         return ok(cat(['{ ', functionDeclaration(s, fn, 'VALUE'), ' ', vm('Function'), '::from_static(&VALUE)', toAny, ' }']))
     }
     const captured = fn.captures.map(c => expression(s, c.value, false))
@@ -674,7 +682,7 @@ const operation = (s, n, result) => {
         }
         case ',': {
             const values = n[1]
-            return values.length === 0 ? map1(pure(result))(primitiveExpr(undefined))
+            return values.length === 0 ? map1(pure(result))(ok(undefinedAny))
                 : map2((/** @type {readonly string[]} */ before, /** @type {string} */ last) => `{ ${before.map(text => `${text}; `).join('')}${last} }`)(all(values.slice(0, -1).map(v => expression(s, v, false))), expression(s, values[Number(values.length - 1)], result))
         }
         default: {
@@ -691,10 +699,7 @@ const operation = (s, n, result) => {
 
 /** Immediate value spelling reads only its already completed children. @type {(s: _Context, v: Value, result: boolean) => Result<Printed<string>, readonly unknown[]>} */
 const expressionReady = (s, v, result) => {
-    if (s.native && (typeof v === 'string' || typeof v === 'bigint')) {
-        return map1(pure(result))(ok(cat([loadLiteral(s, v), toAny])))
-    }
-    if (!(v instanceof Array)) { return map1(pure(result))(primitiveExpr(v)) }
+    if (!(v instanceof Array)) { return map1(pure(result))(ok(primitiveExpr(s, v))) }
     const container = s.moduleInit ? mapGet(/** @type {_Names} */ (s.names).containers, v) : undefined
     if (container !== undefined) {
         return map1(pure(result))(ok(cat(['{ ', containerDeclaration(s, 'VALUE', container), ' ', vm(container.kind), '::from_static(&VALUE)', toAny, ' }'])))
@@ -768,7 +773,7 @@ const statementReady = (s, st) => {
         const name = descriptorName(s, ref)
         const decl = ref.definition.kind === 'Function' ? functionDeclaration(s, ref.definition.fn, name) : containerDeclaration(s, name, ref.definition)
         return map2((item, local) => [item, local])(ok(decl),
-            declaration(binding(s, ref.id), false, ok(cat([vm(ref.definition.kind), `::from_static(&${name})`, toAny]))))
+            declaration(binding(s, ref.id), false, ok(loadStatic(s, ref))))
     }
     switch (st[0]) {
         case 'define': case 'slot': { return map1(text => [text])(declaration(binding(s, st[1]), st[0] === 'slot' && st[3], expression(s, st[2], false))) }
@@ -1116,10 +1121,10 @@ const namesOf = root => {
                 const def = owner?.[0] === 'define' && owner[2] === v ? owner[1] : null
                 if (v[0] === 'function') {
                     const known = staticBindings
-                    const frame = fromEntries(v[1].captures.flatMap(({ binding, value }) =>
+                    const captures = fromEntries(v[1].captures.flatMap(({ binding, value }) =>
                         staticEntry(known, value).map(item => /** @type {const} */ ([binding, item]))))
-                    if (size(frame) === v[1].captures.length && !bodyNeedsRuntime({ ...top.context, captures: frame }, v[1])) {
-                        staticFunctions = mapSet(staticFunctions, v[1], frame)
+                    if (size(captures) === v[1].captures.length && !bodyNeedsRuntime({ ...top.context, captures }, v[1])) {
+                        staticFunctions = mapSet(staticFunctions, v[1], captures)
                         if (def !== null) { staticBindings = mapSet(staticBindings, def, { id: def, definition: { kind: 'Function', fn: v[1] } }) }
                     }
                 } else if (v[0] === 'array' || v[0] === 'object') {

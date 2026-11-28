@@ -5,10 +5,10 @@
 import { assertEq } from '../../asserts/module.f.js'
 import { any, string } from '../l0/module.f.js'
 import {
-    add, block, bool, br, call, call_ref, code, codeOf, f64, f64c, field, fn, get, i, if_, int, let_, lit, loop, make, match, n, never, next, only,
+    add, block, bool, br, call, call_ref, code, codeOf, f64, f64c, field, fn, get, hint, i, if_, int, let_, lit, loop, make, match, misuse, n, never, next, only,
     product, return_, sealed, trap, true_, trunc_sat, u, unit, variant,
 } from '../module.f.js'
-import { bits, constants, corners, loops, records, referencing, samples, sealing, tagging, unknown } from '../testlib.f.js'
+import { addressing, bits, constants, corners, loops, records, referencing, samples, sealing, tagging, unknown } from '../testlib.f.js'
 import { print, quote, show } from './module.f.js'
 
 /** @type {Type} */
@@ -130,10 +130,15 @@ export const proof = {
     '    add(call_ref(code(sum), a, b), 0.0 as f64)',
     '',
     ].join('\n')),
-    // A reason is quoted, and so is a quote in it. A trap is on one line, where its term is.
+    // A reason is quoted, and so is a quote in it. A trap is on one line, where its term is, and one on misuse reads as its builder.
     trap: () => assertEq(print({
         imports: [],
-        functions: [['f', fn([], never, trap("it's \\ there"))], ['g', fn([['b', bool]], f64, b => if_(b, trap('no'), n(1n)))]],
+        functions: [
+            ['f', fn([], never, trap("it's \\ there"))],
+            ['g', fn([['b', bool]], f64, b => if_(b, trap('no'), n(1n)))],
+            ['h', fn([], never, misuse("it's a bug"))],
+            ['k', fn([['b', bool]], f64, b => if_(b, misuse('no'), n(1n)))],
+        ],
         exports: [],
     }), [
     'fn f() -> never =',
@@ -141,6 +146,25 @@ export const proof = {
     '',
     'fn g(b: bool) -> f64 =',
     "    if b then trap('no') else 1",
+    '',
+    'fn h() -> never =',
+    "    misuse('it\\'s a bug')",
+    '',
+    'fn k(b: bool) -> f64 =',
+    "    if b then misuse('no') else 1",
+    '',
+    ].join('\n')),
+    // An inline hint reads before `fn`.
+    hints: () => assertEq(print({
+        imports: [],
+        functions: [['f', hint('always', fn([], f64, n(1n)))], ['g', hint('never', fn([], f64, n(2n)))]],
+        exports: [],
+    }), [
+    'inline always fn f() -> f64 =',
+    '    1',
+    '',
+    'inline never fn g() -> f64 =',
+    '    2',
     '',
     ].join('\n')),
     // A sealed type that is not counted names its tag and its carrier only, and a parameter that the callee owns reads `own`.
@@ -167,6 +191,68 @@ export const proof = {
     '    fn dup_ref(b: u(64)) -> u(64) counts dup',
     '    fn drop_ref(b: u(64)) -> unit counts drop',
     '    fn same_ref(a: u(64), b: u(64)) -> bool',
+    ].join('\n')),
+    // an interface that the target binds says so after its ABI, and a call of one of its functions reads as any call
+    addressing: () => assertEq(print(addressing), [
+    'import Memory from fjs:l0, instructions',
+    '    fn load8(a: u(32)) -> u(8)',
+    '    fn load16(a: u(32)) -> u(16)',
+    '    fn load32(a: u(32)) -> u(32)',
+    '    fn load64(a: u(32)) -> u(64)',
+    '    fn store8(a: u(32), v: u(8)) -> unit',
+    '    fn store16(a: u(32), v: u(16)) -> unit',
+    '    fn store32(a: u(32), v: u(32)) -> unit',
+    '    fn store64(a: u(32), v: u(64)) -> unit',
+    '    fn size() -> int(0, 65536)',
+    '    fn grow(n: int(0, 65536)) -> int(-1, 65536)',
+    '',
+    'fn stored8(o: u(16), v: u(8)) -> u(8) =',
+    '    let end = Memory.size()',
+    '    let grown = Memory.grow(1)',
+    '    let a = add(mul(and(end, 65535), 65536), o)',
+    '    let stored = Memory.store8(a, v)',
+    '    Memory.load8(a)',
+    '',
+    'fn stored16(o: u(16), v: u(16)) -> u(16) =',
+    '    let end = Memory.size()',
+    '    let grown = Memory.grow(1)',
+    '    let a = add(mul(and(end, 65535), 65536), o)',
+    '    let stored = Memory.store16(a, v)',
+    '    Memory.load16(a)',
+    '',
+    'fn stored32(o: u(16), v: u(32)) -> u(32) =',
+    '    let end = Memory.size()',
+    '    let grown = Memory.grow(1)',
+    '    let a = add(mul(and(end, 65535), 65536), o)',
+    '    let stored = Memory.store32(a, v)',
+    '    Memory.load32(a)',
+    '',
+    'fn stored64(o: u(16), v: u(64)) -> u(64) =',
+    '    let end = Memory.size()',
+    '    let grown = Memory.grow(1)',
+    '    let a = add(mul(and(end, 65535), 65536), o)',
+    '    let stored = Memory.store64(a, v)',
+    '    Memory.load64(a)',
+    '',
+    'fn lowFirst(o: u(16), v: u(64)) -> u(16) =',
+    '    let end = Memory.size()',
+    '    let grown = Memory.grow(1)',
+    '    let a = add(mul(and(end, 65535), 65536), o)',
+    '    let stored = Memory.store64(a, v)',
+    '    Memory.load16(a)',
+    '',
+    'fn grown(k: int(0, 65536)) -> int(-65537, 65536) =',
+    '    let before = Memory.size()',
+    '    let g = Memory.grow(k)',
+    '    if eq(g, -1) then -1 else sub(g, before)',
+    '',
+    'fn after(k: int(0, 65536)) -> int(-65536, 65536) =',
+    '    let before = Memory.size()',
+    '    let grown = Memory.grow(k)',
+    '    sub(Memory.size(), before)',
+    '',
+    'export stored8, stored16, stored32, stored64, lowFirst, grown, after',
+    '',
     ].join('\n')),
     unknown: () => assertEq(print(unknown), [
     "import Any from fjs:l0",

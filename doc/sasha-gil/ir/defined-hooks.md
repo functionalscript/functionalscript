@@ -313,8 +313,8 @@ functions as Any's hooks: an `any` is an `i64`, as its bits are. So:
   references run on NaNVM's `.wasm`. The test runner already checks
   after each call that NaNVM holds no live slot (`h.live()` is empty),
   so a missing `drop_ref` shows as a leak and a doubled one as a
-  "not a value" trap. These run on NaNVM only, since the counting host's
-  values are not NaN boxes (4e changes that).
+  "not a value" trap. They also run on the counting host once it speaks
+  boxes (4e-1).
 
 ## Steps
 
@@ -325,9 +325,10 @@ functions as Any's hooks: an `any` is an `i64`, as its bits are. So:
 2. **4d-2: Any in the IR.** `fjs/ir/runtime/any` with `Ref`, `isRef`,
    `kind`, `dup`, `drop`, then `to_f64`, `from_f64`, `to_bool`,
    `from_bool`, `same` and the constants, proved against the L0 view on
-   NaNVM.
+   NaNVM. **Built.**
 3. **4e:** link it into programs, move the counting host to boxes, and
-   measure the demos, as runtime-in-ir.md plans.
+   measure the demos, as runtime-in-ir.md plans. **Built** as #4114
+   (boxes), #4115 (`linkAny`), #4116 (remeasure).
 
 ## Open questions
 

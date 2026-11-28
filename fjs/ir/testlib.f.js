@@ -7,8 +7,11 @@
  * kind, as the third slice reads them, `loops`, the fourth slice's,
  * `records`, the fifth's, `constants`, `literals` and `arrays`, the
  * sixth's, and `throws`, the seventh's, which is in the plain stage, for
- * the lifetime pass, and `bits`, the bit operators and a float's bits that
- * a runtime written in the IR reads a NaN box with.
+ * the lifetime pass, `bits`, the bit operators and a float's bits that
+ * a runtime written in the IR reads a NaN box with, `addressing`, the
+ * loads, the stores, `size` and `grow` of L0's `Memory`, which the heap of
+ * such a runtime keeps its blocks with, and `narrowing`, branches on
+ * comparisons that narrow a local, as that heap checks its pointers.
  * The [host proof](./wasm/proof.mjs) runs them all against JavaScript
  * twins.
  *
@@ -18,7 +21,8 @@
  * @import { Module, Term, Type } from './types.ts'
  */
 
-import { any, builder, container, kinds, l0, ref } from './l0/module.f.js'
+import { any, builder, container, kinds, l0, memory, ref } from './l0/module.f.js'
+import { isRefTerm } from './runtime/box/module.f.js'
 import {
     abs, add, and, block, bool, br, call, cast, constant, div, eq, exact, f64, f64c, false_, field, float, fn, from_bits, get, i,
     if_, int, le, let_, lit, loop, lt, make, match, mul, n, ne, neg, never, next, not, only, or, own, product, return_, shl, shr,
@@ -134,6 +138,78 @@ export const bits = {
     exports: ['mask', 'either', 'flip', 'reference', 'shifted', 'drained', 'nibble', 'bitsOf', 'ofBits', 'signOf', 'negBits'],
 }
 
+/** L0's `Memory`'s function `name` of `args`, which the emitter writes as an instruction. @type {(name: string, args: readonly Term[]) => Term} */
+const memoryOf = (name, args) => call('Memory', name, args)
+
+/**
+ * A store of `bits` bits of `v` at offset `o` of a page that the call grows
+ * for itself, then a load of `read` bits there, which reads the store. The
+ * page starts where the memory ended before the `grow`, so it holds none of
+ * a host's bytes: NaNVM keeps its stack at the memory's start, and the
+ * counting host bytes of its own. The mask keeps the address a `u(32)`, so
+ * that it takes 32-bit instructions, and changes it only where the memory
+ * already has all 65,536 pages; a `grow` that the host refuses otherwise
+ * leaves the address past the memory, where the store traps.
+ *
+ * @type {(bits: number, read: number) => (o: Term, v: Term) => Term}
+ */
+const storeThenLoad = (bits, read) => (o, v) => let_('end', memoryOf('size', []), end =>
+    let_('grown', memoryOf('grow', [n(1n)]), () =>
+        let_('a', add(mul(and(end, n(0xFFFFn)), n(0x1_0000n)), o), a =>
+            let_('stored', memoryOf(`store${bits}`, [a, v]), () => memoryOf(`load${read}`, [a])))))
+
+/** A size of the memory in pages of 64 KiB, as `Memory` answers one. */
+const pages = int(0n, 0x1_0000n)
+
+/**
+ * L0's `Memory`, alone, on any host's memory: a store of each width and a
+ * load of the same width at the same offset of a page that the call grows,
+ * which answers what was stored; a load of 16 bits of 64 that were stored,
+ * which answers their low 16 bits, since the low byte comes first; what a
+ * `grow` answers, the size before it, less the size that `size` answered
+ * just before, so 0, or `-1` where the host refuses; and how much a `grow`
+ * changes the size. A host decides how large its memory starts, so only
+ * changes are answered. Each store answers `unit`, which a `let` binds and
+ * nothing reads, and stays before its load.
+ *
+ * @type {Module}
+ */
+export const addressing = {
+    imports: [memory],
+    functions: [
+        ['stored8', fn([['o', u(16)], ['v', u(8)]], u(8), storeThenLoad(8, 8))],
+        ['stored16', fn([['o', u(16)], ['v', u(16)]], u(16), storeThenLoad(16, 16))],
+        ['stored32', fn([['o', u(16)], ['v', u(32)]], u(32), storeThenLoad(32, 32))],
+        ['stored64', fn([['o', u(16)], ['v', u(64)]], u(64), storeThenLoad(64, 64))],
+        ['lowFirst', fn([['o', u(16)], ['v', u(64)]], u(16), storeThenLoad(64, 16))],
+        ['grown', fn([['k', pages]], int(-0x1_0001n, 0x1_0000n), k => let_('before', memoryOf('size', []), before =>
+            let_('g', memoryOf('grow', [k]), g => if_(eq(g, n(-1n)), n(-1n), sub(g, before)))))],
+        ['after', fn([['k', pages]], int(-0x1_0000n, 0x1_0000n), k => let_('before', memoryOf('size', []), before =>
+            let_('grown', memoryOf('grow', [k]), () => sub(memoryOf('size', []), before))))],
+    ],
+    exports: ['stored8', 'stored16', 'stored32', 'stored64', 'lowFirst', 'grown', 'after'],
+}
+
+/**
+ * Branches on comparisons that narrow a local to the range that the other
+ * operand allows: a sum of two `u(32)` that fits 32 bits again where its
+ * check holds, as a bump pointer does, a `u(64)` read as `u(32)` below
+ * `2^32`, a count that is not 0, and an `i(64)` bounded on both sides, into
+ * a signed word of 32 bits, by a `not` of one comparison and the other.
+ *
+ * @type {Module}
+ */
+export const narrowing = {
+    imports: [],
+    functions: [
+        ['fitted', fn([['a', u(32)], ['b', u(32)]], u(32), (a, b) => let_('q', add(a, b), q => if_(le(q, n(0xFFFF_FFFFn)), q, n(0n))))],
+        ['low', fn([['w', u(64)]], u(32), w => if_(lt(w, n(0x1_0000_0000n)), w, n(0n)))],
+        ['nonzero', fn([['w', u(64)]], int(1n, 0xFFFF_FFFF_FFFF_FFFFn), w => if_(eq(w, n(0n)), n(1n), w))],
+        ['withinFive', fn([['x', i(64)]], int(-5n, 5n), x => if_(not(lt(x, n(-5n))), if_(le(x, n(5n)), x, n(5n)), n(-5n)))],
+    ],
+    exports: ['fitted', 'low', 'nonzero', 'withinFive'],
+}
+
 /**
  * Any's carrier, as only the module that defines `any` sees it: a module
  * that defines Any itself, with `any`'s variants and carrier and none of
@@ -150,7 +226,7 @@ export const sealing = {
     defines: { name: 'Any', types: [['any', { variants: kinds, carrier: 'i64' }]] },
     functions: [
         ['carrierOf', fn([['v', only(any, 'undefined', 'null', 'boolean', 'number')]], u(64), v => unseal(v))],
-        ['isReference', fn([['v', any]], bool, v => eq(and(unseal(v), n(0xFFF0_0000_0000_0003n)), n(0x7FF0_0000_0000_0002n)))],
+        ['isReference', fn([['v', any]], bool, v => isRefTerm(unseal(v)))],
         ['boxOf', fn([['x', f64c]], only(any, 'number'), x => sealOf(only(any, 'number'), to_bits(x)))],
     ],
     exports: ['carrierOf', 'isReference', 'boxOf'],
@@ -204,8 +280,6 @@ export const counting = {
 /** A value of `referencing`, which its module defines and counts. */
 const refOf = sealed('R', 'ref')
 
-/** Whether bits are a NaN box of a reference, as Sergey's README lays one out. @type {(b: Term) => Term} */
-const isRefBits = b => eq(and(b, n(0xFFF0_0000_0000_0003n)), n(0x7FF0_0000_0000_0002n))
 
 /**
  * A module that defines a counted `R.ref` over NaNVM's NaN boxes, whose
@@ -223,8 +297,8 @@ export const referencing = {
     imports: [ref],
     defines: { name: 'R', types: [['ref', { variants: ['value'], carrier: 'i64', dup: 'dup', drop: 'drop' }]] },
     functions: [
-        ['dup', fn([['b', u(64)]], u(64), b => if_(isRefBits(b), call('Ref', 'dup_ref', [b]), b))],
-        ['drop', fn([['b', u(64)]], unit, b => if_(isRefBits(b), call('Ref', 'drop_ref', [b]), make([])))],
+        ['dup', fn([['b', u(64)]], u(64), b => if_(isRefTerm(b), call('Ref', 'dup_ref', [b]), b))],
+        ['drop', fn([['b', u(64)]], unit, b => if_(isRefTerm(b), call('Ref', 'drop_ref', [b]), make([])))],
         ['keep', fn([['v', refOf]], refOf, v => v)],
         ['take', fn([own('v', refOf)], refOf, v => v)],
         ['forget', fn([own('v', refOf)], u(8), () => n(1n))],

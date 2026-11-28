@@ -11,11 +11,11 @@
  * @import { Module, Param, Signature, Term, Type } from '../types.ts'
  */
 
-import { assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { any, array, container, l0 } from '../l0/module.f.js'
 import { lifetime } from '../lifetime/module.f.js'
 import {
-    add, block, bool, br, call, call_ref, cast, codeOf, constant, f64, f64c, false_, field, fn, get, let_, lit, loop as repeat, make, match,
+    add, block, bool, br, call, call_ref, cast, codeOf, constant, definedBy, f64, f64c, false_, field, fn, get, let_, lit, loop as repeat, make, match,
     signature, trap, true_, trunc_sat, u,
 } from '../module.f.js'
 import { native } from '../native/module.f.js'
@@ -82,14 +82,73 @@ const standIn = {
 /** The runtime of a program, which links the stand-in for L1. */
 const programRuntime = { ...runtime, l1: standIn }
 
+/**
+ * A linked program as the program goldens read it: without Any's defines
+ * and `any.*` / `string.*` bodies, and with each linked `any.X` /
+ * `string.length` / `string.unit` written as `Any.X` / `String.*` again so
+ * the golden still shows the import form. Short-path linking is proved in
+ * [`link/proof.f.js`](./link/proof.f.js) and the string IR proofs.
+ *
+ * @type {(m: Module) => Module}
+ */
+const withoutLinkedAny = m => {
+    /** @type {(name: string) => readonly [string, string] | null} */
+    const linked = name => name.startsWith('any.') ? /** @type {const} */ (['Any', name.slice(4)])
+        : name.startsWith('string.') ? /** @type {const} */ (['String', name.slice(7)])
+        : null
+    /** @type {(t: Term) => Term} */
+    const rewrite = t => {
+        switch (t[0]) {
+            case 'let': { return ['let', t[1], rewrite(t[2]), rewrite(t[3])] }
+            case 'op': { return t[3] === undefined ? ['op', t[1], t[2].map(rewrite)] : ['op', t[1], t[2].map(rewrite), t[3]] }
+            case 'call': {
+                const hit = t[1] === 'self' ? linked(t[2]) : null
+                return ['call', hit !== null ? hit[0] : t[1], hit !== null ? hit[1] : t[2], t[3].map(rewrite)]
+            }
+            case 'call_ref': { return ['call_ref', rewrite(t[1]), t[2].map(rewrite)] }
+            case 'make': { return ['make', t[1].map(([k, x]) => /** @type {const} */ ([k, rewrite(x)]))] }
+            case 'field': { return ['field', rewrite(t[1]), t[2]] }
+            case 'variant': { return ['variant', t[1], t[2], rewrite(t[3])] }
+            case 'match': { return ['match', rewrite(t[1]), t[2].map(([vs, b, x]) => /** @type {const} */ ([vs, b, rewrite(x)]))] }
+            case 'block': { return ['block', t[1], t[2], rewrite(t[3])] }
+            case 'loop': { return ['loop', t[1], t[2].map(([k, type, x]) => /** @type {const} */ ([k, type, rewrite(x)])), rewrite(t[3])] }
+            case 'br': { return ['br', t[1], rewrite(t[2])] }
+            case 'constant': {
+                const hit = t[1] === 'self' ? linked(t[2]) : null
+                return hit !== null ? ['constant', hit[0], hit[1]] : t
+            }
+            default: { return t }
+        }
+    }
+    return {
+        imports: [],
+        constants: (m.constants ?? [])
+            .filter(([k]) => linked(k) === null)
+            .map(([k, c]) => /** @type {const} */ ([k, { type: c.type, value: rewrite(c.value) }])),
+        functions: m.functions
+            .filter(([k]) => linked(k) === null)
+            .map(([k, f]) => /** @type {const} */ ([k, { ...f, body: rewrite(f.body) }])),
+        exports: m.exports,
+    }
+}
+
 /** The IR of a program's text over an L1 without `get`, where the program exports its own, printed without the interfaces that it imports. @type {(text: string) => string} */
-const ownGet = text => print({ ...assertOk(over({}, text, { ...programRuntime, l1: { ...standIn, functions: standIn.functions.filter(([k]) => k !== 'get') } })), imports: [] })
+const ownGet = text => print(withoutLinkedAny(assertOk(over({}, text, { ...programRuntime, l1: { ...standIn, functions: standIn.functions.filter(([k]) => k !== 'get') } }))))
 
 /** The IR of a program's text, which no table types, printed without the interfaces that it imports. @type {(text: string) => string} */
-const program = text => print({ ...assertOk(over({}, text, programRuntime)), imports: [] })
+const program = text => print(withoutLinkedAny(assertOk(over({}, text, programRuntime))))
 
-/** Why the lifetime pass, which types a program's plain stage as the checker does, refuses it. @type {(text: string) => string} */
-const refusedProgram = text => assertError(lifetime(assertOk(over({}, text, programRuntime))))
+/**
+ * Why a program is refused: by the inline pass at the end of the lowering,
+ * or by the lifetime pass, each of which types the plain stage as the
+ * checker does.
+ *
+ * @type {(text: string) => string}
+ */
+const refusedProgram = text => {
+    const m = over({}, text, programRuntime)
+    return m[0] === 'error' ? m[1] : assertError(lifetime(m[1]))
+}
 
 /**
  * A term of every kind, which calls, reads and names a function `name`
@@ -109,25 +168,42 @@ export const proof = {
     // Slice 11a: an untyped program, each export of `any` alone, whose
     // operators of `any` call L1, which links into the same module.
     programs: () => {
+        // linkAny defines Any, drops its import, and keeps Ref for the hooks;
+        // linkString keeps String and adds string.length/unit when reached.
+        {
+            const m = assertOk(over({}, 'export const f = (a, b) => a + b * 2', programRuntime))
+            assertEq(m.imports.map(([k]) => k).join(' '), 'Ref String BigInt Containers Functions Native')
+            assert(definedBy(m) === 'Any')
+            assert(m.functions.find(([k]) => k === 'any.dup') !== undefined)
+            // Any's isRef and its scalar functions are hinted always, so the inline pass writes them where they are called and leaves them out.
+            for (const k of ['isRef', 'to_f64', 'from_f64', 'to_bool', 'from_bool', 'same']) { assert(m.functions.find(([j]) => j === `any.${k}`) === undefined) }
+            const withLen = assertOk(over({}, 'export const f = a => a.length', programRuntime))
+            assert(withLen.functions.find(([k]) => k === 'string.length') !== undefined)
+        }
         assertEq(program('export const f = (a, b) => a + b * 2'), [
             'const #n0: any.only(number) =',
-            '    Any.from_f64(2.0)',
+            '    let #i0.x =',
+            '        block #i0.: f64',
+            '            2.0',
+            '    seal(any.only(number), to_bits(canon(#i0.x)))',
             '',
             'fn f(p0: any, p1: any) -> any =',
             '    let #2 =',
             '        match p1',
             '          number as #0 =>',
-            '            let #1 = Any.to_f64(#0)',
-            '            Any.from_f64(mul(#1, 2.0))',
+            '            let #1 = canon(from_bits(unseal(#0)))',
+            '            let #i1.x = mul(#1, 2.0)',
+            '            seal(any.only(number), to_bits(canon(#i1.x)))',
             '          else =>',
             '            l1.multiply(p1, self.#n0)',
             '    match p0',
             '      number as #3 =>',
-            '        let #4 = Any.to_f64(#3)',
+            '        let #4 = canon(from_bits(unseal(#3)))',
             '        match #2',
             '          number as #5 =>',
-            '            let #6 = Any.to_f64(#5)',
-            '            Any.from_f64(add(#4, #6))',
+            '            let #6 = canon(from_bits(unseal(#5)))',
+            '            let #i4.x = add(#4, #6)',
+            '            seal(any.only(number), to_bits(canon(#i4.x)))',
             '          else =>',
             '            l1.add(p0, #2)',
             '      else =>',
@@ -143,19 +219,41 @@ export const proof = {
             '',
         ].join('\n'))
         // `Number` and `String` of `any` call L1's `number` and `toString`; of a float and of a string, they are it.
-        assertEq(program('export const f = () => Number(2n)'), 'fn f() -> any =\n    Any.from_f64(float(2))\n\nexport f\n')
+        assertEq(program('export const f = () => Number(2n)'), [
+            'fn f() -> any =',
+            '    let #i0.x =',
+            '        block #i0.: f64',
+            '            float(2)',
+            '    seal(any.only(number), to_bits(canon(#i0.x)))',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
         // `String` and a template literal of a bigint literal are L1's `toString` of its value.
         assertEq(program('export const f = () => String(1n)'), 'fn f() -> any =\n    l1.toString(Native.stringToBigInt("1"))\n\nfn l1.toString(v: any) -> any =\n    v\n\nexport f\n')
         // A bigint wider than ±2^53 is L1's to convert, which rounds it.
-        assertEq(program('export const f = () => Number(9007199254740993n)'), 'fn f() -> any =\n    Any.from_f64(l1.number(Native.stringToBigInt("9007199254740993")))\n\nfn l1.number(v: any) -> f64 =\n    0.0\n\nexport f\n')
+        assertEq(program('export const f = () => Number(9007199254740993n)'), [
+            'fn f() -> any =',
+            '    let #i0.x = l1.number(Native.stringToBigInt("9007199254740993"))',
+            '    seal(any.only(number), to_bits(canon(#i0.x)))',
+            '',
+            'fn l1.number(v: any) -> f64 =',
+            '    0.0',
+            '',
+            'export f',
+            '',
+        ].join('\n'))
         assertEq(program('export const f = (a, b) => [Number(a), Number(1), `x${b}`, String("y")]'), [
             'const #n0: any.only(number) =',
-            '    Any.from_f64(1.0)',
+            '    let #i0.x =',
+            '        block #i0.: f64',
+            '            1.0',
+            '    seal(any.only(number), to_bits(canon(#i0.x)))',
             '',
             'fn f(p0: any, p1: any) -> any =',
             '    let #0 = l1.number(p0)',
             '    let #1 = l1.add(l1.add("x", l1.toString(p1)), "")',
-            '    match Containers.seal(Containers.push(Containers.push(Containers.push(Containers.push(Containers.begin_array(4), Any.from_f64(#0)), self.#n0), #1), "y"))',
+            '    match Containers.seal(Containers.push(Containers.push(Containers.push(Containers.push(Containers.begin_array(4), seal(any.only(number), to_bits(canon(#0)))), self.#n0), #1), "y"))',
             '      array as array =>',
             '        array',
             '      else =>',
@@ -189,7 +287,7 @@ export const proof = {
             '        else',
             '            Any.undefined',
             '      else as p0.other =>',
-            '        l1.get(p0.other, Any.from_f64(#0))',
+            '        l1.get(p0.other, seal(any.only(number), to_bits(canon(#0))))',
             '',
             'fn l1.get(a: any, b: any) -> any =',
             '    a',
@@ -205,9 +303,15 @@ export const proof = {
             'fn f(p0: any) -> any =',
             '    match p0',
             '      array as p0.array =>',
-            '        Any.from_f64(float(Containers.length(p0.array)))',
+            '        let #i0.x =',
+            '            block #i0.: f64',
+            '                float(Containers.length(p0.array))',
+            '        seal(any.only(number), to_bits(canon(#i0.x)))',
             '      string as p0.string =>',
-            '        Any.from_f64(float(String.length(p0.string)))',
+            '        let #i1.x =',
+            '            block #i1.: f64',
+            '                float(String.length(p0.string))',
+            '        seal(any.only(number), to_bits(canon(#i1.x)))',
             '      else as p0.other =>',
             '        l1.get(p0.other, "length")',
             '',
@@ -220,7 +324,10 @@ export const proof = {
         // Where `get` is the program's own, not L1's, `.length` and a number-key read are its call for every kind.
         assertEq(ownGet('export const get = (a, k) => a\nexport const f = a => a[0]'), [
             'const #n0: any.only(number) =',
-            '    Any.from_f64(0.0)',
+            '    let #i0.x =',
+            '        block #i0.: f64',
+            '            0.0',
+            '    seal(any.only(number), to_bits(canon(#i0.x)))',
             '',
             'fn f(p0: any) -> any =',
             '    get(p0, self.#n0)',
@@ -244,28 +351,34 @@ export const proof = {
         // `===` and `!==` of `any` and a float take the number path, `eq` or `ne`; of two values of `any` they call L1 alone.
         assertEq(program('export const f = (a, b) => [a === 1, 2 !== a, a === b]'), [
             'const #n0: any.only(number) =',
-            '    Any.from_f64(1.0)',
+            '    let #i0.x =',
+            '        block #i0.: f64',
+            '            1.0',
+            '    seal(any.only(number), to_bits(canon(#i0.x)))',
             '',
             'const #n1: any.only(number) =',
-            '    Any.from_f64(2.0)',
+            '    let #i0.x =',
+            '        block #i0.: f64',
+            '            2.0',
+            '    seal(any.only(number), to_bits(canon(#i0.x)))',
             '',
             'fn f(p0: any, p1: any) -> any =',
             '    let #0 =',
             '        match p0',
             '          number as #0 =>',
-            '            let #1 = Any.to_f64(#0)',
+            '            let #1 = canon(from_bits(unseal(#0)))',
             '            eq(#1, 1.0)',
             '          else =>',
             '            l1.strictEquals(p0, self.#n0)',
             '    let #1 =',
             '        match p0',
             '          number as #1 =>',
-            '            let #2 = Any.to_f64(#1)',
+            '            let #2 = canon(from_bits(unseal(#1)))',
             '            if eq(2.0, #2) then false else true',
             '          else =>',
             '            if l1.strictEquals(self.#n1, p0) then false else true',
             '    let #2 = l1.strictEquals(p0, p1)',
-            '    match Containers.seal(Containers.push(Containers.push(Containers.push(Containers.begin_array(3), Any.from_bool(#0)), Any.from_bool(#1)), Any.from_bool(#2)))',
+            '    match Containers.seal(Containers.push(Containers.push(Containers.push(Containers.begin_array(3), if #0 then seal(any.only(boolean), 18442240474082181136) else seal(any.only(boolean), 9218868437227405328)), if #1 then seal(any.only(boolean), 18442240474082181136) else seal(any.only(boolean), 9218868437227405328)), if #2 then seal(any.only(boolean), 18442240474082181136) else seal(any.only(boolean), 9218868437227405328)))',
             '      array as array =>',
             '        array',
             '      else =>',
@@ -280,17 +393,21 @@ export const proof = {
         // `%`, `>>` and `&` of `any` match each `any` once against `number`, for L1's native rows, and call L1 else; of two floats they call the rows alone.
         assertEq(program('export const f = (a, b) => [a % b, (a >> 1) & b, 7 % 2]'), [
             'const #n0: any.only(number) =',
-            '    Any.from_f64(1.0)',
+            '    let #i0.x =',
+            '        block #i0.: f64',
+            '            1.0',
+            '    seal(any.only(number), to_bits(canon(#i0.x)))',
             '',
             'fn f(p0: any, p1: any) -> any =',
             '    let #0 =',
             '        match p0',
             '          number as #0 =>',
-            '            let #1 = Any.to_f64(#0)',
+            '            let #1 = canon(from_bits(unseal(#0)))',
             '            match p1',
             '              number as #2 =>',
-            '                let #3 = Any.to_f64(#2)',
-            '                Any.from_f64(Native.numberRemainder(#1, #3))',
+            '                let #3 = canon(from_bits(unseal(#2)))',
+            '                let #i2.x = Native.numberRemainder(#1, #3)',
+            '                seal(any.only(number), to_bits(canon(#i2.x)))',
             '              else =>',
             '                l1.remainder(p0, p1)',
             '          else =>',
@@ -299,23 +416,25 @@ export const proof = {
             '        let #3 =',
             '            match p0',
             '              number as #1 =>',
-            '                let #2 = Any.to_f64(#1)',
-            '                Any.from_f64(Native.numberShiftRight(#2, 1.0))',
+            '                let #2 = canon(from_bits(unseal(#1)))',
+            '                let #i4.x = Native.numberShiftRight(#2, 1.0)',
+            '                seal(any.only(number), to_bits(canon(#i4.x)))',
             '              else =>',
             '                l1.shiftRight(p0, self.#n0)',
             '        match #3',
             '          number as #4 =>',
-            '            let #5 = Any.to_f64(#4)',
+            '            let #5 = canon(from_bits(unseal(#4)))',
             '            match p1',
             '              number as #6 =>',
-            '                let #7 = Any.to_f64(#6)',
-            '                Any.from_f64(Native.numberAnd(#5, #7))',
+            '                let #7 = canon(from_bits(unseal(#6)))',
+            '                let #i7.x = Native.numberAnd(#5, #7)',
+            '                seal(any.only(number), to_bits(canon(#i7.x)))',
             '              else =>',
             '                l1.bitwiseAnd(#3, p1)',
             '          else =>',
             '            l1.bitwiseAnd(#3, p1)',
             '    let #2 = Native.numberRemainder(7.0, 2.0)',
-            '    match Containers.seal(Containers.push(Containers.push(Containers.push(Containers.begin_array(3), #0), #1), Any.from_f64(#2)))',
+            '    match Containers.seal(Containers.push(Containers.push(Containers.push(Containers.begin_array(3), #0), #1), seal(any.only(number), to_bits(canon(#2)))))',
             '      array as array =>',
             '        array',
             '      else =>',
@@ -354,11 +473,12 @@ export const proof = {
             '        )',
             '    match p0',
             '      number as #2 =>',
-            '        let #3 = Any.to_f64(#2)',
+            '        let #3 = canon(from_bits(unseal(#2)))',
             '        match #1',
             '          number as #4 =>',
-            '            let #5 = Any.to_f64(#4)',
-            '            Any.from_f64(add(#3, #5))',
+            '            let #5 = canon(from_bits(unseal(#4)))',
+            '            let #i2.x = add(#3, #5)',
+            '            seal(any.only(number), to_bits(canon(#i2.x)))',
             '          else =>',
             '            l1.add(p0, #1)',
             '      else =>',
@@ -382,10 +502,16 @@ export const proof = {
         ].join('\n'))
         assertEq(program('export const g = a => -a\nexport const f = (a, b) => g(a) / (b - 1) + g(2)'), [
             'const #n0: any.only(number) =',
-            '    Any.from_f64(1.0)',
+            '    let #i0.x =',
+            '        block #i0.: f64',
+            '            1.0',
+            '    seal(any.only(number), to_bits(canon(#i0.x)))',
             '',
             'const #n1: any.only(number) =',
-            '    Any.from_f64(2.0)',
+            '    let #i0.x =',
+            '        block #i0.: f64',
+            '            2.0',
+            '    seal(any.only(number), to_bits(canon(#i0.x)))',
             '',
             'fn f(p0: any, p1: any) -> any =',
             '    let #8 =',
@@ -393,17 +519,19 @@ export const proof = {
             '        let #3 =',
             '            match p1',
             '              number as #0 =>',
-            '                let #1 = Any.to_f64(#0)',
-            '                Any.from_f64(sub(#1, 1.0))',
+            '                let #1 = canon(from_bits(unseal(#0)))',
+            '                let #i1.x = sub(#1, 1.0)',
+            '                seal(any.only(number), to_bits(canon(#i1.x)))',
             '              else =>',
             '                l1.subtract(p1, self.#n0)',
             '        match #2',
             '          number as #4 =>',
-            '            let #5 = Any.to_f64(#4)',
+            '            let #5 = canon(from_bits(unseal(#4)))',
             '            match #3',
             '              number as #6 =>',
-            '                let #7 = Any.to_f64(#6)',
-            '                Any.from_f64(div(#5, #7))',
+            '                let #7 = canon(from_bits(unseal(#6)))',
+            '                let #i4.x = div(#5, #7)',
+            '                seal(any.only(number), to_bits(canon(#i4.x)))',
             '              else =>',
             '                l1.divide(#2, #3)',
             '          else =>',
@@ -411,11 +539,12 @@ export const proof = {
             '    let #9 = g(self.#n1)',
             '    match #8',
             '      number as #10 =>',
-            '        let #11 = Any.to_f64(#10)',
+            '        let #11 = canon(from_bits(unseal(#10)))',
             '        match #9',
             '          number as #12 =>',
-            '            let #13 = Any.to_f64(#12)',
-            '            Any.from_f64(add(#11, #13))',
+            '            let #13 = canon(from_bits(unseal(#12)))',
+            '            let #i7.x = add(#11, #13)',
+            '            seal(any.only(number), to_bits(canon(#i7.x)))',
             '          else =>',
             '            l1.add(#8, #9)',
             '      else =>',
@@ -424,8 +553,9 @@ export const proof = {
             'fn g(p0: any) -> any =',
             '    match p0',
             '      number as #0 =>',
-            '        let #1 = Any.to_f64(#0)',
-            '        Any.from_f64(neg(#1))',
+            '        let #1 = canon(from_bits(unseal(#0)))',
+            '        let #i1.x = neg(#1)',
+            '        seal(any.only(number), to_bits(canon(#i1.x)))',
             '      else =>',
             '        l1.negate(p0)',
             '',
@@ -446,14 +576,14 @@ export const proof = {
         ].join('\n'))
         assertEq(program('export const f = (a, b) => a < b ? a <= b : a > b === a >= b'), [
             'fn f(p0: any, p1: any) -> any =',
-            '    Any.from_bool(',
+            '    let #i10.b =',
             '        if',
             '            match p0',
             '              number as #0 =>',
-            '                let #1 = Any.to_f64(#0)',
+            '                let #1 = canon(from_bits(unseal(#0)))',
             '                match p1',
             '                  number as #2 =>',
-            '                    let #3 = Any.to_f64(#2)',
+            '                    let #3 = canon(from_bits(unseal(#2)))',
             '                    lt(#1, #3)',
             '                  else =>',
             '                    l1.lessThan(p0, p1)',
@@ -462,10 +592,10 @@ export const proof = {
             '        then',
             '            match p0',
             '              number as #0 =>',
-            '                let #1 = Any.to_f64(#0)',
+            '                let #1 = canon(from_bits(unseal(#0)))',
             '                match p1',
             '                  number as #2 =>',
-            '                    let #3 = Any.to_f64(#2)',
+            '                    let #3 = canon(from_bits(unseal(#2)))',
             '                    le(#1, #3)',
             '                  else =>',
             '                    l1.lessThanOrEqual(p0, p1)',
@@ -475,10 +605,10 @@ export const proof = {
             '            if',
             '                match p0',
             '                  number as #0 =>',
-            '                    let #1 = Any.to_f64(#0)',
+            '                    let #1 = canon(from_bits(unseal(#0)))',
             '                    match p1',
             '                      number as #2 =>',
-            '                        let #3 = Any.to_f64(#2)',
+            '                        let #3 = canon(from_bits(unseal(#2)))',
             '                        lt(#3, #1)',
             '                      else =>',
             '                        l1.greaterThan(p0, p1)',
@@ -487,10 +617,10 @@ export const proof = {
             '            then',
             '                match p0',
             '                  number as #0 =>',
-            '                    let #1 = Any.to_f64(#0)',
+            '                    let #1 = canon(from_bits(unseal(#0)))',
             '                    match p1',
             '                      number as #2 =>',
-            '                        let #3 = Any.to_f64(#2)',
+            '                        let #3 = canon(from_bits(unseal(#2)))',
             '                        le(#3, #1)',
             '                      else =>',
             '                        l1.greaterThanOrEqual(p0, p1)',
@@ -500,10 +630,10 @@ export const proof = {
             '                if',
             '                    match p0',
             '                      number as #0 =>',
-            '                        let #1 = Any.to_f64(#0)',
+            '                        let #1 = canon(from_bits(unseal(#0)))',
             '                        match p1',
             '                          number as #2 =>',
-            '                            let #3 = Any.to_f64(#2)',
+            '                            let #3 = canon(from_bits(unseal(#2)))',
             '                            le(#3, #1)',
             '                          else =>',
             '                            l1.greaterThanOrEqual(p0, p1)',
@@ -513,7 +643,7 @@ export const proof = {
             '                    false',
             '                else',
             '                    true',
-            '    )',
+            '    if #i10.b then seal(any.only(boolean), 18442240474082181136) else seal(any.only(boolean), 9218868437227405328)',
             '',
             'fn l1.lessThan(a: any, b: any) -> bool =',
             '    false',
@@ -533,7 +663,8 @@ export const proof = {
         assertEq(program('export const f = (a, b) => a !== b || !a'), [
             'fn f(p0: any, p1: any) -> any =',
             '    let #0 = if l1.strictEquals(p0, p1) then false else true',
-            '    Any.from_bool(if #0 then #0 else if l1.toBoolean(p0) then false else true)',
+            '    let #i0.b = if #0 then #0 else if l1.toBoolean(p0) then false else true',
+            '    if #i0.b then seal(any.only(boolean), 18442240474082181136) else seal(any.only(boolean), 9218868437227405328)',
             '',
             'fn l1.strictEquals(a: any, b: any) -> bool =',
             '    false',
@@ -549,7 +680,15 @@ export const proof = {
             '    Any.undefined',
             '',
             'fn f(p0: any) -> any =',
-            '    Any.from_bool(l1.strictEquals(l1.typeOf(p0), l1.typeOf(Any.from_bool(true))))',
+            '    let #i1.b =',
+            '        l1.strictEquals(',
+            '            l1.typeOf(p0),',
+            '            l1.typeOf(',
+            '                let #i0.b = true',
+            '                if #i0.b then seal(any.only(boolean), 18442240474082181136) else seal(any.only(boolean), 9218868437227405328)',
+            '            )',
+            '        )',
+            '    if #i1.b then seal(any.only(boolean), 18442240474082181136) else seal(any.only(boolean), 9218868437227405328)',
             '',
             'fn l1.typeOf(v: any) -> any =',
             '    self.l1.#c0',
@@ -562,10 +701,18 @@ export const proof = {
         ].join('\n'))
         assertEq(program('export const f = a => {\n    if (a) { return 1 }\n    return true\n}'), [
             'const #n0: any.only(number) =',
-            '    Any.from_f64(1.0)',
+            '    let #i0.x =',
+            '        block #i0.: f64',
+            '            1.0',
+            '    seal(any.only(number), to_bits(canon(#i0.x)))',
             '',
             'fn f(p0: any) -> any =',
-            '    if l1.toBoolean(p0) then self.#n0 else Any.from_bool(true)',
+            '    if l1.toBoolean(p0)',
+            '    then',
+            '        self.#n0',
+            '    else',
+            '        let #i0.b = true',
+            '        if #i0.b then seal(any.only(boolean), 18442240474082181136) else seal(any.only(boolean), 9218868437227405328)',
             '',
             'fn l1.strictEquals(a: any, b: any) -> bool =',
             '    false',
@@ -592,7 +739,10 @@ export const proof = {
         ].join('\n'))
         assertEq(program('export const f = o => o?.[0]'), [
             'const #n0: any.only(number) =',
-            '    Any.from_f64(0.0)',
+            '    let #i0.x =',
+            '        block #i0.: f64',
+            '            0.0',
+            '    seal(any.only(number), to_bits(canon(#i0.x)))',
             '',
             'fn f(p0: any) -> any =',
             '    match p0',
@@ -620,7 +770,10 @@ export const proof = {
             'fn f(p0: any) -> any =',
             '    match "x"',
             '      string as length.string =>',
-            '        Any.from_f64(float(String.length(length.string)))',
+            '        let #i0.x =',
+            '            block #i0.: f64',
+            '                float(String.length(length.string))',
+            '        seal(any.only(number), to_bits(canon(#i0.x)))',
             '',
             'export f',
             '',
@@ -634,7 +787,10 @@ export const proof = {
         ].join('\n'))
         assertEq(program('export const f = o => o.f(1).g'), [
             'const #n0: any.only(number) =',
-            '    Any.from_f64(1.0)',
+            '    let #i0.x =',
+            '        block #i0.: f64',
+            '            1.0',
+            '    seal(any.only(number), to_bits(canon(#i0.x)))',
             '',
             'fn f(p0: any) -> any =',
             '    l1.get(',
@@ -682,17 +838,17 @@ export const proof = {
             '    let #0 =',
             '        match p0',
             '          number as #0 =>',
-            '            let #1 = Any.to_f64(#0)',
+            '            let #1 = canon(from_bits(unseal(#0)))',
             '            match p1',
             '              number as #2 =>',
-            '                let #3 = Any.to_f64(#2)',
+            '                let #3 = canon(from_bits(unseal(#2)))',
             '                lt(#1, #3)',
             '              else =>',
             '                l1.lessThan(p0, p1)',
             '          else =>',
             '            l1.lessThan(p0, p1)',
             '    l1.call(',
-            '        Any.from_bool(#0),',
+            '        if #0 then seal(any.only(boolean), 18442240474082181136) else seal(any.only(boolean), 9218868437227405328),',
             '        match Containers.seal(Containers.begin_array(0))',
             '          array as args =>',
             '            args',
@@ -711,7 +867,10 @@ export const proof = {
         ].join('\n'))
         assertEq(program('export const f = () => 1()'), [
             'const #n0: any.only(number) =',
-            '    Any.from_f64(1.0)',
+            '    let #i0.x =',
+            '        block #i0.: f64',
+            '            1.0',
+            '    seal(any.only(number), to_bits(canon(#i0.x)))',
             '',
             'fn f() -> any =',
             '    l1.call(',
@@ -732,7 +891,10 @@ export const proof = {
         assertEq(assertError(over({}, 'export const f = a => (1n + 2n)(a)', programRuntime)), 'f: a call of int(3, 3) in a program is not in this slice: only one of any, a float or a boolean is')
         assertEq(program('import { asFunction } from \'../l0/module.f.js\'\nexport const f = g => asFunction(g)(1)'), [
             'const #n0: any.only(number) =',
-            '    Any.from_f64(1.0)',
+            '    let #i0.x =',
+            '        block #i0.: f64',
+            '            1.0',
+            '    seal(any.only(number), to_bits(canon(#i0.x)))',
             '',
             'fn f(p0: any) -> any =',
             '    match p0',
@@ -753,7 +915,8 @@ export const proof = {
         ].join('\n'))
         assertEq(program('export const f = () => 1 < 2'), [
             'fn f() -> any =',
-            '    Any.from_bool(lt(1.0, 2.0))',
+            '    let #i0.b = lt(1.0, 2.0)',
+            '    if #i0.b then seal(any.only(boolean), 18442240474082181136) else seal(any.only(boolean), 9218868437227405328)',
             '',
             'export f',
             '',
@@ -795,36 +958,18 @@ export const proof = {
             'export f',
             '',
         ].join('\n'))
-        assertEq(program('export const f = () => -(1n + 2n)'), 'fn f() -> any =\n    sub(0, add(1, 2))\n\nexport f\n')
-        assertEq(program('export const f = a => ({ a: 1 }).b'), [
-            'fn f(p0: any) -> any =',
-            '    { a: 1.0 }.b',
+        assertEq(program('export const f = () => -(1n + 2n) === -3n'), [
+            'fn f() -> any =',
+            '    let #i0.b = eq(sub(0, add(1, 2)), -3)',
+            '    if #i0.b then seal(any.only(boolean), 18442240474082181136) else seal(any.only(boolean), 9218868437227405328)',
             '',
             'export f',
             '',
         ].join('\n'))
+        // The lowering ends with the inline pass, which types the plain stage, so a program that the checker refuses is refused there.
+        assertEq(refusedProgram('export const f = () => -(1n + 2n)'), 'f: the body is int(-3, -3), not any')
         assertEq(refusedProgram('export const f = a => ({ a: 1 }).b'), 'f: { a: f64c } has no field b')
-        assertEq(program('export const f = a => ({ a: 1 }).b ? a : 1'), [
-            'const #n0: any.only(number) =',
-            '    Any.from_f64(1.0)',
-            '',
-            'fn f(p0: any) -> any =',
-            '    if { a: 1.0 }.b then p0 else self.#n0',
-            '',
-            'export f',
-            '',
-        ].join('\n'))
         assertEq(refusedProgram('export const f = a => ({ a: 1 }).b ? a : 1'), 'f: { a: f64c } has no field b')
-        assertEq(program('export const g = a => a\nexport const f = a => g(({ a: 1 }).b)'), [
-            'fn f(p0: any) -> any =',
-            '    g({ a: 1.0 }.b)',
-            '',
-            'fn g(p0: any) -> any =',
-            '    p0',
-            '',
-            'export f, g',
-            '',
-        ].join('\n'))
         assertEq(refusedProgram('export const g = a => a\nexport const f = a => g(({ a: 1 }).b)'), 'f: { a: f64c } has no field b')
         assertEq(program('export const g = a => a\nexport const f = a => g(1n)'), [
             'fn f(p0: any) -> any =',
@@ -837,16 +982,6 @@ export const proof = {
             '',
         ].join('\n'))
         assertEq(refusedProgram('export const g = a => a\nexport const f = a => g(1n + 2n)'), 'f: g\'s p0 is any, not int(3, 3)')
-        assertEq(program('export const g = a => a\nexport const f = a => g(a, 1)'), [
-            'fn f(p0: any) -> any =',
-            '    g(p0, 1.0)',
-            '',
-            'fn g(p0: any) -> any =',
-            '    p0',
-            '',
-            'export f, g',
-            '',
-        ].join('\n'))
         assertEq(refusedProgram('export const g = a => a\nexport const f = a => g(a, 1)'), 'f: g takes one argument, not 2')
         assertEq(assertError(over({}, 'export const f = a => typeof (1n + 2n)', programRuntime)), 'f: typeof of int(3, 3) is not in this slice')
         assertEq(assertError(over({}, 'export const f = a => (1n + 2n) + a', programRuntime)), 'f: add of int(3, 3) and any is not in this slice')
@@ -863,7 +998,10 @@ export const proof = {
         assertEq(assertError(over({}, 'export const k = 1', programRuntime)), 'k: an export that is not a function is not in this slice')
         assertEq(program('export const f = o => o?.a.b(1)'), [
             'const #n0: any.only(number) =',
-            '    Any.from_f64(1.0)',
+            '    let #i0.x =',
+            '        block #i0.: f64',
+            '            1.0',
+            '    seal(any.only(number), to_bits(canon(#i0.x)))',
             '',
             'fn f(p0: any) -> any =',
             '    match p0',
@@ -892,7 +1030,10 @@ export const proof = {
         assertEq(assertError(over({}, 'export const f = o => (1n + 2n).f(1)', programRuntime)), 'f: .f of int(3, 3) is not in this slice')
         assertEq(program('export const f = o => (1)?.length'), [
             'const #n0: any.only(number) =',
-            '    Any.from_f64(1.0)',
+            '    let #i0.x =',
+            '        block #i0.: f64',
+            '            1.0',
+            '    seal(any.only(number), to_bits(canon(#i0.x)))',
             '',
             'fn f(p0: any) -> any =',
             '    l1.get(self.#n0, "length")',
@@ -905,21 +1046,33 @@ export const proof = {
         ].join('\n'))
         assertEq(program('export const f = a => (true).length + (1)[0]'), [
             'const #n0: any.only(number) =',
-            '    Any.from_f64(1.0)',
+            '    let #i0.x =',
+            '        block #i0.: f64',
+            '            1.0',
+            '    seal(any.only(number), to_bits(canon(#i0.x)))',
             '',
             'const #n1: any.only(number) =',
-            '    Any.from_f64(0.0)',
+            '    let #i0.x =',
+            '        block #i0.: f64',
+            '            0.0',
+            '    seal(any.only(number), to_bits(canon(#i0.x)))',
             '',
             'fn f(p0: any) -> any =',
-            '    let #0 = l1.get(Any.from_bool(true), "length")',
+            '    let #0 =',
+            '        l1.get(',
+            '            let #i0.b = true',
+            '            if #i0.b then seal(any.only(boolean), 18442240474082181136) else seal(any.only(boolean), 9218868437227405328),',
+            '            "length"',
+            '        )',
             '    let #1 = l1.get(self.#n0, self.#n1)',
             '    match #0',
             '      number as #2 =>',
-            '        let #3 = Any.to_f64(#2)',
+            '        let #3 = canon(from_bits(unseal(#2)))',
             '        match #1',
             '          number as #4 =>',
-            '            let #5 = Any.to_f64(#4)',
-            '            Any.from_f64(add(#3, #5))',
+            '            let #5 = canon(from_bits(unseal(#4)))',
+            '            let #i3.x = add(#3, #5)',
+            '            seal(any.only(number), to_bits(canon(#i3.x)))',
             '          else =>',
             '            l1.add(#0, #1)',
             '      else =>',
@@ -936,13 +1089,41 @@ export const proof = {
         ].join('\n'))
         assertEq(program('export const f = a => true + 1 > !2 ? -true : 1 === true'), [
             'const #n0: any.only(number) =',
-            '    Any.from_f64(1.0)',
+            '    let #i0.x =',
+            '        block #i0.: f64',
+            '            1.0',
+            '    seal(any.only(number), to_bits(canon(#i0.x)))',
             '',
             'const #n1: any.only(number) =',
-            '    Any.from_f64(2.0)',
+            '    let #i0.x =',
+            '        block #i0.: f64',
+            '            2.0',
+            '    seal(any.only(number), to_bits(canon(#i0.x)))',
             '',
             'fn f(p0: any) -> any =',
-            '    if l1.greaterThan(l1.add(Any.from_bool(true), self.#n0), Any.from_bool(if l1.toBoolean(self.#n1) then false else true)) then l1.negate(Any.from_bool(true)) else Any.from_bool(l1.strictEquals(self.#n0, Any.from_bool(true)))',
+            '    if',
+            '        l1.greaterThan(',
+            '            l1.add(',
+            '                let #i0.b = true',
+            '                if #i0.b then seal(any.only(boolean), 18442240474082181136) else seal(any.only(boolean), 9218868437227405328),',
+            '                self.#n0',
+            '            ),',
+            '            let #i1.b = if l1.toBoolean(self.#n1) then false else true',
+            '            if #i1.b then seal(any.only(boolean), 18442240474082181136) else seal(any.only(boolean), 9218868437227405328)',
+            '        )',
+            '    then',
+            '        l1.negate(',
+            '            let #i2.b = true',
+            '            if #i2.b then seal(any.only(boolean), 18442240474082181136) else seal(any.only(boolean), 9218868437227405328)',
+            '        )',
+            '    else',
+            '        let #i4.b =',
+            '            l1.strictEquals(',
+            '                self.#n0,',
+            '                let #i3.b = true',
+            '                if #i3.b then seal(any.only(boolean), 18442240474082181136) else seal(any.only(boolean), 9218868437227405328)',
+            '            )',
+            '        if #i4.b then seal(any.only(boolean), 18442240474082181136) else seal(any.only(boolean), 9218868437227405328)',
             '',
             'fn l1.add(a: any, b: any) -> any =',
             '    a',
@@ -964,10 +1145,16 @@ export const proof = {
         ].join('\n'))
         assertEq(program('export const f = a => 1 ? a : 2'), [
             'const #n0: any.only(number) =',
-            '    Any.from_f64(1.0)',
+            '    let #i0.x =',
+            '        block #i0.: f64',
+            '            1.0',
+            '    seal(any.only(number), to_bits(canon(#i0.x)))',
             '',
             'const #n1: any.only(number) =',
-            '    Any.from_f64(2.0)',
+            '    let #i0.x =',
+            '        block #i0.: f64',
+            '            2.0',
+            '    seal(any.only(number), to_bits(canon(#i0.x)))',
             '',
             'fn f(p0: any) -> any =',
             '    if l1.toBoolean(self.#n0) then p0 else self.#n1',
@@ -986,7 +1173,11 @@ export const proof = {
         assertEq(assertError(over({}, 'export const f = o => (1n + 2n).k', programRuntime)), 'f: .k of int(3, 3) is not in this slice')
         assertEq(program('export const f = o => (true)?.k'), [
             'fn f(p0: any) -> any =',
-            '    l1.get(Any.from_bool(true), "k")',
+            '    l1.get(',
+            '        let #i0.b = true',
+            '        if #i0.b then seal(any.only(boolean), 18442240474082181136) else seal(any.only(boolean), 9218868437227405328),',
+            '        "k"',
+            '    )',
             '',
             'fn l1.get(a: any, b: any) -> any =',
             '    a',
@@ -996,10 +1187,10 @@ export const proof = {
         ].join('\n'))
         assertEq(program('export const f = (a, b) => (a ? 1 : 2) > (b ? 3 : 4)'), [
             'fn f(p0: any, p1: any) -> any =',
-            '    Any.from_bool(',
+            '    let #i0.b =',
             '        let #0 = if l1.toBoolean(p0) then 1.0 else 2.0',
             '        lt(if l1.toBoolean(p1) then 3.0 else 4.0, #0)',
-            '    )',
+            '    if #i0.b then seal(any.only(boolean), 18442240474082181136) else seal(any.only(boolean), 9218868437227405328)',
             '',
             'fn l1.strictEquals(a: any, b: any) -> bool =',
             '    false',
@@ -1012,7 +1203,8 @@ export const proof = {
         ].join('\n'))
         assertEq(program('export const f = a => 1 >= (a ? 3 : 4)'), [
             'fn f(p0: any) -> any =',
-            '    Any.from_bool(le(if l1.toBoolean(p0) then 3.0 else 4.0, 1.0))',
+            '    let #i0.b = le(if l1.toBoolean(p0) then 3.0 else 4.0, 1.0)',
+            '    if #i0.b then seal(any.only(boolean), 18442240474082181136) else seal(any.only(boolean), 9218868437227405328)',
             '',
             'fn l1.strictEquals(a: any, b: any) -> bool =',
             '    false',
@@ -1026,7 +1218,7 @@ export const proof = {
         assertEq(program('export const f = (a, b) => -(a ? 1 : 2) === 4 && !(1 < 2) !== true'), [
             'fn f(p0: any, p1: any) -> any =',
             '    let #0 = eq(neg(if l1.toBoolean(p0) then 1.0 else 2.0), 4.0)',
-            '    Any.from_bool(',
+            '    let #i0.b =',
             '        if #0',
             '        then',
             '            if if lt(1.0, 2.0) then false else true',
@@ -1036,7 +1228,7 @@ export const proof = {
             '                true',
             '        else',
             '            #0',
-            '    )',
+            '    if #i0.b then seal(any.only(boolean), 18442240474082181136) else seal(any.only(boolean), 9218868437227405328)',
             '',
             'fn l1.strictEquals(a: any, b: any) -> bool =',
             '    false',
@@ -1061,7 +1253,10 @@ export const proof = {
     methods: () => {
         assertEq(program('export const f = s => s.charCodeAt(0)'), [
             'const #n0: any.only(number) =',
-            '    Any.from_f64(0.0)',
+            '    let #i0.x =',
+            '        block #i0.: f64',
+            '            0.0',
+            '    seal(any.only(number), to_bits(canon(#i0.x)))',
             '',
             'fn f(p0: any) -> any =',
             '    l1.charCodeAt(p0, self.#n0)',
@@ -1075,15 +1270,19 @@ export const proof = {
         // A receiver that may be `undefined` is checked before an argument that does something.
         assertEq(program('export const f = (s, i) => s.charCodeAt(i >> 3)'), [
             'const #n0: any.only(number) =',
-            '    Any.from_f64(3.0)',
+            '    let #i0.x =',
+            '        block #i0.: f64',
+            '            3.0',
+            '    seal(any.only(number), to_bits(canon(#i0.x)))',
             '',
             'fn f(p0: any, p1: any) -> any =',
             '    let #0 = l1.requireObjectCoercible(p0)',
             '    let #1 =',
             '        match p1',
             '          number as #1 =>',
-            '            let #2 = Any.to_f64(#1)',
-            '            Any.from_f64(Native.numberShiftRight(#2, 3.0))',
+            '            let #2 = canon(from_bits(unseal(#1)))',
+            '            let #i1.x = Native.numberShiftRight(#2, 3.0)',
+            '            seal(any.only(number), to_bits(canon(#i1.x)))',
             '          else =>',
             '            l1.shiftRight(p1, self.#n0)',
             '    l1.charCodeAt(#0, #1)',
@@ -1109,12 +1308,15 @@ export const proof = {
         // An arrow callback of `every` or `filter` is inlined into the loop over an array, and L1 is called for the other kinds.
         assertEq(program('export const f = a => a.every((x, i) => i < 1)'), [
             'const #n0: any.only(number) =',
-            '    Any.from_f64(1.0)',
+            '    let #i0.x =',
+            '        block #i0.: f64',
+            '            1.0',
+            '    seal(any.only(number), to_bits(canon(#i0.x)))',
             '',
             'fn f(p0: any) -> any =',
             '    match p0',
             '      array as E0.array =>',
-            '        Any.from_bool(',
+            '        let #i0.b =',
             '            let E0.n = Containers.length(E0.array)',
             '            loop E0 (E0.i: f64 = 0.0)',
             '                if lt(E0.i, float(E0.n))',
@@ -1128,7 +1330,7 @@ export const proof = {
             "                        trap('inexact')",
             '                else',
             '                    true',
-            '        )',
+            '        if #i0.b then seal(any.only(boolean), 18442240474082181136) else seal(any.only(boolean), 9218868437227405328)',
             '      else as E0.other =>',
             '        let #0 =',
             '            Functions.make_function(',
@@ -1146,14 +1348,14 @@ export const proof = {
             'fn #f1(#self: any.only(function), #args: any.only(array)) -> any =',
             '    let #0 = if lt(0, Containers.length(#args)) then Containers.item(#args, 0) else Any.undefined',
             '    let #1 = if lt(1, Containers.length(#args)) then Containers.item(#args, 1) else Any.undefined',
-            '    Any.from_bool(',
+            '    let #i1.b =',
             '        match #1',
             '          number as #2 =>',
-            '            let #3 = Any.to_f64(#2)',
+            '            let #3 = canon(from_bits(unseal(#2)))',
             '            lt(#3, 1.0)',
             '          else =>',
             '            l1.lessThan(#1, self.#n0)',
-            '    )',
+            '    if #i1.b then seal(any.only(boolean), 18442240474082181136) else seal(any.only(boolean), 9218868437227405328)',
             '',
             'fn l1.lessThan(a: any, b: any) -> bool =',
             '    false',
@@ -1261,7 +1463,10 @@ export const proof = {
         ].join('\n'))
         assertEq(program('const k = 3\nexport const f = a => () => () => [a, k]'), [
             'const #n0: any.only(number) =',
-            '    Any.from_f64(3.0)',
+            '    let #i0.x =',
+            '        block #i0.: f64',
+            '            3.0',
+            '    seal(any.only(number), to_bits(canon(#i0.x)))',
             '',
             'fn f(p0: any) -> any =',
             '    Functions.make_function(',
@@ -1302,7 +1507,10 @@ export const proof = {
         // A capture of a capture of the module's function stands for that function, so the frame holds nothing.
         assertEq(program('const double = x => x * 2\nexport const f = a => b => double(b)'), [
             'const #n0: any.only(number) =',
-            '    Any.from_f64(2.0)',
+            '    let #i0.x =',
+            '        block #i0.: f64',
+            '            2.0',
+            '    seal(any.only(number), to_bits(canon(#i0.x)))',
             '',
             'fn f(p0: any) -> any =',
             '    Functions.make_function(',
@@ -1320,8 +1528,9 @@ export const proof = {
             '    let #0 = if lt(0, Containers.length(#args)) then Containers.item(#args, 0) else Any.undefined',
             '    match #0',
             '      number as #1 =>',
-            '        let #2 = Any.to_f64(#1)',
-            '        Any.from_f64(mul(#2, 2.0))',
+            '        let #2 = canon(from_bits(unseal(#1)))',
+            '        let #i1.x = mul(#2, 2.0)',
+            '        seal(any.only(number), to_bits(canon(#i1.x)))',
             '      else =>',
             '        l1.multiply(#0, self.#n0)',
             '',
@@ -1335,7 +1544,10 @@ export const proof = {
         // does not export is a constant that `init` makes, and one that a function defines is made where it is defined.
         assertEq(program('const g = () => 0\nexport const f = () => g === g'), [
             'const #n0: any.only(number) =',
-            '    Any.from_f64(0.0)',
+            '    let #i0.x =',
+            '        block #i0.: f64',
+            '            0.0',
+            '    seal(any.only(number), to_bits(canon(#i0.x)))',
             '',
             'const #v0: any.only(function) =',
             '    Functions.make_function(',
@@ -1350,7 +1562,8 @@ export const proof = {
             '    )',
             '',
             'fn f() -> any =',
-            '    Any.from_bool(l1.strictEquals(self.#v0, self.#v0))',
+            '    let #i0.b = l1.strictEquals(self.#v0, self.#v0)',
+            '    if #i0.b then seal(any.only(boolean), 18442240474082181136) else seal(any.only(boolean), 9218868437227405328)',
             '',
             'fn #f0(#self: any.only(function), #args: any.only(array)) -> any =',
             '    self.#n0',
@@ -1385,11 +1598,12 @@ export const proof = {
             '    let #1 = if lt(0, Containers.length(#args)) then Containers.item(#args, 0) else Any.undefined',
             '    match #1',
             '      number as #2 =>',
-            '        let #3 = Any.to_f64(#2)',
+            '        let #3 = canon(from_bits(unseal(#2)))',
             '        match #0',
             '          number as #4 =>',
-            '            let #5 = Any.to_f64(#4)',
-            '            Any.from_f64(add(#3, #5))',
+            '            let #5 = canon(from_bits(unseal(#4)))',
+            '            let #i2.x = add(#3, #5)',
+            '            seal(any.only(number), to_bits(canon(#i2.x)))',
             '          else =>',
             '            l1.add(#1, #0)',
             '      else =>',
@@ -1404,11 +1618,20 @@ export const proof = {
         // A capture of a constant of the module reads the constant, once `init` makes it.
         assertEq(program('const a = [1]\nexport const f = () => () => a'), [
             'const #c0: any.only(array) =',
-            '    match Containers.seal(Containers.push(Containers.begin_array(1), Any.from_f64(1.0)))',
+            '    match',
+            '        Containers.seal(',
+            '            Containers.push(',
+            '                Containers.begin_array(1),',
+            '                let #i0.x =',
+            '                    block #i0.: f64',
+            '                        1.0',
+            '                seal(any.only(number), to_bits(canon(#i0.x)))',
+            '            )',
+            '        )',
             '      array as array =>',
             '        array',
             '      else =>',
-            '        trap(\'not array\')',
+            "        trap('not array')",
             '',
             'fn f() -> any =',
             '    Functions.make_function(',
@@ -1417,7 +1640,7 @@ export const proof = {
             '          array as array =>',
             '            array',
             '          else =>',
-            '            trap(\'not array\'),',
+            "            trap('not array'),",
             '        0,',
             '        Any.undefined',
             '    )',
@@ -1483,7 +1706,10 @@ export const proof = {
     spreads: () => {
         assertEq(program('export const f = a => [1, ...a]'), [
             'const #n0: any.only(number) =',
-            '    Any.from_f64(1.0)',
+            '    let #i0.x =',
+            '        block #i0.: f64',
+            '            1.0',
+            '    seal(any.only(number), to_bits(canon(#i0.x)))',
             '',
             'fn f(p0: any) -> any =',
             '    let #0 = l1.toIterable(p0)',
@@ -1513,7 +1739,10 @@ export const proof = {
         ].join('\n'))
         assertEq(program('export const f = (g, a) => g(...a, 2)'), [
             'const #n0: any.only(number) =',
-            '    Any.from_f64(2.0)',
+            '    let #i0.x =',
+            '        block #i0.: f64',
+            '            2.0',
+            '    seal(any.only(number), to_bits(canon(#i0.x)))',
             '',
             'fn f(p0: any, p1: any) -> any =',
             '    l1.call(',
@@ -1549,7 +1778,10 @@ export const proof = {
         ].join('\n'))
         assertEq(program('export const f = o => ({ a: 1, ...o })'), [
             'const #n0: any.only(number) =',
-            '    Any.from_f64(1.0)',
+            '    let #i0.x =',
+            '        block #i0.: f64',
+            '            1.0',
+            '    seal(any.only(number), to_bits(canon(#i0.x)))',
             '',
             'fn f(p0: any) -> any =',
             '    let #0 =',
@@ -1644,10 +1876,16 @@ export const proof = {
         ].join('\n'))
         assertEq(program('const g = (a, ...r) => [a, r]\nexport const h = x => g(x, 1, 2)'), [
             'const #n0: any.only(number) =',
-            '    Any.from_f64(1.0)',
+            '    let #i0.x =',
+            '        block #i0.: f64',
+            '            1.0',
+            '    seal(any.only(number), to_bits(canon(#i0.x)))',
             '',
             'const #n1: any.only(number) =',
-            '    Any.from_f64(2.0)',
+            '    let #i0.x =',
+            '        block #i0.: f64',
+            '            2.0',
+            '    seal(any.only(number), to_bits(canon(#i0.x)))',
             '',
             'fn h(p0: any) -> any =',
             '    let #0 =',
@@ -1725,10 +1963,16 @@ export const proof = {
             '}',
         ].join('\n')), [
             'const #n0: any.only(number) =',
-            '    Any.from_f64(3.0)',
+            '    let #i0.x =',
+            '        block #i0.: f64',
+            '            3.0',
+            '    seal(any.only(number), to_bits(canon(#i0.x)))',
             '',
             'const #n1: any.only(number) =',
-            '    Any.from_f64(1.0)',
+            '    let #i0.x =',
+            '        block #i0.: f64',
+            '            1.0',
+            '    seal(any.only(number), to_bits(canon(#i0.x)))',
             '',
             'fn f(p0: any, p1: any) -> any =',
             '    let #1.i = p0',
@@ -1737,7 +1981,7 @@ export const proof = {
             '        if',
             '            match #2.i',
             '              number as #4 =>',
-            '                let #5 = Any.to_f64(#4)',
+            '                let #5 = canon(from_bits(unseal(#4)))',
             '                lt(#5, 3.0)',
             '              else =>',
             '                l1.lessThan(#2.i, self.#n0)',
@@ -1745,18 +1989,20 @@ export const proof = {
             '            let #2/#3 =',
             '                match #2.i',
             '                  number as #4 =>',
-            '                    let #5 = Any.to_f64(#4)',
-            '                    Any.from_f64(add(#5, 1.0))',
+            '                    let #5 = canon(from_bits(unseal(#4)))',
+            '                    let #i2.x = add(#5, 1.0)',
+            '                    seal(any.only(number), to_bits(canon(#i2.x)))',
             '                  else =>',
             '                    l1.add(#2.i, self.#n1)',
             '            let #2/#4 =',
             '                match #2.acc',
             '                  number as #6 =>',
-            '                    let #7 = Any.to_f64(#6)',
+            '                    let #7 = canon(from_bits(unseal(#6)))',
             '                    match #2.i',
             '                      number as #8 =>',
-            '                        let #9 = Any.to_f64(#8)',
-            '                        Any.from_f64(add(#7, #9))',
+            '                        let #9 = canon(from_bits(unseal(#8)))',
+            '                        let #i5.x = add(#7, #9)',
+            '                        seal(any.only(number), to_bits(canon(#i5.x)))',
             '                      else =>',
             '                        l1.add(#2.acc, #2.i)',
             '                  else =>',
@@ -1859,5 +2105,18 @@ export const proof = {
             functions: [...fns, ['l1.all', fn([], f64, everyKind(k => `l1.${k}`))], ['l1.add', fn([], f64, lit(f64c, 0))], ['l1.other', fn([], f64, lit(f64c, 1))]],
             exports: ['f'],
         })
+    },
+    // A program reads a reference's kind from its bits; `checkedKind`, for a debug build, links the Any whose `kind` asks L0's checked `kind_ref`.
+    checkedKind: () => {
+        /** @type {(r: Parameters<typeof lower>[1]) => string} */
+        const kindOf = r => {
+            const m = assertOk(over({}, 'export const f = v => typeof v', r))
+            const found = m.functions.find(([k]) => k === 'any.kind')
+            assert(found !== undefined)
+            return print({ imports: [], functions: [found], exports: [] })
+        }
+        assert(!kindOf(programRuntime).includes('Ref.kind_ref('))
+        assert(kindOf({ ...programRuntime, checkedKind: true }).includes('Ref.kind_ref('))
+        assert(!kindOf({ ...programRuntime, checkedKind: false }).includes('Ref.kind_ref('))
     },
 }

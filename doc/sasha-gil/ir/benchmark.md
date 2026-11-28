@@ -3,11 +3,13 @@
 Measured 2026-11-21, first after slice 12 ([`fjs/ir/todo/slices.md`](../../../fjs/ir/todo/slices.md))
 and again after the first three levers (#4049, #4050, #4052), then on
 2026-11-22 on `main` after the next three (#4055 to #4057,
-[third run](#after-the-next-three-levers)): how fast
+[third run](#after-the-next-three-levers)), and on 2026-11-24 after
+[linkAny (checkpoint 4e)](#after-linkany-checkpoint-4e): how fast
 untyped FunctionalScript programs run when the IR lowers them to WASM and
 NaNVM's `.wasm` is their runtime, beside the counting host and JavaScript
 itself, and where the time goes. This is a measurement, not a decision.
-The levers at the end are proposals, re-ranked from the second profile.
+The levers at the end are proposals, re-ranked from the second profile;
+numeric-loop import costs after linkAny supersede the earlier headline.
 
 The code is in this folder: [benchmark.programs.mjs](./benchmark.programs.mjs)
 holds the untyped programs, [benchmark.typed.mjs](./benchmark.typed.mjs) two
@@ -16,24 +18,39 @@ typed twins, and [benchmark.run.mjs](./benchmark.run.mjs) the runner. See
 
 ## Summary
 
-The first four points are from the second run; the
-[third run](#after-the-next-three-levers) changes them as it says.
+The first four points are from the second run (before linkAny); the
+[third run](#after-the-next-three-levers) changes them as it says. They
+are historical for numeric loops once Any is linked — see
+[After linkAny](#after-linkany-checkpoint-4e) and the fifth point.
 
 - **The three levers made six of the seven untyped programs on NaNVM's
-  `.wasm` 4.7× to 24× faster.** Those six now run 13× to 450× slower than
+  `.wasm` 4.7× to 24× faster.** Those six then ran 13× to 450× slower than
   JavaScript (50× to 1,300× before), and 1.5× to 4.7× faster than the
-  counting host. `repeat`, which builds a string, gained 1× to 2× and is
+  counting host. `repeat`, which builds a string, gained 1× to 2× and was
   still about 1,500× slower than JavaScript.
 - **The typed twins still run as plain WASM about 5× to 7× faster than
-  JavaScript.** Numeric untyped code is now within 13× to 70× of
-  JavaScript.
-- **NaNVM's handle layer is still most of a numeric loop: 90% of `sumTo`,
-  `sumToAny` and `fib`.** Fewer calls reach it, but each costs as much as
-  before: 9 to 35 ns. The program and the L1 bodies take 7% to 9%.
-- **Two new hot spots show up now that the rest is smaller.** Each object
-  lookup (`find`, `item`, `key`, `length`) copies the object's whole entry
-  list, which is 40% of `readFields`. And `concat` copies both strings one
-  unit at a time, which is 87% of `repeat`.
+  JavaScript.** Before linkAny, numeric untyped code was within 13× to
+  70× of JavaScript.
+- **Before linkAny, NaNVM's handle layer was most of a numeric loop: 90%
+  of `sumTo`, `sumToAny` and `fib`.** Fewer calls reached it, but each
+  cost as much as before: 9 to 35 ns. The program and the L1 bodies took
+  7% to 9%.
+- **Two second-run hot spots showed up once the rest was smaller** (since
+  fixed in the [third run](#after-the-next-three-levers)): each object
+  lookup (`find`, `item`, `key`, `length`) copied the object's whole entry
+  list (#4056 now reads in place), and `concat` copied both strings one
+  unit at a time (#4057 now copies in bulk).
+- **After linkAny (checkpoint 4e), numeric loops on NaNVM are about 1× to
+  6× JavaScript, with no L0 imports during the program.** `sumTo` and
+  `fib` match JavaScript on this container; `sumToAny` is about 6× (was
+  36×). Reference- and string-heavy programs still pay `Ref` and container
+  imports, not the retired whole-entry-list / unit-at-a-time copies.
+- **After short strings S4 (variant B emit + linked `length`),** the
+  short-only microbench `shortOps` is about **1.5×** faster than emit A
+  on NaNVM and about half the L0 import traffic; `repeat` is about
+  **1.3×** faster. Both remain hundreds of times JavaScript — record
+  `find`/`item` and `Ref` still dominate. See
+  [After short strings (S4)](#after-short-strings-s4).
 
 ## Setup
 
@@ -62,6 +79,7 @@ lowering takes today:
 | `fib(n)` | `{ i, a: s.b, b: s.a + s.b }`, state `f64`, n = 70 |
 | `readFields(o, n)` | `acc + o.x * o.y`, state of `any` |
 | `callMany(f, n)` | `acc = f(acc, i)`, where `f` is a JavaScript function, n = 1,000 |
+| `shortOps(s, n)` | `acc + s.length + (s + s).length`, short-only (v1 tags; `s = 'a'`), n = 10,000 |
 | `repeat(n, e)` | `t = t + 'ab'`, a string of 2,000 units at the end, n = 1,000 |
 | `bigSum(n, one)` | `acc + i * i` on bigints, n = 1,000 |
 
@@ -145,12 +163,147 @@ JavaScript (13× to 67×), `repeat` about 100× (1,550×), and `readFields`
 about 170× (450×). `kind` is still a third to two thirds of every
 program's calls.
 
-## Where the time goes
+### After linkAny (checkpoint 4e)
+
+On branch `cursor/ir-runtime-4e-remeasure-8be5` at `79ba661aaf`, 2026-11-24
+(America/Los_Angeles), after #4113–#4115 (Any in the IR, counting host
+boxes, `linkAny`). Median of three runs on this container. Scalar ops are
+local WASM; import calls that remain are `Ref.*` and container/string work.
+
+| Program | JavaScript | Typed IR as WASM | IR on NaNVM's `.wasm` | IR on the counting host | NaNVM / JavaScript | Counting / NaNVM |
+| --- | --- | --- | --- | --- | --- | --- |
+| `sumTo` | 25 µs | 5.0 µs | 22.6 µs | 25.7 µs | 1× | 1.1× |
+| `sumToAny` | 25 µs | | 152 µs | 161 µs | 6× | 1.1× |
+| `fib` | 0.30 µs | 46 ns | 225 ns | 588 ns | 1× | 2.6× |
+| `readFields` | 25 µs | | 10.2 ms | 38.9 ms | 410× | 3.8× |
+| `callMany` | 2.5 µs | | 1.31 ms | 2.93 ms | 520× | 2.2× |
+| `repeat` | 3.8 µs | | 3.61 ms | 10.2 ms | 950× | 2.8× |
+| `bigSum` | 7.7 µs | | 3.60 ms | 7.89 ms | 470× | 2.2× |
+
+L0 **import** calls per program (local Any ops are not imports). The
+runner's post-call `drop` of the result is caller cleanup and is not
+counted:
+
+| Program | L0 calls | Most called |
+| --- | --- | --- |
+| `sumTo` | 0 | — |
+| `sumToAny` | 0 | — |
+| `fib` | 0 | — |
+| `readFields` | 220,000 | `kind_ref` 100,000, `dup_ref` 40,000, `drop_ref` 40,000, `find` 20,000, `item` 20,000 |
+| `callMany` | 14,000 | `kind_ref` 4,000, `drop_ref` 3,000, `push` 2,000, `dup_ref` 2,000, `begin_array` 1,000 |
+| `repeat` | 61,053 | `kind_ref` 24,021, `dup_ref` 13,011, `drop_ref` 13,011, `find` 3,002, `item` 3,002 |
+| `bigSum` | 77,028 | `kind_ref` 50,018, `drop_ref` 15,005, `dup_ref` 12,005 |
+
+Numeric loops drop from tens of thousands of `kind`/`to_f64`/`from_f64`
+imports to none during the program. `sumTo` and `fib` on NaNVM are about
+as fast as JavaScript on this container; `sumToAny` is about 6× (was
+36×). Programs that touch references still pay `Ref` and container
+imports; `repeat` is slower than the prior table on this machine (string
+work dominates, and JS was also faster here).
+
+### After short strings (S4)
+
+On branch `cursor/short-strings-s4-d9cd` (stacked on S3 #4123 / S2 #4122),
+2026-11-25 (America/Los_Angeles), after host short-box emit (S2) and
+`linkString` for `length`/`unit` (S3). Median of three runs on this
+container (4-core Intel Xeon, Node 26.13.1). **Variant measured: B** —
+emit `shortWhenEnabled` with v1 tags `empty` / `s1x16` / `s2x16` (max
+length 2); linked IR `string.length` / `string.unit`; long miss still
+imports. Emit A (`alwaysDynRef`) is the control. C was not measured
+(multi-local `str` still deferred).
+
+Primary: `shortOps('a', 10_000)` — each step concats `s + s` (still
+short) and adds both lengths. Secondary: `repeat` as long-path /
+regression.
+
+| Program | Emit | JavaScript | IR on NaNVM's `.wasm` | IR on the counting host | NaNVM / JavaScript | L0 calls |
+| --- | --- | --- | --- | --- | --- | --- |
+| `shortOps` | A | 29.1 µs | 38.98 ms | 149.15 ms | 1,340× | 660,032 |
+| `shortOps` | B | 29.0 µs | 26.19 ms | 101.15 ms | 903× | 310,025 |
+| `repeat` | A | 4.3 µs | 4.03 ms | 13.41 ms | 937× | 61,053 |
+| `repeat` | B | 4.3 µs | 3.12 ms | 9.71 ms | 726× | 34,002 |
+
+L0 **import** calls (local `string.length` / `string.unit` are not
+imports). Most called under B for `shortOps`: `kind_ref` 120,009,
+`dup_ref` 40,004, `drop_ref` 40,004, `find` 30,002, `item` 30,002 —
+record traffic on the loop state, not string length imports.
+
+Full suite under emit B (median of three; numeric loops unchanged vs
+linkAny):
+
+| Program | JavaScript | Typed IR as WASM | IR on NaNVM's `.wasm` | IR on the counting host | NaNVM / JavaScript | Counting / NaNVM |
+| --- | --- | --- | --- | --- | --- | --- |
+| `sumTo` | 25.5 µs | 5.0 µs | 22.6 µs | 27.9 µs | 1× | 1.2× |
+| `sumToAny` | 25.6 µs | | 145.7 µs | 149.7 µs | 6× | 1.0× |
+| `fib` | 0.32 µs | 46 ns | 221 ns | 589 ns | 1× | 2.7× |
+| `readFields` | 25.7 µs | | 6.83 ms | 32.40 ms | 266× | 4.7× |
+| `callMany` | 2.6 µs | | 1.46 ms | 3.68 ms | 562× | 2.5× |
+| `shortOps` | 29.0 µs | | 26.19 ms | 101.15 ms | 903× | 3.9× |
+| `repeat` | 4.3 µs | | 3.12 ms | 9.71 ms | 726× | 3.1× |
+| `bigSum` | 8.0 µs | | 3.91 ms | 10.85 ms | 489× | 2.8× |
+
+**Decision gate (closed):** NaNVM-targeted hosts default to **B**
+(`emitB` — `shortWhenEnabled` + v1 tags `empty`/`s1x16`/`s2x16`; linked
+`length`/`unit`). Counting host defaults to **A** (`emitA` /
+`alwaysDynRef`) as the control; pass `emitB` explicitly for short emit
+there. A and C stay buildable behind the same String interface. `shortOps`
+was still ~900× JavaScript here — record traffic on the loop state, fixed
+in [After records + length binders](#after-records--length-binders).
+
+### After records + length binders
+
+On branch `cursor/shortops-records-length-d9cd` (stacked on the S4 decision
+gate), 2026-11-25 (America/Los_Angeles). The records pass used to skip any
+function whose binders contained `.` / `/` / `\`, so a single `.length`
+(cast arms `p0.array` / `p0.string` / `p0.other`) kept the whole loop
+state as a Containers object. The pass now splits unless a generated name
+collides with an existing binder. Median of three runs on this container
+(4-core Intel Xeon, Node 26.13.1).
+
+| Program | Emit | JavaScript | IR on NaNVM's `.wasm` | IR on the counting host | NaNVM / JavaScript | L0 calls |
+| --- | --- | --- | --- | --- | --- | --- |
+| `shortOps` | A | 29.2 µs | 10.63 ms | 32.59 ms | 364× | 230,000 |
+| `shortOps` | B | 29.2 µs | 3.56 ms | 7.13 ms | 122× | 10,000 |
+| `repeat` | A | 4.0 µs | 1.31 ms | 2.83 ms | 329× | 18,021 |
+| `repeat` | B | 3.7 µs | 1.16 ms | 2.01 ms | 318× | 10,984 |
+
+Under B, `shortOps` L0 imports are only `concat` 10,000 — no
+`kind_ref` / `find` / `item` on the loop state. About **7×** faster than
+S4's B on NaNVM (26.19 ms → 3.56 ms); A also drops (38.98 ms → 10.63 ms)
+from the same split. `repeat` improves for the same reason.
+
+Full suite under emit B:
+
+| Program | JavaScript | Typed IR as WASM | IR on NaNVM's `.wasm` | IR on the counting host | NaNVM / JavaScript | Counting / NaNVM |
+| --- | --- | --- | --- | --- | --- | --- |
+| `sumTo` | 25.0 µs | 5.0 µs | 22.6 µs | 30.2 µs | 1× | 1.3× |
+| `sumToAny` | 25.2 µs | | 155.3 µs | 155.4 µs | 6× | 1.0× |
+| `fib` | 297 ns | 46 ns | 260 ns | 583 ns | 1× | 2.2× |
+| `readFields` | 24.8 µs | | 6.81 ms | 31.49 ms | 275× | 4.6× |
+| `callMany` | 2.5 µs | | 1.42 ms | 3.69 ms | 562× | 2.6× |
+| `shortOps` | 29.2 µs | | 3.56 ms | 7.13 ms | 122× | 2.0× |
+| `repeat` | 3.7 µs | | 1.16 ms | 2.01 ms | 318× | 1.7× |
+| `bigSum` | 7.7 µs | | 4.20 ms | 10.76 ms | 545× | 2.6× |
+
+`shortOps` under B is still ~120× JavaScript; the remaining cost is
+`concat` (and short-path length already linked). A rope for `concat` and
+variant C (S5+) stay the larger string levers.
+
+## Where the time goes (historical: before linkAny)
+
+The tables and profile below are from the second run above (after
+borrow / number paths / records, before the three levers of the
+[third run](#after-the-next-three-levers)), when Any was still an L0
+import and every scalar op was a host call. After
+[linkAny (checkpoint 4e)](#after-linkany-checkpoint-4e), numeric loops
+make no L0 imports during the program; see that section for current
+tallies and times. The diagnosis here still explains why the earlier
+levers mattered and where reference-heavy programs pay.
 
 ### L0 calls per program
 
-From the `calls` mode. The module's literals, made once by its start
-function, are left out.
+From the `calls` mode of the second run. The module's literals, made once
+by its start function, are left out.
 
 | Program | L0 calls now | Per step | Before the levers | Most called now |
 | --- | --- | --- | --- | --- |
@@ -266,18 +419,37 @@ The first profile, before the levers, had the handle layer at 94% of
    one copy, straight into the new string. `repeat` went from 1,550× to
    about 100× JavaScript's time, 7.4 to 0.94 ms, and is still quadratic.
 
+### Done in checkpoint 4e
+
+7. **NaN-boxed handles via a runtime in the IR** (#4113–#4116): Any is
+   written over the box and linked into programs (`any.*`); the counting
+   host speaks boxes; numeric loops drop from tens of thousands of
+   import calls to none during the program. See
+   [After linkAny](#after-linkany-checkpoint-4e).
+
+### Done in short strings S2–S4
+
+8. **Short-string boxes + linked length/unit** (#4121–#4123, S4
+   remeasure): host emit of shorts when a v1 tag fits (B); `linkString`
+   for `length`/`unit`; short-only microbench about 1.5× vs emit A. See
+   [After short strings (S4)](#after-short-strings-s4).
+
+### Done after shortOps record traffic
+
+9. **Records pass vs length binders** (this branch): `.length` no longer
+   disables the records pass; `shortOps` under B drops from ~900× to
+   ~120× JavaScript. See
+   [After records + length binders](#after-records--length-binders).
+
 ### Left
 
-1. **NaN-boxed handles**, the largest lever, as the second profile
-   ranked it: a number or a constant needs no slot, and `kind`, `to_f64`
-   and `from_f64` become a few instructions. The NaNVM route of
-   [nan-boxed-handles.md](../wasm/nan-boxed-handles.md) is superseded by
-   the owner's next task (2026-11-21): a runtime written in the IR, with
-   the NaN box coded by hand ([README](./README.md#next)).
-2. **Cancel `dup`/`drop` pairs in the lifetime pass** (medium): a few
-   percent, since `dup` is at most 1 in 6 of the calls after the records
-   pass (12,005 of 77,029 in `bigSum`).
-3. **A rope for `concat`** (NaNVM, larger): would make `repeat` linear.
+1. **Cancel `dup`/`drop` pairs in the lifetime pass** (medium): a few
+   percent on reference-heavy programs that still call `Ref.dup_ref` /
+   `drop_ref` (and on any leftover `dup`/`drop` pairs).
+2. **A rope for `concat`** (NaNVM, larger): would make `repeat` linear;
+   `shortOps` under B is now mostly `concat`.
+3. **Short-string variant C** (S5+): multi-local `str`; compare with B
+   once that lands.
 
 One limit stays as it was: a loop whose state starts as `f64` and becomes
 `any` is still refused (below). The records pass runs after the lowering,
@@ -316,11 +488,31 @@ From the repository's root, after building NaNVM's `.wasm`:
 
 ```sh
 cargo build -p nanvm-l0-wasm --release --target wasm32-unknown-unknown
-node doc/sasha-gil/ir/benchmark.run.mjs          # the table of times
-node doc/sasha-gil/ir/benchmark.run.mjs calls    # L0 calls per program
+node doc/sasha-gil/ir/benchmark.run.mjs          # the table of times (emit A)
+node doc/sasha-gil/ir/benchmark.run.mjs table B  # times with short emit (variant B)
+node doc/sasha-gil/ir/benchmark.run.mjs calls B  # L0 calls with short emit
 node doc/sasha-gil/ir/benchmark.run.mjs l0       # the cost of one L0 call
-node --cpu-prof doc/sasha-gil/ir/benchmark.run.mjs nanvm sumTo   # a profile of one program
+node --cpu-prof doc/sasha-gil/ir/benchmark.run.mjs nanvm shortOps B   # a profile of one program
 ```
 
 The files are prototypes, not part of the build, and each `.mjs` starts
 with `// @ts-nocheck`, as the folder's other companions do.
+
+### After the inline reference kind (D1)
+
+2026-11-26, Node 26.13.1, emit B, one run each on this container, on
+top of #4142 (before #4128, which splits `shortOps` and `repeat`'s loop
+state too).
+Any's `kind` of a reference reads its `tttt` bits in place of calling
+NaNVM's `kind_ref`; `checkedKind` keeps the call for a debug build.
+
+| Program | IR on NaNVM's `.wasm`, before | after | L0 calls, before | after |
+| --- | --- | --- | --- | --- |
+| `readFields` | 9.60 ms | 7.36 ms | 100,000 | 40,000 |
+| `callMany` | 1.90 ms | 1.68 ms | 14,000 | 10,000 |
+| `shortOps` | 35.20 ms | 33.64 ms | 310,025 | 190,016 |
+| `repeat` | 3.77 ms | 3.27 ms | 34,002 | 19,004 |
+| `bigSum` | 5.00 ms | 2.62 ms | 77,028 | 27,010 |
+
+The numeric programs make no L0 calls either way; their times moved
+only by noise.

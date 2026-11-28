@@ -5,7 +5,11 @@
  */
 
 import type { Kind } from '../../../wasm/runtime/l0/types.ts'
+import type { StringEmit } from '../../runtime/string/types.ts'
 import type { Host as NativeHost } from '../../native/host/types.ts'
+
+/** The String module's emit policy, as the hosts take it. */
+export type { StringEmit }
 
 /**
  * The functions of the `fjs:l0` imports that [the interfaces of
@@ -37,12 +41,13 @@ export type View = {
 
 /**
  * The `fjs:l0` imports of a host that counts: Any's constants, each an
- * immutable global of the handle of a cell that the host keeps, the view's
- * readers, `dup` and `drop`, which count a cell, and `from_unit`, `concat`,
- * `substring`, `item`, `join`, `key` and `text`, which make a cell that the caller
- * owns and answer its handle. `find` answers an `i32`. The memory that the
- * host makes holds a module's data segments at `data_base`, from which
- * `make_string` makes a cell of a string of the UTF-16 units at an address.
+ * immutable global of its NaN box, the view's readers over boxes, `dup` and
+ * `drop`, which count a dyn-ref's cell, Ref's `kind_ref` / `dup_ref` /
+ * `drop_ref` / `same_ref`, and `from_unit`, `concat`, `substring`, `item`,
+ * `join`, `key` and `text`, which make a box that the caller owns. `find`
+ * answers an `i32`. The memory that the host makes holds a module's data
+ * segments at `data_base`, from which `make_string` makes a box of a string
+ * of the UTF-16 units at an address.
  * A builder is an `i32` handle: `begin_array` makes one of a number of
  * items, `begin_object` one of a number of properties, `push` or
  * `push_property` takes over a cell as its next item or property,
@@ -76,6 +81,10 @@ export type Imports = {
     readonly unit: (h: bigint, i: number) => number
     readonly dup: (h: bigint) => bigint
     readonly drop: (h: bigint) => void
+    readonly kind_ref: (b: bigint) => Kind
+    readonly dup_ref: (b: bigint) => bigint
+    readonly drop_ref: (b: bigint) => void
+    readonly same_ref: (a: bigint, b: bigint) => 0 | 1
     readonly from_unit: (c: number) => bigint
     readonly concat: (a: bigint, b: bigint) => bigint
     readonly substring: (s: bigint, start: number, end: number) => bigint
@@ -110,14 +119,19 @@ export type Imports = {
  * `recover` frees what the trap abandoned, and answers the cells that it
  * freed, each a handle and the counts it took away.
  *
- * A copy value, `undefined`, `null` or a boolean, is not counted: where an
- * import, `own` or `thrown` would make a new cell of one, it answers the
- * handle of Any's constant that holds it, `-1` to `-4`, which no one owns,
- * and a `dup` or a `drop` of a cell that holds one leaves its count.
+ * A copy value, `undefined`, `null`, a boolean, a number or a well-formed
+ * short-string box, is not counted: where an import, `own` or `thrown`
+ * would make a new box of one, it answers the value's own NaN-box bits,
+ * which no one owns, and a `dup` or a `drop` of those bits is a no-op. A
+ * reference is a dyn-ref box that packs a cell index; `dup` and `drop`
+ * count that cell. Short-string **emission** follows the host's
+ * {@link StringEmit} policy: NaNVM defaults to B (`emitB`); the counting
+ * host defaults to A (`emitA`) as the dyn-ref control
+ * ([short-strings.md](../../../../doc/sasha-gil/ir/short-strings.md) S4).
  */
 export type Counting = {
     readonly imports: Imports
-    /** The handles of the first values, in their order. */
+    /** The NaN boxes of the first values, in their order. */
     readonly first: readonly bigint[]
     /**
      * The `fjs:l1-native` imports of a host that has its own, as NaNVM

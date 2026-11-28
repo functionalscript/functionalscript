@@ -190,7 +190,7 @@ export const proof = {
         assert(shown.includes('["span",{"data-token":"keyword"},"pub"]'))
         // The WAT is coloured: `module` is a keyword.
         assert(shown.includes('"(",["span",{"data-token":"keyword"},"module"],")"'))
-        assert(shown.includes('WebAssembly startup (fetch, compile and instantiate): 2.0 ms'))
+        assert(shown.includes('Rust→WASM startup (fetch, compile and instantiate): 2.0 ms'))
         assert(shown.includes('default(-1)'))
         // What JavaScript threw, spelled: a string, quoted.
         assert(shown.includes(toJson('Threw "negative"').slice(1, -1)))

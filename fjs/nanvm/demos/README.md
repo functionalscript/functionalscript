@@ -1,10 +1,12 @@
 # WASM Demos
 
-FunctionalScript runs two ways: as the JavaScript it already is, and compiled
-by `fjs compile` to Rust on the NaNVM runtime, then to WebAssembly. These
+FunctionalScript runs as the JavaScript it already is, and compiled by
+`fjs compile` to Rust on the NaNVM runtime, then to WebAssembly. These
 pages run the same source both ways, side by side, and show every step in
 between: the source, the Rust, and the WebAssembly text (WAT) of the
-functions compiled from it. The design is in
+functions compiled from it. [Sorting](./sort/README.md) and
+[Collatz](./collatz/README.md) also run a third route: IR `from_fast` +
+`linkAny` emitted directly to WebAssembly on NaNVM L0. The design is in
 [`todo/wasm-demos.md`](../../../todo/wasm-demos.md).
 
 ## Programs
@@ -15,9 +17,10 @@ and compares what each run wrote and how long it took.
 - [Hello, world](./hello/README.md): the smallest program, a greeting
   written byte by byte.
 - [Sorting](./sort/README.md): a quicksort of 100,000 integers, which
-  allocates as it goes.
-- [Collatz](./collatz/README.md): the longest Collatz chain below 30,000,
-  arithmetic with no allocation.
+  allocates as it goes (JS, Rust→WASM, and IR→WASM).
+- [Collatz](./collatz/README.md): the longest Collatz chain below 30,000 —
+  JS and Rust→WASM stay allocation-free (number handling alone); the IR→WASM
+  route uses records so `from_fast` can lower the loop.
 
 ## Language Features
 
@@ -38,9 +41,10 @@ are on the [Undecided](../../../spec/undecided/README.md) page.
   committed, with a Rust test per listed call, so the two runs a page
   compares are tested before it is deployed.
 - `nanvm/demos/gen.build.sh`, which `npm run gen` writes, builds the
-  `nanvm-demos` crate for `wasm32` into `nanvm/demos/wasm/`, and writes
-  each sample's WAT and its Rust, both marked for colouring, beside it.
-  All are ignored build artifacts. Cloudflare builds
-  them before generating the website.
+  `nanvm-demos` crate for `wasm32` into `nanvm/demos/wasm/`, writes
+  each sample's WAT and its Rust, both marked for colouring, beside it,
+  then builds `nanvm-l0-wasm` and emits the IR programs for sort and
+  Collatz (`*.ir.wasm` plus `nanvm_l0_wasm.wasm`). All are ignored build
+  artifacts. Cloudflare builds them before generating the website.
   For a local website build, first run
   `./dev.sh sh ./nanvm/demos/gen.build.sh`, then `npm run website`.

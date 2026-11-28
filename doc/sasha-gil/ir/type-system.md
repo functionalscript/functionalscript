@@ -804,10 +804,16 @@ parameters, so no local is ever reassigned.
   The check inside `at`, `div` or `narrow` reports the same way. WASM
   spells a trap `unreachable`, with the reason in a side table, and Rust
   spells it `panic!`.
+- **Traps on misuse.** `misuse('count of 0')` is a trap where only a bug
+  of the caller leads, or memory that cannot grow, as L0's traps on
+  misuse are ([L0 design §11](../wasm/l0-design.md#11-misuse-traps-and-only-calls-fail)).
+  It traps as `trap` does, and does not count as failing, so a heap's
+  `alloc`, or a `drop` that traps on a count of 0, may not fail, and a
+  hook may hold one.
 - **Throws.** `throw_(v)` is L0's throw, which stores the value and traps.
 - **One effect.** A function may fail, by a trap or a throw, or it cannot.
   Imports declare the bit, and the checker infers it for functions
-  written in the IR. A call that cannot fail may be moved, or removed
+  written in the IR, where a trap on misuse adds nothing. A call that cannot fail may be moved, or removed
   when its result is unused, and two equal calls may be merged unless
   their result is unique. A call that may fail keeps its order.
   Allocation does not count as failing: running out of memory can happen

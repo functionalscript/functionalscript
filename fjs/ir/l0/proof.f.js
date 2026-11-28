@@ -2,7 +2,7 @@ import { assertEq, assertOk } from '../../asserts/module.f.js'
 import { ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFINED, kind as viewKind } from '../../wasm/runtime/l0/module.f.js'
 import { check } from '../check/module.f.js'
 import { show } from '../print/module.f.js'
-import { any, kinds, l0 } from './module.f.js'
+import { any, kinds, l0, memory } from './module.f.js'
 
 export const proof = {
     // The variants of `any` are the L0 view's kinds in the order of its tags, which `kind` answers.
@@ -53,4 +53,24 @@ export const proof = {
     // A module may import all of them: the checker takes the interfaces.
     checked: () => assertEq(assertOk(check({ imports: l0, functions: [], exports: [] })).imports.map(([k]) => k).join(), 'Any,String,BigInt,Containers,Functions'),
     any: () => assertEq(show(any), 'any'),
+    // Memory is the target's, beside L0's interfaces and of their ABI: a load and a store of each width, the size and
+    // grow, none of which may fail, since an address past the memory is a misuse (heap.md, Memory in the IR).
+    memory: () => {
+        const [name, { abi, instructions, types, functions }] = memory
+        assertEq(`${name} ${abi} ${instructions} ${types.length}`, 'Memory fjs:l0 true 0')
+        assertEq(functions.map(([f, { params, result }]) => `${f}(${params.map(([k, t]) => `${k}: ${show(t)}`).join(', ')}) -> ${show(result)}`).join('; '), [
+            'load8(a: u(32)) -> u(8)',
+            'load16(a: u(32)) -> u(16)',
+            'load32(a: u(32)) -> u(32)',
+            'load64(a: u(32)) -> u(64)',
+            'store8(a: u(32), v: u(8)) -> unit',
+            'store16(a: u(32), v: u(16)) -> unit',
+            'store32(a: u(32), v: u(32)) -> unit',
+            'store64(a: u(32), v: u(64)) -> unit',
+            'size() -> int(0, 65536)',
+            'grow(n: int(0, 65536)) -> int(-1, 65536)',
+        ].join('; '))
+        assertEq(functions.filter(([, s]) => s.fails === true || s.counts !== undefined || s.returns !== undefined || s.params.some(p => p[2] === 'own')).length, 0)
+        assertEq(assertOk(check({ imports: [...l0, memory], functions: [], exports: [] })).imports.map(([k]) => k).join(), 'Any,String,BigInt,Containers,Functions,Memory')
+    },
 }

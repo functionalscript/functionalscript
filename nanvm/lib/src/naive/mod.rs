@@ -9,7 +9,7 @@ use crate::{
         function::{Function, Text},
     },
     sign::Sign,
-    vm::{Any, Array, IVm, StaticCode, Unpacked},
+    vm::{Any, Array, GroupEntry, IVm, StaticCode, Unpacked},
 };
 
 /// Note: we can't use `type InternalAny = Unpacked<InternalAny>;` because Rust doesn't support
@@ -38,7 +38,7 @@ impl IVm for Naive {
         f(&self.0)
     }
 
-    /// `naive` holds a static function, and makes a function no other way.
+    /// Construct a runtime closure from static Rust code and its capture frame.
     fn static_function(
         code: StaticCode<Naive>,
         length: u32,
@@ -56,7 +56,16 @@ impl IVm for Naive {
     ) -> crate::vm::Function<Self> {
         crate::vm::Function::new(Function::new(code, length, frame, text.map(Text::Vm)))
     }
-    fn frame(self_: &Function) -> &Array<Naive> {
+    fn function_group<const S: usize, const N: usize>(
+        frame: [Any<Self>; S],
+        entries: [GroupEntry<Self>; N],
+    ) -> crate::vm::Function<Self> {
+        crate::vm::Function::new(Function::group(frame, entries))
+    }
+    fn group_member(self_: &Function, index: usize) -> crate::vm::Function<Self> {
+        crate::vm::Function::new(self_.member(index))
+    }
+    fn frame(self_: &Function) -> &[Any<Naive>] {
         self_.frame()
     }
 }

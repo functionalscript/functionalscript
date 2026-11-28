@@ -32,6 +32,13 @@
  *   each owned value to be consumed once on every path; `checkPlain` stops
  *   before it, for the [lifetime pass](../lifetime/module.f.js), which
  *   writes the owned stage.
+ * - **A branch on a comparison narrows a local**
+ *   ([type-system.md: Flow refinement](../../../doc/sasha-gil/ir/type-system.md#flow-refinement-is-two-rules)):
+ *   an arm of a `match` of `lt`, `le` or `eq` of two integers, or of a
+ *   `not` of one, sees each operand that is a local at the range that the
+ *   other operand's allows, so a sum of two `u(32)` is a `u(32)` again
+ *   where its check holds. It keeps one range per local, and nothing that
+ *   relates two locals.
  * - **A string literal is its maker's.** A sealed type whose interface
  *   names the function that makes its literals has string literals of the
  *   one variant that the function makes, `any.only(string)` for `any`,
@@ -49,7 +56,17 @@
  *   function of a module: one may fail where its body has a `trap` or a
  *   call of a function that may fail, of an interface or of the module,
  *   repeating over the module until no function changes. The module that
- *   it answers writes the bit beside each function.
+ *   it answers writes the bit beside each function. A `trap` marked
+ *   `misuse` does not count, as L0's traps on misuse declare nothing
+ *   ([L0 design §11](../../../doc/sasha-gil/wasm/l0-design.md#11-misuse-traps-and-only-calls-fail)),
+ *   so a hook may trap on misuse.
+ * - **An inline hint is one that the inline pass can keep.** A function
+ *   hinted `always` reaches itself through no chain of calls of such
+ *   functions, is read as no value, and is no `kind` of a type that the
+ *   module defines, which the emitter calls in each `match` of it. A
+ *   type's `dup` and `drop`, which the lifetime pass calls after the
+ *   [inline pass](../inline/module.f.js) has run, are copied by the
+ *   emitter instead.
  *
  * @module
  *
@@ -63,10 +80,10 @@ import { error, ok, okList, unwrap } from '../../types/result/module.f.js'
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
 import { at, empty, fromEntries, setReplace } from '../../types/ordered_map/module.f.js'
-import { bool, compareIn, definedBy, equal, f64, f64c, fits, inside, int, interfacesOf, isCopy, isOwn, never, product, u, unit } from '../module.f.js'
+import { bool, compareIn, definedBy, equal, f64, f64c, fits, inside, int, interfacesOf, isCopy, isOwn, never, product, terms, u, unit } from '../module.f.js'
 import { quote, show } from '../print/module.f.js'
 import { checkOwned } from './owned/module.f.js'
-import { ref } from '../l0/module.f.js'
+import { memory, ref } from '../l0/module.f.js'
 
 /** Locals of a function: names to types, without parameter modes. @type {(params: readonly Param[]) => OrderedMap<Type>} */
 const localsOf = params => fromEntries(params.map(([name, type]) => /** @type {const} */ ([name, type])))
@@ -105,7 +122,8 @@ const narrowed = (env, t, held) => {
 /**
  * Why a module may not write a literal of a sealed type, or `null` where it
  * may: a string, of the type of the variant that the type's string literals
- * hold, which a function of an interface that the module imports makes. A
+ * hold, which a function of an interface that the module imports makes, an
+ * import of a host, so of an interface that does not say `instructions`. A
  * type of that variant alone holds just its values, so the type may name it.
  *
  * @type {(env: _Env, t: Sealed, v: bigint | number | string) => string | null}
@@ -113,10 +131,12 @@ const narrowed = (env, t, held) => {
 const unmade = (env, t, v) => {
     const { literal } = unwrap(definition(env, t))
     const held = kinds(env, t)
+    const maker = literal === undefined ? null : at(literal.module)(env.imports)
     return literal === undefined ? `${show(t)} has no literals`
         : typeof v !== 'string' ? `${v} is not a literal of ${show(t)}`
         : held.length !== 1 || held[0] !== literal.variant ? `a string literal is ${show(narrowed(env, t, [literal.variant]))}, not ${show(t)}`
-        : at(literal.module)(env.imports) === null ? `${literal.module} makes the literals of ${t[2]}, and the module does not import ${literal.module}`
+        : maker === null ? `${literal.module} makes the literals of ${t[2]}, and the module does not import ${literal.module}`
+        : maker.instructions === true ? `${literal.module} makes the literals of ${t[2]}, and it says instructions, so its functions are the target's, and none makes a literal`
         : null
 }
 
@@ -395,6 +415,70 @@ const truncType = (env, target, args) => {
         : args.length !== 1 ? error(`trunc_sat takes one operand, not ${args.length}`)
         : !isFloat(args[0]) ? error(`trunc_sat of ${show(args[0])}: trunc_sat takes a float`)
         : ok(target)
+}
+
+// flow refinement
+
+/** The bool literal that a typed term is, `true` or `false`, or `null` where it is none. @type {(x: Typed) => string | null} */
+const boolLiteral = ([, t]) => t[0] === 'variant' && equal(t[1], bool) ? t[2] : null
+
+/**
+ * The ranges of two integers `a` and `b` where `op(a, b)` is `holds`, each
+ * `null` where none is left: `lt` and `le` move the ends that the other
+ * operand bounds, an `eq` that holds leaves both in their overlap, and one
+ * that does not takes the other's value off an end, where the other holds
+ * one value.
+ *
+ * @type {(op: 'lt' | 'le' | 'eq', holds: boolean, a: Int, b: Int) => readonly [Int | null, Int | null]}
+ */
+const compared = (op, holds, [, al, ah], [, bl, bh]) => {
+    /** @type {(lo: bigint, hi: bigint) => Int | null} */
+    const range = (lo, hi) => lo <= hi ? int(lo, hi) : null
+    /** `lo` to `hi` without `c` where `c` is an end of it. @type {(lo: bigint, hi: bigint, c: bigint | null) => Int | null} */
+    const apart = (lo, hi, c) => range(lo === c ? lo + 1n : lo, hi === c ? hi - 1n : hi)
+    switch (op) {
+        case 'lt': {
+            return holds ? [range(al, least([ah, bh - 1n])), range(greatest([bl, al + 1n]), bh)]
+                : [range(greatest([al, bl]), ah), range(bl, least([bh, ah]))]
+        }
+        case 'le': {
+            return holds ? [range(al, least([ah, bh])), range(greatest([bl, al]), bh)]
+                : [range(greatest([al, bl + 1n]), ah), range(bl, least([bh, ah - 1n]))]
+        }
+        default: {
+            const both = range(greatest([al, bl]), least([ah, bh]))
+            return holds ? [both, both] : [apart(al, ah, bl === bh ? bl : null), apart(bl, bh, al === ah ? al : null)]
+        }
+    }
+}
+
+/**
+ * What an arm that sees the outcomes `vs` of a bool learns of the locals
+ * ([type-system.md: Flow refinement](../../../doc/sasha-gil/ir/type-system.md#flow-refinement-is-two-rules)):
+ * where the bool is `lt`, `le` or `eq` of two integers, each operand that
+ * is a local at the range that the other operand's allows, and where it is
+ * a `match` of a bool whose arms answer bool literals, as `not` and `ne`
+ * write one, what the outcomes of its own operand that lead to `vs` teach.
+ * An arm of both outcomes learns nothing, and neither does one where a
+ * range would be empty, which no run reaches.
+ *
+ * @type {(c: Typed, vs: readonly string[]) => readonly (readonly [string, Type])[]}
+ */
+const learned = ([, t], vs) => {
+    if (vs.length !== 1) { return [] }
+    if (t[0] === 'op' && (t[1] === 'lt' || t[1] === 'le' || t[1] === 'eq')) {
+        const [a, b] = t[2]
+        if (a[0][0] !== 'int' || b[0][0] !== 'int') { return [] }
+        const ranges = compared(t[1], vs[0] === 'true', a[0], b[0])
+        return [a, b].flatMap(([, x], k) => {
+            const r = ranges[Number(k)]
+            return x[0] === 'get' && r !== null ? [/** @type {const} */ ([x[1], r])] : []
+        })
+    }
+    if (t[0] === 'match' && equal(t[1][0], bool) && t[2].every(([, , body]) => boolLiteral(body) !== null)) {
+        return learned(t[1], t[2].flatMap(([ws, , body]) => boolLiteral(body) === vs[0] ? ws : []))
+    }
+    return []
 }
 
 // terms
@@ -705,7 +789,9 @@ const term = (env, t) => {
             const [of] = operand[1]
             /** An arm's body, where its name, if it has one, is the operand at the type of the arm's variants. @type {(arm: readonly [readonly string[], string | null, Term, readonly string[] | null]) => Result<Typed, string>} */
             const body = ([vs, binder, x]) => {
-                if (binder === null || of[0] !== 'sealed') { return term(env, x) }
+                // An arm of a bool sees each local that a comparison narrowed at its narrower range.
+                if (of[0] !== 'sealed') { return term(learned(operand[1], vs).reduce((e, [name, r]) => ({ ...e, locals: setReplace(name)(r)(e.locals) }), env), x) }
+                if (binder === null) { return term(env, x) }
                 if (at(binder)(env.locals) !== null) { return no(`${binder} is bound twice`) }
                 /** @type {(t: Type) => (locals: OrderedMap<Type>) => OrderedMap<Type>} */
                 const bind = setReplace(binder)
@@ -778,6 +864,46 @@ const unsigned = (env, { params, result }) => {
         : null
 }
 
+/** A signature, as the messages show it. @type {(s: Signature) => string} */
+const shown = ({ params, result }) => `(${params.map(p => `${isOwn(p) ? 'own ' : ''}${p[0]}: ${show(p[1])}`).join(', ')}) -> ${show(result)}`
+
+/** Whether two signatures take the same parameters, each owned or borrowed alike, and answer the same result. @type {(a: Signature, b: Signature) => boolean} */
+const sameShape = (a, b) => a.params.length === b.params.length
+    && a.params.every((p, k) => equal(p[1], b.params[Number(k)][1]) && isOwn(p) === isOwn(b.params[Number(k)]))
+    && equal(a.result, b.result)
+
+/** A signature with its marks, as the messages show it: what it gives back, and whether it may fail and counts on bits. @type {(s: Signature) => string} */
+const marked = s => [
+    shown(s),
+    ...(s.returns === undefined ? [] : [`gives back ${s.returns}`]),
+    ...(s.fails === true ? ['may fail'] : []),
+    ...(s.counts === undefined ? [] : [`counts ${s.counts}`]),
+].join(', ')
+
+/**
+ * Why an interface that says `instructions` may not be one, or `null` where
+ * it may: it is L0's `Memory`, or a part of it, since the target binds its
+ * functions with instructions of its own, and the emitter knows no others.
+ * So it is of `Memory`'s ABI, from which the memory is imported, it has no
+ * types and no constants, which no host would make, and each of its
+ * functions is one of `Memory`'s, with its signature and its marks.
+ *
+ * @type {(name: string, i: Interface) => string | null}
+ */
+const unbound = (name, { abi, types, constants = [], functions }) => {
+    const [own, { abi: mine, functions: all }] = memory
+    const stranger = functions.find(([f]) => all.every(([k]) => k !== f))
+    const unlike = functions.flatMap(([f, s]) => {
+        const m = all.find(([k]) => k === f)?.[1]
+        return m === undefined || sameShape(s, m) && (s.fails === true) === (m.fails === true) && s.counts === m.counts && s.returns === m.returns ? []
+            : [`${name}.${f} is L0's ${own}.${f}, which is ${marked(m)}, not ${marked(s)}`]
+    })
+    return abi !== mine ? `${name} says instructions, so it is L0's ${own}, of ${mine}, not of ${abi}`
+        : types.length > 0 || constants.length > 0 ? `${name} says instructions, so it has no types and no constants, which the target would not make`
+        : stranger !== undefined ? `${name} says instructions, and ${stranger[0]} is no function of L0's ${own}, which the target binds`
+        : unlike[0] ?? null
+}
+
 /** The first name that a list holds twice, or `undefined`. @type {(names: readonly string[]) => string | undefined} */
 const twiceIn = names => names.find((k, j) => names.indexOf(k) !== j)
 
@@ -806,11 +932,14 @@ const unkept = (env, t) => isNever(t) ? 'a constant of never holds no value' : u
  * that answers `never` may fail, and a function that counts on bits is
  * `dup` or `drop` over one word of bits, borrowed: `dup` as
  * `(b: u(64)) -> u(64)` and `drop` as `(b: u(64)) -> unit`, or the same
- * over `u(32)`, and may not fail, since the hooks that call it may not.
+ * over `u(32)`, and may not fail, since the hooks that call it may not. An
+ * interface that says `instructions` is a part of L0's `Memory`
+ * ({@link unbound}).
  *
  * @type {(imports: OrderedMap<Interface>) => (entry: readonly [string, Interface]) => string | null}
  */
-const checkInterface = imports => ([name, { types, constants = [], functions }]) => {
+const checkInterface = imports => ([name, iface]) => {
+    const { instructions, types, constants = [], functions } = iface
     /** @type {_Env} */
     const env = { name, locals: empty, labels: empty, functions: empty, imports, constants: empty, own: null, owned: false, body: false }
     const type = twiceIn(types.map(([k]) => k))
@@ -843,7 +972,9 @@ const checkInterface = imports => ([name, { types, constants = [], functions }])
         const answers = counts === 'dup' ? bits !== undefined && equal(result, bits) : counts === 'drop' ? equal(result, unit) : false
         return !(params.length === 1 && word && answers && fails !== true)
     })
-    return type !== undefined ? `${name}: two types are named ${type}`
+    const target = instructions === true ? unbound(name, iface) : null
+    return typeof target === 'string' ? target
+        : type !== undefined ? `${name}: two types are named ${type}`
         : constant !== undefined ? `${name}: two constants are named ${constant}`
         : named !== undefined ? `${name}: two functions are named ${named}`
         : twice !== undefined ? `${name}: ${twice[0]} names a variant twice`
@@ -886,9 +1017,13 @@ const globalOf = (env, t) => {
  * the host's function, as the four `length`s do. The function that makes a
  * type's literals is a function of its interface's ABI here too, and that
  * ABI's `memory` and `data_base` are the loader's, so no constant or
- * function of the ABI has either name. So are `table` and `table_base` of
- * the first interface's ABI, from which a module that holds code imports
- * the loader's table. The emitter imports a maker once
+ * function of the ABI has either name. An interface that says
+ * `instructions` imports no function, since the target binds it, but its
+ * ABI's `memory` is the loader's too, and a module imports one memory, so
+ * the literals of a module that touches the memory are made in that ABI's.
+ * So are `table` and `table_base` of the first ABI of an interface that the
+ * target does not bind, from which a module that holds code imports the
+ * loader's table. The emitter imports a maker once
  * for its ABI and its name, and it answers one WASM value, so two types
  * whose literals it makes are carried by that value. Two functions of one
  * name count on bits alike, `dup`, `drop` or not at all, and as L0's `Ref`
@@ -897,9 +1032,13 @@ const globalOf = (env, t) => {
  * function that is one of `Ref`'s has `Ref`'s signature, which is how
  * NaNVM's host exports it.
  *
- * @type {(env: _Env, imports: readonly (readonly [string, Interface])[]) => string | null}
+ * @type {(env: _Env, loaded: readonly (readonly [string, Interface])[]) => string | null}
  */
-const shared = (env, imports) => {
+const shared = (env, loaded) => {
+    // The target binds an interface that says instructions, so none of its functions is an import, and the memory that they touch is the loader's, from its ABI.
+    const imports = loaded.filter(([, { instructions }]) => instructions !== true)
+    const bound = loaded.filter(([, { instructions }]) => instructions === true)
+    const reading = bound.length === 0 ? null : bound[0][1].abi
     const makers = imports.flatMap(([module, { types }]) => types.flatMap(([type, { literal, carrier }]) => {
         const i = literal === undefined ? null : at(literal.module)(env.imports)
         return literal === undefined || i === null ? [] : [/** @type {const} */ ([`${literal.module}.${literal.member}`, i.abi, literal.member, `${module}.${type}`, carrier])]
@@ -917,16 +1056,19 @@ const shared = (env, imports) => {
         return other === undefined ? [] : [`the functions ${other[0]}, which counts ${other[3]}, and ${name}, which counts ${c}, are both the import ${member} of ${abi}, and its names count on bits alike`]
     })
     // A function that is one of NaNVM's own in L0's Ref has Ref's signature, as NaNVM's host exports it.
-    /** A signature, as the messages show it. @type {(s: Signature) => string} */
-    const shown = ({ params, result }) => `(${params.map(p => `${isOwn(p) ? 'own ' : ''}${p[0]}: ${show(p[1])}`).join(', ')}) -> ${show(result)}`
     const unlike = imports.flatMap(([module, { abi, functions }]) => abi !== ref[1].abi ? [] : functions.flatMap(([member, s]) => {
         const r = ref[1].functions.find(([k]) => k === member)?.[1]
-        const same = r === undefined || (s.params.length === r.params.length && s.params.every((p, k) => equal(p[1], r.params[Number(k)][1]) && isOwn(p) === isOwn(r.params[Number(k)])) && equal(s.result, r.result))
-        return same ? [] : [`${module}.${member} is the import ${member} of ${abi}, which L0's ${ref[0]}.${member} declares as ${shown(assertNotNullish(r))}, not ${shown(s)}`]
+        return r === undefined || sameShape(s, r) ? [] : [`${module}.${member} is the import ${member} of ${abi}, which L0's ${ref[0]}.${member} declares as ${shown(r)}, not ${shown(s)}`]
     }))
     const cs = imports.flatMap(([module, { abi, constants = [] }]) => constants.map(([member, t]) => /** @type {const} */ ([`${module}.${member}`, abi, member, globalOf(env, t)])))
+    /** What a module does that the loader gives it the import `member` of `abi` for, or `null` where it gives none. @type {(abi: string, member: string) => string | null} */
+    const given = (abi, member) => (member === 'memory' || member === 'data_base') && makers.some(([, a]) => a === abi) ? 'makes literals'
+        : member === 'memory' && abi === reading ? 'touches the memory'
+        : null
     const loader = [...fns.map(([name, abi, member]) => /** @type {const} */ ([`function ${name}`, abi, member])), ...cs.map(([name, abi, member]) => /** @type {const} */ ([`constant ${name}`, abi, member]))]
-        .find(([, abi, member]) => (member === 'memory' || member === 'data_base') && makers.some(([, a]) => a === abi))
+        .find(([, abi, member]) => given(abi, member) !== null)
+    // A module imports one memory: its literals' segment and the instructions are on the same one.
+    const memories = reading === null ? undefined : makers.find(([, a]) => a !== reading)
     const first = imports.length === 0 ? null : imports[0][1].abi
     const table = [...fns.map(([name, abi, member]) => /** @type {const} */ ([`function ${name}`, abi, member])), ...cs.map(([name, abi, member]) => /** @type {const} */ ([`constant ${name}`, abi, member]))]
         .find(([, abi, member]) => (member === 'table' || member === 'table_base') && abi === first)
@@ -942,7 +1084,8 @@ const shared = (env, imports) => {
         const other = makers.find(([, a, m, , x], k) => k < j && a === abi && m === member && x !== c)
         return other === undefined ? [] : [`the literals of ${other[3]}, carried by ${other[4]}, and of ${type}, carried by ${c}, are both made by the import ${member} of ${abi}, which answers one WASM value`]
     })
-    return loader !== undefined ? `the ${loader[0]} is the import ${loader[2]} of ${loader[1]}, which the loader gives a module that makes literals`
+    return loader !== undefined ? `the ${loader[0]} is the import ${loader[2]} of ${loader[1]}, which the loader gives a module that ${given(loader[1], loader[2])}`
+        : memories !== undefined ? `the literals of ${memories[3]} are made in the memory of ${memories[1]}, and ${bound[0][0]} touches the memory of ${reading}, but a module imports one memory`
         : table !== undefined ? `the ${table[0]} is the import ${table[2]} of ${table[1]}, which the loader gives a module that holds code`
         : clash[0] ?? carried[0] ?? alias[0] ?? unlike[0] ?? null
 }
@@ -980,13 +1123,13 @@ const unscoped = (env, imports, functions, locals, results, loaded = imports) =>
         : null
 }
 
-/** A function whose signature the checker took: a body of its result's type. @type {(functions: OrderedMap<Signature>, imports: OrderedMap<Interface>, constants: OrderedMap<Type>, own: string | null, owned: boolean) => (entry: readonly [string, FunctionOf<Term>]) => Result<readonly [string, FunctionOf<Typed>], string>} */
-const checkFn = (functions, imports, constants, own, owned) => ([name, { params, result, body }]) => {
+/** A function whose signature the checker took: a body of its result's type, with its inline hint, which the passes after the checker read. @type {(functions: OrderedMap<Signature>, imports: OrderedMap<Interface>, constants: OrderedMap<Type>, own: string | null, owned: boolean) => (entry: readonly [string, FunctionOf<Term>]) => Result<readonly [string, FunctionOf<Typed>], string>} */
+const checkFn = (functions, imports, constants, own, owned) => ([name, { params, result, body, inline }]) => {
     /** @type {_Env} */
     const env = { name, locals: localsOf(params), labels: label_('return', ['block', result])(empty), functions, imports, constants, own, owned, body: true }
     const b = term(env, body)
     if (b[0] === 'error') { return b }
-    return sub(env, b[1][0], result) ? ok([name, { params, result, body: b[1] }])
+    return sub(env, b[1][0], result) ? ok([name, { params, result, body: b[1], ...(inline === undefined ? {} : { inline }) }])
         : error(`${name}: the body is ${show(b[1][0])}, not ${show(result)}`)
 }
 
@@ -1101,8 +1244,9 @@ const declared = (imports, module, name) => assertNotNullish(assertNotNullish(at
 
 /**
  * What a typed term does that may fail: whether it may fail itself, by a
- * `trap` or by a call of a function of an interface that may fail, and the
- * module's functions that it calls, each once.
+ * `trap` that is not marked `misuse` or by a call of a function of an
+ * interface that may fail, and the module's functions that it calls, each
+ * once.
  *
  * @type {(imports: OrderedMap<Interface>, own: string | null) => (x: Typed) => readonly [boolean, readonly string[]]}
  */
@@ -1112,7 +1256,7 @@ const failures = (imports, own) => ([, t]) => {
     // A `match` that tests a tag calls its kind: the module's own, for a type that it defines.
     const kind = kindCall(imports, t)
     const mine = kind !== null && kind[0] === own ? kind[1] : null
-    const itself = t[0] === 'trap'
+    const itself = (t[0] === 'trap' && t[2] !== 'misuse')
         || (t[0] === 'call' && t[1] !== 'self' && declared(imports, t[1], t[2]))
         || (t[0] === 'call_ref' && known === null)
         || (kind !== null && mine === null && declared(imports, kind[0], kind[1]))
@@ -1219,6 +1363,57 @@ const misdefined = (m, own) => {
     }).find(x => x !== null) ?? null
 }
 
+/** The names of the module's functions that a term reads as values. @type {(t: Term) => readonly string[]} */
+const codes = t => [...(t[0] === 'code' ? [t[1]] : []), ...terms(t).flatMap(codes)]
+
+/** The functions of the module that a term calls. @type {(t: Term) => readonly string[]} */
+const callees = t => [...(t[0] === 'call' && t[1] === 'self' ? [t[2]] : []), ...terms(t).flatMap(callees)]
+
+/**
+ * Why a function's inline hint does not hold, or `null` where each does: a
+ * hint is `always` or `never`, and a function hinted `always` reaches
+ * itself through no chain of calls of such functions, since its copies
+ * would never end, and is read as no value, since a value needs its code.
+ * A type's `dup` and `drop` may be hinted too: the emitter copies them,
+ * since the lifetime pass writes their calls after the inline pass has
+ * run. Its `kind` may not, since the emitter writes a call of it in each
+ * `match` of the type, which no pass sees.
+ *
+ * @type {(m: Module) => string | null}
+ */
+const misinlined = m => {
+    const strange = m.functions.find(([, { inline }]) => inline !== undefined && inline !== 'always' && inline !== 'never')
+    if (strange !== undefined) { return `${strange[0]}: an inline hint is always or never, not ${/** @type {unknown} */ (strange[1].inline)}` }
+    const always = m.functions.flatMap(([k, f]) => f.inline === 'always' ? [/** @type {const} */ ([k, f])] : [])
+    const kinds = (m.defines?.types ?? []).map(([, { kind }]) => kind)
+    const values = [...m.functions.flatMap(([, f]) => codes(f.body)), ...(m.constants ?? []).flatMap(([, c]) => codes(c.value))]
+    /** The functions hinted `always` that `f` calls. @type {(body: Term) => readonly string[]} */
+    const next = body => callees(body).filter(g => always.some(([k]) => k === g))
+    /** Whether `f` reaches itself through calls of functions hinted `always`. @type {(f: string, body: Term) => boolean} */
+    const cycles = (f, body) => {
+        let todo = next(body)
+        /** @type {readonly string[]} */
+        let seen = []
+        let k = 0
+        while (k < todo.length) {
+            const g = todo[Number(k)]
+            k = k + 1
+            if (!seen.includes(g)) {
+                seen = [...seen, g]
+                todo = [...todo, ...next(assertNotNullish(always.find(([x]) => x === g))[1].body)]
+            }
+        }
+        return seen.includes(f)
+    }
+    const value = always.find(([k]) => values.includes(k))
+    const cycle = always.find(([k, f]) => cycles(k, f.body))
+    const kind = always.find(([k]) => kinds.includes(k))
+    return kind !== undefined ? `${kind[0]} is inline always and the kind of a type that the module defines, which the emitter calls in each match of it`
+        : value !== undefined ? `${value[0]} is inline always and read as a value, which needs its code`
+        : cycle !== undefined ? `${cycle[0]} is inline always and calls itself through functions inline always, so its copies would never end`
+        : null
+}
+
 /**
  * A module's stage, checked: the plain stage, or the owned one, which the
  * lifetime pass writes and where alone the pass's forms for a counted type
@@ -1241,7 +1436,7 @@ const checkStage = (m, owned) => {
     const scoped = own === null ? interfaces : interfaces.map(([k, i]) => /** @type {const} */ ([k, k === own ? { ...i, types: plainTypes } : i]))
     // The loader links what the module imports, and the makers of the literals of the types that it defines, but none of its own functions.
     const loaded = own === null ? m.imports : [...m.imports, /** @type {const} */ ([own, { abi: own, types: plainTypes, functions: [] }])]
-    const why = mine ?? unscoped(env, scoped, m.functions, [], [], loaded)
+    const why = mine ?? unscoped(env, scoped, m.functions, [], [], loaded) ?? misinlined(m)
     const names = m.functions.map(([name]) => name)
     const missing = m.exports.find(k => !names.includes(k))
     const again = twiceIn(m.exports)
