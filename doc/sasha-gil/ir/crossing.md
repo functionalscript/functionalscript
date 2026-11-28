@@ -173,9 +173,15 @@ Each wrapper tests its argument for a reference of kind 9 in one mask and
 compare, `eq(and(b, n(REF_TAG | KIND)), n(IR_STRING))`, which holds the
 reference tag and the nibble together; `isIrStringTerm` alone is not
 enough, since an `any` that is a number or a short string can have nibble 9
-too, and the wrapper would take it for a block. It is hinted to inline
+too, and the wrapper would take it for a block. A wrapper of an import
+argument or of an export's result is hinted to inline
 (`hint('always', …)`, see the note on #4162 below), so a value that is no
-IR string costs that test and nothing else. A follow-up could skip the test where the types prove that no IR
+IR string costs that test and nothing else. A wrapper that a `['code',
+name]` term points at stays materialized: `checkPlain` refuses any
+inline-always function read as a value, which needs its code
+(`fjs/ir/check/module.f.js`), and the link step redirects each such code
+term to the wrapper, so marking those always would fail before the inline
+pass. A follow-up could skip the test where the types prove that no IR
 string can be there; not in H3c.
 
 ### Proofs
@@ -196,9 +202,9 @@ string can be there; not in H3c.
   alone would not catch a wrapper that tests the nibble only.
 - **The link step's own proofs**, in `link/proof.f.js`: which calls it
   rewrites, that a parameter or a result that cannot hold a string is left
-  alone, that
-  it refuses a program whose own name collides with a wrapper's, as
-  `linkAny` does.
+  alone, that a code-index wrapper is not hinted always (so `checkPlain`
+  accepts the redirected `['code', name]`), and that it refuses a program
+  whose own name collides with a wrapper's, as `linkAny` does.
 - 100% coverage for every changed `module.f.js` (AGENTS.md).
 
 ## H3d: link and measure
