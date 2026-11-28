@@ -23,8 +23,8 @@ it counts in a header and traps on misuse. Memory enters the IR as a
 
 - [x] Design note and this `todo/`, the claim
 - [ ] Owner approval of the design, and answers to its open questions
-      (memory, the five choices, how a build asks for debug and the
-      first client answered; a trap for misuse still open)
+      (memory, the five choices, how a build asks for debug, the first
+      client, and the trap for misuse answered)
 - [x] **H1** — `Memory`: loads and stores of 8 to 64 bits, `size` and `grow`;
       the emitter writes them as instructions and imports the loader's
       memory, and an effect of their own keeps their calls in place: L0's
@@ -34,8 +34,7 @@ it counts in a header and traps on misuse. Memory enters the IR as a
       moves calls
 - [x] **H2a** — A trap on misuse, `misuse(reason)`, that the checker does
       not count as failing, as the card on a trap for misuse recommends
-      (2026-11-27; the owner's answer is still open), so Any's `kind` no
-      longer fails
+      (2026-11-27), so Any's `kind` no longer fails
 - [x] **H2b** — Flow refinement's rule 2: a branch on `lt`, `le` or `eq` of
       two integers, or on its negation, narrows a local, and the emitter
       reads it in the narrower word, so the arena's pointer arithmetic
