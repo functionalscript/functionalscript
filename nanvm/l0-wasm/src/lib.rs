@@ -147,13 +147,14 @@ fn region(name: &str, ptr: i32, len: i32, size: usize) -> &'static mut [u8] {
 
 /// The bytes of `len` items of `size` at `ptr`, which a read copies out
 /// at once: they must lie in the memory, wherever in it they are, as the
-/// pages that the IR heap grew do.
+/// pages that the IR heap grew do, but not at address 0, where Rust makes
+/// no slice, even though WASM's memory holds it.
 fn readable(name: &str, ptr: i32, len: i32, size: usize) -> &'static [u8] {
     let start = ptr as u32 as usize;
     let n = (len as u32 as usize).checked_mul(size);
     let end = n.and_then(|n| start.checked_add(n));
     let memory = core::arch::wasm32::memory_size(0) * 0x1_0000;
-    if !end.is_some_and(|end| end <= memory) {
+    if !end.is_some_and(|end| end <= memory) || (start == 0 && n != Some(0)) {
         panic!("l0.{name}: out of bounds")
     }
     match n {

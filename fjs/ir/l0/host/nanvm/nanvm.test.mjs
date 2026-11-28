@@ -348,6 +348,25 @@ test('a trap keeps its text until enter', () => {
     if (h.builders().length !== 0) { throw 'recover left the builder open' }
 })
 
+test('make_string reads any bytes of the memory but those at address 0', () => {
+    const h = host([])
+    const exports = /** @type {Readonly<Record<string, unknown>>} */ (/** @type {unknown} */ (h.imports))
+    const make = /** @type {(ptr: number, len: number) => bigint} */ (exports.make_string)
+    const length = /** @type {(s: bigint) => number} */ (exports.length)
+    const size = /** @type {WebAssembly.Memory} */ (exports.memory).buffer.byteLength
+    /** The text of the trap of `f`. @type {(f: () => unknown) => unknown} */
+    const trapped = f => {
+        try { f() } catch (e) { return h.trap?.(e) }
+        throw 'no trap'
+    }
+    // no units at address 0 are the empty string, and the memory's last unit is read
+    if (length(make(0, 0)) !== 0) { throw 'empty' }
+    if (length(make(size - 2, 1)) !== 1) { throw 'last unit' }
+    // a unit at address 0 is no slice in Rust, and a unit past the memory is no byte of it
+    if (trapped(() => make(0, 1)) !== 'l0.make_string: out of bounds') { throw 'address 0' }
+    if (trapped(() => make(size - 2, 2)) !== 'l0.make_string: out of bounds') { throw 'past the memory' }
+})
+
 test('NaNVM ran modules', () => {
     if (ran === 0) { throw 'no module ran on NaNVM' }
 })

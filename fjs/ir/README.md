@@ -710,13 +710,20 @@ the type and the lifetime pass never writes a hook inside a hook.
     no one owns yet, as the Heap's `alloc` answers a new block, so the
     `seal` makes its one owner, and the owned check follows it from
     there. Such bits are an 8-aligned address, so `c` sets none of the
-    bits from 3 to the top of `f`'s word, which the address may hold. A call of such an `f` anywhere else is refused, and the
-    marker takes only a signature that answers one word of bits, `u(64)`
-    or `u(32)`, and does not fail.
+    bits from 3 to the top of `f`'s word, which the address may hold, and
+    the checker refuses a `c` that does. A call of such an `f` anywhere
+    else is refused, and the marker takes only a signature that answers
+    one word of bits, `u(64)` or `u(32)`, and does not fail.
   - **bits that hold no address**: literals and integers of 16 bits at
     most, joined by `or` and `shl`, as a short string's box is made of
-    its units. Any other bits, such as an `unseal`'s or a `u(64)`'s, are
-    refused, since they may be an owner's.
+    its units. Other bits, such as an `unseal`'s whole or a `u(64)`, are
+    refused, since they may be an owner's. The checker sees only an
+    integer's range, not where it came from, so it trusts the module
+    that each such integer is a code unit or a tag, not a piece of an
+    address: a 16-bit piece of an `unseal`'s bits, as `firstUnit` takes
+    from a short box, passes, and so would pieces of a long string's box
+    put back together. The debug arena then traps the second owner's
+    `drop`, on a count of 0 or a second `free`.
 
 - **`Ref`**, in [`l0/module.f.js`](./l0/module.f.js): NaNVM's
   `kind_ref`, `dup_ref`, `drop_ref` and `same_ref` over a reference's

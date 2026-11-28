@@ -84,10 +84,16 @@ type's carrier bits. All three are refused in any other module, with
   `seal(t, f(…))` or `seal(t, or(c, f(…)))` with `c` a literal that
   sets no bit of the 8-aligned address, where `f`'s signature says
   `counts: 'new'`, as the Heap's `alloc` does: its bits are a value that
-  no one owns yet, a call of it anywhere else is refused, and the owned check follows the sealed value from there. The
-  other is bits that hold no address: literals and integers of 16 bits
-  at most joined by `or` and `shl`, as a short string's box is made of
-  its units (the owner's choice, 2026-11-28).
+  no one owns yet, a call of it anywhere else is refused, and the owned
+  check follows the sealed value from there. The other is bits that hold
+  no address: literals and integers of 16 bits at most joined by `or`
+  and `shl`, as a short string's box is made of its units (the owner's
+  choice, 2026-11-28). The checker sees an integer's range, not where it
+  came from, so it trusts the module that each one is a code unit or a
+  tag and not a piece of an address, which a 16-bit piece of an
+  `unseal`'s bits may be: `firstUnit` takes one from a short box, and
+  the same pieces of a long string's box would make a second owner,
+  whose `drop` the debug arena traps.
 - All three emit no instruction: the value and its bits are one WASM
   value. So the wrapping in the pass costs nothing at run time.
 
