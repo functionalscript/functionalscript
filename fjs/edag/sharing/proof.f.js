@@ -12,6 +12,13 @@ import { chainLazy, eagerOperandsOf, isChain, lazy, members, one, operandsOf, sh
 const c = ['[]', []]
 
 export const proof = {
+    groupEdges: () => {
+        const group = /** @type {const} */ (['group', [c], [[0, ['self', 1]], [0, ['self', 0]]]])
+        assertStructurallySame(operandsOf(group), [c])
+        assertStructurallySame(withBodies(group), [c, ['self', 1], ['self', 0]])
+        assertStructurallySame(operandsOf(['fn', group, 1]), [group])
+        assertStructurallySame(operandsOf(['self', 1]), [])
+    },
     /** The lazy operations, the binary three and the conditional, and the three chain tags. */
     tags: () => {
         assertStructurallySame(lazy, ['?:'])

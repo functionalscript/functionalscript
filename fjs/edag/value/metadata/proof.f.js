@@ -36,6 +36,11 @@ export const proof = {
         accept(['[]', [1, ['{}', [[':', 'x', ['[]', [['undefined']]]]]]]])
         accept(['=>', 1, [['[]', [2]], ['{}', [[':', 'x', ['=>', 0, [], 3]]]]], ['frame', 0]])
     },
+    groupCaptures: () => {
+        accept(['fn', ['group', [['{}', []]], [[0, ['self', 1]], [0, ['frame', 0]]]], 0])
+        reject(['fn', ['group', [['{}', [[':', 'x', 1], [':', 'x', 2]]]], [[0, 1], [0, 2]]], 1],
+            ['1', '1', '0', '1', '1', '1'], 'duplicate object property')
+    },
     propertyOrder: () => {
         // Index keys sort numerically; ordinary strings keep insertion order.
         accept(['{}', [

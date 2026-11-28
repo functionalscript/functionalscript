@@ -5,13 +5,13 @@
  * @module
  */
 
-import type { Exp, ExpOp, TagMap } from '../types.ts'
+import type { Exp, ExpOp, Function, Group, TagMap } from '../types.ts'
 import type { Node, Operand } from './types.ts'
 import type { PersistentMap } from '../../types/map/types.ts'
 import type { List } from '../../types/list/types.ts'
 
-/** The `=>` node whose body is being walked, or `null` at the module level. */
-export type _Scope = ExpOp | null
+/** The current function or group member. Module entries have no owner. */
+export type _Scope = Function | { readonly group: Group, readonly index: number } | null
 
 /** An entry as the walk holds it: its scope by the `=>` object, since that node's index is not known until its body is walked. */
 export type _Entry = { readonly scope: _Scope, readonly node: Node }

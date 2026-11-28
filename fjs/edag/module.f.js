@@ -93,6 +93,11 @@ const schemasFor = expression => {
 
     const func = /** @type {const} */ (['=>', number, exps, exp])
 
+    const groupMember = /** @type {const} */ ([number, exp])
+    const group = /** @type {const} */ (['group', exps, rttiArray(groupMember)])
+    const fn = /** @type {const} */ (['fn', group, number])
+    const indexedSelf = /** @type {const} */ (['self', number])
+
     const spread = /** @type {const} */ (['...', exp])
 
     const items = or(exp, spread)
@@ -182,7 +187,7 @@ const schemasFor = expression => {
     const inOp = /** @type {const} */ (['in', string, exp])
 
     return {
-        exps, func, spread, items, array, args, property, properties, object, numberCast, index, memberPresent,
+        exps, func, groupMember, group, fn, indexedSelf, spread, items, array, args, property, properties, object, numberCast, index, memberPresent,
         propertyLambda, callNode: call, dot, optionDot, optionCall, comma, op0, op1, op2, op12, op3,
         instanceOf, inOp, _optionLambda: optionLambdaSchema, optionLambda,
         _optionPropertyLambda: optionPropertyLambdaSchema, optionPropertyLambda,
@@ -215,6 +220,9 @@ const schemasFor = expression => {
  *  typeof inOp,
  *  typeof memberPresent,
  *  typeof func,
+ *  typeof group,
+ *  typeof fn,
+ *  typeof indexedSelf,
  *  typeof arg,
  *  typeof frame,
  * ]}
@@ -239,6 +247,9 @@ export const _exp = () => {
         schemas.inOp,
         schemas.memberPresent,
         schemas.func,
+        schemas.group,
+        schemas.fn,
+        schemas.indexedSelf,
         argSchema,
         frameSchema,
     ]
@@ -305,6 +316,14 @@ export const exps = schemas.exps
  */
 /** @type {readonly ['=>', typeof number, typeof exps, typeof exp]} */
 export const func = schemas.func
+/** A member's fixed arity and body. */
+export const groupMember = schemas.groupMember
+/** A shared frame and the code of all its functions. */
+export const group = schemas.group
+/** A function value selected from a group. */
+export const fn = schemas.fn
+/** A function of the currently executing member's group. */
+export const indexedSelf = schemas.indexedSelf
 /** A constant fixed-position read; its index must be canonical and below the owning length. */
 export const arg = argSchema
 /**
@@ -864,7 +883,7 @@ export const helperLength = id => helpers.filter(([i]) => i === id)[0][1]
  *
  * @type {(node: unknown) => boolean}
  */
-export const isFunctionNode = node => node instanceof Array && (node[0] === '=>' || isHelper(node))
+export const isFunctionNode = node => node instanceof Array && (node[0] === '=>' || node[0] === 'fn' || isHelper(node))
 
 
 /**
@@ -876,9 +895,8 @@ export const isFunctionNode = node => node instanceof Array && (node[0] === '=>'
  * same value every read, so recursion is `['()', ['self'], args]` and a
  * nested function captures its parent's `self` as a slot — and it is what
  * keeps a recursive function an acyclic graph: without it a function would
- * have to hold itself. It reaches the innermost function alone; two
- * functions calling each other are `todo/edag-stage1-discussion.md`'s
- * open subject. Functions, fixed reads and
+ * have to hold itself. In a group, `['self', index]` names a member
+ * of the innermost group. Functions, fixed reads and
  * frame slot reads have separate tuples because their metadata is not an
  * expression operand.
  *

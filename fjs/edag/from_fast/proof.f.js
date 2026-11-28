@@ -187,6 +187,53 @@ export const _collectingMemo = collectingMemo
 export const _collectedMemo = collectedMemo
 
 export const proof = {
+    groupSharesCapturesAndPeerBindings: () => {
+        const a = id(0), b = id(1), outer = id(2), group = [a, b]
+        const captured = id(3), peer = id(4), self = id(5), scalar = id(6)
+        /** @type {(other: BindingId) => FastFunction} */
+        const member = other => ({
+            group, self, target, parameters: [], rest: null,
+            captures: [{ binding: captured, value: ref(outer) }, { binding: peer, value: ref(other) }, { binding: scalar, value: 9 }],
+            body: body(['return', target, ['array', [ref(peer), ref(captured), ref(self), ref(scalar)]]]),
+        })
+        const graph = fromFast(result(['array', [ref(a), ref(b)]], [
+            ['define', outer, ['array', [42]], 'required'],
+            ['define', a, ['function', member(b)], 'required'],
+            ['define', b, ['function', member(a)], 'required'],
+        ]))
+        assert(graph instanceof Array && graph[0] === '[]')
+        const [first, second] = graph[1]
+        assert(first instanceof Array && first[0] === 'fn' && second instanceof Array && second[0] === 'fn')
+        assertEq(first[1], second[1])
+        assertEq(first[2], 0)
+        assertEq(second[2], 1)
+        assertStructurallySame(first[1], ['group', [['[]', [42]]], [
+            [0, ['[]', [['self', 1], ['frame', 0], ['self', 0], 9]]],
+            [0, ['[]', [['self', 0], ['frame', 0], ['self', 1], 9]]],
+        ]])
+        assertOk(identityAnalysis(graph))
+    },
+    groupInAnOwningReturnRegion: () => {
+        const a = id(0), b = id(1), flag = id(2), group = [a, b]
+        /** @type {(other: BindingId) => FastFunction} */
+        const member = other => ({
+            group, target, parameters: [], rest: null, self: null,
+            captures: [{ binding: other, value: ref(other) }],
+            body: body(['return', target, ref(other)]),
+        })
+        /** @type {FastFunction} */
+        const outer = {
+            target, parameters: [flag], rest: null, self: null, captures: [],
+            body: body(['return', target, ['===', ['()', ref(a), []], ref(b)]], [
+                ['if', [], ref(flag), body(['return', target, 17]), body(['yield', []])],
+                ['define', a, ['function', member(b)], 'required'],
+                ['define', b, ['function', member(a)], 'required'],
+            ]),
+        }
+        for (const flag of [true, false]) {
+            assertEq(assertOk(memo(assertOk(identityAnalysis(calledFunction(outer, [flag]))))({ args: [] })), flag ? 17 : true)
+        }
+    },
     unusedBooleanRetainsItsRuntimeCall: () => {
         const converted = id(0)
         const later = id(1)

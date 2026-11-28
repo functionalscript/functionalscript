@@ -40,7 +40,7 @@ export const truthy = value => Boolean(untagUndefined(value))
  *
  * @type {(value: EdagValue) => value is ValueFunction}
  */
-export const isFunction = value => isArray(value) && (value[0] === '=>' || isHelper(value) || isStatic(value))
+export const isFunction = value => isArray(value) && (value[0] === '=>' || value[0] === 'fn' || isHelper(value) || isStatic(value))
 
 /** JavaScript typeof of the represented value. @type {(value: EdagValue) => string} */
 export const typeOf = value => isFunction(value) ? 'function' : typeof untagUndefined(value)
@@ -52,19 +52,21 @@ export const isUndefined = value => typeOf(value) === 'undefined'
 export const isNullish = value => value === null || isUndefined(value)
 
 /**
- * Whether two values are one static function: a built-in is identified by
+ * Whether two values name one group member or static function. A member
+ * is identified by its group and index. A built-in is identified by
  * its name, so two reads of `Object.is` are one function however they are
  * read, as NaNVM compares the names of its built-ins.
  *
  * @type {(a: EdagValue, b: EdagValue) => boolean}
  */
-const sameStatic = (a, b) => isStatic(a) && isStatic(b) && a[0] === b[0]
+const sameFunction = (a, b) => isStatic(a) && isStatic(b) && a[0] === b[0] ||
+    isArray(a) && a[0] === 'fn' && isArray(b) && b[0] === 'fn' && a[1] === b[1] && a[2] === b[2]
 
 /** Strict equality, with containers and closures compared by identity and static functions by name. @type {(a: EdagValue, b: EdagValue) => boolean} */
-export const strictEqual = (a, b) => sameStatic(a, b) || untagUndefined(a) === untagUndefined(b)
+export const strictEqual = (a, b) => sameFunction(a, b) || untagUndefined(a) === untagUndefined(b)
 
 /** SameValue, for `includes`'s SameValueZero: NaN equals itself and signed zeroes differ. @type {(a: EdagValue, b: EdagValue) => boolean} */
-export const is = (a, b) => sameStatic(a, b) || Object.is(untagUndefined(a), untagUndefined(b))
+export const is = (a, b) => sameFunction(a, b) || Object.is(untagUndefined(a), untagUndefined(b))
 
 /** @type {Readonly<Record<'!' | 'typeof', (value: EdagValue) => Result<boolean | string, EdagValue>>>} */
 export const unary = {

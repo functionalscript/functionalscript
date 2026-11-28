@@ -9,8 +9,10 @@
  */
 
 import { parseFromTokens } from './module.f.js'
-import { stringifyModule, tokenizeString } from './proof.f.js'
-import { assert, assertEq } from '../../asserts/module.f.js'
+import { _evaluate, expectRefused, stringifyModule, tokenizeString } from './proof.f.js'
+import { read } from '../../edag/value/property/module.f.js'
+import { ok } from '../../types/result/module.f.js'
+import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 
 /**
  * Whether `value` holds the one-element array `[tag]` anywhere, in an array
@@ -23,6 +25,17 @@ const mentions = tag => value =>
     : typeof value === 'object' && value !== null && Object.values(value).some(mentions(tag))
 
 export const proof = {
+    mutuallyRecursiveFunctions: () => {
+        const source = `const even = n => n === 0 ? true : odd(n-1);
+            const odd = n => n === 0 ? false : even(n-1);
+            const make = x => { const a = () => [x,b]; const b = () => a; return [a,b] };
+            const pair = make(42);
+            export default [even(4), odd(4), pair[0]()[0], pair[0]()[1] === pair[1], pair[1]() === pair[0]]`
+        const module = assertOk(parseFromTokens(tokenizeString(source)))
+        assertStructurallySame(assertOk(read(ok(_evaluate(module)), 'default')), ['[]', [true, false, 42, true, true]])
+        expectRefused('const a=()=>b; const b=()=>1; export default a', 'const not found', 13)
+        expectRefused('export default () => { const a=()=>b; const b=()=>1; return a }', 'const not found', 36)
+    },
     // A function: the rest parameter is `['args']` in its body, an access
     // on it is an access, and a name bound outside — a `const`, an import,
     // or an enclosing function's parameter — is a capture, a slot of its

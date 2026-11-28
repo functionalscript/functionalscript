@@ -221,4 +221,6 @@ export type NodeShape<V> = {
  */
 export type Back<V> = {
     readonly owner: (value: V, port: string) => boolean
+    /** How the incoming port names a reference to a particular part of the owner. */
+    readonly portLabel?: (port: string) => string
 }

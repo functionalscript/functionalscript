@@ -71,6 +71,41 @@ const elements = v => /** @type {ValueArray} */ (v)[1]
 const fails = (e, expected = ['undefined']) => assertStructurallySame(result(e), ['error', expected])
 
 export const proof = {
+    wideGroup: () => {
+        // Member indices have no byte-sized cut-off.
+        const members = generate(257, index => /** @type {const} */ ([0, index]))
+        const selected = /** @type {const} */ (['fn', ['group', [], members], 256])
+        eq(['()', selected, []], 256)
+        assertEq(oracle(['()', selected, []]), 256)
+    },
+    functionGroups: () => {
+        // Both methods capture one object, call each other with their own
+        // arity, and return the same functions the enclosing program sees.
+        const group = /** @type {const} */ (['group', [['{}', []]], [
+            [1, ['?:', ['arg', 0], ['self', 1], ['frame', 0]]],
+            [0, ['self', 0]],
+        ]])
+        const a = /** @type {const} */ (['fn', group, 0])
+        const b = /** @type {const} */ (['fn', group, 1])
+        /** @type {Exp} */
+        const check = ['[]', [
+            ['===', ['()', a, [true]], b],
+            ['===', ['()', b, []], a],
+            ['===', ['()', a, []], ['()', ['()', b, []], [false]]],
+            ['!==', a, b],
+            ['.', a, 'length'], ['.', b, 'length'], ['typeof', a],
+        ]]
+        const expected = [true, true, true, true, 1, 0, 'function']
+        assertStructurallySame(run(check), expected)
+        assertStructurallySame(oracle(check), expected)
+        // Read through a call returning the two members. Recomputing the
+        // call for either projection would create a second group.
+        const make = /** @type {const} */ (['=>', 0, [], ['[]', [a, b]]])
+        const pair = /** @type {const} */ (['()', make, []])
+        const peer = /** @type {const} */ (['===', ['()', ['.', pair, 0], [true]], ['.', pair, 1]])
+        assertEq(run(peer), true)
+        assertEq(oracle(peer), true)
+    },
     // The entry check is the runtime's to answer, and this executor is
     // given none: the operator is refused by name, as its node specifies.
     inWithoutRuntime: () => {

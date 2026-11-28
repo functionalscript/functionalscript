@@ -68,8 +68,8 @@ written.
   an export's name ([exporting a value](../../modules/exports/README.md)). A key or a
   property name is not a binding, and this rule does not reach it:
   `{ if: 1 }` and `a.default` are a key and an access, as in JavaScript.
-- A name must be declared before it is used. Forward references are not
-  recognized yet ([forward-references](../../todo/3140-forward-references.md)).
+- A name must be declared before it is read. Consecutive function constants
+  that refer to one another can form a [function group](#function-groups).
 - Imported and constant names share one namespace, the module function's
   ([a module is a function](../../modules/README.md#a-module-is-a-function)): declaring the same
   name twice is an error.
@@ -146,6 +146,31 @@ const server = { "port": port, "host": "localhost" };
 const config = { "dev": server, "prod": server };
 export default (...a) => [config.dev === config.prod, config.prod.port + a[0], config.dev.host];
 ```
+
+## Function groups
+
+Consecutive named `const` functions that depend on one another form one
+definition. This applies at module scope and inside a function body.
+
+```js
+const even = n => n === 0 ? true : odd(n - 1);
+const odd = n => n === 0 ? false : even(n - 1);
+export default even(4);
+```
+
+The group is available after its last declaration. A call, a value declaration
+or an unrelated function between its members interrupts the definition.
+An ordinary function that only refers forward to a later declaration still
+produces a compile error.
+
+Every member reads the group's shared captures. Returning a sibling gives
+the same function as reading that sibling's binding. For example, with
+`const a = () => b; const b = () => a;`, both `a() === b` and `b() === a`
+are true. Functions of separately written identical definitions may compare
+equal or distinct.
+
+The language designer approved function groups in the
+[implementation request](https://chatgpt.com/local/6b09bd1d-d70c-83e8-ac35-915adb53201e).
 
 ## Reference
 

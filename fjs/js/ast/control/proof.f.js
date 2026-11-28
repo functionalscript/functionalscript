@@ -158,6 +158,24 @@ export const proof = {
         identities(freeLoopBindings(loop), [b, c])
         identities(freeLoopBindings(nested), [c, state])
     },
+    groupCapturesAreLocalToTheirDeclarations: () => {
+        const external = { index: b.index }
+        const group = [a, b]
+        /** @type {(peer: BindingId) => Value} */
+        const member = peer => ['function', {
+            group, target, parameters: [], rest: null, self: null,
+            captures: [{ binding: local, value: ['ref', peer] }, { binding: state, value: ['ref', external] }],
+            body: returning(['array', [['ref', local], ['ref', state]]]),
+        }]
+        const first = member(b)
+        /** @type {Block} */
+        const block = { statements: [
+            ['define', a, first, 'required'], ['define', b, member(a), 'required'], ['block', [], yielding(['ref', b])],
+        ], exit: ['yield', []] }
+        identities(freeBindings(block), [external])
+        identities(freeBindings({ ...block, statements: block.statements.slice(0, 1) }), [b, external])
+        identities(freeBindings(yielding(first)), [b, external])
+    },
     // The one children table: operands, captures without the body, a
     // block's statement values and regions, its exit's values and a
     // terminal loop's body; nothing for a primitive or a reference.
