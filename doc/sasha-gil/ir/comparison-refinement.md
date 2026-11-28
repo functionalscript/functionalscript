@@ -151,10 +151,10 @@ spec either way.
 ## Tasks
 
 Tracked on [`fjs/ir/todo/heap.md`](../../../fjs/ir/todo/heap.md) as
-**H2b formal rules**. The note itself is the claim; the checkbox closes
-when the lattice, transfer, and join/loop conservatism are written so
-the checker (or its model) can be checked against them — without
-changing shipped H2b behaviour.
+**H2b formal rules** — **done** in this note: the lattice, transfer
+table, and join/loop conservatism are written so the checker can be
+checked against them, without changing shipped H2b behaviour. An
+executable model beside the checker stays optional (above).
 
 ## Related
 
