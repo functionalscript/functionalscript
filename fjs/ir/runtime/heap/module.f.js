@@ -53,10 +53,10 @@ const pages = int(0n, 0x1_0000n)
 const stateAt = int(0n, 0xFFFE_0000n)
 
 /** The page at which the arena's last region must end: no byte of the arena is past `0xFFFF_0000`. */
-const lastPage = 0xFFFFn
+const lastPage = /** @type {const} */ (0xFFFFn)
 
 /** The pages that a full region asks for at least: 1 MiB. */
-const chunk = 16n
+const chunk = /** @type {const} */ (16n)
 
 /**
  * The Heap interface: `alloc(t, n)`, a block of `n` bytes, 8-aligned, for
@@ -120,10 +120,11 @@ export const module = {
                         if_(le(next, memoryOf('load32', [endAt])),
                             let_('moved', memoryOf('store32', [state, next]), () => top),
                             call('self', 'grown', [t, s]))))))],
-        // A full region: the memory grows by the larger of the request and a chunk, or by the request alone.
+        // A full region: the memory grows by the larger of the request and a chunk, or by the request alone, where
+        // a chunk would end past the last page or the memory cannot grow by one.
         ['grown', fn([['t', type], ['size', size]], address, (t, s) =>
             let_('need', shr(add(s, n(0xFFFFn)), n(16n)), need =>
-                let_('chunk', if_(lt(need, n(chunk)), n(chunk), need), k =>
+                let_('chunk', if_(lt(need, n(chunk)), if_(le(add(memoryOf('size', []), n(chunk)), n(lastPage)), n(chunk), need), need), k =>
                     let_('before', memoryOf('grow', [k]), g =>
                         if_(eq(g, n(-1n)),
                             let_('exact', memoryOf('grow', [need]), h =>
