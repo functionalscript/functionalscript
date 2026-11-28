@@ -16,6 +16,10 @@ Around them, passes re-spell the child table for one node kind's sake:
   Only `let`, `match` and `loop` have binders; the other cases restate
   `inside`. Its answer is used as a set, so it is
   `[...binders(t), ...inside(t).flatMap(bound)]`.
+- `bound` in [`inline`](../inline/module.f.js) is that expression
+  already, over `inside`, with a `block`'s label among the binders, and
+  its `write` and `expand` rebuild every node kind twice
+  ([one walker for the inline pass](../inline/todo/one-walker.md)).
 - `renamed` (the one walker that `link`, `linkAny` and `linkString` share) in [`from_fast/link`](../from_fast/link/module.f.js)
   rebuilds every node kind to change a few: `call`, `code` and
   `constant`.
