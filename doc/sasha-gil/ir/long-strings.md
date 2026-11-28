@@ -269,6 +269,8 @@ and nothing links by default before H3d's numbers.
    import at the low level, where an address is a value.
    Proofs: NaNVM and the counting host both refuse an IR box, so every
    program proof shows that none crosses.
+   The detailed plan, with every import that it wraps, is
+   [crossing.md](./crossing.md).
 4. **H3d, link and measure.** `linkHeap` after `linkAny` and `linkString`,
    with the release arena by default and `counted` under `debug`. Every
    program proof runs on both hosts, and `repeat`, `shortOps` and a
