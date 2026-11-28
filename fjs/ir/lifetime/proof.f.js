@@ -11,7 +11,7 @@ import { check } from '../check/module.f.js'
 import { any, builder, l0 } from '../l0/module.f.js'
 import {
     add, block, bool, br, call, call_ref, code, codeOf, constant, f64, field, float, fn, get, if_, int, let_, lit, loop, lt, make, match, n, never, next, only, own,
-    return_, sealed, signature, throw_, trap, true_, trunc_sat, u, unit, variant,
+    return_, sealed, signature, throw_, trap, true_, trunc_sat, u, unit, variant, hint,
 } from '../module.f.js'
 import { print } from '../print/module.f.js'
 import { counting, sealing } from '../testlib.f.js'
@@ -129,6 +129,11 @@ const left = name => let_(name, open, r => peek(r))
 const leftOver = name => `f: ${name} is left over, and res is linear: nothing drops it`
 
 export const proof = {
+    // A function's inline hint stays, for the emitter, which copies a hook hinted `always`.
+    hint: () => {
+        const m = assertOk(lifetime({ imports: [], functions: [['f', hint('never', fn([['x', f64]], f64, x => x))], ['g', fn([['x', f64]], f64, x => x)]], exports: ['f', 'g'] }))
+        assertEq(m.functions.map(([k, f]) => `${k}:${f.inline}`).join(' '), 'f:never g:undefined')
+    },
     // What the pass writes, which the checker takes.
     accept: {
         // Both arguments of concat borrow, and the caller owns its result, so nothing is copied or dropped.
