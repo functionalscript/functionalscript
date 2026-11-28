@@ -80,7 +80,15 @@ const fresh = (taken, n) => {
 /** Each name as it is. @type {_Names} */
 const asIs = { local: get, rename: x => x, loops: [] }
 
-/** Names inside a region of the label `label`, a loop's or not, which hides any other region of that label. @type {(names: _Names, label: string, loop: boolean) => _Names} */
+/**
+ * Names inside a region of the label `label`, a loop's or not, which hides any other region of that label.
+ *
+ * @template {_Names | _TypedNames} N
+ * @param {N} names
+ * @param {string} label
+ * @param {boolean} loop
+ * @returns {N}
+ */
 const within = (names, label, loop) => ({ ...names, loops: [...names.loops.filter(l => l !== label), ...(loop ? [label] : [])] })
 
 /**
@@ -404,8 +412,7 @@ const asIsTyped = { local: (x, t) => [t, ['get', x]], rename: x => x, loops: [] 
  * and `self.drop(release(x))`, so a copy is written only once both have
  * run. The hooks stay, since the emitter calls them too.
  *
- * @template {Checked} M
- * @type {(m: M) => M}
+ * @type {(m: Checked) => Checked}
  */
 export const inlineHooks = m => {
     const hooked = hooksOf(m).filter(k => m.functions.find(([j]) => j === k)?.[1].inline === 'always')
