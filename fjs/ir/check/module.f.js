@@ -540,7 +540,7 @@ const value = (checkTerm, env, t) => {
 const values = (checkTerm, env, ts) => okList(ts.map(t => value(checkTerm, env, t)))
 
 /** The most that an integer of the bits of a seal may hold: 16 bits, which hold no address. */
-const unitMost = 0xFFFFn
+const unitMost = /** @type {const} */ (0xFFFFn)
 
 /**
  * Whether typed bits hold no address, so that a seal of them makes no

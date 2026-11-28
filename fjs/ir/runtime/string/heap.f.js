@@ -61,7 +61,7 @@ const codeUnit = u(16)
 const address = u(32)
 
 /** The most units that a block holds: its 4 bytes of length and 2 for each unit stay within `0xFFFF_FFF8`, the most that `alloc` takes. */
-const most = 0x7FFF_FFFAn
+const most = /** @type {const} */ (0x7FFF_FFFAn)
 
 /** The length of a block's string. */
 const blockLength = int(0n, most)
@@ -73,7 +73,7 @@ const shortLength = int(0n, 8n)
 const form = int(0n, 2n)
 
 /** The type of a long string's block, which `alloc` takes: L0's kind 4 in the high nibble and form 0 in the low. */
-const stringType = 0x40n
+const stringType = /** @type {const} */ (0x40n)
 
 /** The box of a short string of one unit, and of two, whose units are 0: a unit's bits are `or`ed in. */
 const one = assertOk(pack([0]))
