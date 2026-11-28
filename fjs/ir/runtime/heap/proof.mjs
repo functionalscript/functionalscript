@@ -298,6 +298,19 @@ export const proof = {
         assertEq(memory.buffer.byteLength, after.pages * 0x1_0000)
         assertEq(after.pages, 3)
     },
+    // Blocks of 0 bytes take 8 each, as the model's do, so no two blocks share an address, in either arena.
+    empty: () => {
+        const plain = load(release, 0x1_0000).heap
+        const [b, p] = assertNotNullish(alloc(assertNotNullish(start(1, 0x1_0000)), 0))
+        const [, q] = assertNotNullish(alloc(b, 0))
+        assertEq(`${plain.alloc(0, 0) >>> 0} ${plain.alloc(0, 0) >>> 0} ${plain.alloc(0, 8) >>> 0}`, `${p} ${q} ${q + 8}`)
+        assertEq(q - p, 8)
+        const debugged = load(debug, 0x1_0000).heap
+        const [c, r] = assertNotNullish(allocCounted(assertNotNullish(startCounted(1, 0x1_0000)), 0, 0))
+        const [, s] = assertNotNullish(allocCounted(c, 0, 0))
+        assertEq(`${debugged.alloc(0, 0) >>> 0} ${debugged.alloc(0, 0) >>> 0}`, `${r} ${s}`)
+        assertEq(s - r, 24)
+    },
     // A memory that cannot grow at all leaves `init` nothing to put the state in, in either arena.
     noPage: () => {
         for (const compiled of [release, debug]) {

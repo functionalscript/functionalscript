@@ -151,8 +151,13 @@ const liveAt = add(state, n(8n))
 /** Memory that cannot hold one more block. */
 const outOfMemory = misuse('out of memory')
 
-/** `k` bytes rounded up to 8, the bytes of a block. @type {(k: Term) => Term} */
-const rounded = k => and(add(k, n(7n)), n(0xFFFF_FFF8n))
+/**
+ * `k` bytes rounded up to 8, the bytes of a block, and 0 to 8 too, so that
+ * each block has an address of its own.
+ *
+ * @type {(k: Term) => Term}
+ */
+const rounded = k => if_(eq(k, n(0n)), n(8n), and(add(k, n(7n)), n(0xFFFF_FFF8n)))
 
 /**
  * The state that `init` evaluates: `pages` pages that the memory grows by,

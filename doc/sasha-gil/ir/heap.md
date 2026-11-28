@@ -157,7 +157,8 @@ variant as copy, and the lifetime pass then writes no `dup` and no `drop`.
 ### The bump arena
 
 One region and a pointer that only moves up. `alloc(t, n)` rounds `n` up to
-8 bytes, moves the pointer, and grows the memory when the region is full.
+8 bytes, and 0 to 8 so that each block has an address of its own, moves the
+pointer, and grows the memory when the region is full.
 Nothing is ever freed, so memory only grows.
 [L0 design §10](../wasm/l0-design.md#10-lifetime-reference-counting-borrowed-arguments-owned-results)
 already allows an arena under the same ABI.

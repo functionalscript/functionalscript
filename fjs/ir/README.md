@@ -873,7 +873,8 @@ interface and its release variant, written in the IR's eDSL over L0's
   caller must release what the block holds; and `free(p)`, after the
   release. An address is a `u(32)`, and a size is at most `0xFFFF_FFF8`.
 - **The release arena keeps no header.** `alloc` rounds the size up to 8,
-  moves the pointer past the block and answers where it was. `dup` does
+  and 0 to 8 as well, so that each block has an address of its own, moves
+  the pointer past the block and answers where it was. `dup` does
   nothing, `drop` answers `false`, and `free`, which only a release calls,
   traps on misuse.
 - **Its state is a page that `init` grows the memory by.** The constant
