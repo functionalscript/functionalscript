@@ -24,13 +24,13 @@
  */
 
 /** The bytes of a page. */
-const page = 0x1_0000
+const page = /** @type {const} */ (0x1_0000)
 
 /** The page at which the arena's last region must end: no byte of the arena is past `0xFFFF_0000`. */
-const lastPage = 0xFFFF
+const lastPage = /** @type {const} */ (0xFFFF)
 
 /** The pages that a full region asks for at least: 1 MiB. */
-const chunk = 16
+const chunk = /** @type {const} */ (16)
 
 /** `n` rounded up to 8. @type {(n: number) => number} */
 export const round = n => n + 7 - (n + 7) % 8
@@ -90,13 +90,14 @@ const taken = (a, g, k) => {
 /**
  * The arena whose region cannot hold `size` more bytes, after the memory
  * grew by the larger of the request and {@link chunk} pages, or by the
- * request alone, or `null` where the host refuses both.
+ * request alone where a chunk would end past {@link lastPage} or the host
+ * refuses it, or `null` where the host refuses both.
  *
  * @type {(a: Arena, size: number) => Arena | null}
  */
 const grown = (a, size) => {
     const need = pagesOf(size)
-    const k = need < chunk ? chunk : need
+    const k = need < chunk && a.pages + chunk <= lastPage ? chunk : need
     const g = grow(a.pages, a.most, k)
     if (g !== null) { return taken({ ...a, pages: a.pages + k }, g, k) }
     const h = grow(a.pages, a.most, need)
