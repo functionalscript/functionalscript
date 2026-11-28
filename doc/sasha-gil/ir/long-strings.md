@@ -59,8 +59,12 @@ from H2 has no client yet.
   function or an L1 native that takes an `any` or a string, such as `push`,
   `push_property`, `find`, `join`, `make_function`, `throw` or
   `stringToNumber`; as the result of the program's code that NaNVM calls
-  through a code index; and as `init`'s result, which the host reads
-  through NaNVM.
+  through a code index; and as the result of each function that the
+  module exports, which the host calls by name and reads through NaNVM.
+  Today's `init` answers nothing ([README, `init`](../../../fjs/ir/README.md)),
+  so the named exports are where a program's results cross; L0 §20's
+  `init`, which answers the main module's default export, is one more such
+  result once it is built.
 
 ## 1. Whether NaNVM holds references into the IR heap
 
@@ -177,9 +181,10 @@ low, so `release` and the recount find the form from the header.
 ## 5. Literals and the host
 
 Chosen: A, both stay NaNVM's in H3, and the root table comes with H4. Under
-choice 1 the host never holds an IR reference, since `init`'s result
-crosses by a copy. A constant still can, such as a long string that `init`
-concatenates, but only H4's recount needs to find it there.
+choice 1 the host never holds an IR reference, since each exported
+function's result crosses by a copy. A constant still can, such as a long
+string that `init` concatenates, but only H4's recount needs to find it
+there.
 
 | Option | Literals | The host | For | Against |
 | --- | --- | --- | --- | --- |
@@ -251,10 +256,10 @@ and nothing links by default before H3d's numbers.
    memory, as `read_units` makes, still need a reserved region.
 3. **H3c, the crossing.** A link step wraps each L0 function and L1 native
    that takes an `any` or a string, the result of each function with a code
-   index, and `init`'s result: a long IR string becomes a NaNVM string
-   through `make_string`, and the IR drops its reference, through
-   H3b's `Units.make_string`, an import at the low level, where an
-   address is a value.
+   index, and the result of each exported function, which the host calls
+   by name: a long IR string becomes a NaNVM string through `make_string`,
+   and the IR drops its reference, through H3b's `Units.make_string`, an
+   import at the low level, where an address is a value.
    Proofs: NaNVM and the counting host both refuse an IR box, so every
    program proof shows that none crosses.
 4. **H3d, link and measure.** `linkHeap` after `linkAny` and `linkString`,
