@@ -153,43 +153,64 @@ const heapTagKind = nibbleKind([...nanvmKinds, /** @type {const} */ ([9n, 4n])])
 const checkedKind = b => call('Ref', 'kind_ref', [b])
 
 /**
- * {@link checkedKind} where the IR heap holds long strings: a reference
- * into it must have no bit but its tag's and its block's, and the kind of
- * its block, the high nibble of the debug arena's `type_of`, which traps
- * where the block's count is 0 or no block is there, must be a string's.
- * Every other reference asks NaNVM's `kind_ref`.
+ * The block of the box `b` of a reference into the IR heap, for a debug
+ * build: the box must have no bit but its tag's and its block's, and the
+ * kind of its block, the high nibble of the debug arena's `type_of`, which
+ * traps where the block's count is 0 or no block is there, must be a
+ * string's. Any other box is a misuse.
  *
  * @type {(b: Term) => Term}
  */
-const checkedHeapKind = b => if_(isIrStringTerm(b),
-    if_(eq(b, or(n(IR_STRING), blockTerm(b))),
-        let_('type', call('Heap', 'type_of', [blockTerm(b)]), t => if_(eq(shr(t, n(4n)), n(4n)), n(4n), misuse('not a value'))),
-        misuse('not a value')),
-    checkedKind(b))
+const checkedBlock = b => if_(eq(b, or(n(IR_STRING), blockTerm(b))),
+    let_('type', call('Heap', 'type_of', [blockTerm(b)]), t => if_(eq(shr(t, n(4n)), n(4n)), blockTerm(b), misuse('not a value'))),
+    misuse('not a value'))
+
+/**
+ * {@link checkedKind} where the IR heap holds long strings: a reference
+ * into it is a string's where {@link checkedBlock} takes it. Every other
+ * reference asks NaNVM's `kind_ref`.
+ *
+ * @type {(b: Term) => Term}
+ */
+const checkedHeapKind = b => if_(isIrStringTerm(b), let_('block', checkedBlock(b), () => n(4n)), checkedKind(b))
+
+/**
+ * The block that the hooks count for the box `b` of a reference into the
+ * IR heap: its address, or in a debug build the block that
+ * {@link checkedBlock} takes, so that a forged box traps before any count
+ * changes. `null` where the module knows no IR heap.
+ *
+ * @typedef {((b: Term) => Term) | null} BlockOf
+ */
+
+/** The hooks' block where no check is asked for: the address bits. @type {(b: Term) => Term} */
+const plainBlock = blockTerm
 
 /**
  * The hook `dup` over bits: a reference counts through `Ref`, or where
- * `counts` and it names a block of the IR heap, through the Heap's `dup`,
- * and every other box passes through.
+ * `block` is given and it names a block of the IR heap, through the Heap's
+ * `dup` of the block that `block` answers, and every other box passes
+ * through.
  *
- * @type {(counts: boolean) => (b: Term) => Term}
+ * @type {(block: BlockOf) => (b: Term) => Term}
  */
-const dupOf = counts => b => if_(call('self', 'isRef', [b]),
-    counts ? if_(isIrStringTerm(b), let_('counted', call('Heap', 'dup', [blockTerm(b)]), () => b), call('Ref', 'dup_ref', [b]))
+const dupOf = block => b => if_(call('self', 'isRef', [b]),
+    block !== null ? if_(isIrStringTerm(b), let_('counted', call('Heap', 'dup', [block(b)]), () => b), call('Ref', 'dup_ref', [b]))
         : call('Ref', 'dup_ref', [b]),
     b)
 
 /**
  * The hook `drop` over bits: a reference counts through `Ref`, or where
- * `counts` and it names a block of the IR heap, through the Heap's `drop`,
- * and the Heap's `free` takes the block at a count of 0, since a long
- * string holds no reference to drop first. Every other box needs nothing.
+ * `block` is given and it names a block of the IR heap, through the Heap's
+ * `drop` of the block that `block` answers, and the Heap's `free` takes
+ * the block at a count of 0, since a long string holds no reference to
+ * drop first. Every other box needs nothing.
  *
- * @type {(counts: boolean) => (b: Term) => Term}
+ * @type {(block: BlockOf) => (b: Term) => Term}
  */
-const dropOf = counts => b => if_(call('self', 'isRef', [b]),
-    counts ? if_(isIrStringTerm(b),
-        let_('p', blockTerm(b), p => if_(call('Heap', 'drop', [p]), call('Heap', 'free', [p]), make([]))),
+const dropOf = block => b => if_(call('self', 'isRef', [b]),
+    block !== null ? if_(isIrStringTerm(b),
+        let_('p', block(b), p => if_(call('Heap', 'drop', [p]), call('Heap', 'free', [p]), make([]))),
         call('Ref', 'drop_ref', [b]))
         : call('Ref', 'drop_ref', [b]),
     make([]))
@@ -197,13 +218,14 @@ const dropOf = counts => b => if_(call('self', 'isRef', [b]),
 /**
  * Any's IR module with the kind of a reference given by `refKind`, whose
  * hooks count references into the IR heap through `heap`, the Heap
- * interface that it imports, or that knows no IR heap where `heap` is
- * `null`: it defines `any`, imports `Ref`, and exports the functions and
- * constants of {@link iface}, plus `isRef` for proofs.
+ * interface that it imports, on the block that `block` answers, or that
+ * knows no IR heap where `heap` is `null`: it defines `any`, imports `Ref`,
+ * and exports the functions and constants of {@link iface}, plus `isRef`
+ * for proofs.
  *
- * @type {(refKind: (b: Term) => Term, heap: Interface | null) => Module}
+ * @type {(refKind: (b: Term) => Term, heap: Interface | null, block: BlockOf) => Module}
  */
-const moduleOf = (refKind, heap) => ({
+const moduleOf = (refKind, heap, block) => ({
     imports: heap === null ? [ref] : [ref, ['Heap', heap]],
     defines,
     constants: [
@@ -216,8 +238,8 @@ const moduleOf = (refKind, heap) => ({
         // Whether bits are a dynamic reference: two bit operations, which the inline pass writes into each hook that asks.
         ['isRef', hint('always', fn([['b', u(64)]], bool, b => isRefTerm(b)))],
         // Hooks over bits: count a reference through Ref, or through the Heap where it is one, pass every other box through.
-        ['dup', fn([['b', u(64)]], u(64), dupOf(heap !== null))],
-        ['drop', fn([['b', u(64)]], unit, dropOf(heap !== null))],
+        ['dup', fn([['b', u(64)]], u(64), dupOf(block))],
+        ['drop', fn([['b', u(64)]], unit, dropOf(block))],
         // L0's kind from the box: numbers, short bigints, references (by `refKind`), short strings, then scalar tags.
         ['kind', fn([['v', any]], int(0n, 8n), v => let_('b', unseal(v), b =>
             if_(isNumberTerm(b), n(3n),
@@ -254,7 +276,7 @@ const moduleOf = (refKind, heap) => ({
  *
  * @type {Module}
  */
-export const module = moduleOf(tagKind, null)
+export const module = moduleOf(tagKind, null, null)
 
 /**
  * Any's IR module for a debug build: the kind of a reference is NaNVM's
@@ -263,7 +285,7 @@ export const module = moduleOf(tagKind, null)
  *
  * @type {Module}
  */
-export const checked = moduleOf(checkedKind, null)
+export const checked = moduleOf(checkedKind, null, null)
 
 /**
  * Any's IR module where the IR heap holds long strings: nibble 9 is a
@@ -272,13 +294,14 @@ export const checked = moduleOf(checkedKind, null)
  *
  * @type {Module}
  */
-export const withHeap = moduleOf(heapTagKind, heap)
+export const withHeap = moduleOf(heapTagKind, heap, plainBlock)
 
 /**
- * {@link checked} where the IR heap holds long strings: the kind of one
- * asks the debug arena's `type_of`, through the debug interface that it
- * imports, so a dropped or forged reference into the IR heap traps too.
+ * {@link checked} where the IR heap holds long strings: the kind of one,
+ * and the hooks before they count one, ask the debug arena's `type_of`,
+ * through the debug interface that it imports, so a dropped or forged
+ * reference into the IR heap traps, and changes no count.
  *
  * @type {Module}
  */
-export const checkedWithHeap = moduleOf(checkedHeapKind, debugHeap)
+export const checkedWithHeap = moduleOf(checkedHeapKind, debugHeap, checkedBlock)

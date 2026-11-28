@@ -177,10 +177,49 @@ export const proof = {
             '    else',
             '        {}',
         ].join('\n')))
-        // the checked variant's hooks are the same, but for their indices among more imports
-        for (const hook of ['dup', 'drop']) {
-            assertEq(watOf(checkedWithHeap, hook).split('\n').slice(1).join('\n'), watOf(withHeap, hook).split('\n').slice(1).join('\n'))
-        }
+        // the checked variant's hooks take the block only where its box and its type are a string's, as its `kind`
+        // does, so a forged box traps before a count changes
+        const checkedText = print(assertOk(lifetime(checkedWithHeap)))
+        assert(checkedText.includes([
+            'fn dup(b: u(64)) -> u(64) =',
+            '    if isRef(b)',
+            '    then',
+            '        if eq(and(b, 4222124650659840), 2533274790395904)',
+            '        then',
+            '            let counted =',
+            '                Heap.dup(',
+            '                    if eq(b, or(9221401712017801218, and(b, 4294967288)))',
+            '                    then',
+            '                        let type = Heap.type_of(and(b, 4294967288))',
+            "                        if eq(shr(type, 4), 4) then and(b, 4294967288) else misuse('not a value')",
+            '                    else',
+            "                        misuse('not a value')",
+            '                )',
+            '            b',
+            '        else',
+            '            Ref.dup_ref(b)',
+            '    else',
+            '        b',
+        ].join('\n')))
+        assert(checkedText.includes([
+            'fn drop(b: u(64)) -> unit =',
+            '    if isRef(b)',
+            '    then',
+            '        if eq(and(b, 4222124650659840), 2533274790395904)',
+            '        then',
+            '            let p =',
+            '                if eq(b, or(9221401712017801218, and(b, 4294967288)))',
+            '                then',
+            '                    let type = Heap.type_of(and(b, 4294967288))',
+            "                    if eq(shr(type, 4), 4) then and(b, 4294967288) else misuse('not a value')",
+            '                else',
+            "                    misuse('not a value')",
+            '            if Heap.drop(p) then Heap.free(p) else {}',
+            '        else',
+            '            Ref.drop_ref(b)',
+            '    else',
+            '        {}',
+        ].join('\n')))
     },
     // The hooks' WebAssembly: one mask and one compare tell an IR string, and its block's address is a 32-bit word.
     heapDupWat: () => assertEq(watOf(withHeap, 'dup'), [
