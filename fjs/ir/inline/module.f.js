@@ -45,7 +45,7 @@
  * @module
  *
  * @import { Result } from '../../types/result/types.ts'
- * @import { Checked, CheckedFn, ConstantOf, Fn, Int, Module, Sealed, Term, Type, Typed } from '../types.ts'
+ * @import { Checked, CheckedFn, ConstantOf, Fn, Int, Module, Param, Sealed, Term, Type, Typed } from '../types.ts'
  * @import { _Hooks, _Names, _Pass, _TypedNames, _Write, _Written } from './private.ts'
  */
 
@@ -282,17 +282,14 @@ export const inline = m => {
 
 // hooks
 
-/** {@link made} of a typed term. @type {(t: Typed) => boolean} */
-const madeTyped = ([, t]) => t[0] === 'get' || t[0] === 'lit' || t[0] === 'constant' || t[0] === 'code' || (t[0] === 'field' && madeTyped(t[1]))
-
 /**
  * The hooks of the types that a module defines: each `kind`, `dup` and
  * `drop` that the lifetime pass and the emitter call. The checker refuses
  * a hint on a `kind`, whose calls the emitter writes in each `match`.
  *
- * @type {(m: { readonly defines?: Module['defines'] }) => readonly string[]}
+ * @type {(m: { readonly defines?: Module['defines'] }) => readonly (string | undefined)[]}
  */
-const hooksOf = m => (m.defines?.types ?? []).flatMap(([, { kind, dup, drop }]) => [kind, dup, drop].flatMap(x => x === undefined ? [] : [x]))
+const hooksOf = m => (m.defines?.types ?? []).flatMap(([, { kind, dup, drop }]) => [kind, dup, drop])
 
 /**
  * Typed terms written in their order, from the prefix number `n`, and the
@@ -311,26 +308,25 @@ const eachTyped = (pass, names, ts, n) => ts.reduce(
 
 /**
  * A copy of a hook's checked body in place of a call of it, typed, of the
- * arguments `args` as the pass wrote them, in a `block` of the call's type
- * where {@link blocked} asks for one, as the plain pass writes a copy.
+ * arguments `args` as the pass wrote them. A hook's argument is what the
+ * lifetime pass writes, `unseal(e)` or `release(x)`, the carrier's bits of
+ * the parameter's own type, so each is bound to a `let`. The copy is a
+ * `block` of the call's type, which a `br return` of the body leaves and
+ * which widens a body narrower than the result.
  *
  * @type {(pass: _Hooks, f: CheckedFn, type: Type, args: readonly Typed[], n: number) => readonly [Typed, number]}
  */
 const copyTyped = (pass, f, type, args, n) => {
     const [p, n1] = fresh(pass.taken, n)
-    const parts = f.params.map((param, j) => /** @type {const} */ ([param, args[Number(j)]]))
-    const inPlace = parts.flatMap(([param, a]) => !isOwn(param) && madeTyped(a) && equal(a[0], param[1]) ? [/** @type {const} */ ([param[0], a])] : [])
     /** @type {_TypedNames} */
-    const names = { local: (x, t) => inPlace.find(([k]) => k === x)?.[1] ?? [t, ['get', `${p}${x}`]], rename: x => `${p}${x}`, loops: [] }
+    const names = { local: (x, t) => [t, ['get', `${p}${x}`]], rename: x => `${p}${x}`, loops: [] }
     const [body, n2] = expand(pass, names, f.body, n1)
-    const bound = parts
-        .filter(([[k]]) => !inPlace.some(([x]) => x === k))
-        .reduceRight(
-            /** @type {(b: Typed, part: typeof parts[number]) => Typed} */
-            (b, [[k, t], a]) => [b[0], ['let', `${p}${k}`, equal(a[0], t) ? a : [t, ['block', p, t, a]], b]],
-            body,
-        )
-    return [blocked(f) ? [type, ['block', `${p}return`, type, bound]] : bound, n2]
+    const bound = f.params.reduceRight(
+        /** @type {(b: Typed, param: Param, j: number) => Typed} */
+        (b, [k], j) => [b[0], ['let', `${p}${k}`, args[Number(j)], b]],
+        body,
+    )
+    return [[type, ['block', `${p}return`, type, bound]], n2]
 }
 
 /**

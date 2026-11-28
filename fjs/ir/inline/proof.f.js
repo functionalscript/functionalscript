@@ -3,7 +3,7 @@
  * @import { Module } from '../types.ts'
  */
 
-import { assertEq, assertError, assertOk } from '../../asserts/module.f.js'
+import { assertEq, assertError, assertNotNullish, assertOk } from '../../asserts/module.f.js'
 import { any, l0 } from '../l0/module.f.js'
 import {
     add, block, br, call, call_ref, code, codeOf, constant, f64, f64c, field, float, fn, get, hint, if_, int, let_, lit, loop, lt,
@@ -208,6 +208,31 @@ export const proof = {
         assertEq(out.functions.map(([k]) => k).join(' '), m.functions.map(([k]) => k).join(' '))
         assertEq(out.functions.flatMap(([, f]) => selfCalls(f.body)).filter(k => k === 'dup' || k === 'drop').join(' '), '')
         // The emitter takes the copies.
+        emit(out)
+    },
+    // A copy of a hook is written into terms of every kind, and the module still emits.
+    hookShapes: () => {
+        const shape = fn([own('v', any), ['w', any], ['x', f64], ['c', code([['borrow', f64]], f64)]], f64, (v, w, x, c) =>
+            let_('p', make([['x', x], ['n', trunc_sat(u(8), x)]]), p =>
+                match(w, [
+                    [['number'], 'u', loop('again', [['k', f64, call('self', 'to_f64', [get('u')])]], k =>
+                        if_(lt(k, float(field(p, 'n'))), next('again', [['k', add(k, one)]]),
+                            block('out', f64, br('out', call_ref(c, [field(p, 'x')])))))],
+                    [null, null, return_(one)],
+                ])))
+        // Any's drop with a local of its own, which each copy names with its prefix.
+        const drop = hint('always', fn([['b', u(64)]], unit, b => let_('t', b, t => if_(call('self', 'isRef', [t]), call('Ref', 'drop_ref', [t]), make([])))))
+        const hinted = {
+            ...anyModule,
+            functions: [...anyModule.functions.map(([k, f]) => /** @type {const} */ ([k, k === 'drop' ? drop : f])), /** @type {const} */ (['h', fn([['x', f64]], f64, x => x)]), /** @type {const} */ (['shape', shape])],
+            exports: [...anyModule.exports, 'shape'],
+        }
+        const m = assertOk(check(assertOk(lifetime(assertOk(inline(hinted))))))
+        const out = inlineHooks(m)
+        const before = selfCalls(assertNotNullish(m.functions.find(([k]) => k === 'shape'))[1].body)
+        const after = selfCalls(assertNotNullish(out.functions.find(([k]) => k === 'shape'))[1].body)
+        assertEq(before.includes('drop'), true)
+        assertEq(after.includes('drop'), false)
         emit(out)
     },
     // A module with no hook hinted is left as it is.
