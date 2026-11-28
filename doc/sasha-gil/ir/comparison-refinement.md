@@ -44,9 +44,10 @@ is `⊥`.
 
 The checker stores one range per local. A refinement **narrows** a
 local when it replaces its range `R` by `R ⊓ S` for a sound fact `S`.
-Widening a local is never a refinement step; it happens only at a join
-or a loop parameter (below), where the lattice join is the sound
-choice.
+Widening a local is never a refinement step; after a merge the sound
+choice is a wider bound — the lattice join of arm results for a
+`match`, or the author-declared upper bound of a loop parameter
+(below), which need only be a subtype bound, not a computed join.
 
 ## Transfer: a branch on a comparison
 
@@ -73,10 +74,16 @@ transfer on the inner operand.
 
 **Soundness claim (to prove against the rules, not by redesign):** if a
 concrete pair `(a, b)` lies in `A × B` and `op(a, b)` evaluates to the
-arm's outcome, then `(a, b)` lies in `A′ × B′`. The true and false
-transfers partition the pairs that the comparison decides; they need
-not cover pairs the comparison never reaches (an empty arm is
-unreachable and keeps the old ranges).
+arm's outcome, then `(a, b)` lies in `A′ × B′`. Each transfer is a
+**sound over-approximation** of the pairs with that outcome: the
+projected ranges may keep pairs that the comparison would decide the
+other way. Example: with `A = B = int(0, 1)` and `lt`, the true transfer
+is `int(0, 0) × int(1, 1)` and the false transfer is still
+`int(0, 1) × int(0, 1)`, so `(0, 1)` appears in both projections even
+though only the true outcome holds for it. Non-relational intervals
+cannot partition the concrete pairs; they only guarantee inclusion of
+every pair the arm can see. An empty arm (no values left) is unreachable
+and keeps the old ranges.
 
 ## Conservative at joins and loops
 
@@ -88,11 +95,14 @@ must not keep a fact that only one path proved.
    the join of the results does not push that narrowing onto locals
    after the match. Locals rebound only inside an arm's environment.
 2. **Loop parameters.** A loop binds each parameter at a declared type.
-   The first values and every `br` that repeats must subtype that type.
+   The first values and every `br` that repeats must **subtype** that
+   declaration (`loopTerm` / `repeat`); the checker does not compute the
+   lattice join of the supplied values. The declaration is an **upper
+   bound** the author chose — often wider than every iteration (e.g. a
+   `u(64)` parameter whose first and next values are both `int(0, 0)`).
    A narrowing learned inside one iteration does not shrink the
-   parameter for the next: the declared type is already the join over
-   iterations. Over-narrowing a loop parameter from one path would be
-   unsound on another.
+   parameter for the next. Over-narrowing a loop parameter from one
+   path would be unsound on another.
 3. **`br` out of a block.** A branch that leaves a block carries the
    value's type; it does not carry per-local refinements into the
    outer scope beyond what the value itself is.
