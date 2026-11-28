@@ -45,8 +45,10 @@ it counts in a header and traps on misuse. Memory enters the IR as a
       joins/loops for comparison-narrowing, written so the checker can be
       checked against them; not a redesign of shipped H2b
       ([comparison-refinement.md](../../../doc/sasha-gil/ir/comparison-refinement.md);
-      docs/spec alongside H3, 2026-11-28). An executable model beside the
-      checker remains optional
+      docs/spec alongside H3, 2026-11-28)
+- [ ] **H2b transfer model** — Executable FunctionalScript lattice +
+      transfer beside the checker (`fjs/ir/check/refinement`), proofs vs
+      `compared` / join-loop conservatism; not a redesign of shipped H2b
 - [x] **H2c** — The Heap interface and the release arena, `module`, under
       `fjs/ir/runtime/heap`, in the IR's eDSL, with a plain FunctionalScript
       model and a host proof that runs both on the same seeded sequences
