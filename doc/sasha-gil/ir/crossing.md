@@ -45,13 +45,14 @@ What H3a and H3b built, which H3c uses:
   `readable`): at most `0x3FFF_FFFF` units on wasm32. A block of
   `heap.f.js` holds up to `0x7FFF_FFFA` units (`most`), so a longer IR
   string could not cross; see H3c's first task.
-- **The counting host's `make_string`** builds every unit into one array
-  and spreads it into `String.fromCharCode` (`fjs/ir/l0/host/count/module.mjs`,
-  `units`). An engine caps how many arguments a call takes, so a string of
-  a few hundred thousand units already traps with `RangeError` there, well
-  below NaNVM's limit; see H3c's first task. The NaNVM host's own JS
-  reader of units already copies in chunks of `0x1000`
-  (`fjs/ir/l0/host/nanvm/module.mjs`).
+- **The counting host's `make_string`** builds a JavaScript string
+  (`fjs/ir/l0/host/count/module.mjs`, `units`). Two V8 ceilings stand
+  below NaNVM's: the spread into `String.fromCharCode(...units)` rejects
+  a few hundred thousand arguments with `RangeError`, and even after
+  chunking that call the accumulated string itself caps at
+  `0x1FFF_FFE8` UTF-16 units (`Invalid string length`). See H3c's first
+  task. The NaNVM host's own JS reader of units already copies in chunks
+  of `0x1000` (`fjs/ir/l0/host/nanvm/module.mjs`).
 - **Both hosts refuse an IR box.** NaNVM and the counting host check a
   box's kind against the value they keep, so a box of nibble 9 traps with
   `not a value` (`nanvm/lib/src/l0/abi.rs`). That is what makes the proof
@@ -70,32 +71,36 @@ reference where the crossing took ownership.
 
 ### First: every IR string must fit a crossing
 
-Two ceilings stand between "every IR string crosses" and today's code, and
-H3c lowers both to the same place: NaNVM's `make_string` limit of
-`0x3FFF_FFFF` units.
+Three ceilings stand between "every IR string crosses" and today's code.
+H3c lowers the shared `most` to the **lowest host that dual-host proofs
+must clear**: V8's max JavaScript string length of `0x1FFF_FFE8` units
+(Node's counting host). NaNVM's `make_string` can go higher
+(`0x3FFF_FFFF` on wasm32); keeping that as `most` would leave every
+planned proof that runs on both hosts trapped on the counting host for a
+string between those two limits (`RangeError: Invalid string length`),
+even after chunking `fromCharCode`. Separating host ceilings (WASM keeps
+the higher bound; counting host fails above V8's) is rejected for H3c:
+proofs and `most` stay one number both hosts can materialize. A later
+counting-host redesign that does not hold the value as one JavaScript
+string could raise the shared `most` again.
 
-1. **`heap.f.js`'s `most`.** NaNVM's `make_string` copies at most
-   `0x3FFF_FFFF` units (2 bytes each, within wasm32's `isize::MAX`), and
-   `heap.f.js`'s `most` lets a block hold up to `0x7FFF_FFFA`, so an IR
-   string past the first would trap `too long` at its crossing instead of
-   crossing. Lower `most` to `0x3FFF_FFFF`, so that a `concat` past it is
-   out of memory where the string is made, as any other request past the
-   arena's limit is. Another conversion path (copying in pieces into a
-   NaNVM builder) would cost Rust for a size no program here reaches. A
-   proof in `heap.proof.mjs` checks the new limit on both arenas.
-2. **The counting host's spread.** Its `make_string` builds one array of
-   every unit and calls `String.fromCharCode(...units)`, and V8 rejects a
-   call past a few hundred thousand arguments with `RangeError`. Lowering
-   `most` only to NaNVM's limit would leave every planned proof that runs
-   on both hosts still trapped on the counting host for a string well
-   below that. H3c therefore rewrites the counting host's `units` to copy
-   in chunks, as the NaNVM host's JS reader already does (`0x1000` units
-   per `fromCharCode`), so both hosts take every IR string that fits
-   `most`. A common lower `most` that stays under the spread limit is
-   rejected: it would shrink every arena for an engine quirk the counting
-   host can fix in one function. A proof of `make_string` on the counting
-   host takes a length past the spread (for example `0x3_0000` units) and
-   answers the string.
+1. **`heap.f.js`'s `most`.** Today's `most` is `0x7FFF_FFFA` (bytes within
+   `alloc`'s `0xFFFF_FFF8`). Lower it to `0x1FFF_FFE8`, so a `concat` past
+   that is out of memory where the string is made, as any other request
+   past the arena's limit is, and every IR string that exists can cross on
+   both hosts. Another conversion path (copying in pieces into a NaNVM
+   builder, or a counting host that does not materialize one JS string)
+   would buy sizes no program here reaches. A proof in `heap.proof.mjs`
+   checks the new limit on both arenas.
+2. **The counting host's spread.** Its `make_string` still builds one
+   array of every unit and calls `String.fromCharCode(...units)`, and V8
+   rejects a call past a few hundred thousand arguments with `RangeError`
+   — well below `0x1FFF_FFE8`. H3c therefore rewrites the counting host's
+   `units` to copy in chunks, as the NaNVM host's JS reader already does
+   (`0x1000` units per `fromCharCode`). Chunking only lifts the argument
+   cap; it does not raise the accumulated-string cap that sets `most`. A
+   proof of `make_string` on the counting host takes a length past the
+   spread (for example `0x3_0000` units) and answers the string.
 
 ### Where the wrap goes (decided: A, `linkCrossing`)
 
