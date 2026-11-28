@@ -648,7 +648,8 @@ const callTerm = (checkTerm, env, module, name, xs, made) => {
  *
  * - **a new owner**, the bits that a function that counts `new` answers,
  *   straight from its call, as `seal(t, f(…))`, or `seal(t, or(c, f(…)))`
- *   where a literal `c` tags them;
+ *   where a literal `c` tags them, which sets no bit that the call's
+ *   8-aligned address may hold, from bit 3 to the top of its word;
  * - **bits that hold no address**: literals, and integers of 16 bits at
  *   most, joined by `or` and `shl`, as a short box's tag and units are;
  * - **a copy**, `seal(t, self.dup(unseal(e)))` for a value `e` of `t`,
@@ -677,7 +678,13 @@ const sealCounted = (checkTerm, env, target, dup, xs) => {
         const l = value(checkTerm, env, tag)
         if (l[0] === 'error') { return l }
         const type = opType('or', [l[1][0], c[1][0]])
-        return type[0] === 'error' ? no(type[1]) : sealOf([type[1], ['op', 'or', [l[1], c[1]]]])
+        if (type[0] === 'error') { return no(type[1]) }
+        // a new owner's bits are an 8-aligned address, so a tag keeps to their 3 low bits and those above the word
+        const w = equal(c[1][0], u(64)) ? 64n : 32n
+        const v = l[1][1][2]
+        return typeof v === 'bigint' && (v & ((1n << w) - 8n)) !== 0n
+            ? no(`seal of ${show(target)}: the tag ${v} of a new owner sets bits from 3 to ${w - 1n}, which hold its address`)
+            : sealOf([type[1], ['op', 'or', [l[1], c[1]]]])
     }
     // the pass's copy
     const inner = x[0] === 'call' && x[1] === 'self' && x[2] === dup && x[3].length === 1 ? x[3][0] : undefined

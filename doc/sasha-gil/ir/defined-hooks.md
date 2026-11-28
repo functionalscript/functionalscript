@@ -81,10 +81,10 @@ type's carrier bits. All three are refused in any other module, with
   Any's 4d-2 functions (`from_f64`, `from_bool`, the constants) seal
   only copy variants. H3b widens the rule with two forms of a `seal` of
   a counted type that the module defines. One is a new owner,
-  `seal(t, f(…))` or `seal(t, or(c, f(…)))` with `c` a literal, where
-  `f`'s signature says `counts: 'new'`, as the Heap's `alloc` does: its
-  bits are a value that no one owns yet, a call of it anywhere else is
-  refused, and the owned check follows the sealed value from there. The
+  `seal(t, f(…))` or `seal(t, or(c, f(…)))` with `c` a literal that
+  sets no bit of the 8-aligned address, where `f`'s signature says
+  `counts: 'new'`, as the Heap's `alloc` does: its bits are a value that
+  no one owns yet, a call of it anywhere else is refused, and the owned check follows the sealed value from there. The
   other is bits that hold no address: literals and integers of 16 bits
   at most joined by `or` and `shl`, as a short string's box is made of
   its units (the owner's choice, 2026-11-28).

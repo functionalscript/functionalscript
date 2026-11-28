@@ -1019,6 +1019,13 @@ export const proof = {
         assertEq(why(cell, seal(cell, call('Cells', 'fresh', [n(256n)]))), "f: Cells.fresh's n is u(8), not int(256, 256)")
         assertEq(why(cell, seal(cell, or(lit(f64, 1.5), fresh))), 'f: or of f64 and u(32): the operands are integers or floats, not both')
         assertEq(why(cell, seal(cell, or(lit(int(0n, 1n << 64n), 0n), fresh))), 'f: int(0, 18446744073709551616) needs more than one word')
+        // a tag sets no bit of the call's 8-aligned address: bits 3 to 31 of a u(32), bits 3 to 63 of a u(64)
+        assertEq(typed(seal(cell, or(n(0xFFFF_FFFF_0000_0007n), fresh))), 'cell')
+        assertEq(why(cell, seal(cell, or(n(8n), fresh))), 'f: seal of cell: the tag 8 of a new owner sets bits from 3 to 31, which hold its address')
+        assertEq(why(cell, seal(cell, or(n(0x8000_0000n), fresh))), 'f: seal of cell: the tag 2147483648 of a new owner sets bits from 3 to 31, which hold its address')
+        const wide = /** @type {(body: Term) => Module} */ (body => ({ ...plus(cell, body), imports: [['Cells', { ...cells[1], functions: [['fresh', countsBits('new', signature([['n', u(8)]], u(64)))]] }]] }))
+        assertEq(show(assertOk(checkPlain(wide(seal(cell, or(n(7n), fresh))))).functions.at(-1)?.[1].body[0] ?? unit), 'cell')
+        assertEq(assertError(checkPlain(wide(seal(cell, or(tag, fresh))))), 'f: seal of cell: the tag 9221401712017801218 of a new owner sets bits from 3 to 63, which hold its address')
         // bits alone are no new owner
         assertEq(why(cell, seal(cell, call('Cells', 'plain', [n(8n)]))), 'f: seal of cell: a counted cell is sealed from a new owner, seal(t, f(…)) or seal(t, or(c, f(…))) where f counts new, or from bits that hold no address, of literals and integers of 16 bits at most joined by or and shl: seal its copy variants, or let the pass copy')
         // a seal takes one operand

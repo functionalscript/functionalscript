@@ -709,7 +709,8 @@ the type and the lifetime pass never writes a hook inside a hook.
     a literal, where `f` is marked `counts: 'new'`: bits of a value that
     no one owns yet, as the Heap's `alloc` answers a new block, so the
     `seal` makes its one owner, and the owned check follows it from
-    there. A call of such an `f` anywhere else is refused, and the
+    there. Such bits are an 8-aligned address, so `c` sets none of the
+    bits from 3 to the top of `f`'s word, which the address may hold. A call of such an `f` anywhere else is refused, and the
     marker takes only a signature that answers one word of bits, `u(64)`
     or `u(32)`, and does not fail.
   - **bits that hold no address**: literals and integers of 16 bits at
