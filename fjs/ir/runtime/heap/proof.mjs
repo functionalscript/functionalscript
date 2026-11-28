@@ -289,6 +289,15 @@ export const proof = {
         assertEq(plain.memory.buffer.byteLength, a.pages * 0x1_0000)
         assertEq(debugged.memory.buffer.byteLength, c.arena.pages * 0x1_0000)
     },
+    // A region that ends where the memory does counts its tail, as the model does: on a memory that may grow to 3
+    // pages, a block of 0x1_0008 bytes after `init` takes the one page that the host still gives.
+    tail: () => {
+        const { heap, memory } = load(release, 3)
+        const [after, at] = assertNotNullish(alloc(assertNotNullish(start(1, 3)), 0x1_0008))
+        assertEq(heap.alloc(0, 0x1_0008) >>> 0, at)
+        assertEq(memory.buffer.byteLength, after.pages * 0x1_0000)
+        assertEq(after.pages, 3)
+    },
     // A memory that cannot grow at all leaves `init` nothing to put the state in, in either arena.
     noPage: () => {
         for (const compiled of [release, debug]) {
