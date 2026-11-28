@@ -49,7 +49,10 @@
  *   function of a module: one may fail where its body has a `trap` or a
  *   call of a function that may fail, of an interface or of the module,
  *   repeating over the module until no function changes. The module that
- *   it answers writes the bit beside each function.
+ *   it answers writes the bit beside each function. A `trap` marked
+ *   `misuse` does not count, as L0's traps on misuse declare nothing
+ *   ([L0 design §11](../../../doc/sasha-gil/wasm/l0-design.md#11-misuse-traps-and-only-calls-fail)),
+ *   so a hook may trap on misuse.
  * - **An inline hint is one that the inline pass can keep.** A function
  *   hinted `always` reaches itself through no chain of calls of such
  *   functions, is read as no value, and is no hook of a type that the
@@ -1166,8 +1169,9 @@ const declared = (imports, module, name) => assertNotNullish(assertNotNullish(at
 
 /**
  * What a typed term does that may fail: whether it may fail itself, by a
- * `trap` or by a call of a function of an interface that may fail, and the
- * module's functions that it calls, each once.
+ * `trap` that is not marked `misuse` or by a call of a function of an
+ * interface that may fail, and the module's functions that it calls, each
+ * once.
  *
  * @type {(imports: OrderedMap<Interface>, own: string | null) => (x: Typed) => readonly [boolean, readonly string[]]}
  */
@@ -1177,7 +1181,7 @@ const failures = (imports, own) => ([, t]) => {
     // A `match` that tests a tag calls its kind: the module's own, for a type that it defines.
     const kind = kindCall(imports, t)
     const mine = kind !== null && kind[0] === own ? kind[1] : null
-    const itself = t[0] === 'trap'
+    const itself = (t[0] === 'trap' && t[2] !== 'misuse')
         || (t[0] === 'call' && t[1] !== 'self' && declared(imports, t[1], t[2]))
         || (t[0] === 'call_ref' && known === null)
         || (kind !== null && mine === null && declared(imports, kind[0], kind[1]))
