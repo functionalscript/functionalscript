@@ -184,6 +184,14 @@ Both builds of the compiler print the same help and exit `0`. The start-up
 about is module initialization, and a module written from its value has
 none.
 
+At `ab08cdfd`, with every module precomputed as it loads, the whole
+compiler initializes under the interpreter: it did not while the grammar's
+rules were told apart by allocation, `duplicate reference definition`, and
+does now that they are functions of a group. `fjs compile fjs/module.f.js`
+to `.rs` takes 14 min 48 s on Node 22 and writes 9.26 MB. Whether that text
+is written from the value or from the graph is not known: the fallback
+says nothing.
+
 What does not work yet for the whole compiler: interpreting it takes about
 five minutes on Node, each writer several more, and the FunctionalScript
 writer refuses the value with `a frame slot that repeats another`, since two
@@ -248,6 +256,8 @@ on NaNVM, the same as the uncurried one.
       the demos and the proofs of the writers.
 - [ ] Correct the specification pages that still call them graph outputs
       ([`code-outputs-are-values.md`](../../../spec/todo/code-outputs-are-values.md)).
+- [ ] Say which of the two a code output was written from, where it falls
+      back to the graph.
 - [ ] Merge captures holding one value, so the whole compiler has a
       FunctionalScript spelling.
 - [ ] Release builds of the whole compiler from the graph and from the
