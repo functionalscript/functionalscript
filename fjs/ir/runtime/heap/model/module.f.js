@@ -241,13 +241,14 @@ const withBlock = (c, p, b) => ({ ...c, blocks: setReplace(`${p}`)(b)(c.blocks) 
 
 /**
  * The debug arena after a `dup` of `p`: one owner more, or `null` where no
- * block is at `p` or its count is 0.
+ * block is at `p`, its count is 0, or one more owner would not fit in 32
+ * bits, as the arena traps with 'a count past 32 bits'.
  *
  * @type {(c: Counted, p: number) => Counted | null}
  */
 export const dup = (c, p) => {
     const b = block(c, p)
-    return b === null || b.count === 0 ? null : withBlock(c, p, { ...b, count: b.count + 1 })
+    return b === null || b.count === 0 || b.count === 0xFFFF_FFFF ? null : withBlock(c, p, { ...b, count: b.count + 1 })
 }
 
 /**
