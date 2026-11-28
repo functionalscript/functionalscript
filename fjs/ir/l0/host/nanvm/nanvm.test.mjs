@@ -367,6 +367,17 @@ test('make_string reads any bytes of the memory but those at address 0', () => {
     if (trapped(() => make(size - 2, 2)) !== 'l0.make_string: out of bounds') { throw 'past the memory' }
 })
 
+test('make_string reads the last unit of a memory of 65,536 pages', () => {
+    const h = host([])
+    const exports = /** @type {Readonly<Record<string, unknown>>} */ (/** @type {unknown} */ (h.imports))
+    const make = /** @type {(ptr: number, len: number) => bigint} */ (exports.make_string)
+    const length = /** @type {(s: bigint) => number} */ (exports.length)
+    const memory = /** @type {WebAssembly.Memory} */ (exports.memory)
+    // 2^32 bytes are more than a wasm32 `usize` holds, so the bound is no `usize`
+    memory.grow(0x1_0000 - memory.buffer.byteLength / 0x1_0000)
+    if (length(make(0xFFFF_FFFE, 1)) !== 1) { throw 'last unit' }
+})
+
 test('NaNVM ran modules', () => {
     if (ran === 0) { throw 'no module ran on NaNVM' }
 })

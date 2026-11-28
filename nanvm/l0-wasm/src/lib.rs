@@ -150,22 +150,22 @@ fn region(name: &str, ptr: i32, len: i32, size: usize) -> &'static mut [u8] {
 /// pages that the IR heap grew do, but not at address 0, where Rust makes
 /// no slice, even though WASM's memory holds it.
 fn readable(name: &str, ptr: i32, len: i32, size: usize) -> &'static [u8] {
-    let start = ptr as u32 as usize;
-    let n = (len as u32 as usize).checked_mul(size);
-    let end = n.and_then(|n| start.checked_add(n));
-    let memory = core::arch::wasm32::memory_size(0) * 0x1_0000;
-    if !end.is_some_and(|end| end <= memory) || (start == 0 && n != Some(0)) {
+    // In u64, as a memory of 65,536 pages holds 2^32 bytes, which a wasm32
+    // `usize` does not, and a read may end at its last byte.
+    let start = ptr as u32 as u64;
+    let n = len as u32 as u64 * size as u64;
+    let memory = core::arch::wasm32::memory_size(0) as u64 * 0x1_0000;
+    if start + n > memory || (start == 0 && n != 0) {
         panic!("l0.{name}: out of bounds")
     }
-    match n {
-        Some(n) if n > 0 => {
-            // SAFETY: the bytes lie in the memory, and the caller copies them
-            // out before Rust runs anything else, so no borrow of them that
-            // Rust holds is live while this slice is.
-            unsafe { core::slice::from_raw_parts(start as *const u8, n) }
-        }
-        _ => &[],
+    if n == 0 {
+        return &[];
     }
+    // SAFETY: the bytes lie in the memory, past address 0, so `start` and
+    // `n` are below 2^32 and fit a `usize`; and the caller copies them out
+    // before Rust runs anything else, so no borrow of them that Rust holds
+    // is live while this slice is.
+    unsafe { core::slice::from_raw_parts(start as usize as *const u8, n as usize) }
 }
 
 // Scalars.
