@@ -218,7 +218,7 @@ export const withHeap = {
         ...hooks,
         ...shortUnits,
         // A block's length, which a block holds at most `most` of: a longer one is forged.
-        ['block_length', hint('always', fn([['p', address]], blockLength, p =>
+        ['block_length', hint({ inline: 'always' }, fn([['p', address]], blockLength, p =>
             let_('n', memoryOf('load32', [p]), k => if_(le(k, n(most)), k, misuse('not a value')))))],
         // A short box's length by its tag, whose index in `allTags` is its units.
         ['short_length', fn([['b', u(64)]], shortLength, b => byTag(b, tag => n(BigInt(allTags.indexOf(tag))), misuse('not a value')))],

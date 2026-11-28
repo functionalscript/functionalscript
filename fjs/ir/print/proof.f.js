@@ -157,7 +157,7 @@ export const proof = {
     // An inline hint reads before `fn`.
     hints: () => assertEq(print({
         imports: [],
-        functions: [['f', hint('always', fn([], f64, n(1n)))], ['g', hint('never', fn([], f64, n(2n)))]],
+        functions: [['f', hint({ inline: 'always' }, fn([], f64, n(1n)))], ['g', hint({ inline: 'never' }, fn([], f64, n(2n)))]],
         exports: [],
     }), [
     'inline always fn f() -> f64 =',

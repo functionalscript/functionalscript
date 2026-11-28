@@ -23,8 +23,8 @@ export const proof = {
     // A hint is one more part of the function, beside the parts that it keeps.
     hint: () => {
         const f = fn([['x', f64]], f64, x => x)
-        assertEq(hint('always', f).inline, 'always')
-        assert(equal(hint('never', f).body, f.body))
+        assertEq(hint({ inline: 'always' }, f).inline, 'always')
+        assert(equal(hint({ inline: 'never' }, f).body, f.body))
     },
     equal: () => {
         assert(equal([1, [2n, 'a']], [1, [2n, 'a']]))

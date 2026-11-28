@@ -222,10 +222,16 @@ export type Signature = {
  * function with no hint is left to a later source of decisions, as a
  * profile would be, and the pass leaves its calls for now. The checker
  * refuses `always` on a function that reaches itself through calls of
- * such functions alone, on one read as a value, and on a hook of a type
- * that the module defines, which the lifetime pass and the emitter call.
+ * such functions alone, on one read as a value, and on the `kind` of a
+ * type that the module defines, which the emitter calls in each `match`.
+ * A type's `dup` and `drop` hinted `always` are copied by the emitter.
  */
 export type Inline = 'always' | 'never'
+
+/** The hints of a function, each named by what it is about: `inline` for now. */
+export type Hints = {
+    readonly inline: Inline
+}
 
 /**
  * A function: its parameters, its result, a body that the label `return`

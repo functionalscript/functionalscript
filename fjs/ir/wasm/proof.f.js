@@ -2886,7 +2886,7 @@ export const proof = {
         const m = {
             imports: [memory],
             functions: [
-                ['put', hint('always', fn([['a', u(32)], ['v', u(8)]], u(8), (a, v) => let_('stored', call('Memory', 'store8', [a, v]), () => call('Memory', 'load8', [a]))))],
+                ['put', hint({ inline: 'always' }, fn([['a', u(32)], ['v', u(8)]], u(8), (a, v) => let_('stored', call('Memory', 'store8', [a, v]), () => call('Memory', 'load8', [a]))))],
                 ['f', fn([['a', u(32)]], u(8), a => let_('x', call('self', 'put', [a, n(7n)]), x => let_('y', call('Memory', 'store8', [a, n(9n)]), () => x)))],
             ],
             exports: ['f'],
