@@ -33,19 +33,25 @@ Give code units (and tags built only from them) a type or term form the
 checker can tell from a truncated address fragment:
 
 1. **A dedicated spelling** — for example a sealed or nominal `codeUnit`
-   / `u16` carrier that `firstUnit` answers, and that `addressless` (or
-   its successor) accepts only when the bits are that spelling or a
-   literal/tag built from it — never a raw `and`/`shr` of an `unseal`.
-2. **Refuse reconstitution** — `seal` of a counted type from `or`/`shl`
-   of code-unit pieces remains allowed for short-box construction from
-   **literals and pack helpers**, but not from pieces that came out of
-   `unseal` of an existing owner.
+   / `u16` carrier that **proven short-box / code-unit extraction**
+   answers (`firstUnit`'s short-box branch, pack helpers). `addressless`
+   (or its successor) accepts that spelling, literals, and tags built
+   only from them. A raw `and`/`shr` of an `unseal` that is not such a
+   helper does **not** produce the spelling.
+2. **Refuse reconstitution of an address, not short-box concat** —
+   today's `joined` path that `seal`s a short box from `firstUnit`
+   pieces of short operands must keep working once those pieces carry
+   the code-unit spelling. What is refused is building a **counted**
+   owner from arbitrary address-bearing slices (e.g. truncating a long
+   IR-string / heap box's `unseal` and reassembling it). The spelling
+   is how the checker tells those two cases apart — not a blanket ban
+   on every `unseal` slice.
 3. **Keep the debug trap** until the checker rule lands; then keep it as
    defense in depth, not as the only line.
 
 Design note first (stack-open is enough); then checker + String/`firstUnit`
-edits with proofs that today's forged `seal(cell, or(…, firstUnit(…)))`
-shape is refused.
+edits with proofs that forged address reconstitution is refused and that
+short-box construction via `firstUnit` / pack helpers still type-checks.
 
 ### Tasks
 
