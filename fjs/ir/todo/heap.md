@@ -41,10 +41,11 @@ it counts in a header and traps on misuse. Memory enters the IR as a
       reads it in the narrower word, so the arena's pointer arithmetic
       needs no masks (2026-11-27, the card's recommended option; the
       owner's answer is still open)
-- [ ] **H2** — The arena under `fjs/ir/runtime/heap`, in the IR's eDSL:
-      `module` for release, `counted` for debug, with proofs on the
-      counting host against a plain FunctionalScript model; it traps on
-      misuse by H2a's mark
+- [x] **H2c** — The Heap interface and the release arena, `module`, under
+      `fjs/ir/runtime/heap`, in the IR's eDSL, with a plain FunctionalScript
+      model and a host proof that runs both on the same seeded sequences
+- [ ] **H2** — The debug arena, `counted`: the header, the size word before
+      it, the traps on misuse and `live()`, proven against the model too
 - [ ] **H3** — The first client: long strings in the IR heap, after a note on
       NaNVM holding references into it, with the root table that holds
       the references of constants and of the host
