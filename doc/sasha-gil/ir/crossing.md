@@ -113,14 +113,21 @@ exists before H3d links the heap. (H3d must then redirect `concat` and
 `substring` too: `linkString` today redirects only `length` and `unit`,
 `stringShortOps`.)
 
-**Results that NaNVM reads**:
+**Results that NaNVM reads**, wrapped only where the result's type can
+hold a string, as for parameters: `any`, or an `any` whose kinds include
+`string`. A result of `f64`, of a boolean or of an integer is no box, and
+one of `only(any, 'array')` or another kind without `string` holds no IR
+string (an array's items crossed when `push` took them), so they keep
+their type and ABI unwrapped; the program proofs' exports have all of
+these (`literals.units`, `throws.bigints`, `arrays.none` in
+`fjs/ir/from_fast/testlib.f.js`):
 
 - **A function with a code index**, which NaNVM calls through `call`: the
   code that `make_function` takes (a `['code', name]` term). The link step
   wraps the code's function so that a long IR string it answers is copied
   and the IR reference dropped, and points the `code` term at the wrapper.
-- **Each exported function**, which the host calls by name and reads
-  through NaNVM: the same wrap of its result. Today's `init` answers
+- **Each exported function** whose result can hold a string, which the
+  host calls by name and reads through NaNVM: the same wrap of its result. Today's `init` answers
   nothing (`fjs/ir/README.md`, `init`); L0 §20's `init`, once built, is one
   more such result.
 
@@ -156,7 +163,8 @@ string can be there; not in H3c.
   tag puts 9 there, and NaNVM's own references. The long-IR-string cases
   alone would not catch a wrapper that tests the nibble only.
 - **The link step's own proofs**, in `link/proof.f.js`: which calls it
-  rewrites, that a parameter that cannot hold a string is left alone, that
+  rewrites, that a parameter or a result that cannot hold a string is left
+  alone, that
   it refuses a program whose own name collides with a wrapper's, as
   `linkAny` does.
 - 100% coverage for every changed `module.f.js` (AGENTS.md).
