@@ -25,16 +25,16 @@ export const proof = /** @type {const} */ ({
         const edited = 'const recurse = n => 1 + recurse(n + 1);\nexport default recurse(0);'
         const state = assertOk(await run(demo.update(demo.init)({ kind: 'input', name: 'compiler', value: edited })))
         assertEq(state.main, edited)
-        for (const result of state.panes.slice(0, 2)) {
+        // Every output written from the module's value initializes it, the
+        // two code outputs among them, and overflows; the EDAG is the
+        // program as written and needs no initialization.
+        assertEq(state.panes.map(([tag]) => tag).join(), 'error,error,error,ok,error')
+        for (const result of state.panes.filter(([tag]) => tag === 'error')) {
             const text = textOfResult(result)
-            assertEq(result[0], 'error')
             assert(text.startsWith('Could not compile this output:'), text)
         }
-        assertEq(state.panes.slice(2).map(([tag]) => tag).join(), 'ok,ok,ok')
         const shown = htmlToString(demo.view(state))
-        assert(shown.includes('Copy .js output'), shown)
         assert(shown.includes('Copy .edag.data.js output'), shown)
-        assert(shown.includes('Copy .rs output'), shown)
         const recovered = assertOk(await run(demo.update(state)({ kind: 'input', name: 'compiler', value: source })))
         assertEq(textOfResult(recovered.panes[0]), '9')
         assertEq(recovered.panes.map(([tag]) => tag).join(), 'ok,ok,ok,ok,ok')

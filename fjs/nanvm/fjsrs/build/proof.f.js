@@ -14,7 +14,11 @@ export const proof = /** @type {const} */ ({
         /** @type {import("../../../effects/node/virtual/types.ts").Dir} */
         const root = {
             nanvm: { fjsrs: { tests: { 'static-strings.f.js': [utf8('export default 1;')] } } },
-            fjs: { nanvm: { fjsrs: { 'module.f.js': [utf8('export const main = 7;')] } } },
+            fjs: {
+                nanvm: { fjsrs: { 'module.f.js': [utf8('export const main = 7;')] } },
+                // the program is written from its value, under the package's runtime
+                js: { runtime: { 'module.f.js': [utf8('export const runtime = {};')] } },
+            },
         }
         const [state, code] = virtualAt(root)(main(defaultNodeProgramOptions))
         assertEq(exitCode(code), 0, state.stderr)

@@ -18,7 +18,7 @@ import { utf8 } from '../text/module.f.js'
 import { isObject } from '../types/object/module.f.js'
 import { tryParse as parseDataJs } from '../media/datajs/module.f.js'
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.js'
-import { compileSource, defaultValue, fjsRoundTrip, importing, jsonOf, jsonRefused, moduleRefused, protoValue, readOutput, runtime, stderrOf, withCfg, withSelected } from './proof.f.js'
+import { compileSource, graphSource, defaultValue, fjsRoundTrip, importing, jsonOf, jsonRefused, moduleRefused, protoValue, readOutput, runtime, stderrOf, withCfg, withSelected } from './proof.f.js'
 import { toJson } from '../media/json/module.f.js'
 import { generate } from '../types/array/module.f.js'
 
@@ -40,13 +40,13 @@ export const proof = {
     // outputs refuse a function as ever.
     guards: () => {
         assertEq(compileSource('export default (a) => { if (a) { return 1; } return 2; };')('output.js'), 'export default ($0)=>$0?1:2;')
-        assertEq(compileSource('export default (a) => { if (a) { const x = [1]; return [x, x]; } return 0; };')('output.js'), 'export default ($0)=>$0?(()=>{const $1=[1];return [$1,$1];})():0;')
-        assertEq(compileSource('export default (m) => { const a = [1]; if (m) { return a; } return 0; };')('output.js'), 'export default ($0)=>{const $1=[1];return $0?$1:0;};')
-        assertEq(compileSource('export default (a) => { if (a) { throw 1; } const y = [2]; return y; };')('output.js'), 'export default ($0)=>$0?(()=>{throw 1;})():[2];')
-        assertEq(compileSource('export default (a) => { if (a) { throw 1; } const z = [2]; return 1; };')('output.js'), 'export default ($0)=>$0?(()=>{throw 1;})():(()=>{const $1=[2];return 1;})();')
+        assertEq(compileSource('export default (a) => { if (a) { const x = [1]; return [x, x]; } return 0; };')('output.js'), 'const $0=(()=>{const $1=[1];return [$1,$1];})();export default ($2)=>$2?$0:0;')
+        assertEq(compileSource('export default (m) => { const a = [1]; if (m) { return a; } return 0; };')('output.js'), 'const $0=[1];export default ($1)=>$1?$0:0;')
+        assertEq(compileSource('export default (a) => { if (a) { throw 1; } const y = [2]; return y; };')('output.js'), 'const $0=[2];export default ($1)=>$1?(()=>{throw 1;})():$0;')
+        assertEq(compileSource('export default (a) => { if (a) { throw 1; } const z = [2]; return 1; };')('output.js'), 'export default ($0)=>$0?(()=>{throw 1;})():1;')
         assertEq(compileSource('export default (v, msg) => { if (v) { return undefined; } throw msg ?? "assertion failed"; };')('output.js'), "export default ($0,$1)=>$0?undefined:(()=>{throw ($1===null?true:$1===undefined)?\"assertion failed\":$1;})();")
         assertEq(compileSource('export default (a) => { if (a) { throw 1; } const z = [2]; return 1; };')('output.edag.data.js'), 'export default ["{}",[[":","default",["=>",1,[],["?:",["arg",0],["throw",1],[",",[["[]",[2]],1]]]]]]];')
-        assert(compileSource('export default (a) => { if (a) { const x = [1]; return [x, x]; } return 0; };')('output.rs').includes("if Any::<A>::to_boolean(&_args.argument(0)) {\n        let _b1: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();\n        Ok([_b1.clone(), _b1.clone()].to_array().to_any())\n    } else { Ok(f64_any(0x0)) }"))
+        assert(graphSource('export default (a) => { if (a) { const x = [1]; return [x, x]; } return 0; };')('output.rs').includes("if Any::<A>::to_boolean(&_args.argument(0)) {\n        let _b1: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();\n        Ok([_b1.clone(), _b1.clone()].to_array().to_any())\n    } else { Ok(f64_any(0x0)) }"))
         assertEq(jsonRefused('export default (a) => { if (a) { return 1; } return 2; };'), 'output.json - error: callable materialization requires a target compile/load boundary')
     },
     // A switch is written back as what it lowers to, as a guard is: the
@@ -57,9 +57,9 @@ export const proof = {
     switches: () => {
         assertEq(compileSource('export default (n) => { switch (n) { case 1: { return 1; } } return 2; };')('output.js'), 'export default ($0)=>$0===1?1:2;')
         assertEq(compileSource('export default (n) => { switch (n[0]) { case 1: case 2: { return 1; } case 3: { throw 3; } default: { return 0; } } };')('output.js'), "export default ($0)=>{const $1=$0[0];return (()=>{const $2=$1===1;return $2?$2:$1===2;})()?1:$1===3?(()=>{throw 3;})():0;};")
-        assertEq(compileSource('export default (n) => { switch (n[0]) { case 1: { const x = [1]; return [x, x]; } } const y = [2]; return y; };')('output.js'), 'export default ($0)=>$0[0]===1?(()=>{const $1=[1];return [$1,$1];})():[2];')
+        assertEq(compileSource('export default (n) => { switch (n[0]) { case 1: { const x = [1]; return [x, x]; } } const y = [2]; return y; };')('output.js'), 'const $0=(()=>{const $1=[1];return [$1,$1];})();const $2=[2];export default ($3)=>$3[0]===1?$0:$2;')
         assertEq(compileSource('export default (n) => { switch (n[0]) { case 1: case 2: { return 1; } case 3: { throw 3; } default: { return 0; } } };')('output.edag.data.js'), "const $0=[\".\",[\"arg\",0],0];const $1=[\"===\",$0,1];export default [\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"?:\",[\"?:\",$1,$1,[\"===\",$0,2]],1,[\"?:\",[\"===\",$0,3],[\"throw\",3],0]]]]]];")
-        assert(compileSource('export default (n) => { switch (n[0]) { case 1: case 2: { return 1; } case 3: { throw 3; } default: { return 0; } } };')('output.rs').includes("        let _b1: Any<A> = (Any::dot(_args.argument(0), f64_any(0x0)).end())?;\n        if Any::<A>::to_boolean(&{\n            let _b2: Any<A> = (strict_eq(_b1.clone(), f64_any(0x3ff0000000000000)))?;\n            if Any::<A>::to_boolean(&_b2) { _b2.clone() } else { (strict_eq(_b1.clone(), f64_any(0x4000000000000000)))? }\n        }) { Ok(f64_any(0x3ff0000000000000)) } else { if Any::<A>::to_boolean(&(strict_eq(_b1.clone(), f64_any(0x4008000000000000)))?) { Err(f64_any(0x4008000000000000)) } else { Ok(f64_any(0x0)) } }"))
+        assert(graphSource('export default (n) => { switch (n[0]) { case 1: case 2: { return 1; } case 3: { throw 3; } default: { return 0; } } };')('output.rs').includes("        let _b1: Any<A> = (Any::dot(_args.argument(0), f64_any(0x0)).end())?;\n        if Any::<A>::to_boolean(&{\n            let _b2: Any<A> = (strict_eq(_b1.clone(), f64_any(0x3ff0000000000000)))?;\n            if Any::<A>::to_boolean(&_b2) { _b2.clone() } else { (strict_eq(_b1.clone(), f64_any(0x4000000000000000)))? }\n        }) { Ok(f64_any(0x3ff0000000000000)) } else { if Any::<A>::to_boolean(&(strict_eq(_b1.clone(), f64_any(0x4008000000000000)))?) { Err(f64_any(0x4008000000000000)) } else { Ok(f64_any(0x0)) } }"))
         assertEq(jsonRefused('export default (n) => { switch (n) { case 1: { return 1; } } return 2; };'), 'output.json - error: callable materialization requires a target compile/load boundary')
     },
     // JSON denotes a tree, so a node the export reaches twice is written
@@ -441,9 +441,9 @@ export const proof = {
         },
         outputs: () => {
             assertEq(compileSource('export default String();')('output.js'), 'export default "";')
-            assertEq(compileSource('export default String(1);')('output.js'), 'export default String(1);')
+            assertEq(compileSource('export default String(1);')('output.js'), 'export default "1";')
             assertEq(compileSource('export default String(1);')('output.edag.data.js'), 'export default ["{}",[[":","default",["String",1]]]];')
-            assert(compileSource('export default String(1);')('output.rs').includes('f64_any(0x3ff0000000000000).to_string().map(|v| v.to_any())'))
+            assert(graphSource('export default String(1);')('output.rs').includes('f64_any(0x3ff0000000000000).to_string().map(|v| v.to_any())'))
         },
         sourceRoundTrip: () => {
             fjsRoundTrip('export default String(Number("2") + 1).length;')
@@ -560,7 +560,7 @@ export const proof = {
             assertEq(compileSource('export default `${1}${2}`;')('output.edag.data.js'), 'export default ["{}",[[":","default",["+",["+",["+",["+","",["String",1]],""],["String",2]],""]]]];')
             assertEq(fjsRoundTrip('export default `hello ${1}!`;'), 'export default "hello "+String(1)+"!";')
             fjsRoundTrip('const s = {}; export default x => () => `head${x ? s : "no"}tail`;')
-            const rust = compileSource('export default `hello ${1}!`;')('output.rs')
+            const rust = graphSource('export default `hello ${1}!`;')('output.rs')
             assert(rust.includes('f64_any(0x3ff0000000000000).to_string().map(|v| v.to_any())'))
         },
         // Cooking into a string leaf does not admit template syntax to the
@@ -609,7 +609,7 @@ export const proof = {
         constant: () => {
             assertEq(compileSource('const a = 0; export default {[a]: 5};')('output.json'), '{"0":5}')
             assertEq(compileSource('const a = 0; export default {[a]: 5};')('output.data.js'), 'export default {"0":5};')
-            assertEq(compileSource('const a = 0; export default {[a]: 5};')('output.f.js'), 'export default {[0]:5};')
+            assertEq(compileSource('const a = 0; export default {[a]: 5};')('output.f.js'), 'export default {"0":5};')
         },
         // a key read at run time, inside a function, stays in brackets in
         // the graph output
@@ -797,13 +797,13 @@ export const proof = {
         outputs: () => {
             assertEq(compileSource('const a = [1]; export default [...a];')('output.edag.data.js'), 'export default ["{}",[[":","default",["[]",[["...",["[]",[1]]]]]]]];')
             assertEq(compileSource('const f = (...r) => r; export default (...r) => f(...r, 1);')('output.js'), 'const $0=(...$1)=>$1;export default (...$2)=>$0(...$2,1);')
-            assert(compileSource('export default [...null, 1];')('output.rs').includes("spread_array([spread_item(Nullish::Null.to_any())?, value_item(f64_any(0x3ff0000000000000))]))?"))
+            assert(graphSource('export default [...null, 1];')('output.rs').includes("spread_array([spread_item(Nullish::Null.to_any())?, value_item(f64_any(0x3ff0000000000000))]))?"))
         },
         // a call whose function reads its rest array through a spread stays
         // a call, as one reading it any other way does
         notInlined: () => {
-            assertEq(compileSource('export default ((...a) => [...a])();')('output.js'), 'const $0=(...$1)=>[...$1];export default $0();')
-            assertEq(compileSource('const f = (...a) => a; export default ((...a) => f(...a))();')('output.js'), 'const $0=(...$1)=>$1;const $2=(...$3)=>$0(...$3);export default $2();')
+            assertEq(compileSource('export default ((...a) => [...a])();')('output.js'), 'export default [];')
+            assertEq(compileSource('const f = (...a) => a; export default ((...a) => f(...a))();')('output.js'), 'export default [];')
         },
         // A spread puts its operand's elements in the array, not the
         // operand: a container element is one node reached through every
@@ -864,20 +864,20 @@ export const proof = {
         functions: () => {
             assertEq(compileSource('export default { ...(() => 1) };')('output.data.js'), 'export default {};')
             assertEq(compileSource('export default { ...(() => 1) };')('output.json'), '{}')
-            assertEq(compileSource('export default { ...(() => 1) };')('output.js'), 'export default {...()=>1};')
+            assertEq(compileSource('export default { ...(() => 1) };')('output.js'), 'export default {};')
             assertEq(compileSource('export default { ...(() => 1) };')('output.edag.data.js'), 'export default ["{}",[[":","default",["{}",[["...",["=>",0,[],1]]]]]]];')
             assertEq(moduleRefused('export default { ... };'), 'input.f.js:1:22 - error: unexpected token')
             assertEq(moduleRefused('export default { ...a: 1 };'), 'input.f.js:1:22 - error: unexpected token')
         },
         outputs: () => {
             assertEq(compileSource('const o = { a: 1 }; export default { ...o };')('output.edag.data.js'), 'export default ["{}",[[":","default",["{}",[["...",["{}",[[":","a",1]]]]]]]]];')
-            assertEq(compileSource('const o = { a: 1 }; export default { x: 0, ...o, ...{ y: 1 }, };')('output.js'), 'export default {"x":0,...{"a":1},...{"y":1}};')
-            assert(compileSource('const o = { a: 1 }; export default { x: 1, ...o, y: 2 };')('output.rs').includes("spread_object([property_item(string_key(\"x\"), f64_any(0x3ff0000000000000)), spread_entries([(string_key(\"a\"), f64_any(0x3ff0000000000000))].to_object().to_any()), property_item(string_key(\"y\"), f64_any(0x4000000000000000))])"))
+            assertEq(compileSource('const o = { a: 1 }; export default { x: 0, ...o, ...{ y: 1 }, };')('output.js'), 'export default {"x":0,"a":1,"y":1};')
+            assert(graphSource('const o = { a: 1 }; export default { x: 1, ...o, y: 2 };')('output.rs').includes("spread_object([property_item(string_key(\"x\"), f64_any(0x3ff0000000000000)), spread_entries([(string_key(\"a\"), f64_any(0x3ff0000000000000))].to_object().to_any()), property_item(string_key(\"y\"), f64_any(0x4000000000000000))])"))
         },
         // a call whose function reads its rest array through a spread stays
         // a call
         notInlined: () => {
-            assertEq(compileSource('export default ((...r) => ({ ...r }))();')('output.js'), 'const $0=(...$1)=>{return {...$1};};export default $0();')
+            assertEq(compileSource('export default ((...r) => ({ ...r }))();')('output.js'), 'export default {};')
         },
         // A spread puts its operand's properties in the object, not the
         // operand: a node is shared through it when a property is a
@@ -947,7 +947,7 @@ export const proof = {
             // Fixed argument reads share their established invocation value.
             assertEq(compileSource(source)('output.edag.data.js'),
                 'const $0=["arg",0];const $1=["rest"];const $2=[".",$1,0];export default ["{}",[[":","default",["=>",1,[],["[]",[$0,["?:",["===",$2,["undefined"]],$0,$2],[".",$1,"slice",["|()",[1]]]]]]]]];')
-            assert(compileSource(source)('output.rs').includes('if Any::<A>::to_boolean(&(strict_eq(_b2.clone(), Nullish::Undefined.to_any()))?) { _args.argument(0) } else { _b2.clone() }'))
+            assert(graphSource(source)('output.rs').includes('if Any::<A>::to_boolean(&(strict_eq(_b2.clone(), Nullish::Undefined.to_any()))?) { _args.argument(0) } else { _b2.clone() }'))
             assertEq(compileSource('export default (a = 1) => { const b = [a]; return [b, b]; };')('output.js'), 'export default (...$0)=>{const $1=$0[0];const $2=[$1===undefined?1:$1];return [$2,$2];};')
             assertEq(fjsRoundTrip('const x = {}; export default (a, b = x, ...r) => [a, b, r];'), 'const $0={};export default ($1,...$2)=>[$1,(()=>{const $3=$2[0];return $3===undefined?$0:$3;})(),$2.slice(1)];')
         },
@@ -959,12 +959,14 @@ export const proof = {
         assertEq(compileSource('export default () => { throw 1; };')('output.edag.data.js'), 'export default ["{}",[[":","default",["=>",0,[],["throw",1]]]]];')
         assertEq(moduleRefused('export default () => { throw 1; };'), 'output.data.js - error: callable materialization requires a target compile/load boundary')
         assertEq(compileSource('throw "boom";')('output.js'), 'throw "boom";')
-        assertEq(compileSource('const a = []; throw 1;')('output.js'), 'const $0=[];throw 1;')
+        // what a module throws is computed, and nothing else of it is written
+        assertEq(compileSource('const a = []; throw 1;')('output.js'), 'throw 1;')
+        assertEq(graphSource('const a = []; throw 1;')('output.js'), 'const $0=[];throw 1;')
         assertEq(compileSource('throw "boom";')('output.edag.data.js'), 'export default ["throw","boom"];')
         assertEq(moduleRefused('throw "boom";'), 'input.f.js - error: module initialization failed')
         assertEq(jsonRefused('export const a = [1]; throw a;'), 'input.f.js - error: module initialization failed')
-        assert(compileSource('throw "boom";')('output.rs').includes('    Err(string_any("boom"))\n'))
-        assert(compileSource('export default () => { throw 1; };')('output.rs').includes('{ Err(f64_any(0x3ff0000000000000)) }'))
+        assert(graphSource('throw "boom";')('output.rs').includes('    Err(string_any("boom"))\n'))
+        assert(graphSource('export default () => { throw 1; };')('output.rs').includes('{ Err(f64_any(0x3ff0000000000000)) }'))
         assertEq(stderrOf({ 'input.f.js': [utf8('import d from "./dep.f.js"; export default d;')], 'dep.f.js': [utf8('throw 1;')] }), 'dep.f.js - error: module initialization failed')
     },
     /**

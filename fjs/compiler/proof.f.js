@@ -15,7 +15,7 @@ import { compile, compileFile, outputText, noRuntime, runtimeSource, _stringifyT
 import { transpile } from './transpiler/module.f.js'
 import { parse } from './source/module.f.js'
 import runtimeEdag from '../js/runtime/gen.edag.js'
-import { pureOk } from '../effects/module.f.js'
+import { errorMessage, pureOk } from '../effects/module.f.js'
 import { resolve, unresolved } from './edag/module.f.js'
 import { analysis } from '../edag/analysis/module.f.js'
 import { memo } from '../edag/memo/module.f.js'
@@ -30,9 +30,9 @@ import { fromVec, utf8ToString } from '../text/utf8/module.f.js'
 import { unwrap } from '../types/result/module.f.js'
 import { fromEntries, isObject } from '../types/object/module.f.js'
 import { codePoints } from '../text/ascii/module.f.js'
-import { assert, assertEq, assertOk, assertNotNullish, assertStructurallySame } from '../asserts/module.f.js'
+import { assert, assertEq, assertError, assertOk, assertNotNullish, assertStructurallySame } from '../asserts/module.f.js'
 import { _writtenProgram, demo, outputs } from './demo.f.js'
-import { compiled, compiledProgram } from './compiled/module.f.js'
+import { compiled, compiledProgram, runtime as compiledRuntime } from './compiled/module.f.js'
 import { disagreement } from '../js/marked/module.f.js'
 import { textOfResult } from '../text/marked/module.f.js'
 import { examples } from './examples/module.f.js'
@@ -152,6 +152,20 @@ export const compileSource = source => outputFileName => {
 }
 
 /**
+ * The code output of `source` written from its graph, the program as
+ * written, where {@link compileSource}'s is written from the module's
+ * value: what a proof of the writers asks for, since a module computed
+ * ahead leaves the writer nothing of the program to spell.
+ *
+ * @type {(source: string) => (outputFileName: string) => string}
+ */
+export const graphSource = source => outputFileName => {
+    const [state, result] = virtualAt({ 'input.f.js': [utf8(source)] })(compileFile(noRuntime, true)('input.f.js', outputFileName))
+    assertOk(result)
+    return readOutput(state.root, outputFileName)
+}
+
+/**
  * What `fjs compile` prints when compiling `input.f.js` to a module fails
  * over `root`: the exit code is `1`, nothing is written, and the message
  * names the file that failed.
@@ -200,7 +214,7 @@ export const jsonRefused = source => {
  * @type {(root: typeof emptyState.root) => string}
  */
 const fjsRefused = root => {
-    const [state, code] = virtualAt(root)(compile(nodeProgramOptions(['input.f.js', 'output.f.js'])))
+    const [state, code] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['input.f.js', 'output.f.js'])))
     assertEq(exitCode(code), 1, state.stderr)
     assertEq(state.root['output.f.js'], undefined)
     return state.stderr.trim()
@@ -238,9 +252,9 @@ const graphOf = source => {
  * @type {(source: string) => string}
  */
 export const fjsRoundTrip = source => {
-    const output = compileSource(source)('output.f.js')
+    const output = graphSource(source)('output.f.js')
     assertStructurallySame(graphOf(output), graphOf(source), output)
-    assertEq(compileSource(output)('output.f.js'), output)
+    assertEq(graphSource(output)('output.f.js'), output)
     return output
 }
 
@@ -351,7 +365,7 @@ export const proof = {
         const [state, code] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['input.f.js', 'output.json'])))
         assertEq(exitCode(code), 0, state.stderr)
         assertEq(readOutput(state.root, 'output.json'), 'true')
-        const [codeState, codeCode] = virtualAt(root)(compile(nodeProgramOptions(['input.f.js', 'output.f.js'])))
+        const [codeState, codeCode] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['input.f.js', 'output.f.js'])))
         assertEq(exitCode(codeCode), 0, codeState.stderr)
         const [jsonState, jsonCode] = virtualAt({ 'input.json': [utf8('1')] })(compile(nodeProgramOptions(['input.json', 'output.data.js'])))
         assertEq(exitCode(jsonCode), 0, jsonState.stderr)
@@ -387,7 +401,7 @@ export const proof = {
             const [state, code] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['input.f.js', 'output.json'])))
             assertEq(exitCode(code), 0, state.stderr)
             assertEq(readOutput(state.root, 'output.json'), '[]')
-            const [source, sourceCode] = virtualAt(root)(compile(nodeProgramOptions(['input.f.js', 'output.f.js'])))
+            const [source, sourceCode] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['input.f.js', 'output.f.js'])))
             assertEq(exitCode(sourceCode), 0, source.stderr)
             assertStructurallySame(evaluate(readOutput(source.root, 'output.f.js')), ['ok', []])
             assertEq(stderrOf({ ...root, 'dep.f.js': [utf8('export const x=7;')] }), 'dep.f.js - error: module has no default export')
@@ -727,8 +741,8 @@ export const proof = {
         },
         zeroInputBaseCaseDefinitionsLoopOutput: () => {
             for (const [source, expected] of /** @type {const} */ ([
-                ['const f=()=>false?f():(()=>{const x=[1];return[x,x];})();export default f;', 'const $0=()=>{let $1=undefined;while(false){$1=$1;}const $2=(()=>{const $3=[1];return [$3,$3];})();return $2;};export default $0;'],
-                ['const f=()=>true?(()=>{const x=[1];return[x,x];})():f();export default f;', 'const $0=()=>{let $1=undefined;while(!true){$1=$1;}const $2=(()=>{const $3=[1];return [$3,$3];})();return $2;};export default $0;'],
+                ['const f=()=>false?f():(()=>{const x=[1];return[x,x];})();export default f;', 'const $0=[1];const $1=[$0,$0];const $2=()=>{let $3=undefined;while(false){$3=$3;}const $4=$1;return $4;};export default $2;'],
+                ['const f=()=>true?(()=>{const x=[1];return[x,x];})():f();export default f;', 'const $0=[1];const $1=[$0,$0];const $2=()=>{let $3=undefined;while(!true){$3=$3;}const $4=$1;return $4;};export default $2;'],
             ])) {
                 const output = compileSource(source)('output.f.js')
                 assertEq(output, expected)
@@ -951,7 +965,7 @@ export const proof = {
             // anchor also removes the temporary in both function and module
             // output, while preserving the computation at that value use.
             assertEq(compileSource('export default n => { const t = n + 1; const u = (() => t)(); return t * 2; };')('output.f.js'), 'export default ($0)=>($0+1)*2;')
-            assertEq(compileSource('const b = [1]; const t = b[0] + 1; const u = (() => t)(); export default t * 2;')('output.f.js'), 'export default ([1][0]+1)*2;')
+            assertEq(compileSource('const b = [1]; const t = b[0] + 1; const u = (() => t)(); export default t * 2;')('output.f.js'), 'export default 4;')
             // A required source initializer stays before later result
             // operands, including a call written first in that result array.
             assertEq(fjsRoundTrip('export default (f) => { const y = f.x; return [f(), y, y]; };'), 'export default ($0)=>{const $1=$0.x;return [$0(),$1,$1];};')
@@ -978,7 +992,7 @@ export const proof = {
             assertEq(fjsRoundTrip('export default typeof (1 + 2) === typeof typeof [];'), 'export default typeof (1+2)===typeof typeof [];')
             assertEq(fjsRoundTrip('export default Number(" 4 ") + Number(1n) * -Number([7]);'), 'export default Number(" 4 ")+Number(1n)*-Number([7]);')
             assertEq(compileSource('export default Number("0x10");')('output.json'), '16')
-            assert(compileSource('export default Number("0x10");')('output.rs').includes('(Any::number(string_any("0x10")))?'))
+            assert(graphSource('export default Number("0x10");')('output.rs').includes('(Any::number(string_any("0x10")))?'))
             assertEq(fjsRoundTrip('export default (1 + 2).x;'), 'export default (1+2).x;')
             assertEq(fjsRoundTrip('export default (-[1])[0];'), 'export default (-[1])[0];')
             assertEq(fjsRoundTrip('export default -((...a) => 1);'), 'export default -(()=>1);')
@@ -1020,7 +1034,7 @@ export const proof = {
                 'input.f.js': [utf8('import m from "./m.f.js"; export default [m];')],
                 'm.f.js': [utf8('const u = []; export default 1;')],
             }
-            const [output, outputCode] = virtualAt(root)(compile(nodeProgramOptions(['input.f.js', 'output.f.js'])))
+            const [output, outputCode] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['input.f.js', 'output.f.js'])))
             assertEq(exitCode(outputCode), 0, output.stderr)
             assertStructurallySame(evaluate(readOutput(output.root, 'output.f.js')), ['ok', [1]])
             // the EDAG holds it, the comma being a node like any other
@@ -1033,17 +1047,22 @@ export const proof = {
         input: () => {
             assertEq(fjsRefused({ 'input.f.js': [utf8('export default @')] }), 'input.f.js:1:16-17 - error: unexpected token')
             assertEq(fjsRefused({ 'input.f.js': [utf8('import m from "./m.f.js"; export default [m];')] }), 'm.f.js - error: file not found')
-            // an accepted module the writer has no spelling for: the line says
-            // the refusal is the output's
+            // an accepted module whose graph the writer has no spelling
+            // for is written from its value all the same
+            const unspelled = '(()=>{let n=0;const o={f:x=>x};const r=o.f((()=>{n=n+1;return n;})());return [r,n];})()'
+            assertEq(compileSource(`export default ${unspelled};`)('output.f.js'), 'export default [1,1];')
+            // asked for its graph, the line says the refusal is the output's
+            /** @type {(root: typeof emptyState.root) => string} */
+            const graphRefused = root => errorMessage(assertError(virtualAt(root)(compileFile(noRuntime, true)('input.f.js', 'output.f.js'))[1]))
             assertEq(
-                fjsRefused({ 'input.f.js': [utf8('export default (()=>{let n=0;const o={f:x=>x};const r=o.f((()=>{n=n+1;return n;})());return [r,n];})();')] }),
+                graphRefused({ 'input.f.js': [utf8(`export default ${unspelled};`)] }),
                 'output.f.js - error: cannot write as FunctionalScript: an internal member-presence query, in input.f.js')
             // and names the file whose module made the node it has none for,
             // which is not the input where the input imports it
             assertEq(
-                fjsRefused({
+                graphRefused({
                     'input.f.js': [utf8('import { fine, refused } from "./m.f.js"; export default [fine, refused];')],
-                    'm.f.js': [utf8('export const refused = (()=>{let n=0;const o={f:x=>x};const r=o.f((()=>{n=n+1;return n;})());return [r,n];})(); export const fine = 1;')],
+                    'm.f.js': [utf8(`export const refused = ${unspelled}; export const fine = 1;`)],
                 }),
                 'output.f.js - error: cannot write as FunctionalScript: an internal member-presence query, in m.f.js')
         },
@@ -1206,7 +1225,7 @@ export const proof = {
         // and value outputs above compile, to a `pub fn module<A: IVm>(_runtime: Any<A>)`.
         graph: () => {
             assertEq(
-                compileSource('const a = { b: 1 }; export default a.b;')('output.rs'),
+                graphSource('const a = { b: 1 }; export default a.b;')('output.rs'),
                 `// @generated by \`fjs compile\`. Do not edit: recompile the source module instead.
 
 use nanvm_lib::vm::unstable::{f64_any, string_any, string_key};
@@ -1223,7 +1242,7 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         // an array — now prints like any other property access.
         indexingAnArrayLiteral: () => {
             assertEq(
-                compileSource('const a = [1]; export default a[0];')('output.rs'),
+                graphSource('const a = [1]; export default a[0];')('output.rs'),
                 `// @generated by \`fjs compile\`. Do not edit: recompile the source module instead.
 
 use nanvm_lib::vm::unstable::{f64_any, string_key};
@@ -1241,7 +1260,7 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         largeOutput: () => {
             const source = `export default [${generate(5000, i => i).join(', ')}];`
             const root = { 'input.f.js': [utf8(source)] }
-            const [state, code] = virtualAt(root)(compile(nodeProgramOptions(['input.f.js', 'output.rs'])))
+            const [state, code] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['input.f.js', 'output.rs'])))
             assertEq(exitCode(code), 0, state.stderr)
             const file = state.root['output.rs']
             assert(file instanceof Array, file)
@@ -1255,13 +1274,13 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         // the compiler predicts nothing of a program it writes, where the
         // data outputs evaluate the module and report the throw as theirs.
         nullishBase: () => {
-            assert(compileSource('const a = null; export default a.x;')('output.rs')
+            assert(graphSource('const a = null; export default a.x;')('output.rs')
                 .includes('(Any::dot(Nullish::Null.to_any(), string_any("x")).end())?'))
         },
         // A bigint outside `i64` is written as its sign and `u64` words,
         // which a literal's own text cannot be.
         wideBigint: () => {
-            assert(compileSource('export default 9223372036854775808n;')('output.rs')
+            assert(graphSource('export default 9223372036854775808n;')('output.rs')
                 .includes('bigint_any_words(false, &[0x8000000000000000])'))
         },
         // Single-use operators stay inline, with `?` propagating each failure
@@ -1269,7 +1288,7 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         // their own binding. Negated literals remain folded number leaves.
         operators: () => {
             /** The lines of the module's body. @type {(source: string) => readonly string[]} */
-            const body = source => compileSource(source)('output.rs').split('\n').filter(line => line.startsWith('    '))
+            const body = source => graphSource(source)('output.rs').split('\n').filter(line => line.startsWith('    '))
             /** @type {(source: string, value: string) => void} */
             const expect = (source, value) => assertStructurallySame(body(source), [
                 `    Ok([(string_key("default"), ${value})].to_object().to_any())`,
@@ -1306,7 +1325,7 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             ])
             // `===` and `!==` import their helpers, as every literal does its own
             assertEq(
-                compileSource('export default 1 === 2;')('output.rs').split('\n')[2],
+                graphSource('export default 1 === 2;')('output.rs').split('\n')[2],
                 'use nanvm_lib::vm::unstable::{f64_any, strict_eq, string_key};')
             // the folded negations print as the leaves they lower to
             expect(
@@ -1318,7 +1337,7 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         // established shared array is reused by both selecting arms.
         logicalOperators: () => {
             /** The lines of the module's body. @type {(source: string) => readonly string[]} */
-            const body = source => compileSource(source)('output.rs').split('\n').filter(line => line.startsWith('    '))
+            const body = source => graphSource(source)('output.rs').split('\n').filter(line => line.startsWith('    '))
             assertStructurallySame(body('export default 1 && 2;'), [
                 '    Ok([(string_key("default"), if Any::<A>::to_boolean(&f64_any(0x3ff0000000000000)) { f64_any(0x4000000000000000) } else { f64_any(0x3ff0000000000000) })].to_object().to_any())',
             ])
@@ -1338,7 +1357,7 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         // runs each skipped or reached failure against the VM.
         lazyOperators: () => {
             /** The lines of the module's body. @type {(source: string) => readonly string[]} */
-            const body = source => compileSource(source)('output.rs').split('\n').filter(line => line.startsWith('    '))
+            const body = source => graphSource(source)('output.rs').split('\n').filter(line => line.startsWith('    '))
             const one = 'f64_any(0x3ff0000000000000)'
             const two = 'f64_any(0x4000000000000000)'
             assertStructurallySame(body('export default true ? 1 : 2;'), [
@@ -1370,7 +1389,7 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         // that the shape's Rust is pinned by the compiler and not by the
         // corpus.
         inlinedCall: () => {
-            assert(compileSource('const f = () => [1]; export default (...a) => a[0] ? (() => { const x = f(); return [x, x]; })() : 4;')('output.rs').includes([
+            assert(graphSource('const f = () => [1]; export default (...a) => a[0] ? (() => { const x = f(); return [x, x]; })() : 4;')('output.rs').includes([
                 '        if Any::<A>::to_boolean(&(Any::dot(_b362.clone(), f64_any(0x0)).end())?) {',
                 '            let _b5: Any<A> = (Any::call(A::frame(_self)[0].clone(), Array::default().to_any()))?;',
                 '            Ok([_b5.clone(), _b5.clone()].to_array().to_any())',
@@ -1378,7 +1397,7 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             ].join('\n')))
             // and one at an eager position, its anchor floated to the
             // scope's root, prints as an anchored `const` does
-            assert(compileSource('export default [(() => { const x = null.x; return 1; })()];')('output.rs').includes([
+            assert(graphSource('export default [(() => { const x = null.x; return 1; })()];')('output.rs').includes([
                 '    let _b148: Any<A> = (Any::dot(Nullish::Null.to_any(), string_any("x")).end())?;',
                 '    Ok([(string_key("default"), [f64_any(0x3ff0000000000000)].to_array().to_any())].to_object().to_any())',
             ].join('\n')))
@@ -1386,7 +1405,7 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         sharedOperation: () => {
             // Export-local sharing stays in that export's value block.
             assertStructurallySame(
-                compileSource('const a = 1 + 2; export default [a, a];')('output.rs').split('\n').filter(line => line.startsWith('    ')),
+                graphSource('const a = 1 + 2; export default [a, a];')('output.rs').split('\n').filter(line => line.startsWith('    ')),
                 [
                     '    Ok([(string_key("default"), {',
                     '        let _b0: Any<A> = (f64_any(0x3ff0000000000000) + f64_any(0x4000000000000000))?;',
@@ -1604,7 +1623,7 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
                     const shown = compiledProgram(program)(file)
                     const [shownTag, shownValue] = shown
                     const [writtenTag, writtenValue] = _writtenProgram(program)(file)
-                    const route = assertNotNullish(outputText(noRuntime)(file))
+                    const route = assertNotNullish(outputText(compiledRuntime)(file))
                     const [, routed] = virtualAt(dirOf(program))(route('input.f.js'))
                     const [routedTag, routedValue] = routed
                     if (routedTag === 'ok') {

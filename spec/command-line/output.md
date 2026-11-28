@@ -34,46 +34,79 @@ name with no extension alike.
 ## Evaluation and Projection
 
 `.json` and `.data.js` are the **value outputs**: they evaluate the program
-and write the value it computes. `.js`, `.edag.data.js` and `.rs` are the
-**graph outputs**: they write the program's graph and evaluate none of it.
-Value outputs can evaluate every implemented expression form, including
-functions, calls, closures, methods, operators, spreads and optional chains.
-Their representability check applies to the resulting selected data, after
-the entire module has initialized:
+and write the data it computes. `.js` and `.rs` are the **code outputs**:
+they evaluate the program too, and write its value with its functions.
+`.edag.data.js` is the **graph output**: it writes the program's graph and
+evaluates none of it.
 
-|Program or selected result|`.json`|`.data.js`|`.js`|`.edag.data.js`|`.rs`|
-|----------------|-------|----------|-----|---------------|-----|
+|Program or selected result|`.json`|`.data.js`|`.js`|`.rs`|`.edag.data.js`|
+|----------------|-------|----------|-----|-----|---------------|
 |a function in selected data|refused|refused|written|written|written|
-|a function used to compute data|computed|computed|written|written|written|
-|a reached initialization failure|refused|refused|written|written|written|
-|a call or any admitted operator|computed|computed|written|written|written|
-|an object or array reached twice|written twice|a `const`|a `const`|a shared node|a shared value|
+|a function used to compute data|computed|computed|computed|computed|written|
+|a reached initialization failure|refused|refused|written as the program|written as the program|written|
+|a call or any admitted operator|computed|computed|computed|computed|written|
+|an object or array reached twice|written twice|a `const`|a `const`|a shared value|a shared node|
 |a `bigint`|refused|written|written|written|written|
 
-A value output evaluates the program through the Memo EDAG interpreter
+An evaluating output runs the program through the Memo EDAG interpreter
 ([EDAG values](../../fjs/edag/values.md#module-initialization)). It computes
 calls and coercions: `const f = x => x + 2; export default f(3);` writes
-`5` as JSON and `export default 5;` as DataJS; `export default [1, 2].map(x => x + 1);`
-writes `[2,3]` as JSON. An evaluated function, including one nested in a
-selected array or object, is refused by both data formats with
-`callable materialization requires a target compile/load boundary`.
-An initialization failure is reported against its source module instead.
+`5` as JSON and `export default 5;` as DataJS and as FunctionalScript;
+`export default [1, 2].map(x => x + 1);` writes `[2,3]` as JSON. An evaluated
+function, including one nested in a selected array or object, is refused by
+both data formats with
+`callable materialization requires a target compile/load boundary`, and
+written by both code outputs. An initialization failure is reported against
+its source module by a value output.
 
-Graph outputs preserve the unevaluated program. The FunctionalScript writer
-spells calls and every admitted operator; the EDAG output preserves their
-nodes, folding unary `-` where its operand lowers to a number or a `bigint`
-([numbers](../values/numbers/README.md)). The Rust output emits the native implementation of
-those nodes. All executors evaluate a lazy operand or conditional arm only
-where JavaScript does, so an unreached `1n / 0n` never throws. Source and
-Rust writers can still refuse a graph they cannot reconstruct within their
-output profile; recognizing a node does not guarantee every sharing or
-capture arrangement has a source spelling
+**A code output is the module initialized.** Nothing of the module's
+initialization is left in it: every `const` is the value it was given, and a
+definition the exports do not reach is not written. What a function computes
+the same way in every call is computed as well: a part of its body that reads
+none of its arguments is evaluated once, when the module is compiled, and the
+function holds the result
+([precomputation](../../fjs/edag/todo/precompute-closed-nodes.md)). So
+`const table = n => [n, n * n]; export const at = i => table(3)[Number(i)];`
+is written `const $0=[3,9];export const at=($1)=>$0[Number($1)];`. Two calls
+of such a function can answer one array or object where the program as
+written made two; which is the executor's to choose
+([value identity](../todo/value-identity.md)).
+
+**A module that fails is written as its failure.** A failed initialization
+is as much computed as a value is: the code output is a `throw` of what the
+module failed with, and nothing else of the program. So
+`const a = []; throw "boom";` is written `throw "boom";`, and a module that
+imports it is written the same, since it fails with what its import throws.
+A failure the language makes itself, as `export default null.x;` does, is
+written `throw undefined;` ([failures](../principles/README.md)). In Rust
+the module answers `Err` of that value.
+
+Nothing else is written in place of a code output. A module the compiler
+cannot read is the input's error, and a value the writer has no spelling
+for is the output's, reported against the output file with the writer's
+reason. A part of a function that fails when it is evaluated ahead, or
+does not end within the compiler's count of steps, stays in the function as
+written.
+
+The EDAG output is the program as written, and a caller of the compiler can
+ask for a code output of that graph in place of the value. There, the
+FunctionalScript writer spells
+calls and every admitted operator; the EDAG output preserves their nodes,
+folding unary `-` where its operand lowers to a number or a `bigint`
+([numbers](../values/numbers/README.md)). The Rust output emits the native
+implementation of those nodes. All executors evaluate a lazy operand or
+conditional arm only where JavaScript does, so an unreached `1n / 0n` never
+throws. Source and Rust writers can still refuse a graph they cannot
+reconstruct within their output profile; recognizing a node does not
+guarantee every sharing or capture arrangement has a source spelling
 ([source and runtime compilation](../../fjs/edag/values.md#runtime-compilation)).
 Deep container, function and conversion nesting can also exhaust the host
 call stack during compilation. In particular, parsing and lowering a long
 `Number`/`String` conversion chain can succeed before source serialization
 overflows. These are compiler resource limits, not fixed language depth limits
 ([tracked inputs and remaining work](../../fjs/compiler/todo/deep-nesting-recursion.md)).
+A module whose initialization overflows the host's stack or does not end
+stops every evaluating output, a code output included.
 
 The Rust writer
 spells a `bigint` of any size, a literal within `i64` as one number and a
@@ -131,14 +164,14 @@ module boundary, from which a default import selects the document.
   departure is `-0`, written `-0` where `JSON.stringify` writes `0`. A
   `.json` input compiled to `.json` is written the same way, its whitespace
   and escapes normalized.
-- A FunctionalScript document is written from the program's graph rather
-  than from its value: the module is not evaluated, so a function has a
-  document too, which is what DataJS and JSON have no spelling for. Writing
-  the graph is not writing the value, so the two module outputs part wherever
-  the program computes: `const a = { b: 1 }; export default a.b;` is
-  `export default {"b":1}.b;` here and `export default 1;` as DataJS. They
-  agree on a normalized DataJS document, which computes nothing — every one
-  of them is a fixed point of both.
+- A FunctionalScript document is written from the module's value, with
+  its functions, which is what DataJS and JSON have no spelling for:
+  `const a = { b: 1 }; export default a.b;` is `export default 1;` here as
+  it is as DataJS. Where a caller asks for the program's graph instead (above),
+  the rules of this section describe that text: the same program is
+  `export default {"b":1}.b;`. The two agree on a normalized DataJS
+  document, which computes nothing — every one of them is a fixed point of
+  both.
 
   A module whose only export is `default` is written in the same normalized
   form, unless a module it loads holds a `const` or an import nothing reads.

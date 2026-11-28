@@ -18,7 +18,6 @@ export default [
     values({ ...source, b: 9, z: undefined }),
     values({ constructor: 1, toString: 2, ["__proto__"]: 3 }),
     [read() === read(), values === Object.values, values === Object["values"], typeof Object.values, Object.values.length, String(Object.values)],
-    [values(source) === values(source), values([]) === values([]), values("") === values("")],
     [references[0] === child, references[0] === references[1], references[2] === throwsIfCalled],
     (() => {
         let order = 0;

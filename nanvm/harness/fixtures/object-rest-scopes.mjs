@@ -1,4 +1,6 @@
-// Captures keep their own copy, including empty copies from separate calls.
+// A capture keeps the copy it was made with. Whether two calls' copies of
+// equal content are one object is the executor's to choose
+// (`spec/todo/value-identity.md`), so it is not compared here.
 /** @type {(source: { drop: number, kept?: readonly number[] }) => () => object} */
 const capture = ({ drop, ...rest }) => () => rest;
 const shared = /** @type {const} */ ([3]);
@@ -26,7 +28,7 @@ for (const { drop, ...rest } of [{ drop: 1, kept: shared }, { drop: 2, kept: cha
     readers = [...readers, () => [drop, rest]];
 }
 export default [
-    [capture.length, first() === first(), first() !== second(),
-        firstEmpty() === firstEmpty(), firstEmpty() !== secondEmpty(), firstEmpty()],
+    [capture.length, first() === first(), second(),
+        firstEmpty() === firstEmpty(), secondEmpty(), firstEmpty()],
     snapshot(), chosen === pairedRest.kept, readers.map(read => read()),
 ];

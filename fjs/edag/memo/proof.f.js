@@ -11,7 +11,7 @@ import { conditional } from '../testlib.f.js'
 import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { vm } from '../amnesia/module.f.js'
 import { analysis, identityAnalysis } from '../analysis/module.f.js'
-import { memo, invoke } from './module.f.js'
+import { eachWith, memo, invoke } from './module.f.js'
 import { noBoolean, noIn } from '../operations/module.f.js'
 import runtimeEdag from '../../js/runtime/gen.edag.js'
 import { read } from '../value/property/module.f.js'
@@ -71,6 +71,97 @@ const elements = v => /** @type {ValueArray} */ (v)[1]
 const fails = (e, expected = ['undefined']) => assertStructurallySame(result(e), ['error', expected])
 
 export const proof = {
+    eachWith: {
+        shared: () => {
+            // one invocation: a node two roots share is one value, and a
+            // failure between them stops neither
+            /** @type {Exp} */
+            const c = ['[]', []]
+            const [a, failed, b] = eachWith(undefined, 1_000)([], [c, ['.', null, 'x'], ['[]', [c]]])
+            assertError(failed)
+            const [, [item]] = /** @type {readonly [string, readonly unknown[]]} */ (assertOk(b))
+            assert(assertOk(a) === item)
+        },
+        count: () => {
+            // two steps between three roots: the third has none
+            const [a, b, c] = eachWith(undefined, 2)([], [['[]', []], ['[]', []], ['[]', []]])
+            assertOk(a)
+            assertOk(b)
+            assertError(c)
+        },
+        callWithNothingLeft: () => {
+            // the function and the call take the two steps, and the call is not made
+            /** @type {Exp} */
+            const f = ['=>', 0, [], 5]
+            const [made, call] = eachWith(undefined, 2)([], [f, ['()', f, []]])
+            assertOk(made)
+            assertError(call)
+            // with a third it is
+            assertEq(assertOk(eachWith(undefined, 3)([], [f, ['()', f, []]])[1]), 5)
+        },
+        tailLoop: () => {
+            // `const forever = () => forever()` ends with the count
+            /** @type {EdagValue} */
+            const forever = ['=>', 0, [], ['()', ['self'], []]]
+            assertError(eachWith(undefined, 1_000)([forever], [['()', ['frame', 0], []]])[0])
+        },
+        recursion: () => {
+            // `const more = () => 1 + more()` ends with the count or the depth
+            /** @type {EdagValue} */
+            const more = ['=>', 0, [], ['+', 1, ['()', ['self'], []]]]
+            assertError(eachWith(undefined, 1_000)([more], [['()', ['frame', 0], []]])[0])
+        },
+        depth: () => {
+            // `const down = n => n === 0 ? 0 : 1 + down(n - 1)`: ten deep is
+            // answered, a thousand deep is not, whatever steps are left
+            /** @type {EdagValue} */
+            const down = ['=>', 1, [], ['?:', ['===', ['arg', 0], 0], 0, ['+', 1, ['()', ['self'], [['-', ['arg', 0], 1]]]]]]
+            const run = eachWith(undefined, 1_000_000)
+            assertEq(assertOk(run([down], [['()', ['frame', 0], [10]]])[0]), 10)
+            assertError(run([down], [['()', ['frame', 0], [1_000]]])[0])
+        },
+        spent: () => {
+            // what a call takes is taken from the roots after it
+            /** @type {EdagValue} */
+            const down = ['=>', 1, [], ['?:', ['===', ['arg', 0], 0], 0, ['+', 1, ['()', ['self'], [['-', ['arg', 0], 1]]]]]]
+            /** @type {Exp} */
+            const call = ['()', ['frame', 0], [10]]
+            /** @type {Exp} */
+            const after = ['[]', []]
+            const enough = eachWith(undefined, 1_000)([down], [call, after])
+            assertOk(enough[0])
+            assertOk(enough[1])
+            // the call alone takes more than twenty steps
+            const [first, second] = eachWith(undefined, 20)([down], [call, after])
+            assertError(first)
+            assertError(second)
+        },
+        helper: () => {
+            // a helper is answered as it is anywhere
+            assertEq(assertOk(eachWith(undefined, 1_000)([], [['()', ['entry'], [['{}', [[':', 'a', 7]]], 'a']]])[0]), 7)
+        },
+        callback: () => {
+            // a member function calls back within what was left: `[1, 2].map(x => x + 1)`
+            // is answered, and `[1].map(() => forever())` ends
+            /** @type {Exp} */
+            const mapped = ['.', ['[]', [1, 2]], 'map', ['|()', [['=>', 1, [], ['+', ['arg', 0], 1]]]]]
+            assertStructurallySame(assertOk(eachWith(commonRuntime(), 100_000)([], [mapped])[0]), ['[]', [2, 3]])
+            // and the same inside a function that is called: `(() => [1, 2].map(x => x + 1))()`
+            assertStructurallySame(
+                assertOk(eachWith(commonRuntime(), 100_000)([], [['()', ['=>', 0, [], mapped], []]])[0]),
+                ['[]', [2, 3]])
+            /** @type {EdagValue} */
+            const forever = ['=>', 0, [], ['()', ['self'], []]]
+            /** @type {Exp} */
+            const endless = ['.', ['[]', [1]], 'map', ['|()', [['=>', 0, [['frame', 0]], ['()', ['frame', 0], []]]]]]
+            assertError(eachWith(commonRuntime(), 100_000)([forever], [endless])[0])
+        },
+        staticFunction: () => {
+            // a static function's body is the runtime's, run within the count
+            const keys = eachWith(commonRuntime(), 100_000)([], [['()', ['Object.keys'], [['{}', [[':', 'a', 1]]]]]])[0]
+            assertStructurallySame(assertOk(keys), ['[]', ['a']])
+        },
+    },
     wideGroup: () => {
         // Member indices have no byte-sized cut-off.
         const members = generate(257, index => /** @type {const} */ ([0, index]))

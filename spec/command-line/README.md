@@ -9,13 +9,14 @@ fjs compile
 
 `fjs compile` reads the input and resolves every module it imports into one
 program. The value outputs, `.json` and `.data.js`, evaluate that program and
-write the exported value; the graph outputs — FunctionalScript, EDAG and
-Rust — write the program itself and evaluate nothing ([output](output.md)). So a
+write the exported value; the code outputs, FunctionalScript and Rust,
+evaluate it too and write its value with its functions; the EDAG output
+writes the program itself and evaluates nothing ([output](output.md)). So a
 module whose evaluation fails, such as `const c = null.x; export default 1;`
 or one that imports it, compiles to no value output — the error is
-`module initialization failed`, naming the failing module — while a graph
-output never sees the failure: it writes the program, which fails when it runs, as the module does
-in JavaScript.
+`module initialization failed`, naming the failing module — while a code
+output is a `throw` of what the module failed with, so it fails when it
+runs, as the module does in JavaScript.
 
 Both file names are part of the command: the **input extension names the
 input language** and the **output extension names the output format**.

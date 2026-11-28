@@ -209,7 +209,7 @@ node ./${irEmitPath}
  *
  * @type {(place: Place | FunctionPlace) => Effect<_CompileOp, void, IoChannel>}
  */
-const compileSample = place => compileFile(noRuntime)(samplePath(place.directory), rustPath(placeName(place)))
+const compileSample = place => compileFile(noRuntime, true)(samplePath(place.directory), rustPath(placeName(place)))
 
 /**
  * Compiles every sample into its `.rs`, in order, stopping at the first the

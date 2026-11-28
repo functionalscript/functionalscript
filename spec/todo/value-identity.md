@@ -1,7 +1,7 @@
 ## Allow sharing of equal values on the path to a CAVM
 
 **Priority:** P2 — language-design decision
-**Status:** open — awaiting explicit language-design approval
+**Status:** open — the portability exception is approved; closure folding and the tasks below remain
 
 ### Problem
 
@@ -99,7 +99,7 @@ Test the properties the algorithm promises. For the grammar-rule map, run the ge
 
 ### Tasks
 
-- [ ] **Allocation identity (language decision).** Record the language designer's explicit approval of the portability exception and link it here before implementation. [Language-design approval](../../doc/DESIGN.md#new-language-features-start-with-a-todo)
+- [x] **Allocation identity (language decision).** The language designer approved this proposal. [Approval](https://github.com/functionalscript/functionalscript/pull/4111#issuecomment-7135356529) · [Language-design approval](../../doc/DESIGN.md#new-language-features-start-with-a-todo)
 - [ ] **Reconcile the published contract after approval.**
   - Record the rule 2 exception and its effects on branches and exported results in the [language principles](../principles/README.md) and [compatibility tracker](../../todo/fjs-javascript-compatibility.md#one-authoritative-contract).
   - Update the [reference-map API](../built-ins/reference-map/README.md) and its [cross-run guarantee](../built-ins/reference-map/README.md#only-a-mapping). A lookup returns the newest write whose key comparison succeeds. A previously written key can miss, and answers can differ across executors or runs.

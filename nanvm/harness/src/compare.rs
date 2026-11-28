@@ -11,8 +11,8 @@
 //!    shares nothing with the Rust literal emitter that spelled the compiled
 //!    fixture, and JSON text is ordered, so a wrong property order fails
 //!    here.
-//! 2. *The graph.* The compiled result against the expectation module the
-//!    interpreter's value was printed into: [`same_graph`].
+//! 2. *The content.* The compiled result against the expectation module the
+//!    interpreter's value was printed into: [`same_content`].
 //!
 //! Neither layer runs the program's logic in Rust; the program reached Rust by
 //! compiling its source. The leaves the shared emitter could spell wrongly
@@ -41,8 +41,8 @@ pub struct Case {
     pub throws: bool,
 }
 
-/// Whether two graphs are the same value, and, where they are not, the first
-/// difference found, with the path to it.
+/// Whether two values have the same ordered content, and, where they do
+/// not, the first difference found, with the path to it.
 ///
 /// Leaves compare by [`Any::same_value`], which is `Object.is`. Arrays compare by their elements. Objects compare
 /// by their [`Object::own_entries`], pairwise and in order, so a duplicated
@@ -50,73 +50,43 @@ pub struct Case {
 /// normalized object while the right entries in the wrong observable order
 /// still fail.
 ///
-/// Sharing is compared too: the two graphs are walked together, and an actual
-/// container must map to exactly one expected container and the reverse, so
-/// `[shared, shared]` is not two equal copies. `Any ==` is identity on a
-/// container, so the pairs seen live in a list searched with it, and no hash
-/// of an `Any` is needed.
-pub fn same_graph<A: IVm>(actual: &Any<A>, expected: &Any<A>) -> Result<(), String> {
-    Walk { pairs: Vec::new() }.walk("$", actual, expected)
+/// Sharing is not compared. Two executors may share equal values
+/// differently (`spec/todo/value-identity.md`): the interpreter precomputes
+/// what a function answers in every call and so answers one array where
+/// this VM, running the graph, makes two. `[shared, shared]` and two equal
+/// copies are the same content. What this VM itself shares is the business
+/// of the tests that run it, `tests/values.rs` among them.
+pub fn same_content<A: IVm>(actual: &Any<A>, expected: &Any<A>) -> Result<(), String> {
+    walk("$", actual, expected)
 }
 
-struct Walk<A: IVm> {
-    /// The container pairs entered so far: an actual container with the
-    /// expected container it was matched to.
-    pairs: Vec<(Any<A>, Any<A>)>,
-}
-
-impl<A: IVm> Walk<A> {
-    fn walk(&mut self, path: &str, actual: &Any<A>, expected: &Any<A>) -> Result<(), String> {
-        match (actual.clone().into(), expected.clone().into()) {
-            (Unpacked::Array(a), Unpacked::Array(e)) => {
-                if self.entered(path, actual, expected)? {
-                    return Ok(());
-                }
-                if a.length() != e.length() {
-                    return Err(format!(
-                        "{path}: length {} is not {}",
-                        a.length(),
-                        e.length()
-                    ));
-                }
-                (0..a.length()).try_for_each(|i| self.walk(&format!("{path}[{i}]"), &a[i], &e[i]))
+fn walk<A: IVm>(path: &str, actual: &Any<A>, expected: &Any<A>) -> Result<(), String> {
+    match (actual.clone().into(), expected.clone().into()) {
+        (Unpacked::Array(a), Unpacked::Array(e)) => {
+            if a.length() != e.length() {
+                return Err(format!(
+                    "{path}: length {} is not {}",
+                    a.length(),
+                    e.length()
+                ));
             }
-            (Unpacked::Object(a), Unpacked::Object(e)) => {
-                if self.entered(path, actual, expected)? {
-                    return Ok(());
-                }
-                let (a, e) = (a.own_entries(), e.own_entries());
-                if a.len() != e.len() {
-                    return Err(format!("{path}: {} entries are not {}", a.len(), e.len()));
-                }
-                a.iter().zip(&e).try_for_each(|((ak, av), (ek, ev))| {
-                    if ak == ek {
-                        self.walk(&format!("{path}.{ak:?}"), av, ev)
-                    } else {
-                        Err(format!("{path}: key {ak:?} is not {ek:?}"))
-                    }
-                })
-            }
-            _ if actual.same_value(expected) => Ok(()),
-            _ => Err(format!("{path}: {actual:?} is not {expected:?}")),
+            (0..a.length()).try_for_each(|i| walk(&format!("{path}[{i}]"), &a[i], &e[i]))
         }
-    }
-
-    /// Whether this pair of containers was already entered. A container seen
-    /// again must be seen against the same counterpart on both sides.
-    fn entered(&mut self, path: &str, actual: &Any<A>, expected: &Any<A>) -> Result<bool, String> {
-        match self
-            .pairs
-            .iter()
-            .find(|(a, e)| a == actual || e == expected)
-        {
-            Some((a, e)) if a == actual && e == expected => Ok(true),
-            Some(_) => Err(format!("{path}: sharing differs")),
-            None => {
-                self.pairs.push((actual.clone(), expected.clone()));
-                Ok(false)
+        (Unpacked::Object(a), Unpacked::Object(e)) => {
+            let (a, e) = (a.own_entries(), e.own_entries());
+            if a.len() != e.len() {
+                return Err(format!("{path}: {} entries are not {}", a.len(), e.len()));
             }
+            a.iter().zip(&e).try_for_each(|((ak, av), (ek, ev))| {
+                if ak == ek {
+                    walk(&format!("{path}.{ak:?}"), av, ev)
+                } else {
+                    Err(format!("{path}: key {ak:?} is not {ek:?}"))
+                }
+            })
         }
+        _ if actual.same_value(expected) => Ok(()),
+        _ => Err(format!("{path}: {actual:?} is not {expected:?}")),
     }
 }
 
@@ -146,7 +116,7 @@ pub fn check(case: &Case) -> Result<(), String> {
                 exports(case.expected).map_err(|e| format!("the expectation threw {e:?}"))?;
             let (actual, expected) = (default_of(actual), default_of(expected));
             check_json(case.json, &actual)?;
-            same_graph(&actual, &expected)
+            same_content(&actual, &expected)
         }
     }
 }
@@ -173,7 +143,7 @@ mod tests {
         vm::{Any, ToAny, ToArray, ToObject},
     };
 
-    use super::{Case, check, same_graph};
+    use super::{Case, check, same_content};
 
     type V = Any<Naive>;
 
@@ -248,31 +218,23 @@ mod tests {
         );
     }
 
-    /// `[shared, shared]` is one node reached twice; two equal copies are
-    /// not it, in either direction.
+    /// `[shared, shared]` and two equal copies are the same content, in
+    /// either direction: executors may share equal values differently.
     #[test]
-    fn sharing_is_compared() {
+    fn sharing_is_not_compared() {
         let shared = object([("x", num(1.0))]);
         let twice = array([shared.clone(), shared]);
         let copies = array([object([("x", num(1.0))]), object([("x", num(1.0))])]);
-        assert_eq!(same_graph(&twice, &twice.clone()), Ok(()));
-        assert_eq!(same_graph(&copies, &copies.clone()), Ok(()));
-        assert_eq!(
-            same_graph(&twice, &copies),
-            Err("$[1]: sharing differs".into())
-        );
-        assert_eq!(
-            same_graph(&copies, &twice),
-            Err("$[1]: sharing differs".into())
-        );
+        assert_eq!(same_content(&twice, &copies), Ok(()));
+        assert_eq!(same_content(&copies, &twice), Ok(()));
     }
 
     /// `NaN` equals itself and `-0` is not `0`: numbers compare by bits.
     #[test]
     fn numbers_compare_by_bits() {
-        assert_eq!(same_graph(&num(f64::NAN), &num(f64::NAN)), Ok(()));
+        assert_eq!(same_content(&num(f64::NAN), &num(f64::NAN)), Ok(()));
         assert_eq!(
-            same_graph(&num(-0.0), &num(0.0)),
+            same_content(&num(-0.0), &num(0.0)),
             Err("$: -0.0 is not 0.0".into())
         );
     }
@@ -284,13 +246,13 @@ mod tests {
         let ab = object([("a", num(1.0)), ("b", num(2.0))]);
         let ba = object([("b", num(2.0)), ("a", num(1.0))]);
         assert_eq!(
-            same_graph(&ab, &ba),
+            same_content(&ab, &ba),
             Err("$: key \"a\" is not \"b\"".into())
         );
         let overwritten = object([("a", num(0.0)), ("b", num(2.0)), ("a", num(1.0))]);
-        assert_eq!(same_graph(&overwritten, &ab), Ok(()));
+        assert_eq!(same_content(&overwritten, &ab), Ok(()));
         assert_eq!(
-            same_graph(&ab, &object([("a", num(1.0))])),
+            same_content(&ab, &object([("a", num(1.0))])),
             Err("$: 2 entries are not 1".into())
         );
     }
@@ -302,13 +264,13 @@ mod tests {
         let a = array([num(1.0), object([("k", array([num(2.0)]))])]);
         let b = array([num(1.0), object([("k", array([num(3.0)]))])]);
         assert_eq!(
-            same_graph(&a, &b),
+            same_content(&a, &b),
             Err("$[1].\"k\"[0]: 2.0 is not 3.0".into())
         );
         assert_eq!(
-            same_graph(&array([num(1.0)]), &array([])),
+            same_content(&array([num(1.0)]), &array([])),
             Err("$: length 1 is not 0".into())
         );
-        assert!(same_graph(&array([]), &object([])).is_err());
+        assert!(same_content(&array([]), &object([])).is_err());
     }
 }

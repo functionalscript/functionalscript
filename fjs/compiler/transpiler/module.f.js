@@ -3,12 +3,20 @@
  * each dependency once, in import order, before interpreting its importer.
  * Runtime materialization happens only at the public value-output boundaries.
  *
+ * Every module is precomputed as it completes
+ * ([`edag/precompute`](../../edag/precompute/module.f.js)): its export
+ * object is answered with what its functions compute the same way in every
+ * call already computed, so an importer's initializer runs over them, and
+ * the values answered are carried from one module to the next, so none is
+ * walked twice.
+ *
  * @module
  * @import { Result } from '../../types/result/types.ts'
  * @import { Unknown } from '../../media/datajs/types.ts'
  * @import { EdagValue, Object as ValueObject, Runtime } from '../../edag/value/types.ts'
  * @import { CompileValue } from '../../edag/value/to_unknown/types.ts'
  * @import { _Load } from '../source/types.ts'
+ * @import { RefMap } from '../../types/ref_map/types.ts'
  * @import { InitializationError, SourceError } from './types.ts'
  * @import { RuntimeLoad } from '../types.ts'
  * @import { Effect, IoChannel } from '../../effects/types.ts'
@@ -16,13 +24,14 @@
  */
 
 import { assertOk } from '../../asserts/module.f.js'
-import { identity } from '../../types/function/module.f.js'
 import { isArray } from '../../types/array/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { findProperty, read } from '../../edag/value/property/module.f.js'
 import { toData, toUnknown } from '../../edag/value/to_unknown/module.f.js'
 import { identityAnalysis } from '../../edag/analysis/module.f.js'
 import { memo } from '../../edag/memo/module.f.js'
+import { precomputeOver } from '../../edag/precompute/module.f.js'
+import { empty as none } from '../../types/ref_map/module.f.js'
 import { tryUnresolved } from '../edag/module.f.js'
 import { _fileError, _jsonModule, _program, parse as sourceParse } from '../source/module.f.js'
 import { mapStep, pureError, pureOk, resultStep, step } from '../../effects/module.f.js'
@@ -30,25 +39,37 @@ import { mapStep, pureError, pureOk, resultStep, step } from '../../effects/modu
 export const parse = sourceParse
 
 /**
+ * How many nodes the closed nodes of one function may take to evaluate
+ * when a module is precomputed. A count and not a time, so that a module
+ * precomputes to the same value on every machine.
+ */
+const steps = /** @type {number} */ (100_000)
+
+/** The values precomputed up to a module, or none before the first. @type {(previous: readonly [ValueObject, RefMap] | null) => RefMap} */
+const answered = previous => previous === null ? none : previous[1]
+
+/**
  * What the interpreter makes of a module under `runtime`: its complete export
- * object, initialized over its imports' complete export objects. A module's
- * graph selects each import's export itself; `select` only requires it.
+ * object, initialized over its imports' complete export objects and then
+ * precomputed, with the values precomputed so far. A module's graph selects
+ * each import's export itself; `select` only requires it.
  *
- * @type {(runtime: Runtime | undefined) => _Load<ValueObject, ValueObject, SourceError>}
+ * @type {(runtime: Runtime | undefined) => _Load<readonly [ValueObject, RefMap], ValueObject, SourceError>}
  */
 const interpreting = runtime => ({
-    json: _jsonModule,
-    select: (module, name) => name === null || findProperty(module, name) !== undefined ? module : undefined,
-    module: ({ path }, imports, module) => {
+    json: (value, previous) => [_jsonModule(value), answered(previous)],
+    select: ([module], name) => name === null || findProperty(module, name) !== undefined ? module : undefined,
+    module: ({ path }, imports, module, previous) => {
         // An unresolved module selects its imports from complete export
         // objects. Shared imported values keep their established identities.
         const converted = tryUnresolved(module)
         if (converted[0] === 'error') { return error(_fileError(path)(converted[1])) }
         const graph = converted[1].edag
         const [kind, value] = memo(assertOk(identityAnalysis(graph)))({ args: imports, runtime })
-        return kind === 'error'
-            ? error({ message: 'module initialization failed', metadata: null, path, thrown: value })
-            : ok(/** @type {ValueObject} */ (value))
+        // What a module throws is as much its result as what it exports.
+        const [done, result] = precomputeOver(runtime, steps)(answered(previous), value)
+        if (kind === 'error') { return error({ message: 'module initialization failed', metadata: null, path, thrown: result }) }
+        return ok([/** @type {ValueObject} */ (result), done])
     },
 })
 
@@ -75,7 +96,7 @@ export const noRuntime = pureOk(undefined)
  *
  * @type {(load: RuntimeLoad) => (path: string) => Effect<ReadWhole | ResolveFileModule, EdagValue, SourceError>}
  */
-export const interpret = load => _program(mapStep(load, interpreting), identity)
+export const interpret = load => _program(mapStep(load, interpreting), ([module]) => module)
 
 /**
  * The runtime at `path`, `fjs/js/runtime`'s source or a stand-in for it:
@@ -115,5 +136,5 @@ export const transpile = load => path => step(interpret(load)(path), toUnknown)
  * @type {(load: RuntimeLoad) => (path: string) => Effect<ReadWhole | ResolveFileModule, Result<Unknown, string>, SourceError>}
  */
 export const _transpileDefault = load => path => mapStep(
-    _program(mapStep(load, interpreting), module => assertOk(read(ok(module), 'default')))(path),
+    _program(mapStep(load, interpreting), ([module]) => assertOk(read(ok(module), 'default')))(path),
     toData)

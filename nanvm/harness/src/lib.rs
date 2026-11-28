@@ -24,7 +24,7 @@ pub mod fixtures;
 pub mod expected;
 
 mod compare;
-pub use compare::{Case, check, same_graph};
+pub use compare::{Case, check, same_content};
 
 use core::fmt::{self, Debug, Display, Formatter};
 

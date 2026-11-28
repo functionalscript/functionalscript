@@ -289,6 +289,22 @@ export const proof = {
                 ok(ok({ default: [7], other: 8 })))
         },
     },
+    precomputed: () => {
+        // A module is precomputed as it completes: `f` holds its array
+        // before any importer runs, an importer's `g` calls it ahead and
+        // holds that same array, and a function two modules reach is one.
+        const root = {
+            main: [utf8('import {f} from "./a"; import {g,h} from "./b"; export default [f,g,h];')],
+            a: [utf8('export const f = () => [1, 2];')],
+            b: [utf8('import {f} from "./a"; export const g = () => f(); export const h = f;')],
+        }
+        const [, [f, g, h]] = /** @type {readonly [string, readonly (readonly [string, number, readonly unknown[], unknown])[]]} */ (
+            assertOk(read(ok(assertOk(represented(root, 'main'))), 'default')))
+        assertStructurallySame(f, ['=>', 0, [['[]', [1, 2]]], ['frame', 0]])
+        assertStructurallySame(g, ['=>', 0, [['[]', [1, 2]]], ['frame', 0]])
+        assert(f === h)
+        assert(g[2][0] === f[2][0])
+    },
     namedImports: {
         errorOrder: () => {
             for (const [before, name] of [

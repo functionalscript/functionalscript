@@ -202,6 +202,7 @@ export const _parseJson = path => step(
 const completed = (id, context) => module => [{
     complete: setReplace(id)(module)(context.complete),
     stack: drop(1)(context.stack),
+    latest: module,
 }, module]
 
 /**
@@ -234,7 +235,7 @@ export const _walk = load => {
         const done = at(id)(context.complete)
         if (done !== null) { return pureOk([context, done]) }
         const entered = { ...context, stack: { first: id, tail: context.stack } }
-        if (json) { return mapStep(_parseJson(path), value => completed(id, entered)(load.json(value))) }
+        if (json) { return mapStep(_parseJson(path), value => completed(id, entered)(load.json(value, entered.latest))) }
         /** @type {(source: _ImportSource) => (state: Imports) => Effect<ReadWhole | ResolveFileModule, Imports, ParseError | E>} */
         const walkImport = source => ({ context, imports }) => step(walk(source)(context), ([next, module]) => {
             const selected = load.select(module, importName(source))
@@ -244,7 +245,7 @@ export const _walk = load => {
         })
         const parsed = history(_parseModule(path))
         const loaded = historyStep(parsed, module => foldStep(_importSources(source)(module.imports), { context: entered, imports: [] }, walkImport))
-        const initialized = historyStep(loaded, ({ imports }, module) => pure(load.module(source, imports, module)))
+        const initialized = historyStep(loaded, ({ context: { latest }, imports }, module) => pure(load.module(source, imports, module, latest)))
         return mapStep(initialized, ([value, { context: next }]) => completed(id, next)(value))
     }
     return walk
@@ -293,7 +294,7 @@ export const _jsonModule = value => ['{}', [[':', 'default', jsonValue(value)]]]
 export const _programOver = (loader, finish) => {
     /** @type {(source: _Source, complete: _Context<T>['complete']) => Effect<O | ReadWhole | ResolveFileModule, readonly [_Context<T>['complete'], R], ParseError | E | LE>} */
     const walked = (source, complete) => {
-        const walk = step(loader, load => _walk(load)(source)({ complete, stack: null }))
+        const walk = step(loader, load => _walk(load)(source)({ complete, stack: null, latest: null }))
         return mapStep(walk, ([context, module]) => [context.complete, finish(module)])
     }
     /** @type {(complete: _Context<T>['complete']) => (source: _Source) => Effect<O | ReadWhole | ResolveFileModule, readonly [_Context<T>['complete'], EdagValue | R], ParseError | E | LE>} */
