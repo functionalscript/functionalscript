@@ -37,8 +37,12 @@ which this slice leaves in NaNVM.
   that [definition.md](./definition.md#terms) already lists (checkpoint 2,
   #4095), and a way for the module that declares a sealed type to see its
   carrier.
-- **Short strings, short bigints and a Heap in the IR come later.** Slice 1
-  makes no string or bigint inline, so nothing that reads one changes.
+- **Short strings and the Heap follow this slice.** Short strings S1–S4
+  are built ([short-strings.md](./short-strings.md)). The live string path
+  is **Heap-first**: finish H3 through measure
+  ([long-strings.md](./long-strings.md)); rope waits on H3d numbers. Short
+  bigints remain a sibling phase after that gate. Slice 1 itself makes no
+  string or bigint inline, so nothing that reads one changes here.
 - **Four checkpoints**, each a PR that keeps every proof green: this
   note, the IR operators, NaNVM speaking the box, then Any in the IR.
 

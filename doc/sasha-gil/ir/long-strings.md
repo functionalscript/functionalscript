@@ -235,6 +235,13 @@ again.
 
 ## Steps
 
+**Priority.** H3 through measure is the live string path (2026-11-28).
+Rope and other `concat` levers wait on H3d's numbers; do not start a
+parallel rope design before those rows. The three string forms (short /
+IR-heap / NaNVM) behind `withHeap` are temporary until containers move;
+do not over-clean that mix early. Design notes may stay stack-open:
+coding PRs may open under an open design PR when git-based on its head.
+
 With A on every choice, H3 is five stacked PRs, each with its proofs green,
 and nothing links by default before H3d's numbers.
 

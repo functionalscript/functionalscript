@@ -267,16 +267,20 @@ Goal: compare A/B/C **without rewriting callers**.
 ## Non-goals (first design / first coding stacks)
 
 - **Containers / objects / arrays in the IR** — stay on NaNVM.
-- **Heap in the IR** — later phase ([runtime-in-ir.md](./runtime-in-ir.md)).
-- **Short bigints** — same box family (`x & 1 == 1`), sibling phase; they
-  do **not** share the String module interface (they would get a BigInt
-  module). Layout non-overlap with string tags must be preserved when
-  both land.
+- **Heap in the IR as part of this short-strings stack** — out of scope
+  for S1–S4. After S4 the live priority is **Heap-first**: finish H3
+  through measure ([long-strings.md](./long-strings.md),
+  [heap.md](./heap.md)); do not reopen short-strings work to preempt it.
+- **Short bigints** — same box family (`x & 1 == 1`), sibling phase after
+  the H3 measure gate; they do **not** share the String module interface
+  (they would get a BigInt module). Layout non-overlap with string tags
+  must be preserved when both land.
 - **Choosing and shipping a single packing implementation** in this
   design PR (S1+ after the owner decision on this note).
 - **Rope for `concat`**, cancel-`dup`/`drop` lifetime pass, static `s` bit
-  / data-segment literals — separate levers in benchmark.md / runtime-in-ir
-  open questions.
+  / data-segment literals — separate levers in
+  [benchmark.md](./benchmark.md). Rope waits on H3d numbers; do not start
+  a parallel rope design before those rows.
 - **Renaming `at` vs `unit`** as a blocker — pick in an open question;
   both spellings mean one op.
 

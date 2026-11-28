@@ -443,13 +443,23 @@ The first profile, before the levers, had the handle layer at 94% of
 
 ### Left
 
-1. **Cancel `dup`/`drop` pairs in the lifetime pass** (medium): a few
+**Heap-first (2026-11-28).** Finish H3 through measure
+([long-strings.md](./long-strings.md)) before any other string lever.
+`shortOps` under B is mostly `concat`; H3 puts those long results in the
+IR heap. Rope (if any) is decided from H3d numbers — do not start a
+parallel rope design before those rows. `withHeap` is a temporary mix of
+short / IR-heap / NaNVM strings; do not over-clean it early.
+
+1. **H3b–H3e** (live): long IR strings, the crossing, default-link +
+   measure, then notes from the numbers
+   ([`fjs/ir/todo/heap.md`](../../../fjs/ir/todo/heap.md)).
+2. **A rope for `concat`** (only after H3d rows): would make `repeat`
+   linear if the heap path still leaves that wall.
+3. **Cancel `dup`/`drop` pairs in the lifetime pass** (medium): a few
    percent on reference-heavy programs that still call `Ref.dup_ref` /
    `drop_ref` (and on any leftover `dup`/`drop` pairs).
-2. **A rope for `concat`** (NaNVM, larger): would make `repeat` linear;
-   `shortOps` under B is now mostly `concat`.
-3. **Short-string variant C** (S5+): multi-local `str`; compare with B
-   once that lands.
+4. **Short-string variant C** (S5+): multi-local `str`; compare with B
+   once that lands — not the default next bet ahead of H3 measure.
 
 One limit stays as it was: a loop whose state starts as `f64` and becomes
 `any` is still refused (below). The records pass runs after the lowering,
