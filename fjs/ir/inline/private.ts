@@ -50,3 +50,6 @@ export type _TypedNames = {
     /** The labels in scope that name loops, whose parameters a `br` to them names too. */
     readonly loops: readonly string[]
 }
+
+/** The typed writer, passed to its helpers that the module defines before it. */
+export type _Expand = (pass: _Hooks, names: _TypedNames, t: Typed, n: number) => readonly [Typed, number]

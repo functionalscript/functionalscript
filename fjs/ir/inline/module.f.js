@@ -46,7 +46,7 @@
  *
  * @import { Result } from '../../types/result/types.ts'
  * @import { Checked, CheckedFn, ConstantOf, Fn, Int, Module, Param, Sealed, Term, Type, Typed } from '../types.ts'
- * @import { _Hooks, _Names, _Pass, _TypedNames, _Write, _Written } from './private.ts'
+ * @import { _Expand, _Hooks, _Names, _Pass, _TypedNames, _Write, _Written } from './private.ts'
  */
 
 import { assertNotNullish } from '../../asserts/module.f.js'
@@ -242,6 +242,15 @@ const uncopied = (inlined, linear) => {
 const top = (inlined, taken, t) => write({ inlined, taken }, asIs, t, 0)[0]
 
 /**
+ * The hooks of the types that a module defines: each `kind`, `dup` and
+ * `drop` that the lifetime pass and the emitter call. The checker refuses
+ * a hint on a `kind`, whose calls the emitter writes in each `match`.
+ *
+ * @type {(m: { readonly defines?: Module['defines'] }) => readonly (string | undefined)[]}
+ */
+const hooksOf = m => (m.defines?.types ?? []).flatMap(([, { kind, dup, drop }]) => [kind, dup, drop])
+
+/**
  * A module's plain stage with each call of a function hinted `always`
  * replaced by a copy of its body, and each such function that it does not
  * export left out, or why the checker refuses the plain stage, among its
@@ -283,24 +292,15 @@ export const inline = m => {
 // hooks
 
 /**
- * The hooks of the types that a module defines: each `kind`, `dup` and
- * `drop` that the lifetime pass and the emitter call. The checker refuses
- * a hint on a `kind`, whose calls the emitter writes in each `match`.
- *
- * @type {(m: { readonly defines?: Module['defines'] }) => readonly (string | undefined)[]}
- */
-const hooksOf = m => (m.defines?.types ?? []).flatMap(([, { kind, dup, drop }]) => [kind, dup, drop])
-
-/**
  * Typed terms written in their order, from the prefix number `n`, and the
  * number after the last.
  *
- * @type {(pass: _Hooks, names: _TypedNames, ts: readonly Typed[], n: number) => readonly [readonly Typed[], number]}
+ * @type {(go: _Expand, pass: _Hooks, names: _TypedNames, ts: readonly Typed[], n: number) => readonly [readonly Typed[], number]}
  */
-const eachTyped = (pass, names, ts, n) => ts.reduce(
+const eachTyped = (go, pass, names, ts, n) => ts.reduce(
     /** @type {(r: readonly [readonly Typed[], number], t: Typed) => readonly [readonly Typed[], number]} */
     ([done, k], t) => {
-        const [x, k1] = expand(pass, names, t, k)
+        const [x, k1] = go(pass, names, t, k)
         return [[...done, x], k1]
     },
     [[], n],
@@ -314,13 +314,13 @@ const eachTyped = (pass, names, ts, n) => ts.reduce(
  * `block` of the call's type, which a `br return` of the body leaves and
  * which widens a body narrower than the result.
  *
- * @type {(pass: _Hooks, f: CheckedFn, type: Type, args: readonly Typed[], n: number) => readonly [Typed, number]}
+ * @type {(go: _Expand, pass: _Hooks, f: CheckedFn, type: Type, args: readonly Typed[], n: number) => readonly [Typed, number]}
  */
-const copyTyped = (pass, f, type, args, n) => {
+const copyTyped = (go, pass, f, type, args, n) => {
     const [p, n1] = fresh(pass.taken, n)
     /** @type {_TypedNames} */
     const names = { local: (x, t) => [t, ['get', `${p}${x}`]], rename: x => `${p}${x}`, loops: [] }
-    const [body, n2] = expand(pass, names, f.body, n1)
+    const [body, n2] = go(pass, names, f.body, n1)
     const bound = f.params.reduceRight(
         /** @type {(b: Typed, param: Param, j: number) => Typed} */
         (b, [k], j) => [b[0], ['let', `${p}${k}`, args[Number(j)], b]],
@@ -347,22 +347,22 @@ const expand = (pass, names, [type, t], n) => {
             return [[type, ['let', rename(t[1]), e, b]], n2]
         }
         case 'op': {
-            const [xs, n1] = eachTyped(pass, names, t[2], n)
+            const [xs, n1] = eachTyped(expand, pass, names, t[2], n)
             return [[type, ['op', t[1], xs]], n1]
         }
         case 'call': {
             const [, module, name, xs] = t
-            const [args, n1] = eachTyped(pass, names, xs, n)
+            const [args, n1] = eachTyped(expand, pass, names, xs, n)
             const f = module === 'self' ? pass.inlined(name) : null
-            return f === null ? [[type, ['call', module, name, args]], n1] : copyTyped(pass, f, type, args, n1)
+            return f === null ? [[type, ['call', module, name, args]], n1] : copyTyped(expand, pass, f, type, args, n1)
         }
         case 'call_ref': {
             const [c, n1] = one(t[1], n)
-            const [args, n2] = eachTyped(pass, names, t[2], n1)
+            const [args, n2] = eachTyped(expand, pass, names, t[2], n1)
             return [[type, ['call_ref', c, args]], n2]
         }
         case 'make': {
-            const [xs, n1] = eachTyped(pass, names, t[1].map(([, x]) => x), n)
+            const [xs, n1] = eachTyped(expand, pass, names, t[1].map(([, x]) => x), n)
             return [[type, ['make', t[1].map(([k], j) => /** @type {const} */ ([k, xs[Number(j)]]))]], n1]
         }
         case 'field': {
@@ -375,7 +375,7 @@ const expand = (pass, names, [type, t], n) => {
         }
         case 'match': {
             const [e, n1] = one(t[1], n)
-            const [bodies, n2] = eachTyped(pass, names, t[2].map(([, , body]) => body), n1)
+            const [bodies, n2] = eachTyped(expand, pass, names, t[2].map(([, , body]) => body), n1)
             return [[type, ['match', e, t[2].map(([variants, binder, , written], j) => /** @type {const} */ ([variants, binder === null ? null : rename(binder), bodies[Number(j)], written]))]], n2]
         }
         case 'block': {
@@ -383,7 +383,7 @@ const expand = (pass, names, [type, t], n) => {
             return [[type, ['block', rename(t[1]), t[2], e]], n1]
         }
         case 'loop': {
-            const [firsts, n1] = eachTyped(pass, names, t[2].map(([, , first]) => first), n)
+            const [firsts, n1] = eachTyped(expand, pass, names, t[2].map(([, , first]) => first), n)
             const [body, n2] = expand(pass, within(names, t[1], true), t[3], n1)
             return [[type, ['loop', rename(t[1]), t[2].map(([k, x], j) => /** @type {const} */ ([rename(k), x, firsts[Number(j)]])), body]], n2]
         }
