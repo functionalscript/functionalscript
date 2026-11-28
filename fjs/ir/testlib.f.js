@@ -8,9 +8,10 @@
  * `records`, the fifth's, `constants`, `literals` and `arrays`, the
  * sixth's, and `throws`, the seventh's, which is in the plain stage, for
  * the lifetime pass, `bits`, the bit operators and a float's bits that
- * a runtime written in the IR reads a NaN box with, and `addressing`, the
+ * a runtime written in the IR reads a NaN box with, `addressing`, the
  * loads, the stores, `size` and `grow` of L0's `Memory`, which the heap of
- * such a runtime keeps its blocks with.
+ * such a runtime keeps its blocks with, and `narrowing`, branches on
+ * comparisons that narrow a local, as that heap checks its pointers.
  * The [host proof](./wasm/proof.mjs) runs them all against JavaScript
  * twins.
  *
@@ -187,6 +188,26 @@ export const addressing = {
             let_('grown', memoryOf('grow', [k]), () => sub(memoryOf('size', []), before))))],
     ],
     exports: ['stored8', 'stored16', 'stored32', 'stored64', 'lowFirst', 'grown', 'after'],
+}
+
+/**
+ * Branches on comparisons that narrow a local to the range that the other
+ * operand allows: a sum of two `u(32)` that fits 32 bits again where its
+ * check holds, as a bump pointer does, a `u(64)` read as `u(32)` below
+ * `2^32`, a count that is not 0, and an `i(64)` bounded on both sides, into
+ * a signed word of 32 bits, by a `not` of one comparison and the other.
+ *
+ * @type {Module}
+ */
+export const narrowing = {
+    imports: [],
+    functions: [
+        ['fitted', fn([['a', u(32)], ['b', u(32)]], u(32), (a, b) => let_('q', add(a, b), q => if_(le(q, n(0xFFFF_FFFFn)), q, n(0n))))],
+        ['low', fn([['w', u(64)]], u(32), w => if_(lt(w, n(0x1_0000_0000n)), w, n(0n)))],
+        ['nonzero', fn([['w', u(64)]], int(1n, 0xFFFF_FFFF_FFFF_FFFFn), w => if_(eq(w, n(0n)), n(1n), w))],
+        ['withinFive', fn([['x', i(64)]], int(-5n, 5n), x => if_(not(lt(x, n(-5n))), if_(le(x, n(5n)), x, n(5n)), n(-5n)))],
+    ],
+    exports: ['fitted', 'low', 'nonzero', 'withinFive'],
 }
 
 /**

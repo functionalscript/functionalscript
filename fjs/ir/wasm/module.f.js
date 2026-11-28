@@ -30,6 +30,10 @@
  *   in the wider word. A `make` writes each field as a value of the wider
  *   field, and any other product is kept in locals named `widen` and read
  *   back field by field.
+ * - **A local narrows where a comparison narrowed it.** A local keeps the
+ *   word of the type that it was bound at, and where a branch on a
+ *   comparison gives it a range that fits 32 bits, a read of an `i64`
+ *   local wraps it, which keeps its value.
  * - **A sealed type is its carrier**, the WASM value that its interface
  *   names: `any` is an `i64`, a builder an `i32`. A function of an
  *   interface is an import of the interface's `abi` by the function's name,
@@ -201,6 +205,16 @@ const literal = (type, v) =>
 /** What makes a value of `from` one of `to`, a type that holds it: an `i32` is extended by its signedness. @type {(from: Type, to: Type) => Expr} */
 const widen = (from, to) =>
     from[0] === 'int' && to[0] === 'int' && width(from) < width(to) ? [signed(from) ? ['i64.extend_i32_s'] : ['i64.extend_i32_u']] : []
+
+/**
+ * What reads a local bound at `from` as `to`, the range that a branch on a
+ * comparison narrowed it to: an `i64` whose range now fits 32 bits is
+ * wrapped, which keeps its value, since the value is in the range.
+ *
+ * @type {(from: Type, to: Type) => Expr}
+ */
+const narrowed = (from, to) =>
+    from[0] === 'int' && to[0] === 'int' && width(to) < width(from) ? [['i32.wrap_i64']] : []
 
 /** The range of a word of `bits` that holds a range, read as the range is. @type {(t: Int, bits: 32 | 64) => Int} */
 const word = (t, bits) => bits === 32 ? t : signed(t) ? i(64) : u(64)
@@ -454,7 +468,7 @@ const fieldOf = (emitTerm, env, type, e, name) => {
     const start = of[1].slice(0, k).flatMap(([, f]) => carrier(env.interfaces, f)).length
     const own = localsOf(env.interfaces, name, type)
     if (x[0] === 'get') {
-        const index = own.length === 0 ? 0 : assertNotNullish(at(x[1])(env.locals))
+        const index = own.length === 0 ? 0 : assertNotNullish(at(x[1])(env.locals))[0]
         return just(own.map((_, j) => ['local.get', index + start + j]))
     }
     const c = emitTerm(env, e)
@@ -489,7 +503,7 @@ const sealedMatch = (emitTerm, env, type, operand, arms) => {
     const { variants, kind } = definition(env.interfaces, sealed)
     // The checker takes a `match` only of a sealed type that names its kind.
     const [kindIndex] = assertNotNullish(at(assertNotNullish(kind))(assertNotNullish(at(sealed[1])(env.imports))))
-    const here = x[0] === 'get' ? assertNotNullish(at(x[1])(env.locals)) : null
+    const here = x[0] === 'get' ? assertNotNullish(at(x[1])(env.locals))[0] : null
     const c = here === null ? emitTerm(env, operand) : just([])
     const named = x[0] === 'get' ? x[1] : 'match'
     /** @type {_Code['locals']} */
@@ -506,7 +520,7 @@ const sealedMatch = (emitTerm, env, type, operand, arms) => {
     /** The arms from the `k`th on, as an `if` that tests the `k`th, whose `else` holds the rest. @type {(inner: _Env, k: number, taken: number) => _Code} */
     const chain = (inner, k, taken) => {
         const [vs, binder, body] = arms[Number(k)]
-        const scoped = binder === null ? inner : { ...inner, locals: setReplace(binder)(slot)(inner.locals) }
+        const scoped = binder === null ? inner : { ...inner, locals: setReplace(binder)(/** @type {const} */ ([slot, of]))(inner.locals) }
         if (k === arms.length - 1) { return valueOf(emitTerm, scoped, taken, body, type) }
         /** @type {Expr} */
         const test = vs.flatMap((v, j) => [...tag, ['i32.const', variants.indexOf(v)], ['i32.eq'], ...(j === 0 ? [] : [/** @type {Instruction} */ (['i32.or'])])])
@@ -536,8 +550,8 @@ const term = (env, [type, t]) => {
         }
         case 'get': {
             const holds = carrier(env.interfaces, type)
-            const index = holds.length === 0 ? 0 : assertNotNullish(at(t[1])(env.locals))
-            return just(holds.map((_, k) => ['local.get', index + k]))
+            const [index, bound] = holds.length === 0 ? [0, type] : assertNotNullish(at(t[1])(env.locals))
+            return just([...holds.map((_, k) => /** @type {Instruction} */ (['local.get', index + k])), ...narrowed(bound, type)])
         }
         case 'let': {
             const [, name, value, body] = t
@@ -546,7 +560,7 @@ const term = (env, [type, t]) => {
             const index = env.next + v.locals.length
             /** @type {Expr} */
             const set = holds.map((_, k) => /** @type {Instruction} */ (['local.set', index + k])).toReversed()
-            const locals = holds.length === 0 ? env.locals : setReplace(name)(index)(env.locals)
+            const locals = holds.length === 0 ? env.locals : setReplace(name)(/** @type {const} */ ([index, value[0]]))(env.locals)
             const b = term({ ...env, locals, next: index + holds.length }, body)
             return {
                 code: [...v.code, ...set, ...b.code],
@@ -634,7 +648,7 @@ const term = (env, [type, t]) => {
             const base = env.next + firsts.locals.length
             /** @type {readonly (readonly [number, Type])[]} */
             const slots = params.map(([, x], j) => [base + own.slice(0, j).flat().length, x])
-            const locals = params.reduce((ls, [k], j) => setReplace(k)(slots[Number(j)][0])(ls), env.locals)
+            const locals = params.reduce((ls, [k], j) => setReplace(k)(slots[Number(j)])(ls), env.locals)
             const inner = deeper({ ...env, locals, next: base + own.flat().length, labels: labelled(env, label, ['loop', slots]) })
             const b = valueOf(term, inner, 0, body, type)
             return {
@@ -839,7 +853,7 @@ export const emit = m => {
     }
     const codes = m.functions.map(([, { params, result, body }]) => valueOf(term, {
         ...base,
-        locals: fromEntries(params.map(([name], k) => [name, k])),
+        locals: fromEntries(params.map(([name, type], k) => /** @type {const} */ ([name, /** @type {const} */ ([k, type])]))),
         labels: setReplace('return')(/** @type {const} */ ([-1, ['block', result]]))(empty),
         next: params.length,
     }, 0, body, result))

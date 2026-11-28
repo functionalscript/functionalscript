@@ -17,6 +17,10 @@
  *   that the function borrows, given a local, a literal, a constant, a
  *   function's code, or a field of one of those, of its own type, reads that term itself, so the copy
  *   lends it as the call did, and the lifetime pass writes no `dup` of it.
+ *   An integer that the body compares is the exception unless it is a
+ *   local: the checker narrows only a local that a comparison reads, so a
+ *   `let` binds the literal, the constant or the field, and the copy's
+ *   comparison narrows that `let` as the body's narrowed the parameter.
  * - **An argument narrower than its parameter is widened** by a `block` of
  *   the parameter's type, since the body was checked at that type, and a
  *   `match` of it may name variants that the argument does not hold.
@@ -91,6 +95,21 @@ const blocked = f => leaves(f.body).includes('return') || !equal(f.body[0], f.re
 /** Whether a term is a value already made, which a borrow may read in place: a local, a literal, a constant, a function's code, or a field of such a value. @type {(t: Term) => boolean} */
 const made = t => t[0] === 'get' || t[0] === 'lit' || t[0] === 'constant' || t[0] === 'code' || (t[0] === 'field' && made(t[1]))
 
+/**
+ * Whether a typed term compares the local `x` as an integer, by `lt`, `le`
+ * or `eq`, where the checker narrows it
+ * ([type-system.md: Flow refinement](../../../doc/sasha-gil/ir/type-system.md#flow-refinement-is-two-rules)).
+ *
+ * @type {(x: string) => (t: Typed) => boolean}
+ */
+const compares = x => {
+    /** @type {(t: Typed) => boolean} */
+    const go = ([, t]) => (t[0] === 'op' && (t[1] === 'lt' || t[1] === 'le' || t[1] === 'eq')
+        && t[2].some(([type, a]) => type[0] === 'int' && a[0] === 'get' && a[1] === x))
+        || inside(t).some(go)
+    return go
+}
+
 // terms
 
 /**
@@ -117,7 +136,13 @@ const each = (write, pass, names, ts, n) => ts.reduce(
 const copy = (write, pass, f, xs, args, n) => {
     const [p, n1] = fresh(pass.taken, n)
     const parts = f.params.map((param, j) => /** @type {const} */ ([param, xs[Number(j)][0], args[Number(j)]]))
-    const inPlace = parts.flatMap(([param, type, a]) => !isOwn(param) && made(a) && equal(type, param[1]) ? [/** @type {const} */ ([param[0], a])] : [])
+    // A parameter that the body compares narrows in place only as a local that no other compared parameter
+    // receives: `lt(a, b)` of one local twice would narrow it twice, and the second range would hide the first.
+    const compared = parts.flatMap(([[k], , a]) => compares(k)(f.body) ? [/** @type {const} */ ([k, a])] : [])
+    const alone = (/** @type {string} */ k, /** @type {Term} */ a) => a[0] === 'get'
+        && !compared.some(([q, b]) => q !== k && b[0] === 'get' && b[1] === a[1])
+    const inPlace = parts.flatMap(([param, type, a]) => !isOwn(param) && made(a) && equal(type, param[1])
+        && (compared.every(([q]) => q !== param[0]) || alone(param[0], a)) ? [/** @type {const} */ ([param[0], a])] : [])
     /** @type {_Names} */
     const names = { local: x => inPlace.find(([k]) => k === x)?.[1] ?? get(`${p}${x}`), rename: x => `${p}${x}`, loops: [] }
     const [body, n2] = write(pass, names, f.body, n1)

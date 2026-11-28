@@ -6,7 +6,7 @@ import { assertEq, assertError, assertOk } from '../../asserts/module.f.js'
 import { any, l0 } from '../l0/module.f.js'
 import {
     add, block, br, call, call_ref, code, codeOf, constant, f64, f64c, field, float, fn, get, hint, if_, int, let_, lit, loop, lt,
-    make, match, next, own, return_, trunc_sat, u, unit, variant, bool,
+    make, match, n, next, own, return_, trunc_sat, u, unit, variant, bool,
 } from '../module.f.js'
 import { check } from '../check/module.f.js'
 import { lifetime } from '../lifetime/module.f.js'
@@ -165,6 +165,66 @@ export const proof = {
             '    )',
             '',
             'export f',
+            '',
+        ].join('\n'))
+    },
+    // A field or a literal given to an integer that the body compares is bound, and the copy's comparison narrows the
+    // `let` as the body's narrowed the parameter; a local stays in place, and the comparison narrows it.
+    narrowed: () => {
+        const low = hint('always', fn([['w', u(64)]], u(32), w => if_(lt(w, n(0x1_0000_0000n)), w, n(0n))))
+        assertEq(passed({
+            imports: [],
+            functions: [
+                ['low', low],
+                ['f', fn([['a', u(64)]], u(32), a => let_('p', make([['w', a]]), p => call('self', 'low', [field(p, 'w')])))],
+                ['g', fn([], u(32), () => call('self', 'low', [lit(u(64), 5n)]))],
+                ['h', fn([['a', u(64)]], u(32), a => call('self', 'low', [a]))],
+            ],
+            exports: ['f', 'g', 'h'],
+        }), [
+            'fn f(a: u(64)) -> u(32) =',
+            '    let p = { w: a }',
+            '    let #i0.w = p.w',
+            '    if lt(#i0.w, 4294967296) then #i0.w else 0',
+            '',
+            'fn g() -> u(32) =',
+            '    let #i0.w = 5 as u(64)',
+            '    if lt(#i0.w, 4294967296) then #i0.w else 0',
+            '',
+            'fn h(a: u(64)) -> u(32) =',
+            '    if lt(a, 4294967296) then a else 0',
+            '',
+            'export f, g, h',
+            '',
+        ].join('\n'))
+    },
+    // Two compared parameters given one local are bound by a `let` each, so the copy's `lt` narrows each as the
+    // body's narrowed its parameters, and the result still checks; a parameter that the body does not compare,
+    // given the same local, stays in place.
+    aliased: () => {
+        const pick = hint('always', fn([['a', u(8)], ['b', u(8)], ['c', u(8)]], int(0n, 254n), (a, b, c) =>
+            if_(lt(a, b), a, if_(lt(c, n(1n)), c, n(0n)))))
+        assertEq(passed({
+            imports: [],
+            functions: [
+                ['pick', pick],
+                ['f', fn([['x', u(8)]], int(0n, 254n), x => call('self', 'pick', [x, x, x]))],
+                ['g', fn([['x', u(8)], ['y', u(8)]], int(0n, 254n), (x, y) => call('self', 'pick', [x, y, y]))],
+            ],
+            exports: ['f', 'g'],
+        }), [
+            'fn f(x: u(8)) -> int(0, 254) =',
+            '    let #i0.a = x',
+            '    let #i0.b = x',
+            '    let #i0.c = x',
+            '    if lt(#i0.a, #i0.b) then #i0.a else if lt(#i0.c, 1) then #i0.c else 0',
+            '',
+            'fn g(x: u(8), y: u(8)) -> int(0, 254) =',
+            '    let #i0.b = y',
+            '    let #i0.c = y',
+            '    if lt(x, #i0.b) then x else if lt(#i0.c, 1) then #i0.c else 0',
+            '',
+            'export f, g',
             '',
         ].join('\n'))
     },
