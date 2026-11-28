@@ -37,14 +37,14 @@ export const proof = {
         const [e, s] = allocated(d, d.end - d.top)
         assertEq(`${s} ${e.top === e.end} ${e.pages}`, '65576 true 2')
     },
-    // A full region grows the memory by 16 pages, or by the request where that is more, and new pages that
-    // follow the region extend it.
+    // A full region grows the memory by 16 pages, or by the pages for the bytes past its end where that is more,
+    // and new pages that follow the region extend it.
     grown: () => {
         const a = assertNotNullish(start(1, 0x1_0000))
         const [b, p] = allocated(a, 0x1_0000)
         assertEq(`${p} ${b.pages} ${b.end} ${b.top}`, '65552 18 1179648 131088')
         const [c, q] = allocated(b, 0x20_0000)
-        assertEq(`${q} ${c.pages} ${c.end}`, '131088 50 3276800')
+        assertEq(`${q} ${c.pages} ${c.end}`, '131088 35 2293760')
     },
     // Where 16 pages would end past the last page, a full region grows by the request alone: after `init` on
     // 65,519 pages, a block of 8 bytes past a full region takes one page, which ends at 65,521.
@@ -53,6 +53,12 @@ export const proof = {
         const [b, p] = allocated(a, 0xFFF0)
         const [c, q] = allocated(b, 8)
         assertEq(`${q - p} ${c.pages} ${c.end / 0x1_0000} ${c.top - q}`, '65520 65521 65521 8')
+    },
+    // A region that ends where the memory does counts its tail: on a memory that may grow to 3 pages, a block of
+    // 0x1_0008 bytes after `init` runs 24 bytes past the region, so one page holds it where 16 are refused.
+    tail: () => {
+        const [b, p] = allocated(assertNotNullish(start(1, 3)), 0x1_0008)
+        assertEq(`${p} ${b.pages} ${b.top} ${b.end}`, '65552 3 131096 196608')
     },
     // Pages that another allocator took first leave the region's tail, and the block starts a new region.
     elsewhere: () => {

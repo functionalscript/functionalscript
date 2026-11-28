@@ -91,12 +91,15 @@ const taken = (a, g, k) => {
  * The arena whose region cannot hold `size` more bytes, after the memory
  * grew by the larger of the request and {@link chunk} pages, or by the
  * request alone where a chunk would end past {@link lastPage} or the host
- * refuses it, or `null` where the host refuses both.
+ * refuses it, or `null` where the host refuses both. A region that ends
+ * where the memory does asks only for the bytes past its end, since the
+ * new pages extend it.
  *
  * @type {(a: Arena, size: number) => Arena | null}
  */
 const grown = (a, size) => {
-    const need = pagesOf(size)
+    // a region that ends where the memory does needs only the pages for the bytes past its end
+    const need = pagesOf(a.end === a.pages * page ? a.top + size - a.end : size)
     const k = need < chunk && a.pages + chunk <= lastPage ? chunk : need
     const g = grow(a.pages, a.most, k)
     if (g !== null) { return taken({ ...a, pages: a.pages + k }, g, k) }

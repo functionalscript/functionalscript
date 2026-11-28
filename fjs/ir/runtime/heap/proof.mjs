@@ -139,6 +139,15 @@ export const proof = {
         assertEq(memory.buffer.byteLength, after.pages * 0x1_0000)
         assertEq(after.pages, 65_521)
     },
+    // A region that ends where the memory does counts its tail, as the model does: on a memory that may grow to 3
+    // pages, a block of 0x1_0008 bytes after `init` takes the one page that the host still gives.
+    tail: () => {
+        const { exports, memory, arena } = load(3)
+        const [after, at] = assertNotNullish(alloc(arena, 0x1_0008))
+        assertEq(/** @type {(t: number, n: number) => number} */ (exports.alloc)(0, 0x1_0008) >>> 0, at)
+        assertEq(memory.buffer.byteLength, after.pages * 0x1_0000)
+        assertEq(after.pages, 3)
+    },
     // A memory that cannot grow at all leaves `init` nothing to put the state in.
     noPage: () => {
         const memory = new WebAssembly.Memory({ initial: 1, maximum: 1 })
