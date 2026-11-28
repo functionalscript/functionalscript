@@ -19,8 +19,8 @@ PR's diff is its own step.
 | H2b flow refinement | #4150 | `…-h2b` | merged |
 | H2c release arena | #4151 | `…-h2c` | merged |
 | H2d debug arena | #4155 | `…-h2d` | merged |
-| H3 note | #4156 | `…-h3doc` | approved, in the merge queue |
-| H3a IR references in Any | #4159 | `…-h3a` | approved, every review thread resolved |
+| H3 note | #4156 | `…-h3doc` | merged |
+| H3a IR references in Any | #4159 | `…-h3a` | merged |
 | H3b long strings in the IR | #4163 | `…-h3b` | approved, every review thread resolved |
 | H3c the crossing | this note | `…-h3c` | the plan below |
 
@@ -73,21 +73,15 @@ IR string crosses; another conversion path (copying in pieces into a
 NaNVM builder) would cost Rust for a size no program here reaches. A proof
 in `heap.proof.mjs` checks the new limit on both arenas.
 
-### Where the wrap goes (open: the owner's choice)
+### Where the wrap goes (decided: A, `linkCrossing`)
 
-- **A, a link step (recommended, the note's proposal).** A new
-  `linkCrossing` in `fjs/ir/from_fast/link/module.f.js`, after
-  `linkString`, as `linkAny` and `linkString` are: it rewrites each call of
-  an import listed below into a call of a wrapper that it adds to the
-  program, `cross.push`, `cross.find` and so on. It covers hand-written IR
-  too, and the lowering stays unaware of the heap.
-- **B, in the lowering from FAST**, which knows each call's arguments. It
-  misses hand-written IR.
-
-The owner had not picked when this was written (card of 2026-11-28 16:03
-UTC in the thread "Explore heap memory module alternatives"). Owner's
-standing preferences: ask before starting work when alternatives exist,
-stricter checks (refuse over ignore), and performance weighs heavily.
+The owner chose **A** (2026-11-28): a new `linkCrossing` in
+`fjs/ir/from_fast/link/module.f.js`, after `linkString`, as `linkAny` and
+`linkString` are. It rewrites each call of an import listed below into a
+call of a wrapper that it adds to the program, `cross.push`, `cross.find`
+and so on. It covers hand-written IR too, and the lowering stays unaware
+of the heap. **B** (wrap in the lowering from FAST) is rejected: it
+misses hand-written IR.
 
 ### What crosses: every place a value goes into NaNVM
 
@@ -233,9 +227,11 @@ New branch names need the owner's OK (proposed: `…-h4doc`, `…-h4a` and up).
 - **A small nit rides on this branch:** the comment of #4150's `aliased`
   proof in `fjs/ir/inline/proof.f.js` now says only what the proof shows
   (commit "ir: say only what the aliased proof shows").
-- **PR rules:** titles of at most 64 characters (CONTRIBUTING.md); the
-  repository's PR template; Codex and a human reviewer comment on each PR,
-  and each thread gets a reply with the fixing commit, then is resolved.
+- **PR rules:** titles of at most 64 characters and the title and
+  description rules in CONTRIBUTING.md's "Opening a pull request" section
+  (the repository has no PR template); Codex and a human reviewer comment
+  on each PR, and each thread gets a reply with the fixing commit, then is
+  resolved.
 
 ## Checks before each push
 
