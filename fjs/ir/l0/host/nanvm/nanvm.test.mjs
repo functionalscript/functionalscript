@@ -367,7 +367,7 @@ test('make_string reads any bytes of the memory but those at address 0', () => {
     if (trapped(() => make(size - 2, 2)) !== 'l0.make_string: out of bounds') { throw 'past the memory' }
 })
 
-test('make_string reads the last unit of a memory of 65,536 pages', () => {
+test('make_string reads the last unit of a memory of 65,536 pages, but no more than a slice holds', () => {
     const h = host([])
     const exports = /** @type {Readonly<Record<string, unknown>>} */ (/** @type {unknown} */ (h.imports))
     const make = /** @type {(ptr: number, len: number) => bigint} */ (exports.make_string)
@@ -376,6 +376,13 @@ test('make_string reads the last unit of a memory of 65,536 pages', () => {
     // 2^32 bytes are more than a wasm32 `usize` holds, so the bound is no `usize`
     memory.grow(0x1_0000 - memory.buffer.byteLength / 0x1_0000)
     if (length(make(0xFFFF_FFFE, 1)) !== 1) { throw 'last unit' }
+    // 2^30 units are 2^31 bytes of the memory, past `isize::MAX`, the most that a slice holds
+    /** The text of the trap of `f`. @type {(f: () => unknown) => unknown} */
+    const trapped = f => {
+        try { f() } catch (e) { return h.trap?.(e) }
+        throw 'no trap'
+    }
+    if (trapped(() => make(2, 0x4000_0000)) !== 'l0.make_string: too long') { throw 'past a slice' }
 })
 
 test('NaNVM ran modules', () => {

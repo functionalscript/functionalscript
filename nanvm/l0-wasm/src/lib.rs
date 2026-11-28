@@ -148,7 +148,8 @@ fn region(name: &str, ptr: i32, len: i32, size: usize) -> &'static mut [u8] {
 /// The bytes of `len` items of `size` at `ptr`, which a read copies out
 /// at once: they must lie in the memory, wherever in it they are, as the
 /// pages that the IR heap grew do, but not at address 0, where Rust makes
-/// no slice, even though WASM's memory holds it.
+/// no slice, even though WASM's memory holds it, and no more of them than
+/// `isize::MAX`, which is all that a slice holds.
 fn readable(name: &str, ptr: i32, len: i32, size: usize) -> &'static [u8] {
     // In u64, as a memory of 65,536 pages holds 2^32 bytes, which a wasm32
     // `usize` does not, and a read may end at its last byte.
@@ -158,13 +159,17 @@ fn readable(name: &str, ptr: i32, len: i32, size: usize) -> &'static [u8] {
     if start + n > memory || (start == 0 && n != 0) {
         panic!("l0.{name}: out of bounds")
     }
+    // No slice holds more than `isize::MAX` bytes, nor could the copy.
+    if n > isize::MAX as u64 {
+        panic!("l0.{name}: too long")
+    }
     if n == 0 {
         return &[];
     }
     // SAFETY: the bytes lie in the memory, past address 0, so `start` and
-    // `n` are below 2^32 and fit a `usize`; and the caller copies them out
-    // before Rust runs anything else, so no borrow of them that Rust holds
-    // is live while this slice is.
+    // `n` are below 2^32 and fit a `usize`; `n` is at most `isize::MAX`;
+    // and the caller copies them out before Rust runs anything else, so no
+    // borrow of them that Rust holds is live while this slice is.
     unsafe { core::slice::from_raw_parts(start as usize as *const u8, n as usize) }
 }
 
