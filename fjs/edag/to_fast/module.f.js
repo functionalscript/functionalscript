@@ -174,7 +174,7 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
         const slots = node[1].map((_, k) => ({ index: count + i * width + peers.length + k }))
         return { peers, slots, members: node[2].map(([length], k) => contextOf(i, length, slots.length, peers, k)) }
     })
-    const rootContext = { peers: [], target: /** @type {FunctionTarget} */ ({ kind: 'function', index: -1 }), parameters: invocation.parameters ?? generate(a.nodes.reduce((count, node) => node[0] === 'arg' && node[1] >= count ? node[1] + 1 : count, 0), index => ({ index: -32 - index })), rest: invocation.rest ?? { index: -1 }, self: invocation.self ?? { index: -2 }, captures: invocation.captures ?? generate(Math.max(0, ...a.nodes.map(node => node[0] === 'frame' ? node[1] + 1 : 0)), index => ({ index: -64 - index })), loop: { index: -3 }, result: { index: -4 } }
+    const rootContext = { peers: [], target: /** @type {FunctionTarget} */ ({ kind: 'function', index: -1 }), parameters: invocation.parameters ?? generate(a.nodes.reduce((count, node) => node[0] === 'arg' && node[1] >= count ? node[1] + 1 : count, 0), index => ({ index: -32 - index })), rest: invocation.rest ?? { index: -1 }, self: invocation.self ?? { index: -2 }, captures: invocation.captures ?? generate(a.nodes.reduce((count, node) => node[0] === 'frame' && node[1] >= count ? node[1] + 1 : count, 0), index => ({ index: -64 - index })), loop: { index: -3 }, result: { index: -4 } }
     /** @type {(context: Context, bound: PersistentSet<number>, roots: readonly Operand[], done: Done<Block>) => Work} */
     const region = (context, bound, given, done) => () => {
         // A root before the last is evaluated for what it does, and a read
