@@ -17,7 +17,7 @@ import {
     packEnabled, tagLen, tagOf, unit, unpack, v1EnabledTags,
 } from './short.f.js'
 import { module as anyModule } from '../any/module.f.js'
-import { module as irModule } from './ir.f.js'
+import { fields, module as irModule } from './ir.f.js'
 
 /** @type {(s: string) => readonly number[]} */
 const unitsOf = s => [...s].map(ch => /** @type {number} */ (ch.codePointAt(0)))
@@ -218,5 +218,13 @@ export const proof = {
         assertStructurallySame(irModule.defines, anyModule.defines)
         const hooks = ['isRef', 'dup', 'drop', 'kind']
         assertStructurallySame(irModule.functions.filter(([k]) => hooks.includes(k)), anyModule.functions.filter(([k]) => hooks.includes(k)))
+    },
+    // Each tag's fields, which the B module and the module with the IR heap share, are listed once, in the order of
+    // `allTags`, with a shift for each unit that the tag holds.
+    fields: () => {
+        assertEq(fields.map(([tag]) => tag).join(), allTags.join())
+        // the tags in `allTags` hold 0 to 8 units, as `tagLen` says
+        assertEq(fields.map(([, shifts]) => shifts.length).join(), '0,1,2,3,4,5,6,7,8')
+        assertEq(tagLen.s4x7, 4)
     },
 }

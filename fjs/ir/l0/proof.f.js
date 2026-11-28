@@ -2,7 +2,7 @@ import { assertEq, assertOk } from '../../asserts/module.f.js'
 import { ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFINED, kind as viewKind } from '../../wasm/runtime/l0/module.f.js'
 import { check } from '../check/module.f.js'
 import { show } from '../print/module.f.js'
-import { any, kinds, l0, memory } from './module.f.js'
+import { any, kinds, l0, memory, units } from './module.f.js'
 
 export const proof = {
     // The variants of `any` are the L0 view's kinds in the order of its tags, which `kind` answers.
@@ -53,8 +53,8 @@ export const proof = {
     // A module may import all of them: the checker takes the interfaces.
     checked: () => assertEq(assertOk(check({ imports: l0, functions: [], exports: [] })).imports.map(([k]) => k).join(), 'Any,String,BigInt,Containers,Functions'),
     any: () => assertEq(show(any), 'any'),
-    // Memory is the target's, beside L0's interfaces and of their ABI: a load and a store of each width, the size and
-    // grow, none of which may fail, since an address past the memory is a misuse (heap.md, Memory in the IR).
+    // Memory is the target's, beside L0's interfaces and of their ABI: a load and a store of each width, a copy, the
+    // size and grow, none of which may fail, since an address past the memory is a misuse (heap.md, Memory in the IR).
     memory: () => {
         const [name, { abi, instructions, types, functions }] = memory
         assertEq(`${name} ${abi} ${instructions} ${types.length}`, 'Memory fjs:l0 true 0')
@@ -67,10 +67,21 @@ export const proof = {
             'store16(a: u(32), v: u(16)) -> unit',
             'store32(a: u(32), v: u(32)) -> unit',
             'store64(a: u(32), v: u(64)) -> unit',
+            'copy(to: u(32), from: u(32), n: u(32)) -> unit',
             'size() -> int(0, 65536)',
             'grow(n: int(0, 65536)) -> int(-1, 65536)',
         ].join('; '))
         assertEq(functions.filter(([, s]) => s.fails === true || s.counts !== undefined || s.returns !== undefined || s.params.some(p => p[2] === 'own')).length, 0)
         assertEq(assertOk(check({ imports: [...l0, memory], functions: [], exports: [] })).imports.map(([k]) => k).join(), 'Any,String,BigInt,Containers,Functions,Memory')
+    },
+    // Units is a host's, of L0's ABI: `make_string` of an address and a length answers an owned string, and may not
+    // fail, since units past the memory are a misuse; a module imports it beside L0, whose Any makes the string.
+    units: () => {
+        const [name, { abi, instructions, types, functions }] = units
+        assertEq(`${name} ${abi} ${instructions} ${types.length}`, 'Units fjs:l0 undefined 0')
+        assertEq(functions.map(([f, { params, result, fails, counts }]) =>
+            `${f}(${params.map(([k, t, mode]) => `${mode ?? ''}${k}: ${show(t)}`).join(', ')}) -> ${show(result)} ${fails} ${counts}`).join('; '),
+            'make_string(p: u(32), n: u(31)) -> any.only(string) undefined undefined')
+        assertEq(assertOk(check({ imports: [...l0, units], functions: [], exports: [] })).imports.map(([k]) => k).join(), 'Any,String,BigInt,Containers,Functions,Units')
     },
 }

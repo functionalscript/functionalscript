@@ -943,9 +943,11 @@ export const proof = {
         /** Why the plain stage of a module is refused. @type {(m: Module) => string} */
         const plainWhy = m => assertError(checkPlain(m))
         const p = /** @type {const} */ ([['v', cell], ['b', u(64)]])
-        assertEq(plainWhy(plus(p, cell, seal(cell, get('b')))), 'f: seal of cell: only the lifetime pass seals a counted cell: seal its copy variants, or let the pass copy')
-        assertEq(plainWhy(plus(p, only(cell, 'big'), seal(only(cell, 'big'), get('b')))), 'f: seal of cell.only(big): only the lifetime pass seals a counted cell.only(big): seal its copy variants, or let the pass copy')
-        assertEq(plainWhy(plus(p, cell, seal(cell, call('self', 'dup', [unseal(v)])))), 'f: seal of cell: only the lifetime pass seals a counted cell: seal its copy variants, or let the pass copy')
+        /** Why `f`'s seal of a counted `t` is refused where its bits are of no form that makes no second owner. @type {(t: string) => string} */
+        const unsealedWhy = t => `f: seal of ${t}: a counted ${t} is sealed from a new owner, seal(t, f(…)) or seal(t, or(c, f(…))) where f counts new, or from bits that hold no address, of literals and integers of 16 bits at most joined by or and shl: seal its copy variants, or let the pass copy`
+        assertEq(plainWhy(plus(p, cell, seal(cell, get('b')))), unsealedWhy('cell'))
+        assertEq(plainWhy(plus(p, only(cell, 'big'), seal(only(cell, 'big'), get('b')))), unsealedWhy('cell.only(big)'))
+        assertEq(plainWhy(plus(p, cell, seal(cell, call('self', 'dup', [unseal(v)])))), 'f: seal of cell: only the lifetime pass copies a counted cell, as seal(t, self.dup(unseal(e)))')
         assertEq(plainWhy(plus(p, u(64), call('self', 'dup', [get('b')]))), "f: self.dup: only the lifetime pass calls cell's dup, in seal(t, self.dup(unseal(e)))")
         assertEq(plainWhy(plus(p, unit, call('self', 'drop', [get('b')]))), "f: self.drop: only the lifetime pass calls cell's drop")
         assertEq(plainWhy(plus([own('v', cell)], unit, call('self', 'drop', [release(v)]))), "f: self.drop: only the lifetime pass calls cell's drop")
@@ -959,9 +961,9 @@ export const proof = {
         assertEq(show(assertOk(ownedPlus(p, cell, seal(cell, call('self', 'dup', [unseal(v)])))).functions.at(-1)?.[1].body[0] ?? unit), 'cell')
         assertEq(show(assertOk(ownedPlus(p, only(cell, 'big'), let_('w', match(v, [[['small'], null, trap('small')], [['big'], 'w', get('w')]]), w => seal(only(cell, 'big'), call('self', 'dup', [unseal(w)]))))).functions.at(-1)?.[1].body[0] ?? unit), 'cell.only(big)')
         assertEq(assertOk(ownedPlus([own('v', cell)], unit, call('self', 'drop', [release(v)]))).functions.length, 4)
-        assertEq(assertError(ownedPlus(p, cell, seal(cell, get('b')))), "f: seal of cell: a counted value is sealed only from a copy of its bits, seal(t, self.dup(unseal(e)))")
-        assertEq(assertError(ownedPlus(p, cell, seal(cell, call('self', 'dup', [get('b')])))), "f: seal of cell: a counted value is sealed only from a copy of its bits, seal(t, self.dup(unseal(e)))")
-        assertEq(assertError(ownedPlus(p, cell, seal(cell, call('self', 'tag', [unseal(v)])))), "f: seal of cell: a counted value is sealed only from a copy of its bits, seal(t, self.dup(unseal(e)))")
+        assertEq(assertError(ownedPlus(p, cell, seal(cell, get('b')))), unsealedWhy('cell'))
+        assertEq(assertError(ownedPlus(p, cell, seal(cell, call('self', 'dup', [get('b')])))), 'f: seal of cell: the lifetime pass copies a counted cell from its bits, as seal(t, self.dup(unseal(e)))')
+        assertEq(assertError(ownedPlus(p, cell, seal(cell, unseal(v)))), unsealedWhy('cell'))
         assertEq(assertError(ownedPlus(p, only(cell, 'big'), seal(only(cell, 'big'), call('self', 'dup', [unseal(v)])))), 'f: seal of cell.only(big): the copy is of cell, which cell.only(big) does not hold')
         assertEq(assertError(ownedPlus(p, u(64), call('self', 'dup', [unseal(v)]))), "f: self.dup: only the lifetime pass calls cell's dup, in seal(t, self.dup(unseal(e)))")
         // the pass's form seals only a sealed type that a module may write
@@ -976,6 +978,98 @@ export const proof = {
         assertEq(assertError(ownedPlus(p, cell, seal(cell, call('self', 'dup', [unseal(get('w'))])))), 'f: no local w')
         assertEq(assertError(ownedPlus(p, unit, call('self', 'drop', [release(get('w'))]))), 'f: no local w')
         assertEq(assertError(ownedPlus([own('v', cell)], u(64), release(v))), "f: release: only the lifetime pass releases a value, as the argument of its type's drop")
+    },
+    // A module seals a counted type that it defines from a new owner, straight from the call of a function that
+    // counts new, tagged by a literal or not, and nowhere else takes that call's bits.
+    newOwners: () => {
+        const cell = sealed('C', 'cell')
+        /** An interface whose `fresh` answers a new owner's bits, and whose `plain` answers bits alone. */
+        const cells = /** @type {const} */ (['Cells', {
+            abi: 'test:cells',
+            types: [],
+            functions: [['fresh', countsBits('new', signature([['n', u(8)]], u(32)))], ['plain', signature([['n', u(8)]], u(32))]],
+        }])
+        /** `counting`, importing `cells`, with one more function, `f`, of no parameters. @type {(result: Type, body: Term) => Module} */
+        const plus = (result, body) => ({ ...counting, imports: [cells], functions: [...counting.functions, ['f', fn([], result, () => body)]] })
+        /** `plus`, with only the hooks, in its owned stage. @type {(result: Type, body: Term) => ReturnType<typeof check>} */
+        const owned = (result, body) => check({ ...plus(result, body), functions: [...counting.functions.filter(([k]) => ['tag', 'dup', 'drop'].includes(k)), ['f', fn([], result, () => body)]], exports: [] })
+        const fresh = call('Cells', 'fresh', [n(8n)])
+        const tag = n(0x7FF9_0000_0000_0002n)
+        /** The type of `f`'s body where both stages take it. @type {(body: Term) => string} */
+        const typed = body => {
+            const plain = show(assertOk(checkPlain(plus(cell, body))).functions.at(-1)?.[1].body[0] ?? unit)
+            assertEq(show(assertOk(owned(cell, body)).functions.at(-1)?.[1].body[0] ?? unit), plain)
+            return plain
+        }
+        assertEq(typed(seal(cell, fresh)), 'cell')
+        assertEq(typed(seal(cell, or(tag, fresh))), 'cell')
+        assertEq(typed(seal(only(cell, 'big'), or(tag, fresh))), 'cell.only(big)')
+        // its bits go straight into the seal, and nowhere else
+        /** Why the plain stage of `f` is refused. @type {(result: Type, body: Term) => string} */
+        const why = (result, body) => assertError(checkPlain(plus(result, body)))
+        const taken = 'f: Cells.fresh counts new, so only a seal of a counted type that the module defines takes its bits, as seal(t, Cells.fresh(…)) or seal(t, or(c, Cells.fresh(…)))'
+        assertEq(why(u(32), fresh), taken)
+        assertEq(why(cell, let_('p', fresh, p => seal(cell, p))), taken)
+        assertEq(why(cell, seal(cell, or(fresh, tag))), taken)
+        assertEq(why(cell, seal(cell, or(n(0n), or(tag, fresh)))), taken)
+        assertEq(why(cell, seal(cell, add(tag, fresh))), taken)
+        assertEq(why(only(cell, 'small'), seal(only(cell, 'small'), fresh)), taken)
+        assertEq(assertError(owned(u(32), fresh)), taken)
+        // the call and its tag are typed as any are
+        assertEq(why(cell, seal(cell, call('Cells', 'fresh', [n(256n)]))), "f: Cells.fresh's n is u(8), not int(256, 256)")
+        assertEq(why(cell, seal(cell, or(lit(f64, 1.5), fresh))), 'f: or of f64 and u(32): the operands are integers or floats, not both')
+        assertEq(why(cell, seal(cell, or(lit(int(0n, 1n << 64n), 0n), fresh))), 'f: int(0, 18446744073709551616) needs more than one word')
+        // bits alone are no new owner
+        assertEq(why(cell, seal(cell, call('Cells', 'plain', [n(8n)]))), 'f: seal of cell: a counted cell is sealed from a new owner, seal(t, f(…)) or seal(t, or(c, f(…))) where f counts new, or from bits that hold no address, of literals and integers of 16 bits at most joined by or and shl: seal its copy variants, or let the pass copy')
+        // a seal takes one operand
+        assertEq(why(cell, ['op', 'seal', [tag, fresh], cell]), 'f: seal takes one operand, not 2')
+        // a function that counts new answers one word of bits and does not fail, and its names count alike
+        /** `plus(cell, seal(cell, fresh))` with `fresh` of signature `s`. @type {(s: Signature) => Module} */
+        const signed = s => ({ ...plus(cell, seal(cell, fresh)), imports: [['Cells', { ...cells[1], functions: [['fresh', s]] }]] })
+        const answers = 'Cells: fresh counts new, so it answers one word of bits, u(64) or u(32), and does not fail'
+        assertEq(show(assertOk(checkPlain(signed(countsBits('new', signature([['n', u(8)]], u(64)))))).functions.at(-1)?.[1].body[0] ?? unit), 'cell')
+        assertEq(assertError(checkPlain(signed(countsBits('new', signature([['n', u(8)]], f64))))), answers)
+        assertEq(assertError(checkPlain(signed(countsBits('new', signature([['n', u(8)]], u(16)))))), answers)
+        assertEq(assertError(checkPlain(signed(mayFail(countsBits('new', signature([['n', u(8)]], u(32))))))), answers)
+        assertEq(assertError(checkPlain({ ...plus(cell, seal(cell, fresh)), imports: [cells, ['Alias', { abi: 'test:cells', types: [], functions: [['fresh', signature([['n', u(8)]], u(32))]] }]] })),
+            'the functions Cells.fresh, which counts new, and Alias.fresh, which counts nothing, are both the import fresh of test:cells, and its names count on bits alike')
+    },
+    // A module seals a counted type that it defines from bits that hold no address: literals, and integers of 16 bits
+    // at most, joined by or and shl, as a short box's tag and units are.
+    addressless: () => {
+        const cell = sealed('C', 'cell')
+        /** `counting` with one more function, `f`, of the parameters `v`, `b`, `c` and `d`. @type {(body: Term) => Module} */
+        const plus = body => ({
+            ...counting,
+            functions: [...counting.functions, ['f', fn([['v', cell], ['b', u(64)], ['c', u(16)], ['d', int(-1n, 0n)], ['w', u(17)]], cell, () => body)]],
+        })
+        /** `plus`, with only the hooks, in its owned stage. @type {(body: Term) => ReturnType<typeof check>} */
+        const owned = body => check({ ...plus(body), functions: [...counting.functions.filter(([k]) => ['tag', 'dup', 'drop'].includes(k)), ...plus(body).functions.slice(-1)], exports: [] })
+        const [b, c] = [get('b'), get('c')]
+        const box = n(0x7FF0_0000_0000_0018n)
+        /** Whether both stages take `f`'s seal. @type {(body: Term) => boolean} */
+        const takes = body => checkPlain(plus(body))[0] === 'ok' && owned(body)[0] === 'ok'
+        assertEq(takes(seal(cell, box)), true)
+        assertEq(takes(seal(cell, or(box, shl(c, n(8n))))), true)
+        assertEq(takes(seal(cell, or(or(box, shl(c, n(8n))), shl(c, n(24n))))), true)
+        assertEq(takes(seal(cell, or(box, shl(and(shr(b, n(8n)), n(0xFFFFn)), n(8n))))), true)
+        assertEq(takes(seal(cell, and(b, n(0xFFFFn)))), true)
+        assertEq(takes(seal(cell, c)), true)
+        // a wider integer, a negative one, a value's bits and any other op may hold an address
+        /** Why the plain stage of `f` is refused. @type {(body: Term) => string} */
+        const why = body => assertError(checkPlain(plus(body)))
+        const refused = 'f: seal of cell: a counted cell is sealed from a new owner, seal(t, f(…)) or seal(t, or(c, f(…))) where f counts new, or from bits that hold no address, of literals and integers of 16 bits at most joined by or and shl: seal its copy variants, or let the pass copy'
+        assertEq(why(seal(cell, get('w'))), refused)
+        assertEq(why(seal(cell, get('d'))), refused)
+        assertEq(why(seal(cell, b)), refused)
+        assertEq(why(seal(cell, or(box, b))), refused)
+        assertEq(why(seal(cell, or(box, unseal(get('v'))))), refused)
+        assertEq(why(seal(cell, add(c, n(1n)))), refused)
+        assertEq(why(seal(cell, xor(box, shl(c, n(8n))))), refused)
+        assertEq(assertError(owned(seal(cell, or(box, b)))), refused)
+        // the bits are its carrier's, and typed as any are
+        assertEq(why(seal(cell, n(-1n))), 'f: seal of int(-1, -1): cell is made of u(64)')
+        assertEq(why(seal(cell, get('x'))), 'f: no local x')
     },
     // Only a hook of a counted type that the module defines calls a function that counts on bits, and only as its last term.
     refs: () => {

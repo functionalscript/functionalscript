@@ -18,7 +18,7 @@ heap.md now follows this note.
 
 | # | Choice | Chosen | Why |
 | --- | --- | --- | --- |
-| 1 | Whether NaNVM holds references into the IR heap | A: no; the IR copies an IR string as it crosses | no Rust change, no counting across modules, nothing that a recount could miss |
+| 1 | Whether NaNVM holds references into the IR heap | A: no; the IR copies an IR string as it crosses | one small Rust change, no counting across modules, nothing that a recount could miss |
 | 2 | Which long strings live in the IR heap | A: the results of the IR's own `concat` and `substring` | NaNVM's strings stay where they are until containers move |
 | 3 | The box of a reference into the IR heap | A: a kind nibble of its own, 9 for a string | NaNVM's handles and heap.md's 16-bit tags keep every bit they have |
 | 4 | A long string's block | A: a length word, then the units | 4 bytes before the units; the type byte leaves room for other forms |
@@ -70,7 +70,7 @@ box into a string of its own.
 
 | Option | Where an IR string crosses | For | Against |
 | --- | --- | --- | --- |
-| A. The IR copies it (chosen) | a link step wraps each crossing: a long IR string becomes a NaNVM string through NaNVM's `make_string` over its units, and the IR drops its own reference | no Rust change; NaNVM and both hosts never see an IR box; no counting across modules, so no recount can miss a reference | a copy for each long string that crosses, and a test of the box at each crossing |
+| A. The IR copies it (chosen) | a link step wraps each crossing: a long IR string becomes a NaNVM string through NaNVM's `make_string` over its units, and the IR drops its own reference | one small Rust change, `make_string` reading any bytes of the memory; NaNVM and both hosts never see an IR box; no counting across modules, so no recount can miss a reference | a copy for each long string that crosses, and a test of the box at each crossing |
 | B. NaNVM copies it | NaNVM's `unbox` reads the string's block from the memory, as it decodes a short box, and a function that owns its argument drops the IR reference through the heap's exports in the loader's table | the decoding is one place in Rust | Rust learns the block's layout and the heap's exports, and the debug drop is an indirect call |
 | C. NaNVM keeps the reference | NaNVM stores the box; in debug it counts it through the heap's `dup` and `drop` in the loader's table, and releases it on its own drop | no copy | a new kind of value in NaNVM; the recount must root NaNVM's references or wait; all of it is Rust that step 5 removes again |
 
@@ -242,13 +242,19 @@ and nothing links by default before H3d's numbers.
    `substring`, `length` and `unit` over flat blocks, with a short box
    where one fits and choice 2's mixed path. Proofs: a FunctionalScript
    model of strings against the IR on the host, on both arenas, with
-   `live()` back where `init` left it after each debug proof.
+   `live()` back where `init` left it after each debug proof. The mixed
+   path copies an IR string into NaNVM as the crossing will, so H3b
+   brings the import of `make_string` at the low level, L0's `Units`,
+   and NaNVM's `make_string`, which took only bytes of a region that
+   `reserve` gave, now reads any bytes of the memory, since an IR block
+   is no such region (the owner's choice, 2026-11-28). Writes into the
+   memory, as `read_units` makes, still need a reserved region.
 3. **H3c, the crossing.** A link step wraps each L0 function and L1 native
    that takes an `any` or a string, the result of each function with a code
    index, and `init`'s result: a long IR string becomes a NaNVM string
-   through `make_string`, and the IR drops its reference. `make_string`,
-   which only the emitter calls today, for literals, becomes an import that
-   the crossing calls at the low level, where an address is a value.
+   through `make_string`, and the IR drops its reference, through
+   H3b's `Units.make_string`, an import at the low level, where an
+   address is a value.
    Proofs: NaNVM and the counting host both refuse an IR box, so every
    program proof shows that none crosses.
 4. **H3d, link and measure.** `linkHeap` after `linkAny` and `linkString`,

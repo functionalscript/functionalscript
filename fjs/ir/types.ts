@@ -202,14 +202,18 @@ export type Param = readonly [name: string, type: Type, mode?: 'own']
  * new owner, and `drop` gives one up. Bits are copy, so the owned check
  * cannot follow them: only the hook of that name of a counted type that the
  * module defines calls such a function, and only as its last term
- * ([defined-hooks.md](../../doc/sasha-gil/ir/defined-hooks.md)).
+ * ([defined-hooks.md](../../doc/sasha-gil/ir/defined-hooks.md)). `new`
+ * answers the bits of a value that no one owns yet, as the Heap's `alloc`
+ * answers a new block, so only a `seal` of a counted type that the module
+ * defines takes them, straight from the call, and the owned check follows
+ * the value from there.
  */
 export type Signature = {
     readonly params: readonly Param[]
     readonly result: Type
     readonly returns?: string
     readonly fails?: boolean
-    readonly counts?: 'dup' | 'drop'
+    readonly counts?: 'dup' | 'drop' | 'new'
 }
 
 /**

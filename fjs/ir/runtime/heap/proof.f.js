@@ -46,14 +46,19 @@ export const proof = {
         assertEq(debugIface.abi, iface.abi)
     },
     // Each export has the signature that its interface gives it: `live` takes nothing and answers a `u(32)`, and
-    // `type_of` takes an address and answers a type.
+    // `type_of` takes an address and answers a type. `alloc` alone counts on bits: it answers a new owner.
     signatures: () => {
+        /** How each function of an interface counts on bits, `-` for nothing. @type {(i: typeof iface) => string} */
+        const countsOf = i => i.functions.map(([k, { counts }]) => `${k}: ${counts ?? '-'}`).join(', ')
         for (const [m, face] of /** @type {const} */ ([[module, iface], [counted, debugIface]])) {
             for (const [name, { params, result }] of face.functions) {
                 const [, f] = assertNotNullish(m.functions.find(([k]) => k === name))
                 assertEq(equal(f.params, params) && equal(f.result, result), true)
             }
         }
+        // `alloc` answers a new owner's address, which only a seal takes, and nothing else counts on bits
+        assertEq(countsOf(iface), 'alloc: new, dup: -, drop: -, free: -')
+        assertEq(countsOf(debugIface), 'alloc: new, dup: -, drop: -, free: -, live: -, type_of: -')
         const [, live] = assertNotNullish(debugIface.functions.find(([k]) => k === 'live'))
         assertEq(live.params.length === 0 && equal(live.result, u(32)), true)
         const [, typeOf] = assertNotNullish(debugIface.functions.find(([k]) => k === 'type_of'))

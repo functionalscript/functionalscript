@@ -158,6 +158,21 @@ const storeThenLoad = (bits, read) => (o, v) => let_('end', memoryOf('size', [])
         let_('a', add(mul(and(end, n(0xFFFFn)), n(0x1_0000n)), o), a =>
             let_('stored', memoryOf(`store${bits}`, [a, v]), () => memoryOf(`load${read}`, [a])))))
 
+/**
+ * A store of 64 bits of `v` at offset `o` of a page that the call grows for
+ * itself, as {@link storeThenLoad} does, then a `copy` of those 8 bytes to 4
+ * bytes on, over half of them, then a load of the 8 bytes that it wrote. The
+ * mask keeps the second address a `u(32)`.
+ *
+ * @type {(o: Term, v: Term) => Term}
+ */
+const copyThenLoad = (o, v) => let_('end', memoryOf('size', []), end =>
+    let_('grown', memoryOf('grow', [n(1n)]), () =>
+        let_('a', add(mul(and(end, n(0xFFFFn)), n(0x1_0000n)), o), a =>
+            let_('b', and(add(a, n(4n)), n(0xFFFF_FFFFn)), b =>
+                let_('stored', memoryOf('store64', [a, v]), () =>
+                    let_('copied', memoryOf('copy', [b, a, n(8n)]), () => memoryOf('load64', [b])))))))
+
 /** A size of the memory in pages of 64 KiB, as `Memory` answers one. */
 const pages = int(0n, 0x1_0000n)
 
@@ -165,7 +180,9 @@ const pages = int(0n, 0x1_0000n)
  * L0's `Memory`, alone, on any host's memory: a store of each width and a
  * load of the same width at the same offset of a page that the call grows,
  * which answers what was stored; a load of 16 bits of 64 that were stored,
- * which answers their low 16 bits, since the low byte comes first; what a
+ * which answers their low 16 bits, since the low byte comes first; a copy
+ * of 8 stored bytes over half of themselves, whose load answers what was
+ * stored, since a copy writes the bytes as they were before it; what a
  * `grow` answers, the size before it, less the size that `size` answered
  * just before, so 0, or `-1` where the host refuses; and how much a `grow`
  * changes the size. A host decides how large its memory starts, so only
@@ -182,12 +199,13 @@ export const addressing = {
         ['stored32', fn([['o', u(16)], ['v', u(32)]], u(32), storeThenLoad(32, 32))],
         ['stored64', fn([['o', u(16)], ['v', u(64)]], u(64), storeThenLoad(64, 64))],
         ['lowFirst', fn([['o', u(16)], ['v', u(64)]], u(16), storeThenLoad(64, 16))],
+        ['copied', fn([['o', u(16)], ['v', u(64)]], u(64), copyThenLoad)],
         ['grown', fn([['k', pages]], int(-0x1_0001n, 0x1_0000n), k => let_('before', memoryOf('size', []), before =>
             let_('g', memoryOf('grow', [k]), g => if_(eq(g, n(-1n)), n(-1n), sub(g, before)))))],
         ['after', fn([['k', pages]], int(-0x1_0000n, 0x1_0000n), k => let_('before', memoryOf('size', []), before =>
             let_('grown', memoryOf('grow', [k]), () => sub(memoryOf('size', []), before))))],
     ],
-    exports: ['stored8', 'stored16', 'stored32', 'stored64', 'lowFirst', 'grown', 'after'],
+    exports: ['stored8', 'stored16', 'stored32', 'stored64', 'lowFirst', 'copied', 'grown', 'after'],
 }
 
 /**

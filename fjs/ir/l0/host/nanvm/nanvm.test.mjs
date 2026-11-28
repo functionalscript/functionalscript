@@ -2,9 +2,10 @@
  * The emitter's host proofs again, each module run on NaNVM's `.wasm`
  * through the [NaNVM host](./module.mjs) in place of the counting host
  * ([slice 12](../../../todo/slices.md)): the WebAssembly proofs, the
- * lifetime pass's, the FAST lowering's, the random programs, and those of
+ * lifetime pass's, the FAST lowering's, the random programs, those of
  * Any's variants that know the IR heap, whose arena then has a memory of
- * its own beside NaNVM's. A proof
+ * its own beside NaNVM's, and those of String's module that knows it,
+ * whose arena then grows NaNVM's own memory. A proof
  * that runs no module runs once more on the counting host, as it is.
  * L1's native rows run in NaNVM's Rust too, and are compared with
  * JavaScript on random floats, texts and bigints
@@ -37,6 +38,7 @@ import { proof as fromFast } from '../../../from_fast/proof.mjs'
 import { proof as random } from '../../../from_fast/random/proof.mjs'
 import { proof as lifetime } from '../../../lifetime/proof.mjs'
 import { proof as anyOnHeap } from '../../../runtime/any/proof.mjs'
+import { proof as stringOnHeap } from '../../../runtime/string/heap.proof.mjs'
 import { referencing, sealing } from '../../../testlib.f.js'
 import { write } from '../../../../media/wasm/binary/write/module.f.js'
 import { check } from '../../../check/module.f.js'
@@ -54,7 +56,7 @@ const path = new URL('../../../../../target/wasm32-unknown-unknown/release/nanvm
 const host = nanvmHost(new WebAssembly.Module(readFileSync(path)))
 
 /** @type {readonly (readonly [string, Readonly<Record<string, unknown>>])[]} */
-const suites = [['wasm', wasm], ['lifetime', lifetime], ['from_fast', fromFast], ['random', random], ['any', anyOnHeap]]
+const suites = [['wasm', wasm], ['lifetime', lifetime], ['from_fast', fromFast], ['random', random], ['any', anyOnHeap], ['string', stringOnHeap]]
 
 let ran = 0
 for (const [name, proofs] of suites) {

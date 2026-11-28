@@ -275,6 +275,7 @@ const twins = {
     stored32: ([, v]) => v,
     stored64: ([, v]) => v,
     lowFirst: ([, v]) => int(v) & 0xffffn,
+    copied: ([, v]) => v,
     grown: ([k]) => grows(k) ? 0n : -1n,
     after: ([k]) => grows(k) ? int(k) : 0n,
     fitted: ([a, b]) => int(a) + int(b) <= 0xFFFF_FFFFn ? int(a) + int(b) : 0n,
@@ -345,6 +346,7 @@ const inputs = {
     stored32: product([offsets(4n), edges(u(32))]),
     stored64: product([offsets(8n), edges(u(64))]),
     lowFirst: product([offsets(8n), edges(u(64))]),
+    copied: product([offsets(12n), edges(u(64))]),
     low: each([0n, 1n, 0xFFFF_FFFFn, 0x1_0000_0000n, 0x1_0000_0001n, 0xFFFF_FFFF_FFFF_FFFFn]),
     withinFive: each([-(1n << 63n), -6n, -5n, -4n, 0n, 4n, 5n, 6n, (1n << 63n) - 1n]),
     grown: growths,
@@ -357,8 +359,8 @@ export const proof = {
     // The bit operators and a float's bits, on the edges of their types.
     bits: () => run(bits, twins, inputs),
     // L0's Memory on the memory that either host makes, NaNVM's too: a load reads what a store wrote, of each width,
-    // the low byte first, at an offset that is not aligned too, in a page that each call grows for itself, and `grow`
-    // adds pages up to the most that an address reaches.
+    // the low byte first, at an offset that is not aligned too, in a page that each call grows for itself, a copy over
+    // half of its own bytes writes them as they were, and `grow` adds pages up to the most that an address reaches.
     addressing: () => run(addressing, twins, inputs),
     // A local that a comparison narrows is read in the narrower word: an i64 that fits 32 bits is wrapped.
     narrowing: () => run(narrowing, twins, inputs),

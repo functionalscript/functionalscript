@@ -79,9 +79,15 @@ type's carrier bits. All three are refused in any other module, with
   stop being one is written by the pass, in the two forms of
   [the table below](#what-the-lifetime-pass-writes), or is in a hook.
   Any's 4d-2 functions (`from_f64`, `from_bool`, the constants) seal
-  only copy variants. A later slice whose functions make new references
-  (a string from NaNVM, say) widens this rule with its own form, such as
-  `seal(t, Ref.new_…(…))` taken straight from the call's result.
+  only copy variants. H3b widens the rule with two forms of a `seal` of
+  a counted type that the module defines. One is a new owner,
+  `seal(t, f(…))` or `seal(t, or(c, f(…)))` with `c` a literal, where
+  `f`'s signature says `counts: 'new'`, as the Heap's `alloc` does: its
+  bits are a value that no one owns yet, a call of it anywhere else is
+  refused, and the owned check follows the sealed value from there. The
+  other is bits that hold no address: literals and integers of 16 bits
+  at most joined by `or` and `shl`, as a short string's box is made of
+  its units (the owner's choice, 2026-11-28).
 - All three emit no instruction: the value and its bits are one WASM
   value. So the wrapping in the pass costs nothing at run time.
 

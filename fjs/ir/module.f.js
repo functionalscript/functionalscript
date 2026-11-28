@@ -367,11 +367,11 @@ export const signature = (params, result, returns) => returns === undefined ? { 
 export const mayFail = s => ({ ...s, fails: true })
 
 /**
- * A signature of an interface's function that counts a value on its bits,
+ * A signature of an interface's function that counts a value on its bits:
  * `dup` or `drop`, which only that hook of a counted type that the module
- * defines calls.
+ * defines calls, or `new`, whose bits only a `seal` of such a type takes.
  *
- * @type {(counts: 'dup' | 'drop', s: Signature) => Signature}
+ * @type {(counts: 'dup' | 'drop' | 'new', s: Signature) => Signature}
  */
 export const countsBits = (counts, s) => ({ ...s, counts })
 

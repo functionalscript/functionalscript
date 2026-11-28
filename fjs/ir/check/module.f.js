@@ -70,7 +70,7 @@
  *
  * @import { Result } from '../../types/result/types.ts'
  * @import { OrderedMap } from '../../types/ordered_map/types.ts'
- * @import { ArmOf, Checked, CheckedFn, Code, ConstantOf, FunctionOf, Int, Interface, Module, OpName, Param, Product, Scope, Sealed, SealedDef, Signature, Term, Type, Typed, TypedTerm } from '../types.ts'
+ * @import { ArmOf, Call, Checked, CheckedFn, Code, ConstantOf, FunctionOf, Int, Interface, Module, OpName, Param, Product, Scope, Sealed, SealedDef, Signature, Term, Type, Typed, TypedTerm } from '../types.ts'
  * @import { _CheckTerm, _Env, _Join, _Label } from './private.ts'
  */
 
@@ -539,32 +539,33 @@ const value = (checkTerm, env, t) => {
 /** @type {(checkTerm: _CheckTerm, env: _Env, ts: readonly Term[]) => Result<readonly Typed[], string>} */
 const values = (checkTerm, env, ts) => okList(ts.map(t => value(checkTerm, env, t)))
 
+/** The most that an integer of the bits of a seal may hold: 16 bits, which hold no address. */
+const unitMost = 0xFFFFn
+
 /**
- * `seal(t, self.dup(unseal(e)))`, the copy of `e` that the lifetime pass
- * writes for a counted type `t` that the module defines, typed, or why the
- * module may not write the `seal`: only the owned stage has it, and only
- * in that form, where `e` is a value of `t`.
+ * Whether typed bits hold no address, so that a seal of them makes no
+ * second owner of a value: an integer of 16 bits at most, a literal, or an
+ * `or` or a `shl` of such bits, as a short box's tag and units are.
  *
- * @type {(checkTerm: _CheckTerm, env: _Env, target: Sealed, dup: string, xs: readonly Term[]) => Result<Typed, string>}
+ * @type {(x: Typed) => boolean}
  */
-const sealCopy = (checkTerm, env, target, dup, xs) => {
-    /** @type {(message: string) => Result<Typed, string>} */
-    const no = message => error(`${assertNotNullish(entry(env, 'name'))}: ${message}`)
-    // The target is a sealed type that a module may write before the pass's form is looked for.
-    const bad = unsealed(env, target)
-    if (bad !== null) { return no(bad) }
-    if (!env.owned) { return no(`seal of ${show(target)}: only the lifetime pass seals a counted ${show(target)}: seal its copy variants, or let the pass copy`) }
-    const [x] = xs
-    const inner = xs.length === 1 && x[0] === 'call' && x[1] === 'self' && x[2] === dup && x[3].length === 1 ? x[3][0] : undefined
-    if (inner === undefined || inner[0] !== 'op' || inner[1] !== 'unseal' || inner[2].length !== 1) {
-        return no(`seal of ${show(target)}: a counted value is sealed only from a copy of its bits, seal(t, self.${dup}(unseal(e)))`)
-    }
-    const v = value(checkTerm, env, inner[2][0])
-    if (v[0] === 'error') { return v }
-    const [of] = v[1]
-    if (!sub(env, of, target)) { return no(`seal of ${show(target)}: the copy is of ${show(of)}, which ${show(target)} does not hold`) }
-    const bits = carrierBits(env, target)
-    return ok([target, ['op', 'seal', [[bits, ['call', 'self', dup, [[bits, ['op', 'unseal', [v[1]]]]]]]]]])
+const addressless = ([type, t]) => (type[0] === 'int' && 0n <= type[1] && type[2] <= unitMost)
+    || t[0] === 'lit'
+    || (t[0] === 'op' && (t[1] === 'or' || t[1] === 'shl') && t[2].every(addressless))
+
+/**
+ * The call that the operand of a seal takes a new owner from, and the
+ * literal that tags its bits, or `null` where the operand is neither
+ * `f(…)` nor `or(c, f(…))` for a literal `c` and a function `f` that
+ * counts `new`.
+ *
+ * @type {(env: _Env, x: Term) => readonly [Term | null, Call] | null}
+ */
+const newOwner = (env, x) => {
+    const [tag, tagged] = x[0] === 'op' && x[1] === 'or' && x[2].length === 2 && x[2][0][0] === 'lit' ? x[2] : [null, x]
+    if (tagged[0] !== 'call') { return null }
+    const f = callee(env, tagged[1], tagged[2])
+    return f[0] === 'ok' && f[1].counts === 'new' ? [tag, tagged] : null
 }
 
 /**
@@ -591,6 +592,114 @@ const releaseDrop = (checkTerm, env, type, drop, xs) => {
     const bits = carrierBits(env, of)
     return ok([unit, ['call', 'self', drop, [[bits, ['op', 'release', [v[1]]]]]]])
 }
+
+/**
+ * A `call` of `module.name` on `xs`, typed, or why the module may not write
+ * it. A function that counts on bits is called only where its count is
+ * kept: `dup` and `drop` only in the body of the hook of their name of a
+ * counted type that the module defines, not in a constant of the hook's
+ * name, and `new` only where `made` says, straight under the seal that
+ * takes its bits ({@link sealCounted}).
+ *
+ * @type {(checkTerm: _CheckTerm, env: _Env, module: string, name: string, xs: readonly Term[], made: boolean) => Result<Typed, string>}
+ */
+const callTerm = (checkTerm, env, module, name, xs, made) => {
+    const functionName = assertNotNullish(entry(env, 'name'))
+    /** @type {(message: string) => Result<Typed, string>} */
+    const no = message => error(`${functionName}: ${message}`)
+    // Only the lifetime pass calls the dup and the drop of a counted type that the module defines.
+    const hook = module === 'self' ? hooked(env).find(([, { dup, drop }]) => dup === name || drop === name) : undefined
+    if (hook !== undefined) {
+        const [type, { drop }] = hook
+        return drop === name ? releaseDrop(checkTerm, env, type, name, xs)
+            : no(`self.${name}: only the lifetime pass calls ${show(['sealed', assertNotNullish(env.own), type, null])}'s dup, in seal(t, self.${name}(unseal(e)))`)
+    }
+    const f = callee(env, module, name)
+    if (f[0] === 'error') { return no(f[1]) }
+    const { params, result, counts } = f[1]
+    const full = module === 'self' ? name : `${module}.${name}`
+    // A new owner's bits go straight into the seal that takes them.
+    if (counts === 'new' && !made) {
+        return no(`${full} counts new, so only a seal of a counted type that the module defines takes its bits, as seal(t, ${full}(…)) or seal(t, or(c, ${full}(…)))`)
+    }
+    // A function that counts on bits is called only in the body of the hook of its name of a counted type that the module defines, not in a constant of the hook's name.
+    if ((counts === 'dup' || counts === 'drop') && !(env.body && hooked(env).some(([, d]) => (counts === 'dup' ? d.dup : d.drop) === functionName))) {
+        return no(`${full} counts a value on its bits, so only the ${counts} of a counted type that the module defines calls it`)
+    }
+    if (xs.length !== params.length) { return no(`${full} takes ${count(params.length, 'argument')}, not ${xs.length}`) }
+    const args = values(checkTerm, env, xs)
+    if (args[0] === 'error') { return args }
+    const wrong = args[1].findIndex(([x], k) => !sub(env, x, params[Number(k)][1]))
+    if (wrong >= 0) {
+        return no(`${full}'s ${params[Number(wrong)][0]} is ${show(params[Number(wrong)][1])}, not ${show(args[1][Number(wrong)][0])}`)
+    }
+    // a `dup` answers the type of its argument, so a refined value stays refined
+    const iface = at(module === 'self' ? env.own ?? 'self' : module)(env.imports)
+    const isDup = iface !== null && iface.types.some(([, d]) => d.dup === name)
+    return ok([isDup ? args[1][0][0] : result, ['call', module, name, args[1]]])
+}
+
+/**
+ * A `seal` of a counted type `t` that the module defines, of a value that
+ * may hold a counted variant, typed, or why the module may not write it.
+ * Bits carry no ownership, so the checker takes the three forms in which
+ * the bits make no second owner of a value
+ * ([defined-hooks.md](../../../doc/sasha-gil/ir/defined-hooks.md#the-hooks)):
+ *
+ * - **a new owner**, the bits that a function that counts `new` answers,
+ *   straight from its call, as `seal(t, f(…))`, or `seal(t, or(c, f(…)))`
+ *   where a literal `c` tags them;
+ * - **bits that hold no address**: literals, and integers of 16 bits at
+ *   most, joined by `or` and `shl`, as a short box's tag and units are;
+ * - **a copy**, `seal(t, self.dup(unseal(e)))` for a value `e` of `t`,
+ *   which only the lifetime pass writes, so only the owned stage has it.
+ *
+ * @type {(checkTerm: _CheckTerm, env: _Env, target: Sealed, dup: string, xs: readonly Term[]) => Result<Typed, string>}
+ */
+const sealCounted = (checkTerm, env, target, dup, xs) => {
+    /** @type {(message: string) => Result<Typed, string>} */
+    const no = message => error(`${assertNotNullish(entry(env, 'name'))}: ${message}`)
+    // The target is a sealed type that a module may write before a form is looked for.
+    const bad = unsealed(env, target)
+    if (bad !== null) { return no(bad) }
+    if (xs.length !== 1) { return no(`seal takes one operand, not ${xs.length}`) }
+    const [x] = xs
+    const bits = carrierBits(env, target)
+    /** The seal of typed bits, which the carrier's bits hold. @type {(b: Typed) => Result<Typed, string>} */
+    const sealOf = b => sub(env, b[0], bits) ? ok([target, ['op', 'seal', [b]]]) : no(`seal of ${show(b[0])}: ${show(target)} is made of ${show(bits)}`)
+    // a new owner, straight from its call
+    const made = newOwner(env, x)
+    if (made !== null) {
+        const [tag, [, module, name, args]] = made
+        const c = callTerm(checkTerm, env, module, name, args, true)
+        if (c[0] === 'error') { return c }
+        if (tag === null) { return sealOf(c[1]) }
+        const l = value(checkTerm, env, tag)
+        if (l[0] === 'error') { return l }
+        const type = opType('or', [l[1][0], c[1][0]])
+        return type[0] === 'error' ? no(type[1]) : sealOf([type[1], ['op', 'or', [l[1], c[1]]]])
+    }
+    // the pass's copy
+    const inner = x[0] === 'call' && x[1] === 'self' && x[2] === dup && x[3].length === 1 ? x[3][0] : undefined
+    if (inner !== undefined) {
+        if (!env.owned) { return no(`seal of ${show(target)}: only the lifetime pass copies a counted ${show(target)}, as seal(t, self.${dup}(unseal(e)))`) }
+        if (inner[0] !== 'op' || inner[1] !== 'unseal' || inner[2].length !== 1) {
+            return no(`seal of ${show(target)}: the lifetime pass copies a counted ${show(target)} from its bits, as seal(t, self.${dup}(unseal(e)))`)
+        }
+        const v = value(checkTerm, env, inner[2][0])
+        if (v[0] === 'error') { return v }
+        const [of] = v[1]
+        if (!sub(env, of, target)) { return no(`seal of ${show(target)}: the copy is of ${show(of)}, which ${show(target)} does not hold`) }
+        return ok([target, ['op', 'seal', [[bits, ['call', 'self', dup, [[bits, ['op', 'unseal', [v[1]]]]]]]]]])
+    }
+    // bits that hold no address
+    const b = value(checkTerm, env, x)
+    if (b[0] === 'error') { return b }
+    return addressless(b[1]) ? sealOf(b[1])
+        : no(`seal of ${show(target)}: a counted ${show(target)} is sealed from a new owner, seal(t, f(…)) or seal(t, or(c, f(…))) where f counts new, or from bits that hold no address, of literals and integers of 16 bits at most joined by or and shl: seal its copy variants, or let the pass copy`)
+}
+
+
 
 /** A label bound to what it names. @type {(label: string, l: _Label) => (labels: OrderedMap<_Label>) => OrderedMap<_Label>} */
 const label_ = (label, l) => setReplace(label)(l)
@@ -683,7 +792,7 @@ const term = (env, t) => {
             if (name === 'release') { return no(`release: only the lifetime pass releases a value, as the argument of its type's drop`) }
             const dup = name === 'seal' && target?.[0] === 'sealed' ? dupHook(env, target) : null
             if (dup !== null) {
-                return sealCopy(term, env, /** @type {Sealed} */ (target), dup, xs)
+                return sealCounted(term, env, /** @type {Sealed} */ (target), dup, xs)
             }
             const args = values(term, env, xs)
             if (args[0] === 'error') { return args }
@@ -695,36 +804,7 @@ const term = (env, t) => {
                 : opType(name, types)
             return type[0] === 'error' ? no(type[1]) : ok([type[1], ['op', name, args[1]]])
         }
-        case 'call': {
-            const [, module, name, xs] = t
-            // Only the lifetime pass calls the dup and the drop of a counted type that the module defines.
-            const hook = module === 'self' ? hooked(env).find(([, { dup, drop }]) => dup === name || drop === name) : undefined
-            if (hook !== undefined) {
-                const [type, { drop }] = hook
-                return drop === name ? releaseDrop(term, env, type, name, xs)
-                    : no(`self.${name}: only the lifetime pass calls ${show(['sealed', assertNotNullish(env.own), type, null])}'s dup, in seal(t, self.${name}(unseal(e)))`)
-            }
-            const f = callee(env, module, name)
-            if (f[0] === 'error') { return no(f[1]) }
-            const { params, result } = f[1]
-            const full = module === 'self' ? name : `${module}.${name}`
-            // A function that counts on bits is called only in the body of the hook of its name of a counted type that the module defines, not in a constant of the hook's name.
-            const { counts } = f[1]
-            if (counts !== undefined && !(env.body && hooked(env).some(([, d]) => (counts === 'dup' ? d.dup : d.drop) === functionName))) {
-                return no(`${full} counts a value on its bits, so only the ${counts} of a counted type that the module defines calls it`)
-            }
-            if (xs.length !== params.length) { return no(`${full} takes ${count(params.length, 'argument')}, not ${xs.length}`) }
-            const args = values(term, env, xs)
-            if (args[0] === 'error') { return args }
-            const wrong = args[1].findIndex(([x], k) => !sub(env, x, params[Number(k)][1]))
-            if (wrong >= 0) {
-                return no(`${full}'s ${params[Number(wrong)][0]} is ${show(params[Number(wrong)][1])}, not ${show(args[1][Number(wrong)][0])}`)
-            }
-            // a `dup` answers the type of its argument, so a refined value stays refined
-            const iface = at(module === 'self' ? env.own ?? 'self' : module)(env.imports)
-            const isDup = iface !== null && iface.types.some(([, d]) => d.dup === name)
-            return ok([isDup ? args[1][0][0] : result, ['call', module, name, args[1]]])
-        }
+        case 'call': { return callTerm(term, env, t[1], t[2], t[3], false) }
         case 'code': {
             // A hook is the lifetime pass's to call, so no code value names one.
             const hook = hooked(env).find(([, { dup, drop }]) => dup === t[1] || drop === t[1])
@@ -964,12 +1044,14 @@ const checkInterface = imports => ([name, iface]) => {
     const silent = functions.find(([, { result, fails }]) => isNever(result) && fails !== true)
     // A function that counts on bits takes one word of them, once, so that its hook gives each up at most once; bits are borrowed, since `unsigned` refuses to own them.
     const miscounting = functions.find(([, { params, result, fails, counts }]) => {
-        if (counts === undefined) { return false }
+        if (counts === undefined || counts === 'new') { return false }
         const bits = params[0]?.[1]
         const word = bits !== undefined && (equal(bits, u(64)) || equal(bits, u(32)))
         const answers = counts === 'dup' ? bits !== undefined && equal(result, bits) : counts === 'drop' ? equal(result, unit) : false
         return !(params.length === 1 && word && answers && fails !== true)
     })
+    // A function that counts new answers one word of bits, which a seal takes, and does not fail, since the seal's value would be lost.
+    const wordless = functions.find(([, { result, fails, counts }]) => counts === 'new' && !((equal(result, u(64)) || equal(result, u(32))) && fails !== true))
     const target = instructions === true ? unbound(name, iface) : null
     return typeof target === 'string' ? target
         : type !== undefined ? `${name}: two types are named ${type}`
@@ -987,6 +1069,7 @@ const checkInterface = imports => ([name, iface]) => {
         : unreturned !== undefined ? `${name}: ${unreturned[0]} gives back ${unreturned[1].returns}, which is no parameter that it owns of the type of its result`
         : silent !== undefined ? `${name}: ${silent[0]} answers never, so it fails, and it does not say that it may`
         : miscounting !== undefined ? `${name}: ${miscounting[0]} counts on bits, so it is dup as (b: u(64)) -> u(64) or drop as (b: u(64)) -> unit, over u(64) or u(32), and does not fail`
+        : wordless !== undefined ? `${name}: ${wordless[0]} counts new, so it answers one word of bits, u(64) or u(32), and does not fail`
         : null
 }
 
@@ -1284,6 +1367,14 @@ const failing = (imports, own, functions) => {
 }
 
 /**
+ * Whether a function's mark makes it a hook's: `dup` and `drop` count on
+ * bits, while `new` answers the bits of a new owner, which a `seal` takes.
+ *
+ * @type {(counts: Signature['counts']) => boolean}
+ */
+const countsOnBits = counts => counts === 'dup' || counts === 'drop'
+
+/**
  * A call of a function that counts on bits, of the interfaces `imports`,
  * that a typed term makes where its value is not the term's own, or `null`:
  * such a call stands only as the last term of a hook, so that a `dup`
@@ -1295,7 +1386,7 @@ const failing = (imports, own, functions) => {
  */
 const misplaced = imports => {
     /** @type {(module: string, name: string) => boolean} */
-    const counting = (module, name) => module !== 'self' && at(module)(imports)?.functions.find(([k]) => k === name)?.[1].counts !== undefined
+    const counting = (module, name) => module !== 'self' && countsOnBits(at(module)(imports)?.functions.find(([k]) => k === name)?.[1].counts)
     /** @type {(x: Typed, last: boolean) => string | null} */
     const walk = ([, t], last) => {
         switch (t[0]) {

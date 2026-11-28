@@ -59,8 +59,14 @@ it counts in a header and traps on misuse. Memory enters the IR as a
       IR reference to the Heap's `dup`, `drop` and `free`, in `withHeap`
       and, for debug, `checkedWithHeap`, which asks the debug arena's new
       `type_of`; no program links them before H3d
-- [ ] **H3b** — Long strings in the IR: String's `concat`, `substring`,
-      `length` and `unit` over blocks of a length and 16-bit units
+- [x] **H3b** — Long strings in the IR: String's `concat`, `substring`,
+      `length` and `unit` over blocks of a length and 16-bit units, in
+      `withHeap` of `runtime/string/heap.f.js`; the Heap's `alloc` counts
+      new, so a `seal` of its result makes the block's one owner, a short
+      box is sealed from bits that hold no address, and NaNVM's
+      `make_string` reads any bytes of the memory (the owner's choices,
+      2026-11-28); a FunctionalScript model of the forms is proved
+      against the IR on both arenas and on NaNVM
 - [ ] **H3c** — The crossing: a long IR string that crosses into NaNVM
       becomes a NaNVM string, and the IR drops its reference
 - [ ] **H3d** — The heap linked, the release arena by default and

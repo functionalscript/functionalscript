@@ -61,7 +61,8 @@
  * - **A function of L0's `Memory` is an instruction**, which the emitter
  *   writes in place of a call: `load8` to `load64` and `store8` to
  *   `store64` are the loads and stores of their widths, at natural
- *   alignment, and `size` and `grow` are `memory.size` and `memory.grow`.
+ *   alignment, and `copy`, `size` and `grow` are `memory.copy`,
+ *   `memory.size` and `memory.grow`.
  *   An interface that says `instructions` imports no function and no
  *   constant, and a module that imports one imports the memory that the
  *   loader makes, from the interface's `abi`, which is the one that its
@@ -276,8 +277,8 @@ const convert = t => width(t) === 32
  * The instruction that the target binds each function of L0's `Memory`
  * with, which the emitter writes in place of a call: a load or a store of
  * the function's width at its natural alignment and no offset, a load of 8
- * or 16 bits extended with zeros, and the one memory's `memory.size` and
- * `memory.grow`.
+ * or 16 bits extended with zeros, and the one memory's `memory.copy`,
+ * `memory.size` and `memory.grow`.
  *
  * @type {OrderedMap<Instruction>}
  */
@@ -290,6 +291,7 @@ const memoryInstructions = fromEntries([
     ['store16', ['i32.store16', { align: 1, offset: 0 }]],
     ['store32', ['i32.store', { align: 2, offset: 0 }]],
     ['store64', ['i64.store', { align: 3, offset: 0 }]],
+    ['copy', ['memory.copy', 0, 0]],
     ['size', ['memory.size', 0]],
     ['grow', ['memory.grow', 0]],
 ])

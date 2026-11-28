@@ -627,9 +627,10 @@ export const proof = {
     ].join('\n')),
     // A function of L0's Memory is an instruction at its natural alignment, so a module that imports Memory alone
     // imports the loader's memory from Memory's ABI and nothing else: no function, no data_base, no data segment and
-    // no table, and its `fjs.layout` asks for no bytes and no entries. A store answers `unit`, which is no value, so
-    // no local holds it, and a grow whose answer nothing reads stays in its place, before the store or the size that
-    // comes after it. The page's start takes 32-bit instructions, since its mask keeps it a `u(32)`.
+    // no table, and its `fjs.layout` asks for no bytes and no entries. A store or a copy answers `unit`, which is no
+    // value, so no local holds it, and a grow whose answer nothing reads stays in its place, before the store or the
+    // size that comes after it. The page's start takes 32-bit instructions, since its mask keeps it a `u(32)`, and
+    // `copy` is `memory.copy`.
     addressing: () => assertEq(wat(emitted(addressing)), [
     "(module",
     "  (type (;0;) (func (param i32 i32) (result i32)))",
@@ -642,6 +643,7 @@ export const proof = {
     "  (export \"stored32\" (func $stored32))",
     "  (export \"stored64\" (func $stored64))",
     "  (export \"lowFirst\" (func $lowFirst))",
+    "  (export \"copied\" (func $copied))",
     "  (export \"grown\" (func $grown))",
     "  (export \"after\" (func $after))",
     "  (func $stored8 (;0;) (type 0) (param $o i32) (param $v i32) (result i32)",
@@ -749,7 +751,40 @@ export const proof = {
     "    local.get $a",
     "    i32.load16_u",
     "  )",
-    "  (func $grown (;5;) (type 3) (param $k i32) (result i32)",
+    "  (func $copied (;5;) (type 1) (param $o i32) (param $v i64) (result i64)",
+    "    (local $end i32) (local $grown i32) (local $a i32) (local $b i32)",
+    "    memory.size",
+    "    local.set $end",
+    "    i32.const 1",
+    "    memory.grow",
+    "    local.set $grown",
+    "    local.get $end",
+    "    i32.const 65535",
+    "    i32.and",
+    "    i32.const 65536",
+    "    i32.mul",
+    "    local.get $o",
+    "    i32.add",
+    "    local.set $a",
+    "    local.get $a",
+    "    i64.extend_i32_u",
+    "    i64.const 4",
+    "    i64.add",
+    "    i64.const 4294967295",
+    "    i64.and",
+    "    i32.wrap_i64",
+    "    local.set $b",
+    "    local.get $a",
+    "    local.get $v",
+    "    i64.store",
+    "    local.get $b",
+    "    local.get $a",
+    "    i32.const 8",
+    "    memory.copy",
+    "    local.get $b",
+    "    i64.load",
+    "  )",
+    "  (func $grown (;6;) (type 3) (param $k i32) (result i32)",
     "    (local $before i32) (local $g i32)",
     "    memory.size",
     "    local.set $before",
@@ -767,7 +802,7 @@ export const proof = {
     "      i32.sub",
     "    end",
     "  )",
-    "  (func $after (;6;) (type 3) (param $k i32) (result i32)",
+    "  (func $after (;7;) (type 3) (param $k i32) (result i32)",
     "    (local $before i32) (local $grown i32)",
     "    memory.size",
     "    local.set $before",
