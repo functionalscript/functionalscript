@@ -130,10 +130,11 @@ shipped H2b API.
   around zero — as `refinement` and the `narrowing` module of
   [`testlib.f.js`](../../../fjs/ir/testlib.f.js) already do.
 
-A later step may turn the table into an executable model beside the
-checker (same style as the heap's FunctionalScript model) so the
-proofs compare both. That step is optional; the rules above are the
-spec either way.
+The table is an executable model beside the checker
+([`fjs/ir/check/refinement`](../../../fjs/ir/check/refinement/module.f.js)),
+same style as the heap's FunctionalScript model: the checker imports
+`compared`, and the model's proofs pin the lattice, the transfer rows,
+soundness of concrete pairs, and join/loop conservatism.
 
 ## Non-goals
 
@@ -151,10 +152,8 @@ spec either way.
 ## Tasks
 
 Tracked on [`fjs/ir/todo/heap.md`](../../../fjs/ir/todo/heap.md) as
-**H2b formal rules** — **done** in this note: the lattice, transfer
-table, and join/loop conservatism are written so the checker can be
-checked against them, without changing shipped H2b behaviour. An
-executable model beside the checker stays optional (above).
+**H2b formal rules** (the note) and **H2b transfer model** (the
+executable lattice + transfer beside the checker).
 
 ## Related
 
@@ -164,4 +163,5 @@ executable model beside the checker stays optional (above).
 - [heap.md, order of work](./heap.md#order-of-work) (H2)
 - [comparison.md, Risks](./comparison.md#risks) (refinement across `br` and loops)
 - [TODO_DESIGN.md, Refinement stops at `&&`](./TODO_DESIGN.md)
+- [`fjs/ir/check/refinement`](../../../fjs/ir/check/refinement/module.f.js) — executable lattice + transfer
 - [long-strings.md](./long-strings.md) / H3 — parallel coding line; this note does not block it

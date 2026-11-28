@@ -45,8 +45,10 @@ it counts in a header and traps on misuse. Memory enters the IR as a
       joins/loops for comparison-narrowing, written so the checker can be
       checked against them; not a redesign of shipped H2b
       ([comparison-refinement.md](../../../doc/sasha-gil/ir/comparison-refinement.md);
-      docs/spec alongside H3, 2026-11-28). An executable model beside the
-      checker remains optional
+      docs/spec alongside H3, 2026-11-28)
+- [x] **H2b transfer model** — Executable FunctionalScript lattice +
+      transfer beside the checker (`fjs/ir/check/refinement`), proofs vs
+      `compared` / join-loop conservatism; not a redesign of shipped H2b
 - [x] **H2c** — The Heap interface and the release arena, `module`, under
       `fjs/ir/runtime/heap`, in the IR's eDSL, with a plain FunctionalScript
       model and a host proof that runs both on the same seeded sequences
@@ -102,6 +104,7 @@ it counts in a header and traps on misuse. Memory enters the IR as a
 - [long-strings.md](../../../doc/sasha-gil/ir/long-strings.md): H3, the
   first client
 - [comparison-refinement.md](../../../doc/sasha-gil/ir/comparison-refinement.md):
-  formal H2b rules (lattice, transfer, joins/loops), alongside H3
+  formal H2b rules (lattice, transfer, joins/loops); executable model in
+  [`check/refinement`](../check/refinement/module.f.js)
 - [one-byte-strings.md](./one-byte-strings.md): long strings of 8-bit
   units, a String variant of their own, an experiment
