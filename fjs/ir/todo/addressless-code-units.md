@@ -29,23 +29,25 @@ unless a proof needs it earlier.
 
 ### Proposal
 
-Give code units (and tags built only from them) a type or term form the
-checker can tell from a truncated address fragment:
+Closing the hole needs **both** provenance and a constrained final
+layout. Provenance alone is not enough: UTF-16 units (and values
+round-tripped through string memory) can equal 16-bit chunks of a live
+`0x7ff9… | p` owner, so unrestricted `or`/`shl` of approved code units
+could still reassemble a second counted owner.
 
 1. **A dedicated spelling** — for example a sealed or nominal `codeUnit`
    / `u16` carrier that **proven short-box / code-unit extraction**
-   answers (`firstUnit`'s short-box branch, pack helpers). `addressless`
-   (or its successor) accepts that spelling, literals, and tags built
-   only from them. A raw `and`/`shr` of an `unseal` that is not such a
-   helper does **not** produce the spelling.
-2. **Refuse reconstitution of an address, not short-box concat** —
-   today's `joined` path that `seal`s a short box from `firstUnit`
-   pieces of short operands must keep working once those pieces carry
-   the code-unit spelling. What is refused is building a **counted**
-   owner from arbitrary address-bearing slices (e.g. truncating a long
-   IR-string / heap box's `unseal` and reassembling it). The spelling
-   is how the checker tells those two cases apart — not a blanket ban
-   on every `unseal` slice.
+   answers (`firstUnit`'s short-box branch, pack helpers). A raw
+   `and`/`shr` of an `unseal` that is not such a helper does **not**
+   produce the spelling.
+2. **Seal only a valid short-box constructor** — an address-free `seal`
+   of a counted type may take that spelling (and literals/tags) only
+   through the **short-box pack path**: a fixed tag/layout the String
+   module already uses (`short(…)`, pack helpers), with bounded unit
+   count and shifts. Free recursive `or`/`shl` of code units into an
+   arbitrary final word is **not** address-free, even when every leaf
+   has the spelling. Today's `joined` path stays the template for what
+   is allowed.
 3. **Keep the debug trap** until the checker rule lands; then keep it as
    defense in depth, not as the only line.
 
@@ -55,15 +57,17 @@ short-box construction via `firstUnit` / pack helpers still type-checks.
 
 ### Tasks
 
-- [ ] Design note: the IR spelling for code units / tags, how short-box
-      `seal` still builds from pack helpers, and what `addressless`
-      becomes
-- [ ] Checker: accept only that spelling (plus literals) for
-      address-free `seal` of a counted type; refuse `unseal` slices
+- [ ] Design note: the IR spelling for code units; the allowed short-box
+      constructors (tag, unit count, shifts); what replaces today's
+      recursive `addressless` `or`/`shl` check
+- [ ] Checker: accept address-free `seal` only for those constructors
+      over the spelling / literals; refuse raw `unseal` slices and free
+      `or`/`shl` reconstitution
 - [ ] String / `firstUnit` (and any sibling helpers) answer the new
       spelling; short-box pack path updated
-- [ ] Proofs: forged reconstitution refused; short-box construction and
-      H3 string proofs still green
+- [ ] Proofs: forged reconstitution refused (including code-unit chunks
+      that numerically match address fragments); short-box construction
+      and H3 string proofs still green
 
 ### Related
 
