@@ -68,7 +68,8 @@ it counts in a header and traps on misuse. Memory enters the IR as a
       2026-11-28); a FunctionalScript model of the forms is proved
       against the IR on both arenas and on NaNVM
 - [ ] **H3c** — The crossing: a long IR string that crosses into NaNVM
-      becomes a NaNVM string, and the IR drops its reference
+      becomes a NaNVM string, and the IR drops its reference; plan and
+      handoff: [crossing.md](../../../doc/sasha-gil/ir/crossing.md)
 - [ ] **H3d** — The heap linked, the release arena by default and
       `counted` under `debug`, and measured against today's long path
 - [ ] **H3e** — benchmark.md's new rows, and what H3d's numbers change in
