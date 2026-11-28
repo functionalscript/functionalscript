@@ -68,7 +68,7 @@
  */
 
 import { memory } from '../../l0/module.f.js'
-import { add, and, bool, call, constant, eq, false_, fn, if_, int, le, let_, loop, lt, make, misuse, mul, n, next, or, shl, shr, signature, sub, true_, u, unit } from '../../module.f.js'
+import { add, and, bool, call, constant, countsBits, eq, false_, fn, if_, int, le, let_, loop, lt, make, misuse, mul, n, next, or, shl, shr, signature, sub, true_, u, unit } from '../../module.f.js'
 
 /** An address in the memory, of a block or of the state. */
 const address = u(32)
@@ -99,9 +99,11 @@ const chunk = /** @type {const} */ (16n)
 
 /**
  * The Heap interface: `alloc(t, n)`, a block of `n` bytes, 8-aligned, for
- * an object of type `t`; `dup(p)`, one owner more; `drop(p)`, one owner
- * less, which answers whether the caller must release what the block holds
- * and `free` it; and `free(p)`, after the release.
+ * an object of type `t`, whose address is its first owner's, so `alloc`
+ * counts `new` and only a seal of a counted type takes it, straight from
+ * the call; `dup(p)`, one owner more; `drop(p)`, one owner less, which
+ * answers whether the caller must release what the block holds and `free`
+ * it; and `free(p)`, after the release.
  *
  * @type {Interface}
  */
@@ -109,7 +111,7 @@ export const iface = {
     abi: 'fjs:ir/heap',
     types: [],
     functions: [
-        ['alloc', signature([['t', type], ['n', size]], address)],
+        ['alloc', countsBits('new', signature([['t', type], ['n', size]], address))],
         ['dup', signature([['p', address]], unit)],
         ['drop', signature([['p', address]], bool)],
         ['free', signature([['p', address]], unit)],

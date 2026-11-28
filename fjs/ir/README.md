@@ -703,7 +703,27 @@ the type and the lifetime pass never writes a hook inside a hook.
   shape only: a call of a hook, a `release`, and a `seal` of a variant
   that is not copy are refused anywhere else, since bits are copy and the
   owned check cannot follow them. A `seal` of copy variants stays the
-  module's to write.
+  module's to write, and so do two more forms of a `seal` of a counted
+  type that the module defines, in both stages:
+  - **a new owner**, `seal(t, f(…))` or `seal(t, or(c, f(…)))` with `c`
+    a literal, where `f` is marked `counts: 'new'`: bits of a value that
+    no one owns yet, as the Heap's `alloc` answers a new block, so the
+    `seal` makes its one owner, and the owned check follows it from
+    there. Such bits are an 8-aligned address, so `c` sets none of the
+    bits from 3 to the top of `f`'s word, which the address may hold, and
+    the checker refuses a `c` that does. A call of such an `f` anywhere
+    else is refused, and the marker takes only a signature that answers
+    one word of bits, `u(64)` or `u(32)`, and does not fail.
+  - **bits that hold no address**: literals and integers of 16 bits at
+    most, joined by `or` and `shl`, as a short string's box is made of
+    its units. Other bits, such as an `unseal`'s whole or a `u(64)`, are
+    refused, since they may be an owner's. The checker sees only an
+    integer's range, not where it came from, so it trusts the module
+    that each such integer is a code unit or a tag, not a piece of an
+    address: a 16-bit piece of an `unseal`'s bits, as `firstUnit` takes
+    from a short box, passes, and so would pieces of a long string's box
+    put back together. The debug arena then traps the second owner's
+    `drop`, on a count of 0 or a second `free`.
 
 - **`Ref`**, in [`l0/module.f.js`](./l0/module.f.js): NaNVM's
   `kind_ref`, `dup_ref`, `drop_ref` and `same_ref` over a reference's
@@ -753,8 +773,9 @@ instructions.
 - **`Memory`**, in [`l0/module.f.js`](./l0/module.f.js) beside `l0`,
   not in it: `load8` to `load64` take an address, a `u(32)`, and answer
   a `u(8)` to a `u(64)`, the low byte first; `store8` to `store64` take
-  an address and a value and answer `unit`; `size()` answers the
-  memory's size in 64 KiB pages, and `grow(n)` adds `n` pages and
+  an address and a value and answer `unit`; `copy(to, from, n)` writes
+  the `n` bytes at `from` to `to` as they were before, so the two may
+  overlap; `size()` answers the memory's size in 64 KiB pages, and `grow(n)` adds `n` pages and
   answers the size before, or `-1`. None may fail: an address past the
   memory traps, which is a misuse, as a bad reference is to `Ref`.
 - **An interface that says `instructions`** is bound by the target, not
@@ -765,7 +786,7 @@ instructions.
   after the ABI: `import Memory from fjs:l0, instructions`.
 - **The emitter writes each call as its instruction**, at natural
   alignment and no offset: `i32.load8_u` to `i64.load`, `i32.store8` to
-  `i64.store`, `memory.size` and `memory.grow`. It imports no function
+  `i64.store`, `memory.copy`, `memory.size` and `memory.grow`. It imports no function
   and no constant for the interface, and imports the loader's memory
   from its ABI, with a `fjs.layout` of no bytes where the module has no
   literals. A module imports one memory, so the checker refuses one
@@ -972,6 +993,41 @@ them yet: H3d links the heap.
   string. On both, the host's own references count as before and leave
   no cell over, and [NaNVM's test](./l0/host/nanvm/nanvm.test.mjs) runs
   the same with NaNVM as the host.
+
+## What long strings in the IR add
+
+H3b, the second part of long strings in the IR heap
+([long-strings.md](../../doc/sasha-gil/ir/long-strings.md#steps)):
+String's `length`, `unit`, `concat` and `substring` over the three forms
+of a string, in `withHeap` in
+[`runtime/string/heap.f.js`](./runtime/string/heap.f.js). No program links
+it before H3d.
+
+- **A long string's block** is a `u32` length, then its UTF-16 units, of
+  type `0x40`, so that its box is `0x7FF9_0000_0000_0002 | p`. The module
+  makes one as `seal(string, or(IR_STRING, Heap.alloc(0x40, n)))`, since
+  the Heap's `alloc` counts new.
+- **The IR's own results are short or in the IR heap.** `concat` of two
+  strings that are short or in the IR heap, and `substring` of one,
+  answer a short box where the result has 2 units at most, as NaNVM's emit
+  policy B makes one, and a new block otherwise, whose units `Memory`'s
+  new `copy` writes, or the stores of a short box's units. An empty
+  operand of `concat` answers the other, and a `substring` of every unit
+  answers the string itself.
+- **NaNVM's strings stay NaNVM's.** Where an operand of `concat` is
+  NaNVM's, an IR operand is copied into a NaNVM string by L0's new
+  `Units.make_string(p, n)`, as at a crossing, and L0's `concat` joins
+  them. NaNVM's `make_string` reads any bytes of the memory, as the owner
+  chose, while its writes still need a reserved region.
+- **The proofs.** A FunctionalScript model of the forms,
+  [`runtime/string/model`](./runtime/string/model/module.f.js), says what
+  each function answers and in which form. The host proof
+  ([`heap.proof.mjs`](./runtime/string/heap.proof.mjs)) compiles String
+  and Any with an arena each from the IR, runs explicit cases and five
+  seeded runs of 400 steps against the model on the release and the
+  debug arena, and checks each result's form, units and block, and that
+  every block is freed at the end. NaNVM's test runs it with NaNVM as the
+  host.
 
 ## What every slice refuses
 

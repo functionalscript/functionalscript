@@ -10,8 +10,8 @@ import { assertEq, assertError, assertOk } from '../../asserts/module.f.js'
 import { check } from '../check/module.f.js'
 import { any, builder, l0 } from '../l0/module.f.js'
 import {
-    add, block, bool, br, call, call_ref, code, codeOf, constant, f64, field, float, fn, get, if_, int, let_, lit, loop, lt, make, match, n, never, next, only, own,
-    return_, sealed, signature, throw_, trap, true_, trunc_sat, u, unit, variant, hint,
+    add, block, bool, br, call, call_ref, code, codeOf, constant, countsBits, f64, field, float, fn, get, hint, if_, int, let_, lit, loop, lt, make, match, n, never, next, only, or,
+    own, return_, seal as sealOf, sealed, signature, throw_, trap, true_, trunc_sat, u, unit, variant,
 } from '../module.f.js'
 import { print } from '../print/module.f.js'
 import { counting, sealing } from '../testlib.f.js'
@@ -575,6 +575,40 @@ export const proof = {
             '',
             'fn keep(own v: cell) -> cell =',
             '    v',
+        ]),
+        // A seal of a new owner's bits makes a value as a call does: the function answers it, a parameter that owns it takes
+        // it over, and what nothing takes is dropped.
+        newOwners: () => golden({ ...counting, imports: [['Cells', { abi: 'test:cells', types: [], functions: [['fresh', countsBits('new', signature([['n', u(8)]], u(32)))]] }]],
+            functions: [...counting.functions.filter(([k]) => ['tag', 'dup', 'drop', 'forget'].includes(k)),
+                ['made', fn([], sealed('C', 'cell'), () => sealOf(sealed('C', 'cell'), or(n(0x7FF9_0000_0000_0002n), call('Cells', 'fresh', [n(8n)]))))],
+                ['wasted', fn([], u(8), () => let_('c', sealOf(sealed('C', 'cell'), call('Cells', 'fresh', [n(8n)])), () => n(1n)))],
+                ['passed', fn([], u(8), () => call('self', 'forget', [sealOf(sealed('C', 'cell'), call('Cells', 'fresh', [n(8n)]))]))],
+            ], exports: [] }, [
+            'fn tag(v: cell) -> u(1) =',
+            '    and(unseal(v), 1)',
+            '',
+            'fn dup(b: u(64)) -> u(64) =',
+            '    b',
+            '',
+            'fn drop(b: u(64)) -> unit =',
+            '    {}',
+            '',
+            'fn forget(own v: cell) -> u(8) =',
+            '    let $0 = 1',
+            '    let $1 = drop(release(v))',
+            '    $0',
+            '',
+            'fn made() -> cell =',
+            '    seal(cell, or(9221401712017801218, Cells.fresh(8)))',
+            '',
+            'fn wasted() -> u(8) =',
+            '    let c = seal(cell, Cells.fresh(8))',
+            '    let $0 = 1',
+            '    let $1 = drop(release(c))',
+            '    $0',
+            '',
+            'fn passed() -> u(8) =',
+            '    forget(seal(cell, Cells.fresh(8)))',
         ]),
         // A value of the linear type that a parameter that owns it takes over.
         // A constant owns its value, so a term that takes one over takes a dup of it, and one that reads it reads it as it is. A

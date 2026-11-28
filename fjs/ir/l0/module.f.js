@@ -25,8 +25,9 @@
  *   once, by the module's start function
  *   ([§6](../../../doc/sasha-gil/wasm/l0-design.md#6-literals-built-once-at-start-up)).
  *   It is no function of String's interface, since its arguments, an
- *   address and a length, are no values of the IR: `any` names it as the
- *   maker of its literals, and only the emitter calls it.
+ *   address and a length, are values only of the low level: `any` names it
+ *   as the maker of its literals, which the emitter calls, and a module of
+ *   the low level, which reads the memory, calls it through `Units`.
  * - **The casts' targets are the arguments.** `to_f64` takes a number and
  *   `to_bool` a boolean, so passing a value of unknown kind is a type error,
  *   and a module narrows its value with a `match` first. `from_f64` and
@@ -103,8 +104,8 @@
  *   `frame`, which traps for a function that `make_function` did not make
  *   or past its frame, as `item` does past its end. Every other function
  *   of L0 completes on the values of its parameters' types.
- * - **`Memory` is no host's**: its loads, its stores, `size` and `grow` are
- *   the target's own instructions on the memory that the loader makes,
+ * - **`Memory` is no host's**: its loads, its stores, `copy`, `size` and
+ *   `grow` are the target's own instructions on the memory that the loader makes,
  *   which the interface says with `instructions`, so no host binds them. It
  *   is no part of `l0`: a module that keeps state of its own, as a heap
  *   does, imports it, beside L0 or alone
@@ -298,9 +299,11 @@ export const ref = ['Ref', {
  * which a module that keeps state of its own, such as a heap, reads and
  * writes ([heap.md](../../../doc/sasha-gil/ir/heap.md#memory-in-the-ir)):
  * `load8` to `load64` answer the `u(8)` to `u(64)` at an address, its low
- * byte first, `store8` to `store64` write one there, `size` answers the
- * memory's size in pages of 64 KiB, and `grow` adds pages and answers the
- * size before, or `-1` where the memory cannot grow. Its functions are no
+ * byte first, `store8` to `store64` write one there, `copy(to, from, n)`
+ * writes the `n` bytes at `from` to `to` as they were before it, so the two
+ * may overlap, `size` answers the memory's size in pages of 64 KiB, and
+ * `grow` adds pages and answers the size before, or `-1` where the memory
+ * cannot grow. Its functions are no
  * imports but the target's own instructions, which the interface says, and
  * their calls touch the memory, so each keeps its place in every pass. An
  * address past the memory traps, which is a misuse, so none declares that
@@ -315,9 +318,27 @@ export const memory = ['Memory', {
     functions: [
         ...[8, 16, 32, 64].map(n => /** @type {const} */ ([`load${n}`, signature([['a', u(32)]], u(n))])),
         ...[8, 16, 32, 64].map(n => /** @type {const} */ ([`store${n}`, signature([['a', u(32)], ['v', u(n)]], unit)])),
+        ['copy', signature([['to', u(32)], ['from', u(32)], ['n', u(32)]], unit)],
         ['size', signature([], pages)],
         ['grow', signature([['n', pages]], int(-1n, 0x1_0000n))],
     ],
+}]
+
+/**
+ * `Units`, String's maker at the low level, where an address is a value:
+ * `make_string(p, n)`, the owned string of the `n` UTF-16 units at `p`, the
+ * low byte of each first, which the emitter also names as the maker of the
+ * literals of `any`. A module that copies a string of the IR heap into one
+ * of the host's, as each crossing into NaNVM does, imports it
+ * ([long-strings.md, choice 1](../../../doc/sasha-gil/ir/long-strings.md#1-whether-nanvm-holds-references-into-the-ir-heap)).
+ * Units past the memory are a misuse, so it declares no failure.
+ *
+ * @type {readonly [string, Interface]}
+ */
+export const units = ['Units', {
+    abi: 'fjs:l0',
+    types: [],
+    functions: [['make_string', signature([['p', u(32)], ['n', index]], string)]],
 }]
 
 /** The interfaces of L0, by their names. @type {readonly (readonly [string, Interface])[]} */

@@ -307,6 +307,9 @@ instructions**, as the owner chose on 2026-11-27:
   misuse, as a bad reference is to `Ref`, so none of them declares `fails`:
   a heap that reads past the memory has a bug, and no caller can recover
   from that.
+- `copy(to, from, n)` writes the `n` bytes at `from` to `to` as they
+  were before, so the two may overlap: WASM's `memory.copy`. H3b adds it
+  for the units of a long string.
 - `size()` answers the memory's size in 64 KiB pages. `grow(n)` adds `n`
   pages and answers the size before, or `-1` when the memory cannot grow.
 - The memory is the one that the loader makes

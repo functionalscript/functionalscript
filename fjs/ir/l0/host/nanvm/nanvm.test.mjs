@@ -2,9 +2,10 @@
  * The emitter's host proofs again, each module run on NaNVM's `.wasm`
  * through the [NaNVM host](./module.mjs) in place of the counting host
  * ([slice 12](../../../todo/slices.md)): the WebAssembly proofs, the
- * lifetime pass's, the FAST lowering's, the random programs, and those of
+ * lifetime pass's, the FAST lowering's, the random programs, those of
  * Any's variants that know the IR heap, whose arena then has a memory of
- * its own beside NaNVM's. A proof
+ * its own beside NaNVM's, and those of String's module that knows it,
+ * whose arena then grows NaNVM's own memory. A proof
  * that runs no module runs once more on the counting host, as it is.
  * L1's native rows run in NaNVM's Rust too, and are compared with
  * JavaScript on random floats, texts and bigints
@@ -37,6 +38,7 @@ import { proof as fromFast } from '../../../from_fast/proof.mjs'
 import { proof as random } from '../../../from_fast/random/proof.mjs'
 import { proof as lifetime } from '../../../lifetime/proof.mjs'
 import { proof as anyOnHeap } from '../../../runtime/any/proof.mjs'
+import { proof as stringOnHeap } from '../../../runtime/string/heap.proof.mjs'
 import { referencing, sealing } from '../../../testlib.f.js'
 import { write } from '../../../../media/wasm/binary/write/module.f.js'
 import { check } from '../../../check/module.f.js'
@@ -54,7 +56,7 @@ const path = new URL('../../../../../target/wasm32-unknown-unknown/release/nanvm
 const host = nanvmHost(new WebAssembly.Module(readFileSync(path)))
 
 /** @type {readonly (readonly [string, Readonly<Record<string, unknown>>])[]} */
-const suites = [['wasm', wasm], ['lifetime', lifetime], ['from_fast', fromFast], ['random', random], ['any', anyOnHeap]]
+const suites = [['wasm', wasm], ['lifetime', lifetime], ['from_fast', fromFast], ['random', random], ['any', anyOnHeap], ['string', stringOnHeap]]
 
 let ran = 0
 for (const [name, proofs] of suites) {
@@ -344,6 +346,43 @@ test('a trap keeps its text until enter', () => {
     if (h.trap?.(full) !== 'l0.push: full') { throw ['text of a full builder', full] }
     h.recover()
     if (h.builders().length !== 0) { throw 'recover left the builder open' }
+})
+
+test('make_string reads any bytes of the memory but those at address 0', () => {
+    const h = host([])
+    const exports = /** @type {Readonly<Record<string, unknown>>} */ (/** @type {unknown} */ (h.imports))
+    const make = /** @type {(ptr: number, len: number) => bigint} */ (exports.make_string)
+    const length = /** @type {(s: bigint) => number} */ (exports.length)
+    const size = /** @type {WebAssembly.Memory} */ (exports.memory).buffer.byteLength
+    /** The text of the trap of `f`. @type {(f: () => unknown) => unknown} */
+    const trapped = f => {
+        try { f() } catch (e) { return h.trap?.(e) }
+        throw 'no trap'
+    }
+    // no units at address 0 are the empty string, and the memory's last unit is read
+    if (length(make(0, 0)) !== 0) { throw 'empty' }
+    if (length(make(size - 2, 1)) !== 1) { throw 'last unit' }
+    // a unit at address 0 is no slice in Rust, and a unit past the memory is no byte of it
+    if (trapped(() => make(0, 1)) !== 'l0.make_string: out of bounds') { throw 'address 0' }
+    if (trapped(() => make(size - 2, 2)) !== 'l0.make_string: out of bounds') { throw 'past the memory' }
+})
+
+test('make_string reads the last unit of a memory of 65,536 pages, but no more than a slice holds', () => {
+    const h = host([])
+    const exports = /** @type {Readonly<Record<string, unknown>>} */ (/** @type {unknown} */ (h.imports))
+    const make = /** @type {(ptr: number, len: number) => bigint} */ (exports.make_string)
+    const length = /** @type {(s: bigint) => number} */ (exports.length)
+    const memory = /** @type {WebAssembly.Memory} */ (exports.memory)
+    // 2^32 bytes are more than a wasm32 `usize` holds, so the bound is no `usize`
+    memory.grow(0x1_0000 - memory.buffer.byteLength / 0x1_0000)
+    if (length(make(0xFFFF_FFFE, 1)) !== 1) { throw 'last unit' }
+    // 2^30 units are 2^31 bytes of the memory, past `isize::MAX`, the most that a slice holds
+    /** The text of the trap of `f`. @type {(f: () => unknown) => unknown} */
+    const trapped = f => {
+        try { f() } catch (e) { return h.trap?.(e) }
+        throw 'no trap'
+    }
+    if (trapped(() => make(2, 0x4000_0000)) !== 'l0.make_string: too long') { throw 'past a slice' }
 })
 
 test('NaNVM ran modules', () => {
