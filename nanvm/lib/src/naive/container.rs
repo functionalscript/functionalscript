@@ -60,7 +60,11 @@ impl<H, I> Container<H, I> {
 
 impl Container<(), Any<Naive>> {
     pub(super) fn array(value: &'static StaticArray<Naive>) -> Self {
-        Self::projected((), value)
+        if value.0.is_empty() {
+            Self::borrowed((), value, &[])
+        } else {
+            Self::projected((), value)
+        }
     }
 }
 

@@ -31,6 +31,12 @@ const watOf = (m, name) => {
 /** The functions of each variant, in their order. */
 const names = 'isRef,dup,drop,kind,to_f64,from_f64,to_bool,from_bool,same,keep,take,forget,undefinedOf,nullOf,falseOf,trueOf'
 
+/**
+ * The names of a module's functions that may fail, joined by commas.
+ * @type {(m: import('../../types.ts').Module) => string}
+ */
+const failing = m => assertOk(checkPlain(m)).functions.flatMap(([k, { fails }]) => fails ? [k] : []).join()
+
 export const proof = {
     // The module defines Any with number among the copy variants, and imports only Ref.
     shape: () => {
@@ -115,8 +121,6 @@ export const proof = {
     },
     // Forged bits trap as a misuse in every variant, so no function of any may fail, as the interface says of each.
     effect: () => {
-        /** @type {(m: import('../../types.ts').Module) => string} */
-        const failing = m => assertOk(checkPlain(m)).functions.flatMap(([k, { fails }]) => fails ? [k] : []).join()
         assertEq(failing(module), '')
         assertEq(failing(checked), '')
         assertEq(failing(withHeap), '')
