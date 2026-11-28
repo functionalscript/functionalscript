@@ -33,7 +33,8 @@
  *   before it, for the [lifetime pass](../lifetime/module.f.js), which
  *   writes the owned stage.
  * - **A branch on a comparison narrows a local**
- *   ([type-system.md: Flow refinement](../../../doc/sasha-gil/ir/type-system.md#flow-refinement-is-two-rules)):
+ *   ([type-system.md: Flow refinement](../../../doc/sasha-gil/ir/type-system.md#flow-refinement-is-two-rules);
+ *   lattice and transfer in [refinement](./refinement/module.f.js)):
  *   an arm of a `match` of `lt`, `le` or `eq` of two integers, or of a
  *   `not` of one, sees each operand that is a local at the range that the
  *   other operand's allows, so a sum of two `u(32)` is a `u(32)` again
@@ -78,6 +79,7 @@
 
 import { error, ok, okList, unwrap } from '../../types/result/module.f.js'
 import { assertNotNullish } from '../../asserts/module.f.js'
+import { compared } from './refinement/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
 import { at, empty, fromEntries, setReplace } from '../../types/ordered_map/module.f.js'
 import { bool, compareIn, definedBy, equal, f64, f64c, fits, inside, int, interfacesOf, isCopy, isOwn, never, product, terms, u, unit } from '../module.f.js'
@@ -421,36 +423,6 @@ const truncType = (env, target, args) => {
 
 /** The bool literal that a typed term is, `true` or `false`, or `null` where it is none. @type {(x: Typed) => string | null} */
 const boolLiteral = ([, t]) => t[0] === 'variant' && equal(t[1], bool) ? t[2] : null
-
-/**
- * The ranges of two integers `a` and `b` where `op(a, b)` is `holds`, each
- * `null` where none is left: `lt` and `le` move the ends that the other
- * operand bounds, an `eq` that holds leaves both in their overlap, and one
- * that does not takes the other's value off an end, where the other holds
- * one value.
- *
- * @type {(op: 'lt' | 'le' | 'eq', holds: boolean, a: Int, b: Int) => readonly [Int | null, Int | null]}
- */
-const compared = (op, holds, [, al, ah], [, bl, bh]) => {
-    /** @type {(lo: bigint, hi: bigint) => Int | null} */
-    const range = (lo, hi) => lo <= hi ? int(lo, hi) : null
-    /** `lo` to `hi` without `c` where `c` is an end of it. @type {(lo: bigint, hi: bigint, c: bigint | null) => Int | null} */
-    const apart = (lo, hi, c) => range(lo === c ? lo + 1n : lo, hi === c ? hi - 1n : hi)
-    switch (op) {
-        case 'lt': {
-            return holds ? [range(al, least([ah, bh - 1n])), range(greatest([bl, al + 1n]), bh)]
-                : [range(greatest([al, bl]), ah), range(bl, least([bh, ah]))]
-        }
-        case 'le': {
-            return holds ? [range(al, least([ah, bh])), range(greatest([bl, al]), bh)]
-                : [range(greatest([al, bl + 1n]), ah), range(bl, least([bh, ah - 1n]))]
-        }
-        default: {
-            const both = range(greatest([al, bl]), least([ah, bh]))
-            return holds ? [both, both] : [apart(al, ah, bl === bh ? bl : null), apart(bl, bh, al === ah ? al : null)]
-        }
-    }
-}
 
 /**
  * What an arm that sees the outcomes `vs` of a bool learns of the locals
