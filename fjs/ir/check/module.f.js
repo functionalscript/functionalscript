@@ -62,9 +62,11 @@
  *   so a hook may trap on misuse.
  * - **An inline hint is one that the inline pass can keep.** A function
  *   hinted `always` reaches itself through no chain of calls of such
- *   functions, is read as no value, and is no hook of a type that the
- *   module defines, since the lifetime pass and the emitter call those
- *   after the [inline pass](../inline/module.f.js) has run.
+ *   functions, is read as no value, and is no `kind` of a type that the
+ *   module defines, which the emitter calls in each `match` of it. A
+ *   type's `dup` and `drop`, which the lifetime pass calls after the
+ *   [inline pass](../inline/module.f.js) has run, are copied by the
+ *   emitter instead.
  *
  * @module
  *
@@ -1211,13 +1213,13 @@ const unscoped = (env, imports, functions, locals, results, loaded = imports) =>
         : null
 }
 
-/** A function whose signature the checker took: a body of its result's type. @type {(functions: OrderedMap<Signature>, imports: OrderedMap<Interface>, constants: OrderedMap<Type>, own: string | null, owned: boolean) => (entry: readonly [string, FunctionOf<Term>]) => Result<readonly [string, FunctionOf<Typed>], string>} */
-const checkFn = (functions, imports, constants, own, owned) => ([name, { params, result, body }]) => {
+/** A function whose signature the checker took: a body of its result's type, with its inline hint, which the passes after the checker read. @type {(functions: OrderedMap<Signature>, imports: OrderedMap<Interface>, constants: OrderedMap<Type>, own: string | null, owned: boolean) => (entry: readonly [string, FunctionOf<Term>]) => Result<readonly [string, FunctionOf<Typed>], string>} */
+const checkFn = (functions, imports, constants, own, owned) => ([name, { params, result, body, inline }]) => {
     /** @type {_Env} */
     const env = { name, locals: localsOf(params), labels: label_('return', ['block', result])(empty), functions, imports, constants, own, owned, body: true }
     const b = term(env, body)
     if (b[0] === 'error') { return b }
-    return sub(env, b[1][0], result) ? ok([name, { params, result, body: b[1] }])
+    return sub(env, b[1][0], result) ? ok([name, { params, result, body: b[1], ...(inline === undefined ? {} : { inline }) }])
         : error(`${name}: the body is ${show(b[1][0])}, not ${show(result)}`)
 }
 
@@ -1469,9 +1471,11 @@ const callees = t => [...(t[0] === 'call' && t[1] === 'self' ? [t[2]] : []), ...
  * Why a function's inline hint does not hold, or `null` where each does: a
  * hint is `always` or `never`, and a function hinted `always` reaches
  * itself through no chain of calls of such functions, since its copies
- * would never end, is read as no value, since a value needs its code, and
- * is no hook of a type that the module defines, since the lifetime pass
- * and the emitter call a hook after the inline pass has run.
+ * would never end, and is read as no value, since a value needs its code.
+ * A type's `dup` and `drop` may be hinted too: the emitter copies them,
+ * since the lifetime pass writes their calls after the inline pass has
+ * run. Its `kind` may not, since the emitter writes a call of it in each
+ * `match` of the type, which no pass sees.
  *
  * @type {(m: Module) => string | null}
  */
@@ -1479,7 +1483,7 @@ const misinlined = m => {
     const strange = m.functions.find(([, { inline }]) => inline !== undefined && inline !== 'always' && inline !== 'never')
     if (strange !== undefined) { return `${strange[0]}: an inline hint is always or never, not ${/** @type {unknown} */ (strange[1].inline)}` }
     const always = m.functions.flatMap(([k, f]) => f.inline === 'always' ? [/** @type {const} */ ([k, f])] : [])
-    const hooks = (m.defines?.types ?? []).flatMap(([, { kind, dup, drop }]) => [kind, dup, drop])
+    const kinds = (m.defines?.types ?? []).map(([, { kind }]) => kind)
     const values = [...m.functions.flatMap(([, f]) => codes(f.body)), ...(m.constants ?? []).flatMap(([, c]) => codes(c.value))]
     /** The functions hinted `always` that `f` calls. @type {(body: Term) => readonly string[]} */
     const next = body => callees(body).filter(g => always.some(([k]) => k === g))
@@ -1499,10 +1503,10 @@ const misinlined = m => {
         }
         return seen.includes(f)
     }
-    const hook = always.find(([k]) => hooks.includes(k))
     const value = always.find(([k]) => values.includes(k))
     const cycle = always.find(([k, f]) => cycles(k, f.body))
-    return hook !== undefined ? `${hook[0]} is inline always and a hook of a type that the module defines, which the lifetime pass and the emitter call`
+    const kind = always.find(([k]) => kinds.includes(k))
+    return kind !== undefined ? `${kind[0]} is inline always and the kind of a type that the module defines, which the emitter calls in each match of it`
         : value !== undefined ? `${value[0]} is inline always and read as a value, which needs its code`
         : cycle !== undefined ? `${cycle[0]} is inline always and calls itself through functions inline always, so its copies would never end`
         : null

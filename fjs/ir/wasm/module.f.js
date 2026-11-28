@@ -128,6 +128,7 @@ import { bitsOf } from '../../types/number/module.f.js'
 import { stringToList } from '../../text/utf16/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { at, empty, fromEntries, setReplace } from '../../types/ordered_map/module.f.js'
+import { inlineHooks } from '../inline/module.f.js'
 import { compareIn, definedBy, equal, fits, i, inside, interfacesOf, never, u } from '../module.f.js'
 
 // values
@@ -767,11 +768,15 @@ const zero = t => t === 'f64' ? ['f64.const', 0n] : t === 'i64' ? ['i64.const', 
  * for each distinct signature and then for each distinct block type of
  * more than one value, the exports by their names, the data segment of the
  * literals' units and the `fjs.layout` section, and a name section for the
- * functions, their locals and the globals.
+ * functions, their locals and the globals. Each call of a hook hinted
+ * `always` is a copy of the hook's body
+ * ([`inlineHooks`](../inline/module.f.js)).
  *
  * @type {(m: Checked) => WasmModule}
  */
-export const emit = m => {
+export const emit = checked => {
+    // A hook hinted `always` is copied into each of its calls first: the lifetime pass wrote them after the inline pass had run.
+    const m = inlineHooks(checked)
     const interfaces = fromEntries(interfacesOf(m))
     // An interface that says instructions is the target's, so it imports no function and no constant.
     const hosted = m.imports.filter(([, { instructions }]) => instructions !== true)
