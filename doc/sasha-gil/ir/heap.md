@@ -3,7 +3,9 @@
 2026-11-27. Proposed, with the owner's choices in it. A review of
 allocator alternatives came first and ended in five choices, which the
 owner took on 2026-11-26, beside an arena that counts in debug builds
-only; memory as an interface of instructions followed on 2026-11-27
+only; memory as an interface of instructions followed on 2026-11-27,
+and so did the six choices of [long-strings.md](./long-strings.md), which
+answer open questions 1 and 2
 ([The owner's choices](#the-owners-choices)). The rest waits for review.
 [`fjs/ir/todo/heap.md`](../../../fjs/ir/todo/heap.md) lists the steps, and
 two experiments have `todo/` files of their own: a
@@ -449,21 +451,17 @@ with counts too high: late, but safe. Effects come back to the host as
 values, so a `catch` thunk may always run as an outermost call, and the
 deferral may never be needed; not every host has been checked for this.
 
-**While NaNVM holds references into the IR heap.** From H3 until
-containers move to the IR heap ([Order of work](#order-of-work)), a NaNVM
-array or object may be the only owner of an IR string. The recount cannot
-walk NaNVM's values, so it would free that string under a live container,
-and as a checker it would report the container's reference as a missed
-`drop`. Until NaNVM holds no reference into the IR heap, the recount
-therefore either finds the references that NaNVM's values hold among its
-roots, which NaNVM would put in the root table as it stores them, or does
-not run. When it does not run,
-`recover` frees nothing in the IR heap: late, but safe, as above. NaNVM's
-own `recover` still frees its handles, and their release drops what they
-held in the IR heap. The note on NaNVM's references before H3 decides
-which ([open question 2](#open-questions)). The proposal is to wait:
-rooting them is Rust code that step 5 removes again, and until then only
-a caught throw leaks.
+**NaNVM holds no reference into the IR heap.** The recount cannot walk
+NaNVM's values, so an IR string whose only owner was a NaNVM array would
+be freed under it, and as a checker the recount would report the array's
+reference as a missed `drop`.
+[long-strings.md](./long-strings.md#1-whether-nanvm-holds-references-into-the-ir-heap)
+rules that out: a long IR string that crosses into NaNVM is copied into a
+NaNVM string there, so no NaNVM value owns an IR object, and the recount
+needs no roots of NaNVM's and never waits for them. NaNVM's own `recover`
+frees its handles, and their release reaches nothing in the IR heap. From
+step 5 on, a container that holds IR references is an IR object itself,
+which the recount walks ([Order of work](#order-of-work)).
 
 **In the arena** nothing is freed anyway, so its `recover` only clears the
 thrown value. In debug its counts stay too high after a caught throw, as
@@ -713,19 +711,18 @@ Each step is one stack of pull requests, and each keeps every proof green.
    any program uses it.
 3. **H3, long strings in the IR heap**, the first objects to move, since
    short strings are already in the IR ([short-strings.md](./short-strings.md)).
-   NaNVM's arrays and objects then hold references into the IR heap, so
-   NaNVM needs the heap's `dup` and `drop` for them, through the table that
-   the loader gives both modules
-   ([L0 design §5](../wasm/l0-design.md#5-memory-and-table-made-by-the-loader-imported-by-both-modules)).
-   That handover needs a note of its own first. The root table comes with
-   them: a long string is the first IR object that a constant or the host
-   holds.
+   [long-strings.md](./long-strings.md) settles how: NaNVM holds no
+   reference into the IR heap, and a long IR string that crosses into
+   NaNVM is copied into a NaNVM string there. So NaNVM needs no `dup` or
+   `drop` of the heap's, and the root table moves to H4, beside the
+   recount that reads it.
 4. **H4, paged size classes** with the recount from the roots, measured
-   against the arena, which is the ceiling, and against NaNVM. While NaNVM
-   holds references into the IR heap, the recount takes them as roots or
-   waits ([A caught throw](#a-caught-throw)).
+   against the arena, which is the ceiling, and against NaNVM. The root
+   table comes with them, since the recount is its first reader
+   ([long-strings.md, choice 5](./long-strings.md#5-literals-and-the-host)).
 5. **Containers, functions and bigints** move to the IR heap kind by kind,
-   until NaNVM holds no references.
+   until NaNVM holds no objects, and the copies at its crossings go with
+   it ([long-strings.md](./long-strings.md#what-ends-with-nanvm)).
 6. **The experiments**: the [line heap](../../../fjs/ir/todo/line-heap.md)
    and the [recover by WASM exceptions](../../../fjs/ir/todo/recover-by-exceptions.md).
    Segregated free lists only if paged size classes leave a gap worth
@@ -755,8 +752,12 @@ beside them:
    `checkedKind` is picked.
 
 Beside them, the owner chose the arena first, counting in debug builds
-only (2026-11-26), and memory as an interface of instructions rather than
-operators (2026-11-27).
+only (2026-11-26), memory as an interface of instructions rather than
+operators (2026-11-27), and option A on each of the six choices of
+[long-strings.md](./long-strings.md) (2026-11-27), which answer open
+questions 1 and 2: one `debug` flag, and long strings as the first
+client, copied into NaNVM wherever they cross, so that NaNVM holds no
+reference into the IR heap.
 
 ## What changes in the other notes
 
@@ -780,16 +781,15 @@ These edits wait until this note is decided.
 
 ## Open questions
 
-1. **How a build asks for debug.** A runtime flag beside `checkedKind`,
-   such as `countedHeap`, or one `debug` flag that links every debug
-   variant, `checkedKind`'s Any included. One flag is the proposal.
-2. **The first client.** Long strings in the arena mean that NaNVM's
-   arrays and objects hold references into the IR heap. In release such a
-   reference needs no count; in debug NaNVM must call the heap's `dup` and
-   `drop`. That needs a note of its own before H3. The same note decides
-   how H4's recount sees those references: NaNVM roots them, or
-   the recount waits until NaNVM holds none. Waiting is the proposal
-   ([A caught throw](#a-caught-throw)).
+1. **How a build asks for debug.** Decided on 2026-11-27: one `debug` flag
+   that links every debug variant, Any's `checkedKind` and the Heap's
+   `counted`
+   ([long-strings.md, choice 6](./long-strings.md#6-how-a-build-asks-for-debug-and-a-caught-throw)).
+2. **The first client.** Decided on 2026-11-27: long strings, which NaNVM
+   never holds, since a long IR string is copied into a NaNVM string
+   wherever it crosses. So NaNVM calls no `dup` or `drop` of the heap's,
+   and H4's recount has no NaNVM references to root or to wait for
+   ([long-strings.md, choice 1](./long-strings.md#1-whether-nanvm-holds-references-into-the-ir-heap)).
 3. **A trap for misuse.** The debug arena traps on a count of 0, and every
    heap traps when the memory cannot grow. A `trap` fails, so `alloc`
    would fail, and with it every function that allocates, though
