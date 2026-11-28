@@ -269,10 +269,18 @@ export type Maker = {
  * sealed types, its constants, each of a type, and the signatures of its
  * functions, whose parameters borrow their arguments but where they are
  * `own`. `abi` is the WASM module of the imports that bind it on a host,
- * which name its functions and its constants as it does.
+ * which name its functions and its constants as it does. An interface that
+ * says `instructions` is bound by the target itself, and is L0's `Memory`
+ * or a part of it: its functions are the target's own instructions on the
+ * memory that the loader makes, which the WASM emitter writes in place of
+ * a call, with the memory imported from `abi`. Its calls touch the memory,
+ * so a pass keeps each where it is, and neither removes nor merges one,
+ * whether or not it may fail, nor a call of a function that makes one
+ * ([heap.md](../../doc/sasha-gil/ir/heap.md#memory-in-the-ir)).
  */
 export type Interface = {
     readonly abi: string
+    readonly instructions?: true
     readonly types: readonly (readonly [name: string, SealedDef])[]
     readonly constants?: readonly (readonly [name: string, Type])[]
     readonly functions: readonly (readonly [name: string, Signature])[]

@@ -743,6 +743,48 @@ S4 remeasures `shortOps` / `repeat` under emit B in
 [benchmark.md](../../doc/sasha-gil/ir/benchmark.md)
 ([short-strings.md](../../doc/sasha-gil/ir/short-strings.md)).
 
+## What L0's Memory adds
+
+The first step of the IR's heap, H1
+([heap.md](../../doc/sasha-gil/ir/heap.md#memory-in-the-ir)): memory at
+the low level, as an interface whose functions are the target's own
+instructions.
+
+- **`Memory`**, in [`l0/module.f.js`](./l0/module.f.js) beside `l0`,
+  not in it: `load8` to `load64` take an address, a `u(32)`, and answer
+  a `u(8)` to a `u(64)`, the low byte first; `store8` to `store64` take
+  an address and a value and answer `unit`; `size()` answers the
+  memory's size in 64 KiB pages, and `grow(n)` adds `n` pages and
+  answers the size before, or `-1`. None may fail: an address past the
+  memory traps, which is a misuse, as a bad reference is to `Ref`.
+- **An interface that says `instructions`** is bound by the target, not
+  by a host, and the checker takes only `Memory`, or a part of it under
+  any name, of its ABI, with no types and no constants, and each function
+  with `Memory`'s signature and marks. A host makes a literal, so a
+  function of such an interface makes none. The printer writes the flag
+  after the ABI: `import Memory from fjs:l0, instructions`.
+- **The emitter writes each call as its instruction**, at natural
+  alignment and no offset: `i32.load8_u` to `i64.load`, `i32.store8` to
+  `i64.store`, `memory.size` and `memory.grow`. It imports no function
+  and no constant for the interface, and imports the loader's memory
+  from its ABI, with a `fjs.layout` of no bytes where the module has no
+  literals. A module imports one memory, so the checker refuses one
+  whose literals are made in another ABI's, and a constant or a function
+  of Memory's ABI named `memory`. The table comes from the first
+  interface that a host binds, so a module of Memory alone keeps its own.
+- **Its calls keep their place.** A store answers `unit`, which nothing
+  reads, and must stay. No pass moves, removes or merges a call today:
+  the inline pass copies a body with its calls in order, the records pass
+  moves nothing past a call, and the lifetime pass adds only `dup`s and
+  `drop`s. A proof runs a store through all three. The first pass that
+  moves calls brings the checker's inference of Memory's effect.
+
+The `addressing` module of [`testlib.f.js`](./testlib.f.js) stores and
+loads each width and reads the low 16 bits of 64, each call in a page
+that it grows for itself, and answers how much `grow` changes the size.
+So it holds on either host's memory: the counting host's, and NaNVM's,
+whose stack takes the memory's start.
+
 ## What every slice refuses
 
 Everything else is refused with the function's name and the reason, never

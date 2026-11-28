@@ -3,7 +3,7 @@
  */
 
 import { assert, assertEq, assertError, assertNotNullish, assertOk } from '../../asserts/module.f.js'
-import { any, builder, l0, ref, string } from '../l0/module.f.js'
+import { any, builder, l0, memory, ref, string } from '../l0/module.f.js'
 import {
     add, and, block, bool, br, call, call_ref, canon, cast, code, codeOf, constant, countsBits, definedBy, div, eq, f64, f64c, field, float, fn, from_bits, get, hint, i, if_, int,
     let_, lit, loop, lt, make, match, mayFail, mul, n, neg, never, next, only, or, own, product, release, return_, seal, sealed, shl, shr, signature, sub,
@@ -614,6 +614,64 @@ export const proof = {
         assertEq(show(assertOk(typeOf({ ...scope, locals: [['a', unit]] })(get('a')))), 'unit')
         assertEq(assertError(typeOf({ ...scope, locals: [], result: unit })(one_)), 'f: unit is not in this slice')
         assertEq(assertError(typeOf({ ...scope, locals: [], functions: [['g', signature([['b', unit]], f64)]] })(one_)), 'g: unit is not in this slice')
+    },
+    // L0's Memory says instructions, so the target binds its functions with instructions of its own, and an interface
+    // that says so is Memory or a part of it, with its ABI and its signatures, under any name
+    // (heap.md, Memory in the IR). The memory that its functions touch is the loader's, from its ABI.
+    memory: () => {
+        const [, { functions: all }] = memory
+        const pages = int(0n, 0x1_0000n)
+        // Loads, stores, size and grow are calls that cannot fail, so neither can a function that makes them.
+        assertEq(assertOk(check({
+            imports: [memory],
+            functions: [
+                ['peek', fn([['a', u(32)]], u(8), a => call('Memory', 'load8', [a]))],
+                ['poke', fn([['a', u(32)], ['v', u(64)]], u(64), (a, v) => let_('stored', call('Memory', 'store64', [a, v]), () => call('Memory', 'load64', [a])))],
+                ['grown', fn([], pages, let_('before', call('Memory', 'grow', [n(1n)]), () => call('Memory', 'size', [])))],
+            ],
+            exports: [],
+        })).functions.map(([k, f]) => `${k}: ${show(f.body[0])} ${f.fails}`).join(', '), 'peek: u(8) false, poke: u(64) false, grown: int(0, 65536) false')
+        /** The part of Memory of the functions that `names` names. @type {(names: readonly string[]) => Interface} */
+        const part = names => ({ abi: 'fjs:l0', instructions: true, types: [], functions: all.filter(([k]) => names.includes(k)) })
+        // A part of Memory under a name of its own says instructions too, beside Memory or alone, and the names of
+        // its parameters are its own.
+        assertOk(check({ imports: [memory, ['Bytes', part(['load8', 'store8'])]], functions: [['f', fn([['a', u(32)]], u(8), a => call('Bytes', 'load8', [a]))]], exports: [] }))
+        const load8 = signature([['a', u(32)]], u(8))
+        assertOk(check(importing({ ...part([]), functions: [['load8', signature([['address', u(32)]], u(8))]] })))
+        /** Why the checker refuses `part(['load8'])` with `i` over it, beside L0. @type {(i: Partial<Interface>) => string} */
+        const bad = i => why(importing({ ...part(['load8']), ...i }))
+        assertEq(bad({ abi: 'test:bad' }), "Bad says instructions, so it is L0's Memory, of fjs:l0, not of test:bad")
+        const unmade = 'Bad says instructions, so it has no types and no constants, which the target would not make'
+        assertEq(bad({ types: [['t', { variants: ['a'], carrier: 'i32' }]] }), unmade)
+        assertEq(bad({ constants: [['c', f64]] }), unmade)
+        assertEq(bad({ functions: [['peek', load8]] }), "Bad says instructions, and peek is no function of L0's Memory, which the target binds")
+        /** Why Bad's `load8`, shown as `s`, is not Memory's. @type {(s: string) => string} */
+        const unlike = s => `Bad.load8 is L0's Memory.load8, which is (a: u(32)) -> u(8), not ${s}`
+        assertEq(bad({ functions: [['load8', signature([['a', u(32)]], u(16))]] }), unlike('(a: u(32)) -> u(16)'))
+        assertEq(bad({ functions: [['load8', signature([own('a', u(32))], u(8))]] }), unlike('(own a: u(32)) -> u(8)'))
+        // A mark is a part of the signature: what it gives back, whether it may fail, and how it counts on bits.
+        assertEq(bad({ functions: [['load8', signature([['a', u(32)]], u(8), 'a')]] }), unlike('(a: u(32)) -> u(8), gives back a'))
+        assertEq(bad({ functions: [['load8', mayFail(load8)]] }), unlike('(a: u(32)) -> u(8), may fail'))
+        assertEq(bad({ functions: [['load8', countsBits('dup', load8)]] }), unlike('(a: u(32)) -> u(8), counts dup'))
+        // A host makes a literal, so no function that the target binds makes one.
+        const label = sealed('Label', 'label')
+        /** An interface of a type of one variant, whose literals `module`'s `member` makes, and of `functions`. @type {(module: string, member: string, functions: Interface['functions']) => Interface} */
+        const labels = (module, member, functions) => ({ abi: 'test:label', types: [['label', { variants: ['text'], carrier: 'i64', literal: { variant: 'text', module, member } }]], functions })
+        assertEq(why({ imports: [memory, ['Label', labels('Memory', 'load64', [])]], functions: [['f', fn([], bool, let_('l', lit(label, 'a'), () => true_))]], exports: [] }),
+            "f: Memory makes the literals of label, and it says instructions, so its functions are the target's, and none makes a literal")
+        // The loader gives the memory from Memory's ABI, so no constant or function of that ABI is named memory, and it
+        // gives data_base only to a module that makes literals.
+        /** A module that imports Memory and `i`, as Bad. @type {(i: Interface) => Module} */
+        const beside = i => ({ imports: [memory, ['Bad', i]], functions: [], exports: [] })
+        assertEq(why(beside({ abi: 'fjs:l0', types: [], functions: [['memory', signature([], f64)]] })),
+            'the function Bad.memory is the import memory of fjs:l0, which the loader gives a module that touches the memory')
+        assertEq(why(beside({ abi: 'fjs:l0', types: [], constants: [['memory', f64]], functions: [] })),
+            'the constant Bad.memory is the import memory of fjs:l0, which the loader gives a module that touches the memory')
+        assertOk(check(beside({ abi: 'fjs:l0', types: [], constants: [['data_base', f64]], functions: [] })))
+        // A module imports one memory, so the literals that it makes are made in Memory's, as L0's are.
+        assertEq(why(beside(labels('Bad', 'make', [['make', signature([['p', u(32)], ['n', u(32)]], sealed('Bad', 'label'))]]))),
+            'the literals of Bad.label are made in the memory of test:label, and Memory touches the memory of fjs:l0, but a module imports one memory')
+        assertOk(check({ imports: [...l0, memory], functions: [], exports: [] }))
     },
     // The checker infers whether each function may fail: by a trap or a throw in it, by a call of an interface's function
     // that may fail, or by a call of the module's that may, to a fixed point. Functions that call each other and nothing
