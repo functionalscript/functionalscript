@@ -160,7 +160,7 @@ executable model beside the checker stays optional (above).
 
 - [type-system.md, Flow refinement](./type-system.md#flow-refinement-is-two-rules)
 - [type-system.md, open question 14](./type-system.md#open-questions)
-- [`fjs/ir/todo/heap.md`](../../../fjs/ir/todo/heap.md) (H2b shipped; formal rules open)
+- [`fjs/ir/todo/heap.md`](../../../fjs/ir/todo/heap.md) (H2b shipped; formal rules done)
 - [heap.md, order of work](./heap.md#order-of-work) (H2)
 - [comparison.md, Risks](./comparison.md#risks) (refinement across `br` and loops)
 - [TODO_DESIGN.md, Refinement stops at `&&`](./TODO_DESIGN.md)
