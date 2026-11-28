@@ -873,9 +873,11 @@ interface and its release variant, written in the IR's eDSL over L0's
   pointer and the end of the pointer's region. The first blocks start 16
   bytes in.
 - **A full region grows the memory** by the larger of the request and 16
-  pages, or by the request alone where the host refuses that. New pages
-  that follow the region extend it, and elsewhere, where another allocator
-  grew the memory in between, they start a new region.
+  pages, or by the request alone where the host refuses that or 16 pages
+  would end past the last page. New pages that follow the region extend
+  it, so a region that ends where the memory does asks only for the bytes
+  past its end, and elsewhere, where another allocator grew the memory in
+  between, they start a new region.
 - **No byte of the arena is past `0xFFFF_0000`**, so every address and
   every end fit 32 bits, which flow refinement proves: the sum of the
   pointer and a size is a `u(32)` again where it is at most the end.

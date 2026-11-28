@@ -119,10 +119,10 @@ const taken = (a, g, k) => {
  * `null` where the host refuses both, or where no region could hold the
  * request.
  *
- * @type {(need: (size: number) => number, taken: (a: Arena, g: number, k: number) => Arena | null) => (a: Arena, size: number) => Arena | null}
+ * @type {(need: (a: Arena, size: number) => number, taken: (a: Arena, g: number, k: number) => Arena | null) => (a: Arena, size: number) => Arena | null}
  */
 const grownBy = (need, taken) => (a, size) => {
-    const pages = need(size)
+    const pages = need(a, size)
     if (pages > lastPage) { return null }
     const k = pages < chunk && a.pages + chunk <= lastPage ? chunk : pages
     const g = grow(a.pages, a.most, k)
@@ -145,8 +145,17 @@ const placedBy = grown => (a, size) => {
     return b === null ? null : fit(b, size)
 }
 
-/** The release arena's {@link placedBy}: a region takes the pages that hold the request. */
-const placed = placedBy(grownBy(pagesOf, taken))
+/**
+ * The pages that a full region of the release arena takes for `size`
+ * bytes: those that hold them, or, where the region ends where the memory
+ * does, those that hold the bytes past its end, since new pages extend it.
+ *
+ * @type {(a: Arena, size: number) => number}
+ */
+const releaseNeed = (a, size) => pagesOf(a.end === a.pages * page ? a.top + size - a.end : size)
+
+/** The release arena's {@link placedBy}. */
+const placed = placedBy(grownBy(releaseNeed, taken))
 
 /**
  * The pages that a region of the debug arena takes for `size` bytes: those
@@ -174,7 +183,7 @@ const countedTaken = (a, g, k) => {
 }
 
 /** The debug arena's {@link placedBy}. */
-const placedCounted = placedBy(grownBy(countedNeed, countedTaken))
+const placedCounted = placedBy(grownBy((_, size) => countedNeed(size), countedTaken))
 
 /**
  * The arena with its next block of `n` bytes, and the block's address, or

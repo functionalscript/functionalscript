@@ -200,8 +200,22 @@ const growth = (need, region, more) => [
     ...more,
 ]
 
-/** The pages that the release arena's region takes for a block of `k` bytes: those that hold it. @type {(k: Term) => Term} */
-const releaseNeed = k => shr(add(rounded(k), n(0xFFFFn)), n(16n))
+/**
+ * The pages that the release arena's full region takes for a block of `k`
+ * bytes: those that hold it, or, where the region ends where the memory
+ * does, those that hold the bytes past its end, since new pages extend it.
+ *
+ * @type {(k: Term) => Term}
+ */
+const releaseNeed = k =>
+    let_('size', rounded(k), s =>
+        let_('end', memoryOf('load32', [endAt]), end =>
+            // the bytes past the region's end: more than 0, since the region is full, and at most the request, since
+            // the pointer is never past the end
+            let_('over', sub(add(memoryOf('load32', [state]), s), end), over =>
+                shr(add(if_(eq(end, mul(memoryOf('size', []), n(0x1_0000n))),
+                    if_(lt(n(0n), over), if_(le(over, s), over, outOfMemory), outOfMemory),
+                    s), n(0xFFFFn)), n(16n)))))
 
 /**
  * The release arena's region of the pages from `g` to `last`: they extend
