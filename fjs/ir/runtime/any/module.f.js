@@ -236,10 +236,10 @@ const moduleOf = (refKind, heap, block) => ({
     ],
     functions: [
         // Whether bits are a dynamic reference: two bit operations, which the inline pass writes into each hook that asks.
-        ['isRef', hint('always', fn([['b', u(64)]], bool, b => isRefTerm(b)))],
+        ['isRef', hint({ inline: 'always' }, fn([['b', u(64)]], bool, b => isRefTerm(b)))],
         // Hooks over bits: count a reference through Ref, or through the Heap where it is one, pass every other box through.
         ['dup', fn([['b', u(64)]], u(64), dupOf(block))],
-        ['drop', hint('always', fn([['b', u(64)]], unit, dropOf(block)))],
+        ['drop', hint({ inline: 'always' }, fn([['b', u(64)]], unit, dropOf(block)))],
         // L0's kind from the box: numbers, short bigints, references (by `refKind`), short strings, then scalar tags.
         ['kind', fn([['v', any]], int(0n, 8n), v => let_('b', unseal(v), b =>
             if_(isNumberTerm(b), n(3n),
@@ -248,13 +248,13 @@ const moduleOf = (refKind, heap, block) => ({
                         if_(ne(and(b, n(0xCn)), n(0n)), n(4n),
                             scalarKind(b)))))))],
         // A number's bits as an f64c; a float as a number's bits.
-        ['to_f64', hint('always', fn([['v', number]], f64c, v => canon(from_bits(unseal(v)))))],
-        ['from_f64', hint('always', fn([['x', f64]], number, x => seal(number, to_bits(canon(x)))))],
+        ['to_f64', hint({ inline: 'always' }, fn([['v', number]], f64c, v => canon(from_bits(unseal(v)))))],
+        ['from_f64', hint({ inline: 'always' }, fn([['x', f64]], number, x => seal(number, to_bits(canon(x)))))],
         // A boolean's sign bit; a bool as the true or false box.
-        ['to_bool', hint('always', fn([['v', boolean]], bool, v => ne(shr(unseal(v), n(63n)), n(0n))))],
-        ['from_bool', hint('always', fn([['b', bool]], boolean, b => if_(b, seal(boolean, n(TRUE)), seal(boolean, n(FALSE)))))],
+        ['to_bool', hint({ inline: 'always' }, fn([['v', boolean]], bool, v => ne(shr(unseal(v), n(63n)), n(0n))))],
+        ['from_bool', hint({ inline: 'always' }, fn([['b', bool]], boolean, b => if_(b, seal(boolean, n(TRUE)), seal(boolean, n(FALSE)))))],
         // Reference identity through NaNVM, which traps on a dropped or forged box.
-        ['same', hint('always', fn([['a', reference], ['b', reference]], bool, (a, b) => call('Ref', 'same_ref', [unseal(a), unseal(b)])))],
+        ['same', hint({ inline: 'always' }, fn([['a', reference], ['b', reference]], bool, (a, b) => call('Ref', 'same_ref', [unseal(a), unseal(b)])))],
         // Owned-stage helpers for proofs on NaNVM: copy, move, drop, and the constants.
         ['keep', fn([['v', any]], any, v => v)],
         ['take', fn([own('v', any)], any, v => v)],

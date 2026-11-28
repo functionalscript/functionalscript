@@ -131,7 +131,7 @@ const leftOver = name => `f: ${name} is left over, and res is linear: nothing dr
 export const proof = {
     // A function's inline hint stays, for the emitter, which copies a hook hinted `always`.
     hint: () => {
-        const m = assertOk(lifetime({ imports: [], functions: [['f', hint('never', fn([['x', f64]], f64, x => x))], ['g', fn([['x', f64]], f64, x => x)]], exports: ['f', 'g'] }))
+        const m = assertOk(lifetime({ imports: [], functions: [['f', hint({ inline: 'never' }, fn([['x', f64]], f64, x => x))], ['g', fn([['x', f64]], f64, x => x)]], exports: ['f', 'g'] }))
         assertEq(m.functions.map(([k, f]) => `${k}:${f.inline}`).join(' '), 'f:never g:undefined')
     },
     // What the pass writes, which the checker takes.

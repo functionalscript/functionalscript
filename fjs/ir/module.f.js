@@ -7,7 +7,7 @@
  *
  * @module
  *
- * @import { ArmOf, Code, CodeParam, Defines, F64, F64c, Fn, Inline, Int, Interface, LoopParamOf, OpName, Param, Parts, Product, Sealed, SealedDef, Signature, Sum, Term, Type, Typed, TypedTerm } from './types.ts'
+ * @import { ArmOf, Code, CodeParam, Defines, F64, F64c, Fn, Hints, Int, Interface, LoopParamOf, OpName, Param, Parts, Product, Sealed, SealedDef, Signature, Sum, Term, Type, Typed, TypedTerm } from './types.ts'
  */
 
 import { assertNotNullish } from '../asserts/module.f.js'
@@ -341,12 +341,14 @@ export const fn = (params, result, body) => ({
 })
 
 /**
- * A function with an inline hint: `hint('always', fn(...))` asks the
- * [inline pass](./inline/module.f.js) to write its body at every call.
+ * A function with hints, each named by what it is about:
+ * `hint({ inline: 'always' }, fn(...))` asks the
+ * [inline pass](./inline/module.f.js) to write its body at every call, and
+ * `hint({ inline: 'never' }, fn(...))` to keep each call.
  *
- * @type {(inline: Inline, f: Fn) => Fn}
+ * @type {(hints: Hints, f: Fn) => Fn}
  */
-export const hint = (inline, f) => ({ ...f, inline })
+export const hint = ({ inline }, f) => ({ ...f, inline })
 
 /**
  * What a call of a function needs, written apart from its body, and for a

@@ -1148,19 +1148,19 @@ export const proof = {
         /** A function of `x` that calls `g` of it. @type {(g: string) => ReturnType<typeof fn>} */
         const calling = g => fn([['x', f64]], f64, x => call('self', g, [x]))
         // a hint that the pass can keep: a chain of always, an exported one, never, and recursion through a function with no hint
-        assertOk(check(of([['f', hint('always', calling('g'))], ['g', hint('always', leaf)], ['h', hint('never', leaf)]])))
-        assertOk(check(of([['f', hint('always', calling('g'))], ['g', calling('f')]])))
+        assertOk(check(of([['f', hint({ inline: 'always' }, calling('g'))], ['g', hint({ inline: 'always' }, leaf)], ['h', hint({ inline: 'never' }, leaf)]])))
+        assertOk(check(of([['f', hint({ inline: 'always' }, calling('g'))], ['g', calling('f')]])))
         // a hint that it cannot
         assertEq(why(of([['f', /** @type {ReturnType<typeof fn>} */ ({ ...leaf, inline: /** @type {never} */ ('often') })]])), 'f: an inline hint is always or never, not often')
-        assertEq(why(of([['f', hint('always', calling('f'))]])), 'f is inline always and calls itself through functions inline always, so its copies would never end')
-        assertEq(why(of([['f', hint('always', calling('g'))], ['g', hint('always', calling('f'))]])), 'f is inline always and calls itself through functions inline always, so its copies would never end')
-        assertEq(why(of([['f', fn([], f64, () => call_ref(codeOf('g'), [one_]))], ['g', hint('always', leaf)]])), 'g is inline always and read as a value, which needs its code')
-        assertEq(why({ ...of([['f', leaf], ['g', hint('always', leaf)]]), constants: [['c', { type: code([['borrow', f64]], f64), value: codeOf('g') }]] }), 'g is inline always and read as a value, which needs its code')
+        assertEq(why(of([['f', hint({ inline: 'always' }, calling('f'))]])), 'f is inline always and calls itself through functions inline always, so its copies would never end')
+        assertEq(why(of([['f', hint({ inline: 'always' }, calling('g'))], ['g', hint({ inline: 'always' }, calling('f'))]])), 'f is inline always and calls itself through functions inline always, so its copies would never end')
+        assertEq(why(of([['f', fn([], f64, () => call_ref(codeOf('g'), [one_]))], ['g', hint({ inline: 'always' }, leaf)]])), 'g is inline always and read as a value, which needs its code')
+        assertEq(why({ ...of([['f', leaf], ['g', hint({ inline: 'always' }, leaf)]]), constants: [['c', { type: code([['borrow', f64]], f64), value: codeOf('g') }]] }), 'g is inline always and read as a value, which needs its code')
         // A hook may be hinted: the emitter copies it. Any's drop is.
         assertEq(anyModule.functions.find(([k]) => k === 'drop')?.[1].inline, 'always')
-        assertOk(checkPlain({ ...anyModule, functions: anyModule.functions.map(([k, f]) => [k, k === 'dup' ? hint('always', f) : f]) }))
+        assertOk(checkPlain({ ...anyModule, functions: anyModule.functions.map(([k, f]) => [k, k === 'dup' ? hint({ inline: 'always' }, f) : f]) }))
         // A kind may not be: the emitter writes a call of it in each match of the type.
-        assertEq(assertError(checkPlain({ ...anyModule, functions: anyModule.functions.map(([k, f]) => [k, k === 'kind' ? hint('always', f) : f]) })), 'kind is inline always and the kind of a type that the module defines, which the emitter calls in each match of it')
+        assertEq(assertError(checkPlain({ ...anyModule, functions: anyModule.functions.map(([k, f]) => [k, k === 'kind' ? hint({ inline: 'always' }, f) : f]) })), 'kind is inline always and the kind of a type that the module defines, which the emitter calls in each match of it')
     },
     br: () => {
         assertEq(why(one([], f64, br('l', one_))), 'f: no label l')

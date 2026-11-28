@@ -19,7 +19,7 @@ import { inline, inlineHooks } from './module.f.js'
 const one = lit(f64c, 1)
 
 /** `x + 1`, which every module here inlines. */
-const add1 = hint('always', fn([['x', f64]], f64, x => add(x, one)))
+const add1 = hint({ inline: 'always' }, fn([['x', f64]], f64, x => add(x, one)))
 
 /**
  * A module through the pass, as text, once the lifetime pass and the
@@ -45,7 +45,7 @@ const selfCalls = ([, t]) => {
 
 /** Any's module with `dup` hinted too, through both passes and the checker. @type {() => Checked} */
 const anyChecked = () => {
-    const hinted = { ...anyModule, functions: anyModule.functions.map(([k, f]) => /** @type {const} */ ([k, k === 'dup' ? hint('always', f) : f])) }
+    const hinted = { ...anyModule, functions: anyModule.functions.map(([k, f]) => /** @type {const} */ ([k, k === 'dup' ? hint({ inline: 'always' }, f) : f])) }
     return assertOk(check(assertOk(lifetime(assertOk(inline(hinted))))))
 }
 
@@ -68,7 +68,7 @@ export const proof = {
         imports: [],
         functions: [
             ['add1', add1],
-            ['add2', hint('always', fn([['y', f64]], f64, y => call('self', 'add1', [call('self', 'add1', [y])])))],
+            ['add2', hint({ inline: 'always' }, fn([['y', f64]], f64, y => call('self', 'add1', [call('self', 'add1', [y])])))],
             ['g', fn([['a', f64]], f64, a => call('self', 'add2', [a]))],
         ],
         exports: ['g', 'add1'],
@@ -97,7 +97,7 @@ export const proof = {
             imports: [],
             constants: [['c', { type: f64, value: call('self', 'h', [lit(f64, 2)]) }]],
             functions: [
-                ['shape', hint('always', body)],
+                ['shape', hint({ inline: 'always' }, body)],
                 ['h', fn([['x', f64]], f64, x => x)],
                 ['f', fn([], f64, () => call('self', 'shape', [constant('self', 'c'), codeOf('h')]))],
             ],
@@ -132,8 +132,8 @@ export const proof = {
     widen: () => assertEq(passed({
         imports: l0,
         functions: [
-            ['kind', hint('always', fn([['v', any]], int(0n, 8n), v => call('Any', 'kind', [v])))],
-            ['take', hint('always', fn([own('v', any)], any, v => v))],
+            ['kind', hint({ inline: 'always' }, fn([['v', any]], int(0n, 8n), v => call('Any', 'kind', [v])))],
+            ['take', hint({ inline: 'always' }, fn([own('v', any)], any, v => v))],
             ['f', fn([['v', any]], int(0n, 8n), v => match(v, [
                 [['number'], 'x', call('self', 'kind', [get('x')])],
                 [null, null, call('self', 'kind', [call('self', 'take', [v])])],
@@ -168,7 +168,7 @@ export const proof = {
         ))
         assertEq(passed({
             imports: [],
-            functions: [['g', hint('always', body)], ['f', fn([['a', f64]], f64, a => let_('p', make([['x', a]]), p => call('self', 'g', [field(p, 'x')])))]],
+            functions: [['g', hint({ inline: 'always' }, body)], ['f', fn([['a', f64]], f64, a => let_('p', make([['x', a]]), p => call('self', 'g', [field(p, 'x')])))]],
             exports: ['f'],
         }), [
             'fn f(a: f64) -> f64 =',
@@ -189,7 +189,7 @@ export const proof = {
     // A field or a literal given to an integer that the body compares is bound, and the copy's comparison narrows the
     // `let` as the body's narrowed the parameter; a local stays in place, and the comparison narrows it.
     narrowed: () => {
-        const low = hint('always', fn([['w', u(64)]], u(32), w => if_(lt(w, n(0x1_0000_0000n)), w, n(0n))))
+        const low = hint({ inline: 'always' }, fn([['w', u(64)]], u(32), w => if_(lt(w, n(0x1_0000_0000n)), w, n(0n))))
         assertEq(passed({
             imports: [],
             functions: [
@@ -220,7 +220,7 @@ export const proof = {
     // body's narrowed its parameters, and the result still checks; a parameter that the body does not compare,
     // given the same local, stays in place.
     aliased: () => {
-        const pick = hint('always', fn([['a', u(8)], ['b', u(8)], ['c', u(8)]], int(0n, 254n), (a, b, c) =>
+        const pick = hint({ inline: 'always' }, fn([['a', u(8)], ['b', u(8)], ['c', u(8)]], int(0n, 254n), (a, b, c) =>
             if_(lt(a, b), a, if_(lt(c, n(1n)), c, n(0n)))))
         assertEq(passed({
             imports: [],
@@ -281,7 +281,7 @@ export const proof = {
                     [null, null, return_(one)],
                 ])))
         // Any's drop with a local of its own, which each copy names with its prefix.
-        const drop = hint('always', fn([['b', u(64)]], unit, b => let_('t', b, t => if_(call('self', 'isRef', [t]), call('Ref', 'drop_ref', [t]), make([])))))
+        const drop = hint({ inline: 'always' }, fn([['b', u(64)]], unit, b => let_('t', b, t => if_(call('self', 'isRef', [t]), call('Ref', 'drop_ref', [t]), make([])))))
         const hinted = {
             ...anyModule,
             functions: [...anyModule.functions.map(([k, f]) => /** @type {const} */ ([k, k === 'drop' ? drop : f])), /** @type {const} */ (['h', fn([['x', f64]], f64, x => x)]), /** @type {const} */ (['shape', shape])],
@@ -302,7 +302,7 @@ export const proof = {
     },
     // Any's hooks hold copies of isRef, and the module still checks.
     any: () => {
-        const hinted = { ...anyModule, functions: anyModule.functions.map(([k, f]) => /** @type {const} */ ([k, k === 'isRef' ? hint('always', f) : f])) }
+        const hinted = { ...anyModule, functions: anyModule.functions.map(([k, f]) => /** @type {const} */ ([k, k === 'isRef' ? hint({ inline: 'always' }, f) : f])) }
         const text = passed(hinted)
         assertEq(text.includes('self.isRef('), false)
         assertEq(text.includes('inline always fn isRef'), true)
@@ -314,7 +314,7 @@ export const proof = {
         const m = {
             imports: [['L', { abi: 'test', types: [['l', { variants: ['a', 'b'], kind: 'k', carrier: 'i32' }]], functions: [['k', { params: [['x', l]], result: int(0n, 1n) }], ['close', { params: [own('x', l)], result: unit }]] }]],
             functions: [
-                ['g', hint('always', fn([['x', l]], int(0n, 1n), x => call('L', 'k', [x])))],
+                ['g', hint({ inline: 'always' }, fn([['x', l]], int(0n, 1n), x => call('L', 'k', [x])))],
                 ['f', fn([['x', l]], int(0n, 1n), x => match(x, [[['a'], 'y', call('self', 'g', [get('y')])], [['b'], null, call('self', 'g', [x])]]))],
             ],
             exports: ['f'],
@@ -328,9 +328,9 @@ export const proof = {
             '',
         ].join('\n'))
         // A call in a function that goes, inlined everywhere, is never copied.
-        assertOk(inline({ ...m, functions: [...m.functions.map(([k, f]) => /** @type {const} */ ([k, k === 'f' ? hint('always', f) : f])), ['e', fn([['x', l]], int(0n, 1n), x => call('L', 'k', [x]))]], exports: ['e'] }))
+        assertOk(inline({ ...m, functions: [...m.functions.map(([k, f]) => /** @type {const} */ ([k, k === 'f' ? hint({ inline: 'always' }, f) : f])), ['e', fn([['x', l]], int(0n, 1n), x => call('L', 'k', [x]))]], exports: ['e'] }))
         // A linear value that the function owns moves into a copy with no block, and a copy in a block is refused.
-        const close = hint('always', fn([own('x', l)], unit, x => call('L', 'close', [x])))
+        const close = hint({ inline: 'always' }, fn([own('x', l)], unit, x => call('L', 'close', [x])))
         const closing = /** @type {(c: ReturnType<typeof fn>) => Module} */ (c => ({ ...m, functions: [['c', c], ['f', fn([own('x', l)], unit, x => call('self', 'c', [x]))]] }))
         assertEq(passed(closing(close)).split('\n').slice(-6).join('\n'), [
             'fn f(own x: l) -> unit =',
@@ -340,15 +340,15 @@ export const proof = {
             'export f',
             '',
         ].join('\n'))
-        assertEq(assertError(inline(closing(hint('always', fn([own('x', l)], unit, x => return_(call('L', 'close', [x]))))))), 'c is inline always and owns its linear x, which a copy in a block could not take over')
+        assertEq(assertError(inline(closing(hint({ inline: 'always' }, fn([own('x', l)], unit, x => return_(call('L', 'close', [x]))))))), 'c is inline always and owns its linear x, which a copy in a block could not take over')
     },
     // A module that the checker refuses is refused.
-    refused: () => assertEq(assertError(inline({ imports: [], functions: [['f', hint('always', fn([], f64, () => call('self', 'f', [])))]], exports: [] })),
+    refused: () => assertEq(assertError(inline({ imports: [], functions: [['f', hint({ inline: 'always' }, fn([], f64, () => call('self', 'f', [])))]], exports: [] })),
         'f is inline always and calls itself through functions inline always, so its copies would never end'),
     // A call of a function with no hint, or hinted never, stays.
     kept: () => assertEq(passed({
         imports: [],
-        functions: [['a', fn([['x', bool]], bool, x => x)], ['b', hint('never', fn([['x', bool]], bool, x => x))], ['f', fn([['x', bool]], bool, x => call('self', 'a', [call('self', 'b', [x])]))]],
+        functions: [['a', fn([['x', bool]], bool, x => x)], ['b', hint({ inline: 'never' }, fn([['x', bool]], bool, x => x))], ['f', fn([['x', bool]], bool, x => call('self', 'a', [call('self', 'b', [x])]))]],
         exports: ['f'],
     }).split('\n').slice(-5).join('\n'), [
         'fn f(x: bool) -> bool =',
