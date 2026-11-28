@@ -287,7 +287,8 @@ const madeTyped = ([, t]) => t[0] === 'get' || t[0] === 'lit' || t[0] === 'const
 
 /**
  * The hooks of the types that a module defines: each `kind`, `dup` and
- * `drop` that the lifetime pass and the emitter call.
+ * `drop` that the lifetime pass and the emitter call. The checker refuses
+ * a hint on a `kind`, whose calls the emitter writes in each `match`.
  *
  * @type {(m: { readonly defines?: Module['defines'] }) => readonly string[]}
  */
@@ -424,6 +425,7 @@ export const inlineHooks = m => {
     return {
         ...m,
         constants: m.constants.map(([k, c]) => /** @type {const} */ ([k, { ...c, value: top(bound(c.value), c.value) }])),
-        functions: m.functions.map(([k, f]) => /** @type {const} */ ([k, hooked.includes(k) ? f : { ...f, body: top([...f.params.map(([x]) => x), ...bound(f.body)], f.body) }])),
+        // A hook's own body is written too, with the copies of the other hooks that it calls: the checker refuses a hint that reaches itself.
+        functions: m.functions.map(([k, f]) => /** @type {const} */ ([k, { ...f, body: top([...f.params.map(([x]) => x), ...bound(f.body)], f.body) }])),
     }
 }

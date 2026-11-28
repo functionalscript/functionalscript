@@ -43,9 +43,9 @@ const selfCalls = ([, t]) => {
     return [...(t[0] === 'call' && t[1] === 'self' ? [t[2]] : []), ...parts.flatMap(selfCalls)]
 }
 
-/** Any's module with `dup` and `kind` hinted too, through both passes and the checker. @type {() => Checked} */
+/** Any's module with `dup` hinted too, through both passes and the checker. @type {() => Checked} */
 const anyChecked = () => {
-    const hinted = { ...anyModule, functions: anyModule.functions.map(([k, f]) => /** @type {const} */ ([k, k === 'dup' || k === 'kind' ? hint('always', f) : f])) }
+    const hinted = { ...anyModule, functions: anyModule.functions.map(([k, f]) => /** @type {const} */ ([k, k === 'dup' ? hint('always', f) : f])) }
     return assertOk(check(assertOk(lifetime(assertOk(inline(hinted))))))
 }
 
@@ -203,10 +203,10 @@ export const proof = {
     hooks: () => {
         const m = anyChecked()
         const calls = m.functions.flatMap(([, f]) => selfCalls(f.body))
-        assertEq(calls.filter(k => k === 'dup' || k === 'drop' || k === 'kind').length > 0, true)
+        assertEq(calls.filter(k => k === 'dup' || k === 'drop').length > 0, true)
         const out = inlineHooks(m)
         assertEq(out.functions.map(([k]) => k).join(' '), m.functions.map(([k]) => k).join(' '))
-        assertEq(out.functions.flatMap(([, f]) => selfCalls(f.body)).filter(k => k === 'dup' || k === 'drop' || k === 'kind').join(' '), '')
+        assertEq(out.functions.flatMap(([, f]) => selfCalls(f.body)).filter(k => k === 'dup' || k === 'drop').join(' '), '')
         // The emitter takes the copies.
         emit(out)
     },

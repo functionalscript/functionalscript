@@ -52,9 +52,10 @@
  *   it answers writes the bit beside each function.
  * - **An inline hint is one that the inline pass can keep.** A function
  *   hinted `always` reaches itself through no chain of calls of such
- *   functions, and is read as no value. A hook of a type that the module
- *   defines, which the lifetime pass calls after the
- *   [inline pass](../inline/module.f.js) has run, is copied by the
+ *   functions, is read as no value, and is no `kind` of a type that the
+ *   module defines, which the emitter calls in each `match` of it. A
+ *   type's `dup` and `drop`, which the lifetime pass calls after the
+ *   [inline pass](../inline/module.f.js) has run, are copied by the
  *   emitter instead.
  *
  * @module
@@ -1296,9 +1297,10 @@ const callees = t => [...(t[0] === 'call' && t[1] === 'self' ? [t[2]] : []), ...
  * hint is `always` or `never`, and a function hinted `always` reaches
  * itself through no chain of calls of such functions, since its copies
  * would never end, and is read as no value, since a value needs its code.
- * A hook of a type that the module defines may be hinted too: the
- * emitter copies it, since the lifetime pass writes its calls after the
- * inline pass has run.
+ * A type's `dup` and `drop` may be hinted too: the emitter copies them,
+ * since the lifetime pass writes their calls after the inline pass has
+ * run. Its `kind` may not, since the emitter writes a call of it in each
+ * `match` of the type, which no pass sees.
  *
  * @type {(m: Module) => string | null}
  */
@@ -1306,6 +1308,7 @@ const misinlined = m => {
     const strange = m.functions.find(([, { inline }]) => inline !== undefined && inline !== 'always' && inline !== 'never')
     if (strange !== undefined) { return `${strange[0]}: an inline hint is always or never, not ${/** @type {unknown} */ (strange[1].inline)}` }
     const always = m.functions.flatMap(([k, f]) => f.inline === 'always' ? [/** @type {const} */ ([k, f])] : [])
+    const kinds = (m.defines?.types ?? []).map(([, { kind }]) => kind)
     const values = [...m.functions.flatMap(([, f]) => codes(f.body)), ...(m.constants ?? []).flatMap(([, c]) => codes(c.value))]
     /** The functions hinted `always` that `f` calls. @type {(body: Term) => readonly string[]} */
     const next = body => callees(body).filter(g => always.some(([k]) => k === g))
@@ -1327,7 +1330,9 @@ const misinlined = m => {
     }
     const value = always.find(([k]) => values.includes(k))
     const cycle = always.find(([k, f]) => cycles(k, f.body))
-    return value !== undefined ? `${value[0]} is inline always and read as a value, which needs its code`
+    const kind = always.find(([k]) => kinds.includes(k))
+    return kind !== undefined ? `${kind[0]} is inline always and the kind of a type that the module defines, which the emitter calls in each match of it`
+        : value !== undefined ? `${value[0]} is inline always and read as a value, which needs its code`
         : cycle !== undefined ? `${cycle[0]} is inline always and calls itself through functions inline always, so its copies would never end`
         : null
 }
