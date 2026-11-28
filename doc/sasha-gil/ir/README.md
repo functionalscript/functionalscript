@@ -24,7 +24,7 @@ has its own table.
 | [nan-box-patterns.md](./nan-box-patterns.md) | The 23 bit patterns of the NaN box that type-system.md's layout proof checks, with what each holds, and the check that ran on them |
 | [nan-box-in-ir.md](./nan-box-in-ir.md) | A check of type-system.md: the whole NaN box and nineteen functions over it, written in its eDSL and run by a prototype. Its two main points and thirteen smaller rules are now in type-system.md, still proposed |
 | [runtime-in-ir.md](./runtime-in-ir.md) | Built: slice 1 of the runtime written in the IR, all four checkpoints merged (#4094–#4116). Any over Sergey's NaN box, linked into programs; NaNVM keeps references but speaks the box; the IR's bit operators; four checkpoints |
-| [short-strings.md](./short-strings.md) | Design approved (#4118), built through S4 (#4121–#4127): short strings as the next runtime-in-IR phase. String runtime-module interface, interchangeable implementations (host-backed, NaN memory-saving, NaN CPU-saving), experiment plan |
+| [short-strings.md](./short-strings.md) | Design approved (#4118), built through S4 (#4121–#4127): short strings as a runtime-in-IR phase. String runtime-module interface, interchangeable implementations (host-backed, NaN memory-saving, NaN CPU-saving). After S4 the live string path is Heap-first (H3), not rope |
 | [heap.md](./heap.md) | Proposed, with the owner's choices in it: a Heap module written in the IR, one interface and a module for each variant. The bump arena first, which in release neither counts nor frees and in debug counts in a header and traps on misuse; then paged size classes as the production heap, and a line heap as an experiment. Memory enters the IR as an interface whose calls the emitter writes as instructions, and a caught throw is recovered by a recount from the roots. The alternatives weighed, mimalloc compiled to WASM and WasmGC among them |
 | [long-strings.md](./long-strings.md) | Decided (2026-11-27, option A on each of six choices): the Heap's first client. The long strings that the IR's own `concat` and `substring` make live in the IR heap, behind a kind nibble of their own, and NaNVM holds no reference into it: a long IR string is copied into a NaNVM string wherever it crosses, so the root table waits for H4. Steps H3a to H3e, and an experiment with 8-bit units |
 | [defined-hooks.md](./defined-hooks.md) | Decided (choice C): how a module counts a type that it defines. Its `dup` and `drop` are functions over the carrier's bits, the lifetime pass wraps them with `unseal`, `release` and `seal`, and Any's hooks call NaNVM only for a reference |
@@ -60,22 +60,21 @@ for L1's native rows.
 
 ## Next
 
-The owner's direction of 2026-11-12 put the IR's role between FAST and
-WASM first. That role is built: slices 1 to 12 of
-[`fjs/ir/todo/slices.md`](../../../fjs/ir/todo/slices.md) are merged, so
-steps 2 to 6 of definition.md's [order of work](./definition.md#order-of-work)
-are done, and untyped programs run on NaNVM's `.wasm`. Step 1 still lacks
-its proof that every function of the L0 view has a row
-([What fjs/ir builds](./definition.md#what-fjsir-builds)).
+**Heap-first (2026-11-28).** On the string path, finish H3 through
+measure before any other string lever: H3a→H3e in
+[long-strings.md](./long-strings.md) and
+[`fjs/ir/todo/heap.md`](../../../fjs/ir/todo/heap.md). Rope (if any)
+waits on H3d numbers — do not start a parallel rope design before those
+rows. `withHeap` and the mixed short / IR-heap / NaNVM String surfaces
+are a temporary fork until NaNVM strings go away; do not over-clean them
+early. Design-first work may stay stack-open: coding PRs may open while
+a design PR is still under review, as long as they are git-based under
+that design branch.
 
-The owner's next task (2026-11-21) is the IR's other role: a runtime
-written in the IR itself, in the style of the
-[modular runtime](../wasm/modular-runtime.md) and
-[modular L0](../wasm/modular-l0.md), with the NaN box of
-[Sergey's design](../../sergey-shandar/nanvm/README.md) coded by hand in
-`f64` bits. That is steps 7 to 10 of the order of work, and the
-[open questions](./type-system.md#open-questions) of type-system.md are
-about it.
+Slice 1 of the runtime-in-IR work and short strings S1–S4 are built
+([runtime-in-ir.md](./runtime-in-ir.md), [short-strings.md](./short-strings.md)).
+The Heap's bump arenas are on `main` through H2d; H3a (Any `withHeap`)
+is on `main`; H3b–H3e remain the live coding line.
 
 Still waiting for the owner:
 

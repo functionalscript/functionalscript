@@ -715,7 +715,9 @@ Each step is one stack of pull requests, and each keeps every proof green.
    reference into the IR heap, and a long IR string that crosses into
    NaNVM is copied into a NaNVM string there. So NaNVM needs no `dup` or
    `drop` of the heap's, and the root table moves to H4, beside the
-   recount that reads it.
+   recount that reads it. **Live priority (2026-11-28):** finish H3
+   through measure before rope or other `concat` levers; H3d's numbers
+   decide whether a rope is needed.
 4. **H4, paged size classes** with the recount from the roots, measured
    against the arena, which is the ceiling, and against NaNVM. The root
    table comes with them, since the recount is its first reader
