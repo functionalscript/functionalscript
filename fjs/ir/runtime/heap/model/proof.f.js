@@ -46,6 +46,14 @@ export const proof = {
         const [c, q] = allocated(b, 0x20_0000)
         assertEq(`${q} ${c.pages} ${c.end}`, '131088 50 3276800')
     },
+    // Where 16 pages would end past the last page, a full region grows by the request alone: after `init` on
+    // 65,519 pages, a block of 8 bytes past a full region takes one page, which ends at 65,521.
+    nearLastPage: () => {
+        const a = assertNotNullish(start(65_519, 0x1_0000))
+        const [b, p] = allocated(a, 0xFFF0)
+        const [c, q] = allocated(b, 8)
+        assertEq(`${q - p} ${c.pages} ${c.end / 0x1_0000} ${c.top - q}`, '65520 65521 65521 8')
+    },
     // Pages that another allocator took first leave the region's tail, and the block starts a new region.
     elsewhere: () => {
         const a = other(assertNotNullish(start(1, 0x1_0000)), 3)

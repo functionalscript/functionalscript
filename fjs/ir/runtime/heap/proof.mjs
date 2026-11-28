@@ -24,17 +24,17 @@ import { module } from './module.f.js'
 const compiled = new WebAssembly.Module(new Uint8Array(write(emit(assertOk(check(module))))))
 
 /**
- * The arena on a memory of one page that may grow to `most`, after `init`:
- * its exports, the memory, and the model's arena.
+ * The arena on a memory of `pages` pages, one unless given, that may grow
+ * to `most`, after `init`: its exports, the memory, and the model's arena.
  *
- * @type {(most: number) => { readonly exports: WebAssembly.Exports, readonly memory: WebAssembly.Memory, readonly arena: Arena }}
+ * @type {(most: number, pages?: number) => { readonly exports: WebAssembly.Exports, readonly memory: WebAssembly.Memory, readonly arena: Arena }}
  */
-const load = most => {
-    const memory = new WebAssembly.Memory({ initial: 1, maximum: most })
+const load = (most, pages = 1) => {
+    const memory = new WebAssembly.Memory({ initial: pages, maximum: most })
     const { exports } = new WebAssembly.Instance(compiled, { 'fjs:l0': { memory } })
     const init = /** @type {() => void} */ (exports.init)
     init()
-    return { exports, memory, arena: assertNotNullish(start(1, most)) }
+    return { exports, memory, arena: assertNotNullish(start(pages, most)) }
 }
 
 /** Whether `f` traps, as a misuse reaches an `unreachable`. @type {(f: () => unknown) => boolean} */
@@ -124,6 +124,20 @@ export const proof = {
     // A host that lets the memory grow to a few pages only: the arena runs out where the model does, and traps.
     outOfMemory: () => {
         for (const seed of [5, 6, 7]) { assert(run(seed, 10_000, 40)[0] < 10_000) }
+    },
+    // Near the last page, where a chunk would end past it, a full region grows by the request alone, as the model
+    // does: after `init` on 65,519 pages, a block that fills the first region and one more of 8 bytes, whose page
+    // ends at 65,521, well below the arena's last page.
+    nearLastPage: () => {
+        const { exports, memory, arena } = load(0x1_0000, 65_519)
+        const allocate = /** @type {(t: number, n: number) => number} */ (exports.alloc)
+        const [full, first] = assertNotNullish(alloc(arena, 0xFFF0))
+        assertEq(allocate(0, 0xFFF0) >>> 0, first)
+        const [after, second] = assertNotNullish(alloc(full, 8))
+        assertEq(allocate(0, 8) >>> 0, second)
+        assertEq(second, first + 0xFFF0)
+        assertEq(memory.buffer.byteLength, after.pages * 0x1_0000)
+        assertEq(after.pages, 65_521)
     },
     // A memory that cannot grow at all leaves `init` nothing to put the state in.
     noPage: () => {
