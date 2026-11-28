@@ -148,6 +148,15 @@ export const proof = {
         assertEq(memory.buffer.byteLength, after.pages * 0x1_0000)
         assertEq(after.pages, 3)
     },
+    // Blocks of 0 bytes take 8 each, as the model's do, so no two blocks share an address.
+    empty: () => {
+        const { exports, arena } = load(0x1_0000)
+        const allocate = /** @type {(t: number, n: number) => number} */ (exports.alloc)
+        const [b, p] = assertNotNullish(alloc(arena, 0))
+        const [, q] = assertNotNullish(alloc(b, 0))
+        assertEq(`${allocate(0, 0) >>> 0} ${allocate(0, 0) >>> 0} ${allocate(0, 8) >>> 0}`, `${p} ${q} ${q + 8}`)
+        assertEq(q - p, 8)
+    },
     // A memory that cannot grow at all leaves `init` nothing to put the state in.
     noPage: () => {
         const memory = new WebAssembly.Memory({ initial: 1, maximum: 1 })

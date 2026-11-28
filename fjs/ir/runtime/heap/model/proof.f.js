@@ -15,7 +15,7 @@ const allocated = (a, n) => assertNotNullish(alloc(a, n))
 
 export const proof = {
     round: () => {
-        assertEq([0, 1, 7, 8, 9, 0xFFFF_FFF1, 0xFFFF_FFF8].map(round).join(), '0,8,8,8,16,4294967288,4294967288')
+        assertEq([0, 1, 7, 8, 9, 0xFFFF_FFF1, 0xFFFF_FFF8].map(round).join(), '8,8,8,8,16,4294967288,4294967288')
     },
     // `init` takes the next page: the state words, then the first region's blocks from 16 bytes in.
     start: () => {
@@ -26,16 +26,17 @@ export const proof = {
         assertEq(start(0xFFFF, 0x1_0000), null)
         assertEq(assertNotNullish(start(0xFFFE, 0x1_0000)).state, 0xFFFE_0000)
     },
-    // A block is its size rounded up to 8, at the pointer, which moves past it.
+    // A block is its size rounded up to 8, at the pointer, which moves past it. A block of 0 bytes takes 8 too, so
+    // that it has an address of its own.
     alloc: () => {
         const a = assertNotNullish(start(1, 0x1_0000))
         const [b, p] = allocated(a, 5)
         const [c, q] = allocated(b, 0)
         const [d, r] = allocated(c, 16)
-        assertEq(`${p} ${q} ${r} ${d.top}`, '65552 65560 65560 65576')
+        assertEq(`${p} ${q} ${r} ${d.top}`, '65552 65560 65568 65584')
         // the rest of the region holds exactly one more block that ends at its end
         const [e, s] = allocated(d, d.end - d.top)
-        assertEq(`${s} ${e.top === e.end} ${e.pages}`, '65576 true 2')
+        assertEq(`${s} ${e.top === e.end} ${e.pages}`, '65584 true 2')
     },
     // A full region grows the memory by 16 pages, or by the pages for the bytes past its end where that is more,
     // and new pages that follow the region extend it.

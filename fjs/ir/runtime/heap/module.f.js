@@ -114,7 +114,8 @@ export const module = {
     constants: [['state', { type: stateAt, value: started }]],
     functions: [
         ['alloc', fn([['t', type], ['n', size]], address, (t, k) =>
-            let_('size', and(add(k, n(7n)), n(0xFFFF_FFF8n)), s =>
+            // a block of 0 bytes takes 8 too, so that each block has an address of its own
+            let_('size', if_(eq(k, n(0n)), n(8n), and(add(k, n(7n)), n(0xFFFF_FFF8n))), s =>
                 let_('top', memoryOf('load32', [state]), top =>
                     let_('next', add(top, s), next =>
                         let_('end', memoryOf('load32', [endAt]), end =>
