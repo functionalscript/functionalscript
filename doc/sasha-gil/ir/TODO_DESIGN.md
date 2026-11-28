@@ -160,7 +160,10 @@ lowering keeps the counter a float, as FAST has it, until a pass can
 prove a range
 ([What the check found](./definition.md#what-the-check-found), 3 and 4).
 `fjs/ir` does so since slice 4: an `f64` counter, read as an integer by
-`exact` where one is needed, and no such pass yet.
+`exact` where one is needed, and no such pass yet. Shipped H2b formalises
+the branch-local case in
+[comparison-refinement.md](./comparison-refinement.md); closing this gap
+is still a lowering concern, not an H2b redesign.
 
 ### A kind test teaches the checker nothing
 

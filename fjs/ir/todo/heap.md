@@ -40,7 +40,12 @@ it counts in a header and traps on misuse. Memory enters the IR as a
       two integers, or on its negation, narrows a local, and the emitter
       reads it in the narrower word, so the arena's pointer arithmetic
       needs no masks (2026-11-27, the card's recommended option; the
-      owner's answer is still open)
+      owner's answer is still open). Keep as shipped; formal rules below
+- [ ] **H2b formal rules** — Lattice, sound transfer, and conservative
+      joins/loops for comparison-narrowing, written so the checker can be
+      checked against them; not a redesign of shipped H2b
+      ([comparison-refinement.md](../../../doc/sasha-gil/ir/comparison-refinement.md);
+      docs/spec alongside H3, 2026-11-28)
 - [x] **H2c** — The Heap interface and the release arena, `module`, under
       `fjs/ir/runtime/heap`, in the IR's eDSL, with a plain FunctionalScript
       model and a host proof that runs both on the same seeded sequences
@@ -95,5 +100,7 @@ it counts in a header and traps on misuse. Memory enters the IR as a
   recover a caught throw, an experiment
 - [long-strings.md](../../../doc/sasha-gil/ir/long-strings.md): H3, the
   first client
+- [comparison-refinement.md](../../../doc/sasha-gil/ir/comparison-refinement.md):
+  formal H2b rules (lattice, transfer, joins/loops), alongside H3
 - [one-byte-strings.md](./one-byte-strings.md): long strings of 8-bit
   units, a String variant of their own, an experiment

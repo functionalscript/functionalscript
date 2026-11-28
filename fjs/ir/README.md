@@ -834,7 +834,9 @@ The second part of H2, the IR's heap
 ([heap.md](../../doc/sasha-gil/ir/heap.md#order-of-work)), whose pointers
 are sums of `u(32)` values that a check fits back into 32 bits: rule 2 of
 [type-system.md's flow refinement](../../doc/sasha-gil/ir/type-system.md#flow-refinement-is-two-rules),
-which `narrow` and `clamp` will be written with.
+which `narrow` and `clamp` will be written with. Formal lattice and
+transfer rules (keep shipped H2b; checkable by the checker) live in
+[comparison-refinement.md](../../doc/sasha-gil/ir/comparison-refinement.md).
 
 - **A branch on a comparison narrows its operands.** In each arm of a
   `match` of `lt`, `le` or `eq` of two integers, an operand that is a local

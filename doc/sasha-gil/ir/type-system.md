@@ -296,7 +296,10 @@ in scope, and two rules are enough:
 
 The checker keeps one range per local and nothing that relates two
 locals. After `lt(i, n)` it knows the range of `i`, not that `i` is below
-`n`. [Open question 14](#open-questions) is about what that costs.
+`n`. [Open question 14](#open-questions) is about what that costs. The
+formal lattice, transfer table, and join/loop conservatism for rule 2
+are in [comparison-refinement.md](./comparison-refinement.md) (shipped
+H2b kept; docs/spec alongside H3).
 
 ### Floats
 
