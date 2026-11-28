@@ -1,8 +1,8 @@
 /**
  * The example of [`README.md`](./README.md) (Names and Identity) as a
- * function of one number, for the page's WASM demo: identity, not names: a
- * function is equal to itself, and two written alike are two functions: the
- * input picks one of them, and the answer says whether it is `hello`.
+ * function of one number for the page's WASM demo. The input picks one of
+ * two functions with equal content, and the answer includes whether the
+ * executor compares the selected function equal to `hello`.
  *
  * @module
  */

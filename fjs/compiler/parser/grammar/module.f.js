@@ -159,10 +159,8 @@
  *   follows, so a trailing comma is a comma nothing follows; the classical
  *   grammar rested it on a failed repetition round rewinding.
  *
- * Mutually recursive rules use stable references. Their bodies are bound in
- * {@link definitions}, after the shared rules exist, so the syntax reader's
- * identity mappings and the diagrams use the same rule at every occurrence.
- * Pass those definitions when lowering or parsing any exported rule.
+ * Recursive productions are consecutive rule functions. The syntax reader
+ * and the railroad diagrams use those same functions to name a production.
  *
  * The alphabet is {@link _ordinaryTokenNames}: one name per token kind,
  * trivia having none, since it is not in the stream,
@@ -175,15 +173,15 @@
  * @module
  *
  * @import { Meta } from '../../../ebnf/ast/types.ts'
- * @import { Definition, Rule, Variant } from '../../../ebnf/types.ts'
+ * @import { Rule, Variant } from '../../../ebnf/types.ts'
  * @import { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
- * @import { AssignmentOperator, CallArguments, ConstructorCallee, MemberAccess, NewExpression, NewExpressionStatement, ArrayExpressionStatement, ArrayStatementValue, DeclarationInitializer, ForClassicTail, ForDeclarationTail, ForNamedLetTail, ForHeader, ForStatement, NameExpression } from './types.ts'
+ * @import { AssignmentOperator, BodyNameStatement, Container, ConstructorCallee, MemberAccess, NewExpression, NewExpressionStatement, ArrayExpressionStatement, ArrayStatementValue, DeclarationInitializer, ForClassicTail, ForDeclarationTail, ForNamedLetTail, ForHeader, ForStatement, NameExpression } from './types.ts'
  * @import { StringMap } from '../../../types/object/types.ts'
  * @import { BranchBlock, BranchContents, BranchElse, IfStatement, BlockContents, SimpleStatement, Access, AfterValue, ArrayLiteral, ArrowOrRest, BindingTarget, Block, Body, CircuitTail, ConditionalTail, ConstStatement, EagerTail, End, Entry, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, LetStatement, LoopBlock, LoopCase, LoopElse, LoopIfStatement, LoopStatement, LoopSwitch, Member, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenItems, CommaOperands, AfterCase, Elements, CaseTail, ParenGroupOperand, Parenthesized, PowTail, PrefixBranches, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches, WhileStatement, DoWhileStatement } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.js'
-import { define, eof, option, reference as ruleReference, repeatFrom0, repeatFrom1 } from '../../../ebnf/module.f.js'
+import { eof, option, repeatFrom0, repeatFrom1 } from '../../../ebnf/module.f.js'
 import { encoding } from '../../../ebnf/token_symbol/module.f.js'
 import { isKeyword, literalWords } from '../../../js/keywords/module.f.js'
 import { _moduleTokenKinds } from '../../tokenizer/module.f.js'
@@ -388,141 +386,19 @@ export const primitive = /** @type {const} */ ({
     bigint: sym('bigint'),
 })
 
+/** @type {<I extends Rule>(element: I, rest: Rule) => ReturnType<Items<I>>} */
+const listBody = (element, rest) => ['const', [element, option([sym(','), option(rest)])]]
+
 /**
  * A comma-separated list of items, at least one, a trailing comma allowed.
  *
- * @type {<const I extends Rule>(item: I) => Items<I>}
+ * @type {<const I extends Rule>(element: I) => Items<I>}
  */
-export const items = item => {
-    /** @type {Items<typeof item>} */
-    const list = () => ['const', [item, option([sym(','), option(list)])]]
+export const items = element => {
+    /** @type {Items<typeof element>} */
+    const list = () => listBody(element, list)
     return list
 }
-
-/**
- * A value: {@link valueBranches}, and an object. A stable reference whose
- * payload is bound in {@link definitions} after all shared rules exist.
- *
- * Any value takes accesses, as any expression does in JavaScript:
- * `[1].length`, `"ab"[0]`, `{ a: 1 }.a`. `1 .x` parses here too, with a
- * space since `1.x` is one number and a stray word in JavaScript. Stages A
- * and B of
- * [`spec/operators/README.md`](../../../../spec/operators/README.md):
- * arithmetic (`+ - * / % **`, and unary `-`), strict comparison
- * (`=== !== > >= < <=`), bitwise (`& | ^ ~ << >> >>>`), the lazy operators
- * (`&& || ??`) and the conditional (`?:`). `==` and `!=` are AST-only pending
- * FAST lowering.
- *
- * Declared before {@link access}, which an index embeds it in: `[ value ]`
- * holds any value, so that a key computed at run time, `a[Number(i)]`, is
- * read as JavaScript reads it, and what a key may be — a string or a
- * number literal, or the conversion
- * ([spec: property access](../../../../spec/property-access/README.md)) —
- * is the fold's to check, as the name after `.` is. The rule itself, and
- * no thunk over it: a second rule over the same branches would be a second
- * copy of the whole value grammar in every parser that reaches an index.
- * The reference exists before its uses; its definition later supplies
- * {@link valueBranches} and {@link tail} without a forward capture.
- *
- * @type {Value}
- */
-export const value = ruleReference()
-
-/**
- * An untagged template is a primary value. Each substitution reads the full
- * value rule; the tokenizer distinguishes its closing chunk from an ordinary
- * brace, including around nested templates, objects and function bodies.
- * Tagged templates have no access alternative and are refused at their head.
- *
- * @type {Template}
- */
-export const template = () => ['const', {
-    plain: sym('noSubstitutionTemplate'),
-    substitution: [sym('templateHead'), value, repeatFrom0([sym('templateMiddle'), value]), sym('templateTail')],
-}]
-
-/**
- * A call's arguments: {@link values}, reached through a stable reference.
- *
- * A value takes steps, a step may be a call, and a call holds values, so
- * this reference precedes `access` and its body is bound after `values`.
- * A rule of its own rather than a wrapper over the value rule, because what a list embeds has to be the
- * `value` rule itself: the rewrite set is keyed by rule, so a wrapper in the
- * item's place would leave each argument unmapped.
- *
- * @type {CallArguments}
- */
-export const callArguments = ruleReference()
-
-/**
- * What follows `?.`: the three steps a value takes, each spelled as it is
- * after a value, less the `.` a property's own spelling begins with — the
- * `?.` has it. One symbol decides between them, a word, `[` or `(`, so an
- * optional step is read in two: the `?.` and then this.
- *
- * @type {OptionalStep}
- */
-export const optionalStep = /** @type {OptionalStep} */ ({
-    property: identifierName,
-    index: [sym('['), value, sym(']')],
-    call: [sym('('), option(callArguments), sym(')')],
-})
-
-/**
- * One step after a value: a property access, `.name` with the name any
- * identifier or `[key]` with the key a value, {@link value}, or a call, `(a, b)` with
- * its arguments any values. What a property's two spellings may name is the
- * fold's to check, since the name is a word the grammar does not see.
- *
- * Four symbols decide between them — `.`, `[`, `(` and `?.` — and none of
- * them follows a value any other way, so the step a value takes is read in
- * one. `f(1)(2)` and `a.b(1)[0]` are steps upon steps, as `a.b[0]` is: what
- * a step applies to is everything written before it. The fourth is the
- * optional step, `?.` and then {@link optionalStep}: the same three steps,
- * guarded.
- */
-export const access = /** @type {Access} */ ({
-    property: [sym('.'), identifierName],
-    index: [sym('['), value, sym(']')],
-    call: [sym('('), option(callArguments), sym(')')],
-    optional: [sym('?.'), optionalStep],
-})
-
-/** A constructor callee takes members before its argument list, never ordinary calls. @type {MemberAccess} */
-export const memberAccess = {
-    property: access.property,
-    index: access.index,
-}
-
-/**
- * The callee of `new C(args)`: a name, a grouped expression or another
- * construction, followed by members. Calls belong inside a group or after the
- * completed construction, so `new C()()` calls the constructed result.
- *
- * @type {ConstructorCallee}
- */
-export const constructorCallee = ruleReference()
-
-/**
- * The generic syntax subset requires an explicit argument list. Nested `new`
- * and grouped callees preserve JavaScript precedence without construction
- * semantics or optional-chain constructor syntax.
- *
- * @type {NewExpression}
- */
-export const newExpression = () => ['const', [sym('new'), constructorCallee, sym('('), option(callArguments), sym(')')]]
-
-/** The accesses after a value, `a.b[0]`, none or more. */
-const accesses = repeatFrom0(access)
-
-/** A primitive value, then its accesses. */
-const primitiveValue = /** @type {const} */ ([primitive, accesses])
-
-/** A template value, then its accesses. */
-const templateValue = /** @type {const} */ ([template, accesses])
-
-/** A reference, then its accesses. */
-const reference = /** @type {const} */ ([identifier, accesses])
 
 /**
  * Every binary layer's rounds keyed by a name none of the other layers
@@ -575,6 +451,173 @@ const nullishOp = opOf({ nullish })
 export const parameters = option([sym('...'), identifierName])
 
 /**
+ * A statement's terminator: `;`, or nothing, where JavaScript inserts the
+ * `;` itself — before a token on a new line, before `}`, and at the end
+ * of input. The grammar admits the omission everywhere and asks nothing
+ * of what follows: `;` begins no statement and no statement's
+ * continuation, so one symbol of lookahead still decides. Whether the
+ * token after an omitted `;` begins a line is the token's to say,
+ * `newline` in `ModuleTokenWithMetadata`, and the reader in `../module.f.js`
+ * refuses the same-line case JavaScript refuses.
+ *
+ * @type {End}
+ */
+export const end = option([sym(';')])
+
+/** @type {Terminator['bareReturn']} */
+const bareReturnStatement = [sym('bare-return'), end]
+
+/**
+ * The words a statement may begin with where it is no keyword's: `id`, and
+ * the framing words JavaScript leaves ordinary, `from`, `as` and `of` —
+ * the words an assignment may rebind, and the words that may begin a
+ * reference where a statement starts. Not {@link identifier}: every other word with
+ * a symbol of its own opens a statement of its own, `const` or `if`, or is
+ * reserved. Declaration and reference legality remains the fold's decision.
+ */
+export const assignable = /** @type {const} */ ({ id: sym('id'), from: sym('from'), as: sym('as'), of: sym('of') })
+
+/**
+ * A body's statement that begins with a name: the assignment, `name =
+ * value` — the one statement that rebinds a name, a variable a `let` or
+ * a parameter declared
+ * ([spec: variables](../../../../spec/bindings/variables/README.md)) — or a
+ * call statement, `assert(a);`, the rest of the value the name begins, as a
+ * value's name branch reads it, {@link arrowOrRest}
+ * ([spec: call statements](../../../../spec/functions/call-statements/README.md)):
+ * the grammar reads any value a name begins, and the fold admits a call
+ * alone, refusing any other at the name, as the grammar refused it before.
+ * Array-led statements use the same value grammar under an explicit indexing
+ * continuation policy: `[` continues a preceding expression until an explicit
+ * separator ends it. Parenthesis-led and other literal statement heads remain
+ * separate work. An assignment
+ * operator decides the assignment in one symbol, an assignment being no
+ * value of the language; and the {@link end} of either. Which names an
+ * assignment may rebind is the fold's to say.
+ */
+/** Plain and compound assignment choices, sharing the source operator vocabulary. */
+export const assignmentOperator = /** @type {AssignmentOperator} */ (fromEntries(
+    definedEntries(assignmentOperators).map(([key, [operator]]) => [key, sym(operator)])))
+
+/**
+ * A value: {@link valueBranches}, and an object.
+ *
+ * Any value takes accesses, as any expression does in JavaScript:
+ * `[1].length`, `"ab"[0]`, `{ a: 1 }.a`. `1 .x` parses here too, with a
+ * space since `1.x` is one number and a stray word in JavaScript. Stages A
+ * and B of
+ * [`spec/operators/README.md`](../../../../spec/operators/README.md):
+ * arithmetic (`+ - * / % **`, and unary `-`), strict comparison
+ * (`=== !== > >= < <=`), bitwise (`& | ^ ~ << >> >>>`), the lazy operators
+ * (`&& || ??`) and the conditional (`?:`). `==` and `!=` are AST-only pending
+ * FAST lowering.
+ *
+ * Declared before {@link access}, which an index embeds it in: `[ value ]`
+ * holds any value, so that a key computed at run time, `a[Number(i)]`, is
+ * read as JavaScript reads it, and what a key may be — a string or a
+ * number literal, or the conversion
+ * ([spec: property access](../../../../spec/property-access/README.md)) —
+ * is the fold's to check, as the name after `.` is. The rule itself, and
+ * no thunk over it: a second rule over the same branches would be a second
+ * copy of the whole value grammar in every parser that reaches an index.
+ *
+ * @type {Value}
+ */
+export const value = () => ['const', {
+    ...valueBranches(),
+    object: [[object, accesses], powTail, ...tail()],
+}]
+
+/**
+ * An untagged template is a primary value. Each substitution reads the full
+ * value rule; the tokenizer distinguishes its closing chunk from an ordinary
+ * brace, including around nested templates, objects and function bodies.
+ * Tagged templates have no access alternative and are refused at their head.
+ *
+ * @type {Template}
+ */
+export const template = () => ['const', {
+    plain: sym('noSubstitutionTemplate'),
+    substitution: [sym('templateHead'), value, repeatFrom0([sym('templateMiddle'), value]), sym('templateTail')],
+}]
+
+/**
+ * What follows `?.`: the three steps a value takes, each spelled as it is
+ * after a value, less the `.` a property's own spelling begins with — the
+ * `?.` has it. One symbol decides between them, a word, `[` or `(`, so an
+ * optional step is read in two: the `?.` and then this.
+ *
+ * @type {OptionalStep}
+ */
+export const optionalStep = () => ['const', {
+    property: identifierName,
+    index: [sym('['), value, sym(']')],
+    call: [sym('('), option(values), sym(')')],
+}]
+
+/**
+ * One step after a value: a property access, `.name` with the name any
+ * identifier or `[key]` with the key a value, {@link value}, or a call, `(a, b)` with
+ * its arguments any values. What a property's two spellings may name is the
+ * fold's to check, since the name is a word the grammar does not see.
+ *
+ * Four symbols decide between them — `.`, `[`, `(` and `?.` — and none of
+ * them follows a value any other way, so the step a value takes is read in
+ * one. `f(1)(2)` and `a.b(1)[0]` are steps upon steps, as `a.b[0]` is: what
+ * a step applies to is everything written before it. The fourth is the
+ * optional step, `?.` and then {@link optionalStep}: the same three steps,
+ * guarded.
+ *
+ * @type {Access}
+ */
+export const access = () => ['const', {
+    property: [sym('.'), identifierName],
+    index: [sym('['), value, sym(']')],
+    call: [sym('('), option(values), sym(')')],
+    optional: [sym('?.'), optionalStep],
+}]
+
+/** A constructor callee takes members before its argument list, never ordinary calls. @type {MemberAccess} */
+export const memberAccess = () => {
+    const [, { property, index }] = access()
+    return ['const', { property, index }]
+}
+
+/**
+ * The callee of `new C(args)`: a name, a grouped expression or another
+ * construction, followed by members. Calls belong inside a group or after the
+ * completed construction, so `new C()()` calls the constructed result.
+ *
+ * @type {ConstructorCallee}
+ */
+export const constructorCallee = () => ['const', {
+    name: [identifier, repeatFrom0(memberAccess)],
+    group: [sym('('), value, commaOperands, sym(')'), repeatFrom0(memberAccess)],
+    construct: [newExpression, repeatFrom0(memberAccess)],
+}]
+
+/**
+ * The generic syntax subset requires an explicit argument list. Nested `new`
+ * and grouped callees preserve JavaScript precedence without construction
+ * semantics or optional-chain constructor syntax.
+ *
+ * @type {NewExpression}
+ */
+export const newExpression = () => ['const', [sym('new'), constructorCallee, sym('('), option(values), sym(')')]]
+
+/** The accesses after a value, `a.b[0]`, none or more. */
+const accesses = () => repeatFrom0(access)()
+
+/** A primitive value, then its accesses. */
+const primitiveValue = () => /** @type {const} */ ([primitive, accesses])
+
+/** A template value, then its accesses. */
+const templateValue = () => /** @type {const} */ ([template, accesses])
+
+/** A reference, then its accesses. */
+const referenceValue = () => /** @type {const} */ ([identifier, accesses])
+
+/**
  * The parameters after the first and its comma: `b, c` in `(a, b, c)`,
  * none in `(a,)`. Each fixed one is a binding target, a name or a pattern,
  * {@link bindingTarget}, with its default, `= value`, where it has one,
@@ -587,7 +630,10 @@ export const parameters = option([sym('...'), identifierName])
  *
  * @type {ParameterNames}
  */
-export const parameterNames = ruleReference()
+export const parameterNames = () => ['const', {
+    rest: [sym('...'), identifierName],
+    fixed: [bindingTarget, option([sym('='), value]), option([sym(','), option(parameterNames)])],
+}]
 
 /**
  * What follows `(` value `,`: the parameters after a named list's first,
@@ -618,7 +664,7 @@ export const parenItems = () => ['const', {
  *
  * @type {CommaOperands}
  */
-const commaOperands = repeatFrom0([sym(','), value])
+const commaOperands = () => repeatFrom0([sym(','), value])()
 
 /**
  * What a prefix takes: every value but a function. JavaScript's
@@ -658,7 +704,16 @@ const commaOperands = repeatFrom0([sym(','), value])
  *
  * @type {Unary}
  */
-export const unary = ruleReference()
+export const unary = () => ['const', {
+    ...prefixBranches([]),
+    primitive: [primitiveValue(), powTail],
+    template: [templateValue(), powTail],
+    ref: [referenceValue(), powTail],
+    array: [[array, accesses], powTail],
+    object: [[object, accesses], powTail],
+    construct: [[newExpression, accesses], powTail],
+    group: parenGroup,
+}]
 
 /**
  * `**`'s right operand, when a primary, a group, or a prefix's own operand
@@ -671,7 +726,7 @@ export const unary = ruleReference()
  *
  * @type {PowTail}
  */
-const powTail = option([sym('**'), unary])
+const powTail = () => option([sym('**'), unary])()
 
 /**
  * What a prefix takes: every alternative {@link unary} has — a
@@ -701,13 +756,21 @@ const powTail = option([sym('**'), unary])
  *
  * @type {UnaryOperand}
  */
-export const unaryOperand = ruleReference()
+export const unaryOperand = () => ['const', {
+    ...prefixBranches([]),
+    primitive: [primitiveValue()],
+    template: [templateValue()],
+    ref: [referenceValue()],
+    array: [[array, accesses]],
+    object: [[object, accesses]],
+    construct: [[newExpression, accesses]],
+    group: parenGroupOperand,
+}]
 
 /**
  * The prefix alternatives of a rule, one per operator of `prefixLayer`, each
  * the operator, its {@link unaryOperand} and then `rest`: what {@link unary},
  * {@link unaryOperand} and the value rules read after a prefix's operand.
- * Its shared operand is already a reference when these branches are built.
  *
  * @type {<R extends readonly Rule[]>(rest: R) => PrefixBranches<R>}
  */
@@ -736,42 +799,71 @@ const prefixBranches = rest => /** @type {PrefixBranches<typeof rest>} */ (fromE
  * Exported for the reader in `../syntax/module.f.js`, which splits a value's
  * whole {@link tail} at this list's length: the eager layers are one shape,
  * a repeat of rounds each, and the two positions after them another.
- * The fold's list is cast to the tuple type, whose length `./types.ts`
- * pins to the table's.
+ * Each layer is a named function so the diagrams can identify it wherever
+ * a higher layer reaches it.
  *
- * @type {EagerTail}
+ * @returns {EagerTail}
  */
-export const eagerTail = /** @type {EagerTail} */ (eagerLayers.reduce(
-    /** @type {(below: readonly Rule[], tags: StringMap<Exclude<InfixTag, '**'>>) => readonly Rule[]} */
-    ((below, tags) => [...below, repeatFrom0([opOf(tags), unary, ...below])]),
-    [],
-))
+const eagerSuffix = () => [multiplicative, additive, shift, relational, equality, bitwiseAnd, bitwiseXor, bitwiseOr]
+
+/**
+ * A binary layer repeats its own operator and an operand parsed through
+ * every tighter layer. Its index in the operator table is its precedence.
+ *
+ * @type {<I extends keyof typeof eagerLayers & number>(index: I) => ReturnType<EagerTail[I]>}
+ */
+const eagerLayer = index => /** @type {ReturnType<EagerTail[typeof index]>} */ (
+    repeatFrom0([opOf(eagerLayers[Number(index)]), unary, ...eagerSuffix().slice(0, index)])())
+
+/** @type {EagerTail[0]} */
+const multiplicative = () => eagerLayer(0)
+
+/** @type {EagerTail[1]} */
+const additive = () => eagerLayer(1)
+
+/** @type {EagerTail[2]} */
+const shift = () => eagerLayer(2)
+
+/** @type {EagerTail[3]} */
+const relational = () => eagerLayer(3)
+
+/** @type {EagerTail[4]} */
+const equality = () => eagerLayer(4)
+
+/** @type {EagerTail[5]} */
+const bitwiseAnd = () => eagerLayer(5)
+
+/** @type {EagerTail[6]} */
+const bitwiseXor = () => eagerLayer(6)
+
+/** @type {EagerTail[7]} */
+const bitwiseOr = () => eagerLayer(7)
 
 /**
  * One round of the `&&` layer: `&& unary <every eager tail>`, the same
  * shape as the top eager layer's round one layer up, so `a && b | c` is
  * `a && (b | c)`.
  */
-const logicalAndRound = /** @type {const} */ ([logicalAndOp, unary, ...eagerTail])
+const logicalAndRound = () => /** @type {const} */ ([logicalAndOp, unary, ...eagerSuffix()])
 
 /** The `&&` rounds after the first, `a && b && c` folding left as every layer does. */
-const logicalAndTail = repeatFrom0(logicalAndRound)
+const logicalAndTail = () => repeatFrom0(logicalAndRound())()
 
 /**
  * One round of the `||` layer: its operand carries {@link logicalAndTail}
  * as a layer's round carries every layer below it, so `a || b && c` is
  * `a || (b && c)`.
  */
-const logicalOrRound = /** @type {const} */ ([logicalOrOp, unary, ...eagerTail, logicalAndTail])
+const logicalOrRound = () => /** @type {const} */ ([logicalOrOp, unary, ...eagerSuffix(), logicalAndTail])
 
 /** The `||` rounds after the first. */
-const logicalOrTail = repeatFrom0(logicalOrRound)
+const logicalOrTail = () => repeatFrom0(logicalOrRound())()
 
 /** One round of the `??` layer: `?? unary <every eager tail>`, an operand no `&&` or `||` may enter. */
-const nullishRound = /** @type {const} */ ([nullishOp, unary, ...eagerTail])
+const nullishRound = () => /** @type {const} */ ([nullishOp, unary, ...eagerSuffix()])
 
 /** The `??` rounds after the first. */
-const nullishTail = repeatFrom0(nullishRound)
+const nullishTail = () => repeatFrom0(nullishRound())()
 
 /**
  * The short-circuit level, above {@link eagerTail}: nothing, or a chain the
@@ -798,11 +890,11 @@ const nullishTail = repeatFrom0(nullishRound)
  *
  * @type {CircuitTail}
  */
-export const circuitTail = option({
-    logicalAnd: [logicalAndRound, logicalAndTail, logicalOrTail],
-    logicalOr: [logicalOrRound, logicalOrTail],
-    nullish: [nullishRound, nullishTail],
-})
+export const circuitTail = () => option({
+    logicalAnd: [logicalAndRound(), logicalAndTail, logicalOrTail],
+    logicalOr: [logicalOrRound(), logicalOrTail],
+    nullish: [nullishRound(), nullishTail],
+})()
 
 /**
  * A function's body: {@link valueBranches} without the object — after
@@ -820,7 +912,7 @@ export const circuitTail = option({
  *
  * @type {Body}
  */
-export const body = ruleReference()
+export const body = () => ['const', { ...valueBranches(), block: loopBlock }]
 
 /**
  * The conditional, above {@link circuitTail} and the top of {@link tail}:
@@ -840,12 +932,10 @@ export const body = ruleReference()
  * else arm, as JavaScript reads it, the body ending where `:` cannot
  * continue it.
  *
- * Declared after the {@link value} and {@link body} references. Their
- * definitions include this rule through {@link tail}, after the tail exists.
  *
  * @type {ConditionalTail}
  */
-export const conditionalTail = option([sym('?'), value, sym(':'), value])
+export const conditionalTail = () => option([sym('?'), value, sym(':'), value])()
 
 /**
  * The whole operator suffix, {@link eagerTail} and then the two lazy
@@ -853,9 +943,9 @@ export const conditionalTail = option([sym('?'), value, sym(':'), value])
  * spread onto every branch of {@link value} and {@link body} that may
  * carry one.
  *
- * @type {Tail}
+ * @returns {Tail}
  */
-const tail = [...eagerTail, circuitTail, conditionalTail]
+const tail = () => [...eagerSuffix(), circuitTail, conditionalTail]
 
 /**
  * A function after its `(`, where the list is the rest parameter or empty:
@@ -874,7 +964,7 @@ const tail = [...eagerTail, circuitTail, conditionalTail]
  *
  * @type {Func}
  */
-export const func = [parameters, sym(')'), sym('=>'), body]
+export const func = () => ['const', [parameters, sym(')'), sym('=>'), body]]
 
 /**
  * What follows a name, or a `( value )`: `=>` — the name, or the value in
@@ -891,10 +981,10 @@ export const func = [parameters, sym(')'), sym('=>'), body]
  *
  * @type {ArrowOrRest}
  */
-export const arrowOrRest = {
+export const arrowOrRest = () => ['const', {
     func: [sym('=>'), body],
-    rest: [accesses, powTail, ...tail],
-}
+    rest: [accesses, powTail, ...tail()],
+}]
 
 /**
  * What follows the value a `(` opened: `,` — the value is the first of a
@@ -921,11 +1011,11 @@ export const arrowOrRest = {
  *
  * @type {AfterValue}
  */
-export const afterValue = {
+export const afterValue = () => ['const', {
     list: [sym(','), option(parenItems), sym(')'), arrowOrRest],
     closed: [sym(')'), arrowOrRest],
     default: [sym('='), value, option([sym(','), option(parameterNames)]), sym(')'), sym('=>'), body],
-}
+}]
 
 /**
  * A group after its `(`: any value — or a comma's operands, each `,` and
@@ -954,7 +1044,7 @@ export const afterValue = {
  *
  * @type {Group}
  */
-export const group = [value, commaOperands, sym(')'), accesses, powTail]
+export const group = () => ['const', [value, commaOperands, sym(')'), accesses, powTail]]
 
 /**
  * What a `(` opens: the rest of a function whose list is the rest
@@ -966,7 +1056,7 @@ export const group = [value, commaOperands, sym(')'), accesses, powTail]
  *
  * @type {Parenthesized}
  */
-export const parenthesized = { func, value: [value, afterValue] }
+export const parenthesized = () => ['const', { func, value: [value, afterValue] }]
 
 /**
  * A `(` and what it opens: the `(`-alternative of {@link value} and of
@@ -975,7 +1065,7 @@ export const parenthesized = { func, value: [value, afterValue] }
  *
  * @type {Paren}
  */
-export const paren = [sym('('), parenthesized]
+export const paren = () => ['const', [sym('('), parenthesized]]
 
 /**
  * A `(` and the group it opens, with no function among the alternatives:
@@ -984,7 +1074,7 @@ export const paren = [sym('('), parenthesized]
  *
  * @type {ParenGroup}
  */
-export const parenGroup = [sym('('), group]
+export const parenGroup = () => ['const', [sym('('), group]]
 
 /**
  * A group after its `(`, without the power {@link group} itself may
@@ -997,7 +1087,7 @@ export const parenGroup = [sym('('), group]
  *
  * @type {GroupOperand}
  */
-export const groupOperand = [value, commaOperands, sym(')'), accesses]
+export const groupOperand = () => ['const', [value, commaOperands, sym(')'), accesses]]
 
 /**
  * `(` and {@link groupOperand}: what a prefix may take in
@@ -1006,10 +1096,10 @@ export const groupOperand = [value, commaOperands, sym(')'), accesses]
  *
  * @type {ParenGroupOperand}
  */
-export const parenGroupOperand = [sym('('), groupOperand]
+export const parenGroupOperand = () => ['const', [sym('('), groupOperand]]
 
 /** What follows a key: `:` and the value, with a binding default retained by the cover. */
-const valued = /** @type {const} */ ([sym(':'), value, option([sym('='), value])])
+const valued = () => /** @type {const} */ ([sym(':'), value, option([sym('='), value])])
 
 /**
  * A member of an object, `key: value`, by the key's spelling: a bare
@@ -1025,12 +1115,12 @@ const valued = /** @type {const} */ ([sym(':'), value, option([sym('='), value])
  *
  * @type {Member}
  */
-export const member = /** @type {const} */ ({
-    plain: [identifierName, option({ valued, default: [sym('='), value] })],
-    string: [sym('string'), ...valued],
-    number: [sym('number'), ...valued],
-    computed: [sym('['), value, sym(']'), ...valued],
-})
+export const member = () => ['const', {
+    plain: [identifierName, option({ valued: valued(), default: [sym('='), value] })],
+    string: [sym('string'), ...valued()],
+    number: [sym('number'), ...valued()],
+    computed: [sym('['), value, sym(']'), ...valued()],
+}]
 
 /**
  * An entry of an object: a member, or a spread of a value, `...value`,
@@ -1040,10 +1130,10 @@ export const member = /** @type {const} */ ({
  *
  * @type {Entry}
  */
-export const entry = { spread: [sym('...'), value], member }
+export const entry = () => ['const', { spread: [sym('...'), value], member }]
 
-/** The entries of an object, likewise. */
-export const entries = items(entry)
+/** The entries of an object. @type {Items<Entry>} */
+export const entries = () => listBody(entry, entries)
 
 /**
  * An item of an array or of a call's arguments: a value, or a spread of
@@ -1056,14 +1146,16 @@ export const entries = items(entry)
  *
  * @type {Item}
  */
-export const item = { spread: [sym('...'), value], value: [value, option([sym('='), value])] }
+export const item = () => ['const', { spread: [sym('...'), value], value: [value, option([sym('='), value])] }]
 
 /**
  * The items of a call's arguments, {@link item}s with no elision between
  * them, as JavaScript's `Arguments` have none: `f(a, , b)` stops at its
  * second comma. A rule of its own, so that a reader may map it.
+ *
+ * @type {Items<Item>}
  */
-export const values = items(item)
+export const values = () => listBody(item, values)
 
 /**
  * The elements of an array: {@link item}s, as a call's {@link values} are,
@@ -1087,25 +1179,12 @@ export const elements = () => ['const', {
 }]
 
 /** @type {ArrayLiteral} */
-export const array = [sym('['), option(elements), sym(']')]
+export const array = () => ['const', [sym('['), option(elements), sym(']')]]
 
-export const object = /** @type {const} */ ([sym('{'), option(entries), sym('}')])
+/** @type {Container<Entry>} */
+export const object = () => ['const', [sym('{'), option(entries), sym('}')]]
 
-/**
- * A statement's terminator: `;`, or nothing, where JavaScript inserts the
- * `;` itself — before a token on a new line, before `}`, and at the end
- * of input. The grammar admits the omission everywhere and asks nothing
- * of what follows: `;` begins no statement and no statement's
- * continuation, so one symbol of lookahead still decides. Whether the
- * token after an omitted `;` begins a line is the token's to say,
- * `newline` in `ModuleTokenWithMetadata`, and the reader in `../module.f.js`
- * refuses the same-line case JavaScript refuses.
- *
- * @type {End}
- */
-export const end = option([sym(';')])
-
-const bindingPattern = /** @type {const} */ ({ array, object })
+const bindingPattern = () => ({ array, object })
 
 /**
  * What a `const` or a fixed parameter after the first binds: a name, or a
@@ -1123,7 +1202,7 @@ const bindingPattern = /** @type {const} */ ({ array, object })
  *
  * @type {BindingTarget}
  */
-export const bindingTarget = { name: identifierName, ...bindingPattern }
+export const bindingTarget = () => ['const', { name: identifierName, ...bindingPattern() }]
 
 /**
  * A `const` statement: what it binds, {@link bindingTarget}, `=`, the
@@ -1134,81 +1213,23 @@ export const bindingTarget = { name: identifierName, ...bindingPattern }
  *
  * Declared here, above {@link block}, rather than with the other module
  * statements below: `block` holds it directly, where the recursion back
- * into `value` goes through its reference.
+ * into `value` goes through the same rule function.
  *
  * @type {ConstStatement}
  */
-export const constStatement = [sym('const'), bindingTarget, sym('='), value, repeatFrom0([sym(','), bindingTarget, sym('='), value]), end]
+export const constStatement = () => ['const', [sym('const'), bindingTarget, sym('='), value, repeatFrom0([sym(','), bindingTarget, sym('='), value]), end]]
 
 /** Bare construction and its ordinary member/call continuations. @type {NewExpressionStatement} */
-export const newExpressionStatement = [newExpression, accesses, end]
+export const newExpressionStatement = () => ['const', [newExpression, accesses, end]]
 
-/**
- * What follows a case's label: another label, `case`, a value, `:` and
- * this rule again — so a case stacks any number of labels over its one
- * block, `case a: case b: { … }`, as in JavaScript — or the case's
- * {@link block}, the guard's own, so the case ends as every block does,
- * in `return`, `throw` or a switch with a `default`, and never falls
- * through into the next
- * ([spec: switch](../../../../spec/control-flow/switch/README.md)), and then
- * what follows the case, {@link afterCase}. `case` and `{` decide the
- * two in one symbol. A case without braces, and `break`, are follow-ups.
- *
- * A reference to a variant: the block holds the terminator, which holds the
- * case, which holds this, and a rule names itself across a block through
- * a variant, as {@link statement} does — `fjs/ebnf/ast` expands a
- * variant's branch when it is read and a tuple's element as it builds the
- * tuple, so a cycle through a tuple alone has no finite type.
- *
- * @type {CaseTail}
- */
-export const caseTail = ruleReference()
+/** @type {Terminator['return']} */
+const returnStatement = () => ['const', [sym('return'), value, end]]
 
-/**
- * What follows a case's block: the next case, `case`, its first label,
- * `:` and its {@link caseTail}; `default`, `:`, a {@link block} and the
- * `}`, which ends the block the switch stands in — nothing may follow, as
- * nothing follows a `return`; or that `}` alone, and then the statements
- * and the terminator of the block the switch stands in, which are what
- * runs when no label matched, as the statements after a guard run when
- * its condition is falsy. `case`, `default` and `}` decide the three in
- * one symbol, and `default` last is the one place it stands. A reference to
- * a variant, as {@link caseTail} is.
- *
- * @type {AfterCase}
- */
-export const afterCase = ruleReference()
+/** @type {Terminator['throw']} */
+const throwStatement = () => ['const', [sym('throw'), value, end]]
 
-/**
- * The statement a block ends with, {@link terminator}: `return value`, a
- * bare `return` classified by `symbolsOf`, or
- * `throw value` — the function fails with the value, the language's one way
- * to fail on purpose ([spec: functions](../../../../spec/functions/README.md))
- * — or a switch, `switch (value) { case value: …`, its first case begun
- * here and the rest of it {@link caseTail}'s: every case ends in one of
- * the two, and the switch ends the block itself with a `default` or hands
- * it on to the statements after it, {@link afterCase} — the one statement
- * that holds the rest of its block, so that the block is a terminator
- * short exactly when the switch has the `default` the grammar then lets
- * nothing follow ([spec: switch](../../../../spec/control-flow/switch/README.md)).
- * A switch with no case has no place here, so `switch (v) {}` is refused
- * at its `}` and `switch (v) { default: … }` at its `default`.
- * `return` and `throw` are each followed by their own {@link end}.
- * JavaScript has `throw [no LineTerminator here] Expression` exactly as
- * it has `return`'s, so the reader refuses a value beginning a line after
- * either the same way ({@link block}). One symbol decides among the three.
- *
- * @type {Terminator}
- */
-export const terminator = /** @type {const} */ ({
-    return: [sym('return'), value, end],
-    bareReturn: [sym('bare-return'), end],
-    throw: [sym('throw'), value, end],
-    switch: [sym('switch'), sym('('), value, sym(')'), sym('{'), sym('case'), value, sym(':'), caseTail],
-})
-
-/** An explicit initializer is shared by named and pattern declarations. @type {DeclarationInitializer} */
-const declarationInitializer = [sym('='), value]
+/** An explicit initializer is shared by named and pattern declarations. @returns {DeclarationInitializer} */
+const declarationInitializer = () => [sym('='), value]
 
 /**
  * A `let` declares a variable a later assignment may rebind. A named
@@ -1220,45 +1241,13 @@ const declarationInitializer = [sym('='), value]
  *
  * @type {LetStatement}
  */
-export const letStatement = [sym('let'), {
-    name: [identifierName, option(declarationInitializer)],
-    pattern: [bindingPattern, declarationInitializer],
-}, end]
-
-/**
- * The words a statement may begin with where it is no keyword's: `id`, and
- * the framing words JavaScript leaves ordinary, `from`, `as` and `of` —
- * the words an assignment may rebind, and the words that may begin a
- * reference where a statement starts. Not {@link identifier}: every other word with
- * a symbol of its own opens a statement of its own, `const` or `if`, or is
- * reserved. Declaration and reference legality remains the fold's decision.
- */
-export const assignable = /** @type {const} */ ({ id: sym('id'), from: sym('from'), as: sym('as'), of: sym('of') })
-
-/**
- * A body's statement that begins with a name: the assignment, `name =
- * value` — the one statement that rebinds a name, a variable a `let` or
- * a parameter declared
- * ([spec: variables](../../../../spec/bindings/variables/README.md)) — or a
- * call statement, `assert(a);`, the rest of the value the name begins, as a
- * value's name branch reads it, {@link arrowOrRest}
- * ([spec: call statements](../../../../spec/functions/call-statements/README.md)):
- * the grammar reads any value a name begins, and the fold admits a call
- * alone, refusing any other at the name, as the grammar refused it before.
- * Array-led statements use the same value grammar under an explicit indexing
- * continuation policy: `[` continues a preceding expression until an explicit
- * separator ends it. Parenthesis-led and other literal statement heads remain
- * separate work. An assignment
- * operator decides the assignment in one symbol, an assignment being no
- * value of the language; and the {@link end} of either. Which names an
- * assignment may rebind is the fold's to say.
- */
-/** Plain and compound assignment choices, sharing the source operator vocabulary. */
-export const assignmentOperator = /** @type {AssignmentOperator} */ (fromEntries(
-    definedEntries(assignmentOperators).map(([key, [operator]]) => [key, sym(operator)])))
+export const letStatement = () => ['const', [sym('let'), {
+    name: [identifierName, option(declarationInitializer())],
+    pattern: [bindingPattern(), declarationInitializer()],
+}, end]]
 
 /** The assignment or call shared by ordinary statements and `for` clauses. @type {NameExpression} */
-export const nameExpression = [assignable, { assign: [assignmentOperator, value], ...arrowOrRest }]
+export const nameExpression = () => ['const', [assignable, { assign: [assignmentOperator, value], ...arrowOrRest()[1] }]]
 
 /**
  * The branches {@link value} and {@link body} both start with: a
@@ -1271,18 +1260,17 @@ export const nameExpression = [assignable, { assign: [assignmentOperator, value]
  * the others carry {@link tail}, and a name is a reference or the one
  * parameter of `a => …`, which {@link arrowOrRest} tells apart after it.
  *
- * The shared rules already exist here. Each caller gets its own branches,
- * retaining the same nested rule identities for parsing and rewriting.
+ * Each caller gets its own branches, with the shared rules as children.
  *
  * @type {() => ValueBranches}
  */
 const valueBranches = () => ({
-    ...prefixBranches(tail),
-    primitive: [primitiveValue, powTail, ...tail],
-    template: [templateValue, powTail, ...tail],
+    ...prefixBranches(tail()),
+    primitive: [primitiveValue(), powTail, ...tail()],
+    template: [templateValue(), powTail, ...tail()],
     name: [identifier, arrowOrRest],
-    array: [[array, accesses], powTail, ...tail],
-    construct: [[newExpression, accesses], powTail, ...tail],
+    array: [[array, accesses], powTail, ...tail()],
+    construct: [[newExpression, accesses], powTail, ...tail()],
     paren,
 })
 
@@ -1290,12 +1278,10 @@ const valueBranches = () => ({
 export const arrayStatementValue = () => ['const', { array: valueBranches().array }]
 
 /** A written array-led statement retains its value and ending boundary. @type {ArrayExpressionStatement} */
-export const arrayExpressionStatement = [arrayStatementValue, end]
+export const arrayExpressionStatement = () => ['const', [arrayStatementValue, end]]
 
-/** The source language gives indexing continuation priority over a new array statement. */
-export const statementContinuations = /** @type {const} */ ([sym('['), sym('[') + 1])
-
-export const bodyNameStatement = /** @type {const} */ ([...nameExpression, end])
+/** @type {BodyNameStatement} */
+export const bodyNameStatement = () => ['const', [...nameExpression()[1], end]]
 
 /**
  * A statement of a loop's block: a declaration, a normal conditional, a
@@ -1310,7 +1296,24 @@ export const bodyNameStatement = /** @type {const} */ ([...nameExpression, end])
  *
  * @type {LoopStatement}
  */
-export const loopStatement = ruleReference()
+export const loopStatement = () => ['const', {
+    block: loopBlock,
+    break: [sym('break'), end],
+    const: constStatement,
+    construct: newExpressionStatement,
+    array: arrayExpressionStatement,
+    continue: [sym('continue'), end],
+    if: loopIfStatement,
+    let: letStatement,
+    name: bodyNameStatement,
+    return: returnStatement,
+    bareReturn: bareReturnStatement,
+    switch: loopSwitch,
+    throw: throwStatement,
+    while: whileStatement,
+    do: doWhileStatement,
+    for: forStatement,
+}]
 
 /**
  * A loop's block, `{ const x = …; r = …; }`: any number of
@@ -1321,62 +1324,56 @@ export const loopStatement = ruleReference()
  *
  * @type {LoopBlock}
  */
-export const loopBlock = /** @type {const} */ ([
+export const loopBlock = () => ['const', [
     sym('{'), repeatFrom0(loopStatement), sym('}'),
-])
-
-/** Written statements share one grammar at every block position. @type {SimpleStatement} */
-export const simpleStatement = loopStatement
-
-/** @type {Statement} */
-export const statement = loopStatement
+]]
 
 /** Stacked labels introduce one braced arm; resolution refuses normal fallthrough. @type {LoopCase} */
-export const loopCase = [repeatFrom1([sym('case'), value, sym(':')]), loopBlock]
+export const loopCase = () => ['const', [repeatFrom1([sym('case'), value, sym(':')]), loopBlock]]
 
 /** A loop-body switch resumes following statements after its own break. @type {LoopSwitch} */
-export const loopSwitch = [sym('switch'), sym('('), value, sym(')'), sym('{'), repeatFrom1(loopCase), option([sym('default'), sym(':'), loopBlock]), sym('}')]
+export const loopSwitch = () => ['const', [sym('switch'), sym('('), value, sym(')'), sym('{'), repeatFrom1(loopCase), option([sym('default'), sym(':'), loopBlock]), sym('}')]]
 
 /** An alternate block or conditional. Braces make its two starts unambiguous. @type {LoopElse} */
-export const loopElse = ruleReference()
+export const loopElse = () => ['const', { block: loopBlock, if: loopIfStatement }]
 
 /** A normal conditional shared by a loop statement and an `else if` tail. @type {LoopIfStatement} */
-export const loopIfStatement = [sym('if'), sym('('), value, sym(')'), loopBlock, option([sym('else'), loopElse])]
+export const loopIfStatement = () => ['const', [sym('if'), sym('('), value, sym(')'), loopBlock, option([sym('else'), loopElse])]]
 
 /** The plain loop statement shared by module and function bodies. @type {WhileStatement} */
-export const whileStatement = [sym('while'), sym('('), value, sym(')'), loopBlock]
+export const whileStatement = () => ['const', [sym('while'), sym('('), value, sym(')'), loopBlock]]
 
 /** A written post-test loop, including its optional terminating semicolon. @type {DoWhileStatement} */
-export const doWhileStatement = [sym('do'), loopBlock, sym('while'), sym('('), value, sym(')'), end]
+export const doWhileStatement = () => ['const', [sym('do'), loopBlock, sym('while'), sym('('), value, sym(')'), end]]
 
 /** Classic clauses keep their explicit separators; neither separator uses ASI. @type {ForClassicTail} */
-export const forClassicTail = [option(value), sym(';'), option(nameExpression)]
+export const forClassicTail = () => ['const', [option(value), sym(';'), option(nameExpression)]]
 
 /** A declaration's target precedes the one-token choice between classic and `of` syntax. @type {ForDeclarationTail} */
-export const forDeclarationTail = {
+export const forDeclarationTail = () => ['const', {
     classic: [sym('='), value, sym(';'), forClassicTail],
     of: [sym('of'), value],
-}
+}]
 
-/** A named `let` also permits an omitted initializer before the explicit separator. @type {ForNamedLetTail} */
-const forNamedLetTail = { ...forDeclarationTail, uninitialized: [sym(';'), forClassicTail] }
+/** A named `let` also permits an omitted initializer before the explicit separator. @returns {ForNamedLetTail} */
+const forNamedLetTail = () => ({ ...forDeclarationTail()[1], uninitialized: [sym(';'), forClassicTail] })
 
 /** Declaration-based `for...of` and all existing classic headers share one prefix. @type {ForHeader} */
-export const forHeader = {
+export const forHeader = () => ['const', {
     const: [sym('const'), bindingTarget, forDeclarationTail],
     let: [sym('let'), {
-        name: [identifierName, forNamedLetTail],
-        pattern: [bindingPattern, forDeclarationTail],
+        name: [identifierName, forNamedLetTail()],
+        pattern: [bindingPattern(), forDeclarationTail],
     }],
     name: [nameExpression, sym(';'), forClassicTail],
     empty: [sym(';'), forClassicTail],
-}
+}]
 
 /** The braced body is retained syntactically; `for...of` admission is a later boundary. @type {ForStatement} */
-export const forStatement = [sym('for'), sym('('), forHeader, sym(')'), loopBlock]
+export const forStatement = () => ['const', [sym('for'), sym('('), forHeader, sym(')'), loopBlock]]
 
 /** Ordered written statements; completion is determined during FAST lowering. @type {BlockContents} */
-export const blockContents = repeatFrom0(loopStatement)
+export const blockContents = () => repeatFrom0(loopStatement)()
 
 /**
  * A braced statement list. Empty bodies and unreachable statements retain
@@ -1407,13 +1404,93 @@ export const blockContents = repeatFrom0(loopStatement)
  *
  * @type {Block}
  */
-export const block = /** @type {const} */ ([sym('{'), blockContents, sym('}')])
+export const block = () => ['const', [sym('{'), blockContents, sym('}')]]
+
+/** The source language gives indexing continuation priority over a new array statement. */
+export const statementContinuations = /** @type {const} */ ([sym('['), sym('[') + 1])
+
+/**
+ * What follows a case's label: another label, `case`, a value, `:` and
+ * this rule again — so a case stacks any number of labels over its one
+ * block, `case a: case b: { … }`, as in JavaScript — or the case's
+ * {@link block}, the guard's own, so the case ends as every block does,
+ * in `return`, `throw` or a switch with a `default`, and never falls
+ * through into the next
+ * ([spec: switch](../../../../spec/control-flow/switch/README.md)), and then
+ * what follows the case, {@link afterCase}. `case` and `{` decide the
+ * two in one symbol. A case without braces, and `break`, are follow-ups.
+ *
+ * A reference to a variant: the block holds the terminator, which holds the
+ * case, which holds this, and a rule names itself across a block through
+ * a variant, as {@link statement} does — `fjs/ebnf/ast` expands a
+ * variant's branch when it is read and a tuple's element as it builds the
+ * tuple, so a cycle through a tuple alone has no finite type.
+ *
+ * @type {CaseTail}
+ */
+export const caseTail = () => ['const', {
+    case: [sym('case'), value, sym(':'), caseTail],
+    block: [block, afterCase],
+}]
+
+/**
+ * What follows a case's block: the next case, `case`, its first label,
+ * `:` and its {@link caseTail}; `default`, `:`, a {@link block} and the
+ * `}`, which ends the block the switch stands in — nothing may follow, as
+ * nothing follows a `return`; or that `}` alone, and then the statements
+ * and the terminator of the block the switch stands in, which are what
+ * runs when no label matched, as the statements after a guard run when
+ * its condition is falsy. `case`, `default` and `}` decide the three in
+ * one symbol, and `default` last is the one place it stands. A reference to
+ * a variant, as {@link caseTail} is.
+ *
+ * @type {AfterCase}
+ */
+export const afterCase = () => ['const', {
+    case: [sym('case'), value, sym(':'), caseTail],
+    default: [sym('default'), sym(':'), block, sym('}')],
+    rest: [sym('}'), blockContents],
+}]
+
+/**
+ * The statement a block ends with, {@link terminator}: `return value`, a
+ * bare `return` classified by `symbolsOf`, or
+ * `throw value` — the function fails with the value, the language's one way
+ * to fail on purpose ([spec: functions](../../../../spec/functions/README.md))
+ * — or a switch, `switch (value) { case value: …`, its first case begun
+ * here and the rest of it {@link caseTail}'s: every case ends in one of
+ * the two, and the switch ends the block itself with a `default` or hands
+ * it on to the statements after it, {@link afterCase} — the one statement
+ * that holds the rest of its block, so that the block is a terminator
+ * short exactly when the switch has the `default` the grammar then lets
+ * nothing follow ([spec: switch](../../../../spec/control-flow/switch/README.md)).
+ * A switch with no case has no place here, so `switch (v) {}` is refused
+ * at its `}` and `switch (v) { default: … }` at its `default`.
+ * `return` and `throw` are each followed by their own {@link end}.
+ * JavaScript has `throw [no LineTerminator here] Expression` exactly as
+ * it has `return`'s, so the reader refuses a value beginning a line after
+ * either the same way ({@link block}). One symbol decides among the three.
+ *
+ * @type {Terminator}
+ */
+export const terminator = {
+    return: returnStatement,
+    bareReturn: bareReturnStatement,
+    throw: throwStatement,
+    switch: [sym('switch'), sym('('), value, sym(')'), sym('{'), sym('case'), value, sym(':'), caseTail],
+}
+
+/** Written statements share one grammar at every block position. @type {SimpleStatement} */
+export const simpleStatement = loopStatement
+
+/** @type {Statement} */
+export const statement = loopStatement
 
 /** Ordinary arms reuse body statements but may reach their closing brace normally. @type {BranchContents} */
 export const branchContents = repeatFrom0(loopStatement)
 
 /** A braced conditional arm with the same written statement list. @type {BranchBlock} */
-export const branchBlock = [sym('{'), branchContents, sym('}')]
+export const branchBlock = () => ['const', [sym('{'), branchContents, sym('}')]]
 
 /** Braces distinguish an alternate arm from a chained conditional. @type {BranchElse} */
 export const branchElse = loopElse
@@ -1502,75 +1579,4 @@ export const module = /** @type {const} */ ([
     eof,
 ])
 
-/**
- * Bodies of the recursive rules, bound after every shared rule exists.
- * References keep stable identities for parser mappings and diagram links;
- * definitions supply their payloads without forward JavaScript captures.
- *
- * @type {readonly Definition[]}
- */
-export const definitions = [
-    define(value)({
-        ...valueBranches(),
-        object: [[object, accesses], powTail, ...tail],
-    }),
-    define(callArguments)(values()[1]),
-    define(constructorCallee)({
-        name: [identifier, repeatFrom0(memberAccess)],
-        group: [sym('('), value, commaOperands, sym(')'), repeatFrom0(memberAccess)],
-        construct: [newExpression, repeatFrom0(memberAccess)],
-    }),
-    define(parameterNames)({
-        rest: [sym('...'), identifierName],
-        fixed: [bindingTarget, option([sym('='), value]), option([sym(','), option(parameterNames)])],
-    }),
-    define(unary)({
-        ...prefixBranches([]),
-        primitive: [primitiveValue, powTail],
-        template: [templateValue, powTail],
-        ref: [reference, powTail],
-        array: [[array, accesses], powTail],
-        object: [[object, accesses], powTail],
-        construct: [[newExpression, accesses], powTail],
-        group: parenGroup,
-    }),
-    define(unaryOperand)({
-        ...prefixBranches([]),
-        primitive: [primitiveValue],
-        template: [templateValue],
-        ref: [reference],
-        array: [[array, accesses]],
-        object: [[object, accesses]],
-        construct: [[newExpression, accesses]],
-        group: parenGroupOperand,
-    }),
-    define(body)({ ...valueBranches(), block: loopBlock }),
-    define(caseTail)({
-        case: [sym('case'), value, sym(':'), caseTail],
-        block: [block, afterCase],
-    }),
-    define(afterCase)({
-        case: [sym('case'), value, sym(':'), caseTail],
-        default: [sym('default'), sym(':'), block, sym('}')],
-        rest: [sym('}'), blockContents],
-    }),
-    define(loopStatement)({
-        block: loopBlock,
-        break: [sym('break'), end],
-        const: constStatement,
-        construct: newExpressionStatement,
-        array: arrayExpressionStatement,
-        continue: [sym('continue'), end],
-        if: loopIfStatement,
-        let: letStatement,
-        name: bodyNameStatement,
-        return: terminator.return,
-        bareReturn: terminator.bareReturn,
-        switch: loopSwitch,
-        throw: terminator.throw,
-        while: whileStatement,
-        do: doWhileStatement,
-        for: forStatement,
-    }),
-    define(loopElse)({ block: loopBlock, if: loopIfStatement }),
-]
+export const eagerTail = eagerSuffix()

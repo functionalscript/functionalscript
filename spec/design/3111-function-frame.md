@@ -118,11 +118,9 @@ fn b(frame: Array<Any>, param: Array<Any>) {
 }
 ```
 
-The named parameter and the conditional are in the language; `a` reaching
-`b`, declared after it, is not yet
-([forward-references](../todo/3140-forward-references.md)). These are illustrative
-mutual-recursion/slot sketches, not implemented source or permission to
-expose a complete `args` binding. Ordinary captures are implemented: the
+The source example forms a [function group](./function-groups.md).
+The Rust sketch illustrates an earlier slot layout. Implemented groups read
+siblings by index and reserve frame slots for external captures. The
 compiler's frame is described under [EDAG](../../fjs/compiler/README.md#edag), and
 [`fjs/edag/rust`](../../fjs/edag/rust/module.f.js) prints it as the frame
 array a Rust closure is built with.

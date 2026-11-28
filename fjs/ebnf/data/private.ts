@@ -5,12 +5,8 @@
  */
 
 import type { StringSet } from '../../types/string_set/types.ts'
-import type { DataRule, Rule as FRule } from '../types.ts'
+import type { Rule as FRule } from '../types.ts'
 import type { RuleNameMap, RuleSet } from './types.ts'
-import type { PersistentMap } from '../../types/map/types.ts'
-
-/** Separately supplied bodies, keyed by their reference identities. */
-export type _Definitions = PersistentMap<FRule, DataRule>
 
 /**
  * The lowering's memo: every front-end rule met so far with its name, the

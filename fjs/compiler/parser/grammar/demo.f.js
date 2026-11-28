@@ -23,9 +23,8 @@
  * layer tighter than it, which is the precedence ladder drawn as boxes.
  * Every rule that reaches itself — a value holds values, a list is
  * right-recursive — is titled, so no diagram is drawn forever.
- * `callArguments` draws the same list as `values`, which a call reaches
- * through a rule of its own. An array's `elements` hold the same items,
- * and an elision besides.
+ * A call reaches the `values` list. An array's `elements` hold the same
+ * items, and an elision besides.
  *
  * @module
  *
@@ -33,7 +32,7 @@
  */
 
 import {
-    _ordinaryTokenNames, definitions, access, afterValue, array, arrowOrRest, attribute, bindingTarget, block, blockContents, branchBlock, branchContents, branchElse, ifStatement, simpleStatement, body, callArguments,
+    _ordinaryTokenNames, access, afterValue, array, arrowOrRest, attribute, bindingTarget, block, blockContents, branchBlock, branchContents, branchElse, ifStatement, simpleStatement, body,
     arrayExpressionStatement, arrayStatementValue, circuitTail, conditionalTail, constStatement, constructorCallee, newExpression, newExpressionStatement, memberAccess, module, eagerTail, elements, end, entries, entry, forClassicTail, forDeclarationTail, forHeader, forStatement, func, group, groupOperand,
     identifier, identifierName, importBinding, importBindings, importClause, importStatement, item,
     lastStatement, loopBlock, loopCase, loopElse, loopIfStatement, loopStatement, loopSwitch, member, namedImports, object, optionalStep, parameterNames, parameters, paren, parenItems,
@@ -114,7 +113,6 @@ export const diagrams = [
     ['constructorCallee', constructorCallee],
     ['memberAccess', memberAccess],
     ['optionalStep', optionalStep],
-    ['callArguments', callArguments],
     ['template', template],
     ['array', array],
     ['elements', elements],
@@ -137,7 +135,6 @@ const categories = /** @type {const} */ ([
 
 export const demo = grammarDemo({
     grammar: module,
-    definitions,
     alphabet: tokens(encoding(_ordinaryTokenNames), categories),
     description: 'The FunctionalScript module grammar, drawn from the rules the parser reads a module with.',
     guide: 'Follow a track from left to right; a pill is a token, a grey one in italics any token of its kind, and a box is another diagram — select it to go there.',

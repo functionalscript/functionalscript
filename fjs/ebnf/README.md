@@ -56,9 +56,8 @@ type Rule     = DataRule | Thunk
 type DataRule = null | number | string | Tuple | Variant
 type Tuple    = readonly Rule[]
 type Variant  = { readonly [k in string]: Rule }
-type Thunk    = Const<DataRule> | Reference<DataRule> | Set | Repeat<number, number, Rule>
+type Thunk    = Const<DataRule> | Set | Repeat<number, number, Rule>
 type Const<R>             = () => readonly ['const', R]           // a plain rule behind a thunk
-type Reference<R>         = Phantom<() => readonly ['ref'], R>    // a separately supplied body
 type Set                  = () => readonly ['set', ...number[]]   // one symbol from the set
 type Repeat<Min, Max, R>  = () => readonly ['repeat', Min, Max, R] // min..max copies
 ```
@@ -83,10 +82,7 @@ every level.
   `token_symbol/` names its symbols with a constructor instead, as
   `fjs/compiler/parser` does with `sym()`.
 - **`['const', c]`** is RTTI's escape under RTTI's name, for a plain rule
-  behind a thunk. A self-recursive rule can name its own thunk.
-- **`['ref']`** is a rule identity whose body is supplied separately, so
-  mutually recursive rules can declare all their identities before their
-  bodies. `reference` constructs it; `define` checks and pairs its body.
+  behind a thunk. Recursive rules name their own and each other's thunks.
 - **`['set', …]`** is a range set of ordinary symbols — a strictly increasing
   list of boundaries, half-open, canonical by construction
   ([`fjs/types/range_set`](../types/range_set/module.f.js)) — and the row a
@@ -134,35 +130,21 @@ punctuator set is one LL(1) rule; `range`, `set`, `union` and `remove` build
 terminals, and `unicodeMax` names the top code point for a complement over
 the whole range.
 
-## Separate recursive identities from their bodies
+## Recursive rules
 
-`reference()` creates a fresh rule identity. Declare the identities first,
-then supply their bodies with `define(reference)(body)`:
+Consecutive rule functions can name one another directly. Each returns
+the body of its production when the grammar is lowered.
 
 ```js
-const left = reference()
-const right = reference()
-const definitions = [
-    define(left)({ end: 'x', more: ['(', right, ')'] }),
-    define(right)({ end: 'y', more: ['[', left, ']'] }),
-]
-const parse = parser(left, [], [], definitions)
+const left = () => ['const', { end: 'x', more: ['(', right, ')'] }]
+const right = () => ['const', { end: 'y', more: ['[', left, ']'] }]
+const parse = parser(left)
 ```
 
-Annotate an identity with `Reference<Body>` to retain its precise body shape
-in `Ast` and rewrite mappings. `define` fixes that type from the reference
-before accepting the body; the returned `Definition` erases it only after
-the check. The definitions do not mutate the references or introduce a
-string-name namespace. Equal bodies assigned to different references are
-still different rules, and mappings remain keyed by the exact reference a
-consumer holds.
-
-This makes mutually recursive grammars ordinary acyclic FJS values, at the
-cost of passing the definition list to consumers: `toData(rule, definitions)`,
-`parser(rule, mappings, greedy, definitions)`, or
-`byteParser(rule, mappings, definitions)`. A reached reference without a body
-and a repeated definition are refused. Bodies that the entry never reaches
-are not lowered. A reference has its body's AST shape, with no extra wrapper.
+Lowering gives each function a name before it visits the body. Reaching
+`left` again through `right` reuses the first name. A mapping selects a
+rule function and receives the node for its body. Rules that need distinct
+mappings must have different content.
 
 ## The AST is a function of the form
 
@@ -174,7 +156,6 @@ the table. `I` is the input's metadata, `O` the output alphabet's, and
 | form | AST |
 |---|---|
 | `['const', c]` | `Ast<c>` — the thunk and its payload are one rule |
-| `Reference<c>` | `Ast<c>` — the supplied body under the reference's identity |
 | `['set', …]` | `Meta<I>` — one symbol leaf |
 | `['repeat', min, max, r]` | `BoundedArray<min, max, Ast<r>>` — every length from `min` to `max`, one flat array whatever the bounds |
 | `n`, a number | `Meta<I, n>` — one symbol leaf, the literal kept |

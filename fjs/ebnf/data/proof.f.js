@@ -5,7 +5,7 @@
 
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { one as c } from '../../text/ascii/module.f.js'
-import { define, eof, option, range, reference, remove, repeat, repeatFrom0, set, times, unicodeMax } from '../module.f.js'
+import { eof, option, range, remove, repeat, repeatFrom0, set, times, unicodeMax } from '../module.f.js'
 import { dataJs } from '../lib/datajs/module.f.js'
 import { digit, json, string, uint, value, ws, wsSymbol } from '../lib/json/module.f.js'
 import { emptyTagMap, eofSymbol, isSymbol, matchRule, toData, validate } from './module.f.js'
@@ -41,9 +41,6 @@ const variantString = ['variant', 'zero']
 
 /** @type {unknown} */
 const constTrailing = ['const', 'x', 'extra']
-
-/** @type {unknown} */
-const referenceTrailing = ['ref', 'extra']
 
 /** @type {unknown} */
 const undefinedBranch = { ok: 'x', missing: undefined }
@@ -120,51 +117,6 @@ const stringBranch = {
 const refuse = ruleSet => validate({ ...int, ...ruleSet }, 'int')
 
 export const proof = {
-    references: {
-        sameBodyAsConst: () => {
-            for (const body of [null, 'xy', { x: 'x' }, [range('09'), 'x']]) {
-                const ref = reference()
-                const [actual, actualEntry, names] = toData(ref, [define(ref)(body)])
-                const [expected, expectedEntry] = toData(() => ['const', body])
-                assertStructurallySame(actual, expected)
-                assertEq(actualEntry, expectedEntry)
-                assertEq(mapGet(names, ref), actualEntry)
-            }
-        },
-        mutualRecursionSharesReferences: () => {
-            const left = reference()
-            const right = reference()
-            const leftMore = /** @type {const} */ (['(', right, ')'])
-            const rightMore = /** @type {const} */ (['[', left, ']'])
-            const [rules, entry, names] = toData(left, [
-                define(right)({ more: rightMore, end: 'y' }),
-                define(left)({ more: leftMore, end: 'x' }),
-            ])
-            const name = nameOf(names)
-            assertEq(name(left), entry)
-            assert(name(left) !== name(right))
-            assertStructurallySame(valueAt(rules, name(left)), ['variant', { more: name(leftMore), end: name('x') }])
-            assertStructurallySame(valueAt(rules, name(right)), ['variant', { more: name(rightMore), end: name('y') }])
-            assertStructurallySame(valueAt(rules, name(rightMore)), ['sequence', name('['), name(left), name(']')])
-        },
-        unusedBodyIsNotLowered: () => {
-            const unused = reference()
-            assertStructurallySame(toData('x', [define(unused)(-1)])[0], toData('x')[0])
-        },
-        throw: {
-            missing: () => toData(reference()),
-            distinctIdentityIsNotDefined: () => toData(reference(), [define(reference())('x')]),
-            duplicate: () => {
-                const ref = reference()
-                return toData(ref, [define(ref)('x'), define(ref)('y')])
-            },
-            duplicateUnused: () => {
-                const ref = reference()
-                return toData('x', [define(ref)('x'), define(ref)('y')])
-            },
-            trailing: () => toData(() => /** @type {readonly ['ref']} */ (referenceTrailing)),
-        },
-    },
     // An ordinary symbol is a non-negative safe integer spelled the one way;
     // EOF's number is below them all, so it is none of them.
     isSymbol: () => {

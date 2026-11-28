@@ -26,7 +26,6 @@ with a symbol carrying `O`. One row per form of the front end's rule union:
 | `Tuple` | a tuple, one node per element |
 | `Variant` | `[tag, node]` of the branch taken; an empty variant is `never` |
 | `() => ['const', c]` | the node of `c` — the thunk *is* the rule `c` spells |
-| `Reference<c>` | the node of the separately supplied `c`, without another wrapper |
 | `() => ['set', …]` | `Meta<I>` — one symbol |
 | `() => ['repeat', min, max, r]` | a `BoundedArray<min, max, Ast<r, I, O>>`, one flat array whatever the bounds |
 

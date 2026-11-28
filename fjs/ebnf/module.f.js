@@ -3,8 +3,7 @@
  *
  * A terminal is a set of symbol ranges rather than a single symbol, so the
  * range-set algebra in `types/range_set` is what `set`, `union` and `remove`
- * lift here. Repetition fixes `repeat`'s bounds; `reference` and `define`
- * separate a recursive rule's identity from its body. See
+ * lift here. Repetition fixes `repeat`'s bounds. See
  * `./types.ts` for what the constructors build.
  *
  * @module
@@ -12,7 +11,7 @@
  * @import { RangeSet } from '../types/range_set/types.ts'
  * @import { StringMap } from '../types/object/types.ts'
  * @import { JoinNode } from './ast/types.ts'
- * @import { DataRule, Definition, Info, Join, Reference, Set, Rule, Repeat, Option, RepeatFrom, Times } from './types.ts'
+ * @import { Info, Join, Set, Rule, Repeat, Option, RepeatFrom, Times } from './types.ts'
  */
 
 import { assert } from "../asserts/module.f.js"
@@ -30,26 +29,6 @@ const { fromEntries } = Object
 
 const isFixedArray2 =
     isFixedArray(2)
-
-/**
- * A fresh rule identity, declared before the body that may refer back to it.
- * Annotate it with `Reference<Body>` and supply its `define` pair when the
- * grammar is lowered or parsed. Two calls make two distinct rules.
- *
- * @template {DataRule} R
- * @returns {Reference<R>}
- */
-export const reference = () => () => ['ref']
-
-/**
- * Bind a reference's checked body without mutating the reference. Curried so
- * the reference fixes the body's type before the body is supplied.
- *
- * @template {DataRule} R
- * @param {Reference<R>} reference
- * @returns {(body: R) => Definition}
- */
-export const define = reference => body => [reference, body]
 
 /**
  * The range `rangeEncode` and `range` both return: one function, so the

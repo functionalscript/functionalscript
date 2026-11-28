@@ -10,9 +10,9 @@ import { parser } from '../../../ebnf/ll1/module.f.js'
 import { stringToList } from '../../../text/utf16/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { tokenize } from '../../tokenizer/module.f.js'
-import { definitions, forClassicTail, forDeclarationTail, forHeader, module, statementContinuations, symbolsOf } from './module.f.js'
+import { forClassicTail, forDeclarationTail, forHeader, module, statementContinuations, symbolsOf } from './module.f.js'
 
-const parseModule = parser(/** @type {Rule} */ (module), [], statementContinuations, definitions)
+const parseModule = parser(/** @type {Rule} */ (module), [], statementContinuations)
 
 /** @type {(source: string) => 'ok' | 'error'} */
 const read = source => parseModule(symbolsOf(toArray(tokenize(stringToList(source))('for-of.f.js')).slice(0, -1)))[0]
@@ -55,8 +55,8 @@ export const proof = /** @type {const} */ ({
         ]) { assertEq(read(source), 'ok', source) }
     },
     ll1: {
-        classicTail: () => { parser(/** @type {Rule} */ (forClassicTail), [], statementContinuations, definitions) },
-        declarationTail: () => { parser(/** @type {Rule} */ (forDeclarationTail), [], statementContinuations, definitions) },
-        header: () => { parser(/** @type {Rule} */ (forHeader), [], statementContinuations, definitions) },
+        classicTail: () => { parser(/** @type {Rule} */ (forClassicTail), [], statementContinuations) },
+        declarationTail: () => { parser(/** @type {Rule} */ (forDeclarationTail), [], statementContinuations) },
+        header: () => { parser(/** @type {Rule} */ (forHeader), [], statementContinuations) },
     },
 })

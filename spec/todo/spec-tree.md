@@ -142,8 +142,9 @@ which is refused as a read but accepted as a call) is an included page with a
    - `●` [Destructuring](../bindings/destructuring/README.md)
    - `●` [Variables](../bindings/variables/README.md): `let` and assignment
      ([normalization](../bindings/variables/README.md#normalization))
+   - `●` [Function groups](../bindings/constants/README.md#function-groups)
    - `◌` [Shadowing](./3150-shadowing.md),
-     [forward references](./3140-forward-references.md),
+     [body reads before declaration](../../fjs/compiler/parser/todo/body-const-forward-reference.md),
      [compound assignments](./3430-assignments.md)
 6. **Operators**
    - `●` Grouping and precedence

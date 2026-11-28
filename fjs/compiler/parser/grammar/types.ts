@@ -9,7 +9,7 @@
  */
 
 import type { Assert } from '../../../asserts/types.ts'
-import type { Option, Reference, RepeatFrom, Rule } from '../../../ebnf/types.ts'
+import type { Option, RepeatFrom, Rule } from '../../../ebnf/types.ts'
 import type { Equal } from '../../../types/ts/types.ts'
 import type { ModuleToken } from '../../tokenizer/types.ts'
 import type { BinaryTag } from '../../ast/types.ts'
@@ -116,11 +116,11 @@ export type Items<Item extends Rule> = () => readonly ['const', readonly [
     Option<readonly [number, Option<Rule>]>,
 ]]
 
-/** A call's argument list reached through a stable recursive rule reference. */
-export type CallArguments = Reference<ReturnType<Items<Item>>[1]>
+/** A call's comma-separated arguments. */
+export type CallArguments = Items<Item>
 
 /** An opening symbol, an optional list, and the closing symbol. */
-export type Container<Item extends Rule> = readonly [number, Option<Items<Item>>, number]
+export type Container<Item extends Rule> = () => readonly ['const', readonly [number, Option<Items<Item>>, number]]
 
 /**
  * The elements of an array: an elision, a comma where an item would begin,
@@ -134,7 +134,7 @@ export type Elements = () => readonly ['const', {
 }]
 
 /** An array's brackets and its optional {@link Elements}. */
-export type ArrayLiteral = readonly [number, Option<Elements>, number]
+export type ArrayLiteral = () => readonly ['const', readonly [number, Option<Elements>, number]]
 
 /** A cooked template chunk alone, or a head, full-expression substitutions and chunks, and a tail. */
 export type Template = () => readonly ['const', {
@@ -143,7 +143,7 @@ export type Template = () => readonly ['const', {
 }]
 
 /** An object member by key spelling, retaining shorthand or nested-target defaults for binding patterns. */
-export type Member = {
+export type Member = () => readonly ['const', {
     readonly plain: readonly [typeof identifierName, Option<{
         readonly valued: readonly [number, Value, Option<readonly [number, Value]>]
         readonly default: readonly [number, Value]
@@ -151,19 +151,19 @@ export type Member = {
     readonly string: readonly [number, number, Value, Option<readonly [number, Value]>]
     readonly number: readonly [number, number, Value, Option<readonly [number, Value]>]
     readonly computed: readonly [number, Value, number, number, Value, Option<readonly [number, Value]>]
-}
+}]
 
 /** An entry of an object: `...` and a value, or a member. */
-export type Entry = {
+export type Entry = () => readonly ['const', {
     readonly spread: readonly [number, Value]
     readonly member: Member
-}
+}]
 
 /** A value with an optional binding default, or a spread with no default. */
-export type Item = {
+export type Item = () => readonly ['const', {
     readonly spread: readonly [number, Value]
     readonly value: readonly [Value, Option<readonly [number, Value]>]
-}
+}]
 
 /**
  * One step after a value: `.name`, `[key]`, or a call and its arguments.
@@ -172,42 +172,42 @@ export type Item = {
  * reason: a call holds values, a value takes steps, so the two name each
  * other and neither can be read off its own initializer.
  */
-export type Access = {
+export type Access = () => readonly ['const', {
     readonly property: readonly [number, typeof identifierName]
     readonly index: readonly [number, Value, number]
     readonly call: readonly [number, Option<CallArguments>, number]
     readonly optional: readonly [number, OptionalStep]
-}
+}]
 
 /** Member-only continuation before a constructor's required argument list. */
-export type MemberAccess = Pick<Access, 'property' | 'index'>
+export type MemberAccess = () => readonly ['const', Pick<ReturnType<Access>[1], 'property' | 'index'>]
 
 /** A name, group or nested construction, with only member steps after it. */
-export type ConstructorCallee = Reference<{
+export type ConstructorCallee = () => readonly ['const', {
     readonly name: readonly [typeof identifier, RepeatFrom<0, MemberAccess>]
     readonly group: readonly [number, Value, CommaOperands, number, RepeatFrom<0, MemberAccess>]
     readonly construct: readonly [NewExpression, RepeatFrom<0, MemberAccess>]
-}>
+}]
 
 /** Generic construction syntax with an explicit, possibly empty, argument list. */
 export type NewExpression = () => readonly ['const', readonly [number, ConstructorCallee, number, Option<CallArguments>, number]]
 
 /** A constructor expression statement preserves its ordinary trailing steps. */
-export type NewExpressionStatement = readonly [NewExpression, RepeatFrom<0, Access>, End]
+export type NewExpressionStatement = () => readonly ['const', readonly [NewExpression, RepeatFrom<0, Access>, End]]
 
 export type ArrayStatementValue = () => readonly ['const', { readonly array: ValueBranches['array'] }]
-export type ArrayExpressionStatement = readonly [ArrayStatementValue, End]
+export type ArrayExpressionStatement = () => readonly ['const', readonly [ArrayStatementValue, End]]
 
 /**
  * What follows `?.`: {@link Access}'s three steps less the `.` a property's
  * spelling begins with, which the `?.` has — a property by its name alone,
  * an index and a call as they are.
  */
-export type OptionalStep = {
+export type OptionalStep = () => readonly ['const', {
     readonly property: typeof identifierName
     readonly index: readonly [number, Value, number]
     readonly call: readonly [number, Option<CallArguments>, number]
-}
+}]
 
 /**
  * `**`'s right operand, when a primary, a group, or a prefix is raised to
@@ -234,7 +234,7 @@ export type PrefixBranches<Rest extends readonly unknown[]> = {
  * themselves recurse into {@link UnaryOperand}, never {@link Unary}, since
  * JavaScript refuses `**` immediately after a unary-prefixed operand.
  */
-export type Unary = Reference<PrefixBranches<readonly []> & {
+export type Unary = () => readonly ['const', PrefixBranches<readonly []> & {
     readonly primitive: readonly [readonly [typeof primitive, RepeatFrom<0, Access>], PowTail]
     readonly template: readonly [readonly [Template, RepeatFrom<0, Access>], PowTail]
     readonly ref: readonly [readonly [typeof identifier, RepeatFrom<0, Access>], PowTail]
@@ -242,7 +242,7 @@ export type Unary = Reference<PrefixBranches<readonly []> & {
     readonly object: readonly [readonly [Container<Entry>, RepeatFrom<0, Access>], PowTail]
     readonly construct: readonly [readonly [NewExpression, RepeatFrom<0, Access>], PowTail]
     readonly group: ParenGroup
-}>
+}]
 
 /**
  * What a prefix takes: every alternative {@link Unary} has, but
@@ -252,7 +252,7 @@ export type Unary = Reference<PrefixBranches<readonly []> & {
  * so recursing through this type rather than {@link Unary} keeps that
  * refusal at every depth a prefix chain reaches.
  */
-export type UnaryOperand = Reference<PrefixBranches<readonly []> & {
+export type UnaryOperand = () => readonly ['const', PrefixBranches<readonly []> & {
     readonly primitive: readonly [readonly [typeof primitive, RepeatFrom<0, Access>]]
     readonly template: readonly [readonly [Template, RepeatFrom<0, Access>]]
     readonly ref: readonly [readonly [typeof identifier, RepeatFrom<0, Access>]]
@@ -260,7 +260,7 @@ export type UnaryOperand = Reference<PrefixBranches<readonly []> & {
     readonly object: readonly [readonly [Container<Entry>, RepeatFrom<0, Access>]]
     readonly construct: readonly [readonly [NewExpression, RepeatFrom<0, Access>]]
     readonly group: ParenGroupOperand
-}>
+}]
 
 /**
  * One round of a binary-operator layer above {@link Unary}: `(op, Unary,
@@ -383,9 +383,9 @@ export type ValueBranches = PrefixBranches<Tail> & {
  * A value: {@link ValueBranches} and an object of members. The reference
  * carries its payload type while its definition supplies the recursive body.
  */
-export type Value = Reference<ValueBranches & {
+export type Value = () => readonly ['const', ValueBranches & {
     readonly object: readonly [readonly [Container<Entry>, RepeatFrom<0, Access>], PowTail, ...Tail]
-}>
+}]
 
 /**
  * A function's body: {@link ValueBranches} without the object, since
@@ -393,12 +393,12 @@ export type Value = Reference<ValueBranches & {
  * is a value again. A group is the other spelling of a body that is an
  * object.
  */
-export type Body = Reference<ValueBranches & {
+export type Body = () => readonly ['const', ValueBranches & {
     readonly block: LoopBlock
-}>
+}]
 
 /** `(` and what it opens: the one alternative a `(` starts. */
-export type Paren = readonly [number, Parenthesized]
+export type Paren = () => readonly ['const', readonly [number, Parenthesized]]
 
 /**
  * What a `(` opens: the rest of a function whose list is the rest
@@ -406,10 +406,10 @@ export type Paren = readonly [number, Parenthesized]
  * Spelled here, as {@link Value} is: the branches reach the value rule,
  * which names itself.
  */
-export type Parenthesized = {
+export type Parenthesized = () => readonly ['const', {
     readonly func: Func
     readonly value: readonly [Value, AfterValue]
-}
+}]
 
 /**
  * What follows the value a `(` opened: `,`, the names after the first,
@@ -418,11 +418,11 @@ export type Parenthesized = {
  * rest of a named list: the names after a `,`, if any, `)`, `=>` and the
  * body.
  */
-export type AfterValue = {
+export type AfterValue = () => readonly ['const', {
     readonly list: readonly [number, Option<ParenItems>, number, ArrowOrRest]
     readonly closed: readonly [number, ArrowOrRest]
     readonly default: readonly [number, Value, Option<readonly [number, Option<ParameterNames>]>, number, number, Body]
-}
+}]
 
 /**
  * What follows a name, or a `( value )`: `=>` and the body, the name or
@@ -430,10 +430,10 @@ export type AfterValue = {
  * steps, the power and the binary layers, exactly as {@link Value}'s
  * other branches carry them.
  */
-export type ArrowOrRest = {
+export type ArrowOrRest = () => readonly ['const', {
     readonly func: readonly [number, Body]
     readonly rest: readonly [RepeatFrom<0, Access>, PowTail, ...Tail]
-}
+}]
 
 /**
  * The parameters after the first: each fixed one a binding target,
@@ -441,10 +441,10 @@ export type ArrowOrRest = {
  * listed as {@link Items} lists anything, and the rest parameter a name,
  * ending the list.
  */
-export type ParameterNames = Reference<{
+export type ParameterNames = () => readonly ['const', {
     readonly rest: readonly [number, typeof identifierName]
     readonly fixed: readonly [BindingTarget, Option<readonly [number, Value]>, Option<readonly [number, Option<ParameterNames>]>]
-}>
+}]
 
 /**
  * What follows `(` value `,`: a cover of the parameters after a named
@@ -469,7 +469,7 @@ export type CommaOperands = RepeatFrom<0, readonly [number, Value]>
  * raised to, {@link PowTail}. A value's own `(` reads its group through
  * {@link AfterValue} instead, where `=>` may follow the `)`.
  */
-export type Group = readonly [Value, CommaOperands, number, RepeatFrom<0, Access>, PowTail]
+export type Group = () => readonly ['const', readonly [Value, CommaOperands, number, RepeatFrom<0, Access>, PowTail]]
 
 /**
  * `(` and a group: what a `-` may take in parentheses. It is not
@@ -477,7 +477,7 @@ export type Group = readonly [Value, CommaOperands, number, RepeatFrom<0, Access
  * in JavaScript, and `-((...a) => 1)` is not, the group being the
  * `UnaryExpression` the function is not.
  */
-export type ParenGroup = readonly [number, Group]
+export type ParenGroup = () => readonly ['const', readonly [number, Group]]
 
 /**
  * A group after its `(`, without the power {@link Group} itself may carry:
@@ -485,19 +485,19 @@ export type ParenGroup = readonly [number, Group]
  * a syntax error in JavaScript, so {@link UnaryOperand}'s restricted `(`
  * stands on this type rather than {@link Group}'s.
  */
-export type GroupOperand = readonly [Value, CommaOperands, number, RepeatFrom<0, Access>]
+export type GroupOperand = () => readonly ['const', readonly [Value, CommaOperands, number, RepeatFrom<0, Access>]]
 
 /**
  * `(` and {@link GroupOperand}: what a prefix may take in
  * parentheses, {@link UnaryOperand}'s own `(` branch.
  */
-export type ParenGroupOperand = readonly [number, GroupOperand]
+export type ParenGroupOperand = () => readonly ['const', readonly [number, GroupOperand]]
 
 /** A statement's terminator: `;`, or nothing. */
 export type End = Option<readonly [number]>
 
 /** Braces around an ordered written statement list. */
-export type Block = readonly [number, BlockContents, number]
+export type Block = () => readonly ['const', readonly [number, BlockContents, number]]
 
 /** A written statement in any lexical block. */
 export type SimpleStatement = LoopStatement
@@ -509,26 +509,26 @@ export type BlockContents = RepeatFrom<0, LoopStatement>
 export type Statement = LoopStatement
 
 /** An ordinary conditional retains normal arms and the existing terminating guards. */
-export type IfStatement = readonly [number, number, Value, number, BranchBlock, Option<readonly [number, BranchElse]>]
+export type IfStatement = () => readonly ['const', readonly [number, number, Value, number, BranchBlock, Option<readonly [number, BranchElse]>]]
 
 /** Conditional arms share the function-body statement grammar. */
-export type BranchBlock = readonly [number, BranchContents, number]
+export type BranchBlock = () => readonly ['const', readonly [number, BranchContents, number]]
 
 /** The same statements and endings as a function block, with an optional ending for a normal arm. */
 export type BranchContents = BlockContents
 
 /** A braced alternate or another ordinary conditional. */
-export type BranchElse = Reference<{
+export type BranchElse = () => readonly ['const', {
     readonly block: BranchBlock
     readonly if: IfStatement
-}>
+}]
 
 /** Plain and compound assignment spellings read as one token. */
 export type AssignmentOperator = { readonly [K in keyof typeof import('../../ast/module.f.js').assignmentOperators]: number }
 /** The named assignment or call shared by statements and `for` clauses. */
-export type NameExpression = readonly [typeof assignable, ArrowOrRest & { readonly assign: readonly [AssignmentOperator, Value] }]
+export type NameExpression = () => readonly ['const', readonly [typeof assignable, ReturnType<ArrowOrRest>[1] & { readonly assign: readonly [AssignmentOperator, Value] }]]
 /** A body's named expression followed by its optional statement terminator. */
-export type BodyNameStatement = readonly [...NameExpression, End]
+export type BodyNameStatement = () => readonly ['const', readonly [...ReturnType<NameExpression>[1], End]]
 
 /** A module's statement before its exports: a `const`, a `let`, a plain loop, or what begins with a name, an assignment or a call statement. */
 export type ModuleStatement = {
@@ -544,46 +544,46 @@ export type ModuleStatement = {
 }
 
 /** The plain loop form shared by module and function statements. */
-export type WhileStatement = readonly [number, number, Value, number, LoopBlock]
+export type WhileStatement = () => readonly ['const', readonly [number, number, Value, number, LoopBlock]]
 /** The do body precedes its trailing condition and optional semicolon. */
-export type DoWhileStatement = readonly [number, LoopBlock, number, number, Value, number, End]
+export type DoWhileStatement = () => readonly ['const', readonly [number, LoopBlock, number, number, Value, number, End]]
 
 /** A classic loop's condition and step, separated by an explicit semicolon. */
-export type ForClassicTail = readonly [Option<Value>, number, Option<NameExpression>]
+export type ForClassicTail = () => readonly ['const', readonly [Option<Value>, number, Option<NameExpression>]]
 
 /** A declaration's binding target is shared before `=` or the contextual `of`. */
-export type ForDeclarationTail = {
+export type ForDeclarationTail = () => readonly ['const', {
     readonly classic: readonly [number, Value, number, ForClassicTail]
     readonly of: readonly [number, Value]
-}
+}]
 
 /** Only a named `let` can omit its classic initializer; its semicolon remains explicit. */
-export type ForNamedLetTail = ForDeclarationTail & {
+export type ForNamedLetTail = ReturnType<ForDeclarationTail>[1] & {
     readonly uninitialized: readonly [number, ForClassicTail]
 }
 
 /** Named and pattern declarations share `of`, while a pattern's classic initializer is required. */
 export type ForLetBinding = {
     readonly name: readonly [typeof identifierName, ForNamedLetTail]
-    readonly pattern: readonly [Pick<BindingTarget, 'array' | 'object'>, ForDeclarationTail]
+    readonly pattern: readonly [Pick<ReturnType<BindingTarget>[1], 'array' | 'object'>, ForDeclarationTail]
 }
 
 /** Distinct first tokens select a declaration, named classic initializer or empty classic initializer. */
-export type ForHeader = {
+export type ForHeader = () => readonly ['const', {
     readonly const: readonly [number, BindingTarget, ForDeclarationTail]
     readonly let: readonly [number, ForLetBinding]
     readonly name: readonly [NameExpression, number, ForClassicTail]
     readonly empty: readonly [number, ForClassicTail]
-}
+}]
 
 /** A single `for` prefix keeps classic and declaration-based `for...of` headers LL(1). */
-export type ForStatement = readonly [number, number, ForHeader, number, LoopBlock]
+export type ForStatement = () => readonly ['const', readonly [number, number, ForHeader, number, LoopBlock]]
 
 /** `{`, a loop's statements, and `}`: no terminator, since the `}` continues the loop. */
-export type LoopBlock = readonly [number, RepeatFrom<0, LoopStatement>, number]
+export type LoopBlock = () => readonly ['const', readonly [number, RepeatFrom<0, LoopStatement>, number]]
 
 /** A loop block's statement: a declaration, conditional, nested loop, switch, loop or function exit, or what begins with a name. Its reference recurs through {@link LoopBlock}. */
-export type LoopStatement = Reference<{
+export type LoopStatement = () => readonly ['const', {
     readonly block: LoopBlock
     readonly break: readonly [number, End]
     readonly const: ConstStatement
@@ -600,22 +600,22 @@ export type LoopStatement = Reference<{
     readonly do: DoWhileStatement
     readonly while: WhileStatement
     readonly for: ForStatement
-}>
+}]
 
 /** A normal loop-body switch: at least one case and an optional last default. */
-export type LoopSwitch = readonly [number, number, Value, number, number, RepeatFrom<1, LoopCase>, Option<readonly [number, number, LoopBlock]>, number]
+export type LoopSwitch = () => readonly ['const', readonly [number, number, Value, number, number, RepeatFrom<1, LoopCase>, Option<readonly [number, number, LoopBlock]>, number]]
 
 /** Stacked labels share one braced case block; source admission checks its exits. */
-export type LoopCase = readonly [RepeatFrom<1, readonly [number, Value, number]>, LoopBlock]
+export type LoopCase = () => readonly ['const', readonly [RepeatFrom<1, readonly [number, Value, number]>, LoopBlock]]
 
 /** A loop's normal conditional, with an optional alternate block or conditional. */
-export type LoopIfStatement = readonly [number, number, Value, number, LoopBlock, Option<readonly [number, LoopElse]>]
+export type LoopIfStatement = () => readonly ['const', readonly [number, number, Value, number, LoopBlock, Option<readonly [number, LoopElse]>]]
 
 /** A braced alternate or another conditional, after `else`. */
-export type LoopElse = Reference<{
+export type LoopElse = () => readonly ['const', {
     readonly block: LoopBlock
     readonly if: LoopIfStatement
-}>
+}]
 
 /**
  * What a `const` or a fixed parameter binds: a name, or an array or an
@@ -627,15 +627,15 @@ export type LoopElse = Reference<{
  * reason: a pattern holds values, a value's block holds statements, and a
  * statement holds this, so none can be read off its own initializer.
  */
-export type BindingTarget = {
+export type BindingTarget = () => readonly ['const', {
     readonly name: typeof identifierName
     readonly array: ArrayLiteral
     readonly object: Container<Entry>
-}
+}]
 
 /** A `const` statement: `const`, what it binds, `=`, the value, and {@link End}. */
 /** One or more initialized declarators, with no trailing comma. */
-export type ConstStatement = readonly [number, BindingTarget, number, Value, RepeatFrom<0, readonly [number, BindingTarget, number, Value]>, End]
+export type ConstStatement = () => readonly ['const', readonly [number, BindingTarget, number, Value, RepeatFrom<0, readonly [number, BindingTarget, number, Value]>, End]]
 
 /** A declaration initializer, with its explicit equals token. */
 export type DeclarationInitializer = readonly [number, Value]
@@ -643,11 +643,11 @@ export type DeclarationInitializer = readonly [number, Value]
 /** Only a named `let` may omit its initializer; array and object patterns require one. */
 export type LetBinding = {
     readonly name: readonly [typeof identifierName, Option<DeclarationInitializer>]
-    readonly pattern: readonly [Pick<BindingTarget, 'array' | 'object'>, DeclarationInitializer]
+    readonly pattern: readonly [Pick<ReturnType<BindingTarget>[1], 'array' | 'object'>, DeclarationInitializer]
 }
 
 /** A `let` statement retains an optional named initializer and its statement ending. */
-export type LetStatement = readonly [number, LetBinding, End]
+export type LetStatement = () => readonly ['const', readonly [number, LetBinding, End]]
 
 /**
  * The statement a block ends with: `return` or `throw`, its value, and
@@ -656,9 +656,9 @@ export type LetStatement = readonly [number, LetBinding, End]
  * {@link CaseTail}.
  */
 export type Terminator = {
-    readonly return: readonly [number, Value, End]
+    readonly return: () => readonly ['const', readonly [number, Value, End]]
     readonly bareReturn: readonly [number, End]
-    readonly throw: readonly [number, Value, End]
+    readonly throw: () => readonly ['const', readonly [number, Value, End]]
     readonly switch: readonly [number, number, Value, number, number, number, Value, number, CaseTail]
 }
 
@@ -671,10 +671,10 @@ export type Terminator = {
  * `fjs/ebnf/ast` defers a branch where a tuple's element is built with
  * the tuple — as {@link Statement}'s does for the guard.
  */
-export type CaseTail = Reference<{
+export type CaseTail = () => readonly ['const', {
     readonly case: readonly [number, Value, number, CaseTail]
     readonly block: readonly [Block, AfterCase]
-}>
+}]
 
 /**
  * What follows a case's block: the next case, `case`, its first label,
@@ -683,11 +683,11 @@ export type CaseTail = Reference<{
  * block, its statements and its terminator. A reference to a variant, as
  * {@link CaseTail} is.
  */
-export type AfterCase = Reference<{
+export type AfterCase = () => readonly ['const', {
     readonly case: readonly [number, Value, number, CaseTail]
     readonly default: readonly [number, number, Block, number]
     readonly rest: readonly [number, BlockContents]
-}>
+}]
 
 /**
  * The one rest parameter, when a function has one: `...` and the
@@ -708,7 +708,7 @@ export type Parameters = Option<Parameter>
  * A function after its `(`, which is {@link Paren}'s, where the list is
  * the rest parameter or empty: that list, `)`, `=>`, and the body.
  */
-export type Func = readonly [Parameters, number, number, Body]
+export type Func = () => readonly ['const', readonly [Parameters, number, number, Body]]
 
 // Which of the two rules the parameter is, pinned — one guard per
 // direction, since neither covers both:
