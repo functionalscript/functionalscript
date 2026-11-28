@@ -35,7 +35,7 @@
  */
 
 import { memory } from '../../l0/module.f.js'
-import { add, and, bool, call, constant, eq, false_, fn, if_, int, le, let_, lt, make, misuse, mul, n, shr, signature, u, unit } from '../../module.f.js'
+import { add, and, bool, call, constant, eq, false_, fn, if_, int, le, let_, lt, make, misuse, mul, n, shr, signature, sub, u, unit } from '../../module.f.js'
 
 /** An address in the memory, of a block or of the state. */
 const address = u(32)
@@ -117,13 +117,19 @@ export const module = {
             let_('size', and(add(k, n(7n)), n(0xFFFF_FFF8n)), s =>
                 let_('top', memoryOf('load32', [state]), top =>
                     let_('next', add(top, s), next =>
-                        if_(le(next, memoryOf('load32', [endAt])),
-                            let_('moved', memoryOf('store32', [state, next]), () => top),
-                            call('self', 'grown', [t, s]))))))],
+                        let_('end', memoryOf('load32', [endAt]), end =>
+                            if_(le(next, end),
+                                let_('moved', memoryOf('store32', [state, next]), () => top),
+                                // the bytes past the region's end: more than 0 here, and at most the request, since
+                                // the pointer is never past the end
+                                let_('over', sub(next, end), over =>
+                                    if_(lt(n(0n), over), if_(le(over, s), call('self', 'grown', [t, s, over, end]), outOfMemory),
+                                        outOfMemory))))))))],
         // A full region: the memory grows by the larger of the request and a chunk, or by the request alone, where
-        // a chunk would end past the last page or the memory cannot grow by one.
-        ['grown', fn([['t', type], ['size', size]], address, (t, s) =>
-            let_('need', shr(add(s, n(0xFFFFn)), n(16n)), need =>
+        // a chunk would end past the last page or the memory cannot grow by one. A region that ends where the memory
+        // does needs only the pages for the bytes past its end, since new pages extend it.
+        ['grown', fn([['t', type], ['size', size], ['over', size], ['end', address]], address, (t, s, over, end) =>
+            let_('need', shr(add(if_(eq(end, mul(memoryOf('size', []), n(0x1_0000n))), over, s), n(0xFFFFn)), n(16n)), need =>
                 let_('chunk', if_(lt(need, n(chunk)), if_(le(add(memoryOf('size', []), n(chunk)), n(lastPage)), n(chunk), need), need), k =>
                     let_('before', memoryOf('grow', [k]), g =>
                         if_(eq(g, n(-1n)),
