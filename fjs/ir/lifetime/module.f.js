@@ -694,7 +694,7 @@ const go = (env, typed, mode, owned, live, n) => {
  *
  * @type {(functions: OrderedMap<Signature>, imports: OrderedMap<Interface>, own: string | null) => (entry: readonly [string, FunctionOf<Typed>]) => Result<readonly [string, FunctionOf<Term>], string>}
  */
-const lifetimeFn = (functions, imports, own) => ([fn, { params, result, body }]) => {
+const lifetimeFn = (functions, imports, own) => ([fn, { params, result, body, inline }]) => {
     /** @type {readonly (readonly [string, _Local])[]} */
     const locals = params.map(p => {
         const [k, t] = p
@@ -707,7 +707,8 @@ const lifetimeFn = (functions, imports, own) => ([fn, { params, result, body }])
     if (r[0] === 'error') { return r }
     const { term, owned, n: n1 } = r[1]
     const d = completes(plain) ? after(env, term, owned, n1) : ok([term, n1])
-    return d[0] === 'error' ? d : ok([fn, { params, result, body: d[1][0] }])
+    // The hint stays: the emitter copies a hook hinted `always`, whose calls this pass writes.
+    return d[0] === 'error' ? d : ok([fn, { params, result, body: d[1][0], ...(inline === undefined ? {} : { inline }) }])
 }
 
 /**
