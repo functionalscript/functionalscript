@@ -142,7 +142,7 @@ const moduleOf = refKind => ({
         ['isRef', hint('always', fn([['b', u(64)]], bool, b => isRefTerm(b)))],
         // Hooks over bits: count a reference through Ref, pass every other box through.
         ['dup', fn([['b', u(64)]], u(64), b => if_(call('self', 'isRef', [b]), call('Ref', 'dup_ref', [b]), b))],
-        ['drop', fn([['b', u(64)]], unit, b => if_(call('self', 'isRef', [b]), call('Ref', 'drop_ref', [b]), make([])))],
+        ['drop', hint('always', fn([['b', u(64)]], unit, b => if_(call('self', 'isRef', [b]), call('Ref', 'drop_ref', [b]), make([]))))],
         // L0's kind from the box: numbers, short bigints, references (by `refKind`), short strings, then scalar tags.
         ['kind', fn([['v', any]], int(0n, 8n), v => let_('b', unseal(v), b =>
             if_(isNumberTerm(b), n(3n),
