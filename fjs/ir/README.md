@@ -879,6 +879,60 @@ interface and its release variant, written in the IR's eDSL over L0's
   overwrite another or the state, and memory that runs out must trap
   where the model runs out.
 
+## What the debug arena adds
+
+The last part of H2
+([heap.md](../../doc/sasha-gil/ir/heap.md#the-bump-arena)): the arena's
+debug variant, `counted`, beside `module` in
+[`runtime/heap/module.f.js`](./runtime/heap/module.f.js), which a runtime
+will pick when it links, as `lower` picks Any's `checked` where its
+runtime says `checkedKind`. Nothing links a heap yet: its first client is
+H3.
+
+- **16 bytes before each block.** A size word holds the size that `alloc`
+  was asked for in its low half, so that a region can be walked in birth
+  order, and 1 in its high half once the block is freed. The header word
+  after it is the one that
+  [every counting variant shares](../../doc/sasha-gil/ir/heap.md#what-every-counting-variant-shares):
+  the count in bits 0 to 31, 1 at first, and the type `t` in bits 40 to
+  47. The class and the tag stay 0, since no block is reused.
+- **`dup` adds 1, and `drop` takes 1** and answers `true` at 0; `free`
+  marks a block whose count is 0. No block is reused, so a stale
+  reference finds a count of 0 and traps.
+- **`live()`** answers how many blocks have a count above 0, from a third
+  state word, for balance checks.
+- **A bitmap of block starts.** Each page that a region holds has a KiB of
+  bitmap, a bit for each 8 bytes, which `alloc` sets where a block starts.
+  A region keeps its pages' bitmaps in its tail and ends where they start,
+  so it takes a page more for each 32 that its block needs, and is always
+  new. The directory, four pages after the state's that `init` takes,
+  holds the address of each page's bitmap, or 0. A check costs two loads,
+  and the release arena none.
+- **Every misuse traps**: an address that is not 8-aligned, is below the
+  first block, or whose bit is not set, as inside a block, in a region's
+  tail, in a page that no region holds or past the pointer, though what is
+  there reads as a header; a `dup` or a `drop` of a count of 0; a `free`
+  of a block whose count is above 0, or a second `free`; and a count or
+  `live()` that would pass 32 bits, which no run reaches.
+- **The fast path checks the pointer**, which is never past `0xFFFF_0000`,
+  so that the block after its 16 bytes is a `u(32)`: one compare more,
+  beside the stores of the two words and of `live`.
+- **Both variants grow alike.** One pair of functions grows a full region,
+  given the pages that a request needs and how the new pages become a
+  region, and a request that needs more pages than a region holds is out
+  of memory. The release arena's code is as it was.
+- **The model keeps each block by its address**, with its size, type,
+  count and whether it was freed. The
+  [host proof](./runtime/heap/proof.mjs) runs seeded sequences of
+  allocations, `dup`, `drop` and `free` on both: every address, every
+  header and `live()` after every step must be the model's, every step
+  that the model refuses must trap, and a walk of the size words must
+  reach every block in birth order, but where a new region starts, and
+  end at the pointer. The record at each region's start that leads a walk
+  to the next region
+  ([heap.md](../../doc/sasha-gil/ir/heap.md#where-the-heap-keeps-its-state))
+  comes with H4's recount, the first walk of every block.
+
 ## What every slice refuses
 
 Everything else is refused with the function's name and the reason, never

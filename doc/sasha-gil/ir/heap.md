@@ -122,7 +122,7 @@ each variant does:
 | `alloc(t, n)`: a block of `n` bytes, 8-aligned, for an object of type `t` | moves the pointer | moves the pointer past a header with a count of 1 and the type `t` | pops the free list of `n`'s class and writes the same header |
 | `dup(p)`: one owner more | nothing | adds 1, and traps on a count of 0 | the same |
 | `drop(p)`: one owner less | answers `false` | takes 1, traps on 0, and answers `true` at 0 | the same |
-| `free(p)`, once released | never called | nothing: the block is never reused | pushes the block on its class's list |
+| `free(p)`, once released | never called | marks the block freed, and traps on a count above 0 or a second `free`: the block is never reused | pushes the block on its class's list |
 | `live()` | not exported | the blocks whose count has not reached 0 | the same, in debug builds |
 | `root(p)`: keep an owned reference where the heap finds it, and answer its entry | puts it in the root table | the same | the same |
 | `unroot(i)`: hand back the reference of entry `i` | frees the entry | the same | the same |
@@ -163,8 +163,9 @@ already allows an arena under the same ABI.
 
 | | Release, `module` | Debug, `counted` |
 | --- | --- | --- |
-| Header | none | the 8-byte header that [every counting variant shares](#what-every-counting-variant-shares), whose tag stays 0 since no block is reused, and before it a word with the block's size, so that the arena can be walked in birth order: 16 bytes in all |
-| `alloc(t, n)` | about 6 instructions | the same, and two stores for the header |
+| Header | none | the 8-byte header that [every counting variant shares](#what-every-counting-variant-shares), whose tag stays 0 since no block is reused, and before it a word with the block's size, so that the arena can be walked in birth order, and with a mark once the block is freed: 16 bytes in all |
+| Where blocks start | not kept | a bit for each 8 bytes, set where a block starts: a KiB of bitmap per page in its region's tail, found through a directory of a word per page of the memory, so that an address where no block starts traps |
+| `alloc(t, n)` | about 6 instructions | the same, a check of the pointer, the stores of the size word, the header and the block's bit, and an update of `live()` |
 | A block whose count reaches 0 | none does | is never reused, so a stale reference finds 0 and traps |
 | `live()` | not exported | the blocks whose count has not reached 0, for balance checks in proofs |
 
