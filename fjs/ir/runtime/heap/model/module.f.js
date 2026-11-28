@@ -38,22 +38,22 @@
 import { at as entryAt, empty, setReplace } from '../../../../types/ordered_map/module.f.js'
 
 /** The bytes of a page. */
-const page = 0x1_0000
+const page = /** @type {const} */ (0x1_0000)
 
 /** The page at which the arena's last region must end: no byte of the arena is past `0xFFFF_0000`. */
-const lastPage = 0xFFFF
+const lastPage = /** @type {const} */ (0xFFFF)
 
 /** The pages that a full region asks for at least: 1 MiB. */
-const chunk = 16
+const chunk = /** @type {const} */ (16)
 
 /** The bytes that the debug arena keeps before each block: the size word, then the header. */
-const header = 16
+const header = /** @type {const} */ (16)
 
 /** The pages that the debug arena's `init` takes: the state's, and four for the directory. */
-const countedPages = 5
+const countedPages = /** @type {const} */ (5)
 
 /** The bytes of a page's bitmap of block starts, which the debug arena keeps in the tail of the page's region. */
-const bitmap = 0x400
+const bitmap = /** @type {const} */ (0x400)
 
 /** `n` rounded up to 8. @type {(n: number) => number} */
 export const round = n => n + 7 - (n + 7) % 8
@@ -113,7 +113,9 @@ const taken = (a, g, k) => {
 /**
  * The arena whose region cannot hold `size` more bytes, after the memory
  * grew by the larger of the pages that `need` answers for the request and
- * {@link chunk}, or by those alone, and `taken` made a region of them; or
+ * {@link chunk}, or by those alone where a chunk would end past
+ * {@link lastPage} or the host refuses it, and `taken` made a region of
+ * them; or
  * `null` where the host refuses both, or where no region could hold the
  * request.
  *
@@ -122,7 +124,7 @@ const taken = (a, g, k) => {
 const grownBy = (need, taken) => (a, size) => {
     const pages = need(size)
     if (pages > lastPage) { return null }
-    const k = pages < chunk ? chunk : pages
+    const k = pages < chunk && a.pages + chunk <= lastPage ? chunk : pages
     const g = grow(a.pages, a.most, k)
     if (g !== null) { return taken({ ...a, pages: a.pages + k }, g, k) }
     const h = grow(a.pages, a.most, pages)

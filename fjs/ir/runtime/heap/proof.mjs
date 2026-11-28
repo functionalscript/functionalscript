@@ -33,13 +33,15 @@ const release = compile(module)
 const debug = compile(counted)
 
 /**
- * An arena of `compiled` on a memory of one page that may grow to `most`,
- * after `init`: the heap's functions that the proofs call, and the memory.
+ * An arena of `compiled` on a memory of `pages` pages, one unless given,
+ * that may grow to `most`, after `init`: the heap's functions that the
+ * proofs call, and the memory.
  *
  * @param {WebAssembly.Module} compiled
  * @param {number} most
+ * @param {number} [pages]
  */
-const load = (compiled, most) => {
+const load = (compiled, most, pages = 1) => {
     /**
      * The heap's functions that the proofs call.
      *
@@ -51,7 +53,7 @@ const load = (compiled, most) => {
      *     readonly live: () => number
      * }} Heap
      */
-    const memory = new WebAssembly.Memory({ initial: 1, maximum: most })
+    const memory = new WebAssembly.Memory({ initial: pages, maximum: most })
     const { exports } = new WebAssembly.Instance(compiled, { 'fjs:l0': { memory } })
     const init = /** @type {() => void} */ (exports.init)
     init()
@@ -261,6 +263,26 @@ export const proof = {
     // A host that lets the memory grow to a few pages only: the arena runs out where the model does, and traps.
     outOfMemory: () => {
         for (const seed of [5, 6, 7]) { assert(run(seed, 10_000, 40)[0] < 10_000) }
+    },
+    // Near the last page, where a chunk would end past it, a full region grows by the request alone, as the model
+    // does, in both arenas: after `init` on pages that end at 65,520, blocks of 32 KiB until a region grows, which
+    // takes one page each time, well below the arena's last page.
+    nearLastPage: () => {
+        const plain = load(release, 0x1_0000, 65_519)
+        let a = assertNotNullish(start(65_519, 0x1_0000))
+        const debugged = load(debug, 0x1_0000, 65_515)
+        let c = assertNotNullish(startCounted(65_515, 0x1_0000))
+        for (let i = 0; i < 4; i += 1) {
+            const [a1, p] = assertNotNullish(alloc(a, 0x8000))
+            assertEq(plain.heap.alloc(0, 0x8000) >>> 0, p)
+            a = a1
+            const [c1, q] = assertNotNullish(allocCounted(c, 1, 0x8000))
+            assertEq(debugged.heap.alloc(1, 0x8000) >>> 0, q)
+            c = c1
+        }
+        assertEq(`${a.pages} ${c.arena.pages}`, '65522 65522')
+        assertEq(plain.memory.buffer.byteLength, a.pages * 0x1_0000)
+        assertEq(debugged.memory.buffer.byteLength, c.arena.pages * 0x1_0000)
     },
     // A memory that cannot grow at all leaves `init` nothing to put the state in, in either arena.
     noPage: () => {

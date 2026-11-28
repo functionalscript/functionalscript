@@ -136,8 +136,13 @@ const each = (write, pass, names, ts, n) => ts.reduce(
 const copy = (write, pass, f, xs, args, n) => {
     const [p, n1] = fresh(pass.taken, n)
     const parts = f.params.map((param, j) => /** @type {const} */ ([param, xs[Number(j)][0], args[Number(j)]]))
+    // A parameter that the body compares narrows in place only as a local that no other compared parameter
+    // receives: `lt(a, b)` of one local twice would narrow it twice, and the second range would hide the first.
+    const compared = parts.flatMap(([[k], , a]) => compares(k)(f.body) ? [/** @type {const} */ ([k, a])] : [])
+    const alone = (/** @type {string} */ k, /** @type {Term} */ a) => a[0] === 'get'
+        && !compared.some(([q, b]) => q !== k && b[0] === 'get' && b[1] === a[1])
     const inPlace = parts.flatMap(([param, type, a]) => !isOwn(param) && made(a) && equal(type, param[1])
-        && (a[0] === 'get' || !compares(param[0])(f.body)) ? [/** @type {const} */ ([param[0], a])] : [])
+        && (compared.every(([q]) => q !== param[0]) || alone(param[0], a)) ? [/** @type {const} */ ([param[0], a])] : [])
     /** @type {_Names} */
     const names = { local: x => inPlace.find(([k]) => k === x)?.[1] ?? get(`${p}${x}`), rename: x => `${p}${x}`, loops: [] }
     const [body, n2] = write(pass, names, f.body, n1)

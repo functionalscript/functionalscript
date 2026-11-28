@@ -198,6 +198,36 @@ export const proof = {
             '',
         ].join('\n'))
     },
+    // Two compared parameters given one local are bound by a `let` each, so the copy's `lt` narrows each as the
+    // body's narrowed its parameters, and the result still checks; a parameter that the body does not compare,
+    // given the same local, stays in place.
+    aliased: () => {
+        const pick = hint('always', fn([['a', u(8)], ['b', u(8)], ['c', u(8)]], int(0n, 254n), (a, b, c) =>
+            if_(lt(a, b), a, if_(lt(c, n(1n)), c, n(0n)))))
+        assertEq(passed({
+            imports: [],
+            functions: [
+                ['pick', pick],
+                ['f', fn([['x', u(8)]], int(0n, 254n), x => call('self', 'pick', [x, x, x]))],
+                ['g', fn([['x', u(8)], ['y', u(8)]], int(0n, 254n), (x, y) => call('self', 'pick', [x, y, y]))],
+            ],
+            exports: ['f', 'g'],
+        }), [
+            'fn f(x: u(8)) -> int(0, 254) =',
+            '    let #i0.a = x',
+            '    let #i0.b = x',
+            '    let #i0.c = x',
+            '    if lt(#i0.a, #i0.b) then #i0.a else if lt(#i0.c, 1) then #i0.c else 0',
+            '',
+            'fn g(x: u(8), y: u(8)) -> int(0, 254) =',
+            '    let #i0.b = y',
+            '    let #i0.c = y',
+            '    if lt(x, #i0.b) then x else if lt(#i0.c, 1) then #i0.c else 0',
+            '',
+            'export f, g',
+            '',
+        ].join('\n'))
+    },
     // A prefix that a name of the function starts with is skipped.
     fresh: () => assertEq(passed({
         imports: [],

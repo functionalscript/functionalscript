@@ -144,6 +144,27 @@ mod tests {
     }
 
     #[test]
+    fn static_functions_name_one_another_by_descriptor() {
+        static FIRST: StaticFunction<Naive> = StaticFunction {
+            code: |_, _| Ok(Function::from_static(&SECOND).to_any()),
+            frame: &StaticArray(&[]),
+            length: 0,
+            text: None,
+        };
+        static SECOND: StaticFunction<Naive> = StaticFunction {
+            code: |_, _| Ok(Function::from_static(&FIRST).to_any()),
+            frame: &StaticArray(&[]),
+            length: 0,
+            text: None,
+        };
+        let first = Function::from_static(&FIRST);
+        let second = Function::from_static(&SECOND);
+        assert_ne!(first, second);
+        assert_eq!(first.call([].to_array()), Ok(second.clone().to_any()));
+        assert_eq!(second.call([].to_array()), Ok(first.clone().to_any()));
+    }
+
+    #[test]
     fn static_object_reads_return_owned_values_with_descriptor_identity() {
         let key = String::<Naive>::from("f");
         let (name, value) = Object::from_static(&MODULE).property_at(0);
