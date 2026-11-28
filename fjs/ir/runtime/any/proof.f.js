@@ -3,20 +3,33 @@
  * stage, the printed hooks, and that each L0 Any export shares its WASM
  * type with this module's export of that name
  * ([defined-hooks.md](../../../../doc/sasha-gil/ir/defined-hooks.md)).
+ * The variants that know the IR heap import the Heap interface beside
+ * `Ref`, and their hooks count a long string in it through the Heap; the
+ * [host proof](./proof.mjs) runs them on both arenas.
  */
 
 import { assert, assertEq, assertOk } from '../../../asserts/module.f.js'
-import { wat } from '../../../media/wasm/wat/module.f.js'
+import { functions, wat } from '../../../media/wasm/wat/module.f.js'
 import { check, checkPlain } from '../../check/module.f.js'
 import { l0, string } from '../../l0/module.f.js'
 import { lifetime } from '../../lifetime/module.f.js'
 import { definedBy, fn, lit } from '../../module.f.js'
 import { print } from '../../print/module.f.js'
 import { emit } from '../../wasm/module.f.js'
-import { checked, iface, module } from './module.f.js'
+import { checked, checkedWithHeap, iface, module, withHeap } from './module.f.js'
 
 /** @type {(m: import('../../types.ts').Module) => string} */
 const emittedWat = m => wat(emit(assertOk(check(assertOk(lifetime(m))))))
+
+/** The WAT of a module's function `name`, after the lifetime pass. @type {(m: import('../../types.ts').Module, name: string) => string} */
+const watOf = (m, name) => {
+    const owned = assertOk(check(assertOk(lifetime(m))))
+    const k = owned.functions.findIndex(([f]) => f === name)
+    return functions(emit(owned))[Number(k)]
+}
+
+/** The functions of each variant, in their order. */
+const names = 'isRef,dup,drop,kind,to_f64,from_f64,to_bool,from_bool,same,keep,take,forget,undefinedOf,nullOf,falseOf,trueOf'
 
 /**
  * The names of a module's functions that may fail, joined by commas.
@@ -106,10 +119,177 @@ export const proof = {
         assertEq(assertOk(checkPlain(checked)).functions.map(([k]) => k).join(),
             assertOk(checkPlain(module)).functions.map(([k]) => k).join())
     },
-    // Forged bits trap as a misuse in both variants, so no function of either may fail, as the interface says of each.
+    // Forged bits trap as a misuse in every variant, so no function of any may fail, as the interface says of each.
     effect: () => {
         assertEq(failing(module), '')
         assertEq(failing(checked), '')
+        assertEq(failing(withHeap), '')
+        assertEq(failing(checkedWithHeap), '')
         assert(iface.functions.every(([, { fails }]) => fails !== true))
+    },
+    // The variants that know the IR heap import the Heap interface beside Ref, the checked one the debug arena's,
+    // and define and export what the others do; the others import no Heap.
+    heapShape: () => {
+        assertEq(withHeap.imports.map(([k]) => k).join(), 'Ref,Heap')
+        assertEq(checkedWithHeap.imports.map(([k]) => k).join(), 'Ref,Heap')
+        assertEq(withHeap.imports[1][1].functions.map(([k]) => k).join(), 'alloc,dup,drop,free')
+        assertEq(checkedWithHeap.imports[1][1].functions.map(([k]) => k).join(), 'alloc,dup,drop,free,live,type_of')
+        assertEq(`${definedBy(withHeap)} ${definedBy(checkedWithHeap)}`, 'Any Any')
+        assertEq(withHeap.exports.join(), module.exports.join())
+        assertEq(checkedWithHeap.exports.join(), module.exports.join())
+        assert(!emittedWat(module).includes('fjs:ir/heap'))
+        assert(!emittedWat(checked).includes('fjs:ir/heap'))
+    },
+    // The plain stage and the owned stage type every function of the variants that know the IR heap too.
+    heapChecked: () => {
+        for (const m of [withHeap, checkedWithHeap]) {
+            assertEq(assertOk(checkPlain(m)).functions.map(([k]) => k).join(), names)
+            assertEq(assertOk(check(assertOk(lifetime(m)))).functions.map(([k]) => k).join(), names)
+        }
+    },
+    // The hooks send a reference whose kind nibble is 9 to the Heap, with its block's address, and free its block
+    // where the drop of its last owner answers that it may; every other reference counts through Ref as before.
+    heapHooks: () => {
+        const text = print(assertOk(lifetime(withHeap)))
+        assert(text.includes([
+            'fn dup(b: u(64)) -> u(64) =',
+            '    if isRef(b)',
+            '    then',
+            '        if eq(and(b, 4222124650659840), 2533274790395904)',
+            '        then',
+            '            let counted = Heap.dup(and(b, 4294967288))',
+            '            b',
+            '        else',
+            '            Ref.dup_ref(b)',
+            '    else',
+            '        b',
+        ].join('\n')))
+        assert(text.includes([
+            'fn drop(b: u(64)) -> unit =',
+            '    if isRef(b)',
+            '    then',
+            '        if eq(and(b, 4222124650659840), 2533274790395904)',
+            '        then',
+            '            let p = and(b, 4294967288)',
+            '            if Heap.drop(p) then Heap.free(p) else {}',
+            '        else',
+            '            Ref.drop_ref(b)',
+            '    else',
+            '        {}',
+        ].join('\n')))
+        // the checked variant's hooks take the block only where its box and its type are a string's, as its `kind`
+        // does, so a forged box traps before a count changes
+        const checkedText = print(assertOk(lifetime(checkedWithHeap)))
+        assert(checkedText.includes([
+            'fn dup(b: u(64)) -> u(64) =',
+            '    if isRef(b)',
+            '    then',
+            '        if eq(and(b, 4222124650659840), 2533274790395904)',
+            '        then',
+            '            let counted =',
+            '                Heap.dup(',
+            '                    if eq(b, or(9221401712017801218, and(b, 4294967288)))',
+            '                    then',
+            '                        let type = Heap.type_of(and(b, 4294967288))',
+            "                        if eq(shr(type, 4), 4) then and(b, 4294967288) else misuse('not a value')",
+            '                    else',
+            "                        misuse('not a value')",
+            '                )',
+            '            b',
+            '        else',
+            '            Ref.dup_ref(b)',
+            '    else',
+            '        b',
+        ].join('\n')))
+        assert(checkedText.includes([
+            'fn drop(b: u(64)) -> unit =',
+            '    if isRef(b)',
+            '    then',
+            '        if eq(and(b, 4222124650659840), 2533274790395904)',
+            '        then',
+            '            let p =',
+            '                if eq(b, or(9221401712017801218, and(b, 4294967288)))',
+            '                then',
+            '                    let type = Heap.type_of(and(b, 4294967288))',
+            "                    if eq(shr(type, 4), 4) then and(b, 4294967288) else misuse('not a value')",
+            '                else',
+            "                    misuse('not a value')",
+            '            if Heap.drop(p) then Heap.free(p) else {}',
+            '        else',
+            '            Ref.drop_ref(b)',
+            '    else',
+            '        {}',
+        ].join('\n')))
+    },
+    // The hooks' WebAssembly: one mask and one compare tell an IR string, and its block's address is a 32-bit word.
+    heapDupWat: () => assertEq(watOf(withHeap, 'dup'), [
+        "  (func $dup (;9;) (type 1) (param $b i64) (result i64)",
+        "    local.get $b",
+        "    call $isRef",
+        "    if (result i64) ;; label = @1",
+        "      local.get $b",
+        "      i64.const 4222124650659840",
+        "      i64.and",
+        "      i64.const 2533274790395904",
+        "      i64.eq",
+        "      if (result i64) ;; label = @2",
+        "        local.get $b",
+        "        i64.const 4294967288",
+        "        i64.and",
+        "        i32.wrap_i64",
+        "        call $Heap.dup",
+        "        local.get $b",
+        "      else",
+        "        local.get $b",
+        "        call $Ref.dup_ref",
+        "      end",
+        "    else",
+        "      local.get $b",
+        "    end",
+        "  )",
+        "",
+    ].join('\n')),
+    heapDropWat: () => assertEq(watOf(withHeap, 'drop'), [
+        "  (func $drop (;10;) (type 2) (param $b i64)",
+        "    (local $p i32)",
+        "    local.get $b",
+        "    call $isRef",
+        "    if ;; label = @1",
+        "      local.get $b",
+        "      i64.const 4222124650659840",
+        "      i64.and",
+        "      i64.const 2533274790395904",
+        "      i64.eq",
+        "      if ;; label = @2",
+        "        local.get $b",
+        "        i64.const 4294967288",
+        "        i64.and",
+        "        i32.wrap_i64",
+        "        local.set $p",
+        "        local.get $p",
+        "        call $Heap.drop",
+        "        if ;; label = @3",
+        "          local.get $p",
+        "          call $Heap.free",
+        "        else",
+        "        end",
+        "      else",
+        "        local.get $b",
+        "        call $Ref.drop_ref",
+        "      end",
+        "    else",
+        "    end",
+        "  )",
+        "",
+    ].join('\n')),
+    // The plain variant reads nibble 9 as a string's, with no call; the checked one asks the debug arena's
+    // `type_of` for it, and NaNVM's `kind_ref` for every other reference.
+    heapKind: () => {
+        const plain = emittedWat(withHeap)
+        const debug = emittedWat(checkedWithHeap)
+        assert(!plain.includes('call $Ref.kind_ref') && !plain.includes('call $Heap.type_of'))
+        assert(debug.includes('call $Ref.kind_ref') && debug.includes('call $Heap.type_of'))
+        assert(print(assertOk(lifetime(withHeap))).includes("if eq(t, 8) then 8 else if eq(t, 9) then 4 else misuse('not a value')"))
+        assert(print(assertOk(lifetime(module))).includes("if eq(t, 8) then 8 else misuse('not a value')"))
     },
 }

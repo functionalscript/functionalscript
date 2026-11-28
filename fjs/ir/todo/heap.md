@@ -55,8 +55,10 @@ it counts in a header and traps on misuse. Memory enters the IR as a
       the IR heap, since a long IR string is copied into a NaNVM string
       wherever it crosses; the root table waits for H4 (the owner chose A
       on each of the six choices, 2026-11-27)
-- [ ] **H3a** — IR references in Any: kind nibble 9, and hooks that send an
-      IR reference to the Heap's `dup`, `drop` and `free`
+- [x] **H3a** — IR references in Any: kind nibble 9, and hooks that send an
+      IR reference to the Heap's `dup`, `drop` and `free`, in `withHeap`
+      and, for debug, `checkedWithHeap`, which asks the debug arena's new
+      `type_of`; no program links them before H3d
 - [ ] **H3b** — Long strings in the IR: String's `concat`, `substring`,
       `length` and `unit` over blocks of a length and 16-bit units
 - [ ] **H3c** — The crossing: a long IR string that crosses into NaNVM

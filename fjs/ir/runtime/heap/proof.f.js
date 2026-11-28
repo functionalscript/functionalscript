@@ -1,7 +1,8 @@
 /**
  * Proofs of the Heap module's arenas: each imports L0's `Memory` alone,
  * its exports are the Heap interface's functions with their signatures,
- * and `live` in debug, none may fail, since running out of memory and
+ * and in debug those of the debug interface, `live` and `type_of`, none
+ * may fail, since running out of memory and
  * every misuse trap as a misuse, the fast path of the release `alloc` is a
  * bump of the pointer, and the debug `dup` checks that a block starts at
  * the address, in its page's bitmap, and the count before it adds 1. The
@@ -16,10 +17,13 @@ import { functions } from '../../../media/wasm/wat/module.f.js'
 import { check } from '../../check/module.f.js'
 import { equal, u } from '../../module.f.js'
 import { emit } from '../../wasm/module.f.js'
-import { counted, iface, module } from './module.f.js'
+import { counted, debugIface, iface, module } from './module.f.js'
 
 /** The interface's functions by name. */
 const names = iface.functions.map(([k]) => k)
+
+/** The debug interface's functions by name. */
+const debugNames = debugIface.functions.map(([k]) => k)
 
 /** The WAT of a module's function `name`. @type {(m: Module, name: string) => string} */
 const wat = (m, name) => {
@@ -30,32 +34,37 @@ const wat = (m, name) => {
 
 export const proof = {
     // Each arena imports Memory alone, keeps its state in one constant, and exports the interface's functions, and
-    // debug `live` too.
+    // debug those of the debug interface, which are the interface's, `live` and `type_of`.
     shape: () => {
         for (const m of [module, counted]) {
             assertEq(m.imports.map(([k]) => k).join(), 'Memory')
             assertEq(m.constants?.map(([k]) => k).join(), 'state')
         }
         assertEq(module.exports.join(), names.join())
-        assertEq(counted.exports.join(), [...names, 'live'].join())
+        assertEq(counted.exports.join(), debugNames.join())
+        assertEq(debugNames.join(), [...names, 'live', 'type_of'].join())
+        assertEq(debugIface.abi, iface.abi)
     },
-    // Each export has the signature that the interface gives it, and `live` takes nothing and answers a `u(32)`.
+    // Each export has the signature that its interface gives it: `live` takes nothing and answers a `u(32)`, and
+    // `type_of` takes an address and answers a type.
     signatures: () => {
-        for (const m of [module, counted]) {
-            for (const [name, { params, result }] of iface.functions) {
+        for (const [m, face] of /** @type {const} */ ([[module, iface], [counted, debugIface]])) {
+            for (const [name, { params, result }] of face.functions) {
                 const [, f] = assertNotNullish(m.functions.find(([k]) => k === name))
                 assertEq(equal(f.params, params) && equal(f.result, result), true)
             }
         }
-        const [, live] = assertNotNullish(counted.functions.find(([k]) => k === 'live'))
+        const [, live] = assertNotNullish(debugIface.functions.find(([k]) => k === 'live'))
         assertEq(live.params.length === 0 && equal(live.result, u(32)), true)
+        const [, typeOf] = assertNotNullish(debugIface.functions.find(([k]) => k === 'type_of'))
+        assertEq(typeOf.params.length === 1 && equal(typeOf.params[0][1], u(32)) && equal(typeOf.result, u(8)), true)
     },
     // Running out of memory, a free in release and every misuse in debug trap as a misuse, so no function may fail.
     effect: () => {
         /** @type {(m: Module) => string} */
         const fails = m => assertOk(check(m)).functions.map(([k, { fails }]) => `${k}: ${fails}`).join(', ')
         assertEq(fails(module), 'alloc: false, grown: false, taken: false, dup: false, drop: false, free: false')
-        assertEq(fails(counted), 'alloc: false, grown: false, taken: false, paged: false, dup: false, drop: false, free: false, live: false')
+        assertEq(fails(counted), 'alloc: false, grown: false, taken: false, paged: false, dup: false, drop: false, free: false, live: false, type_of: false')
     },
     // The release fast path loads the pointer, moves it past the rounded size where the region holds it, and answers
     // where it was.

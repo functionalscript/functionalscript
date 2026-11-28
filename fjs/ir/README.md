@@ -933,6 +933,46 @@ H3.
   ([heap.md](../../doc/sasha-gil/ir/heap.md#where-the-heap-keeps-its-state))
   comes with H4's recount, the first walk of every block.
 
+## What IR references in Any add
+
+H3a, the first part of long strings in the IR heap
+([long-strings.md](../../doc/sasha-gil/ir/long-strings.md#steps)): Any
+learns the box of a reference into the IR heap, and its hooks count one
+through the Heap, in two variants beside `module` and `checked` in
+[`runtime/any/module.f.js`](./runtime/any/module.f.js). No program links
+them yet: H3d links the heap.
+
+- **The box** of a long string in the IR heap is
+  `0x7FF9_0000_0000_0002 | p`, a reference whose kind nibble is 9 and
+  whose bits 3 to 31 are its block's address.
+  [`runtime/box`](./runtime/box/module.f.js) has its bits, its test, and
+  the block's address as a term.
+- **`withHeap`** reads nibble 9 as a string's, kind 4, with no call, as it
+  reads NaNVM's nibbles. Its hooks test the nibble with one mask and one
+  compare inside the test for a reference: an IR string goes to the
+  Heap's `dup`, or to its `drop` and then to its `free` where the drop
+  answers that the count reached 0, since a long string holds no
+  reference. Every other reference counts through `Ref` as before. It
+  imports the Heap interface.
+- **`checkedWithHeap`**, for a debug build, refuses a box with any bit
+  but its tag's and its block's, and asks the debug arena's new `type_of`
+  for the block's type, whose high nibble must be a string's kind, in its
+  `kind` and in its hooks before they count, so a forged box traps and
+  changes no count.
+  `type_of` traps where the address names no block or the count is 0, as
+  NaNVM's `kind_ref` checks a handle. It imports the debug arena's
+  interface: the Heap's, with `live` and `type_of`.
+- **The host proof** ([`runtime/any/proof.mjs`](./runtime/any/proof.mjs))
+  compiles Any and an arena each from the IR, and joins them through the
+  Heap's imports on the host's engine, the arena on a memory of its own.
+  On the release arena the hooks pass an IR string. On the debug arena
+  they count it in its header down to the `free`, and a freed block takes
+  no more owners. The checked variant refuses a freed block, a block of
+  another type and a box with stray bits, which the plain one reads as a
+  string. On both, the host's own references count as before and leave
+  no cell over, and [NaNVM's test](./l0/host/nanvm/nanvm.test.mjs) runs
+  the same with NaNVM as the host.
+
 ## What every slice refuses
 
 Everything else is refused with the function's name and the reason, never

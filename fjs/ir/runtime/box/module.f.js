@@ -31,6 +31,20 @@ export const SCALAR = 0x7FF0_0000_0000_0000n
 export const REF_TAG = 0xFFF0_0000_0000_0003n
 export const DYN_REF = 0x7FF0_0000_0000_0002n
 
+/** The kind nibble of a reference, `tttt`, in bits 48 to 51. */
+export const KIND = 0x000F_0000_0000_0000n
+
+/**
+ * The box of a long string in the IR heap whose block is at address 0: a
+ * reference whose kind nibble is 9, so that the string at `p` is
+ * `IR_STRING | p`
+ * ([long-strings.md, choice 3](../../../../doc/sasha-gil/ir/long-strings.md#3-the-box-of-a-reference-into-the-ir-heap)).
+ */
+export const IR_STRING = 0x7FF9_0000_0000_0002n
+
+/** The address of a reference into the IR heap: bits 3 to 31, since a block is 8-aligned. */
+export const BLOCK = 0xFFFF_FFF8n
+
 /** The one NaN that a number is boxed as. */
 export const NAN = 0x7FF8_0000_0000_0000n
 
@@ -61,8 +75,23 @@ export const isNumberBits = b => {
 /** Whether bits, as an `i64` or as unsigned, are a dynamic reference. @type {(b: bigint) => boolean} */
 export const isRefBits = b => (b & U64 & REF_TAG) === DYN_REF
 
+/** Whether bits, as an `i64` or as unsigned, are a long string in the IR heap: a reference whose kind nibble is 9. @type {(b: bigint) => boolean} */
+export const isIrStringBits = b => isRefBits(b) && (b & U64 & KIND) === (IR_STRING & KIND)
+
 /** {@link isNumberBits} as an IR term over `u64` bits. @type {(b: Term) => Term} */
 export const isNumberTerm = b => if_(eq(and(b, n(EXP)), n(EXP)), eq(and(b, n(TAG8)), n(EXP)), true_)
 
 /** {@link isRefBits} as an IR term over `u64` bits. @type {(b: Term) => Term} */
 export const isRefTerm = b => eq(and(b, n(REF_TAG)), n(DYN_REF))
+
+/**
+ * {@link isIrStringBits} as an IR term over the `u64` bits of a reference:
+ * whether its kind nibble is 9. It tells nothing of bits that
+ * {@link isRefTerm} does not hold of.
+ *
+ * @type {(b: Term) => Term}
+ */
+export const isIrStringTerm = b => eq(and(b, n(KIND)), n(IR_STRING & KIND))
+
+/** The block that the bits of a reference into the IR heap name, a `u(32)`, as an IR term over `u64` bits. @type {(b: Term) => Term} */
+export const blockTerm = b => and(b, n(BLOCK))

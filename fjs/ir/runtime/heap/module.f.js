@@ -57,6 +57,10 @@
  *   bit is not set: inside a block, in a region's tail, in a page that no
  *   region holds, or past the pointer. `dup` and `drop` trap on a count of
  *   0, and `free` on a count above 0 and on a block that it freed before.
+ * - **Debug tells a block's type**, for a checked Any: `type_of(p)` answers
+ *   the type `t` of a block whose count is above 0, and traps where the
+ *   address names no block or the count is 0, as NaNVM's `kind_ref` checks
+ *   a handle ({@link debugIface}).
  *
  * @module
  *
@@ -109,6 +113,24 @@ export const iface = {
         ['dup', signature([['p', address]], unit)],
         ['drop', signature([['p', address]], bool)],
         ['free', signature([['p', address]], unit)],
+    ],
+}
+
+/**
+ * The debug arena's interface: the Heap interface, `live()`, how many
+ * blocks have a count above 0, and `type_of(p)`, the type of a block whose
+ * count is above 0, which traps on any other address. A checked Any asks
+ * it the kind of a reference into the IR heap
+ * ([long-strings.md, choice 3](../../../../doc/sasha-gil/ir/long-strings.md#3-the-box-of-a-reference-into-the-ir-heap)).
+ *
+ * @type {Interface}
+ */
+export const debugIface = {
+    ...iface,
+    functions: [
+        ...iface.functions,
+        ['live', signature([], u(32))],
+        ['type_of', signature([['p', address]], type)],
     ],
 }
 
@@ -335,8 +357,9 @@ const released = let_('live', memoryOf('load32', [liveAt]), live =>
 /**
  * The debug arena: `alloc` writes the size word and a header with a count
  * of 1 before each block, `dup` and `drop` count in the header and trap on
- * misuse, `free` marks a released block in its size word, and `live`
- * answers how many blocks have a count above 0.
+ * misuse, `free` marks a released block in its size word, `live` answers
+ * how many blocks have a count above 0, and `type_of` the type of a block
+ * whose count is above 0.
  *
  * @type {Module}
  */
@@ -381,6 +404,9 @@ export const counted = {
                     if_(eq(memoryOf('load32', [mark]), n(0n)), memoryOf('store32', [mark, n(1n)]), misuse('a second free'))),
                 misuse('free of a live block'))))],
         ['live', fn([], u(32), () => memoryOf('load32', [liveAt]))],
+        // the type is the header word's sixth byte, bits 40 to 47
+        ['type_of', fn([['p', address]], type, p => headerOf(p, at =>
+            if_(eq(memoryOf('load32', [at]), n(0n)), misuse('count of 0'), memoryOf('load8', [add(at, n(5n))]))))],
     ],
-    exports: ['alloc', 'dup', 'drop', 'free', 'live'],
+    exports: ['alloc', 'dup', 'drop', 'free', 'live', 'type_of'],
 }
