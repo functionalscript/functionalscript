@@ -452,7 +452,10 @@ values are immutable.
   avoid those, but refinement across `br` and loops still needs care.
   What lowers the risk: two refinement rules instead of a solver, an
   interpreter that keeps counts, tests that mutate checked modules, and
-  the Rust borrow checker as a second check on program code.
+  the Rust borrow checker as a second check on program code. The
+  comparison-narrowing half is spelled as a lattice and transfer table in
+  [comparison-refinement.md](./comparison-refinement.md), with joins and
+  loops kept deliberately conservative.
 - **Intervals miss relations.** After `le(i, n)`, `sub(n, i)` still has a
   range that reaches below 0, so code that uses it as a length needs a
   `narrow` that never fails. String slicing will meet this often. What

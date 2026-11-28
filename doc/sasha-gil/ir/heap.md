@@ -711,7 +711,10 @@ Each step is one stack of pull requests, and each keeps every proof green.
    the first pass that moves calls. No runtime change yet.
 2. **H2, the arena** under `fjs/ir/runtime/heap`, `module` for release and
    `counted` for debug, proven against the FunctionalScript model before
-   any program uses it.
+   any program uses it. H2b's comparison-narrowing is shipped; its formal
+   lattice and transfer rules are
+   [comparison-refinement.md](./comparison-refinement.md) (docs/spec
+   alongside H3, not a redesign).
 3. **H3, long strings in the IR heap**, the first objects to move, since
    short strings are already in the IR ([short-strings.md](./short-strings.md)).
    [long-strings.md](./long-strings.md) settles how: NaNVM holds no
