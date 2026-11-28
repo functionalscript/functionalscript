@@ -146,22 +146,30 @@ exists before H3d links the heap. (H3d must then redirect `concat` and
 `stringShortOps`.)
 
 **Results that NaNVM reads**, wrapped only where the result's type can
-hold a string, as for parameters: `any`, or an `any` whose kinds include
-`string`. A result of `f64`, of a boolean or of an integer is no box, and
-one of `only(any, 'array')` or another kind without `string` holds no IR
-string (an array's items crossed when `push` took them), so they keep
-their type and ABI unwrapped; the program proofs' exports have all of
-these (`literals.units`, `throws.bigints`, `arrays.none` in
-`fjs/ir/from_fast/testlib.f.js`):
+hold a string, as for parameters. A type can hold a string when it is
+`any`, or an `any` whose kinds include `string`, or a **product** (nested
+or not) with such a field: the WASM emitter flattens a product into
+separate results (`fjs/ir/wasm/module.f.js`, `scalars`), so a hand-written
+export of `{ s: string }` would hand the host the `s` field's IR box if
+the plan looked only at the top-level tag. The wrapper of a product
+copies each string-bearing leaf and rebuilds the product; fields that
+cannot hold a string pass through. A result of `f64`, of a boolean or of
+an integer is no box, and one of `only(any, 'array')` or another kind
+without `string` holds no IR string (an array's items crossed when `push`
+took them), so they keep their type and ABI unwrapped; the program
+proofs' exports have all of these (`literals.units`, `throws.bigints`,
+`arrays.none` in `fjs/ir/from_fast/testlib.f.js`):
 
 - **A function with a code index**, which NaNVM calls through `call`: the
   code that `make_function` takes (a `['code', name]` term). The link step
   wraps the code's function so that a long IR string it answers is copied
-  and the IR reference dropped, and points the `code` term at the wrapper.
+  and the IR reference dropped (and a string-bearing product the same
+  way), and points the `code` term at the wrapper.
 - **Each exported function** whose result can hold a string, which the
-  host calls by name and reads through NaNVM: the same wrap of its result. Today's `init` answers
-  nothing (`fjs/ir/README.md`, `init`); L0 §20's `init`, once built, is one
-  more such result.
+  host calls by name and reads through NaNVM: the same wrap of its
+  result, including a product with a string field. Today's `init`
+  answers nothing (`fjs/ir/README.md`, `init`); L0 §20's `init`, once
+  built, is one more such result.
 
 What comes back from NaNVM (`item`, `key`, `join`, `text`, `frame`,
 `call`'s result, the natives' strings) is NaNVM's and stays so (choice 2):
@@ -192,19 +200,21 @@ string can be there; not in H3c.
   `fjs/ir/l0/host/nanvm/nanvm.test.mjs`. Before H3d no program makes an IR
   string, so H3c needs proofs of its own that do:
 - **One proof per wrap kind**: an owned argument, a borrowed argument, a
-  code index's result, an export's result, each with a long IR string
-  (more than 2 units, so no short box holds it), run on the counting host
-  and on NaNVM, with the debug arena, so that `live()` is back where
-  `init` left it (a missed drop shows as a leak, a double drop traps).
+  code index's result, an export's result (a top-level string and a
+  product field that is a string), each with a long IR string (more than
+  2 units, so no short box holds it), run on the counting host and on
+  NaNVM, with the debug arena, so that `live()` is back where `init` left
+  it (a missed drop shows as a leak, a double drop traps).
 - **Values of nibble 9 that are no IR string** pass through every wrapper
   unchanged: a finite number whose bits have nibble 9, short strings whose
   tag puts 9 there, and NaNVM's own references. The long-IR-string cases
   alone would not catch a wrapper that tests the nibble only.
 - **The link step's own proofs**, in `link/proof.f.js`: which calls it
   rewrites, that a parameter or a result that cannot hold a string is left
-  alone, that a code-index wrapper is not hinted always (so `checkPlain`
-  accepts the redirected `['code', name]`), and that it refuses a program
-  whose own name collides with a wrapper's, as `linkAny` does.
+  alone, that a product result with a string field is wrapped, that a
+  code-index wrapper is not hinted always (so `checkPlain` accepts the
+  redirected `['code', name]`), and that it refuses a program whose own
+  name collides with a wrapper's, as `linkAny` does.
 - 100% coverage for every changed `module.f.js` (AGENTS.md).
 
 ## H3d: link and measure
