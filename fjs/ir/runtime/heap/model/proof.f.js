@@ -12,6 +12,7 @@
  */
 
 import { assert, assertEq, assertNotNullish } from '../../../../asserts/module.f.js'
+import { setReplace } from '../../../../types/ordered_map/module.f.js'
 import { alloc, allocCounted, block, drop, dup, free, other, round, start, startCounted, typeOf } from './module.f.js'
 
 /** The arena and the address of a block that fits. @type {(a: Arena, n: number) => readonly [Arena, number]} */
@@ -129,6 +130,10 @@ export const proof = {
         assertEq(`${dup(e, p)} ${drop(e, p)} ${free(c, p)} ${free(assertNotNullish(free(e, p)), p)}`, 'null null null null')
         // nor does an address that no block has
         assertEq(`${dup(c, p + 8)} ${drop(c, p - 16)} ${free(e, 0)}`, 'null null null')
+        // a count of 0xFFFF_FFFF takes no dup, as the arena traps on a count past 32 bits, but takes a drop
+        const top = { ...c, blocks: setReplace(`${p}`)({ n: 8, t: 3, count: 0xFFFF_FFFF, freed: false })(c.blocks) }
+        assertEq(dup(top, p), null)
+        assertEq(shown(assertNotNullish(dup(assertNotNullish(drop(top, p))[0], p)), p), '8 3 4294967295 false')
     },
     // A block's type is told while its count is above 0, and neither at 0 nor at an address that no block has.
     typeOf: () => {
