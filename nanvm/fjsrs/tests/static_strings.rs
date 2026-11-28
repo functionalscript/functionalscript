@@ -109,11 +109,11 @@ fn static_functions_preserve_identity_metadata_and_nested_calls() {
 }
 
 #[test]
-fn static_frames_retain_the_original_function_identity() {
+fn static_functions_read_captured_functions_and_self_by_identity() {
     let module = exports_with_runtime(fixture::module, nanvm_fjsrs::runtime().unwrap()).unwrap();
     let reload = exports_with_runtime(fixture::module, nanvm_fjsrs::runtime().unwrap()).unwrap();
     let get = |name: &str| module.own_property(&name.into()).unwrap();
-    for name in ["default", "capturedId", "capturedWrapper"] {
+    for name in ["default", "capturedId", "capturedWrapper", "readSelf"] {
         assert_eq!(get(name), reload.own_property(&name.into()).unwrap());
     }
     let call = |name| {
@@ -124,6 +124,7 @@ fn static_frames_retain_the_original_function_identity() {
     };
     assert_eq!(call("capturedWrapper"), get("capturedId"));
     assert_eq!(call("capturedId"), get("id"));
+    assert_eq!(call("readSelf"), get("readSelf"));
     assert_eq!(
         call("default"),
         Any::from("very long stringvery long string")
@@ -241,7 +242,7 @@ fn static_array_entries_share_the_exported_function_and_object() {
 }
 
 #[test]
-fn containers_and_function_frames_share_the_named_array() {
+fn containers_and_static_functions_share_the_named_array() {
     let load = || exports_with_runtime(fixture::module, nanvm_fjsrs::runtime().unwrap()).unwrap();
     let first = load();
     let items = first.own_property(&"items".into()).unwrap();

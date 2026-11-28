@@ -161,9 +161,8 @@ static functions that refer to each other are two statics, each naming the
 other in its code. Nothing is allocated or counted, so there is no cycle to
 break and nothing for a group to own, and a function's identity is its
 descriptor's. A group of constants is written that way; only a group made
-while the program runs is the allocation above. It needs no frame either:
-what a static function captured is a static its code can name, and the
-frame `StaticFunction` has today is to go, which is NaNVM's own task.
+while the program runs is the allocation above. A static function's code
+names its captured constants directly, so its descriptor holds no frame.
 
 **Two functions written alike.** A group is what a program can rely on to
 be one: a function read twice is the same function. It cannot rely on two

@@ -15,8 +15,9 @@ The implementation uses ordinary Rust types and reference counting:
   covering strings, bigints, and arrays.
 - [Object storage](./object.rs) holds dynamic properties in an `Rc` slice or
   a pointer to a static descriptor. Reading a static property loads its value on demand.
-- [`Function`](./function.rs) holds static Rust code and its captured frame
-  behind an `Rc`; `Naive` implements `IStaticFunction` to construct it.
+- [`Function`](./function.rs) holds a reference to the descriptor of a
+  module constant. A closure created at run time holds its Rust code and
+  captured frame behind an `Rc`.
 
 The surrounding value types, operators, and utilities live in
 [`vm`](../vm/README.md) and are generic over `IVm`. Implementing another VM
