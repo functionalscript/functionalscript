@@ -124,8 +124,14 @@ export type Loop = readonly ['loop', string, readonly LoopParamOf<Term>[], Term]
 /** The one transfer. To the label `return`, it leaves the function. */
 export type Br = readonly ['br', string, Term]
 
-/** A failure at a named point. It gives no value, and the reason is for whoever reads a failed proof. */
-export type Trap = readonly ['trap', reason: string]
+/**
+ * A failure at a named point. It gives no value, and the reason is for
+ * whoever reads a failed proof. One marked `misuse` stands where only a
+ * bug of the caller leads, or memory that cannot grow, as L0's traps on
+ * misuse do ([L0 design §11](../../doc/sasha-gil/wasm/l0-design.md#11-misuse-traps-and-only-calls-fail)),
+ * so it traps the same way and the checker does not count it as failing.
+ */
+export type Trap = readonly ['trap', reason: string, mark?: 'misuse']
 
 /**
  * A constant, borrowed: one of the module's own, `self`, which `init`
@@ -186,7 +192,10 @@ export type Param = readonly [name: string, type: Type, mode?: 'own']
  * those that it does not fail on. A function of an interface declares it,
  * as `Functions.throw` and the functions that L0 traps in do, and a
  * missing one is `false`. A function of a module declares none: the
- * checker infers it, and writes it in the module that it answers.
+ * checker infers it, and writes it in the module that it answers. A trap
+ * on misuse does not count: `Ref`'s functions trap on bits that are no
+ * reference and declare nothing, and a module's `trap` marked `misuse`
+ * adds nothing to what the checker infers.
  *
  * `counts` marks a function of an interface that counts a value on its
  * bits, as NaNVM's `dup_ref` and `drop_ref` do: `dup` answers the bits of a
@@ -269,10 +278,18 @@ export type Maker = {
  * sealed types, its constants, each of a type, and the signatures of its
  * functions, whose parameters borrow their arguments but where they are
  * `own`. `abi` is the WASM module of the imports that bind it on a host,
- * which name its functions and its constants as it does.
+ * which name its functions and its constants as it does. An interface that
+ * says `instructions` is bound by the target itself, and is L0's `Memory`
+ * or a part of it: its functions are the target's own instructions on the
+ * memory that the loader makes, which the WASM emitter writes in place of
+ * a call, with the memory imported from `abi`. Its calls touch the memory,
+ * so a pass keeps each where it is, and neither removes nor merges one,
+ * whether or not it may fail, nor a call of a function that makes one
+ * ([heap.md](../../doc/sasha-gil/ir/heap.md#memory-in-the-ir)).
  */
 export type Interface = {
     readonly abi: string
+    readonly instructions?: true
     readonly types: readonly (readonly [name: string, SealedDef])[]
     readonly constants?: readonly (readonly [name: string, Type])[]
     readonly functions: readonly (readonly [name: string, Signature])[]
@@ -326,9 +343,9 @@ export type Module = ModuleOf<Term>
 
 /**
  * A function that the checker took: its body typed, and whether a call of
- * it may fail, which the checker inferred from the body: a `trap` in it, or
- * a call of a function that may fail, of an interface, which declares it,
- * or of the module, to a fixed point.
+ * it may fail, which the checker inferred from the body: a `trap` in it
+ * that is not marked `misuse`, or a call of a function that may fail, of
+ * an interface, which declares it, or of the module, to a fixed point.
  */
 export type CheckedFn = FunctionOf<Typed> & { readonly fails: boolean }
 

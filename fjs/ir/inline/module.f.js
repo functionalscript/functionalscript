@@ -17,6 +17,10 @@
  *   that the function borrows, given a local, a literal, a constant, a
  *   function's code, or a field of one of those, of its own type, reads that term itself, so the copy
  *   lends it as the call did, and the lifetime pass writes no `dup` of it.
+ *   An integer that the body compares is the exception unless it is a
+ *   local: the checker narrows only a local that a comparison reads, so a
+ *   `let` binds the literal, the constant or the field, and the copy's
+ *   comparison narrows that `let` as the body's narrowed the parameter.
  * - **An argument narrower than its parameter is widened** by a `block` of
  *   the parameter's type, since the body was checked at that type, and a
  *   `match` of it may name variants that the argument does not hold.
@@ -32,6 +36,11 @@
  *   module does not export has no call left, and the module has no use
  *   for it. One that it exports stays, for its importers.
  *
+ * - **A hook is copied by the emitter.** A `kind`, `dup` or `drop` of a
+ *   type that the module defines keeps its calls here, since the lifetime
+ *   pass writes more of them later: {@link inlineHooks}, which the emitter
+ *   runs on the checked module, copies a hook hinted `always` into each.
+ *
  * Which calls are inlined is one function's answer, `inlined`, which reads
  * the hints alone. A function hinted `never`, or not at all, keeps its
  * calls, until a later source of decisions, as a profile, answers for the
@@ -40,8 +49,8 @@
  * @module
  *
  * @import { Result } from '../../types/result/types.ts'
- * @import { CheckedFn, ConstantOf, Fn, Int, Module, Sealed, Term, Type, Typed } from '../types.ts'
- * @import { _Names, _Pass, _Write, _Written } from './private.ts'
+ * @import { Checked, CheckedFn, ConstantOf, Fn, Int, Module, Param, Sealed, Term, Type, Typed } from '../types.ts'
+ * @import { _Expand, _Hooks, _Names, _Pass, _TypedNames, _Write, _Written } from './private.ts'
  */
 
 import { assertNotNullish } from '../../asserts/module.f.js'
@@ -75,7 +84,15 @@ const fresh = (taken, n) => {
 /** Each name as it is. @type {_Names} */
 const asIs = { local: get, rename: x => x, loops: [] }
 
-/** Names inside a region of the label `label`, a loop's or not, which hides any other region of that label. @type {(names: _Names, label: string, loop: boolean) => _Names} */
+/**
+ * Names inside a region of the label `label`, a loop's or not, which hides any other region of that label.
+ *
+ * @template {_Names | _TypedNames} N
+ * @param {N} names
+ * @param {string} label
+ * @param {boolean} loop
+ * @returns {N}
+ */
 const within = (names, label, loop) => ({ ...names, loops: [...names.loops.filter(l => l !== label), ...(loop ? [label] : [])] })
 
 /**
@@ -90,6 +107,21 @@ const blocked = f => leaves(f.body).includes('return') || !equal(f.body[0], f.re
 
 /** Whether a term is a value already made, which a borrow may read in place: a local, a literal, a constant, a function's code, or a field of such a value. @type {(t: Term) => boolean} */
 const made = t => t[0] === 'get' || t[0] === 'lit' || t[0] === 'constant' || t[0] === 'code' || (t[0] === 'field' && made(t[1]))
+
+/**
+ * Whether a typed term compares the local `x` as an integer, by `lt`, `le`
+ * or `eq`, where the checker narrows it
+ * ([type-system.md: Flow refinement](../../../doc/sasha-gil/ir/type-system.md#flow-refinement-is-two-rules)).
+ *
+ * @type {(x: string) => (t: Typed) => boolean}
+ */
+const compares = x => {
+    /** @type {(t: Typed) => boolean} */
+    const go = ([, t]) => (t[0] === 'op' && (t[1] === 'lt' || t[1] === 'le' || t[1] === 'eq')
+        && t[2].some(([type, a]) => type[0] === 'int' && a[0] === 'get' && a[1] === x))
+        || inside(t).some(go)
+    return go
+}
 
 // terms
 
@@ -117,7 +149,13 @@ const each = (write, pass, names, ts, n) => ts.reduce(
 const copy = (write, pass, f, xs, args, n) => {
     const [p, n1] = fresh(pass.taken, n)
     const parts = f.params.map((param, j) => /** @type {const} */ ([param, xs[Number(j)][0], args[Number(j)]]))
-    const inPlace = parts.flatMap(([param, type, a]) => !isOwn(param) && made(a) && equal(type, param[1]) ? [/** @type {const} */ ([param[0], a])] : [])
+    // A parameter that the body compares narrows in place only as a local that no other compared parameter
+    // receives: `lt(a, b)` of one local twice would narrow it twice, and the second range would hide the first.
+    const compared = parts.flatMap(([[k], , a]) => compares(k)(f.body) ? [/** @type {const} */ ([k, a])] : [])
+    const alone = (/** @type {string} */ k, /** @type {Term} */ a) => a[0] === 'get'
+        && !compared.some(([q, b]) => q !== k && b[0] === 'get' && b[1] === a[1])
+    const inPlace = parts.flatMap(([param, type, a]) => !isOwn(param) && made(a) && equal(type, param[1])
+        && (compared.every(([q]) => q !== param[0]) || alone(param[0], a)) ? [/** @type {const} */ ([param[0], a])] : [])
     /** @type {_Names} */
     const names = { local: x => inPlace.find(([k]) => k === x)?.[1] ?? get(`${p}${x}`), rename: x => `${p}${x}`, loops: [] }
     const [body, n2] = write(pass, names, f.body, n1)
@@ -229,6 +267,15 @@ const uncopied = (inlined, linear) => {
 const top = (inlined, taken, t) => write({ inlined, taken }, asIs, t, 0)[0]
 
 /**
+ * The hooks of the types that a module defines: each `kind`, `dup` and
+ * `drop` that the lifetime pass and the emitter call. The checker refuses
+ * a hint on a `kind`, whose calls the emitter writes in each `match`.
+ *
+ * @type {(m: { readonly defines?: Module['defines'] }) => readonly (string | undefined)[]}
+ */
+const hooksOf = m => (m.defines?.types ?? []).flatMap(([, { kind, dup, drop }]) => [kind, dup, drop])
+
+/**
  * A module's plain stage with each call of a function hinted `always`
  * replaced by a copy of its body, and each such function that it does not
  * export left out, or why the checker refuses the plain stage, among its
@@ -240,8 +287,9 @@ export const inline = m => {
     const typed = checkPlain(m)
     if (typed[0] === 'error') { return typed }
     const { functions, constants } = typed[1]
-    /** The hint of a function of the module. @type {(name: string) => Fn['inline']} */
-    const hintOf = name => assertNotNullish(m.functions.find(([k]) => k === name))[1].inline
+    const hooked = hooksOf(m)
+    /** The hint of a function of the module, as the plain stage reads it: a hook's is the emitter's to keep. @type {(name: string) => Fn['inline']} */
+    const hintOf = name => hooked.includes(name) ? undefined : assertNotNullish(m.functions.find(([k]) => k === name))[1].inline
     /** @type {_Pass['inlined']} */
     const inlined = name => hintOf(name) === 'always' ? assertNotNullish(functions.find(([k]) => k === name))[1] : null
     const imports = interfacesOf(m)
@@ -258,10 +306,147 @@ export const inline = m => {
     /** @type {readonly (readonly [string, Fn])[]} */
     const written = m.functions.flatMap(([k, f], j) => {
         const { params, body } = functions[Number(j)][1]
-        return f.inline === 'always' && !m.exports.includes(k) ? []
+        return hintOf(k) === 'always' && !m.exports.includes(k) ? []
             : [[k, { ...f, body: top(inlined, [...params.map(([x]) => x), ...bound(body)], body) }]]
     })
     /** @type {readonly (readonly [string, ConstantOf<Term>])[]} */
     const values = constants.map(([k, { type, value }]) => [k, { type, value: top(inlined, bound(value), value) }])
     return ok({ ...m, constants: values, functions: written })
+}
+
+// hooks
+
+/**
+ * Typed terms written in their order, from the prefix number `n`, and the
+ * number after the last.
+ *
+ * @type {(go: _Expand, pass: _Hooks, names: _TypedNames, ts: readonly Typed[], n: number) => readonly [readonly Typed[], number]}
+ */
+const eachTyped = (go, pass, names, ts, n) => ts.reduce(
+    /** @type {(r: readonly [readonly Typed[], number], t: Typed) => readonly [readonly Typed[], number]} */
+    ([done, k], t) => {
+        const [x, k1] = go(pass, names, t, k)
+        return [[...done, x], k1]
+    },
+    [[], n],
+)
+
+/**
+ * A copy of a hook's checked body in place of a call of it, typed, of the
+ * arguments `args` as the pass wrote them. A hook's argument is what the
+ * lifetime pass writes, `unseal(e)` or `release(x)`, the carrier's bits of
+ * the parameter's own type, so each is bound to a `let`. The copy is a
+ * `block` of the call's type, which a `br return` of the body leaves and
+ * which widens a body narrower than the result.
+ *
+ * @type {(go: _Expand, pass: _Hooks, f: CheckedFn, type: Type, args: readonly Typed[], n: number) => readonly [Typed, number]}
+ */
+const copyTyped = (go, pass, f, type, args, n) => {
+    const [p, n1] = fresh(pass.taken, n)
+    /** @type {_TypedNames} */
+    const names = { local: (x, t) => [t, ['get', `${p}${x}`]], rename: x => `${p}${x}`, loops: [] }
+    const [body, n2] = go(pass, names, f.body, n1)
+    const bound = f.params.reduceRight(
+        /** @type {(b: Typed, param: Param, j: number) => Typed} */
+        (b, [k], j) => [b[0], ['let', `${p}${k}`, args[Number(j)], b]],
+        body,
+    )
+    return [[type, ['block', `${p}return`, type, bound]], n2]
+}
+
+/**
+ * A typed term with its names as `names` reads them and each call of a
+ * hook that `pass` inlines replaced by a typed copy of the hook's body.
+ *
+ * @type {(pass: _Hooks, names: _TypedNames, t: Typed, n: number) => readonly [Typed, number]}
+ */
+const expand = (pass, names, [type, t], n) => {
+    const { local, rename } = names
+    /** @type {(x: Typed, k: number) => readonly [Typed, number]} */
+    const one = (x, k) => expand(pass, names, x, k)
+    switch (t[0]) {
+        case 'get': { return [local(t[1], type), n] }
+        case 'let': {
+            const [e, n1] = one(t[2], n)
+            const [b, n2] = one(t[3], n1)
+            return [[type, ['let', rename(t[1]), e, b]], n2]
+        }
+        case 'op': {
+            const [xs, n1] = eachTyped(expand, pass, names, t[2], n)
+            return [[type, ['op', t[1], xs]], n1]
+        }
+        case 'call': {
+            const [, module, name, xs] = t
+            const [args, n1] = eachTyped(expand, pass, names, xs, n)
+            const f = module === 'self' ? pass.inlined(name) : null
+            return f === null ? [[type, ['call', module, name, args]], n1] : copyTyped(expand, pass, f, type, args, n1)
+        }
+        case 'call_ref': {
+            const [c, n1] = one(t[1], n)
+            const [args, n2] = eachTyped(expand, pass, names, t[2], n1)
+            return [[type, ['call_ref', c, args]], n2]
+        }
+        case 'make': {
+            const [xs, n1] = eachTyped(expand, pass, names, t[1].map(([, x]) => x), n)
+            return [[type, ['make', t[1].map(([k], j) => /** @type {const} */ ([k, xs[Number(j)]]))]], n1]
+        }
+        case 'field': {
+            const [e, n1] = one(t[1], n)
+            return [[type, ['field', e, t[2]]], n1]
+        }
+        case 'variant': {
+            const [e, n1] = one(t[3], n)
+            return [[type, ['variant', t[1], t[2], e]], n1]
+        }
+        case 'match': {
+            const [e, n1] = one(t[1], n)
+            const [bodies, n2] = eachTyped(expand, pass, names, t[2].map(([, , body]) => body), n1)
+            return [[type, ['match', e, t[2].map(([variants, binder, , written], j) => /** @type {const} */ ([variants, binder === null ? null : rename(binder), bodies[Number(j)], written]))]], n2]
+        }
+        case 'block': {
+            const [e, n1] = expand(pass, within(names, t[1], false), t[3], n)
+            return [[type, ['block', rename(t[1]), t[2], e]], n1]
+        }
+        case 'loop': {
+            const [firsts, n1] = eachTyped(expand, pass, names, t[2].map(([, , first]) => first), n)
+            const [body, n2] = expand(pass, within(names, t[1], true), t[3], n1)
+            return [[type, ['loop', rename(t[1]), t[2].map(([k, x], j) => /** @type {const} */ ([rename(k), x, firsts[Number(j)]])), body]], n2]
+        }
+        case 'br': {
+            const [e, n1] = one(t[2], n)
+            // A repeat names the loop's parameters, which are locals of the body.
+            /** @type {Typed} */
+            const next = e[1][0] === 'make' && names.loops.includes(t[1]) ? [e[0], ['make', e[1][1].map(([k, x]) => /** @type {const} */ ([rename(k), x]))]] : e
+            return [[type, ['br', rename(t[1]), next]], n1]
+        }
+        default: { return [[type, t], n] }
+    }
+}
+
+/** Each name of a typed term as it is. @type {_TypedNames} */
+const asIsTyped = { local: (x, t) => [t, ['get', x]], rename: x => x, loops: [] }
+
+/**
+ * A checked module with each call of a hook hinted `always` replaced by a
+ * typed copy of the hook's body, which the emitter runs first: the lifetime
+ * pass writes a hook's calls after the plain pass has run, and the checker
+ * checks them in the form that the pass writes, `seal(t, self.dup(unseal(e)))`
+ * and `self.drop(release(x))`, so a copy is written only once both have
+ * run. The hooks stay, since the emitter calls them too.
+ *
+ * @type {(m: Checked) => Checked}
+ */
+export const inlineHooks = m => {
+    const hooked = hooksOf(m).filter(k => m.functions.find(([j]) => j === k)?.[1].inline === 'always')
+    if (hooked.length === 0) { return m }
+    /** @type {(name: string) => CheckedFn | null} */
+    const inlined = name => hooked.includes(name) ? assertNotNullish(m.functions.find(([k]) => k === name))[1] : null
+    /** @type {(taken: readonly string[], t: Typed) => Typed} */
+    const top = (taken, t) => expand({ inlined, taken }, asIsTyped, t, 0)[0]
+    return {
+        ...m,
+        constants: m.constants.map(([k, c]) => /** @type {const} */ ([k, { ...c, value: top(bound(c.value), c.value) }])),
+        // A hook's own body is written too, with the copies of the other hooks that it calls: the checker refuses a hint that reaches itself.
+        functions: m.functions.map(([k, f]) => /** @type {const} */ ([k, { ...f, body: top([...f.params.map(([x]) => x), ...bound(f.body)], f.body) }])),
+    }
 }

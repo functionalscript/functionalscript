@@ -42,15 +42,19 @@ import uses; the target does not rediscover those bindings.
 
 Binding and loop target object identities determine names. Diagnostic indices
 provide readable stems, with distinct suffixes when different identities have
-equal indices. Invocation parameters and captures use their explicit argument
-and frame positions. `Options.runtime` supplies the runtime expression for
-operations that need it, and `Options.text` supplies each prepared function's
-represented source text.
+equal indices. Parameters use their argument positions. In native output a
+module-level function whose captures are all static and whose body needs no
+runtime can have a `StaticFunction` descriptor. Its body reads captured
+constants directly and loads its own descriptor for a self-reference.
+Functions created at run time read their captures by frame position.
+`Options.runtime` supplies the runtime expression for operations that need
+it, and `Options.text` supplies each prepared function's represented source
+text.
 
-Consecutive definitions of a function group share a capture frame. Dynamic
-groups emit one `A::function_group` call. Each body uses `A::group_member`
+A group created at run time shares one capture frame across its members.
+The serializer emits one `A::function_group` call. Each body uses `A::group_member`
 to reach a sibling, including siblings returned as values. When the native
-backend can resolve the frame and every member at compile time, it emits a
+backend can resolve the captures and every member at compile time, it emits a
 `StaticFunction` descriptor per member. Those bodies name the descriptors
 and their captured constants directly. Portable `.rs` modules use the group
 constructor for both cases. Their `IStaticFunction` bound includes VMs whose

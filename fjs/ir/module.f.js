@@ -270,6 +270,16 @@ export const br = (label, e) => ['br', label, e]
 /** @type {(reason: string) => Term} */
 export const trap = reason => ['trap', reason]
 
+/**
+ * A trap where only a bug of the caller leads, or memory that cannot grow:
+ * a count of 0, bits that are no value. It traps as `trap` does, and the
+ * checker does not count it as failing, as L0's traps on misuse declare
+ * nothing ([L0 design §11](../../doc/sasha-gil/wasm/l0-design.md#11-misuse-traps-and-only-calls-fail)).
+ *
+ * @type {(reason: string) => Term}
+ */
+export const misuse = reason => ['trap', reason, 'misuse']
+
 /** A throw of `v`, which `Functions.throw` takes over: a term of type `never`. @type {(v: Term) => Term} */
 export const throw_ = v => call('Functions', 'throw', [v])
 

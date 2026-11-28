@@ -5,7 +5,7 @@
  */
 
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
-import type { Expr, FuncType, ValType } from '../../media/wasm/types.ts'
+import type { Expr, FuncType, Instruction, ValType } from '../../media/wasm/types.ts'
 import type { Interface, Sealed, Type, Typed } from '../types.ts'
 
 /**
@@ -16,17 +16,30 @@ import type { Interface, Sealed, Type, Typed } from '../types.ts'
 export type _Callee = readonly [index: number, params: readonly Type[], back: readonly [at: number, name: string] | null]
 
 /**
+ * A function that the target binds with an instruction of its own, as each
+ * of L0's `Memory` is: the instruction, and its parameters' types.
+ */
+export type _Bound = readonly [instruction: Instruction, params: readonly Type[]]
+
+/**
  * What a label names: a `block` of a type, or a `loop`, with the first local
  * and the type of each of its parameters, which a `br` to it sets.
  */
 export type _Target = readonly ['block', Type] | readonly ['loop', readonly (readonly [local: number, type: Type])[]]
 
 /**
+ * A name that holds a value: its first local, and the type that it was
+ * bound at, which a branch on a comparison may narrow where it is read.
+ */
+export type _Local = readonly [local: number, type: Type]
+
+/**
  * The scope of a term: the first index of each local that holds a value,
- * the depth of the structure that each label names and what it is, how deep
+ * and the type that it was bound at, the depth of the structure that each label names and what it is, how deep
  * the term stands, the first local that no term before it took, the
- * module's functions, the functions of each interface that it imports,
- * those interfaces, which give its sealed types their carriers, the
+ * module's functions, the functions of each interface that it imports
+ * from a host, those that the target binds with instructions, by their
+ * interface, the interfaces, which give its sealed types their carriers, the
  * module's type section, which gives a block of more than one value its
  * type, the global of each constant, by its module, `self` for the
  * module's own, and its name, the table index of each function that a
@@ -35,12 +48,13 @@ export type _Target = readonly ['block', Type] | readonly ['loop', readonly (rea
  * spelling.
  */
 export type _Env = {
-    readonly locals: OrderedMap<number>
+    readonly locals: OrderedMap<_Local>
     readonly labels: OrderedMap<readonly [depth: number, target: _Target]>
     readonly depth: number
     readonly next: number
     readonly functions: OrderedMap<_Callee>
     readonly imports: OrderedMap<OrderedMap<_Callee>>
+    readonly bound: OrderedMap<OrderedMap<_Bound>>
     readonly interfaces: OrderedMap<Interface>
     readonly types: readonly FuncType[]
     readonly globals: OrderedMap<OrderedMap<number>>

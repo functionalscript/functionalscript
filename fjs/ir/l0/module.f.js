@@ -103,6 +103,12 @@
  *   `frame`, which traps for a function that `make_function` did not make
  *   or past its frame, as `item` does past its end. Every other function
  *   of L0 completes on the values of its parameters' types.
+ * - **`Memory` is no host's**: its loads, its stores, `size` and `grow` are
+ *   the target's own instructions on the memory that the loader makes,
+ *   which the interface says with `instructions`, so no host binds them. It
+ *   is no part of `l0`: a module that keeps state of its own, as a heap
+ *   does, imports it, beside L0 or alone
+ *   ([heap.md](../../../doc/sasha-gil/ir/heap.md#memory-in-the-ir)).
  *
  * @module
  *
@@ -119,6 +125,9 @@ export const kinds = ['undefined', 'null', 'boolean', 'number', 'string', 'bigin
 
 /** A length: L0's `i32` that is never negative. */
 const index = u(31)
+
+/** A size of the memory in pages of 64 KiB: no more than a 32-bit address reaches. */
+const pages = int(0n, 0x1_0000n)
 
 /** A value that L0's `same` takes: an array, an object or a function. */
 const reference = only(any, 'array', 'object', 'function')
@@ -280,6 +289,34 @@ export const ref = ['Ref', {
         ['dup_ref', countsBits('dup', signature([['b', u(64)]], u(64)))],
         ['drop_ref', countsBits('drop', signature([['b', u(64)]], unit))],
         ['same_ref', signature([['a', u(64)], ['b', u(64)]], bool)],
+    ],
+}]
+
+/**
+ * `Memory`, the memory that the loader makes
+ * ([L0 design §5](../../../doc/sasha-gil/wasm/l0-design.md#5-memory-and-table-made-by-the-loader-imported-by-both-modules)),
+ * which a module that keeps state of its own, such as a heap, reads and
+ * writes ([heap.md](../../../doc/sasha-gil/ir/heap.md#memory-in-the-ir)):
+ * `load8` to `load64` answer the `u(8)` to `u(64)` at an address, its low
+ * byte first, `store8` to `store64` write one there, `size` answers the
+ * memory's size in pages of 64 KiB, and `grow` adds pages and answers the
+ * size before, or `-1` where the memory cannot grow. Its functions are no
+ * imports but the target's own instructions, which the interface says, and
+ * their calls touch the memory, so each keeps its place in every pass. An
+ * address past the memory traps, which is a misuse, so none declares that
+ * it may fail, as `Ref`'s functions do not.
+ *
+ * @type {readonly [string, Interface]}
+ */
+export const memory = ['Memory', {
+    abi: 'fjs:l0',
+    instructions: true,
+    types: [],
+    functions: [
+        ...[8, 16, 32, 64].map(n => /** @type {const} */ ([`load${n}`, signature([['a', u(32)]], u(n))])),
+        ...[8, 16, 32, 64].map(n => /** @type {const} */ ([`store${n}`, signature([['a', u(32)], ['v', u(n)]], unit)])),
+        ['size', signature([], pages)],
+        ['grow', signature([['n', pages]], int(-1n, 0x1_0000n))],
     ],
 }]
 

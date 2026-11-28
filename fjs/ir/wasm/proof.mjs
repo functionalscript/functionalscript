@@ -25,8 +25,8 @@ import { assert } from '../../asserts/module.f.js'
 import { ARRAY, FUNCTION, OBJECT, STRING, asNumber, kind, length } from '../../wasm/runtime/l0/module.f.js'
 import { stringEquals, stringIndex, stringLess, toBoolean } from '../../wasm/runtime/l1/module.f.js'
 import { any, array, container, func, l0 } from '../l0/module.f.js'
-import { add, call, call_ref, code, codeOf, f64, fn, get, n } from '../module.f.js'
-import { arrays, bits, constants, corners, literals, loops, records, samples, unknown } from '../testlib.f.js'
+import { add, call, call_ref, code, codeOf, f64, fn, get, n, u } from '../module.f.js'
+import { addressing, arrays, bits, constants, corners, literals, loops, narrowing, records, samples, unknown } from '../testlib.f.js'
 import { edges, held, product, run, spellings, trap } from './testlib.mjs'
 
 // arrays
@@ -150,6 +150,16 @@ const saturated = (lo, hi) => ([x]) => {
     return k < lo ? lo : hi < k ? hi : k
 }
 
+/**
+ * Whether a memory grows by `k` pages, of those that the proof asks for, on
+ * either host: 0, 1 and 2 pages fit, and 65,536 never does, since with the
+ * page or more that a memory starts with they pass the most that a 32-bit
+ * address reaches.
+ *
+ * @type {(k: _Value) => boolean}
+ */
+const grows = k => int(k) < 0x1_0000n
+
 /** What each exported function computes, on the same arguments. @type {StringMap<_Twin>} */
 const twins = {
     max: ([a, b]) => num(a) < num(b) ? b : a,
@@ -260,6 +270,17 @@ const twins = {
     ofBits: ([b]) => ofBits(int(b)),
     signOf: ([x]) => bitsOf(num(x)) >> 63n,
     negBits: ([x]) => Number.isNaN(num(x)) ? 0x7FF8_0000_0000_0000n : bitsOf(-num(x)),
+    stored8: ([, v]) => v,
+    stored16: ([, v]) => v,
+    stored32: ([, v]) => v,
+    stored64: ([, v]) => v,
+    lowFirst: ([, v]) => int(v) & 0xffffn,
+    grown: ([k]) => grows(k) ? 0n : -1n,
+    after: ([k]) => grows(k) ? int(k) : 0n,
+    fitted: ([a, b]) => int(a) + int(b) <= 0xFFFF_FFFFn ? int(a) + int(b) : 0n,
+    low: ([w]) => int(w) < 0x1_0000_0000n ? w : 0n,
+    nonzero: ([w]) => w === 0n ? 1n : w,
+    withinFive: ([x]) => int(x) < -5n ? -5n : int(x) <= 5n ? x : 5n,
 }
 
 /** Values of `any` for the string comparisons: strings that share a prefix, the two ends of a unit, a pair of surrogates, and values of other kinds, which trap. */
@@ -277,6 +298,18 @@ const bounds = [
 
 /** One argument of each of the values. @type {(xs: readonly _Value[]) => readonly (readonly _Value[])[]} */
 const each = xs => xs.map(x => [x])
+
+/**
+ * Offsets for a store and a load of `bytes` bytes, in the page that the
+ * call grows for itself: the page's first byte, one that is not aligned, and
+ * the last place where the bytes fit.
+ *
+ * @type {(bytes: bigint) => readonly _Value[]}
+ */
+const offsets = bytes => [0n, 3n, 0x1_0000n - bytes]
+
+/** Pages to grow by: none, one, two, and more than a 32-bit address reaches, where `grow` answers `-1`. */
+const growths = each([0n, 1n, 2n, 0x1_0000n])
 
 /**
  * The arguments of the functions that the edges do not suit: `pow` recurses
@@ -307,6 +340,15 @@ const inputs = {
     stringIndex: each(spellings),
     fib: each([...counts, 20, 78.5]),
     steps: each(counts),
+    stored8: product([offsets(1n), edges(u(8))]),
+    stored16: product([offsets(2n), edges(u(16))]),
+    stored32: product([offsets(4n), edges(u(32))]),
+    stored64: product([offsets(8n), edges(u(64))]),
+    lowFirst: product([offsets(8n), edges(u(64))]),
+    low: each([0n, 1n, 0xFFFF_FFFFn, 0x1_0000_0000n, 0x1_0000_0001n, 0xFFFF_FFFF_FFFF_FFFFn]),
+    withinFive: each([-(1n << 63n), -6n, -5n, -4n, 0n, 4n, 5n, 6n, (1n << 63n) - 1n]),
+    grown: growths,
+    after: growths,
 }
 
 export const proof = {
@@ -314,6 +356,12 @@ export const proof = {
     corners: () => run(corners, twins, inputs),
     // The bit operators and a float's bits, on the edges of their types.
     bits: () => run(bits, twins, inputs),
+    // L0's Memory on the memory that either host makes, NaNVM's too: a load reads what a store wrote, of each width,
+    // the low byte first, at an offset that is not aligned too, in a page that each call grows for itself, and `grow`
+    // adds pages up to the most that an address reaches.
+    addressing: () => run(addressing, twins, inputs),
+    // A local that a comparison narrows is read in the narrower word: an i64 that fits 32 bits is wrapped.
+    narrowing: () => run(narrowing, twins, inputs),
     unknown: () => run(unknown, twins, inputs),
     loops: () => run(loops, twins, inputs),
     records: () => run(records, twins, inputs),

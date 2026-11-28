@@ -64,10 +64,7 @@ enum Value {
         group: Rc<dyn Members>,
         index: usize,
     },
-    Static {
-        descriptor: &'static StaticFunction<Naive>,
-        frame: Array<Naive>,
-    },
+    Static(&'static StaticFunction<Naive>),
 }
 
 #[derive(Clone)]
@@ -117,16 +114,13 @@ impl Function {
     }
 
     pub(super) fn from_static(descriptor: &'static StaticFunction<Naive>) -> Self {
-        Self(Value::Static {
-            descriptor,
-            frame: Array::from_static(descriptor.frame),
-        })
+        Self(Value::Static(descriptor))
     }
 
     pub fn frame(&self) -> &[Any<Naive>] {
         match &self.0 {
             Value::Dynamic { group, .. } => group.frame(),
-            Value::Static { frame, .. } => frame.slots(),
+            Value::Static(_) => &[],
         }
     }
 }
@@ -140,7 +134,7 @@ impl IComplex<Naive> for Function {
             Value::Dynamic { group, index } => {
                 core::ptr::from_ref(&group.entries()[*index]) as usize
             }
-            Value::Static { descriptor, .. } => core::ptr::from_ref(*descriptor) as usize,
+            Value::Static(descriptor) => core::ptr::from_ref(*descriptor) as usize,
         }
     }
 }
@@ -149,7 +143,7 @@ impl IFunction<Naive> for Function {
     fn call(&self, args: Array<Naive>) -> Result<Any<Naive>, Any<Naive>> {
         let code = match &self.0 {
             Value::Dynamic { group, index } => group.entries()[*index].code,
-            Value::Static { descriptor, .. } => descriptor.code,
+            Value::Static(descriptor) => descriptor.code,
         };
         code(self, args)
     }
@@ -157,7 +151,7 @@ impl IFunction<Naive> for Function {
     fn length(&self) -> u32 {
         match &self.0 {
             Value::Dynamic { group, index } => group.entries()[*index].length,
-            Value::Static { descriptor, .. } => descriptor.length,
+            Value::Static(descriptor) => descriptor.length,
         }
     }
 
@@ -172,7 +166,7 @@ impl IFunction<Naive> for Function {
                         Text::Vm(s) => s.clone(),
                     })
             }
-            Value::Static { descriptor, .. } => descriptor.text.map(crate::vm::String::from_static),
+            Value::Static(descriptor) => descriptor.text.map(crate::vm::String::from_static),
         }
     }
 }

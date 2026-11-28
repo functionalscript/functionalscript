@@ -18,6 +18,12 @@ import { checked, iface, module } from './module.f.js'
 /** @type {(m: import('../../types.ts').Module) => string} */
 const emittedWat = m => wat(emit(assertOk(check(assertOk(lifetime(m))))))
 
+/**
+ * The names of a module's functions that may fail, joined by commas.
+ * @type {(m: import('../../types.ts').Module) => string}
+ */
+const failing = m => assertOk(checkPlain(m)).functions.flatMap(([k, { fails }]) => fails ? [k] : []).join()
+
 export const proof = {
     // The module defines Any with number among the copy variants, and imports only Ref.
     shape: () => {
@@ -99,5 +105,11 @@ export const proof = {
         assert(emittedWat(checked).includes('call $Ref.kind_ref'))
         assertEq(assertOk(checkPlain(checked)).functions.map(([k]) => k).join(),
             assertOk(checkPlain(module)).functions.map(([k]) => k).join())
+    },
+    // Forged bits trap as a misuse in both variants, so no function of either may fail, as the interface says of each.
+    effect: () => {
+        assertEq(failing(module), '')
+        assertEq(failing(checked), '')
+        assert(iface.functions.every(([, { fails }]) => fails !== true))
     },
 }

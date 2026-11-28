@@ -90,6 +90,8 @@ pub trait IVm: Sized + Clone + From<Unpacked<Self>> + 'static {
     ) -> Function<Self>;
     /// Select a member of the same group. Compiled code supplies an in-range index.
     fn group_member(self_: &Self::InternalFunction, index: usize) -> Function<Self>;
-    /// The frame shared by the members or captured by a single closure.
+    /// The frame captured by a runtime closure or shared by its function group.
+    /// A function loaded from a static descriptor reads its captures directly
+    /// and returns an empty slice here.
     fn frame(self_: &Self::InternalFunction) -> &[Any<Self>];
 }

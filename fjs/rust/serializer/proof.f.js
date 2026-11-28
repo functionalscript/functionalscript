@@ -29,6 +29,15 @@ const rest = { index: 2 }
 /** @type {PreparedFunction} */
 const fn = { target: { kind: 'function', index: 0 }, parameters: [x], rest, self: y, captures: [], body: { statements: [], exit: ['return', { kind: 'function', index: 0 }, ['array', [['ref', x], ['ref', y], ['ref', rest]]]] } }
 
+/** A closure returning its captures in order. @type {(values: readonly Value[]) => Value} */
+const captureReader = values => {
+    const captures = values.map((value, index) => ({ binding: { index }, value }))
+    return ['function', {
+        ...fn, parameters: [], rest: null, self: null, captures,
+        body: yielding([['array', captures.map(({ binding }) => ['ref', binding])]]),
+    }]
+}
+
 /** @type {(statements: Block['statements'], end: Value) => string} */
 const print = (statements, end) => unwrap(scopeTagged({ statements, exit: ['yield', [end]] }, options, [], true)).lines.map(untagged).join('\n')
 
@@ -46,10 +55,11 @@ export const proof = {
         /** @type {(slot: Value) => Block['statements']} */
         const declarations = slot => [['define', rest, slot], ['define', x, member(y)], ['define', y, member(x)]]
         const constant = print(declarations(42), ['ref', x])
-        assert(constant.includes('StaticAny::Function(&FUNCTION_1).load()'))
-        assert(constant.includes('StaticAny::Function(&FUNCTION_0).load()'))
-        assert(constant.includes('StaticAny::Number(f64::from_bits(0x4045000000000000)).load()'))
-        assertEq(constant.split('frame: &StaticArray(&[])').length, 3)
+        assert(constant.includes('Ok([Function::from_static(&FUNCTION_1).to_any(), f64_any(0x4045000000000000)]'))
+        assert(constant.includes('Ok([Function::from_static(&FUNCTION_0).to_any(), f64_any(0x4045000000000000)]'))
+        assertEq(constant.split(': StaticFunction<A> =').length, 3)
+        assert(!constant.includes('frame:') && !constant.includes('A::frame('))
+        assert(!constant.includes('function_group(') && !constant.includes('group_member('))
         const generic = unwrap(scopeTagged({ statements: declarations(42), exit: ['yield', [['ref', x]]] },
             { ...options, runtime: null }))
         assert(generic.lines.map(untagged).join('\n').includes('A::function_group([_b2.clone()]'))
@@ -117,39 +127,51 @@ export const proof = {
         const core = unwrap(scopeTagged(yielding([arrow(['Math.floor'])]), { ...options, runtime: null }, [], true))
         assert(core.uses.vm.includes('StaticFunction'))
     },
-    nativeFunctionFrames: () => {
-        /** @type {(captures: readonly Value[]) => Value} */
-        const arrow = captures => ['function', {
-            ...fn, captures: captures.map((value, i) => ({ binding: { index: i + 8 }, value })), body: yielding([1]),
-        }]
+    nativeFunctionCaptures: () => {
         /** @type {Block['statements']} */
-        const defs = [['define', x, arrow([])], ['define', y, ['ref', x]], ['define', rest, arrow([['ref', y]])]]
-        const rust = print(defs, arrow([['ref', rest], ['ref', y]]))
-        assert(rust.includes('static FUNCTION_0: StaticFunction<A>'))
-        assert(rust.includes('frame: &StaticArray(&[StaticAny::Function(&FUNCTION_0)])'))
-        assert(rust.includes('frame: &StaticArray(&[StaticAny::Function(&FUNCTION_2), StaticAny::Function(&FUNCTION_0)])'))
-        const mixed = print(defs, arrow([['ref', x], 1]))
-        assert(mixed.includes('frame: &StaticArray(&[StaticAny::Function(&FUNCTION_0), StaticAny::Number(f64::from_bits(0x3ff0000000000000))])'))
-        const dynamic = print(defs, arrow([['ref', x], ['+', 1]]))
+        const defs = [['define', x, captureReader([])], ['define', y, ['ref', x]], ['define', rest, captureReader([['ref', y]])]]
+        const rust = print(defs, captureReader([['ref', rest], ['ref', y]]))
+        assert(rust.includes('Ok([Function::from_static(&FUNCTION_0).to_any()]'))
+        assert(rust.includes('Ok([Function::from_static(&FUNCTION_2).to_any(), Function::from_static(&FUNCTION_0).to_any()]'))
+        assert(!rust.includes('frame:') && !rust.includes('A::frame('))
+        const mixed = print(defs, captureReader([['ref', x], 1]))
+        assert(mixed.includes('Ok([Function::from_static(&FUNCTION_0).to_any(), f64_any(0x3ff0000000000000)]'))
+        const dynamic = print(defs, captureReader([['ref', x], ['+', 1]]))
         assert(dynamic.includes('A::function_with_text'))
+        assert(dynamic.includes('Ok([A::frame(_self)[0].clone(), A::frame(_self)[1].clone()]'))
     },
-    nativePrimitiveFrames: () => {
+    nativePrimitiveCaptures: () => {
         /** @type {Block['statements']} */
         const defs = [['define', x, undefined], ['define', y, ['ref', x]]]
-        /** @type {readonly Value[]} */
-        const values = ['very long string', 0x10000000000000002n, ['ref', y], -0, 'very long string', 0x10000000000000002n, null, true]
-        const captures = values.map((value, i) => ({ binding: { index: i + 8 }, value }))
-        const rust = print(defs, ['function', { ...fn, captures, body: yielding([['ref', captures[0].binding]]) }])
-        assert(rust.includes('frame: &StaticArray(&[StaticAny::String(&LITERAL_1), StaticAny::BigInt(&LITERAL_2), StaticAny::Nullish(Nullish::Undefined), StaticAny::Number(f64::from_bits(0x8000000000000000)), StaticAny::String(&LITERAL_1), StaticAny::BigInt(&LITERAL_2), StaticAny::Nullish(Nullish::Null), StaticAny::Boolean(true)])'))
-        assert(rust.includes('A::frame(_self)[0].clone()'))
+        const big = /** @type {const} */ (0x1_0000_0000_0000_0002n)
+        const rust = print(defs, captureReader(['very long string', big, ['ref', y], -0, 'very long string', big, null, true]))
+        const string = /** @type {const} */ ('String::from_static(&LITERAL_1).to_any()')
+        const bigint = /** @type {const} */ ('BigInt::from_static(&LITERAL_2).to_any()')
+        const expected = /** @type {const} */ ([
+            string, bigint, 'Nullish::Undefined.to_any()', 'f64_any(0x8000000000000000)',
+            string, bigint, 'Nullish::Null.to_any()', 'true.to_any()',
+        ])
+        assert(rust.includes(`Ok([${expected.join(', ')}]`))
     },
-    nativeObjectFrames: () => {
+    nativeFunctionSelf: () => {
+        /** @type {Value} */
+        const self = ['function', { ...fn, rest: null, body: yielding([['ref', y]]) }]
+        const named = print([['define', x, self]], ['ref', x])
+        assert(named.includes('let _descriptor = &FUNCTION_0;'))
+        const anonymous = print([], self)
+        assert(anonymous.includes('let _descriptor = &VALUE;'))
+        const siblings = print([], ['array', [self, self]])
+        assert(siblings.includes('let _descriptor = &ITEM_0;') && siblings.includes('let _descriptor = &ITEM_1;'))
+        assertEq(siblings.split('Ok(Function::from_static(_descriptor).to_any())').length, 3)
+        assert(text(self).includes('Ok(Function::new(_self.clone()).to_any())'))
+    },
+    nativeObjectCaptures: () => {
         /** @type {Block['statements']} */
         const defs = [['define', x, ['object', [[':', 'f', 1]]]], ['define', y, ['ref', x]]]
         /** @type {(value: Value) => Value} */
         const wrapper = value => ['function', { ...fn, captures: [{ binding: rest, value: ['ref', y] }], body: yielding([value]) }]
         const own = print(defs, wrapper(['.', ['ref', rest], 'f', ['|()', []]]))
-        assert(own.includes('frame: &StaticArray(&[StaticAny::Object(&OBJECT_0)])'))
+        assert(own.includes('Any::dot(Object::from_static(&OBJECT_0).to_any(),'))
         assert(own.includes('.end_call_native('))
         const terminal = print(defs, wrapper(['.', ['ref', rest], 'f', ['|!()', []]]))
         assert(terminal.includes('.end_call_native('))
@@ -250,7 +272,7 @@ export const proof = {
         const record = print(defs, ['object', [[':', 'items', ['ref', y]]]])
         assert(record.includes('StaticObject(&[(&LITERAL_0, StaticAny::Array(&ARRAY_0))])'))
         const read = print(defs, ['function', { ...fn, captures: [{ binding: rest, value: ['ref', y] }], body: yielding([['ref', rest]]) }])
-        assert(read.includes('frame: &StaticArray(&[StaticAny::Array(&ARRAY_0)])'))
+        assert(read.includes('Ok(Array::from_static(&ARRAY_0).to_any())'))
     },
     nativeRepeatedArraySites: () => {
         const target = /** @type {const} */ ({ kind: 'loop', index: 0 })

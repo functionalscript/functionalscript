@@ -42,4 +42,6 @@ export const grid = /** @type {const} */ ({ rows: [[1], [1]], options: { enabled
 export const freshGrid = () => ({ rows: [[1], [1]], options: { enabled: true } })
 export const handlers = /** @type {const} */ ({ list: [() => 1, () => 1], read: () => tableAlias })
 export const freshHandlers = () => [() => 1, () => 1]
+/** @type {() => unknown} */
+export const readSelf = () => readSelf
 export default () => f()
