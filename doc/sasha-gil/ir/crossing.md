@@ -28,8 +28,10 @@ What H3a and H3b built, which H3c uses:
 
 - **The box of an IR string** is `0x7FF9_0000_0000_0002 | p`: kind nibble 9
   and the block's 8-aligned address `p` (long-strings.md, choice 3).
-  `fjs/ir/runtime/box/module.f.js` has `IR_STRING` and `isIrStringTerm`,
-  the mask and compare that tell one.
+  `fjs/ir/runtime/box/module.f.js` has `IR_STRING`, `REF_TAG` and `KIND`.
+  Its `isIrStringTerm` tests only the kind nibble, so it holds only of a
+  value already known to be a reference (`isRefTerm`): a number or a short
+  string can have nibble 9 too.
 - **Any's hooks** (`withHeap` and, for debug, `checkedWithHeap` in
   `fjs/ir/runtime/any/module.f.js`) send an IR reference to the Heap's
   `dup`, `drop` and `free`, and every other reference to `Ref` as before.
@@ -128,10 +130,13 @@ no wrap.
 
 ### The wrapper's cost
 
-Each wrapper tests its argument with `isIrStringTerm` (a mask and a
-compare) and is hinted to inline (`hint('always', …)`, see the note on
-#4162 below), so a value that is no IR string costs that test and nothing
-else. A follow-up could skip the test where the types prove that no IR
+Each wrapper tests its argument for a reference of kind 9 in one mask and
+compare, `eq(and(b, n(REF_TAG | KIND)), n(IR_STRING))`, which holds the
+reference tag and the nibble together; `isIrStringTerm` alone is not
+enough, since an `any` that is a number or a short string can have nibble 9
+too, and the wrapper would take it for a block. It is hinted to inline
+(`hint('always', …)`, see the note on #4162 below), so a value that is no
+IR string costs that test and nothing else. A follow-up could skip the test where the types prove that no IR
 string can be there; not in H3c.
 
 ### Proofs
@@ -146,6 +151,10 @@ string can be there; not in H3c.
   (more than 2 units, so no short box holds it), run on the counting host
   and on NaNVM, with the debug arena, so that `live()` is back where
   `init` left it (a missed drop shows as a leak, a double drop traps).
+- **Values of nibble 9 that are no IR string** pass through every wrapper
+  unchanged: a finite number whose bits have nibble 9, short strings whose
+  tag puts 9 there, and NaNVM's own references. The long-IR-string cases
+  alone would not catch a wrapper that tests the nibble only.
 - **The link step's own proofs**, in `link/proof.f.js`: which calls it
   rewrites, that a parameter that cannot hold a string is left alone, that
   it refuses a program whose own name collides with a wrapper's, as
