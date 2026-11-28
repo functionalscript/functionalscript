@@ -21,8 +21,8 @@ PR's diff is its own step.
 | H2d debug arena | #4155 | `…-h2d` | merged |
 | H3 note | #4156 | `…-h3doc` | merged |
 | H3a IR references in Any | #4159 | `…-h3a` | merged |
-| H3b long strings in the IR | #4163 | `…-h3b` | approved, every review thread resolved |
-| H3c the crossing | this note | `…-h3c` | the plan below |
+| H3b long strings in the IR | #4163 | `…-h3b` | merged |
+| H3c the crossing | this note | `…-h3c` | the plan below (#4165 was merged onto the H3b branch by mistake; this is the same tip, for `main`) |
 
 What H3a and H3b built, which H3c uses:
 
