@@ -9,9 +9,12 @@
 //!
 //! - **`reserve(size) -> ptr`** gives the loader `size` bytes of this
 //!   module's memory, which it exports as `memory`, for a program's data
-//!   segments at `data_base`, or for bytes the host passes. The bytes of
-//!   `make_string`, `read_units`, `make_bigint` and `read_words` must lie in
-//!   one reserved region, or they trap with `out of bounds`.
+//!   segments at `data_base`, or for bytes the host passes. The bytes that
+//!   `read_units` and `read_words` write must lie in one reserved region,
+//!   and those that `make_string` and `make_bigint` read, which they copy
+//!   out at once, in the memory, wherever in it they are, as a block of the
+//!   IR heap is ([long-strings.md, choice 1](../../../doc/sasha-gil/ir/long-strings.md#1-whether-nanvm-holds-references-into-the-ir-heap)),
+//!   or they trap with `out of bounds`.
 //! - **A code index goes to the host.** WASM cannot call into another
 //!   module's table, so a function's code index is handed to the import
 //!   `fjs:host` `invoke(code, self, args) -> any`, which runs it, borrowing
@@ -124,8 +127,8 @@ pub extern "C" fn reserve(size: i32) -> i32 {
     ptr as i32
 }
 
-/// The bytes of `len` items of `size` at `ptr`, which must lie in one
-/// reserved region.
+/// The bytes of `len` items of `size` at `ptr`, which a write fills: they
+/// must lie in one reserved region.
 fn region(name: &str, ptr: i32, len: i32, size: usize) -> &'static mut [u8] {
     let start = ptr as u32 as usize;
     let n = (len as u32 as usize).checked_mul(size);
@@ -140,6 +143,28 @@ fn region(name: &str, ptr: i32, len: i32, size: usize) -> &'static mut [u8] {
     // SAFETY: the bytes lie in a region `reserve` leaked, which nothing in
     // Rust borrows but this slice, while it lives.
     unsafe { core::slice::from_raw_parts_mut(start as *mut u8, n) }
+}
+
+/// The bytes of `len` items of `size` at `ptr`, which a read copies out
+/// at once: they must lie in the memory, wherever in it they are, as the
+/// pages that the IR heap grew do.
+fn readable(name: &str, ptr: i32, len: i32, size: usize) -> &'static [u8] {
+    let start = ptr as u32 as usize;
+    let n = (len as u32 as usize).checked_mul(size);
+    let end = n.and_then(|n| start.checked_add(n));
+    let memory = core::arch::wasm32::memory_size(0) * 0x1_0000;
+    if !end.is_some_and(|end| end <= memory) {
+        panic!("l0.{name}: out of bounds")
+    }
+    match n {
+        Some(n) if n > 0 => {
+            // SAFETY: the bytes lie in the memory, and the caller copies them
+            // out before Rust runs anything else, so no borrow of them that
+            // Rust holds is live while this slice is.
+            unsafe { core::slice::from_raw_parts(start as *const u8, n) }
+        }
+        _ => &[],
+    }
 }
 
 // Scalars.
@@ -187,7 +212,7 @@ pub extern "C" fn from_bool(b: i32) -> i64 {
 
 #[unsafe(export_name = "make_string")]
 pub extern "C" fn make_string(ptr: i32, len: i32) -> i64 {
-    let units: Vec<u16> = region("make_string", ptr, len, 2)
+    let units: Vec<u16> = readable("make_string", ptr, len, 2)
         .as_chunks::<2>()
         .0
         .iter()
@@ -208,7 +233,7 @@ pub extern "C" fn read_units(s: i64, start: i32, len: i32, ptr: i32) {
 
 #[unsafe(export_name = "make_bigint")]
 pub extern "C" fn make_bigint(sign: i32, ptr: i32, len: i32) -> i64 {
-    let words: Vec<u64> = region("make_bigint", ptr, len, 8)
+    let words: Vec<u64> = readable("make_bigint", ptr, len, 8)
         .as_chunks::<8>()
         .0
         .iter()
