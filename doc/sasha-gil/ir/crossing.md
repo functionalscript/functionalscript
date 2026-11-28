@@ -42,7 +42,9 @@ What H3a and H3b built, which H3c uses:
   import at the low level that H3c uses too.
 - **NaNVM's `make_string`** reads any bytes of the memory but those at
   address 0, and no more than `isize::MAX` (`nanvm/l0-wasm/src/lib.rs`,
-  `readable`).
+  `readable`): at most `0x3FFF_FFFF` units on wasm32. A block of
+  `heap.f.js` holds up to `0x7FFF_FFFA` units (`most`), so a longer IR
+  string could not cross; see H3c's first task.
 - **Both hosts refuse an IR box.** NaNVM and the counting host check a
   box's kind against the value they keep, so a box of nibble 9 traps with
   `not a value` (`nanvm/lib/src/l0/abi.rs`). That is what makes the proof
@@ -58,6 +60,18 @@ What H3a and H3b built, which H3c uses:
 **Goal:** no IR string ever reaches NaNVM. Wherever a value crosses into
 NaNVM, a long IR string becomes a NaNVM string, and the IR drops its
 reference where the crossing took ownership.
+
+### First: every IR string must fit a crossing
+
+`make_string` copies at most `0x3FFF_FFFF` units (2 bytes each, within
+wasm32's `isize::MAX`), and `heap.f.js`'s `most` lets a block hold up to
+`0x7FFF_FFFA`, so an IR string past the first would trap `too long` at its
+crossing instead of crossing. The proposal is to lower `most` to
+`0x3FFF_FFFF`, so that a `concat` past it is out of memory where the
+string is made, as any other request past the arena's limit is, and every
+IR string crosses; another conversion path (copying in pieces into a
+NaNVM builder) would cost Rust for a size no program here reaches. A proof
+in `heap.proof.mjs` checks the new limit on both arenas.
 
 ### Where the wrap goes (open: the owner's choice)
 
@@ -225,11 +239,17 @@ New branch names need the owner's OK (proposed: `…-h4doc`, `…-h4a` and up).
 
 ## Checks before each push
 
-With Node 26 (the default 22 fails the coverage of throw tests) and
-TypeScript 7.0.2 from npm (mise is blocked in the cloud):
+Run them inside the repository's shell, `./dev.sh` (mise, which pins the
+tools in `mise.toml`: Node 26.13.1, TypeScript 7.0.2, Rust 1.100.0), as
+AGENTS.md says; `npx tsc` outside it fetches whatever the registry calls
+latest. Where mise cannot run (it is blocked in the claude.ai cloud), the
+same pins installed by hand stand in: Node 26.13.1's tarball from
+nodejs.org and `npm install typescript@7.0.2` in a folder of its own, its
+`tsc` run from the root; Node 22 fails the coverage of throw tests. If
+neither works, a check is unavailable, and the PR is not ready.
 
 ```sh
-npx tsc                                                  # from the root
+tsc                                                      # 7.0.2, from the root
 (cd fjs/ir && npm start test)
 (cd fjs/ir && npm start cov node)                        # 100% for changed module.f.js
 (cd fjs/ir && node --test ../emergent_testing/js-only.mjs)
