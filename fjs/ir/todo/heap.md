@@ -97,3 +97,6 @@ it counts in a header and traps on misuse. Memory enters the IR as a
   first client
 - [one-byte-strings.md](./one-byte-strings.md): long strings of 8-bit
   units, a String variant of their own, an experiment
+- [addressless-code-units.md](./addressless-code-units.md): close the
+  16-bit `addressless` trust hole after H3 measure (not a blocker for
+  H3c–H3e)

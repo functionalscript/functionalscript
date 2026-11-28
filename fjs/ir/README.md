@@ -723,7 +723,10 @@ the type and the lifetime pass never writes a hook inside a hook.
     address: a 16-bit piece of an `unseal`'s bits, as `firstUnit` takes
     from a short box, passes, and so would pieces of a long string's box
     put back together. The debug arena then traps the second owner's
-    `drop`, on a count of 0 or a second `free`.
+    `drop`, on a count of 0 or a second `free`. Closing that trust hole
+    with a dedicated IR spelling for code units is tracked as
+    [`todo/addressless-code-units.md`](./todo/addressless-code-units.md)
+    (after H3 measure; not a blocker for H3c–H3e).
 
 - **`Ref`**, in [`l0/module.f.js`](./l0/module.f.js): NaNVM's
   `kind_ref`, `dup_ref`, `drop_ref` and `same_ref` over a reference's

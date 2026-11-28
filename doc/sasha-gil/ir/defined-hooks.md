@@ -93,7 +93,10 @@ type's carrier bits. All three are refused in any other module, with
   tag and not a piece of an address, which a 16-bit piece of an
   `unseal`'s bits may be: `firstUnit` takes one from a short box, and
   the same pieces of a long string's box would make a second owner,
-  whose `drop` the debug arena traps.
+  whose `drop` the debug arena traps. That hole is not kept: a dedicated
+  IR spelling so code units cannot reconstitute an address is tracked in
+  [`fjs/ir/todo/addressless-code-units.md`](../../../fjs/ir/todo/addressless-code-units.md)
+  (after H3 measure).
 - All three emit no instruction: the value and its bits are one WASM
   value. So the wrapping in the pass costs nothing at run time.
 
