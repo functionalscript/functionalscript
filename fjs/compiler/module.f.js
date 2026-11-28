@@ -178,17 +178,13 @@ const fjsGraph = path => mapStep(resolveOver(path, null), ([linked, graph]) => {
 
 /**
  * The FunctionalScript output of the module at `path`: what it initializes
- * to written as source ({@link valueText}). A refusal says it is the
- * output's, as {@link fjsGraph}'s does.
+ * to written as source ({@link valueText}).
  *
  * @type {(load: RuntimeLoad) => (path: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, SourceError>}
  */
 const fjsText = load => path => valueText(
     load,
-    value => {
-        const written = path.endsWith('.json') ? fjsMarked(value) : tryModuleMarked(value)
-        return written[0] === 'ok' ? written : error(`cannot write as FunctionalScript: ${written[1]}`)
-    })(path)
+    value => path.endsWith('.json') ? fjsMarked(value) : tryModuleMarked(value))(path)
 
 /**
  * Write the default export of a module, or the whole document for a direct

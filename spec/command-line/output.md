@@ -83,7 +83,7 @@ the module answers `Err` of that value.
 
 Nothing else is written in place of a code output. A module the compiler
 cannot read is the input's error, and a value the writer has no spelling
-for is the output's, `cannot write as FunctionalScript:` followed by the
+for is the output's, reported against the output file with the writer's
 reason. A part of a function that fails when it is evaluated ahead, or
 does not end within the compiler's count of steps, stays in the function as
 written.
