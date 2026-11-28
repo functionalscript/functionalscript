@@ -32,8 +32,8 @@ const lastPage = /** @type {const} */ (0xFFFF)
 /** The pages that a full region asks for at least: 1 MiB. */
 const chunk = /** @type {const} */ (16)
 
-/** `n` rounded up to 8. @type {(n: number) => number} */
-export const round = n => n + 7 - (n + 7) % 8
+/** `n` rounded up to 8, and 0 to 8 too, so that each block has an address of its own. @type {(n: number) => number} */
+export const round = n => n === 0 ? 8 : n + 7 - (n + 7) % 8
 
 /** The pages that hold `n` bytes. @type {(n: number) => number} */
 const pagesOf = n => (n + page - 1 - (n + page - 1) % page) / page
