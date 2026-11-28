@@ -6,13 +6,14 @@
 ### Problem
 
 `fjs compile` writes `.js` and `.rs` from the module's value, initialized
-and precomputed, and from the program's graph only where there is no value
-to write ([output](../command-line/output.md#evaluation-and-projection)).
+and precomputed, or as a `throw` of what a failing module failed with, and
+never from the program's graph
+([output](../command-line/output.md#evaluation-and-projection)).
 The pages written before that describe FunctionalScript and Rust as *graph
 outputs* that evaluate nothing, and show for a constant program the text
 the graph writer gives it: an access left as an access, a spread left as a
 spread, a call left as a call. Each such example is now the text of the
-fallback, not of the output a reader gets from the command.
+graph, which the command does not write for `.js` or `.rs`.
 
 The output contract and the command's overview are corrected. The pages
 that still say otherwise, found by their wording, are among:

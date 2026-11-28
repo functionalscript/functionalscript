@@ -959,7 +959,9 @@ export const proof = {
         assertEq(compileSource('export default () => { throw 1; };')('output.edag.data.js'), 'export default ["{}",[[":","default",["=>",0,[],["throw",1]]]]];')
         assertEq(moduleRefused('export default () => { throw 1; };'), 'output.data.js - error: callable materialization requires a target compile/load boundary')
         assertEq(compileSource('throw "boom";')('output.js'), 'throw "boom";')
-        assertEq(compileSource('const a = []; throw 1;')('output.js'), 'const $0=[];throw 1;')
+        // what a module throws is computed, and nothing else of it is written
+        assertEq(compileSource('const a = []; throw 1;')('output.js'), 'throw 1;')
+        assertEq(graphSource('const a = []; throw 1;')('output.js'), 'const $0=[];throw 1;')
         assertEq(compileSource('throw "boom";')('output.edag.data.js'), 'export default ["throw","boom"];')
         assertEq(moduleRefused('throw "boom";'), 'input.f.js - error: module initialization failed')
         assertEq(jsonRefused('export const a = [1]; throw a;'), 'input.f.js - error: module initialization failed')

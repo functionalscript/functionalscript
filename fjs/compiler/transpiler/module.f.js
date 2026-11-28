@@ -66,9 +66,10 @@ const interpreting = runtime => ({
         if (converted[0] === 'error') { return error(_fileError(path)(converted[1])) }
         const graph = converted[1].edag
         const [kind, value] = memo(assertOk(identityAnalysis(graph)))({ args: imports, runtime })
-        if (kind === 'error') { return error({ message: 'module initialization failed', metadata: null, path, thrown: value }) }
-        const [done, exports] = precomputeOver(runtime, steps)(answered(previous), value)
-        return ok([/** @type {ValueObject} */ (exports), done])
+        // What a module throws is as much its result as what it exports.
+        const [done, result] = precomputeOver(runtime, steps)(answered(previous), value)
+        if (kind === 'error') { return error({ message: 'module initialization failed', metadata: null, path, thrown: result }) }
+        return ok([/** @type {ValueObject} */ (result), done])
     },
 })
 

@@ -184,18 +184,24 @@ Both builds of the compiler print the same help and exit `0`. The start-up
 about is module initialization, and a module written from its value has
 none.
 
-At `ab08cdfd`, with every module precomputed as it loads, the whole
-compiler initializes under the interpreter: it did not while the grammar's
-rules were told apart by allocation, `duplicate reference definition`, and
-does now that they are functions of a group. `fjs compile fjs/module.f.js`
-to `.rs` takes 14 min 48 s on Node 22 and writes 9.26 MB. Whether that text
-is written from the value or from the graph is not known: the fallback
-says nothing.
+With every module precomputed as it loads, the whole compiler initializes
+under the interpreter: it did not while the grammar's rules were told apart
+by allocation, `duplicate reference definition`, and does now that they are
+functions of a group.
 
-What does not work yet for the whole compiler: interpreting it takes about
-five minutes on Node, each writer several more, and the FunctionalScript
-writer refuses the value with `a frame slot that repeats another`, since two
-captures of an evaluated closure may hold one value.
+**One route.** A code output is written from what the module initializes
+to and from nothing else *(decided by the task owner)*: its value, or a
+`throw` of what it failed with, its own failure or an import's. There is no
+writing the graph in its place, which hid a module that had stopped
+initializing behind an output that looked the same. A module the compiler
+cannot read and a value the writer cannot spell are errors. A caller whose
+subject is the writer or the VM still asks for the graph by name.
+
+Interpreting the whole compiler takes about five minutes on Node, and each
+writer several more. Two captures of an evaluated closure may hold one
+value, which the FunctionalScript writer refuses as `a frame slot that
+repeats another`: precomputation answers every closure with each value
+captured once.
 
 A curried function, `k => i => k * squares(64)[Number(i % 64)]`, measured as
 the table above was: 75.9 ms to 0.14 ms on Node 22 and 1394 ms to 14.7 ms
@@ -225,11 +231,16 @@ on NaNVM, the same as the uncurried one.
    not evaluated, since its captures are the group's and the other members
    read them by the same place.
 6. **A module that does not initialize in reasonable time.** A code
-   output now initializes the module, as a data output always did: a module
+   output initializes the module, as a data output always did: a module
    whose initialization overflows the host's stack or does not end stops
-   `fjs compile` for `.js` and `.rs` too, where it used to be written
-   without being run. Initialization is not counted; only what is
-   precomputed is.
+   `fjs compile` for `.js` and `.rs` too. That is not a failure the module
+   makes, so it is not written as a `throw`. Initialization is not counted;
+   only what is precomputed is.
+7. **What a failing built-in throws.** `null.x` fails with `undefined`
+   under the interpreter and with a `TypeError` on a JavaScript host, so
+   `throw undefined;` is what the output says. The two are the same failure
+   under the language's principles; whether the output should carry more is
+   open.
 
 ### Tasks
 
@@ -250,20 +261,19 @@ on NaNVM, the same as the uncurried one.
       for a whole load.
 - [ ] Choose the count from measurements: 100 000 is a first guess.
 - [x] Write `.js` and `.rs` from the module's value in `fjs compile`, by
-      default (decided by the task owner), and from the graph where the
-      module has no value or the writer no spelling for it. A caller whose
-      subject is the writer or the VM asks for the graph: the NaNVM harness,
-      the demos and the proofs of the writers.
+      default (decided by the task owner), and a failing module as a
+      `throw` of what it failed with; never the graph in its place. A
+      caller whose subject is the writer or the VM asks for the graph: the
+      NaNVM harness, the demos and the proofs of the writers.
 - [ ] Correct the specification pages that still call them graph outputs
       ([`code-outputs-are-values.md`](../../../spec/todo/code-outputs-are-values.md)).
-- [ ] Say which of the two a code output was written from, where it falls
-      back to the graph.
-- [ ] Merge captures holding one value, so the whole compiler has a
-      FunctionalScript spelling.
+- [x] Merge captures holding one value.
+- [ ] Write the whole compiler as FunctionalScript and as Rust from its
+      value, and record what each writer refuses, if anything.
 - [ ] Release builds of the whole compiler from the graph and from the
       value, and the start-up of each.
 - [ ] Profile the interpreter and the writers on the whole compiler.
-- [ ] Open questions 1 to 5.
+- [ ] Open questions 1 to 5, and 7.
 - [ ] Record §3's new standing in
       [`../execution-models.md`](../execution-models.md).
 

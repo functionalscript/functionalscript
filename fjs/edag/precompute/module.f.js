@@ -100,6 +100,64 @@ const prune = (length, count, unknown, body) => {
 }
 
 /**
+ * A function whose slots each hold a value no other does: `first` is, for
+ * each slot, the first slot holding its value, itself where it is the only
+ * one. Answers the slots kept and the body reading them by their new
+ * places, or `null` where every slot was the only one, here and in every
+ * function the body makes. Two slots of one value are one capture: a
+ * source function captures a value once, and a writer refuses a slot that
+ * repeats another.
+ *
+ * @type {(length: number, first: readonly number[], body: Exp) => readonly [kept: readonly number[], body: Exp] | null}
+ */
+const single = (length, first, body) => {
+    const kept = first.filter((slot, i) => slot === i)
+    const [kind, table] = identityAnalysis(['=>', length, first.map(() => null), body])
+    if (kind === 'error' || table.nodes.length < 2) { return null }
+    const { nodes, scope, exps } = table
+    const self = nodes.length - 1
+    /** The place a read of a slot has among the slots kept. @type {(slot: number) => number} */
+    const place = slot => kept.indexOf(first[Number(slot)])
+    let changed = kept.length !== first.length
+    /** @type {PersistentMap<number, Exp>} */
+    let built = noExps
+    for (let i = 0; i < nodes.length; i += 1) {
+        const node = nodes[Number(i)]
+        if (scope[Number(i)] !== self) {
+            built = mapSet(built, i, exps[Number(i)])
+        } else if (node[0] === 'frame' && place(node[1]) !== node[1]) {
+            built = mapSet(built, i, ['frame', place(node[1])])
+        } else if (node[0] === '=>') {
+            // Two slots of a function the body makes hold one value where
+            // both read one slot of this one.
+            const [, innerLength, innerSlots, innerBody] = node
+            const reads = innerSlots.map((x, j) => {
+                const slot = x instanceof Array ? nodes[Number(x[1])] : null
+                return slot !== null && slot[0] === 'frame' ? place(slot[1]) : -1 - j
+            })
+            const inner = single(
+                innerLength,
+                reads.map(read => reads.indexOf(read)),
+                innerBody instanceof Array ? exps[Number(innerBody[1])] : innerBody)
+            if (inner === null) {
+                built = mapSet(built, i, rebuilt(built, exps, node, i))
+            } else {
+                const before = built
+                const [innerKept, merged] = inner
+                changed = true
+                built = mapSet(built, i, ['=>', innerLength, innerKept.map(k => {
+                    const x = innerSlots[Number(k)]
+                    return x instanceof Array ? at(before, x[1]) : x
+                }), merged])
+            }
+        } else {
+            built = mapSet(built, i, rebuilt(built, exps, node, i))
+        }
+    }
+    return changed ? [kept, at(built, self - 1)] : null
+}
+
+/**
  * A function over `slots`, the ones in `unknown` filled only at a call,
  * with the closed nodes of `body` evaluated: the slots it then has, each
  * by its place in `slots` followed by the values lifted, those values, and
@@ -249,25 +307,17 @@ const each = one => (seen, values) => {
 }
 
 /**
- * `value` with every closure in it precomputed over its precomputed
+ * A value with `fn` of every closure in it, each over the answers of its
  * captures, after the values `seen` has answered, and those with the ones
  * answered here: a value reached twice is answered once, in one call or
  * across calls, so what was one array, object or function is one still,
  * and a value answered is its own answer. What exists is never made again:
  * an array, an object or a function nothing changed in is answered as
- * itself, and so is every node of a body whose operands stayed as they
- * were. `runtime` answers the member and static functions a closed call
- * makes, as it does for [`memo`](../memo/module.f.js).
+ * itself.
  *
- * `steps` is how many nodes the closed nodes of one function may take to
- * evaluate between them: a node the count ends in is left where it is, as
- * a node that fails is, so a closed call that does not end is not waited
- * for, and the answer is the same on every run.
- *
- * @type {(runtime: Runtime | undefined, steps: number) => (seen: RefMap, value: EdagValue) => readonly [RefMap, EdagValue]}
+ * @type {(fn: (seen: RefMap, closure: Closure) => readonly [RefMap, EdagValue & object]) => (seen: RefMap, value: EdagValue) => readonly [RefMap, EdagValue]}
  */
-export const precomputeOver = (runtime, steps) => {
-    const one = closure(runtime, steps)
+const values = fn => {
     /** A value with its answer, and the answer as its own. @type {(seen: RefMap, value: EdagValue & object, result: EdagValue & object) => readonly [RefMap, EdagValue]} */
     const answer = (seen, value, result) => [seen(value, result)[1](result, result)[1], result]
     /** @type {(seen: RefMap, value: EdagValue) => readonly [RefMap, EdagValue]} */
@@ -287,13 +337,49 @@ export const precomputeOver = (runtime, steps) => {
             }
             case '=>': {
                 const [next, slots] = each(walk)(seen, value[2])
-                return answer(next, value, one(same(value[2], slots) ? value : ['=>', value[1], slots, value[3]]))
+                const [last, result] = fn(next, same(value[2], slots) ? value : ['=>', value[1], slots, value[3]])
+                return answer(last, value, result)
             }
-            // `undefined`, a helper and a built-in have nothing to precompute
+            // `undefined`, a helper, a built-in and a function of a group
             default: { return [seen, value] }
         }
     }
     return walk
+}
+
+/**
+ * A value with each closure in it capturing a value once ({@link single}).
+ * Nothing is evaluated, so it ends on any value.
+ */
+const once = values((seen, fn) => {
+    const [, length, slots, body] = fn
+    const merged = single(length, slots.map((value, i) => value instanceof Array ? slots.indexOf(value) : i), body)
+    return [seen, merged === null ? fn : ['=>', length, merged[0].map(i => slots[Number(i)]), merged[1]]]
+})
+
+/**
+ * `value` with every closure in it precomputed over its precomputed
+ * captures and capturing each value once, after the values `seen` has
+ * answered, and those with the ones answered here ({@link values}).
+ * `runtime` answers the member and static functions a closed call makes,
+ * as it does for [`memo`](../memo/module.f.js).
+ *
+ * `steps` is how many nodes the closed nodes of one function may take to
+ * evaluate between them: a node the count ends in is left where it is, as
+ * a node that fails is, so a closed call that does not end is not waited
+ * for, and the answer is the same on every run.
+ *
+ * A value a closed node answered is not precomputed in turn, which need
+ * not end; its closures capture each value once all the same.
+ *
+ * @type {(runtime: Runtime | undefined, steps: number) => (seen: RefMap, value: EdagValue) => readonly [RefMap, EdagValue]}
+ */
+export const precomputeOver = (runtime, steps) => {
+    const one = closure(runtime, steps)
+    return values((seen, fn) => {
+        const [next, result] = once(seen, one(fn))
+        return [next, /** @type {EdagValue & object} */ (result)]
+    })
 }
 
 /**

@@ -15,7 +15,7 @@ import { compile, compileFile, outputText, noRuntime, runtimeSource, _stringifyT
 import { transpile } from './transpiler/module.f.js'
 import { parse } from './source/module.f.js'
 import runtimeEdag from '../js/runtime/gen.edag.js'
-import { pureOk } from '../effects/module.f.js'
+import { errorMessage, pureOk } from '../effects/module.f.js'
 import { resolve, unresolved } from './edag/module.f.js'
 import { analysis } from '../edag/analysis/module.f.js'
 import { memo } from '../edag/memo/module.f.js'
@@ -30,7 +30,7 @@ import { fromVec, utf8ToString } from '../text/utf8/module.f.js'
 import { unwrap } from '../types/result/module.f.js'
 import { fromEntries, isObject } from '../types/object/module.f.js'
 import { codePoints } from '../text/ascii/module.f.js'
-import { assert, assertEq, assertOk, assertNotNullish, assertStructurallySame } from '../asserts/module.f.js'
+import { assert, assertEq, assertError, assertOk, assertNotNullish, assertStructurallySame } from '../asserts/module.f.js'
 import { _writtenProgram, demo, outputs } from './demo.f.js'
 import { compiled, compiledProgram, runtime as compiledRuntime } from './compiled/module.f.js'
 import { disagreement } from '../js/marked/module.f.js'
@@ -214,7 +214,7 @@ export const jsonRefused = source => {
  * @type {(root: typeof emptyState.root) => string}
  */
 const fjsRefused = root => {
-    const [state, code] = virtualAt(root)(compile(nodeProgramOptions(['input.f.js', 'output.f.js'])))
+    const [state, code] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['input.f.js', 'output.f.js'])))
     assertEq(exitCode(code), 1, state.stderr)
     assertEq(state.root['output.f.js'], undefined)
     return state.stderr.trim()
@@ -365,7 +365,7 @@ export const proof = {
         const [state, code] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['input.f.js', 'output.json'])))
         assertEq(exitCode(code), 0, state.stderr)
         assertEq(readOutput(state.root, 'output.json'), 'true')
-        const [codeState, codeCode] = virtualAt(root)(compile(nodeProgramOptions(['input.f.js', 'output.f.js'])))
+        const [codeState, codeCode] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['input.f.js', 'output.f.js'])))
         assertEq(exitCode(codeCode), 0, codeState.stderr)
         const [jsonState, jsonCode] = virtualAt({ 'input.json': [utf8('1')] })(compile(nodeProgramOptions(['input.json', 'output.data.js'])))
         assertEq(exitCode(jsonCode), 0, jsonState.stderr)
@@ -401,7 +401,7 @@ export const proof = {
             const [state, code] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['input.f.js', 'output.json'])))
             assertEq(exitCode(code), 0, state.stderr)
             assertEq(readOutput(state.root, 'output.json'), '[]')
-            const [source, sourceCode] = virtualAt(root)(compile(nodeProgramOptions(['input.f.js', 'output.f.js'])))
+            const [source, sourceCode] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['input.f.js', 'output.f.js'])))
             assertEq(exitCode(sourceCode), 0, source.stderr)
             assertStructurallySame(evaluate(readOutput(source.root, 'output.f.js')), ['ok', []])
             assertEq(stderrOf({ ...root, 'dep.f.js': [utf8('export const x=7;')] }), 'dep.f.js - error: module has no default export')
@@ -1034,7 +1034,7 @@ export const proof = {
                 'input.f.js': [utf8('import m from "./m.f.js"; export default [m];')],
                 'm.f.js': [utf8('const u = []; export default 1;')],
             }
-            const [output, outputCode] = virtualAt(root)(compile(nodeProgramOptions(['input.f.js', 'output.f.js'])))
+            const [output, outputCode] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['input.f.js', 'output.f.js'])))
             assertEq(exitCode(outputCode), 0, output.stderr)
             assertStructurallySame(evaluate(readOutput(output.root, 'output.f.js')), ['ok', [1]])
             // the EDAG holds it, the comma being a node like any other
@@ -1047,17 +1047,22 @@ export const proof = {
         input: () => {
             assertEq(fjsRefused({ 'input.f.js': [utf8('export default @')] }), 'input.f.js:1:16-17 - error: unexpected token')
             assertEq(fjsRefused({ 'input.f.js': [utf8('import m from "./m.f.js"; export default [m];')] }), 'm.f.js - error: file not found')
-            // an accepted module the writer has no spelling for: the line says
-            // the refusal is the output's
+            // an accepted module whose graph the writer has no spelling
+            // for is written from its value all the same
+            const unspelled = '(()=>{let n=0;const o={f:x=>x};const r=o.f((()=>{n=n+1;return n;})());return [r,n];})()'
+            assertEq(compileSource(`export default ${unspelled};`)('output.f.js'), 'export default [1,1];')
+            // asked for its graph, the line says the refusal is the output's
+            /** @type {(root: typeof emptyState.root) => string} */
+            const graphRefused = root => errorMessage(assertError(virtualAt(root)(compileFile(noRuntime, true)('input.f.js', 'output.f.js'))[1]))
             assertEq(
-                fjsRefused({ 'input.f.js': [utf8('export default (()=>{let n=0;const o={f:x=>x};const r=o.f((()=>{n=n+1;return n;})());return [r,n];})();')] }),
+                graphRefused({ 'input.f.js': [utf8(`export default ${unspelled};`)] }),
                 'output.f.js - error: cannot write as FunctionalScript: an internal member-presence query, in input.f.js')
             // and names the file whose module made the node it has none for,
             // which is not the input where the input imports it
             assertEq(
-                fjsRefused({
+                graphRefused({
                     'input.f.js': [utf8('import { fine, refused } from "./m.f.js"; export default [fine, refused];')],
-                    'm.f.js': [utf8('export const refused = (()=>{let n=0;const o={f:x=>x};const r=o.f((()=>{n=n+1;return n;})());return [r,n];})(); export const fine = 1;')],
+                    'm.f.js': [utf8(`export const refused = ${unspelled}; export const fine = 1;`)],
                 }),
                 'output.f.js - error: cannot write as FunctionalScript: an internal member-presence query, in m.f.js')
         },
@@ -1255,7 +1260,7 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         largeOutput: () => {
             const source = `export default [${generate(5000, i => i).join(', ')}];`
             const root = { 'input.f.js': [utf8(source)] }
-            const [state, code] = virtualAt(root)(compile(nodeProgramOptions(['input.f.js', 'output.rs'])))
+            const [state, code] = virtualAt(withRuntime(root))(compile(nodeProgramOptions(['input.f.js', 'output.rs'])))
             assertEq(exitCode(code), 0, state.stderr)
             const file = state.root['output.rs']
             assert(file instanceof Array, file)

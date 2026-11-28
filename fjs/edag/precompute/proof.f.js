@@ -228,6 +228,39 @@ export const proof = {
         const member = ['fn', ['group', [], [[0, ['+', 2, 2]]]], 0]
         assertEq(run(member), member)
     },
+    capturedOnce: () => {
+        // `pair(s, s)` of `(a, b) => x => [a, b, x]`: two captures of one
+        // value are one
+        /** @type {EdagValue} */
+        const s = ['[]', [1]]
+        /** @type {Closure} */
+        const fn = ['=>', 1, [s, s], ['[]', [['frame', 0], ['frame', 1], ['arg', 0]]]]
+        const result = closure(fn)
+        same(result, ['=>', 1, [s], ['[]', [['frame', 0], ['frame', 0], ['arg', 0]]]])
+        assert(result[2][0] === s)
+        agree(fn, result, [7])
+    },
+    capturedOnceNested: () => {
+        // a function the body makes reads the one slot twice, and its other
+        // slots, a primitive and a node, stay
+        /** @type {EdagValue} */
+        const s = ['[]', [1]]
+        /** @type {Closure} */
+        const fn = ['=>', 1, [s, s], ['=>', 0, [['frame', 0], ['frame', 1], 5, ['[]', [['arg', 0]]]],
+            ['[]', [['frame', 0], ['frame', 1], ['frame', 2], ['frame', 3]]]]]
+        const result = closure(fn)
+        same(result, ['=>', 1, [s], ['=>', 0, [['frame', 0], 5, ['[]', [['arg', 0]]]],
+            ['[]', [['frame', 0], ['frame', 0], ['frame', 1], ['frame', 2]]]]])
+        assert(structEq(apply(apply(fn, [7])), apply(apply(result, [7]))))
+    },
+    capturedOnceLifted: () => {
+        // a function a closed node answers captures each value once too
+        /** @type {EdagValue} */
+        const s = ['[]', [1]]
+        same(
+            closure(['=>', 0, [s, s], ['=>', 0, [['frame', 0], ['frame', 1]], ['[]', [['frame', 0], ['frame', 1]]]]]),
+            ['=>', 0, [['=>', 0, [s], ['[]', [['frame', 0], ['frame', 0]]]]], ['frame', 0]])
+    },
     existing: () => {
         // what exists is never made again: a container nothing changed in
         // is itself, and beside a function that changed its neighbours are

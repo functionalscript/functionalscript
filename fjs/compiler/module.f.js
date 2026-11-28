@@ -116,28 +116,28 @@ const isFjs = named(['.js', '.mjs'])
 const edagText = path => mapStep(resolve(path), tryMarked)
 
 /**
- * A code output of the module at `path`: `write` of the module's value
- * where it has one the writer spells, and `graph`, the program as written,
- * otherwise.
+ * A code output of the module at `path`: `write` of what the module
+ * initializes to, its value or what it throws.
  *
  * The value is the module interpreted under the runtime `load` answers and
  * precomputed as it loaded ([`./transpiler`](./transpiler/module.f.js)),
  * its functions over bodies of their own: nothing of its initialization is
  * left to run, and what its functions compute the same way in every call
- * is computed. A module whose initialization fails has no value, and the
- * failure is the program's to make when it runs, so its graph is written;
- * so is a module the interpreter refuses, whose graph route says why; and
- * so is a value the writer has no spelling for.
+ * is computed. A module whose initialization fails, its own or an
+ * import's, is as much computed: the output is a `throw` of the value it
+ * failed with, and nothing else of the program. A module the interpreter
+ * refuses is the input's failure, and a value the writer has no spelling
+ * for is the output's: no other text is written in place of either.
  *
- * @type {(load: RuntimeLoad, write: (value: Exp) => Result<Marked, unknown>, graph: (path: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, ParseError>) => (path: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, SourceError>}
+ * @type {(load: RuntimeLoad, write: (value: Exp) => Result<Marked, string>) => (path: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, SourceError>}
  */
-const valueText = (load, write, graph) => path => resultStep(
+const valueText = (load, write) => path => resultStep(
     interpret(load)(path),
     /** @type {(result: Result<EdagValue, SourceError>) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, SourceError>} */
     (result) => {
-        if (result[0] === 'error') { return graph(path) }
-        const written = write(ownBodies(result[1]))
-        return written[0] === 'ok' ? pureOk(written) : graph(path)
+        const [kind, value] = result
+        if (kind === 'ok') { return pureOk(write(ownBodies(value))) }
+        return 'thrown' in value ? pureOk(write(['throw', ownBodies(value.thrown)])) : pureError(value)
     })
 
 /**
@@ -150,12 +150,12 @@ const valueText = (load, write, graph) => path => resultStep(
 const rustGraph = native => path => mapStep(resolve(path), root => toRustMarked(root, native))
 
 /**
- * The `.rs` output of the module at `path`: its value printed against the
- * `nanvm-lib` API ({@link valueText}), or {@link rustGraph}.
+ * The `.rs` output of the module at `path`: what it initializes to printed
+ * against the `nanvm-lib` API ({@link valueText}).
  *
  * @type {(load: RuntimeLoad, native: boolean) => (path: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, SourceError>}
  */
-const rustText = (load, native) => valueText(load, value => toRustMarked(value, native), rustGraph(native))
+const rustText = (load, native) => valueText(load, value => toRustMarked(value, native))
 
 /**
  * The program at `path` as the text of the FunctionalScript module it is:
@@ -177,15 +177,18 @@ const fjsGraph = path => mapStep(resolveOver(path, null), ([linked, graph]) => {
 })
 
 /**
- * The FunctionalScript output of the module at `path`: its value written
- * as source ({@link valueText}), or {@link fjsGraph}.
+ * The FunctionalScript output of the module at `path`: what it initializes
+ * to written as source ({@link valueText}). A refusal says it is the
+ * output's, as {@link fjsGraph}'s does.
  *
  * @type {(load: RuntimeLoad) => (path: string) => Effect<ReadWhole | ResolveFileModule, Result<Marked, string>, SourceError>}
  */
 const fjsText = load => path => valueText(
     load,
-    value => path.endsWith('.json') ? fjsMarked(value) : tryModuleMarked(value),
-    fjsGraph)(path)
+    value => {
+        const written = path.endsWith('.json') ? fjsMarked(value) : tryModuleMarked(value)
+        return written[0] === 'ok' ? written : error(`cannot write as FunctionalScript: ${written[1]}`)
+    })(path)
 
 /**
  * Write the default export of a module, or the whole document for a direct

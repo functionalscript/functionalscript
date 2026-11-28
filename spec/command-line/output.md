@@ -72,15 +72,25 @@ of such a function can answer one array or object where the program as
 written made two; which is the executor's to choose
 ([value identity](../todo/value-identity.md)).
 
-A code output falls back to **the program as written**, its graph written
-back with its initialization, in two cases: the module's initialization
-fails, so there is no value and the failure is the program's to make when it
-runs, as `export default null.x;` is written `export default null.x;`; or
-the writer has no spelling for the value. A part of a function that fails
-when it is evaluated ahead, or does not end within the compiler's count of
-steps, stays in the function as written.
+**A module that fails is written as its failure.** A failed initialization
+is as much computed as a value is: the code output is a `throw` of what the
+module failed with, and nothing else of the program. So
+`const a = []; throw "boom";` is written `throw "boom";`, and a module that
+imports it is written the same, since it fails with what its import throws.
+A failure the language makes itself, as `export default null.x;` does, is
+written `throw undefined;` ([failures](../principles/README.md)). In Rust
+the module answers `Err` of that value.
 
-Where a program is written as its graph, the FunctionalScript writer spells
+Nothing else is written in place of a code output. A module the compiler
+cannot read is the input's error, and a value the writer has no spelling
+for is the output's, `cannot write as FunctionalScript:` followed by the
+reason. A part of a function that fails when it is evaluated ahead, or
+does not end within the compiler's count of steps, stays in the function as
+written.
+
+The EDAG output is the program as written, and a caller of the compiler can
+ask for a code output of that graph in place of the value. There, the
+FunctionalScript writer spells
 calls and every admitted operator; the EDAG output preserves their nodes,
 folding unary `-` where its operand lowers to a number or a `bigint`
 ([numbers](../values/numbers/README.md)). The Rust output emits the native
@@ -157,7 +167,7 @@ module boundary, from which a default import selects the document.
 - A FunctionalScript document is written from the module's value, with
   its functions, which is what DataJS and JSON have no spelling for:
   `const a = { b: 1 }; export default a.b;` is `export default 1;` here as
-  it is as DataJS. Where the program is written as its graph instead (above),
+  it is as DataJS. Where a caller asks for the program's graph instead (above),
   the rules of this section describe that text: the same program is
   `export default {"b":1}.b;`. The two agree on a normalized DataJS
   document, which computes nothing — every one of them is a fixed point of
