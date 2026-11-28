@@ -18,7 +18,8 @@ such facts are instead private to each stage that needs them, copied:
   ```
 
   [`check/owned`](../check/owned/module.f.js) writes it inline in
-  `holds`, and [`check`](../check/module.f.js) has the `Result` form.
+  `holds`, and so does `linear` in [`inline`](../inline/module.f.js);
+  [`check`](../check/module.f.js) has the `Result` form.
 - **A callee's signature.** `signatureOf` in `lifetime` and the opening
   of `callTerm` in `check/owned` are identical — `self` from the
   module's functions, anything else from the interface's.
