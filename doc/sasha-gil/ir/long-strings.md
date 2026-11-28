@@ -262,6 +262,8 @@ and nothing links by default before H3d's numbers.
    import at the low level, where an address is a value.
    Proofs: NaNVM and the counting host both refuse an IR box, so every
    program proof shows that none crosses.
+   The detailed plan, with every import that it wraps, is
+   [crossing.md](./crossing.md).
 4. **H3d, link and measure.** `linkHeap` after `linkAny` and `linkString`,
    with the release arena by default and `counted` under `debug`. Every
    program proof runs on both hosts, and `repeat`, `shortOps` and a
@@ -273,9 +275,9 @@ and nothing links by default before H3d's numbers.
 
 ## Open questions
 
-- **Where the crossing is wrapped.** A link step over the L0 imports, as
-  `linkString` merges String's bodies, or the lowering from FAST, which
-  knows each call's arguments. The link step is the proposal.
+- **Where the crossing is wrapped.** Decided on 2026-11-28: A, a link step
+  (`linkCrossing`), as [crossing.md](./crossing.md) records. The lowering
+  from FAST is rejected because it misses hand-written IR.
 - **`read_units` on the counting host.** With it, choice 2's mixed `concat`
   could copy NaNVM's units into an IR block, so its result stays in the IR.
   It is a small addition to the host.

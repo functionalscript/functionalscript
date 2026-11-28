@@ -217,8 +217,7 @@ export const proof = {
         ].join('\n'))
     },
     // Two compared parameters given one local are bound by a `let` each, so the copy's `lt` narrows each as the
-    // body's narrowed its parameters, and the result still checks; a parameter that the body does not compare,
-    // given the same local, stays in place.
+    // body's narrowed its parameters, and the result still checks.
     aliased: () => {
         const pick = hint('always', fn([['a', u(8)], ['b', u(8)], ['c', u(8)]], int(0n, 254n), (a, b, c) =>
             if_(lt(a, b), a, if_(lt(c, n(1n)), c, n(0n)))))
