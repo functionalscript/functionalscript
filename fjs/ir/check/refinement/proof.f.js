@@ -61,11 +61,16 @@ export const proof = {
         assert(same(join(null, a), a))
         assert(same(join(a, null), a))
         assert(same(join(a, b), int(1n, 5n)))
+        // swapped args cover the other hull arms (min from b, max from a)
+        assert(same(join(b, a), int(1n, 5n)))
         assert(same(meet(a, b), int(2n, 3n)))
         assert(same(meet(a, int(4n, 5n)), null))
         assert(same(meet(null, a), null))
         assert(same(range(3n, 2n), null))
         assert(same(range(2n, 2n), int(2n, 2n)))
+        // both bottom-mismatch arms of `same`
+        assert(!same(null, a))
+        assert(!same(a, null))
         // join / meet with inclusion
         assert(sub(a, join(a, b)))
         assert(sub(b, join(a, b)))
