@@ -966,7 +966,9 @@ them yet: H3d links the heap.
   imports the Heap interface.
 - **`checkedWithHeap`**, for a debug build, refuses a box with any bit
   but its tag's and its block's, and asks the debug arena's new `type_of`
-  for the block's type, whose high nibble must be a string's kind.
+  for the block's type, whose high nibble must be a string's kind, in its
+  `kind` and in its hooks before they count, so a forged box traps and
+  changes no count.
   `type_of` traps where the address names no block or the count is 0, as
   NaNVM's `kind_ref` checks a handle. It imports the debug arena's
   interface: the Heap's, with `live` and `type_of`.

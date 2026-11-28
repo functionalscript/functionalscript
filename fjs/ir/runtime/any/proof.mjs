@@ -8,7 +8,8 @@
  * it in the arena, in debug down to the `free` at a count of 0, while the
  * host's own references keep their counts as before and nothing leaks.
  * The checked variant refuses a block whose count is 0, a block of another
- * type, an address inside a block and a box with stray bits. [NaNVM's
+ * type, an address inside a block and a box with stray bits, in its kind and
+ * in its hooks before they count. [NaNVM's
  * test](../../l0/host/nanvm/nanvm.test.mjs) runs these again with NaNVM's
  * `.wasm` as the host. A run on the engine is an effect by the owner's
  * ruling, until such runs move into files of their own
@@ -175,5 +176,31 @@ export const proof = {
                 any === checked.any ? 'trap,trap,trap,trap,trap' : '4,4,4,4,4')
             assertEq(any.kind(box(r)), 4)
         }
+    },
+    // The checked variant's hooks refuse the same boxes before they count: `dup` and `drop` of a block of another
+    // type, an address inside a block and a box with stray bits trap and leave every count as it was, where the
+    // plain variant counts the block that the address bits name.
+    checkedHooks: () => {
+        /** @type {(compiled: WebAssembly.Module, expected: string) => void} */
+        const counted = (compiled, expected) => {
+            const { any, heap, memory } = load(compiled, debugArena)
+            const q = heap.alloc(0x60, 8)
+            const r = heap.alloc(stringType, 16)
+            const counts = () => `${countOf(memory, q)} ${countOf(memory, r)} ${heap.live()}`
+            const forged = [box(q), box(r) | 1n << 40n, box(r) | 4n]
+            const kept = forged.map(s => traps(() => any.keep(s)) ? 'trap' : 'kept').join()
+            assertEq(`${kept}; ${counts()}`, expected)
+        }
+        counted(plainAny, 'kept,kept,kept; 2 3 2')
+        counted(checkedAny, 'trap,trap,trap; 1 1 2')
+        // a drop of each refuses too, and so does either hook on an address inside a block
+        const { any, heap, memory } = load(checkedAny, debugArena)
+        const q = heap.alloc(0x60, 8)
+        const r = heap.alloc(stringType, 16)
+        const refused = [box(q), box(r) | 1n << 40n, box(r) | 4n, box(r + 8)]
+        assert(refused.every(s => traps(() => any.forget(s)) && traps(() => any.keep(s))))
+        assertEq(`${countOf(memory, q)} ${countOf(memory, r)} ${heap.live()}`, '1 1 2')
+        assertEq(any.forget(box(r)), 1)
+        assertEq(`${countOf(memory, r)} ${heap.live()}`, '0 1')
     },
 }

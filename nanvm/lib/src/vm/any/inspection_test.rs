@@ -59,8 +59,17 @@ impl IVm for InspectVm {
     ) -> Function<Self> {
         Function::new(InspectFunction(Rc::new(frame)))
     }
-    fn frame(self_: &Self::InternalFunction) -> &Array<Self> {
-        &self_.0
+    fn function_group<const S: usize, const N: usize>(
+        _: [Any<Self>; S],
+        _: [crate::vm::GroupEntry<Self>; N],
+    ) -> Function<Self> {
+        panic!("inspection constructed a function group")
+    }
+    fn group_member(_: &Self::InternalFunction, _: usize) -> Function<Self> {
+        panic!("inspection selected a function group member")
+    }
+    fn frame(self_: &Self::InternalFunction) -> &[Any<Self>] {
+        crate::vm::ContainerWrapper::internal(&*self_.0).items()
     }
 }
 

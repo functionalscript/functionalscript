@@ -89,13 +89,13 @@ const stateAt = int(0n, 0xFFFE_0000n)
 const countedStateAt = int(0n, 0xFFFA_0000n)
 
 /** The pages that the debug arena's `init` takes: the state's page, and four for the directory, a word for each page of the memory. */
-const countedPages = 5n
+const countedPages = /** @type {const} */ (5n)
 
 /** The page at which the arena's last region must end: no byte of the arena is past `0xFFFF_0000`. */
-const lastPage = 0xFFFFn
+const lastPage = /** @type {const} */ (0xFFFFn)
 
 /** The pages that a full region asks for at least: 1 MiB. */
-const chunk = 16n
+const chunk = /** @type {const} */ (16n)
 
 /**
  * The Heap interface: `alloc(t, n)`, a block of `n` bytes, 8-aligned, for
@@ -184,7 +184,8 @@ const growth = (need, region, more) => [
         let_('need', need(k), need =>
             // no region holds more pages than the last page's index, and a header can take a request past it
             if_(le(need, n(lastPage)),
-                let_('chunk', if_(lt(need, n(chunk)), n(chunk), need), c =>
+                // a chunk, unless the request is more, or a chunk would end past the last page
+                let_('chunk', if_(lt(need, n(chunk)), if_(le(add(memoryOf('size', []), n(chunk)), n(lastPage)), n(chunk), need), need), c =>
                     let_('before', memoryOf('grow', [c]), g =>
                         if_(eq(g, n(-1n)),
                             let_('exact', memoryOf('grow', [need]), h =>
