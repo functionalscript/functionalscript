@@ -16,7 +16,7 @@ import { kinds, ref } from '../../l0/module.f.js'
 import { FALSE, NULL, TRUE, UNDEFINED, isNumberTerm, isRefTerm } from '../box/module.f.js'
 import {
     and, bool, call, canon, constant, eq, f64, f64c, fn, from_bits, hint, if_, int, let_,
-    make, n, ne, only, own, seal, sealed, shr, signature, to_bits, trap, u, unit, unseal,
+    make, misuse, n, ne, only, own, seal, sealed, shr, signature, to_bits, u, unit, unseal,
 } from '../../module.f.js'
 
 /** A value of unknown kind, as this module defines it. */
@@ -100,15 +100,17 @@ export const defines = { name: 'Any', types }
 /**
  * The kind of a reference's bits read from its `tttt` nibble, which holds
  * L0's kind (4 string to 8 function), with no call: bits whose nibble is
- * none of those trap. NaNVM does not check the handle here, so the bits of
- * a dropped reference answer the kind they had; `dup`, `drop` and `same`
- * still go through `Ref`, which checks it. The lifetime pass and the owned
- * check keep a checked program from reading a reference that it dropped.
+ * none of those are forged, and trap as a misuse, so `kind` may not fail,
+ * as `checked`'s `kind_ref` may not. NaNVM does not check the handle here,
+ * so the bits of a dropped reference answer the kind they had; `dup`,
+ * `drop` and `same` still go through `Ref`, which checks it. The lifetime
+ * pass and the owned check keep a checked program from reading a reference
+ * that it dropped.
  *
  * @type {(b: Term) => Term}
  */
 const tagKind = b => let_('t', and(shr(b, n(48n)), n(0xFn)), t =>
-    [4n, 5n, 6n, 7n, 8n].reduceRight((rest, k) => if_(eq(t, n(k)), n(k), rest), trap('not a value')))
+    [4n, 5n, 6n, 7n, 8n].reduceRight((rest, k) => if_(eq(t, n(k)), n(k), rest), misuse('not a value')))
 
 /**
  * The kind of a reference's bits as NaNVM answers it: `Ref.kind_ref`, which
@@ -140,7 +142,7 @@ const moduleOf = refKind => ({
         ['isRef', hint('always', fn([['b', u(64)]], bool, b => isRefTerm(b)))],
         // Hooks over bits: count a reference through Ref, pass every other box through.
         ['dup', fn([['b', u(64)]], u(64), b => if_(call('self', 'isRef', [b]), call('Ref', 'dup_ref', [b]), b))],
-        ['drop', fn([['b', u(64)]], unit, b => if_(call('self', 'isRef', [b]), call('Ref', 'drop_ref', [b]), make([])))],
+        ['drop', hint('always', fn([['b', u(64)]], unit, b => if_(call('self', 'isRef', [b]), call('Ref', 'drop_ref', [b]), make([]))))],
         // L0's kind from the box: numbers, short bigints, references (by `refKind`), short strings, then scalar tags.
         ['kind', fn([['v', any]], int(0n, 8n), v => let_('b', unseal(v), b =>
             if_(isNumberTerm(b), n(3n),
@@ -149,13 +151,13 @@ const moduleOf = refKind => ({
                         if_(ne(and(b, n(0xCn)), n(0n)), n(4n),
                             scalarKind(b)))))))],
         // A number's bits as an f64c; a float as a number's bits.
-        ['to_f64', fn([['v', number]], f64c, v => canon(from_bits(unseal(v))))],
-        ['from_f64', fn([['x', f64]], number, x => seal(number, to_bits(canon(x))))],
+        ['to_f64', hint('always', fn([['v', number]], f64c, v => canon(from_bits(unseal(v)))))],
+        ['from_f64', hint('always', fn([['x', f64]], number, x => seal(number, to_bits(canon(x)))))],
         // A boolean's sign bit; a bool as the true or false box.
-        ['to_bool', fn([['v', boolean]], bool, v => ne(shr(unseal(v), n(63n)), n(0n)))],
-        ['from_bool', fn([['b', bool]], boolean, b => if_(b, seal(boolean, n(TRUE)), seal(boolean, n(FALSE))))],
+        ['to_bool', hint('always', fn([['v', boolean]], bool, v => ne(shr(unseal(v), n(63n)), n(0n))))],
+        ['from_bool', hint('always', fn([['b', bool]], boolean, b => if_(b, seal(boolean, n(TRUE)), seal(boolean, n(FALSE)))))],
         // Reference identity through NaNVM, which traps on a dropped or forged box.
-        ['same', fn([['a', reference], ['b', reference]], bool, (a, b) => call('Ref', 'same_ref', [unseal(a), unseal(b)]))],
+        ['same', hint('always', fn([['a', reference], ['b', reference]], bool, (a, b) => call('Ref', 'same_ref', [unseal(a), unseal(b)])))],
         // Owned-stage helpers for proofs on NaNVM: copy, move, drop, and the constants.
         ['keep', fn([['v', any]], any, v => v)],
         ['take', fn([own('v', any)], any, v => v)],

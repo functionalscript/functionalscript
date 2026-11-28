@@ -57,16 +57,17 @@ An offset in the entry would locate the group's reference count. A wider
 value can hold the group pointer and index side by side. Both layouts support
 the same identity rule.
 
-The native Rust output (`.native.rs`) emits module-constant members as
-separate static function descriptors. Their code can name sibling descriptors directly in any source
-order, so the group needs no counted allocation or static group descriptor.
-Removing the existing frame field from static functions is tracked separately.
-[Static values](../../nanvm/lib/src/vm/static_value.rs) and
-[#4125](https://github.com/functionalscript/functionalscript/pull/4125).
+Native Rust output (`.native.rs`) emits a separate `StaticFunction` descriptor
+for each module-constant function. Mutually recursive static functions name
+each other's descriptors and their captured constants directly, in any declaration
+order. Each descriptor supplies the function's identity. Static functions need
+neither a group allocation nor a capture frame.
+[Static values](../../nanvm/lib/src/vm/static_value.rs) · [Frameless static functions](https://github.com/functionalscript/functionalscript/pull/4158).
 
-Portable Rust output (`.rs`) constructs the group through `IVm` at module
-initialization. This output supports VMs that provide the group constructor.
-Loading static descriptors requires the additional `IStaticVm` capability.
+Portable Rust output (`.rs`) targets `IVm`, which can construct function
+values at runtime. It initializes mutually recursive closures together so
+each member can return the same sibling value on every call. Loading static
+descriptors requires the additional `IStaticVm` capability.
 [Rust serializer](../../fjs/rust/serializer/README.md).
 
 ## Grammar rule identity

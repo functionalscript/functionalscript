@@ -443,9 +443,9 @@ the crate declares `extern crate self as nanvm_lib`.
 
 The same generator writes `nanvm/fjsrs/src/gen.runtime.native.rs` for
 `fjsrs`. Its `runtime()` uses the application’s concrete VM alias. Eligible
-module-level functions use static descriptors, including frames that capture
-other static functions. A member factory still creates a closure for each
-receiver when called.
+module-level functions use static descriptors. A body that captures another
+static function loads that function by its descriptor. A member factory
+creates a closure with a frame for each receiver when called.
 
 Nothing is held by the library and no VM binds anything: a VM is a value
 representation, and the runtime is a value a module is given. A VM that

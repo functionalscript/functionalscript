@@ -702,8 +702,10 @@ Containers over GC types, not a variant of the Heap module.
 
 Each step is one stack of pull requests, and each keeps every proof green.
 
-1. **H1, memory at the low level**: the `Memory` interface, its effect, the
-   checker's rules for it, and the emitter. No runtime change yet.
+1. **H1, memory at the low level**: the `Memory` interface, which says
+   `instructions`, the checker's rules for it, the emitter, and proofs that
+   the passes keep its calls in place. The effect's inference comes with
+   the first pass that moves calls. No runtime change yet.
 2. **H2, the arena** under `fjs/ir/runtime/heap`, `module` for release and
    `counted` for debug, proven against the FunctionalScript model before
    any program uses it.
@@ -801,7 +803,9 @@ These edits wait until this note is decided.
    of the `fails` that its trap on a forged box gives it today. The
    proposal for H2 is a mark on `trap`. The other way, a Memory function
    that traps where a condition does not hold, keeps the terms as they are
-   but puts a general check into Memory.
+   but puts a general check into Memory. H2a writes the proposal,
+   `misuse(reason)`, while the answer is open
+   ([README](../../../fjs/ir/README.md#what-a-trap-on-misuse-adds)).
 
 ## Sources
 
