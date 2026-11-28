@@ -282,9 +282,9 @@ and nothing links by default before H3d's numbers.
 
 ## Open questions
 
-- **Where the crossing is wrapped.** A link step over the L0 imports, as
-  `linkString` merges String's bodies, or the lowering from FAST, which
-  knows each call's arguments. The link step is the proposal.
+- **Where the crossing is wrapped.** Decided on 2026-11-28: A, a link step
+  (`linkCrossing`), as [crossing.md](./crossing.md) records. The lowering
+  from FAST is rejected because it misses hand-written IR.
 - **`read_units` on the counting host.** With it, choice 2's mixed `concat`
   could copy NaNVM's units into an IR block, so its result stays in the IR.
   It is a small addition to the host.
